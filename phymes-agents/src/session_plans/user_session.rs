@@ -178,7 +178,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
     fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
-            AvailableProcessors::ExtractTabularData.build_arc(
+            AvailableProcessors::ExtractTabular.build_arc(
                 self.filter_and_join_session_contexts_by_email_inbox_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::UserInbox.to_string(),
@@ -195,7 +195,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::JoinInner.build_arc(
+            AvailableProcessors::Join.build_arc(
                 self.filter_session_contexts_by_email_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string(),
@@ -215,7 +215,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::JoinInner.build_arc(
+            AvailableProcessors::Join.build_arc(
                 self.join_session_contexts_with_mermaid_diagrams_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string(),
@@ -235,7 +235,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::JoinInner.build_arc(
+            AvailableProcessors::Join.build_arc(
                 self.filter_user_info_by_email_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.filter_user_info_by_email_table_name.to_string(),
@@ -319,7 +319,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
             lhs_name: Some(AvailableInterfaceSubjects::UserJson.to_string()),
             lhs_values: Some(vec!["bytes".to_string()]),
             format: Some(DataFormat::JsonDefault),
-            operator: AvailableCandleOperators::ExtractTabularData,
+            operator: AvailableCandleOperators::ExtractTabular,
             ..Default::default()
         };
         let extract_tabular_data_config_json =
@@ -346,7 +346,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 
         // Configs for filter
         let filter_user_info_data_config = DataConfig {
-            operator: AvailableCandleOperators::JoinInner,
+            operator: AvailableCandleOperators::Join,
             lhs_name: Some(AvailableSubjects::UserInbox.to_string()),
             lhs_pk: Some("email".to_string()),
             lhs_fk: Some("email".to_string()),
@@ -366,7 +366,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 
         // Configs for filter
         let filter_user_session_context_data_config = DataConfig {
-            operator: AvailableCandleOperators::JoinInner,
+            operator: AvailableCandleOperators::Join,
             lhs_name: Some(AvailableSubjects::UserInbox.to_string()),
             lhs_pk: Some("email".to_string()),
             lhs_fk: Some("email".to_string()),
@@ -386,7 +386,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 
         // Configs for join
         let join_user_session_context_data_config = DataConfig {
-            operator: AvailableCandleOperators::JoinInner,
+            operator: AvailableCandleOperators::Join,
             lhs_name: Some(AvailableSubjects::JoinUserInboxSessionContexts.to_string()),
             lhs_pk: Some("email".to_string()),
             lhs_fk: Some("session_context_name".to_string()),

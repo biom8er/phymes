@@ -302,22 +302,17 @@ impl Stream for CandleDataStream {
                 self.config.replace(config);
             }
         }
-        if let Some(diagnostic_builder) = &self.diagnostic_builder {
-            let event = diagnostic_builder
-                .clone()
-                .to_child("CandleDataStream")?
-                .debug(line!(), file!(), "poll_next");
-            event.insert(
-                "config",
-                &serde_json::Value::String(format!("{:?}", &self.config)),
-            );
-            if let Some(doc_template) = &self.config.as_ref().unwrap().doc_template {
-                event.insert(
-                    "doc_template",
-                    &serde_json::Value::String(doc_template.to_string()),
-                );
-            }
-        };
+        // DM: need to implement a trigger for event verbosity
+        // if let Some(diagnostic_builder) = &self.diagnostic_builder {
+        //     let event = diagnostic_builder
+        //         .clone()
+        //         .to_child("CandleDataStream")?
+        //         .debug(line!(), file!(), "poll_next");
+        //     event.insert(
+        //         "config",
+        //         &serde_json::Value::String(format!("{:?}", &self.config)),
+        //     );
+        // };
 
         // Build the data operator
         if self.data_operator.is_none() {
@@ -374,16 +369,17 @@ impl Stream for CandleDataStream {
             };
             self.lhs_inbox = lhs;
         };
-        if let Some(diagnostic_builder) = &self.diagnostic_builder {
-            let event = diagnostic_builder
-                .clone()
-                .to_child("CandleDataStream")?
-                .debug(line!(), file!(), "poll_next");
-            event.insert(
-                "lhs_inbox",
-                &serde_json::Value::String(format!("{:?}", &self.lhs_inbox)),
-            );
-        };
+        // DM: need to implement a trigger for event verbosity
+        // if let Some(diagnostic_builder) = &self.diagnostic_builder {
+        //     let event = diagnostic_builder
+        //         .clone()
+        //         .to_child("CandleDataStream")?
+        //         .debug(line!(), file!(), "poll_next");
+        //     event.insert(
+        //         "lhs_inbox",
+        //         &serde_json::Value::String(format!("{:?}", &self.lhs_inbox)),
+        //     );
+        // };
 
         // Collect the RHS document chunks
         if self.rhs_inbox.is_empty() && self.config.as_ref().unwrap().rhs_name.is_some() {
@@ -436,16 +432,17 @@ impl Stream for CandleDataStream {
             };
             self.rhs_inbox = rhs;
         }
-        if let Some(diagnostic_builder) = &self.diagnostic_builder {
-            let event = diagnostic_builder
-                .clone()
-                .to_child("CandleDataStream")?
-                .debug(line!(), file!(), "poll_next");
-            event.insert(
-                "rhs_inbox",
-                &serde_json::Value::String(format!("{:?}", &self.rhs_inbox)),
-            );
-        };
+        // DM: need to implement a trigger for event verbosity
+        // if let Some(diagnostic_builder) = &self.diagnostic_builder {
+        //     let event = diagnostic_builder
+        //         .clone()
+        //         .to_child("CandleDataStream")?
+        //         .debug(line!(), file!(), "poll_next");
+        //     event.insert(
+        //         "rhs_inbox",
+        //         &serde_json::Value::String(format!("{:?}", &self.rhs_inbox)),
+        //     );
+        // };
 
         // Compute the data operator
         self.init_tensor_service()?;
@@ -494,15 +491,16 @@ impl Stream for CandleDataStream {
                 )),
             );
         };
-        if let Some(diagnostic_builder) = &self.diagnostic_builder {
-            let event = diagnostic_builder
-                .clone()
-                .to_child("CandleDataStream")?
-                .debug(line!(), file!(), "poll_next");
-            event.insert("result", &serde_json::Value::String(format!("{batch:?}")));
-        };
+        // DM: need to implement a trigger for event verbosity
+        // if let Some(diagnostic_builder) = &self.diagnostic_builder {
+        //     let event = diagnostic_builder
+        //         .clone()
+        //         .to_child("CandleDataStream")?
+        //         .debug(line!(), file!(), "poll_next");
+        //     event.insert("result", &serde_json::Value::String(format!("{batch:?}")));
+        // };
 
-        // // DM: need to update this with the other config options for streaming
+        // DM: need to update this with the other config options for streaming
         // self.rhs_inbox.clear();
         // if self.config.as_ref().unwrap().rhs_name.is_none() {
         //     self.config

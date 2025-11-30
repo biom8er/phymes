@@ -3,14 +3,14 @@ use dioxus::prelude::*;
 
 use phymes_agents::AvailableInterfaceSubjects;
 use phymes_diagnostics::convert_timestamp_micros_to_str;
-use serde_json::{self, Map, Value};
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
 
 use phymes_core::{
     BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, SessionInterfaceMessage,
-    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, TablePublication,
+    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, TableBuilder,
+    TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_server::create_session_name;
 
@@ -35,7 +35,7 @@ use crate::{
             aws_assistant_icon_svg, aws_user_icon_svg, fa_trash_icon_svg,
             ms_arrow_download_icon_svg,
         },
-        update_attachments_state, ACTIVE_SESSION_NAME, EMAIL, JWT,
+        ACTIVE_SESSION_NAME, EMAIL, JWT,
     },
     ui::{
         attach_files_input, clear_upload_files_button, main_window::split_panel,
@@ -47,12 +47,21 @@ use crate::{
 #[component]
 pub fn attachments_interface_view() -> Element {
     // Global signals
-    let attachments_roles = use_signal(Vec::<String>::new);
+    let mut attachments_roles = use_signal(Vec::<String>::new);
     let mut attachments_contents = use_signal(Vec::<Option<Vec<u8>>>::new);
-    let attachments_indices = use_signal(Vec::<usize>::new);
-    let attachments_timestamps = use_signal(Vec::<i64>::new);
-    let attachments_filenames = use_signal(Vec::<String>::new);
-    let attachments_extensions = use_signal(Vec::<String>::new);
+    let mut attachments_indices = use_signal(Vec::<usize>::new);
+    let mut attachments_timestamps = use_signal(Vec::<i64>::new);
+    let mut attachments_filenames = use_signal(Vec::<String>::new);
+    let mut attachments_extensions = use_signal(Vec::<String>::new);
+
+    // Update the index in a different scope
+    let current_index: Memo<usize> = use_memo(move || {
+        if attachments_indices.len() == 0 {
+            0
+        } else {
+            *attachments_indices.last().unwrap()
+        }
+    });
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
     let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || {
@@ -61,7 +70,7 @@ pub fn attachments_interface_view() -> Element {
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
-            .with_format(&DataFormat::Bytes)
+            .with_format(&DataFormat::Ipc)
             .with_publisher(&create_session_name(
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
@@ -104,34 +113,61 @@ pub fn attachments_interface_view() -> Element {
         {
             Ok(stream) => {
                 let mut stream = stream.bytes_stream();
-                while let Some(Ok(bytes)) = stream.next().await {
-                    let json_rows: Vec<Map<String, Value>> = serde_json::from_slice(&bytes)
-                        .unwrap_or_else(|err| {
-                            tracing::error!(
-                                "There was a error parsing SyncCurrentAttachmentsState {err}."
-                            );
-                            Vec::new()
-                        });
-                    for row in json_rows.iter() {
-                        let bytes: Vec<u8> =
-                            serde_json::from_value(row.get("bytes").unwrap().to_owned()).unwrap();
-                        if row.get("metadata").is_some() {
-                            update_attachments_state(
-                                attachments_roles,
-                                attachments_contents,
-                                attachments_indices,
-                                attachments_timestamps,
-                                attachments_filenames,
-                                attachments_extensions,
-                                row.get("metadata").unwrap().as_str().unwrap(),
-                                Some(bytes),
-                                // None,
-                                row.get("timestamp").unwrap().as_i64().unwrap(),
-                                row.get("filename").unwrap().as_str().unwrap(),
-                                row.get("extension").unwrap().as_str().unwrap(),
-                            );
+                let mut bytes = Vec::new();
+                while let Some(Ok(b)) = stream.next().await {
+                    bytes.extend(b);
+                }
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        let table = builder.with_name("").build().unwrap();
+                        let combined = table
+                            .get_column_as_vec_nonprimitive::<String>("metadata")
+                            .unwrap()
+                            .into_iter()
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("filename")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("extension")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_primitive::<i64>("timestamp")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_nested_primitive::<u8>("bytes")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .enumerate()
+                            .filter_map(|(i, ((((m, f), e), t), b))| {
+                                if m.is_empty() {
+                                    None
+                                } else {
+                                    let index = current_index() + i + 1;
+                                    Some((m, f, e, t, b, index))
+                                }
+                            })
+                            .collect::<Vec<_>>();
+                        for (m, f, e, t, b, index) in combined {
+                            attachments_roles.push(m);
+                            attachments_filenames.push(f);
+                            attachments_extensions.push(e);
+                            attachments_timestamps.push(t);
+                            attachments_contents.push(Some(b));
+                            attachments_indices.push(index);
                         }
                     }
+                    Err(err) => tracing::error!("{err:?}"),
                 }
             }
             Err(err) => tracing::error!("{err:?}"),
@@ -155,26 +191,59 @@ pub fn attachments_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
-                for byte in bytes.iter() {
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
-                    for row in json_rows.iter() {
-                        if row.get("metadata").is_some() {
-                            update_attachments_state(
-                                attachments_roles,
-                                attachments_contents,
-                                attachments_indices,
-                                attachments_timestamps,
-                                attachments_filenames,
-                                attachments_extensions,
-                                row.get("metadata").unwrap().as_str().unwrap(),
-                                None,
-                                row.get("timestamp").unwrap().as_i64().unwrap(),
-                                row.get("filename").unwrap().as_str().unwrap(),
-                                row.get("extension").unwrap().as_str().unwrap(),
-                            );
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        use phymes_core::TableTrait;
+
+                        let table = builder.with_name("").build().unwrap();
+                        let combined = table
+                            .get_column_as_vec_nonprimitive::<String>("metadata")
+                            .unwrap()
+                            .into_iter()
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("filename")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("extension")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_primitive::<i64>("timestamp")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_nested_primitive::<u8>("bytes")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .enumerate()
+                            .filter_map(|(i, ((((m, f), e), t), b))| {
+                                if m.is_empty() {
+                                    None
+                                } else {
+                                    let index = current_index() + i + 1;
+                                    Some((m, f, e, t, b, index))
+                                }
+                            })
+                            .collect::<Vec<_>>();
+                        for (m, f, e, t, b, index) in combined {
+                            attachments_roles.push(m);
+                            attachments_filenames.push(f);
+                            attachments_extensions.push(e);
+                            attachments_timestamps.push(t);
+                            attachments_contents.push(Some(b));
+                            attachments_indices.push(index);
                         }
                     }
+                    Err(err) => tracing::error!("{err:?}"),
                 }
             }
             Err(err) => tracing::error!("{err:?}"),
@@ -195,76 +264,79 @@ pub fn attachments_interface_view() -> Element {
         } else {
             split_panel {
                 top: rsx! {
-                    ul {
-                        class: "p-2 overflow-auto flex flex-col list-none",
-                        {(0..attachments_roles.len()).map(|i| {
-                            let role = attachments_roles.get(i).unwrap();
-                            let index = attachments_indices.get(i).unwrap();
-                            let timestamp = convert_timestamp_micros_to_str(*attachments_timestamps.get(i).unwrap());
-                            let content = attachments_contents.get(i).unwrap();
-                            let filename = attachments_filenames.get(i).unwrap();
-                            let extension = attachments_extensions.get(i).unwrap();
-                            rsx! {
-                                li {
-                                    key: "{index}",
-                                    class: "flex flex-col flex-content-start gap-1 my-2", // we borrow the assistant class for styling
-                                    div {
-                                        class: "flex items-center gap-2",
-                                        if role.as_str() == "assistant" {
+                    div {
+                        class: "h-full w-full overflow-auto",
+                        ul {
+                            class: "p-2 flex flex-col list-none",
+                            {(0..attachments_roles.len()).map(|i| {
+                                let role = attachments_roles.get(i).unwrap();
+                                let index = attachments_indices.get(i).unwrap();
+                                let timestamp = convert_timestamp_micros_to_str(*attachments_timestamps.get(i).unwrap());
+                                let content = attachments_contents.get(i).unwrap();
+                                let filename = attachments_filenames.get(i).unwrap();
+                                let extension = attachments_extensions.get(i).unwrap();
+                                rsx! {
+                                    li {
+                                        key: "{index}",
+                                        class: "flex flex-col flex-content-start gap-1 my-2", // we borrow the assistant class for styling
+                                        div {
+                                            class: "flex items-center gap-2",
+                                            if role.as_str() == "assistant" {
+                                                svg {
+                                                    class: "max-w-[48px] max-h-[48px]",
+                                                    dangerous_inner_html: aws_assistant_icon_svg()
+                                                }
+                                                h2 {
+                                                    class: "font-bold",
+                                                    "AI Assistant"
+                                                }
+                                            } else {
+                                                svg {
+                                                    class: "max-w-[48px] max-h-[48px]",
+                                                    dangerous_inner_html: aws_user_icon_svg()
+                                                }
+                                                h2 {
+                                                    class: "font-bold",
+                                                    "User"
+                                                }
+                                            }
+                                            h3 { "{timestamp}" }
                                             svg {
                                                 class: "max-w-[48px] max-h-[48px]",
-                                                dangerous_inner_html: aws_assistant_icon_svg()
+                                                dangerous_inner_html: extension_to_icon_svg(&extension)
                                             }
-                                            h2 {
-                                                class: "font-bold",
-                                                "AI Assistant"
-                                            }
-                                        } else {
-                                            svg {
-                                                class: "max-w-[48px] max-h-[48px]",
-                                                dangerous_inner_html: aws_user_icon_svg()
-                                            }
-                                            h2 {
-                                                class: "font-bold",
-                                                "User"
-                                            }
-                                        }
-                                        h3 { "{timestamp}" }
-                                        svg {
-                                            class: "max-w-[48px] max-h-[48px]",
-                                            dangerous_inner_html: extension_to_icon_svg(&extension)
-                                        }
-                                        if let Some(f) = content.as_ref() {
-                                            a {
-                                                href: extension_and_file_to_data_href(&extension, f).unwrap(),
-                                                download: filename_and_extension_to_download(&filename, &extension),
-                                                "{filename_and_extension_to_download(&filename, &extension)}"
-                                            },
-                                            button {
-                                                class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
-                                                onclick: move |_| async move {
-                                                    *attachments_contents.get_mut(i).unwrap() = None;
+                                            if let Some(f) = content.as_ref() {
+                                                a {
+                                                    href: extension_and_file_to_data_href(&extension, f).unwrap(),
+                                                    download: filename_and_extension_to_download(&filename, &extension),
+                                                    "{filename_and_extension_to_download(&filename, &extension)}"
                                                 },
-                                                svg {
-                                                    class: "max-w-[48px] max-h-[48px]",
-                                                    dangerous_inner_html: fa_trash_icon_svg()
+                                                button {
+                                                    class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
+                                                    onclick: move |_| async move {
+                                                        *attachments_contents.get_mut(i).unwrap() = None;
+                                                    },
+                                                    svg {
+                                                        class: "max-w-[48px] max-h-[48px]",
+                                                        dangerous_inner_html: fa_trash_icon_svg()
+                                                    }
                                                 }
-                                            }
-                                        } else {
-                                            h3 { "{filename}.{extension}" },
-                                            button {
-                                                class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
-                                                svg {
-                                                    class: "max-w-[48px] max-h-[48px]",
-                                                    dangerous_inner_html: ms_arrow_download_icon_svg()
+                                            } else {
+                                                h3 { "{filename}.{extension}" },
+                                                button {
+                                                    class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
+                                                    svg {
+                                                        class: "max-w-[48px] max-h-[48px]",
+                                                        dangerous_inner_html: ms_arrow_download_icon_svg()
+                                                    }
+                                                    // TODO: download the attachment
                                                 }
-                                                // TODO: download the attachment
                                             }
                                         }
                                     }
                                 }
-                            }
-                        })}
+                            })}
+                        }
                     }
                 },
                 bottom: rsx! {
@@ -308,44 +380,44 @@ pub fn attachments_interface_footer(
     });
 
     let styles = if extend_input() && add_input() {
-        "h-full grid grid-rows-[128px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2"
+        "row-span-2 col-span-1 row-start-1 col-start-1 flex flex-col"
     } else {
-        "h-full grid grid-rows-[64px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2"
+        "row-span-1 col-span-1 row-start-1 col-start-1 flex flex-col"
     };
 
     rsx! {
         footer {
-            class: styles,
+            class: "h-full grid grid-rows-[auto_auto_1fr] grid-cols-[auto_1fr_auto] items-center p-2",
             div {
-                class: "row-span-1 col-span-1 row-start-1 col-start-1 flex flex-col",
+                class: styles,
                 if extend_input() {
                     div {
-                        class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                        class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                         attach_files_input { extend_publish: use_signal(|| true), except_files, active_subject_name, subject_names, files_uploaded, filenames_uploaded, extensions_uploaded }
                     }
                 }
                 if add_input() {
                     div {
-                        class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                        class: "p-2 rounded hover:bg-neutral-700 bg-neutral-800 cursor-pointer",
                         attach_files_input { extend_publish: use_signal(|| false), except_files, active_subject_name, subject_names, files_uploaded, filenames_uploaded, extensions_uploaded }
                     }
                 }
             }
 
             div {
-                class: "w-full h-full flex row-span-2 col-span-1 row-start-1 col-start-2",
+                class: "w-full h-full flex row-span-3 col-span-1 row-start-1 col-start-2",
                 form {
                     class: "w-full h-full",
                     textarea {
                         placeholder: "Staged files",
                         value: "{filenames}",
-                        class: "w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto focus:outline-none",
+                        class: "w-full h-full grow p-2 gap-2 rounded bg-neutral-800 text-gray-200 resize-none overflow-auto focus:outline-none",
                     }
                 }
             }
 
             div {
-                class: "row-span-1 col-span-1 row-start-1 col-start-3",
+                class: "row-span-2 col-span-1 row-start-1 col-start-3 flex flex-col",
                 if !files_uploaded.read().is_empty() {
                     upload_files_button {files_uploaded, filenames_uploaded, extensions_uploaded}
                     clear_upload_files_button {files_uploaded, filenames_uploaded, extensions_uploaded}

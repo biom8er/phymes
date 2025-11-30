@@ -27,26 +27,24 @@ use tracing::instrument;
 use crate::{
     ToolTrait,
     candle_data::{DataAggregatorOperator, DataConfig},
-    candle_operators::{
-        data_operator::DataOperatorTrait, sort_column_and_indices::sort_column_and_indices,
-    },
+    candle_operators::{data_operator::DataOperatorTrait, sort::sort},
 };
 
 /// Group the [RecordBatch] according to the `lhs_values` columns and aggregate using a specified aggregation operator over specified columns
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct GroupByAndAggregate {
+pub struct GroupBy {
     lhs_values: Vec<String>,
     agg_columns: Vec<String>,
     agg_operators: Vec<DataAggregatorOperator>,
 }
 
-impl MappableTrait for GroupByAndAggregate {
+impl MappableTrait for GroupBy {
     fn get_name(&self) -> &str {
         Self::get_static_name()
     }
 }
 
-impl ToolTrait for GroupByAndAggregate {
+impl ToolTrait for GroupBy {
     fn get_description(&self) -> String {
         "Group by user specified columns and aggregate user specified aggregation columns using the user specified aggregation operators.".to_string()
     }
@@ -101,7 +99,7 @@ impl ToolTrait for GroupByAndAggregate {
     }
 }
 
-impl DataOperatorTrait for GroupByAndAggregate {
+impl DataOperatorTrait for GroupBy {
     fn forward(
         &self,
         lhs_args: &[RecordBatch],
@@ -118,7 +116,7 @@ impl DataOperatorTrait for GroupByAndAggregate {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        let batches = group_by_and_aggregate(
+        let batches = group_by(
             &lhs_values,
             lhs_args,
             &agg_columns,
@@ -150,7 +148,7 @@ impl DataOperatorTrait for GroupByAndAggregate {
             ));
         }
 
-        Ok(GroupByAndAggregate {
+        Ok(GroupBy {
             lhs_values,
             agg_columns,
             agg_operators,
@@ -406,8 +404,8 @@ fn extract_aggregation_ranges(
     let array_ref = lhs_table.get_column_as_array(agg_column);
     let mut agg_vec = Vec::new();
     for range in ranges.iter() {
-        let gather_arr: ArrayRef = Arc::new(UInt8Array::from_iter_values(
-            range.start as u8..range.end as u8,
+        let gather_arr: ArrayRef = Arc::new(UInt32Array::from_iter_values(
+            range.start as u32..range.end as u32,
         ));
         let taken_arr = arrow::compute::take(&array_ref, &gather_arr, None)?;
         agg_vec.push(taken_arr);
@@ -433,7 +431,7 @@ pub(crate) fn create_agg_column_name(
 /// * `agg_operators` - Slice of [DataAggregatorOperator]s specifying the aggregator operator to apply to each agg_column
 /// * `device` - The compute device
 #[instrument(skip(lhs_values, lhs_args, agg_columns, agg_operators, device))]
-pub fn group_by_and_aggregate(
+pub fn group_by(
     lhs_values: &[&str],
     lhs_args: &[RecordBatch],
     agg_columns: &[&str],
@@ -444,15 +442,15 @@ pub fn group_by_and_aggregate(
     let mut lhs_sorted = RecordBatch::new_empty(Arc::new(Schema::empty()));
     for (iter, column_name) in lhs_values.iter().enumerate() {
         if iter > 0 {
-            lhs_sorted = sort_column_and_indices(column_name, &[lhs_sorted], true, device)?;
+            lhs_sorted = sort(column_name, &[lhs_sorted], true, device)?;
         } else {
-            lhs_sorted = sort_column_and_indices(column_name, lhs_args, true, device)?;
+            lhs_sorted = sort(column_name, lhs_args, true, device)?;
         }
     }
 
     // Wrap the lhs and rhs into an ArrowTable
     let lhs_table = Table::get_builder()
-        .with_name("group_by_and_aggregate")
+        .with_name("group_by")
         .with_record_batches(vec![lhs_sorted])?
         .build()?;
 
@@ -637,6 +635,32 @@ pub fn group_by_and_aggregate(
                                 .flatten()
                                 .collect::<Vec<_>>()
                                 .join("")
+                        })
+                        .collect::<Vec<_>>();
+                    Arc::new(StringArray::from(agg_vecs))
+                }
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported data type {} and aggregator operator {agg_operator} for column {agg_column}",
+                        lhs_table.get_column_data_type(agg_column)?
+                    ));
+                }
+            },
+            DataAggregatorOperator::ConcatSemicolonSeperator => match lhs_table
+                .get_column_data_type(agg_column)?
+            {
+                DataType::Utf8 => {
+                    let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
+                    let agg_vecs = agg_ranges
+                        .into_iter()
+                        .map(|arr| {
+                            arr.as_any()
+                                .downcast_ref::<StringArray>()
+                                .unwrap()
+                                .iter()
+                                .flatten()
+                                .collect::<Vec<_>>()
+                                .join("; ")
                         })
                         .collect::<Vec<_>>();
                     Arc::new(StringArray::from(agg_vecs))
@@ -999,6 +1023,39 @@ pub fn group_by_and_aggregate(
                             lhs_table.get_column_data_type(agg_column)?,
                         )
                     }
+                    DataType::Utf8 => {
+                        let agg_ranges =
+                            extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
+                        let agg_vecs = agg_ranges
+                            .into_iter()
+                            .map(|arr| {
+                                arr.as_any()
+                                    .downcast_ref::<FixedSizeListArray>()
+                                    .unwrap()
+                                    .iter()
+                                    .filter_map(|s| {
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_nonprimitive::<String>(
+                                                &s, agg_column,
+                                            )
+                                            .unwrap_or_default()
+                                        })
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                            .collect::<Vec<_>>();
+                        let mut agg_values = Vec::new();
+                        for agg_vec in agg_vecs.into_iter() {
+                            let agg_value = agg_vec.first()
+                                .ok_or(anyhow!("Empty array for data type {} and aggregator operator {agg_operator} for column {agg_column}", lhs_table.get_column_data_type(agg_column)?))?
+                                .to_owned();
+                            agg_values.push(agg_value);
+                        }
+                        build_aggregator_column_list_nonprimitive::<String>(
+                            agg_values,
+                            lhs_table.get_column_data_type(agg_column)?,
+                        )
+                    }
                     _ => {
                         return Err(anyhow!(
                             "Unsupported data type for column {}: {}",
@@ -1159,6 +1216,39 @@ pub fn group_by_and_aggregate(
                             agg_values.push(agg_value);
                         }
                         build_aggregator_column_list_primitive::<f64, Float64Type>(
+                            agg_values,
+                            lhs_table.get_column_data_type(agg_column)?,
+                        )
+                    }
+                    DataType::Utf8 => {
+                        let agg_ranges =
+                            extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
+                        let agg_vecs = agg_ranges
+                            .into_iter()
+                            .map(|arr| {
+                                arr.as_any()
+                                    .downcast_ref::<ListArray>()
+                                    .unwrap()
+                                    .iter()
+                                    .filter_map(|s| {
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_nonprimitive::<String>(
+                                                &s, agg_column,
+                                            )
+                                            .unwrap_or_default()
+                                        })
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                            .collect::<Vec<_>>();
+                        let mut agg_values = Vec::new();
+                        for agg_vec in agg_vecs.into_iter() {
+                            let agg_value = agg_vec.first()
+                                .ok_or(anyhow!("Empty array for data type {} and aggregator operator {agg_operator} for column {agg_column}", lhs_table.get_column_data_type(agg_column)?))?
+                                .to_owned();
+                            agg_values.push(agg_value);
+                        }
+                        build_aggregator_column_list_nonprimitive::<String>(
                             agg_values,
                             lhs_table.get_column_data_type(agg_column)?,
                         )
@@ -1467,6 +1557,39 @@ pub fn group_by_and_aggregate(
                             lhs_table.get_column_data_type(agg_column)?,
                         )
                     }
+                    DataType::Utf8 => {
+                        let agg_ranges =
+                            extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
+                        let agg_vecs = agg_ranges
+                            .into_iter()
+                            .map(|arr| {
+                                arr.as_any()
+                                    .downcast_ref::<FixedSizeListArray>()
+                                    .unwrap()
+                                    .iter()
+                                    .filter_map(|s| {
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_nonprimitive::<String>(
+                                                &s, agg_column,
+                                            )
+                                            .unwrap_or_default()
+                                        })
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                            .collect::<Vec<_>>();
+                        let mut agg_values = Vec::new();
+                        for agg_vec in agg_vecs.into_iter() {
+                            let agg_value = agg_vec.last()
+                                .ok_or(anyhow!("Empty array for data type {} and aggregator operator {agg_operator} for column {agg_column}", lhs_table.get_column_data_type(agg_column)?))?
+                                .to_owned();
+                            agg_values.push(agg_value);
+                        }
+                        build_aggregator_column_list_nonprimitive::<String>(
+                            agg_values,
+                            lhs_table.get_column_data_type(agg_column)?,
+                        )
+                    }
                     _ => {
                         return Err(anyhow!(
                             "Unsupported data type for column {}: {}",
@@ -1627,6 +1750,39 @@ pub fn group_by_and_aggregate(
                             agg_values.push(agg_value);
                         }
                         build_aggregator_column_list_primitive::<f64, Float64Type>(
+                            agg_values,
+                            lhs_table.get_column_data_type(agg_column)?,
+                        )
+                    }
+                    DataType::Utf8 => {
+                        let agg_ranges =
+                            extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
+                        let agg_vecs = agg_ranges
+                            .into_iter()
+                            .map(|arr| {
+                                arr.as_any()
+                                    .downcast_ref::<ListArray>()
+                                    .unwrap()
+                                    .iter()
+                                    .filter_map(|s| {
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_nonprimitive::<String>(
+                                                &s, agg_column,
+                                            )
+                                            .unwrap_or_default()
+                                        })
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                            .collect::<Vec<_>>();
+                        let mut agg_values = Vec::new();
+                        for agg_vec in agg_vecs.into_iter() {
+                            let agg_value = agg_vec.last()
+                                .ok_or(anyhow!("Empty array for data type {} and aggregator operator {agg_operator} for column {agg_column}", lhs_table.get_column_data_type(agg_column)?))?
+                                .to_owned();
+                            agg_values.push(agg_value);
+                        }
+                        build_aggregator_column_list_nonprimitive::<String>(
                             agg_values,
                             lhs_table.get_column_data_type(agg_column)?,
                         )
@@ -1881,6 +2037,33 @@ pub fn group_by_and_aggregate(
                             lhs_table.get_column_data_type(agg_column)?,
                         )
                     }
+                    DataType::Utf8 => {
+                        let agg_ranges =
+                            extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
+                        let agg_vecs = agg_ranges
+                            .into_iter()
+                            .map(|arr| {
+                                arr.as_any()
+                                    .downcast_ref::<FixedSizeListArray>()
+                                    .unwrap()
+                                    .iter()
+                                    .filter_map(|s| {
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_nonprimitive::<String>(
+                                                &s, agg_column,
+                                            )
+                                            .unwrap_or_default()
+                                        })
+                                    })
+                                    .flatten()
+                                    .collect::<Vec<_>>()
+                            })
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_nonprimitive::<String>(
+                            agg_vecs,
+                            lhs_table.get_column_data_type(agg_column)?,
+                        )
+                    }
                     _ => {
                         return Err(anyhow!(
                             "Unsupported data type for column {}: {}",
@@ -1897,7 +2080,7 @@ pub fn group_by_and_aggregate(
                             .into_iter()
                             .map(|arr| {
                                 arr.as_any()
-                                    .downcast_ref::<FixedSizeListArray>()
+                                    .downcast_ref::<ListArray>()
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
@@ -1922,7 +2105,7 @@ pub fn group_by_and_aggregate(
                             .into_iter()
                             .map(|arr| {
                                 arr.as_any()
-                                    .downcast_ref::<FixedSizeListArray>()
+                                    .downcast_ref::<ListArray>()
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
@@ -1947,7 +2130,7 @@ pub fn group_by_and_aggregate(
                             .into_iter()
                             .map(|arr| {
                                 arr.as_any()
-                                    .downcast_ref::<FixedSizeListArray>()
+                                    .downcast_ref::<ListArray>()
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
@@ -1972,7 +2155,7 @@ pub fn group_by_and_aggregate(
                             .into_iter()
                             .map(|arr| {
                                 arr.as_any()
-                                    .downcast_ref::<FixedSizeListArray>()
+                                    .downcast_ref::<ListArray>()
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
@@ -1997,7 +2180,7 @@ pub fn group_by_and_aggregate(
                             .into_iter()
                             .map(|arr| {
                                 arr.as_any()
-                                    .downcast_ref::<FixedSizeListArray>()
+                                    .downcast_ref::<ListArray>()
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
@@ -2011,6 +2194,33 @@ pub fn group_by_and_aggregate(
                             })
                             .collect::<Vec<_>>();
                         build_aggregator_column_list_primitive::<f64, Float64Type>(
+                            agg_vecs,
+                            lhs_table.get_column_data_type(agg_column)?,
+                        )
+                    }
+                    DataType::Utf8 => {
+                        let agg_ranges =
+                            extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
+                        let agg_vecs = agg_ranges
+                            .into_iter()
+                            .map(|arr| {
+                                arr.as_any()
+                                    .downcast_ref::<ListArray>()
+                                    .unwrap()
+                                    .iter()
+                                    .filter_map(|s| {
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_nonprimitive::<String>(
+                                                &s, agg_column,
+                                            )
+                                            .unwrap_or_default()
+                                        })
+                                    })
+                                    .flatten()
+                                    .collect::<Vec<_>>()
+                            })
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_nonprimitive::<String>(
                             agg_vecs,
                             lhs_table.get_column_data_type(agg_column)?,
                         )
@@ -2193,6 +2403,35 @@ pub fn group_by_and_aggregate(
                             lhs_table.get_column_data_type(agg_column)?,
                         )
                     }
+                    DataType::Utf8 => {
+                        let agg_ranges =
+                            extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
+                        let agg_vecs = agg_ranges
+                            .into_iter()
+                            .map(|arr| {
+                                arr.as_any()
+                                    .downcast_ref::<FixedSizeListArray>()
+                                    .unwrap()
+                                    .iter()
+                                    .filter_map(|s| {
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_nonprimitive::<String>(
+                                                &s, agg_column,
+                                            )
+                                            .unwrap_or_default()
+                                        })
+                                    })
+                                    .collect::<HashSet<_>>()
+                                    .into_iter()
+                                    .flatten()
+                                    .collect::<Vec<_>>()
+                            })
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_nonprimitive::<String>(
+                            agg_vecs,
+                            lhs_table.get_column_data_type(agg_column)?,
+                        )
+                    }
                     _ => {
                         return Err(anyhow!(
                             "Unsupported data type for column {}: {}",
@@ -2209,7 +2448,7 @@ pub fn group_by_and_aggregate(
                             .into_iter()
                             .map(|arr| {
                                 arr.as_any()
-                                    .downcast_ref::<FixedSizeListArray>()
+                                    .downcast_ref::<ListArray>()
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
@@ -2236,7 +2475,7 @@ pub fn group_by_and_aggregate(
                             .into_iter()
                             .map(|arr| {
                                 arr.as_any()
-                                    .downcast_ref::<FixedSizeListArray>()
+                                    .downcast_ref::<ListArray>()
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
@@ -2263,7 +2502,7 @@ pub fn group_by_and_aggregate(
                             .into_iter()
                             .map(|arr| {
                                 arr.as_any()
-                                    .downcast_ref::<FixedSizeListArray>()
+                                    .downcast_ref::<ListArray>()
                                     .unwrap()
                                     .iter()
                                     .filter_map(|s| {
@@ -2279,6 +2518,35 @@ pub fn group_by_and_aggregate(
                             })
                             .collect::<Vec<_>>();
                         build_aggregator_column_list_primitive::<i64, Int64Type>(
+                            agg_vecs,
+                            lhs_table.get_column_data_type(agg_column)?,
+                        )
+                    }
+                    DataType::Utf8 => {
+                        let agg_ranges =
+                            extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
+                        let agg_vecs = agg_ranges
+                            .into_iter()
+                            .map(|arr| {
+                                arr.as_any()
+                                    .downcast_ref::<ListArray>()
+                                    .unwrap()
+                                    .iter()
+                                    .filter_map(|s| {
+                                        s.map(|s| {
+                                            Table::get_array_as_vec_nonprimitive::<String>(
+                                                &s, agg_column,
+                                            )
+                                            .unwrap_or_default()
+                                        })
+                                    })
+                                    .collect::<HashSet<_>>()
+                                    .into_iter()
+                                    .flatten()
+                                    .collect::<Vec<_>>()
+                            })
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_nonprimitive::<String>(
                             agg_vecs,
                             lhs_table.get_column_data_type(agg_column)?,
                         )
@@ -2315,7 +2583,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_group_by_and_aggregate() -> Result<()> {
+    fn test_group_by() -> Result<()> {
         // ------ lhs_values = String ------
         // Make the test record batches
         let lhs_ids_vec_1 = vec!["0", "1"];
@@ -2345,7 +2613,7 @@ mod tests {
         let device = device(false)?;
 
         // Group the text
-        let result = group_by_and_aggregate(
+        let result = group_by(
             &["lhs_text"],
             &[lhs_batch_1, lhs_batch_2],
             &[
@@ -2426,7 +2694,7 @@ mod tests {
         ])?;
 
         // Group the text
-        let result = group_by_and_aggregate(
+        let result = group_by(
             &["lhs_pk", "lhs_metadata"],
             &[lhs_batch_1, lhs_batch_2],
             &["lhs_text"],

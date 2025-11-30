@@ -15,18 +15,18 @@ use crate::{ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTr
 
 /// Extract tabular data in either CSV or JSON format from Bytes
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct ExtractTabularData {
+pub struct ExtractTabular {
     lhs_values: String,
     format: DataFormat,
 }
 
-impl MappableTrait for ExtractTabularData {
+impl MappableTrait for ExtractTabular {
     fn get_name(&self) -> &str {
         Self::get_static_name()
     }
 }
 
-impl ToolTrait for ExtractTabularData {
+impl ToolTrait for ExtractTabular {
     fn get_description(&self) -> String {
         "Extract tabular data in either CSV or JSON format from Bytes".to_string()
     }
@@ -79,7 +79,7 @@ impl ToolTrait for ExtractTabularData {
     }
 }
 
-impl DataOperatorTrait for ExtractTabularData {
+impl DataOperatorTrait for ExtractTabular {
     fn new(config: &DataConfig) -> Result<Self>
     where
         Self: Sized,
@@ -102,7 +102,7 @@ impl DataOperatorTrait for ExtractTabularData {
             "Missing `format` for `{}`.",
             Self::get_static_name()
         ))?;
-        Ok(ExtractTabularData { lhs_values, format })
+        Ok(ExtractTabular { lhs_values, format })
     }
     fn forward(
         &self,
@@ -110,19 +110,19 @@ impl DataOperatorTrait for ExtractTabularData {
         _rhs_args: Option<&[RecordBatch]>,
         _device: &Device,
     ) -> Result<RecordBatch> {
-        extract_tabular_data(&self.lhs_values, lhs_args, &self.format)
+        extract_tabular(&self.lhs_values, lhs_args, &self.format)
     }
 }
 
 /// Extract tabular data in either CSV or JSON format from Bytes
 #[instrument(skip(lhs_values, lhs_args))]
-pub fn extract_tabular_data(
+pub fn extract_tabular(
     lhs_values: &str,
     lhs_args: &[RecordBatch],
     format: &DataFormat,
 ) -> Result<RecordBatch> {
     let args_table = Table::get_builder()
-        .with_name("extract_tabular_data")
+        .with_name("extract_tabular")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
     let values_vec = args_table.get_column_as_vec_nested_primitive::<u8>(lhs_values)?;
@@ -164,7 +164,7 @@ pub fn extract_tabular_data(
             .build()?,
         _ => {
             return Err(anyhow!(
-                "Unsupported format {format:?} for extract_tabular_data operator."
+                "Unsupported format {format:?} for extract_tabular operator."
             ));
         }
     };
@@ -199,12 +199,12 @@ mod tests {
     };
     use phymes_diagnostics::create_timestamp_micros;
 
-    use crate::candle_operators::extract_tabular_data::test_extract_tabular_data::make_scores_table;
+    use crate::candle_operators::extract_tabular::test_extract_tabular_data::make_scores_table;
 
     use super::*;
 
     #[test]
-    fn test_extract_tabular_data_csv_format() {
+    fn test_extract_tabular_csv_format() {
         let csv_format = CsvFormat::default();
 
         // Make the tabular data
@@ -223,7 +223,7 @@ mod tests {
 
         // Extract the tabular data
         let extracted =
-            extract_tabular_data("bytes", &[csv_batch], &DataFormat::Csv(csv_format)).unwrap();
+            extract_tabular("bytes", &[csv_batch], &DataFormat::Csv(csv_format)).unwrap();
 
         // Check the dimensions of the extracted data
         assert_eq!(extracted.num_columns(), 2);
@@ -243,7 +243,7 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_tabular_data_json_format() {
+    fn test_extract_tabular_json_format() {
         let json_format = JsonFormat::default();
 
         // Make the tabular data
@@ -260,7 +260,7 @@ mod tests {
 
         // Extract the tabular data
         let extracted =
-            extract_tabular_data("bytes", &[json_batch], &DataFormat::Json(json_format)).unwrap();
+            extract_tabular("bytes", &[json_batch], &DataFormat::Json(json_format)).unwrap();
 
         // Check the dimensions of the extracted data
         assert_eq!(extracted.num_columns(), 2);

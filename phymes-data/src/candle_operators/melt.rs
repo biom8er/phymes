@@ -23,7 +23,7 @@ use crate::{
     candle_data::DataConfig,
     candle_operators::{
         data_operator::DataOperatorTrait,
-        group_by_and_aggregate::{
+        group_by::{
             build_aggregator_column_fixed_size_list, build_aggregator_column_list_nonprimitive,
             build_aggregator_column_list_primitive,
         },
@@ -637,7 +637,6 @@ pub fn melt(
         };
         batch_vec.push((&"value", arr));
     }
-    dbg!(&batch_vec);
 
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Ok(batch)

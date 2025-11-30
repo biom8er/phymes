@@ -1,11 +1,11 @@
 use arrow::{
-    array::{Array, ArrayRef, UInt8Array},
+    array::{Array, ArrayRef, UInt32Array},
     datatypes::DataType,
     record_batch::RecordBatch,
 };
 
 use anyhow::{Result, anyhow};
-use candle_core::{Device, Tensor, op::CmpOp};
+use candle_core::{DType, Device, Tensor, op::CmpOp};
 use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
@@ -19,26 +19,26 @@ use crate::{
     candle_data::DataConfig,
     candle_operators::{
         data_operator::DataOperatorTrait,
-        sort_column_and_indices::{sort_column_and_indices, take_columns_by_indices},
+        sort::{sort, take_columns_by_indices},
     },
 };
 
 /// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct JoinInner {
+pub struct Join {
     _lhs_pk: String,
     lhs_fk: String,
     _rhs_pk: String,
     rhs_fk: String,
 }
 
-impl MappableTrait for JoinInner {
+impl MappableTrait for Join {
     fn get_name(&self) -> &str {
         Self::get_static_name()
     }
 }
 
-impl ToolTrait for JoinInner {
+impl ToolTrait for Join {
     fn get_description(&self) -> String {
         "Join two tables on their foreign keys".to_string()
     }
@@ -122,7 +122,7 @@ impl ToolTrait for JoinInner {
     }
 }
 
-impl DataOperatorTrait for JoinInner {
+impl DataOperatorTrait for Join {
     fn new(config: &DataConfig) -> Result<Self> {
         let lhs_pk = config.lhs_pk.as_ref().cloned().ok_or(anyhow!(
             "Missing `lhs_pk` for `{}`.",
@@ -140,7 +140,7 @@ impl DataOperatorTrait for JoinInner {
             "Missing `rhs_fk` for `{}`.",
             Self::get_static_name()
         ))?;
-        Ok(JoinInner {
+        Ok(Join {
             _lhs_pk: lhs_pk,
             lhs_fk,
             _rhs_pk: rhs_pk,
@@ -153,7 +153,7 @@ impl DataOperatorTrait for JoinInner {
         rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        join_inner(
+        join(
             &self.lhs_fk,
             lhs_args,
             &self.rhs_fk,
@@ -176,22 +176,24 @@ fn join_inner_tensor(
     rhs_tensor: Tensor,
     device: &Device,
 ) -> Result<JointInnerTensorResult> {
-    let match_tensor = lhs_tensor.cmp(&rhs_tensor, CmpOp::Eq)?;
+    let match_tensor = lhs_tensor
+        .cmp(&rhs_tensor, CmpOp::Eq)?
+        .to_dtype(DType::U32)?;
 
     // Convert the matches into indices
-    let lhs_indices_tensor = (&Tensor::arange(1u8, (lhs_dim_0 + 1) as u8, device)?
+    let lhs_indices_tensor = (&Tensor::arange(1u32, (lhs_dim_0 + 1) as u32, device)?
         .reshape((lhs_dim_0, 1))?
         .broadcast_as((lhs_dim_0, rhs_dim_0))?
         * &match_tensor)?
         .flatten_all()?;
-    let rhs_indices_tensor = (&Tensor::arange(1u8, (rhs_dim_0 + 1) as u8, device)?
+    let rhs_indices_tensor = (&Tensor::arange(1u32, (rhs_dim_0 + 1) as u32, device)?
         .reshape((1, rhs_dim_0))?
         .broadcast_as((lhs_dim_0, rhs_dim_0))?
         * &match_tensor)?
         .flatten_all()?;
 
     // Extract out the indices
-    let lhs_indices = lhs_indices_tensor.to_vec1::<u8>()?;
+    let lhs_indices = lhs_indices_tensor.to_vec1::<u32>()?;
     let lhs_indices = lhs_indices
         .into_iter()
         .filter_map(|v| if v >= 1 { Some(v - 1) } else { None })
@@ -200,8 +202,8 @@ fn join_inner_tensor(
         lhs_indices.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
         device,
     )?;
-    let lhs_arr: ArrayRef = Arc::new(UInt8Array::from(lhs_indices));
-    let rhs_indices = rhs_indices_tensor.to_vec1::<u8>()?;
+    let lhs_arr: ArrayRef = Arc::new(UInt32Array::from(lhs_indices));
+    let rhs_indices = rhs_indices_tensor.to_vec1::<u32>()?;
     let rhs_indices = rhs_indices
         .into_iter()
         .filter_map(|v| if v >= 1 { Some(v - 1) } else { None })
@@ -210,7 +212,7 @@ fn join_inner_tensor(
         rhs_indices.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
         device,
     )?;
-    let rhs_arr: ArrayRef = Arc::new(UInt8Array::from(rhs_indices));
+    let rhs_arr: ArrayRef = Arc::new(UInt32Array::from(rhs_indices));
     Ok((lhs_arr, lhs_tensor, rhs_arr, rhs_tensor))
 }
 
@@ -228,7 +230,7 @@ Inner join along the LHS foreign key and RHS PK of two [RecordBatch]
 
 */
 #[instrument(skip(lhs_fk, lhs_args, rhs_fk, rhs_args, device))]
-pub fn join_inner(
+pub fn join(
     lhs_fk: &str,
     lhs_args: &[RecordBatch],
     rhs_fk: &str,
@@ -236,8 +238,8 @@ pub fn join_inner(
     device: &Device,
 ) -> Result<RecordBatch> {
     // Presort the lhs and rhs according to PKs
-    let lhs_sorted = sort_column_and_indices(lhs_fk, lhs_args, true, device)?;
-    let rhs_sorted = sort_column_and_indices(rhs_fk, rhs_args, true, device)?;
+    let lhs_sorted = sort(lhs_fk, lhs_args, true, device)?;
+    let rhs_sorted = sort(rhs_fk, rhs_args, true, device)?;
 
     // Wrap the lhs and rhs into an ArrowTable
     let lhs_table = Table::get_builder()
@@ -344,8 +346,8 @@ pub fn join_inner(
                     let mut rfk_found = false;
                     for (ri, rfk) in rhs_fk_vec.iter().enumerate() {
                         if lfk == rfk {
-                            lhs_indices.push(li as u8);
-                            rhs_indices.push(ri as u8);
+                            lhs_indices.push(li as u32);
+                            rhs_indices.push(ri as u32);
                             rfk_found = true;
                         }
 
@@ -359,12 +361,12 @@ pub fn join_inner(
                     lhs_indices.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
                     device,
                 )?;
-                let lhs_arr: ArrayRef = Arc::new(UInt8Array::from(lhs_indices));
+                let lhs_arr: ArrayRef = Arc::new(UInt32Array::from(lhs_indices));
                 let rhs_tensor = Tensor::from_iter(
                     rhs_indices.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
                     device,
                 )?;
-                let rhs_arr: ArrayRef = Arc::new(UInt8Array::from(rhs_indices));
+                let rhs_arr: ArrayRef = Arc::new(UInt32Array::from(rhs_indices));
                 (lhs_arr, lhs_tensor, rhs_arr, rhs_tensor)
             }
             _ => {
@@ -433,7 +435,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_join_inner() -> Result<()> {
+    fn test_join() -> Result<()> {
         // ------ FK = String ------
         // Make the test record batches
         let lhs_ids_vec_1 = vec!["0", "1"];
@@ -474,7 +476,7 @@ mod tests {
         let device = device(false)?;
 
         // Chunk the documents
-        let result = join_inner(
+        let result = join(
             "lhs_pk",
             &[lhs_batch_1, lhs_batch_2],
             "rhs_pk",
@@ -580,7 +582,7 @@ mod tests {
         ])?;
 
         // Chunk the documents
-        let result = join_inner(
+        let result = join(
             "lhs_pk",
             &[lhs_batch_1, lhs_batch_2],
             "rhs_pk",

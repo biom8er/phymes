@@ -9,8 +9,8 @@ use phymes_core::{
     create_tools_record_batch,
 };
 use phymes_data::{
-    AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataConfig,
-    DataSummaryConfig, ToolTrait,
+    AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
+    DataConfig, DataSummaryConfig, ToolTrait,
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::AvailableOpenAIAssets;
@@ -79,9 +79,9 @@ impl Default for ToolAgentSession<'_> {
             extract_tabular_data_task_name: "extract_tabular_data_task_1",
             extract_tabular_data_processor_name: "extract_tabular_data_processor_1",
             // Needs to match the operator name
-            tool_task_name: "SortColumnAndIndices",
+            tool_task_name: "Sort",
             // Needs to match the operator name
-            tool_processor_name: "SortColumnAndIndices",
+            tool_processor_name: "Sort",
             tool_runtime_env_name: "tool_rt_1",
             tool_attachment_task_name: "tool_attachment_task_1",
             tool_attachment_processor_name: "tool_attachment_processor_1",
@@ -121,11 +121,11 @@ impl<'a> ToolAgentSession<'a> {
     }
     pub fn make_tools_table(&self) -> Result<Table> {
         let tool_ids = vec![
-            AvailableCandleOperators::SortColumnAndIndices.to_string(),
+            AvailableCandleOperators::Sort.to_string(),
             AvailableCandleOperators::HumanInTheLoop.to_string(),
         ];
         let tools = vec![
-            AvailableCandleOperators::SortColumnAndIndices.to_json_tool_schema(),
+            AvailableCandleOperators::Sort.to_json_tool_schema(),
             AvailableCandleOperators::HumanInTheLoop.to_json_tool_schema(),
         ];
         let batch = create_tools_record_batch(tool_ids, tools)?;
@@ -274,7 +274,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
             ),
-            AvailableProcessors::SelectAndCast.build_arc(
+            AvailableProcessors::Select.build_arc(
                 self.tool_vis_renamecols_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::MermaidXYChart.to_string(),
@@ -367,7 +367,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::ExtractTabularData.build_arc(
+            AvailableProcessors::ExtractTabular.build_arc(
                 self.extract_tabular_data_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.state_scores_table_name.to_string(),
@@ -540,7 +540,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         let aggregator_config = DataConfig {
             lhs_values: Some(vec!["timestamp".to_string()]),
             asc: Some(true),
-            operator: AvailableCandleOperators::SortColumnAndIndices,
+            operator: AvailableCandleOperators::Sort,
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
@@ -568,7 +568,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             lhs_name: Some(AvailableInterfaceSubjects::UserCsv.to_string()),
             lhs_values: Some(vec!["bytes".to_string()]),
             format: Some(DataFormat::CsvDefault),
-            operator: AvailableCandleOperators::ExtractTabularData,
+            operator: AvailableCandleOperators::ExtractTabular,
             ..Default::default()
         };
         let extract_tabular_data_config_json =
@@ -584,14 +584,16 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         let vis_renamecols_config = DataConfig {
             lhs_name: Some(self.tool_summary_task_name.to_string()),
             lhs_values: Some(vec!["lhs_pk".to_string(), "score".to_string()]),
+            rhs_values: Some(vec!["".to_string(), "".to_string()]),
             as_columns: Some(vec!["x".to_string(), "y".to_string()]),
+            column_operators: Some(vec![DataColumnOperator::None, DataColumnOperator::None]),
             cast_operators: Some(vec![DataCastOperator::None, DataCastOperator::None]),
             cast_datatypes: Some(vec![
                 DataType::Utf8.to_string(),
                 DataType::Float32.to_string(),
             ]),
             cast_templates: Some(vec!["".to_string(), "".to_string()]),
-            operator: AvailableCandleOperators::SelectAndCast,
+            operator: AvailableCandleOperators::Select,
             ..Default::default()
         };
         let vis_renamecols_config_json = serde_json::to_vec(&vis_renamecols_config).unwrap();

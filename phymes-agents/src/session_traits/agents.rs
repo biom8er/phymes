@@ -355,6 +355,13 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 continue;
             }
 
+            // Ignore Echo processors
+            if let Ok(processor) = AvailableProcessors::from_str(r#type, false)
+                && processor == AvailableProcessors::ProcessorEcho
+            {
+                continue;
+            }
+
             // Check everything else
             if let Ok(_config) = CandleChatConfig::from_table(table) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
@@ -432,9 +439,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                                 r#type
                             ));
                         } else if config.operator.to_string().as_str()
-                            != AvailableProcessors::SortColumnAndIndices
-                                .to_string()
-                                .as_str()
+                            != AvailableProcessors::Sort.to_string().as_str()
                             && (r#type
                                 == AvailableProcessors::AttachmentAggregatorProcessor
                                     .to_string()
@@ -449,7 +454,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                                 config.operator,
                                 table.get_name(),
                                 r#type,
-                                AvailableProcessors::SortColumnAndIndices,
+                                AvailableProcessors::Sort,
                                 AvailableProcessors::AttachmentAggregatorProcessor,
                                 AvailableProcessors::MessageAggregatorProcessor
                             ));
@@ -933,7 +938,7 @@ pub mod test_session_context_builder_agents {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::JoinInner.build_arc(
+            AvailableProcessors::Join.build_arc(
                 "session_1",
                 &[TablePublication::Extend {
                     table_name: "state_3".to_string(),
@@ -967,7 +972,7 @@ pub mod test_session_context_builder_agents {
             rhs_fk: Some("id".to_string()),
             lhs_pk: Some("id".to_string()),
             rhs_pk: Some("id".to_string()),
-            operator: AvailableCandleOperators::JoinInner,
+            operator: AvailableCandleOperators::Join,
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
@@ -1117,7 +1122,7 @@ mod tests {
             rhs_pk: Some("title".to_string()),
             lhs_values: Some(vec!["metadata".to_string(), "score".to_string()]),
             rhs_values: Some(vec!["metadata".to_string(), "score".to_string()]),
-            operator: AvailableCandleOperators::JoinInner,
+            operator: AvailableCandleOperators::Join,
             stream: DataStreamManager::AccumulateLHSAccumulateRHS,
             ..Default::default()
         };
@@ -1145,7 +1150,7 @@ mod tests {
         let join_config = DataConfig {
             lhs_name: Some("state_1".to_string()),
             rhs_name: Some("missing_state".to_string()),
-            operator: AvailableCandleOperators::JoinInner,
+            operator: AvailableCandleOperators::Join,
             stream: DataStreamManager::AccumulateLHSAccumulateRHS,
             ..Default::default()
         };
@@ -1183,7 +1188,7 @@ mod tests {
             rhs_fk: Some("id".to_string()),
             lhs_pk: Some("title".to_string()),
             rhs_pk: Some("missing_pk".to_string()),
-            operator: AvailableCandleOperators::JoinInner,
+            operator: AvailableCandleOperators::Join,
             stream: DataStreamManager::AccumulateLHSAccumulateRHS,
             ..Default::default()
         };
@@ -1223,7 +1228,7 @@ mod tests {
             rhs_pk: Some("title".to_string()),
             lhs_values: Some(vec!["metadata".to_string(), "missing_value".to_string()]),
             rhs_values: Some(vec!["metadata".to_string(), "score".to_string()]),
-            operator: AvailableCandleOperators::JoinInner,
+            operator: AvailableCandleOperators::Join,
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
@@ -1287,7 +1292,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Schema for `DataSummaryConfig` from subject `session_1` for processor type `JoinInner` does not match the expected processor type DataSummaryProcessor."
+                "Schema for `DataSummaryConfig` from subject `session_1` for processor type `Join` does not match the expected processor type DataSummaryProcessor."
             ),
         }
 
@@ -1322,7 +1327,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Operator NormalizeTime for `DataConfig` from subject `session_1` does not match the expected for processor type `JoinInner`."
+                "Operator NormalizeTime for `DataConfig` from subject `session_1` does not match the expected for processor type `Join`."
             ),
         }
 
@@ -1332,7 +1337,7 @@ mod tests {
             rhs_name: Some("state_2".to_string()),
             lhs_fk: Some("id".to_string()),
             rhs_fk: Some("id".to_string()),
-            operator: AvailableCandleOperators::JoinInner,
+            operator: AvailableCandleOperators::Join,
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
@@ -1357,7 +1362,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Failed to build `JoinInner` with DataConfig from subject `session_1`. Missing `lhs_pk` for `JoinInner`."
+                "Failed to build `Join` with DataConfig from subject `session_1`. Missing `lhs_pk` for `Join`."
             ),
         }
 

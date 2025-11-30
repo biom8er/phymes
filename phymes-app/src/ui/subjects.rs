@@ -2,10 +2,9 @@ use dioxus::prelude::*;
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait,
     SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-    TablePublication,
+    TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_server::create_session_name;
-use serde_json::{Map, Value};
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
@@ -57,7 +56,7 @@ pub fn subjects_interface_view() -> Element {
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
-            .with_format(&DataFormat::Bytes)
+            .with_format(&DataFormat::Ipc)
             .with_publisher(&create_session_name(
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
@@ -98,32 +97,31 @@ pub fn subjects_interface_view() -> Element {
         {
             Ok(stream) => {
                 let mut stream = stream.bytes_stream();
-                while let Some(Ok(bytes)) = stream.next().await {
-                    let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
-                            tracing::error!(
-                                "There was a error parsing SyncCurrentSubjectSchemaState {err}."
-                            );
-                            Vec::new()
-                        });
-                    for row in json_rows.iter() {
-                        subject_schema_names.push(
-                            row.get("subject_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
+                let mut bytes = Vec::new();
+                while let Some(Ok(b)) = stream.next().await {
+                    bytes.extend(b);
+                }
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        let table = builder.with_name("").build().unwrap();
+                        subject_schema_names.set(
+                            table
+                                .get_column_as_vec_nonprimitive::<String>("subject_name")
+                                .unwrap(),
                         );
-                        subject_schema_columns.push(
-                            row.get("column_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
+                        subject_schema_columns.set(
+                            table
+                                .get_column_as_vec_nonprimitive::<String>("column_name")
+                                .unwrap(),
                         );
-                        subject_schema_types
-                            .push(row.get("type_name").unwrap().as_str().unwrap().to_string());
+                        subject_schema_types.set(
+                            table
+                                .get_column_as_vec_nonprimitive::<String>("type_name")
+                                .unwrap(),
+                        );
+                    }
+                    Err(err) => {
+                        tracing::error!("{err:?}");
                     }
                 }
             }
@@ -148,26 +146,27 @@ pub fn subjects_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
-                for byte in bytes.iter() {
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
-                    for row in json_rows.iter() {
-                        subject_schema_names.push(
-                            row.get("subject_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        let table = builder.with_name("").build().unwrap();
+                        subject_schema_names.set(
+                            table
+                                .get_column_as_vec_nonprimitive::<String>("subject_name")
+                                .unwrap(),
                         );
-                        subject_schema_columns.push(
-                            row.get("column_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
+                        subject_schema_columns.set(
+                            table
+                                .get_column_as_vec_nonprimitive::<String>("column_name")
+                                .unwrap(),
                         );
-                        subject_schema_types
-                            .push(row.get("type_name").unwrap().as_str().unwrap().to_string());
+                        subject_schema_types.set(
+                            table
+                                .get_column_as_vec_nonprimitive::<String>("type_name")
+                                .unwrap(),
+                        );
+                    }
+                    Err(err) => {
+                        tracing::error!("{err:?}");
                     }
                 }
             }
@@ -205,28 +204,29 @@ pub fn subjects_interface_view() -> Element {
         {
             Ok(stream) => {
                 let mut stream = stream.bytes_stream();
-                while let Some(Ok(bytes)) = stream.next().await {
-                    let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|_err| {
-                            // DM: find a better way to give feedback to the user
-                            // content.write().push_str(format!("There was a error parsing SyncCurrentSubjectInfoState {err}.").as_str());
-                            Vec::new()
-                        });
-                    for row in json_rows.iter() {
-                        let num_rows = if let Some(Value::Number(val)) = row.get("num_rows") {
-                            val.as_u64().unwrap().try_into().unwrap()
-                        } else {
-                            0
-                        };
-                        subject_names.push(
-                            row.get("subject_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
+                let mut bytes = Vec::new();
+                while let Some(Ok(b)) = stream.next().await {
+                    bytes.extend(b);
+                }
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        let table = builder.with_name("").build().unwrap();
+                        subject_names.set(
+                            table
+                                .get_column_as_vec_nonprimitive::<String>("subject_name")
+                                .unwrap(),
                         );
-                        subject_num_rows.push(num_rows);
+                        subject_num_rows.set(
+                            table
+                                .get_column_as_vec_primitive::<u64>("num_rows")
+                                .unwrap()
+                                .into_iter()
+                                .map(|n| n as usize)
+                                .collect::<Vec<_>>(),
+                        );
+                    }
+                    Err(err) => {
+                        tracing::error!("{err:?}");
                     }
                 }
             }
@@ -251,23 +251,25 @@ pub fn subjects_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
-                for byte in bytes.iter() {
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
-                    for row in json_rows.iter() {
-                        let num_rows = if let Some(Value::Number(val)) = row.get("num_rows") {
-                            val.as_u64().unwrap().try_into().unwrap()
-                        } else {
-                            0
-                        };
-                        subject_names.push(
-                            row.get("subject_name")
-                                .unwrap()
-                                .as_str()
-                                .unwrap()
-                                .to_string(),
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        let table = builder.with_name("").build().unwrap();
+                        subject_names.set(
+                            table
+                                .get_column_as_vec_nonprimitive::<String>("subject_name")
+                                .unwrap(),
                         );
-                        subject_num_rows.push(num_rows);
+                        subject_num_rows.set(
+                            table
+                                .get_column_as_vec_primitive::<u64>("num_rows")
+                                .unwrap()
+                                .into_iter()
+                                .map(|n| n as usize)
+                                .collect::<Vec<_>>(),
+                        );
+                    }
+                    Err(err) => {
+                        tracing::error!("{err:?}");
                     }
                 }
             }
@@ -338,12 +340,11 @@ pub fn subjects_dropdown_menu(
 
     rsx! {
         div {
-            // input + buttons of 64 px by 64 px
-            class: "p-2 gap-2 rounded bg-gray-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_192px] sm:max-w-3/4",
+            class: "p-2 rounded bg-neutral-800 grid grid-rows-[auto_1fr] grid-cols-[1fr_auto] md:max-w-3/4",
             form {
                 class: "w-full h-full flex row-span-1 col-span-1 row-start-1 col-start-1",
                 input {
-                    class: "w-full h-full bg-gray-700",
+                    class: "w-full h-full bg-neutral-700",
                     r#type: "text",
                     placeholder: "search subjects",
                     value: "{subject_dropdown}",
@@ -362,13 +363,13 @@ pub fn subjects_dropdown_menu(
             // Dynamic dropdown of subjects
             if show_subject_dropdown() {
                 div {
-                    class: "p-2 rounded bg-gray-800 list-none flex row-span-1 col-span-1 row-start-2 col-start-1",
+                    class: "p-2 rounded bg-neutral-800 list-none flex row-span-1 col-span-1 row-start-2 col-start-1",
                     ul {
                         {subjects_vec().iter().filter(|s| active_subject_name.to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
                             let sub = sub.clone();
                             rsx! {
                                 li {
-                                    class: "hover:bg-gray-700 cursor-pointer",
+                                    class: "hover:bg-neutral-700 cursor-pointer",
                                     key: "{i}",
                                     div {
                                         onmouseover: move |_evt| subject_dropdown.set(sub.clone()),
@@ -384,7 +385,7 @@ pub fn subjects_dropdown_menu(
             div {
                 class: "row-span-1 col-span-1 row-start-1 col-start-2",
                 button {
-                    class: "p-1 rounded hover:bg-gray-700 cursor-pointer flex-none",
+                    class: "p-1 rounded hover:bg-neutral-700 cursor-pointer flex-none",
                     onclick: move |_evt| {
                         active_subject_name.set(subject_dropdown.read().to_string());
                         subject_dropdown.set(String::new());
@@ -451,7 +452,7 @@ pub fn subjects_schema_table(
         div {
             class: "output_table",
             table {
-                class: "table-auto rounded bg-gray-800 text-gray-200",
+                class: "table-auto rounded bg-neutral-800 text-gray-200",
                 if active_subject_name().is_empty() {
                     caption { "No subject selected." },
                 } else if num_rows().is_empty() {
@@ -460,7 +461,7 @@ pub fn subjects_schema_table(
                     caption { "{active_subject_name.to_string()}: {num_rows().first().unwrap()} rows." },
                 }
                 thead {
-                    class: "bg-gray-700",
+                    class: "bg-neutral-700",
                     tr {
                         {SUBJECT_SCHEMA_HEADERS.iter().map(|header| {
                             rsx! {
@@ -476,7 +477,7 @@ pub fn subjects_schema_table(
                         let subject_type = schema_columns_types().1.get(i).unwrap().to_string();
                         rsx! {
                             tr {
-                                class: "odd:bg-gray-800 even:bg-gray-900",
+                                class: "odd:bg-neutral-800 even:bg-neutral-900",
                                 td { "{subject_col}" },
                                 td { "{subject_type}" },
                             }

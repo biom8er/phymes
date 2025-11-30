@@ -15,7 +15,7 @@ use crate::state::{
     get_non_duplicated_sorted_subjects,
     svg_icons::{
         b8_save_icon_svg, fa_trash_icon_svg, ms_code_icon_svg, ms_column_arrow_right_icon_svg,
-        ms_deploy_icon_svg, ms_edit_icon_svg, ms_sync_icon_svg,
+        ms_deploy_icon_svg, ms_edit_icon_svg, ms_search_icon_svg, ms_sync_icon_svg,
     },
     sync_session_names_state, SyncSessionNamesState, EMAIL, JWT, SESSION_NAMES,
 };
@@ -45,6 +45,7 @@ pub fn builds_dropdown_view(
     mut mermaid_er_diagrams: Signal<Vec<String>>,
     mut mermaid_timestamps: Signal<Vec<i64>>,
     mut is_saved: Signal<bool>,
+    mut build_errors: Signal<String>,
 ) -> Element {
     // Intialize state and coroutines
     use_coroutine(sync_session_names_state);
@@ -65,17 +66,13 @@ pub fn builds_dropdown_view(
     });
     let mut subjects_filtered: Signal<Vec<String>> = use_signal(Vec::new);
 
-    // Error message signal
-    let mut build_errors = use_signal(String::new);
-
     rsx! {
         div {
-            // input + 5 buttons of 64 px by 64 px
-            class: "p-2 gap-2 rounded bg-gray-800 grid grid-rows-[64px_1fr] grid-cols-[1fr_418px]",
+            class: "p-2 rounded bg-neutral-800 grid grid-rows-[auto_1fr] grid-cols-[1fr_auto]",
             form {
-                class: "w-full h-full flex row-span-1 col-span-1 row-start-1 col-start-1",
+                class: "w-full h-full p-2 gap-2 flex row-span-1 col-span-1 row-start-1 col-start-1",
                 input {
-                    class: "w-full h-full bg-gray-700",
+                    class: "w-full p-2 rounded bg-neutral-700",
                     r#type: "text",
                     placeholder: "search session",
                     value: "{subject_dropdown}",
@@ -94,13 +91,13 @@ pub fn builds_dropdown_view(
             // Dynamic dropdown
             if show_subject_dropdown() {
                 div {
-                    class: "p-2 rounded bg-gray-800 list-none flex row-span-1 col-span-1 row-start-2 col-start-1",
+                    class: "p-2 rounded bg-neutral-800 list-none flex row-span-1 col-span-1 row-start-2 col-start-1",
                     ul {
                         {subjects_vec().iter().filter(|s| active_session_name.read().to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
                             let sub = sub.clone();
                             rsx! {
                                 li {
-                                    class: "hover:bg-gray-700 cursor-pointer",
+                                    class: "hover:bg-neutral-700 cursor-pointer",
                                     key: "{i}",
                                     div {
                                         onmouseover: move |_evt| subject_dropdown.set(sub.clone()),
@@ -116,7 +113,7 @@ pub fn builds_dropdown_view(
             div {
                 class: "row-span-1 col-span-1 row-start-1 col-start-2",
                 button {
-                    class: "p-1 rounded hover:bg-gray-700 cursor-pointer flex-none",
+                    class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                     onclick: move |_evt| async move {
                         // Reset the dropdown
                         active_session_name.set(subject_dropdown.try_read().unwrap().to_string());
@@ -124,13 +121,13 @@ pub fn builds_dropdown_view(
                     },
                     svg {
                         class: "max-w-[48px] max-h-[48px]",
-                        dangerous_inner_html: ms_edit_icon_svg()
+                        dangerous_inner_html: ms_search_icon_svg()
                     },
                 },
 
                 if !active_session_name().is_empty() {
                     button {
-                        class: "p-1 rounded hover:bg-gray-700 cursor-pointer flex-none",
+                        class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         onclick: move |_evt| async move {
                             // Make a defualt name for the copy of the active session
                             let active_session = format!("{}-copy", active_session_name.read());
@@ -150,7 +147,7 @@ pub fn builds_dropdown_view(
                         },
                     },
                     button {
-                        class: "p-1 rounded hover:bg-gray-700 cursor-pointer flex-none",
+                        class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         onclick: move |_evt| async move {
                             // Change the name of all active session diagrams
                             let (session_context_names, flowchart_diagrams, er_diagrams, timestamps) = filter_in_mermaid_diagrams_by_session_name(
@@ -268,7 +265,7 @@ pub fn builds_dropdown_view(
                         },
                     },
                     button {
-                        class: "p-1 rounded hover:bg-gray-700 cursor-pointer flex-none",
+                        class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         onclick: move |_| async move {
                             let current = is_flowchart_shown.read().to_owned();
                             is_flowchart_shown.set(!current);
@@ -279,7 +276,7 @@ pub fn builds_dropdown_view(
                         },
                     },
                     button {
-                        class: "p-1 rounded hover:bg-gray-700 cursor-pointer flex-none",
+                        class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         onclick: move |_| async move {
                             // Clear any text
                             build_errors.set(String::new());
@@ -383,6 +380,7 @@ pub fn builds_dropdown_view(
                             let mut session_plans = vec![active_session_name().to_string()];
                             session_plans.extend(SESSION_NAMES.read().iter().filter(|s| *s!=&active_session_name()).cloned());
                             sync_session_names.send(SyncSessionNamesState { session_plans });
+                            build_errors.write().push_str(format!("Session name '{}' has been built successfully.", active_session_name()).as_str());
 
                         },
                         svg {
@@ -395,7 +393,7 @@ pub fn builds_dropdown_view(
                 // Show the save button only when modified
                 if !is_saved() {
                     button {
-                        class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                        class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         onclick: move |_| async move {
                             // Update the mermaid state with the active diagram
                             let route = "/app/v1/put_state";
@@ -476,7 +474,7 @@ pub fn builds_dropdown_view(
                 // Show the save button only when modified
                 if !is_flowchart_shown() && active_er_diagram().is_empty() {
                     button {
-                        class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                        class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         onclick: move |_| async move {
                             // Generate defaults if possible
                             match SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), true) {
@@ -500,15 +498,6 @@ pub fn builds_dropdown_view(
                             dangerous_inner_html: ms_code_icon_svg()
                         }
                     }
-                }
-            }
-        }
-
-        if !active_session_name().is_empty() {
-            div {
-                p { "{active_session_name().to_string()}" },
-                if !build_errors.try_read().unwrap().is_empty() {
-                    p { "{build_errors}" },
                 }
             }
         }
@@ -564,7 +553,7 @@ code.addEventListener('scroll', () => {
 
     rsx! {
         div {
-            class: "w-full h-full rounded-md shadow-sm py-2 p-2 snap-y overflow-auto grid grid-cols-[3rem_1fr] font-mono text-sm leading-6 snap-start",
+            class: "w-full h-full overflow-hidden rounded-md shadow-sm py-2 p-2 snap-y grid grid-cols-[3rem_1fr] font-mono text-sm leading-6 snap-start",
             div {
                 id: "gutter",
                 class: "h-full text-right flex flex-col whitespace-pre overflow-hidden",
@@ -580,8 +569,78 @@ code.addEventListener('scroll', () => {
                 id: "code",
                 value: "{code.to_string()}",
                 oninput: on_input,
-                class: "w-full h-full grow bg-gray-800 px-3 resize-none focus:outline-none whitespace-pre overflow-hidden"
+                class: "w-full h-full grow bg-neutral-800 px-3 resize-none focus:outline-none whitespace-pre overflow-auto"
             }
         }
+    }
+}
+
+/// View for modifying the session name
+#[component]
+pub fn session_name_editor(mut active_session_name: Signal<String>) -> Element {
+    let mut is_editing = use_signal(|| false);
+    let mut session_name = use_signal(String::new);
+
+    if !active_session_name().is_empty() {
+        if is_editing() {
+            rsx! {
+                div {
+                    class: "w-full rounded p-2 items-center flex flex-row bg-neutral-800",
+                    form {
+                        class: "w-full p-2 gap-2 rounded bg-neutral-800",
+                        input {
+                            r#type: "text",
+                            placeholder: "{active_session_name}",
+                            oninput: move |event| session_name.set(event.value()),
+                            class: "w-full p-2 rounded bg-neutral-700",
+                        }
+                    }
+                    button {
+                        class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
+                        onclick: move |_| async move {
+                            active_session_name.set(session_name());
+                            session_name.write().clear();
+                            is_editing.set(false)
+                        },
+                        svg {
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: b8_save_icon_svg()
+                        },
+                    }
+                    button {
+                        class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
+                        onclick: move |_| async move {
+                            is_editing.set(false)
+                        },
+                        svg {
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: fa_trash_icon_svg()
+                        },
+                    }
+                }
+            }
+        } else {
+            rsx! {
+                div {
+                    class: "w-full rounded p-2 items-center flex flex-row bg-neutral-800",
+                    p {
+                        class: "w-full text-center bg-neutral-800",
+                        "{active_session_name}"
+                    }
+                    button {
+                        class: "p-2 hover:bg-neutral-700 rounded cursor-pointer",
+                        onclick: move |_| async move {
+                            is_editing.set(true)
+                        },
+                        svg {
+                            class: "max-w-[48px] max-h-[48px]",
+                            dangerous_inner_html: ms_edit_icon_svg()
+                        },
+                    }
+                }
+            }
+        }
+    } else {
+        rsx! {}
     }
 }

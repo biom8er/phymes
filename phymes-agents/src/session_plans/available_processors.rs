@@ -9,9 +9,9 @@ use phymes_core::{
 };
 use phymes_data::{
     AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,
-    CandleDataProcessor, DataAggregatorOperator, DataCastOperator, DataComparatorOperator,
-    DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataStreamManager,
-    DataSummaryConfig, DataSummaryProcessor, ToolTrait,
+    CandleDataProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator,
+    DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait,
+    DataDistanceOperator, DataStreamManager, DataSummaryConfig, DataSummaryProcessor, ToolTrait,
 };
 use phymes_ml::{
     AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, CandleEmbedConfig,
@@ -35,28 +35,28 @@ pub enum AvailableProcessors {
     ApplyTemplate,
     #[value(name = "VectorDistance")]
     VectorDistance,
-    #[value(name = "SortColumnAndIndices")]
-    SortColumnAndIndices,
+    #[value(name = "Sort")]
+    Sort,
     #[value(name = "HumanInTheLoop")]
     HumanInTheLoop,
     #[value(name = "ChunkDocuments")]
     ChunkDocuments,
-    #[value(name = "JoinInner")]
-    JoinInner,
-    #[value(name = "ExtractPDFText")]
-    ExtractPDFText,
-    #[value(name = "GroupByAndAggregate")]
-    GroupByAndAggregate,
-    #[value(name = "FilterColumnsAndIndices")]
-    FilterColumnsAndIndices,
-    #[value(name = "ExtractTabularData")]
-    ExtractTabularData,
-    #[value(name = "SelectAndCast")]
-    SelectAndCast,
+    #[value(name = "Join")]
+    Join,
+    #[value(name = "ExtractPDF")]
+    ExtractPDF,
+    #[value(name = "GroupBy")]
+    GroupBy,
+    #[value(name = "Filter")]
+    Filter,
+    #[value(name = "ExtractTabular")]
+    ExtractTabular,
+    #[value(name = "Select")]
+    Select,
     #[value(name = "Pivot")]
     Pivot,
-    #[value(name = "ExtractSetData")]
-    ExtractSetData,
+    #[value(name = "ExtractXML")]
+    ExtractXML,
     #[value(name = "Melt")]
     Melt,
     #[value(name = "NormalizeTime")]
@@ -86,25 +86,25 @@ impl Display for AvailableProcessors {
         match self {
             Self::ApplyTemplate => write!(f, "{}", AvailableCandleOperators::ApplyTemplate),
             Self::VectorDistance => write!(f, "{}", AvailableCandleOperators::VectorDistance),
-            Self::SortColumnAndIndices => {
-                write!(f, "{}", AvailableCandleOperators::SortColumnAndIndices)
+            Self::Sort => {
+                write!(f, "{}", AvailableCandleOperators::Sort)
             }
             Self::HumanInTheLoop => write!(f, "{}", AvailableCandleOperators::HumanInTheLoop),
             Self::ChunkDocuments => write!(f, "{}", AvailableCandleOperators::ChunkDocuments),
-            Self::JoinInner => write!(f, "{}", AvailableCandleOperators::JoinInner),
-            Self::ExtractPDFText => write!(f, "{}", AvailableCandleOperators::ExtractPDFText),
-            Self::GroupByAndAggregate => {
-                write!(f, "{}", AvailableCandleOperators::GroupByAndAggregate)
+            Self::Join => write!(f, "{}", AvailableCandleOperators::Join),
+            Self::ExtractPDF => write!(f, "{}", AvailableCandleOperators::ExtractPDF),
+            Self::GroupBy => {
+                write!(f, "{}", AvailableCandleOperators::GroupBy)
             }
-            Self::FilterColumnsAndIndices => {
-                write!(f, "{}", AvailableCandleOperators::FilterColumnsAndIndices)
+            Self::Filter => {
+                write!(f, "{}", AvailableCandleOperators::Filter)
             }
-            Self::ExtractTabularData => {
-                write!(f, "{}", AvailableCandleOperators::ExtractTabularData)
+            Self::ExtractTabular => {
+                write!(f, "{}", AvailableCandleOperators::ExtractTabular)
             }
-            Self::SelectAndCast => write!(f, "{}", AvailableCandleOperators::SelectAndCast),
+            Self::Select => write!(f, "{}", AvailableCandleOperators::Select),
             Self::Pivot => write!(f, "{}", AvailableCandleOperators::Pivot),
-            Self::ExtractSetData => write!(f, "{}", AvailableCandleOperators::ExtractSetData),
+            Self::ExtractXML => write!(f, "{}", AvailableCandleOperators::ExtractXML),
             Self::Melt => write!(f, "{}", AvailableCandleOperators::Melt),
             Self::NormalizeTime => write!(f, "{}", AvailableCandleOperators::NormalizeTime),
             Self::ProcessorMock => write!(f, "{}", ProcessorMock::get_static_name()),
@@ -163,12 +163,12 @@ impl DataConfigTrait for AvailableProcessors {
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 ..Default::default()
             }),
-            Self::SortColumnAndIndices => serde_json::to_vec(&DataConfig {
+            Self::Sort => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 asc: Some(true),
                 cpu: false,
-                operator: AvailableCandleOperators::SortColumnAndIndices,
+                operator: AvailableCandleOperators::Sort,
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 ..Default::default()
             }),
@@ -189,7 +189,7 @@ impl DataConfigTrait for AvailableProcessors {
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 ..Default::default()
             }),
-            Self::JoinInner => serde_json::to_vec(&DataConfig {
+            Self::Join => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
                 rhs_name: Some("rhs_name".to_string()),
                 lhs_pk: Some("lhs_pk".to_string()),
@@ -197,67 +197,69 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_fk: Some("lhs_fk".to_string()),
                 rhs_fk: Some("rhs_fk".to_string()),
                 cpu: false,
-                operator: AvailableCandleOperators::JoinInner,
+                operator: AvailableCandleOperators::Join,
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 ..Default::default()
             }),
-            Self::ExtractPDFText => serde_json::to_vec(&DataConfig {
+            Self::ExtractPDF => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
                 lhs_pk: Some("lhs_pk".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 cpu: false,
-                operator: AvailableCandleOperators::ExtractPDFText,
+                operator: AvailableCandleOperators::ExtractPDF,
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 ..Default::default()
             }),
-            Self::GroupByAndAggregate => serde_json::to_vec(&DataConfig {
+            Self::GroupBy => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 agg_columns: Some(vec!["agg_columns".to_string()]),
                 agg_operators: Some(vec![DataAggregatorOperator::Sum]),
                 cpu: false,
-                operator: AvailableCandleOperators::GroupByAndAggregate,
+                operator: AvailableCandleOperators::GroupBy,
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 ..Default::default()
             }),
-            Self::FilterColumnsAndIndices => serde_json::to_vec(&DataConfig {
+            Self::Filter => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 cmp_columns: Some(vec!["cmp_columns".to_string()]),
                 cmp_operators: Some(vec![DataComparatorOperator::Equals]),
                 cmp_predicate: Some(DataComparatorPredicate::All),
                 cpu: false,
-                operator: AvailableCandleOperators::FilterColumnsAndIndices,
+                operator: AvailableCandleOperators::Filter,
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 ..Default::default()
             }),
-            Self::ExtractTabularData => serde_json::to_vec(&DataConfig {
+            Self::ExtractTabular => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 format: Some(DataFormat::CsvDefault),
                 cpu: false,
-                operator: AvailableCandleOperators::ExtractTabularData,
+                operator: AvailableCandleOperators::ExtractTabular,
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 ..Default::default()
             }),
-            Self::ExtractSetData => serde_json::to_vec(&DataConfig {
+            Self::ExtractXML => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 format: Some(DataFormat::OwlDefault),
                 cpu: false,
-                operator: AvailableCandleOperators::ExtractSetData,
+                operator: AvailableCandleOperators::ExtractXML,
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 ..Default::default()
             }),
-            Self::SelectAndCast => serde_json::to_vec(&DataConfig {
+            Self::Select => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
+                rhs_values: Some(vec!["rhs_values".to_string()]),
                 as_columns: Some(vec!["as_columns".to_string()]),
+                column_operators: Some(vec![DataColumnOperator::None]),
                 cast_operators: Some(vec![DataCastOperator::None]),
                 cast_datatypes: Some(vec![DataType::Utf8.to_string()]),
                 cast_templates: Some(vec!["cast_template".to_string()]),
                 cpu: false,
-                operator: AvailableCandleOperators::SelectAndCast,
+                operator: AvailableCandleOperators::Select,
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 ..Default::default()
             }),
@@ -300,7 +302,7 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_values: Some(vec!["timestamp".to_string()]),
                 asc: Some(true),
                 cpu: false,
-                operator: AvailableCandleOperators::SortColumnAndIndices,
+                operator: AvailableCandleOperators::Sort,
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 ..Default::default()
             }),
@@ -333,7 +335,7 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_values: Some(vec!["timestamp".to_string()]),
                 asc: Some(true),
                 cpu: false,
-                operator: AvailableCandleOperators::SortColumnAndIndices,
+                operator: AvailableCandleOperators::Sort,
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 ..Default::default()
             }),
@@ -425,26 +427,18 @@ impl ToolTrait for AvailableProcessors {
             Self::ProcessorMock => todo!(),
             Self::CandleDataProcessor => todo!(),
             Self::ChunkDocuments => AvailableCandleOperators::ChunkDocuments.get_description(),
-            Self::ExtractPDFText => AvailableCandleOperators::ExtractPDFText.get_description(),
-            Self::ExtractTabularData => {
-                AvailableCandleOperators::ExtractTabularData.get_description()
-            }
-            Self::FilterColumnsAndIndices => {
-                AvailableCandleOperators::FilterColumnsAndIndices.get_description()
-            }
-            Self::GroupByAndAggregate => {
-                AvailableCandleOperators::GroupByAndAggregate.get_description()
-            }
+            Self::ExtractPDF => AvailableCandleOperators::ExtractPDF.get_description(),
+            Self::ExtractTabular => AvailableCandleOperators::ExtractTabular.get_description(),
+            Self::Filter => AvailableCandleOperators::Filter.get_description(),
+            Self::GroupBy => AvailableCandleOperators::GroupBy.get_description(),
             Self::HumanInTheLoop => AvailableCandleOperators::HumanInTheLoop.get_description(),
-            Self::JoinInner => AvailableCandleOperators::JoinInner.get_description(),
+            Self::Join => AvailableCandleOperators::Join.get_description(),
             Self::NormalizeTime => AvailableCandleOperators::NormalizeTime.get_description(),
             Self::Pivot => AvailableCandleOperators::Pivot.get_description(),
-            Self::ExtractSetData => AvailableCandleOperators::ExtractSetData.get_description(),
+            Self::ExtractXML => AvailableCandleOperators::ExtractXML.get_description(),
             Self::Melt => AvailableCandleOperators::Melt.get_description(),
-            Self::SelectAndCast => AvailableCandleOperators::SelectAndCast.get_description(),
-            Self::SortColumnAndIndices => {
-                AvailableCandleOperators::SortColumnAndIndices.get_description()
-            }
+            Self::Select => AvailableCandleOperators::Select.get_description(),
+            Self::Sort => AvailableCandleOperators::Sort.get_description(),
             Self::VectorDistance => AvailableCandleOperators::VectorDistance.get_description(),
             Self::ApplyTemplate => AvailableCandleOperators::ApplyTemplate.get_description(),
             Self::AttachmentAggregatorProcessor => todo!(),
@@ -465,26 +459,18 @@ impl ToolTrait for AvailableProcessors {
             Self::ProcessorMock => todo!(),
             Self::CandleDataProcessor => todo!(),
             Self::ChunkDocuments => AvailableCandleOperators::ChunkDocuments.to_json_tool_schema(),
-            Self::ExtractPDFText => AvailableCandleOperators::ExtractPDFText.to_json_tool_schema(),
-            Self::ExtractTabularData => {
-                AvailableCandleOperators::ExtractTabularData.to_json_tool_schema()
-            }
-            Self::FilterColumnsAndIndices => {
-                AvailableCandleOperators::FilterColumnsAndIndices.to_json_tool_schema()
-            }
-            Self::GroupByAndAggregate => {
-                AvailableCandleOperators::GroupByAndAggregate.to_json_tool_schema()
-            }
+            Self::ExtractPDF => AvailableCandleOperators::ExtractPDF.to_json_tool_schema(),
+            Self::ExtractTabular => AvailableCandleOperators::ExtractTabular.to_json_tool_schema(),
+            Self::Filter => AvailableCandleOperators::Filter.to_json_tool_schema(),
+            Self::GroupBy => AvailableCandleOperators::GroupBy.to_json_tool_schema(),
             Self::HumanInTheLoop => AvailableCandleOperators::HumanInTheLoop.to_json_tool_schema(),
-            Self::JoinInner => AvailableCandleOperators::JoinInner.to_json_tool_schema(),
+            Self::Join => AvailableCandleOperators::Join.to_json_tool_schema(),
             Self::NormalizeTime => AvailableCandleOperators::NormalizeTime.to_json_tool_schema(),
             Self::Pivot => AvailableCandleOperators::Pivot.to_json_tool_schema(),
-            Self::ExtractSetData => AvailableCandleOperators::ExtractSetData.to_json_tool_schema(),
+            Self::ExtractXML => AvailableCandleOperators::ExtractXML.to_json_tool_schema(),
             Self::Melt => AvailableCandleOperators::Melt.to_json_tool_schema(),
-            Self::SelectAndCast => AvailableCandleOperators::SelectAndCast.to_json_tool_schema(),
-            Self::SortColumnAndIndices => {
-                AvailableCandleOperators::SortColumnAndIndices.to_json_tool_schema()
-            }
+            Self::Select => AvailableCandleOperators::Select.to_json_tool_schema(),
+            Self::Sort => AvailableCandleOperators::Sort.to_json_tool_schema(),
             Self::VectorDistance => AvailableCandleOperators::VectorDistance.to_json_tool_schema(),
             Self::ApplyTemplate => AvailableCandleOperators::ApplyTemplate.to_json_tool_schema(),
             Self::AttachmentAggregatorProcessor => todo!(),
@@ -510,17 +496,17 @@ impl AvailableProcessors {
             AvailableProcessors::CandleDataProcessor.to_string(),
             AvailableProcessors::VectorDistance.to_string(),
             AvailableProcessors::ApplyTemplate.to_string(),
-            AvailableProcessors::SortColumnAndIndices.to_string(),
+            AvailableProcessors::Sort.to_string(),
             AvailableProcessors::HumanInTheLoop.to_string(),
             AvailableProcessors::ChunkDocuments.to_string(),
-            AvailableProcessors::JoinInner.to_string(),
-            AvailableProcessors::ExtractPDFText.to_string(),
-            AvailableProcessors::GroupByAndAggregate.to_string(),
-            AvailableProcessors::FilterColumnsAndIndices.to_string(),
-            AvailableProcessors::ExtractTabularData.to_string(),
-            AvailableProcessors::SelectAndCast.to_string(),
+            AvailableProcessors::Join.to_string(),
+            AvailableProcessors::ExtractPDF.to_string(),
+            AvailableProcessors::GroupBy.to_string(),
+            AvailableProcessors::Filter.to_string(),
+            AvailableProcessors::ExtractTabular.to_string(),
+            AvailableProcessors::Select.to_string(),
             AvailableProcessors::Pivot.to_string(),
-            AvailableProcessors::ExtractSetData.to_string(),
+            AvailableProcessors::ExtractXML.to_string(),
             AvailableProcessors::Melt.to_string(),
             AvailableProcessors::NormalizeTime.to_string(),
             AvailableProcessors::DataSummaryProcessor.to_string(),
@@ -550,32 +536,32 @@ impl AvailableProcessors {
             Ok(AvailableProcessors::CandleDataProcessor)
         } else if line.contains(&AvailableProcessors::Pivot.to_string()) {
             Ok(AvailableProcessors::Pivot)
-        } else if line.contains(&AvailableProcessors::ExtractSetData.to_string()) {
-            Ok(AvailableProcessors::ExtractSetData)
+        } else if line.contains(&AvailableProcessors::ExtractXML.to_string()) {
+            Ok(AvailableProcessors::ExtractXML)
         } else if line.contains(&AvailableProcessors::Melt.to_string()) {
             Ok(AvailableProcessors::Melt)
         } else if line.contains(&AvailableProcessors::ApplyTemplate.to_string()) {
             Ok(AvailableProcessors::ApplyTemplate)
         } else if line.contains(&AvailableProcessors::VectorDistance.to_string()) {
             Ok(AvailableProcessors::VectorDistance)
-        } else if line.contains(&AvailableProcessors::SortColumnAndIndices.to_string()) {
-            Ok(AvailableProcessors::SortColumnAndIndices)
+        } else if line.contains(&AvailableProcessors::Sort.to_string()) {
+            Ok(AvailableProcessors::Sort)
         } else if line.contains(&AvailableProcessors::HumanInTheLoop.to_string()) {
             Ok(AvailableProcessors::HumanInTheLoop)
         } else if line.contains(&AvailableProcessors::ChunkDocuments.to_string()) {
             Ok(AvailableProcessors::ChunkDocuments)
-        } else if line.contains(&AvailableProcessors::JoinInner.to_string()) {
-            Ok(AvailableProcessors::JoinInner)
-        } else if line.contains(&AvailableProcessors::ExtractPDFText.to_string()) {
-            Ok(AvailableProcessors::ExtractPDFText)
-        } else if line.contains(&AvailableProcessors::GroupByAndAggregate.to_string()) {
-            Ok(AvailableProcessors::GroupByAndAggregate)
-        } else if line.contains(&AvailableProcessors::FilterColumnsAndIndices.to_string()) {
-            Ok(AvailableProcessors::FilterColumnsAndIndices)
-        } else if line.contains(&AvailableProcessors::ExtractTabularData.to_string()) {
-            Ok(AvailableProcessors::ExtractTabularData)
-        } else if line.contains(&AvailableProcessors::SelectAndCast.to_string()) {
-            Ok(AvailableProcessors::SelectAndCast)
+        } else if line.contains(&AvailableProcessors::Join.to_string()) {
+            Ok(AvailableProcessors::Join)
+        } else if line.contains(&AvailableProcessors::ExtractPDF.to_string()) {
+            Ok(AvailableProcessors::ExtractPDF)
+        } else if line.contains(&AvailableProcessors::GroupBy.to_string()) {
+            Ok(AvailableProcessors::GroupBy)
+        } else if line.contains(&AvailableProcessors::Filter.to_string()) {
+            Ok(AvailableProcessors::Filter)
+        } else if line.contains(&AvailableProcessors::ExtractTabular.to_string()) {
+            Ok(AvailableProcessors::ExtractTabular)
+        } else if line.contains(&AvailableProcessors::Select.to_string()) {
+            Ok(AvailableProcessors::Select)
         } else if line.contains(&AvailableProcessors::NormalizeTime.to_string()) {
             Ok(AvailableProcessors::NormalizeTime)
         } else if line.contains(&AvailableProcessors::CandleDataProcessor.to_string()) {
@@ -637,18 +623,18 @@ impl AvailableProcessors {
             )),
             Self::CandleDataProcessor
             | Self::ChunkDocuments
-            | Self::ExtractPDFText
-            | Self::ExtractTabularData
-            | Self::FilterColumnsAndIndices
-            | Self::GroupByAndAggregate
+            | Self::ExtractPDF
+            | Self::ExtractTabular
+            | Self::Filter
+            | Self::GroupBy
             | Self::HumanInTheLoop
-            | Self::JoinInner
+            | Self::Join
             | Self::NormalizeTime
             | Self::Pivot
-            | Self::ExtractSetData
+            | Self::ExtractXML
             | Self::Melt
-            | Self::SelectAndCast
-            | Self::SortColumnAndIndices
+            | Self::Select
+            | Self::Sort
             | Self::VectorDistance
             | Self::ApplyTemplate => Arc::new(CandleDataProcessor::new(
                 name,
@@ -725,18 +711,18 @@ impl AvailableProcessors {
             Self::ProcessorEcho => builder.build_arc::<ProcessorMock>(),
             Self::CandleDataProcessor
             | Self::ChunkDocuments
-            | Self::ExtractPDFText
-            | Self::ExtractTabularData
-            | Self::FilterColumnsAndIndices
-            | Self::GroupByAndAggregate
+            | Self::ExtractPDF
+            | Self::ExtractTabular
+            | Self::Filter
+            | Self::GroupBy
             | Self::HumanInTheLoop
-            | Self::JoinInner
+            | Self::Join
             | Self::NormalizeTime
             | Self::Pivot
-            | Self::ExtractSetData
+            | Self::ExtractXML
             | Self::Melt
-            | Self::SelectAndCast
-            | Self::SortColumnAndIndices
+            | Self::Select
+            | Self::Sort
             | Self::VectorDistance
             | Self::ApplyTemplate => builder.build_arc::<CandleDataProcessor>(),
             Self::DataSummaryProcessor => builder.build_arc::<DataSummaryProcessor>(),
@@ -761,18 +747,18 @@ impl AvailableProcessors {
             Self::ProcessorMock
             | Self::CandleDataProcessor
             | Self::ChunkDocuments
-            | Self::ExtractPDFText
-            | Self::ExtractTabularData
-            | Self::FilterColumnsAndIndices
-            | Self::GroupByAndAggregate
+            | Self::ExtractPDF
+            | Self::ExtractTabular
+            | Self::Filter
+            | Self::GroupBy
             | Self::HumanInTheLoop
-            | Self::JoinInner
+            | Self::Join
             | Self::NormalizeTime
             | Self::Pivot
-            | Self::ExtractSetData
+            | Self::ExtractXML
             | Self::Melt
-            | Self::SelectAndCast
-            | Self::SortColumnAndIndices
+            | Self::Select
+            | Self::Sort
             | Self::VectorDistance
             | Self::ApplyTemplate
             | Self::AttachmentAggregatorProcessor

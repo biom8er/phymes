@@ -16,25 +16,22 @@ use quick_xml::{
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::{
-    ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTrait,
-    sort_column_and_indices,
-};
+use crate::{ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTrait, sort};
 
 /// Extract xml tags in either XML or OWL format from Bytes
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct ExtractSetData {
+pub struct ExtractXML {
     lhs_values: String,
     format: DataFormat,
 }
 
-impl MappableTrait for ExtractSetData {
+impl MappableTrait for ExtractXML {
     fn get_name(&self) -> &str {
         Self::get_static_name()
     }
 }
 
-impl ToolTrait for ExtractSetData {
+impl ToolTrait for ExtractXML {
     fn get_description(&self) -> String {
         "Extract XML data in either XMl or OWL format from Bytes".to_string()
     }
@@ -87,7 +84,7 @@ impl ToolTrait for ExtractSetData {
     }
 }
 
-impl DataOperatorTrait for ExtractSetData {
+impl DataOperatorTrait for ExtractXML {
     fn new(config: &DataConfig) -> Result<Self>
     where
         Self: Sized,
@@ -112,7 +109,7 @@ impl DataOperatorTrait for ExtractSetData {
             Self::get_static_name()
         ))?;
 
-        Ok(ExtractSetData { lhs_values, format })
+        Ok(ExtractXML { lhs_values, format })
     }
     fn forward(
         &self,
@@ -120,7 +117,7 @@ impl DataOperatorTrait for ExtractSetData {
         _rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        extract_set_data(&self.lhs_values, lhs_args, &self.format, device)
+        extract_xml(&self.lhs_values, lhs_args, &self.format, device)
     }
 }
 
@@ -350,7 +347,7 @@ fn parse_xml(bytes: &[u8], device: &Device) -> Result<RecordBatch> {
 
     // Sort by the element index
     for column_name in ["child_index", "element_index"] {
-        batch = sort_column_and_indices(column_name, &[batch], true, device)?;
+        batch = sort(column_name, &[batch], true, device)?;
     }
     Ok(batch)
 }
@@ -410,9 +407,10 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
                                 xml_type.replace(XMLType::Element);
                             }
                         } else {
-                            return Err(anyhow!(
-                                "Found a predicate tag `{tag}` when there is no current subject."
-                            ));
+                            // ignore
+                            // return Err(anyhow!(
+                            //     "Found a predicate tag `{tag}` when there is no current subject."
+                            // ));
                         }
                     } else {
                         // ignore recursive predicates for now
@@ -505,9 +503,10 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
                             xml_type.replace(XMLType::Element);
                         }
                     } else {
-                        return Err(anyhow!(
-                            "Found a predicate tag `{tag}` when there is no current subject."
-                        ));
+                        // ignore
+                        // return Err(anyhow!(
+                        //     "Found a predicate tag `{tag}` when there is no current subject."
+                        // ));
                     }
                 }
             }
@@ -516,12 +515,15 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
                 if let Some(p) = predicate.take() {
                     if tag != p {
                         predicate.replace(p);
+                    } else {
+                        xml_type.replace(XMLType::Element);
                     }
                 } else if let Some(s) = s_tag.last()
                     && tag == s
                 {
                     subject.pop();
                     s_tag.pop();
+                    xml_type.replace(XMLType::Element);
                 }
             }
             Event::Eof => break,
@@ -535,7 +537,7 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
 
     // Sorty by the subject and predicate
     for column_name in ["predicate", "subject"] {
-        batch = sort_column_and_indices(column_name, &[batch], true, device)?;
+        batch = sort(column_name, &[batch], true, device)?;
     }
     Ok(batch)
 }
@@ -552,7 +554,7 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
 /// *
 /// * See <https://github.com/phillord/horned-owl> for a full-fledged OWL parser
 #[instrument(skip(lhs_values, lhs_args, format, device))]
-pub fn extract_set_data(
+pub fn extract_xml(
     lhs_values: &str,
     lhs_args: &[RecordBatch],
     format: &DataFormat,
@@ -560,7 +562,7 @@ pub fn extract_set_data(
 ) -> Result<RecordBatch> {
     // Extract out the bytes
     let args_table = Table::get_builder()
-        .with_name("extract_set_data")
+        .with_name("extract_xml")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
     let values_vec = args_table
@@ -586,6 +588,9 @@ pub fn extract_set_data(
             &OwlFormat::owl_format_named_individual(),
             device,
         ),
+        DataFormat::OwlOntology => {
+            parse_owl(&values_vec, &OwlFormat::owl_format_ontology(), device)
+        }
         _ => Err(anyhow!(
             "Unsupported format {format:?} for extract_set_data operator."
         )),
@@ -603,7 +608,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_extract_set_data_xml() {
+    fn test_extract_xml() {
         // Test owl file
         let owl = r#"<?xml version="1.0"?>
 <rdf:RDF xmlns="http://www.example.com/iri#"
@@ -645,8 +650,7 @@ mod tests {
         let device = device(false).unwrap();
 
         // Extract the xml tags
-        let extracted =
-            extract_set_data("bytes", &[batch], &DataFormat::OwlDefault, &device).unwrap();
+        let extracted = extract_xml("bytes", &[batch], &DataFormat::OwlDefault, &device).unwrap();
 
         // Check the dimensions of the extracted data
         assert_eq!(extracted.num_columns(), 7);
@@ -730,7 +734,7 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_set_data_owl_class() {
+    fn test_extract_owl_class() {
         // Test owl file
         let owl = r#"<?xml version="1.0"?>
 <rdf:RDF xmlns="http://www.example.com/iri#"
@@ -835,8 +839,7 @@ mod tests {
         let device = device(false).unwrap();
 
         // Extract the xml tags
-        let extracted =
-            extract_set_data("bytes", &[batch], &DataFormat::OwlClass, &device).unwrap();
+        let extracted = extract_xml("bytes", &[batch], &DataFormat::OwlClass, &device).unwrap();
 
         // Check the dimensions of the extracted data
         assert_eq!(extracted.num_columns(), 3);
@@ -897,7 +900,7 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_set_data_owl_properties() {
+    fn test_extract_owl_properties() {
         // Test owl file
         let owl = r#"<?xml version="1.0"?>
 <rdf:RDF xmlns="http://www.example.com/iri#"
@@ -957,7 +960,7 @@ mod tests {
 
         // Extract the xml tags
         let extracted =
-            extract_set_data("bytes", &[batch], &DataFormat::OwlObjectProperty, &device).unwrap();
+            extract_xml("bytes", &[batch], &DataFormat::OwlObjectProperty, &device).unwrap();
 
         // Check the dimensions of the extracted data
         assert_eq!(extracted.num_columns(), 3);

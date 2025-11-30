@@ -1,8 +1,8 @@
 use dioxus::{html::FileData, prelude::*};
 use phymes_core::{
-    create_blob_batch, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait,
-    SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, Table, TableBuilderTrait,
-    TablePublication, TableTrait,
+    create_blob_batch, BuildableTrait, BuilderTrait, DataFormat, MappableTrait,
+    MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, Table,
+    TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_server::create_session_name;
@@ -58,6 +58,7 @@ pub fn attach_files_input(
     let read_files = move |files: Vec<FileData>, publish: TablePublication| async move {
         for file in files {
             let filename = file.name();
+            tracing::info!("Got file: {filename}");
             // Determine the file type
             let file_path = std::path::Path::new(&filename);
             match file_path.extension() {
@@ -65,6 +66,7 @@ pub fn attach_files_input(
                 Some(ext) => match DataFormat::from_extension(ext.to_str().unwrap()) {
                     Ok(data_format) => {
                         if let Ok(contents) = file.read_bytes().await {
+                            tracing::info!("Reading contents of file: {filename}");
                             let extension = ext.to_str().unwrap();
                             let file_stem = file_path.file_stem().unwrap().to_str().unwrap();
                             // 1. Use the active subject to determine the target subject of the file
@@ -112,6 +114,7 @@ pub fn attach_files_input(
                             };
 
                             // Wrap the contents into a blob batch if no active subject is set
+                            tracing::info!("Converting to Batch: {filename}");
                             let (message, format) = if is_blob {
                                 let batch = create_blob_batch(
                                     vec![file_stem.to_string()],
@@ -313,12 +316,14 @@ pub fn upload_files_button(
 ) -> Element {
     rsx! {
         button {
-            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+            class: "p-1 rounded hover:bg-neutral-700 cursor-pointer",
             onclick: move |_| async move {
                 // Send files to the server
                 for file in files_uploaded.read().iter() {
+                    tracing::info!("Serializing file: {}", file.get_name());
                     let data_serialized = serde_json::to_string(file).unwrap();
                     let route = "/app/v1/put_state";
+                    tracing::info!("Uploading file: {}", file.get_name());
 
                     #[cfg(not(feature = "serverless"))]
                     let addr = format!("{ADDR_BACKEND}{route}");
@@ -383,7 +388,7 @@ pub fn clear_upload_files_button(
 ) -> Element {
     rsx! {
         button {
-            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+            class: "p-1 rounded hover:bg-neutral-700 cursor-pointer",
             onclick: move |_| {
                 files_uploaded.set(Vec::new());
                 filenames_uploaded.set(Vec::new());
@@ -407,7 +412,7 @@ pub fn download_files_button(
 ) -> Element {
     rsx! {
         button {
-            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+            class: "p-1 rounded hover:bg-neutral-700 cursor-pointer",
             onclick: move |_evt| async move {
                 files_downloaded.set(Vec::new());
                 filenames_downloaded.set(Vec::new());
@@ -492,7 +497,7 @@ pub fn download_files_list(
 ) -> Element {
     rsx! {
         ul {
-            class: "p-2 overflow-auto flex flex-col list-none bg-gray-800",
+            class: "p-2 overflow-auto flex flex-col list-none bg-neutral-800",
             {(0..files_downloaded().len()).map(|i| {
                 let f_download = filename_and_extension_to_download(filenames_downloaded().get(i).unwrap(), extensions_downloaded().get(i).unwrap());
                 let f_href = extension_and_file_to_data_href(extensions_downloaded().get(i).unwrap() ,files_downloaded().get(i).unwrap()).unwrap();
@@ -526,7 +531,7 @@ pub fn clear_download_files_button(
 ) -> Element {
     rsx! {
         button {
-            class: "p-1 rounded hover:bg-gray-700 cursor-pointer",
+            class: "p-1 rounded hover:bg-neutral-700 cursor-pointer",
             onclick: move |_| {
                 files_downloaded.set(Vec::new());
                 filenames_downloaded.set(Vec::new());

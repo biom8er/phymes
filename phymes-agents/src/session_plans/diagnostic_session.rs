@@ -8,7 +8,7 @@ use phymes_core::{
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator,
-    DataConfig,
+    DataColumnOperator, DataConfig,
 };
 use serde_json::json;
 
@@ -338,7 +338,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::SelectAndCast.build_arc(
+            AvailableProcessors::Select.build_arc(
                 self.metrics_processors_traces_select_and_cast_to_gantt_processor_name,
                 &[TablePublication::Replace {
                     table_name: self
@@ -357,7 +357,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::SelectAndCast.build_arc(
+            AvailableProcessors::Select.build_arc(
                 self.metrics_elapsed_compute_select_and_cast_to_gantt_processor_name,
                 &[TablePublication::Replace {
                     table_name: self
@@ -376,7 +376,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::SelectAndCast.build_arc(
+            AvailableProcessors::Select.build_arc(
                 self.metrics_output_rows_select_and_cast_to_gantt_processor_name,
                 &[TablePublication::Replace {
                     table_name: self
@@ -579,7 +579,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::SelectAndCast.build_arc(
+            AvailableProcessors::Select.build_arc(
                 self.events_select_and_cast_to_kanban_processor_name,
                 &[TablePublication::Replace {
                     table_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
@@ -709,11 +709,23 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "start_timestamp-metric_value-Sum-normalized".to_string(),
                 "end_timestamp-metric_value-Sum-normalized".to_string(),
             ]),
+            rhs_values: Some(vec![
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            ]),
             as_columns: Some(vec![
                 "section".to_string(),
                 "task".to_string(),
                 "start".to_string(),
                 "end".to_string(),
+            ]),
+            column_operators: Some(vec![
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
             ]),
             cast_operators: Some(vec![
                 DataCastOperator::None,
@@ -733,7 +745,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "".to_string(),
                 "".to_string(),
             ]),
-            operator: AvailableCandleOperators::SelectAndCast,
+            operator: AvailableCandleOperators::Select,
             ..Default::default()
         };
         let metrics_processors_traces_select_and_cast_to_gantt_config_json =
@@ -757,11 +769,23 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "span_name".to_string(),
                 "elapsed_compute-metric_value-Sum".to_string(),
             ]),
+            rhs_values: Some(vec![
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            ]),
             as_columns: Some(vec![
                 "section".to_string(),
                 "task".to_string(),
                 "start".to_string(),
                 "end".to_string(),
+            ]),
+            column_operators: Some(vec![
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
             ]),
             cast_operators: Some(vec![
                 DataCastOperator::None,
@@ -781,7 +805,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "0".to_string(),
                 "".to_string(),
             ]),
-            operator: AvailableCandleOperators::SelectAndCast,
+            operator: AvailableCandleOperators::Select,
             ..Default::default()
         };
         let metrics_elapsed_compute_select_and_cast_to_gantt_config_json =
@@ -805,11 +829,23 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "span_name".to_string(),
                 "output_rows-metric_value-Sum".to_string(),
             ]),
+            rhs_values: Some(vec![
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            ]),
             as_columns: Some(vec![
                 "section".to_string(),
                 "task".to_string(),
                 "start".to_string(),
                 "end".to_string(),
+            ]),
+            column_operators: Some(vec![
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
             ]),
             cast_operators: Some(vec![
                 DataCastOperator::None,
@@ -829,7 +865,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "0".to_string(),
                 "".to_string(),
             ]),
-            operator: AvailableCandleOperators::SelectAndCast,
+            operator: AvailableCandleOperators::Select,
             ..Default::default()
         };
         let metrics_output_rows_select_and_cast_to_gantt_config_json =
@@ -1049,6 +1085,15 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "id".to_string(),
                 "id".to_string(),
             ]),
+            rhs_values: Some(vec![
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            ]),
             as_columns: Some(vec![
                 "column_name".to_string(),
                 "column_label".to_string(),
@@ -1057,6 +1102,15 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "task_assigned".to_string(),
                 "task_ticket".to_string(),
                 "task_priority".to_string(),
+            ]),
+            column_operators: Some(vec![
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
             ]),
             cast_operators: Some(vec![
                 DataCastOperator::None,
@@ -1085,7 +1139,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "".to_string(),
                 "Low".to_string(),
             ]),
-            operator: AvailableCandleOperators::SelectAndCast,
+            operator: AvailableCandleOperators::Select,
             ..Default::default()
         };
         let events_select_and_cast_to_kanban_config_json =
@@ -1119,7 +1173,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         let aggregator_config = DataConfig {
             lhs_values: Some(vec!["timestamp".to_string()]),
             asc: Some(true),
-            operator: AvailableCandleOperators::SortColumnAndIndices,
+            operator: AvailableCandleOperators::Sort,
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();

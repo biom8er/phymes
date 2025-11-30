@@ -3,10 +3,9 @@ use phymes_agents::AvailableSessionPlans;
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait,
     SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-    TablePublication,
+    TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_server::create_session_name;
-use serde_json::{Map, Value};
 
 use crate::{
     state::{
@@ -16,6 +15,7 @@ use crate::{
         BUILDER, EMAIL, JWT, SESSION_NAMES,
     },
     ui::{
+        builds::session_name_editor,
         builds_dropdown_view, diagram_code_editor,
         main_window::{split_panel, SnapPct},
     },
@@ -71,7 +71,7 @@ pub fn apps_interface_view() -> Element {
         };
         SessionInterfaceMessage::get_builder()
             .with_session_name(&session_name)
-            .with_format(&DataFormat::Bytes)
+            .with_format(&DataFormat::Ipc)
             .with_publisher(&session_name)
             .with_update(&TablePublication::None)
             .with_stream(false)
@@ -115,41 +115,51 @@ pub fn apps_interface_view() -> Element {
         {
             Ok(stream) => {
                 let mut stream = stream.bytes_stream();
-                while let Some(Ok(bytes)) = stream.next().await {
-                    let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
-                            tracing::error!("There was a error parsing mermaid state {err}.");
-                            Vec::new()
-                        });
-                    for row in json_rows.iter() {
-                        // Check for deleted sessions
-                        let session_context_name = row
-                            .get("session_context_name")
+                let mut bytes = Vec::new();
+                while let Some(Ok(b)) = stream.next().await {
+                    bytes.extend(b);
+                }
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        let table = builder.with_name("").build().unwrap();
+                        let combined = table
+                            .get_column_as_vec_nonprimitive::<String>("session_context_name")
                             .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string();
-                        if !session_context_name.contains("__deleted__") {
-                            // Update the mermaid state
-                            let timestamp = if let Some(Value::Number(val)) = row.get("timestamp") {
-                                val.as_u64().unwrap().try_into().unwrap()
-                            } else {
-                                0
-                            };
-                            mermaid_session_context_names.push(session_context_name);
-                            mermaid_flowchart_diagrams.push(
-                                row.get("flowchart_diagram")
+                            .into_iter()
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("flowchart_diagram")
                                     .unwrap()
-                                    .as_str()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("er_diagram")
                                     .unwrap()
-                                    .to_string(),
-                            );
-                            mermaid_er_diagrams
-                                .push(row.get("er_diagram").unwrap().as_str().unwrap().to_string());
-                            mermaid_timestamps.push(timestamp);
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_primitive::<i64>("timestamp")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .filter_map(|(((scn, fd), ed), t)| {
+                                if scn.contains("__deleted__") {
+                                    None
+                                } else {
+                                    Some((scn, fd, ed, t))
+                                }
+                            })
+                            .collect::<Vec<_>>();
+                        for (scn, fd, ed, t) in combined {
+                            mermaid_session_context_names.push(scn);
+                            mermaid_flowchart_diagrams.push(fd);
+                            mermaid_er_diagrams.push(ed);
+                            mermaid_timestamps.push(t);
                         }
                     }
+                    Err(err) => tracing::error!("{err:?}"),
                 }
             }
             Err(err) => tracing::error!("{err:?}"),
@@ -173,37 +183,47 @@ pub fn apps_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
-                for byte in bytes.iter() {
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
-                    for row in json_rows.iter() {
-                        // Check for deleted sessions
-                        let session_context_name = row
-                            .get("session_context_name")
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        let table = builder.with_name("").build().unwrap();
+                        let combined = table
+                            .get_column_as_vec_nonprimitive::<String>("session_context_name")
                             .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .to_string();
-                        if !session_context_name.contains("__deleted__") {
-                            // Update the mermaid state
-                            let timestamp = if let Some(Value::Number(val)) = row.get("timestamp") {
-                                val.as_u64().unwrap().try_into().unwrap()
-                            } else {
-                                0
-                            };
-                            mermaid_session_context_names.push(session_context_name);
-                            mermaid_flowchart_diagrams.push(
-                                row.get("flowchart_diagram")
+                            .into_iter()
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("flowchart_diagram")
                                     .unwrap()
-                                    .as_str()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("er_diagram")
                                     .unwrap()
-                                    .to_string(),
-                            );
-                            mermaid_er_diagrams
-                                .push(row.get("er_diagram").unwrap().as_str().unwrap().to_string());
-                            mermaid_timestamps.push(timestamp);
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_primitive::<i64>("timestamp")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .filter_map(|(((scn, fd), ed), t)| {
+                                if scn.contains("__deleted__") {
+                                    None
+                                } else {
+                                    Some((scn, fd, ed, t))
+                                }
+                            })
+                            .collect::<Vec<_>>();
+                        for (scn, fd, ed, t) in combined {
+                            mermaid_session_context_names.push(scn);
+                            mermaid_flowchart_diagrams.push(fd);
+                            mermaid_er_diagrams.push(ed);
+                            mermaid_timestamps.push(t);
                         }
                     }
+                    Err(err) => tracing::error!("{err:?}"),
                 }
             }
             Err(err) => tracing::error!("{err:?}"),
@@ -297,6 +317,9 @@ pub fn apps_interface_view() -> Element {
     // Track when the diagram code changes
     let is_saved = use_signal(|| true);
 
+    // Build errors that may have occured
+    let build_errors = use_signal(String::new);
+
     rsx! {
         if JWT.read().is_empty() {
             div {
@@ -314,14 +337,15 @@ pub fn apps_interface_view() -> Element {
                     top: rsx! {
                         div {
                             class: "h-full w-full p-2 flex flex-col items-center",
-                            builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps, is_saved }
+                            builds_dropdown_view { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, mermaid_session_context_names, mermaid_flowchart_diagrams, mermaid_er_diagrams, mermaid_timestamps, is_saved, build_errors }
                             diagram_code_editor { is_flowchart_shown, active_session_name, active_flowchart_diagram, active_er_diagram, is_saved }
                         }
                     },
                     bottom: rsx! {
                         div {
                             class: "h-full w-full p-2 flex flex-col items-center",
-                            mermaid_view { diagram_code }
+                            session_name_editor { active_session_name }
+                            mermaid_view { diagram_code, build_errors }
                         }
                     },
                     initial_top_pct: SnapPct::Pct50,
@@ -331,7 +355,13 @@ pub fn apps_interface_view() -> Element {
                 div {
                     class: "h-full w-full p-2 flex flex-col items-center",
                     apps_dropdown_view { is_flowchart_shown }
-                    mermaid_view { diagram_code }
+                    if !active_session_name().is_empty() {
+                        p {
+                            class: "w-full rounded p-2 items-center text-center text-gray-200 bg-neutral-800",
+                            "{active_session_name}"
+                        }
+                    }
+                    mermaid_view { diagram_code, build_errors }
                 }
             }
         }
@@ -357,17 +387,16 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
                 .collect::<Vec<_>>(),
         )
     });
-    #[allow(clippy::redundant_closure)]
-    let mut subjects_filtered: Signal<Vec<String>> = use_signal(|| Vec::new());
+    let mut subjects_filtered: Signal<Vec<String>> = use_signal(Vec::new);
 
     rsx! {
         div {
             // input + 2 buttons of 64 px by 64 px
-            class: "p-2 gap-2 rounded bg-gray-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_128px] w-full sm:max-w-3/4",
+            class: "p-2 rounded bg-neutral-800 grid grid-rows-[auto_1fr] grid-cols-[1fr_auto] w-full sm:max-w-3/4 md:max-w-1/2",
             form {
                 class: "w-full h-full flex row-span-1 col-span-1 row-start-1 col-start-1",
                 input {
-                    class: "w-full h-full bg-gray-700",
+                    class: "w-full h-full bg-neutral-700",
                     r#type: "text",
                     placeholder: "search apps",
                     value: "{subject_dropdown}",
@@ -386,13 +415,13 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
             // Dynamic dropdown
             if show_subject_dropdown() {
                 div {
-                    class: "p-2 rounded bg-gray-800 list-none flex row-span-1 col-span-1 row-start-2 col-start-1",
+                    class: "p-2 rounded bg-neutral-800 list-none flex row-span-1 col-span-1 row-start-2 col-start-1",
                     ul {
                         {subjects_vec().iter().filter(|s| ACTIVE_SESSION_NAME.read().to_string()!=**s && !subjects_filtered.read().contains(*s)).enumerate().map(|(i, sub)|  {
                             let sub = sub.clone();
                             rsx! {
                                 li {
-                                    class: "hover:bg-gray-700 cursor-pointer",
+                                    class: "hover:bg-neutral-700 cursor-pointer",
                                     key: "{i}",
                                     div {
                                         onmouseover: move |_evt| subject_dropdown.set(sub.clone()),
@@ -408,7 +437,7 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
             div {
                 class: "row-span-1 col-span-1 row-start-1 col-start-2",
                 button {
-                    class: "p-1 rounded hover:bg-gray-700 cursor-pointer flex-none",
+                    class: "p-2 rounded hover:bg-neutral-700 cursor-pointer flex-none",
                     onclick: move |_evt| async move {
                         // Reset the dropdown
                         let active_session = subject_dropdown.try_read().unwrap().to_string();
@@ -425,7 +454,7 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
 
                 if !ACTIVE_SESSION_NAME().is_empty() {
                     button {
-                        class: "p-1 rounded hover:bg-gray-700 cursor-pointer flex-none",
+                        class: "p-2 rounded hover:bg-neutral-700 cursor-pointer flex-none",
                         onclick: move |_| async move {
                             let current = is_flowchart_shown.read().to_owned();
                             is_flowchart_shown.set(!current);
@@ -448,8 +477,16 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
     }
 }
 
+/// View to visualize mermaid.js diagrams
+///
+/// # Notes
+/// * mermaid.js is used to render SVG diagrams
+/// * errors when creating the SVG are also shown
 #[component]
-pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
+pub fn mermaid_view(
+    diagram_code: Memo<(String, Option<String>)>,
+    mut build_errors: Signal<String>,
+) -> Element {
     let mut diagram_svg = use_signal(String::new);
     let mut error_mjs = use_signal(String::new);
     let id = use_signal(|| "graphDiv".to_string());
@@ -521,9 +558,18 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
     });
 
     rsx! {
+        if !build_errors().is_empty() {
+            div {
+                class: "rounded p-2 items-center bg-neutral-700",
+                p {
+                    class: "text-gray-200",
+                    "{build_errors}"
+                },
+            }
+        }
         if !error_mjs().is_empty() {
             div {
-                class: "rounded p-2 items-center text-gray-200 bg-gray-700",
+                class: "rounded p-2 items-center text-gray-200 bg-neutral-700",
                 p {
                     class: "text-gray-200",
                     "{error_mjs}"
@@ -532,7 +578,7 @@ pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>) -> Element {
         }
         if let Some(error_ctxb) = diagram_code().1 {
             div {
-                class: "rounded p-2 items-center bg-gray-700",
+                class: "rounded p-2 items-center bg-neutral-700",
                 p {
                     class: "text-gray-200",
                     "{error_ctxb}"

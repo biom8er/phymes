@@ -18,9 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     candle_data::DataConfig,
-    candle_operators::{
-        data_operator::DataOperatorTrait, sort_column_and_indices::sort_column_and_indices,
-    },
+    candle_operators::{data_operator::DataOperatorTrait, sort::sort},
 };
 
 /// Compute the normalized start and end times in a [RecordBatch]
@@ -218,7 +216,7 @@ pub fn from_traces_to_messages(
         ("note_location", note_location),
         ("timestamp", timestamp),
     ])?;
-    let mut batch = sort_column_and_indices("timestamp", &[batch], true, device)?;
+    let mut batch = sort("timestamp", &[batch], true, device)?;
     let _ = batch.remove_column(batch.num_columns() - 1);
     Ok(batch)
 }

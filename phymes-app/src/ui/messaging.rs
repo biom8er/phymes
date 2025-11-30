@@ -4,7 +4,6 @@ use dioxus::prelude::*;
 // General imports
 use phymes_agents::AvailableInterfaceSubjects;
 use phymes_diagnostics::{convert_timestamp_micros_to_str, create_timestamp_micros};
-use serde_json::{self, Map, Value};
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
@@ -13,7 +12,8 @@ use reqwest::{self, header::CONTENT_TYPE};
 use phymes_core::{
     AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, DataFormat,
     MappableTrait, MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
-    SessionInterfaceMessageBuilderTrait, TablePublication, TableTrait,
+    SessionInterfaceMessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication,
+    TableTrait,
 };
 use phymes_server::create_session_name;
 
@@ -45,10 +45,19 @@ use crate::{
 #[component]
 pub fn messaging_interface_view() -> Element {
     // Global signals
-    let messaging_roles = use_signal(Vec::<String>::new);
-    let messaging_contents = use_signal(Vec::<String>::new);
-    let messaging_indices = use_signal(Vec::<usize>::new);
-    let messaging_timestamps = use_signal(Vec::<i64>::new);
+    let mut messaging_roles = use_signal(Vec::<String>::new);
+    let mut messaging_contents = use_signal(Vec::<String>::new);
+    let mut messaging_indices = use_signal(Vec::<usize>::new);
+    let mut messaging_timestamps = use_signal(Vec::<i64>::new);
+
+    // Update the index in a different scope
+    let current_index: Memo<usize> = use_memo(move || {
+        if messaging_indices.len() == 0 {
+            0
+        } else {
+            *messaging_indices.last().unwrap()
+        }
+    });
 
     // `get_session_state` will update itself whenever EMAIL or ACTIVE_SESSION_NAME change
     let get_session_state: Memo<SessionInterfaceMessageBuilder> = use_memo(move || {
@@ -57,7 +66,7 @@ pub fn messaging_interface_view() -> Element {
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
-            .with_format(&DataFormat::Bytes)
+            .with_format(&DataFormat::Ipc)
             .with_publisher(&create_session_name(
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
@@ -100,45 +109,61 @@ pub fn messaging_interface_view() -> Element {
         {
             Ok(stream) => {
                 let mut stream = stream.bytes_stream();
-                while let Some(Ok(bytes)) = stream.next().await {
-                    let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_str(json_str.as_str()).unwrap_or_else(|err| {
-                            tracing::error!("There was a error parsing messages {err}.");
-                            Vec::new()
-                        });
-                    if json_rows.is_empty() {
-                        // initialize the first message (if the are no messages for the session)
+                let mut bytes = Vec::new();
+                while let Some(Ok(b)) = stream.next().await {
+                    bytes.extend(b);
+                }
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        let table = builder.with_name("").build().unwrap();
+                        let combined = table
+                            .get_column_as_vec_nonprimitive::<String>("role")
+                            .unwrap()
+                            .into_iter()
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("content")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_primitive::<i64>("timestamp")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .enumerate()
+                            .filter_map(|(i, ((r, c), t))| {
+                                if r.is_empty() {
+                                    None
+                                } else {
+                                    let index = current_index() + i + 1;
+                                    Some((r, c, t, index))
+                                }
+                            })
+                            .collect::<Vec<_>>();
+                        for (r, c, t, index) in combined {
+                            messaging_roles.push(r);
+                            messaging_contents.push(c);
+                            messaging_timestamps.push(t);
+                            messaging_indices.push(index);
+                        }
+                    }
+                    Err(err) => {
+                        tracing::error!("{err:?}");
 
-                        use phymes_diagnostics::create_timestamp_micros;
+                        // initialize the first message
                         update_message_state(messaging_roles,
                             messaging_contents,
                             messaging_indices,
                             messaging_timestamps,
                             "assistant",
-                            "Welcome to the Biom8er messaging interface. I am your assistant. Please ask any me a question 😊", 
+                            "Welcome to the Biom8er messaging interface. I am your assistant. Please ask me a question 😊", 
                             create_timestamp_micros());
-                    } else {
-                        // append the messages to the state
-                        for row in json_rows.iter() {
-                            if row.get("role").is_some() {
-                                update_message_state(
-                                    messaging_roles,
-                                    messaging_contents,
-                                    messaging_indices,
-                                    messaging_timestamps,
-                                    row.get("role").unwrap().as_str().unwrap(),
-                                    row.get("content").unwrap().as_str().unwrap(),
-                                    row.get("timestamp").unwrap().as_i64().unwrap(),
-                                );
-                            }
-                        }
                     }
                 }
             }
             Err(err) => {
-                use phymes_diagnostics::create_timestamp_micros;
-
                 tracing::error!("{err:?}");
 
                 // initialize the first message
@@ -172,34 +197,43 @@ pub fn messaging_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
-                for byte in bytes.iter() {
-                    let json_rows: Vec<Map<String, Value>> =
-                        serde_json::from_slice(byte).unwrap_or_else(|_err| Vec::new());
-                    if json_rows.is_empty() {
-                        // initialize the first message (if the are no messages for the session)
-                        update_message_state(messaging_roles,
-                            messaging_contents,
-                            messaging_indices,
-                            messaging_timestamps,
-                            "assistant", 
-                            "Welcome to the Biom8er messaging interface. I am your assistant. Please ask any me a question 😊", 
-                            create_timestamp_micros());
-                    } else {
-                        // append the messages to the state
-                        for row in json_rows.iter() {
-                            if row.get("role").is_some() {
-                                update_message_state(
-                                    messaging_roles,
-                                    messaging_contents,
-                                    messaging_indices,
-                                    messaging_timestamps,
-                                    row.get("role").unwrap().as_str().unwrap(),
-                                    row.get("content").unwrap().as_str().unwrap(),
-                                    row.get("timestamp").unwrap().as_i64().unwrap(),
-                                );
-                            }
+                match TableBuilder::new_from_ipc_stream(&bytes) {
+                    Ok(builder) => {
+                        let table = builder.with_name("").build().unwrap();
+                        let combined = table
+                            .get_column_as_vec_nonprimitive::<String>("role")
+                            .unwrap()
+                            .into_iter()
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("content")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_primitive::<i64>("timestamp")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .enumerate()
+                            .filter_map(|(i, ((r, c), t))| {
+                                if r.is_empty() {
+                                    None
+                                } else {
+                                    let index = current_index() + i + 1;
+                                    Some((r, c, t, index))
+                                }
+                            })
+                            .collect::<Vec<_>>();
+                        for (r, c, t, index) in combined {
+                            messaging_roles.push(r);
+                            messaging_contents.push(c);
+                            messaging_timestamps.push(t);
+                            messaging_indices.push(index);
                         }
                     }
+                    Err(err) => tracing::error!("{err:?}"),
                 }
             }
             Err(err) => {
@@ -235,57 +269,60 @@ pub fn messaging_interface_view() -> Element {
         } else {
             split_panel {
                 top: rsx! {
-                    ul {
-                        class: "p-2 flex flex-col list-none",
-                        {(0..messaging_roles().len()).map(|i| {
-                            let role = messaging_roles.get(i).unwrap();
-                            let index = messaging_indices.get(i).unwrap();
-                            let timestamp = convert_timestamp_micros_to_str(*messaging_timestamps.get(i).unwrap());
-                            let content = messaging_contents.get(i).unwrap();
-                            let li_style = if role.as_str() == "assistant" {
-                                "flex flex-col flex-content-start gap-1 my-2"
-                            } else {
-                                "flex flex-col flex-content-end items-end gap-1 my-2"
-                            };
-                            rsx! {
-                                li {
-                                    key: "{index}",
-                                    class: li_style,
-                                    if role.as_str() == "assistant" {
-                                        div {
-                                            class: "flex items-center gap-2",
-                                            svg {
-                                                class: "max-w-[48px] max-h-[48px]",
-                                                dangerous_inner_html: aws_assistant_icon_svg()
+                    div {
+                        class: "h-full w-full overflow-auto",
+                        ul {
+                            class: "p-2 flex flex-col list-none",
+                            {(0..messaging_roles().len()).map(|i| {
+                                let role = messaging_roles.get(i).unwrap();
+                                let index = messaging_indices.get(i).unwrap();
+                                let timestamp = convert_timestamp_micros_to_str(*messaging_timestamps.get(i).unwrap());
+                                let content = messaging_contents.get(i).unwrap();
+                                let li_style = if role.as_str() == "assistant" {
+                                    "flex flex-col flex-content-start gap-1 my-2"
+                                } else {
+                                    "flex flex-col flex-content-end items-end gap-1 my-2"
+                                };
+                                rsx! {
+                                    li {
+                                        key: "{index}",
+                                        class: li_style,
+                                        if role.as_str() == "assistant" {
+                                            div {
+                                                class: "flex items-center gap-2",
+                                                svg {
+                                                    class: "max-w-[48px] max-h-[48px]",
+                                                    dangerous_inner_html: aws_assistant_icon_svg()
+                                                }
+                                                h2 {
+                                                    class: "font-bold",
+                                                    "AI Assistant"
+                                                }
+                                                h3 { "{timestamp}" }
                                             }
-                                            h2 {
-                                                class: "font-bold",
-                                                "AI Assistant"
+                                        } else {
+                                            div {
+                                                class: "flex items-center gap-2",
+                                                h3 { "{timestamp}" }
+                                                h2 {
+                                                    class: "font-bold",
+                                                    "User"
+                                                }
+                                                svg {
+                                                    class: "max-w-[48px] max-h-[48px]",
+                                                    dangerous_inner_html: aws_user_icon_svg()
+                                                }
                                             }
-                                            h3 { "{timestamp}" }
                                         }
-                                    } else {
                                         div {
-                                            class: "flex items-center gap-2",
-                                            h3 { "{timestamp}" }
-                                            h2 {
-                                                class: "font-bold",
-                                                "User"
-                                            }
-                                            svg {
-                                                class: "max-w-[48px] max-h-[48px]",
-                                                dangerous_inner_html: aws_user_icon_svg()
-                                            }
+                                            class: "p-4 leading-6 max-w-[90%] rounded bg-neutral-800",
+                                            dangerous_inner_html: "{content}"
+                                            // dangerous_inner_html: "<p>{content}</p>"
                                         }
-                                    }
-                                    div {
-                                        class: "p-4 leading-6 max-w-[90%] rounded bg-gray-800",
-                                        dangerous_inner_html: "{content}"
-                                        // dangerous_inner_html: "<p>{content}</p>"
                                     }
                                 }
-                            }
-                        })}
+                            })}
+                        }
                     }
                 },
                 bottom: rsx! {
@@ -305,11 +342,20 @@ pub fn messaging_interface_footer(
 ) -> Element {
     let mut prompt = use_signal(String::new);
 
+    // Update the index in a different scope
+    let current_index: Memo<usize> = use_memo(move || {
+        if messaging_indices.len() == 0 {
+            0
+        } else {
+            *messaging_indices.last().unwrap()
+        }
+    });
+
     rsx! {
         footer {
-            class: "h-full grid grid-rows-[64px_1fr] grid-cols-[64px_1fr_64px] items-center p-2 gap-2",
+            class: "h-full grid grid-rows-[auto_1fr] grid-cols-[auto_1fr_auto] items-center p-2",
             div {
-                class: "row-span-1 col-span-1 row-start-1 col-start-1 p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                class: "row-span-1 col-span-1 row-start-1 col-start-1 p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                 attach_textfiles_input { except_files: use_signal(|| ".txt,.csv,.tsv,.js,.ts,.py,.java,.c,.cpp,.cs,.rb,.go,.rs,.json,.svg,.html".to_string()), content: prompt }
             }
 
@@ -319,7 +365,7 @@ pub fn messaging_interface_footer(
                     placeholder: "Type your message here...",
                     value: "{prompt.to_string()}",
                     oninput: move |event| prompt.set(event.value()),
-                    class: "w-full h-full grow p-2 gap-2 rounded bg-gray-800 text-gray-200 resize-none overflow-auto focus:outline-none",
+                    class: "w-full h-full grow p-2 gap-2 rounded bg-neutral-800 text-gray-200 resize-none overflow-auto focus:outline-none",
                 }
             }
 
@@ -328,7 +374,7 @@ pub fn messaging_interface_footer(
                 // This must be outside the form or it will be refreshed on each submit
                 if prompt.read().is_empty() {
                     button {
-                        class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                        class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         svg {
                             class: "max-w-[48px] max-h-[48px]",
                             dangerous_inner_html: b8_microphone_icon_svg()
@@ -336,7 +382,7 @@ pub fn messaging_interface_footer(
                     }
                 } else {
                     button {
-                        class: "p-1 hover:bg-gray-700 rounded bg-gray-800 cursor-pointer",
+                        class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         onclick: move |_| async move {
                             // signed in and ready to chat
                             update_message_state(messaging_roles,
@@ -364,12 +410,12 @@ pub fn messaging_interface_footer(
                                 .unwrap();
                             let data = SessionInterfaceMessage::get_builder()
                                 .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-                                .with_format(&DataFormat::Bytes)
+                                .with_format(&DataFormat::Ipc)
                                 .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                                 .with_update(&TablePublication::Extend { table_name: AvailableInterfaceSubjects::UserMessages.to_string() })
                                 .with_stream(false)
                                 .with_subject(chat.get_name())
-                                .with_message(chat.to_bytes().unwrap().to_vec())
+                                .with_message(chat.to_ipc_stream().unwrap())
                                 .make_name()
                                 .unwrap()
                                 .build()
@@ -389,22 +435,48 @@ pub fn messaging_interface_footer(
                                 .send()
                                 .await {
                                 Ok(stream) => {
-                                    update_message_content_state(messaging_contents, "", true);
+                                    // Remove the last message
+                                    messaging_roles.write().pop();
+                                    messaging_contents.write().pop();
+                                    messaging_timestamps.write().pop();
+                                    messaging_indices.write().pop();
+
+                                    // Collect the bytes
                                     let mut stream = stream.bytes_stream();
-                                    while let Some(Ok(bytes)) = stream.next().await {
-                                        let json_str = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-                                        let json_rows: Vec<Map<String, Value>> = serde_json::from_str(json_str.trim_end_matches(char::from(0)))
-                                            .unwrap_or_else(|e| {
-                                                let mut m = Map::new();
-                                                m.insert("content".to_string(), format!("{e:?} caused by {json_str}").into());
-                                                vec![m]
-                                            });
-                                        for row in json_rows.iter() {
-                                            if row.get("role").is_none() {
-                                                tracing::error!("Message response does not have key role: {:?}", row);
-                                            } else if row.get("role").unwrap().as_str().unwrap() == "assistant" {
-                                                update_message_content_state(messaging_contents, row.get("content").unwrap().as_str().unwrap(), false);
-                                            }
+                                    let mut bytes = Vec::new();
+                                    while let Some(Ok(b)) = stream.next().await {
+                                        bytes.extend(b);
+                                    }
+
+                                    // Collect the batches
+                                    let batches = TableBuilder::from_ipc_stream_to_record_batches(&bytes).unwrap()
+                                        .into_iter()
+                                        .filter(|batch| batch.schema() // DM: filtering out UserQuery
+                                            .fields()
+                                            .iter()
+                                            .map(|f| f.name())
+                                            .collect::<Vec<_>>()
+                                            .contains(&&"role".to_string()))
+                                        .collect::<Vec<_>>();
+
+                                    // Update the messages
+                                    if !batches.is_empty() {
+                                        let table = TableBuilder::new().with_record_batches(batches).unwrap().with_name("").build().unwrap();
+                                        let combined = table.get_column_as_vec_nonprimitive::<String>("role").unwrap().into_iter()
+                                            .zip(table.get_column_as_vec_nonprimitive::<String>("content").unwrap().into_iter())
+                                            .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
+                                            .enumerate()
+                                            .filter_map(|(i, ((r, c), t))| if r.is_empty() {
+                                                None
+                                            } else {
+                                                let index = current_index() + i + 1;
+                                                Some((r, c, t, index))
+                                            }).collect::<Vec<_>>();
+                                        for (r, c, t, index) in combined {
+                                            messaging_roles.push(r);
+                                            messaging_contents.push(c);
+                                            messaging_timestamps.push(t);
+                                            messaging_indices.push(index);
                                         }
                                     }
                                 },
@@ -423,25 +495,48 @@ pub fn messaging_interface_footer(
                             #[cfg(feature = "serverless")]
                             match serverless_app(config, &mut serverless).await {
                                 Ok(response) => {
-                                    update_message_content_state(messaging_contents, "", true);
                                     let bytes: Vec<Bytes> = response
                                         .into_body()
                                         .into_data_stream()
                                         .try_collect()
                                         .await
                                         .unwrap();
-                                    for byte in bytes.iter() {
-                                        let json_rows: Vec<Map<String, Value>> = serde_json::from_slice(byte).unwrap_or_else(|e| {
-                                            let mut m = Map::new();
-                                            m.insert("content".to_string(), format!("Error: {e:?}").into());
-                                            vec![m]
-                                        });
-                                        for row in json_rows.iter() {
-                                            if row.get("role").is_none() {
-                                                tracing::error!("Message response does not have key role: {:?}", row);
-                                            } else if row.get("role").unwrap().as_str().unwrap() == "assistant" {
-                                                update_message_content_state(messaging_contents, row.get("content").unwrap().as_str().unwrap(), false);
-                                            }
+
+                                    // Remove the last message
+                                    messaging_roles.write().pop();
+                                    messaging_contents.write().pop();
+                                    messaging_timestamps.write().pop();
+                                    messaging_indices.write().pop();
+
+                                    // Collect the batches
+                                    let batches = TableBuilder::from_ipc_stream_to_record_batches(&bytes).unwrap()
+                                        .into_iter()
+                                        .filter(|batch| batch.schema() // DM: filtering out UserQuery
+                                            .fields()
+                                            .iter()
+                                            .map(|f| f.name())
+                                            .collect::<Vec<_>>()
+                                            .contains(&&"role".to_string()))
+                                        .collect::<Vec<_>>();
+
+                                    // Update the messages
+                                    if !batches.is_empty() {
+                                        let table = TableBuilder::new().with_record_batches(batches).unwrap().with_name("").build().unwrap();
+                                        let combined = table.get_column_as_vec_nonprimitive::<String>("role").unwrap().into_iter()
+                                            .zip(table.get_column_as_vec_nonprimitive::<String>("content").unwrap().into_iter())
+                                            .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
+                                            .enumerate()
+                                            .filter_map(|(i, ((r, c), t))| if r.is_empty() {
+                                                None
+                                            } else {
+                                                let index = current_index() + i + 1;
+                                                Some((r, c, t, index))
+                                            }).collect::<Vec<_>>();
+                                        for (r, c, t, index) in combined {
+                                            messaging_roles.push(r);
+                                            messaging_contents.push(c);
+                                            messaging_timestamps.push(t);
+                                            messaging_indices.push(index);
                                         }
                                     }
                                 },

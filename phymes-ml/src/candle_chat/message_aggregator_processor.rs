@@ -180,7 +180,7 @@ mod tests {
         let config = DataConfig {
             lhs_values: Some(vec!["timestamp".to_string()]),
             op_kwargs: Some("{\"asc\": true}".to_string()),
-            operator: AvailableCandleOperators::SortColumnAndIndices,
+            operator: AvailableCandleOperators::Sort,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;

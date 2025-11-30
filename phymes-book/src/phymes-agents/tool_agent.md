@@ -53,15 +53,15 @@ flowchart TD
 		message_parser_processor_1-subscribe-->message_parser_processor_1-processor
 		message_parser_processor_1-processor-->message_parser_processor_1-publish
 		message_parser_processor_1-publish--Extend-->assistant_messages-subject
-		message_parser_processor_1-publish--Extend-->SortColumnAndIndices-subject
+		message_parser_processor_1-publish--Extend-->Sort-subject
 		message_parser_processor_1-publish--Extend-->HumanInTheLoop-subject
 	end
-	subgraph SortColumnAndIndices
-		SortColumnAndIndices-subject-.LastRecordBatch.->SortColumnAndIndices-subscribe
-		available_data_1-subject--FullTable-->SortColumnAndIndices-subscribe
-		SortColumnAndIndices-subscribe-->SortColumnAndIndices-processor
-		SortColumnAndIndices-processor-->SortColumnAndIndices-publish
-		SortColumnAndIndices-publish--Replace-->available_data_1-subject
+	subgraph Sort
+		Sort-subject-.LastRecordBatch.->Sort-subscribe
+		available_data_1-subject--FullTable-->Sort-subscribe
+		Sort-subscribe-->Sort-processor
+		Sort-processor-->Sort-publish
+		Sort-publish--Replace-->available_data_1-subject
 		summary_processor_1-subject--LastRecordBatch-->summary_processor_1-subscribe
 		available_data_1-subject--LastRecordBatch-->summary_processor_1-subscribe
 		summary_processor_1-subscribe-->summary_processor_1-processor
@@ -90,14 +90,14 @@ flowchart TD
 	message_aggregator_rt_1-rt-->message_aggregator_task_2
 	chat_rt_1-rt-->chat_task_1
 	chat_rt_1-rt-->message_parser_task_1
-	tool_rt_1-rt-->SortColumnAndIndices
+	tool_rt_1-rt-->Sort
 	tool_rt_1-rt-->HumanInTheLoop
 	rt_default-rt-->session_context_1
 	message_aggregator_processor_1-processor@{shape: rect, label: MessageAggregatorProcessor}
 	message_aggregator_processor_2-processor@{shape: rect, label: MessageAggregatorProcessor}
 	chat_processor_1-processor@{shape: rect, label: CandleChatProcessor}
 	message_parser_processor_1-processor@{shape: rect, label: MessageParserProcessor}
-	SortColumnAndIndices-processor@{shape: rect, label: CandleDataProcessor}
+	Sort-processor@{shape: rect, label: CandleDataProcessor}
 	HumanInTheLoop-processor@{shape: rect, label: CandleDataProcessor}
 	summary_processor_1-processor@{shape: rect, label: DataSummaryProcessor}
 	summary_processor_2-processor@{shape: rect, label: DataSummaryProcessor}
@@ -107,7 +107,7 @@ flowchart TD
 	rt_default-rt@{shape: subproc, label: rt_default}
 	tool_rt_1-rt@{shape: subproc, label: tool_rt_1}
 	HumanInTheLoop-subject@{shape: doc, label: HumanInTheLoop}
-	SortColumnAndIndices-subject@{shape: doc, label: SortColumnAndIndices}
+	Sort-subject@{shape: doc, label: Sort}
 	assistant_messages-subject@{shape: doc, label: assistant_messages}
 	available_data_1-subject@{shape: doc, label: available_data_1}
 	chat_processor_1-subject@{shape: doc, label: chat_processor_1}
@@ -123,7 +123,7 @@ flowchart TD
 	tools-subject@{shape: doc, label: tools}
 	user_messages-subject@{shape: doc, label: user_messages}
 	HumanInTheLoop-publish@{shape: fork}
-	SortColumnAndIndices-publish@{shape: fork}
+	Sort-publish@{shape: fork}
 	chat_processor_1-publish@{shape: fork}
 	message_aggregator_processor_1-publish@{shape: fork}
 	message_aggregator_processor_2-publish@{shape: fork}
@@ -132,7 +132,7 @@ flowchart TD
 	summary_processor_1-publish@{shape: fork}
 	summary_processor_2-publish@{shape: fork}
 	HumanInTheLoop-subscribe@{shape: diamond, label: All}
-	SortColumnAndIndices-subscribe@{shape: diamond, label: All}
+	Sort-subscribe@{shape: diamond, label: All}
 	chat_processor_1-subscribe@{shape: diamond, label: All}
 	message_aggregator_processor_1-subscribe@{shape: diamond, label: ChatContentSubscribe}
 	message_aggregator_processor_2-subscribe@{shape: diamond, label: Any}
