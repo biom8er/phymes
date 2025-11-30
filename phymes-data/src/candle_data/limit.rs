@@ -16,7 +16,7 @@ use phymes_diagnostics::{
 };
 use tracing::{Level, event};
 
-use crate::{DataConfig, DataConfigTrait};
+use crate::{DataConfigTrait, DataSummaryConfig};
 
 /// Processor that implements the LIMIT operator
 #[derive(Debug)]
@@ -161,14 +161,14 @@ pub struct LimitStream {
     message_stream: Option<SendableRecordBatchStream>,
     /// Copy of the input schema
     schema: SchemaRef,
-    /// Parameters for chat inference
+    /// Parameters for limit
     config_stream: SendableRecordBatchStream,
-    /// The Candle model assets needed for inference
+    /// Runtime parameters
     _runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
-    /// Parameters for chat inference
-    config: Option<DataConfig>,
+    /// Parameters for limit
+    config: Option<DataSummaryConfig>,
 }
 
 impl LimitStream {
@@ -193,7 +193,7 @@ impl LimitStream {
     /// Initialize the config and update the values for skip and fetch
     fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
-            let config = DataConfig::from_table(&config_table)?;
+            let config = DataSummaryConfig::from_table(&config_table)?;
             self.config.replace(config);
         }
         self.skip.replace(self.config.as_ref().unwrap().skip.as_ref().unwrap().to_owned());
@@ -326,6 +326,8 @@ impl RecordBatchStream for LimitStream {
 
 #[cfg(test)]
 mod tests {
+    use crate::DataSummaryConfig;
+
     use super::*;
     use arrow::array::{ArrayRef, Int32Array};
     use arrow::datatypes::{DataType, Field, Schema};
@@ -441,7 +443,7 @@ mod tests {
         assert_eq!(index.value(), 0);
 
         // Make the config
-        let config = DataConfig {
+        let config = DataSummaryConfig {
             skip: Some(0),
             fetch: Some(6),
             ..Default::default()
@@ -488,7 +490,7 @@ mod tests {
         assert_eq!(index.value(), 0);
 
         // Make the config
-        let config = DataConfig {
+        let config = DataSummaryConfig {
             skip: Some(0),
             fetch: Some(6),
             ..Default::default()
@@ -539,7 +541,7 @@ mod tests {
         assert_eq!(index.value(), 0);
 
         // Make the config
-        let config = DataConfig {
+        let config = DataSummaryConfig {
             skip: Some(0),
             fetch: Some(6),
             ..Default::default()

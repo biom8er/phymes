@@ -10,20 +10,15 @@ use crate::DataConfigTrait;
 #[command(author, version, about, long_about = None)]
 #[serde(default)]
 pub struct DataSummaryConfig {
-    /// The column names
+    /// The number of rows to skip when limiting the row count
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub col_names: Option<Vec<String>>,
+    pub skip: Option<usize>,
 
-    /// The number of rows
-    #[arg(long, default_value = "10")]
+    /// The number of rows to fetch when limiting the row count
+    #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub num_rows: Option<usize>,
-
-    /// The number of batches
-    #[arg(long, default_value = "1")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub num_batches: Option<usize>,
+    pub fetch: Option<usize>,
 
     /// The output format
     #[arg(long)]

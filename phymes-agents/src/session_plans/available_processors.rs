@@ -8,10 +8,7 @@ use phymes_core::{
     TablePublication, TableSubscribePolicyTrait, TableSubscription, test_processor::ProcessorMock,
 };
 use phymes_data::{
-    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,
-    CandleDataProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator,
-    DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait,
-    DataDistanceOperator, DataStreamManager, DataSummaryConfig, DataSummaryProcessor, ToolTrait,
+    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor, CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataStreamManager, DataSummaryConfig, DataSummaryProcessor, LimitProcessor, ToolTrait
 };
 use phymes_ml::{
     AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, CandleEmbedConfig,
@@ -63,6 +60,10 @@ pub enum AvailableProcessors {
     NormalizeTime,
     #[value(name = "DataSummaryProcessor")]
     DataSummaryProcessor,
+    #[value(name = "CoalesceProcessor")]
+    CoalesceProcessor,
+    #[value(name = "LimitProcessor")]
+    LimitProcessor,
     #[value(name = "AttachmentAggregatorProcessor")]
     AttachmentAggregatorProcessor,
     #[value(name = "CandleChatProcessor")]
@@ -111,6 +112,8 @@ impl Display for AvailableProcessors {
             Self::ProcessorEcho => write!(f, "{}", ProcessorEcho::get_static_name()),
             Self::CandleDataProcessor => write!(f, "{}", CandleDataProcessor::get_static_name()),
             Self::DataSummaryProcessor => write!(f, "{}", DataSummaryProcessor::get_static_name()),
+            Self::CoalesceProcessor => write!(f, "{}", CoalesceProcessor::get_static_name()),
+            Self::LimitProcessor => write!(f, "{}", LimitProcessor::get_static_name()),
             Self::AttachmentAggregatorProcessor => {
                 write!(f, "{}", AttachmentAggregatorProcessor::get_static_name())
             }
@@ -293,9 +296,16 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             Self::DataSummaryProcessor => serde_json::to_vec(&DataSummaryConfig {
-                num_rows: Some(10),
-                num_batches: Some(1),
                 summary_format: DataFormat::None,
+                ..Default::default()
+            }),
+            Self::LimitProcessor => serde_json::to_vec(&DataSummaryConfig {
+                skip: Some(0),
+                fetch: Some(100),
+                ..Default::default()
+            }),
+            Self::CoalesceProcessor => serde_json::to_vec(&DataSummaryConfig {
+                fetch: Some(100),
                 ..Default::default()
             }),
             Self::AttachmentAggregatorProcessor => serde_json::to_vec(&DataConfig {
@@ -444,6 +454,8 @@ impl ToolTrait for AvailableProcessors {
             Self::AttachmentAggregatorProcessor => todo!(),
             Self::MessageAggregatorProcessor => todo!(),
             Self::DataSummaryProcessor => todo!(),
+            Self::CoalesceProcessor => todo!(),
+            Self::LimitProcessor => todo!(),
             Self::CandleChatProcessor => todo!(),
             Self::MessageParserProcessor => todo!(),
             Self::CandleEmbedProcessor => todo!(),
@@ -476,6 +488,8 @@ impl ToolTrait for AvailableProcessors {
             Self::AttachmentAggregatorProcessor => todo!(),
             Self::MessageAggregatorProcessor => todo!(),
             Self::DataSummaryProcessor => todo!(),
+            Self::CoalesceProcessor => todo!(),
+            Self::LimitProcessor => todo!(),
             Self::CandleChatProcessor => todo!(),
             Self::MessageParserProcessor => todo!(),
             Self::CandleEmbedProcessor => todo!(),
@@ -510,6 +524,8 @@ impl AvailableProcessors {
             AvailableProcessors::Melt.to_string(),
             AvailableProcessors::NormalizeTime.to_string(),
             AvailableProcessors::DataSummaryProcessor.to_string(),
+            AvailableProcessors::CoalesceProcessor.to_string(),
+            AvailableProcessors::LimitProcessor.to_string(),
             AvailableProcessors::AttachmentAggregatorProcessor.to_string(),
             AvailableProcessors::CandleChatProcessor.to_string(),
             AvailableProcessors::MessageAggregatorProcessor.to_string(),
@@ -568,6 +584,10 @@ impl AvailableProcessors {
             Ok(AvailableProcessors::CandleDataProcessor)
         } else if line.contains(&AvailableProcessors::DataSummaryProcessor.to_string()) {
             Ok(AvailableProcessors::DataSummaryProcessor)
+        } else if line.contains(&AvailableProcessors::CoalesceProcessor.to_string()) {
+            Ok(AvailableProcessors::CoalesceProcessor)
+        } else if line.contains(&AvailableProcessors::LimitProcessor.to_string()) {
+            Ok(AvailableProcessors::LimitProcessor)
         } else if line.contains(&AvailableProcessors::AttachmentAggregatorProcessor.to_string()) {
             Ok(AvailableProcessors::AttachmentAggregatorProcessor)
         } else if line.contains(&AvailableProcessors::CandleChatProcessor.to_string()) {
@@ -650,6 +670,20 @@ impl AvailableProcessors {
                 subscriptions,
                 subscribe_policy,
             )),
+            Self::CoalesceProcessor => Arc::new(CoalesceProcessor::new(
+                name,
+                self.to_string().as_str(),
+                publications,
+                subscriptions,
+                subscribe_policy,
+            )),
+            Self::LimitProcessor => Arc::new(LimitProcessor::new(
+                name,
+                self.to_string().as_str(),
+                publications,
+                subscriptions,
+                subscribe_policy,
+            )),
             Self::AttachmentAggregatorProcessor => Arc::new(AttachmentAggregatorProcessor::new(
                 name,
                 self.to_string().as_str(),
@@ -726,6 +760,8 @@ impl AvailableProcessors {
             | Self::VectorDistance
             | Self::ApplyTemplate => builder.build_arc::<CandleDataProcessor>(),
             Self::DataSummaryProcessor => builder.build_arc::<DataSummaryProcessor>(),
+            Self::CoalesceProcessor => builder.build_arc::<CoalesceProcessor>(),
+            Self::LimitProcessor => builder.build_arc::<LimitProcessor>(),
             Self::AttachmentAggregatorProcessor => {
                 builder.build_arc::<AttachmentAggregatorProcessor>()
             }
@@ -763,7 +799,9 @@ impl AvailableProcessors {
             | Self::ApplyTemplate
             | Self::AttachmentAggregatorProcessor
             | Self::MessageAggregatorProcessor => "DataConfig",
-            Self::DataSummaryProcessor => "DataSummaryConfig",
+            Self::DataSummaryProcessor
+            | Self::CoalesceProcessor 
+            | Self::LimitProcessor => "DataSummaryConfig",
             Self::CandleChatProcessor | Self::MessageParserProcessor => "CandleChatConfig",
             Self::CandleEmbedProcessor => "CandleEmbedConfig",
             #[cfg(feature = "openai_api")]

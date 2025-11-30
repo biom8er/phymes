@@ -19,7 +19,7 @@ use phymes_diagnostics::{
 };
 use tracing::{Level, event};
 
-use crate::{DataConfig, DataConfigTrait};
+use crate::{DataConfigTrait, DataSummaryConfig};
 
 /// Processor that implements the [RecordBatch] coalesce operator to combine smaller [RecordBatch]es into larger [RecordBatch]es of a specifid size
 #[derive(Debug)]
@@ -199,14 +199,14 @@ pub struct CoalesceStream {
     message_stream: Option<SendableRecordBatchStream>,
     /// Copy of the input schema
     schema: SchemaRef,
-    /// Parameters for chat inference
+    /// Parameters for coalesce
     config_stream: SendableRecordBatchStream,
-    /// The Candle model assets needed for inference
+    /// Runtime parameters
     _runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
-    /// Parameters for chat inference
-    config: Option<DataConfig>,
+    /// Parameters for coalesce
+    config: Option<DataSummaryConfig>,
     /// Buffered batches
     buffer: Vec<RecordBatch>,
     /// Buffered row count
@@ -241,7 +241,7 @@ impl CoalesceStream {
     /// Initialize the config and update the values for skip and fetch
     fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
-            let config = DataConfig::from_table(&config_table)?;
+            let config = DataSummaryConfig::from_table(&config_table)?;
             self.config.replace(config);
         }
         self.fetch.replace(self.config.as_ref().unwrap().fetch.as_ref().unwrap().to_owned());
@@ -503,7 +503,7 @@ mod tests {
 
         // --- Coalesce without intermediate overflow ---
         // Make the config
-        let config = DataConfig {
+        let config = DataSummaryConfig {
             fetch: Some(24),
             ..Default::default()
         };
@@ -527,7 +527,7 @@ mod tests {
 
         // --- Coalesce without overflow ---
         // Make the config
-        let config = DataConfig {
+        let config = DataSummaryConfig {
             fetch: Some(100),
             ..Default::default()
         };
@@ -551,7 +551,7 @@ mod tests {
 
         // --- Coalesce with intermediate overflow ---
         // Make the config
-        let config = DataConfig {
+        let config = DataSummaryConfig {
             fetch: Some(10),
             ..Default::default()
         };

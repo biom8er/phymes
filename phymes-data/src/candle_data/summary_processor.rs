@@ -17,7 +17,7 @@ use phymes_core::{
 use anyhow::{Result, anyhow};
 use arrow::{
     array::RecordBatch,
-    datatypes::{Schema, SchemaRef},
+    datatypes::SchemaRef,
 };
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
@@ -357,106 +357,14 @@ impl Stream for DataSummaryStream {
 
             // Collect the messages
             let mut batches = Vec::new();
-            match self.config.as_ref().unwrap().num_batches {
-                Some(num_batches) => {
-                    for _iter in 0..num_batches {
-                        while let Some(Ok(batch)) = ready!(self.message_stream.poll_next_unpin(cx))
-                        {
-                            batches.push(batch);
-                        }
-                    }
-                }
-                None => {
-                    while let Some(Ok(batch)) = ready!(self.message_stream.poll_next_unpin(cx)) {
-                        batches.push(batch);
-                    }
-                }
+            while let Some(Ok(batch)) = ready!(self.message_stream.poll_next_unpin(cx)) {
+                batches.push(batch);
             }
-
-            // Limit the columns
-            let batches_col = match self.config.as_ref().unwrap().col_names.as_ref() {
-                Some(col_names) => {
-                    // Remove all columns that are not specified
-                    batches
-                        .into_iter()
-                        .map(|batch| {
-                            let columns_to_remove = batch
-                                .schema()
-                                .fields()
-                                .iter()
-                                .filter(|field| !col_names.contains(field.name()))
-                                .map(|field| field.name().to_string())
-                                .collect::<Vec<_>>();
-                            let schema = batch.schema();
-                            let new_fields = schema
-                                .fields()
-                                .iter()
-                                .filter(|field| !columns_to_remove.contains(field.name()))
-                                .cloned()
-                                .collect::<Vec<_>>();
-
-                            let new_schema = Arc::new(Schema::new(new_fields));
-
-                            let new_columns = batch
-                                .columns()
-                                .iter()
-                                .zip(schema.fields())
-                                .filter(|(_, field)| !columns_to_remove.contains(field.name()))
-                                .map(|(column, _)| Arc::clone(column))
-                                .collect::<Vec<_>>();
-                            event!(
-                                Level::DEBUG,
-                                "New schema: {:?}, new columns: {:?}",
-                                new_schema,
-                                new_columns
-                            );
-
-                            RecordBatch::try_new(new_schema, new_columns).unwrap()
-                        })
-                        .collect::<Vec<_>>()
-                }
-                None => batches,
-            };
-
-            // Concatenate into a single record batch
-            let schema = match batches_col.first() {
-                Some(cols) => cols.schema(),
-                None => {
-                    return Poll::Ready(Some(Err(anyhow!("No batches were found to summarize!"))));
-                }
-            };
-            let mut batch_json = Table::get_builder()
-                .with_name("DataSummaryStream")
-                .with_record_batches(batches_col)?
-                .build()?
-                .concat_record_batches()?
-                .to_json_object()?;
-
-            // Limit the number of rows
-            let mut batch_limit = Vec::new();
-            match self.config.as_ref().unwrap().num_rows {
-                Some(num_rows) => {
-                    if batch_json.len() > num_rows {
-                        for index in 0..num_rows {
-                            batch_limit.push(batch_json.remove(index));
-                        }
-                    } else {
-                        batch_limit = batch_json;
-                    }
-                }
-                None => batch_limit = batch_json,
-            }
-
-            // Wrap into a table
-            let values = batch_limit
-                .into_iter()
-                .map(|m| serde_json::to_value(m).unwrap())
-                .collect::<Vec<_>>();
-            let table = Table::get_builder()
+            let table= Table::get_builder()
                 .with_name(&self.table_name)
-                .with_schema(schema)
-                .with_json_values(&values)?
-                .build()?;
+                .with_record_batches(batches)?
+                .build()?
+                .concat_record_batches()?;
 
             // Convert to the desired format
             let batch = table_and_data_format_to_record_batch(
@@ -527,10 +435,8 @@ mod tests {
 
         // Make the config
         let config = DataSummaryConfig {
-            num_rows: Some(2),
-            num_batches: Some(1),
-            col_names: Some(vec!["embedding".to_string(), "lhs_pk".to_string()]),
             summary_format: DataFormat::None,
+            ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
         let config_table = TableBuilder::new()
@@ -603,7 +509,7 @@ mod tests {
         assert_eq!(
             partitions.get_column_as_vec_str("content"),
             [
-                "[{\"embedding\":[1.0,1.0,1.0,1.0],\"lhs_pk\":\"1\"},{\"embedding\":[0.0,0.0,0.0,1.0],\"lhs_pk\":\"3\"}]"
+                "[{\"embedding\":[1.0,1.0,1.0,1.0],\"lhs_pk\":\"1\"},{\"embedding\":[0.0,1.0,0.0,1.0],\"lhs_pk\":\"2\"},{\"embedding\":[0.0,0.0,0.0,1.0],\"lhs_pk\":\"3\"}]"
             ]
         );
 
@@ -623,12 +529,10 @@ mod tests {
 
         // Make the config
         let config = DataSummaryConfig {
-            num_rows: Some(2),
-            num_batches: Some(1),
-            col_names: Some(vec!["lhs_pk".to_string()]),
             summary_format: DataFormat::Csv(CsvFormat {
                 ..Default::default()
             }),
+            ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
         let config_table = TableBuilder::new()
@@ -704,7 +608,7 @@ mod tests {
             contents_str.push(String::from_utf8(contents)?);
         }
         let contents_join = contents_str.join("");
-        assert_eq!(contents_join, "lhs_pk\n1\n3\n");
+        assert_eq!(contents_join, "lhs_pk\n1\n2\n3\n");
 
         Ok(())
     }

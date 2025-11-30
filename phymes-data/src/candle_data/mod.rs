@@ -17,6 +17,8 @@ pub use data_config::{
 pub use data_processor::CandleDataProcessor;
 #[allow(unused_imports)]
 pub(crate) use data_processor::test_candle_ops_processor;
+pub use limit::LimitProcessor;
+pub use coalesce::CoalesceProcessor;
 pub use summary_config::DataSummaryConfig;
 pub use summary_processor::{DataSummaryProcessor, table_and_data_format_to_record_batch};
 pub use tensor_service::CandleTensorService;

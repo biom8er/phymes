@@ -767,17 +767,50 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             .build()
             .unwrap();
 
-        // Summary config (to limit the number of documents)
-        let top_k_config = DataSummaryConfig {
-            col_names: Some(vec!["text".to_string()]),
-            num_rows: Some(3),
-            num_batches: Some(1),
+        // Select top K config
+        let top_k_select_config = DataConfig {
+            // lhs_name: Some(AvailableInterfaceSubjects::UserMessages.to_string()),
+            lhs_values: Some(vec!["text".to_string()]),
+            rhs_values: Some(vec!["".to_string()]),
+            as_columns: Some(vec!["".to_string()]),
+            column_operators: Some(vec![DataColumnOperator::None]),
+            cast_operators: Some(vec![DataCastOperator::None]),
+            cast_datatypes: Some(vec![DataType::Utf8.to_string()]),
+            cast_templates: Some(vec!["".to_string()]),
+            operator: AvailableCandleOperators::Select,
+            ..Default::default()
+        };
+        let top_k_select_config_json = serde_json::to_vec(&top_k_select_config).unwrap();
+        let top_k_select_state = TableBuilder::new()
+            // .with_name(self.message_to_query_processor_name)
+            .with_json(&top_k_select_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        // Limit top K config
+        let top_k_limit_config = DataSummaryConfig {
+            fetch: Some(3),
+            skip: Some(0),
             summary_format: DataFormat::None,
         };
-        let top_k_config_json = serde_json::to_vec(&top_k_config).unwrap();
-        let top_k_state = TableBuilder::new()
+        let top_k_limit_config_json = serde_json::to_vec(&top_k_limit_config).unwrap();
+        let top_k_limit_state = TableBuilder::new()
+            // .with_name(self.top_k_processor_name)
+            .with_json(&top_k_limit_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        // Summary top K
+        let top_k_summary_config = DataSummaryConfig {
+            summary_format: DataFormat::None,
+            ..Default::default()
+        };
+        let top_k_summary_config_json = serde_json::to_vec(&top_k_summary_config).unwrap();
+        let top_k_summary_state = TableBuilder::new()
             .with_name(self.top_k_processor_name)
-            .with_json(&top_k_config_json, 1)
+            .with_json(&top_k_summary_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
@@ -795,7 +828,9 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             rel_sim_state,
             sort_scores_state,
             join_chunks_state,
-            top_k_state,
+            top_k_select_state,
+            top_k_limit_state,
+            top_k_summary_state,
             AvailableSubjects::Messages
                 .to_table(Some(self.chat_task_name), None)
                 .unwrap(),
