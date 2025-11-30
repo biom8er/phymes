@@ -9,7 +9,8 @@ use phymes_core::{
     create_tools_record_batch,
 };
 use phymes_data::{
-    AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator, DataConfig, DataSummaryConfig, ToolTrait
+    AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
+    DataConfig, DataSummaryConfig, ToolTrait,
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::AvailableOpenAIAssets;
@@ -585,10 +586,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             lhs_values: Some(vec!["lhs_pk".to_string(), "score".to_string()]),
             rhs_values: Some(vec!["".to_string(), "".to_string()]),
             as_columns: Some(vec!["x".to_string(), "y".to_string()]),
-            column_operators: Some(vec![
-                DataColumnOperator::None,
-                DataColumnOperator::None,
-            ]),
+            column_operators: Some(vec![DataColumnOperator::None, DataColumnOperator::None]),
             cast_operators: Some(vec![DataCastOperator::None, DataCastOperator::None]),
             cast_datatypes: Some(vec![
                 DataType::Utf8.to_string(),

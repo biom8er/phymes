@@ -10,10 +10,9 @@ use crate::{
     ExtractXML, ToolTrait,
     candle_data::DataConfig,
     candle_operators::{
-        ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDF, ExtractTabular,
-        Filter, FromTasksToParticipants, FromTracesToMessages,
-        GroupBy, HumanInTheLoop, Join, Melt, NormalizeTime, Pivot, Select,
-        Sort, VectorDistance,
+        ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDF, ExtractTabular, Filter,
+        FromTasksToParticipants, FromTracesToMessages, GroupBy, HumanInTheLoop, Join, Melt,
+        NormalizeTime, Pivot, Select, Sort, VectorDistance,
     },
 };
 
@@ -111,9 +110,7 @@ impl ToolTrait for AvailableCandleOperators {
             Self::Join => Join::default().to_json_tool_schema(),
             Self::ExtractPDF => ExtractPDF::default().to_json_tool_schema(),
             Self::GroupBy => GroupBy::default().to_json_tool_schema(),
-            Self::Filter => {
-                Filter::default().to_json_tool_schema()
-            }
+            Self::Filter => Filter::default().to_json_tool_schema(),
             Self::ExtractTabular => ExtractTabular::default().to_json_tool_schema(),
             Self::Select => Select::default().to_json_tool_schema(),
             Self::ApplyTemplate => ApplyTemplate::default().to_json_tool_schema(),

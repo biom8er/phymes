@@ -2,7 +2,8 @@ use dioxus::prelude::*;
 use phymes_agents::AvailableInterfaceSubjects;
 use phymes_core::{
     BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, SessionInterfaceMessage,
-    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, TablePublication, TableTrait, TableBuilder, TableBuilderTrait
+    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, TableBuilder,
+    TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_server::create_session_name;
 
@@ -24,7 +25,8 @@ use phymes_server::{serverless_app, Serverless, ServerlessConfig};
 
 use crate::{
     state::{
-        ACTIVE_SESSION_NAME, EMAIL, JWT, get_metric_visualizations_by_metric_name, get_non_duplicated_sorted_subjects, svg_icons::ms_search_icon_svg
+        get_metric_visualizations_by_metric_name, get_non_duplicated_sorted_subjects,
+        svg_icons::ms_search_icon_svg, ACTIVE_SESSION_NAME, EMAIL, JWT,
     },
     ui::mermaid_view,
 };
@@ -96,16 +98,22 @@ pub fn metrics_interface_view() -> Element {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
                         // DM: https://github.com/biom8er/phymes/issues/111#issue-3492849457
-                        metric_names.set(table.get_column_as_vec_nonprimitive::<String>("filename").unwrap());
-                        let viz_str_vec = table.get_column_as_vec_nested_primitive::<u8>("bytes").unwrap()
+                        metric_names.set(
+                            table
+                                .get_column_as_vec_nonprimitive::<String>("filename")
+                                .unwrap(),
+                        );
+                        let viz_str_vec = table
+                            .get_column_as_vec_nested_primitive::<u8>("bytes")
+                            .unwrap()
                             .into_iter()
                             .map(|bytes| String::from_utf8_lossy(bytes.as_ref()).into_owned())
                             .collect::<Vec<_>>();
                         metric_visualizations.set(viz_str_vec);
-                    },
+                    }
                     Err(err) => {
                         tracing::error!("{err:?}");
-                    },
+                    }
                 }
             }
             Err(err) => {
@@ -135,16 +143,22 @@ pub fn metrics_interface_view() -> Element {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
                         // DM: https://github.com/biom8er/phymes/issues/111#issue-3492849457
-                        metric_names.set(table.get_column_as_vec_nonprimitive::<String>("filename").unwrap());
-                        let viz_str_vec = table.get_column_as_vec_nested_primitive::<u8>("bytes").unwrap()
+                        metric_names.set(
+                            table
+                                .get_column_as_vec_nonprimitive::<String>("filename")
+                                .unwrap(),
+                        );
+                        let viz_str_vec = table
+                            .get_column_as_vec_nested_primitive::<u8>("bytes")
+                            .unwrap()
                             .into_iter()
                             .map(|bytes| String::from_utf8_lossy(bytes.as_ref()).into_owned())
                             .collect::<Vec<_>>();
                         metric_visualizations.set(viz_str_vec);
-                    },
+                    }
                     Err(err) => {
                         tracing::error!("{err:?}");
-                    },
+                    }
                 }
             }
             Err(err) => tracing::error!("{err}"),

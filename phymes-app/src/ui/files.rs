@@ -1,6 +1,8 @@
 use dioxus::{html::FileData, prelude::*};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, DataFormat, MappableTrait, MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, Table, TableBuilderTrait, TablePublication, TableTrait, create_blob_batch
+    create_blob_batch, BuildableTrait, BuilderTrait, DataFormat, MappableTrait,
+    MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, Table,
+    TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_server::create_session_name;

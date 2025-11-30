@@ -16,10 +16,7 @@ use quick_xml::{
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::{
-    ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTrait,
-    sort,
-};
+use crate::{ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTrait, sort};
 
 /// Extract xml tags in either XML or OWL format from Bytes
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -591,11 +588,9 @@ pub fn extract_xml(
             &OwlFormat::owl_format_named_individual(),
             device,
         ),
-        DataFormat::OwlOntology => parse_owl(
-            &values_vec,
-            &OwlFormat::owl_format_ontology(),
-            device,
-        ),
+        DataFormat::OwlOntology => {
+            parse_owl(&values_vec, &OwlFormat::owl_format_ontology(), device)
+        }
         _ => Err(anyhow!(
             "Unsupported format {format:?} for extract_set_data operator."
         )),
@@ -655,8 +650,7 @@ mod tests {
         let device = device(false).unwrap();
 
         // Extract the xml tags
-        let extracted =
-            extract_xml("bytes", &[batch], &DataFormat::OwlDefault, &device).unwrap();
+        let extracted = extract_xml("bytes", &[batch], &DataFormat::OwlDefault, &device).unwrap();
 
         // Check the dimensions of the extracted data
         assert_eq!(extracted.num_columns(), 7);
@@ -845,8 +839,7 @@ mod tests {
         let device = device(false).unwrap();
 
         // Extract the xml tags
-        let extracted =
-            extract_xml("bytes", &[batch], &DataFormat::OwlClass, &device).unwrap();
+        let extracted = extract_xml("bytes", &[batch], &DataFormat::OwlClass, &device).unwrap();
 
         // Check the dimensions of the extracted data
         assert_eq!(extracted.num_columns(), 3);

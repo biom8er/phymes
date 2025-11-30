@@ -284,28 +284,50 @@ fn pivot_missing_values(
                     match data_type {
                         DataType::UInt8 => {
                             let default_value = agg_default_value.parse::<u8>()?;
-                            map.insert(new_column_name.clone(), serde_json::Value::from(default_value));
-                        },
+                            map.insert(
+                                new_column_name.clone(),
+                                serde_json::Value::from(default_value),
+                            );
+                        }
                         DataType::UInt32 => {
                             let default_value = agg_default_value.parse::<u32>()?;
-                            map.insert(new_column_name.clone(), serde_json::Value::from(default_value));
-                        },
+                            map.insert(
+                                new_column_name.clone(),
+                                serde_json::Value::from(default_value),
+                            );
+                        }
                         DataType::Int64 => {
                             let default_value = agg_default_value.parse::<i64>()?;
-                            map.insert(new_column_name.clone(), serde_json::Value::from(default_value));
-                        },
+                            map.insert(
+                                new_column_name.clone(),
+                                serde_json::Value::from(default_value),
+                            );
+                        }
                         DataType::Float32 => {
                             let default_value = agg_default_value.parse::<f32>()?;
-                            map.insert(new_column_name.clone(), serde_json::Value::from(default_value));
-                        },
+                            map.insert(
+                                new_column_name.clone(),
+                                serde_json::Value::from(default_value),
+                            );
+                        }
                         DataType::Float64 => {
                             let default_value = agg_default_value.parse::<f64>()?;
-                            map.insert(new_column_name.clone(), serde_json::Value::from(default_value));
-                        },
+                            map.insert(
+                                new_column_name.clone(),
+                                serde_json::Value::from(default_value),
+                            );
+                        }
                         DataType::Utf8 => {
-                            map.insert(new_column_name.clone(), serde_json::Value::from(agg_default_value.to_string()));
-                        },
-                        _ => return Err(anyhow!("Unsupported data type {data_type} for default value {agg_default_value} and column {agg_column_name}.")),
+                            map.insert(
+                                new_column_name.clone(),
+                                serde_json::Value::from(agg_default_value.to_string()),
+                            );
+                        }
+                        _ => {
+                            return Err(anyhow!(
+                                "Unsupported data type {data_type} for default value {agg_default_value} and column {agg_column_name}."
+                            ));
+                        }
                     }
                     let field = Field::new(new_column_name, data_type, false);
                     if !pvt_fields.contains(&field) {
@@ -417,8 +439,7 @@ pub fn pivot(
         .chain(pvt_columns)
         .copied()
         .collect::<Vec<&str>>();
-    let pvt_values_group =
-        group_by(pvt_values, lhs_args, agg_columns, agg_operators, device)?;
+    let pvt_values_group = group_by(pvt_values, lhs_args, agg_columns, agg_operators, device)?;
     let pvt_values_table = Table::get_builder()
         .with_name("pivot")
         .with_record_batches(vec![pvt_values_group])?
@@ -446,10 +467,8 @@ pub fn pivot(
     // Group the columns and the rows
     let pvt_columns_batch = RecordBatch::try_from_iter(pvt_columns_vec)?;
     let pvt_values_batches = RecordBatch::try_from_iter(pvt_values_vec)?;
-    let pvt_columns_group =
-        group_by(pvt_columns, &[pvt_columns_batch], &[], &[], device)?;
-    let pvt_rows_group =
-        group_by(lhs_values, &[pvt_values_batches], &[], &[], device)?;
+    let pvt_columns_group = group_by(pvt_columns, &[pvt_columns_batch], &[], &[], device)?;
+    let pvt_rows_group = group_by(lhs_values, &[pvt_values_batches], &[], &[], device)?;
 
     // Wrap the all grouped batches into tables
     let pvt_columns_table = Table::get_builder()

@@ -9,8 +9,8 @@ pub use attachment_aggregator_processor::{
     AggregatorStream, AttachmentAggregatorProcessor, collect_messages_by_schema,
 };
 pub use data_config::{
-    DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate,
-    DataConfig, DataConfigTrait, DataDistanceOperator, DataStreamManager,
+    DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator,
+    DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataStreamManager,
 };
 pub use data_processor::CandleDataProcessor;
 #[allow(unused_imports)]

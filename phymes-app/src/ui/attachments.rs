@@ -9,7 +9,8 @@ use reqwest::{self, header::CONTENT_TYPE};
 
 use phymes_core::{
     BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, SessionInterfaceMessage,
-    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, TablePublication, TableTrait, TableBuilder, TableBuilderTrait
+    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, TableBuilder,
+    TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_server::create_session_name;
 
@@ -119,18 +120,44 @@ pub fn attachments_interface_view() -> Element {
                 match TableBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
-                        let combined = table.get_column_as_vec_nonprimitive::<String>("metadata").unwrap().into_iter()
-                            .zip(table.get_column_as_vec_nonprimitive::<String>("filename").unwrap().into_iter())
-                            .zip(table.get_column_as_vec_nonprimitive::<String>("extension").unwrap().into_iter())
-                            .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
-                            .zip(table.get_column_as_vec_nested_primitive::<u8>("bytes").unwrap().into_iter())
+                        let combined = table
+                            .get_column_as_vec_nonprimitive::<String>("metadata")
+                            .unwrap()
+                            .into_iter()
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("filename")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("extension")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_primitive::<i64>("timestamp")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_nested_primitive::<u8>("bytes")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
                             .enumerate()
-                            .filter_map(|(i, ((((m, f), e), t), b))| if m.is_empty() {
-                                None
-                            } else {
-                                let index = current_index() + i + 1;
-                                Some((m, f, e, t, b, index))
-                            }).collect::<Vec<_>>();
+                            .filter_map(|(i, ((((m, f), e), t), b))| {
+                                if m.is_empty() {
+                                    None
+                                } else {
+                                    let index = current_index() + i + 1;
+                                    Some((m, f, e, t, b, index))
+                                }
+                            })
+                            .collect::<Vec<_>>();
                         for (m, f, e, t, b, index) in combined {
                             attachments_roles.push(m);
                             attachments_filenames.push(f);
@@ -139,7 +166,7 @@ pub fn attachments_interface_view() -> Element {
                             attachments_contents.push(Some(b));
                             attachments_indices.push(index);
                         }
-                    },
+                    }
                     Err(err) => tracing::error!("{err:?}"),
                 }
             }
@@ -169,18 +196,44 @@ pub fn attachments_interface_view() -> Element {
                         use phymes_core::TableTrait;
 
                         let table = builder.with_name("").build().unwrap();
-                        let combined = table.get_column_as_vec_nonprimitive::<String>("metadata").unwrap().into_iter()
-                            .zip(table.get_column_as_vec_nonprimitive::<String>("filename").unwrap().into_iter())
-                            .zip(table.get_column_as_vec_nonprimitive::<String>("extension").unwrap().into_iter())
-                            .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
-                            .zip(table.get_column_as_vec_nested_primitive::<u8>("bytes").unwrap().into_iter())
+                        let combined = table
+                            .get_column_as_vec_nonprimitive::<String>("metadata")
+                            .unwrap()
+                            .into_iter()
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("filename")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("extension")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_primitive::<i64>("timestamp")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_nested_primitive::<u8>("bytes")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
                             .enumerate()
-                            .filter_map(|(i, ((((m, f), e), t), b))| if m.is_empty() {
-                                None
-                            } else {
-                                let index = current_index() + i + 1;
-                                Some((m, f, e, t, b, index))
-                            }).collect::<Vec<_>>();
+                            .filter_map(|(i, ((((m, f), e), t), b))| {
+                                if m.is_empty() {
+                                    None
+                                } else {
+                                    let index = current_index() + i + 1;
+                                    Some((m, f, e, t, b, index))
+                                }
+                            })
+                            .collect::<Vec<_>>();
                         for (m, f, e, t, b, index) in combined {
                             attachments_roles.push(m);
                             attachments_filenames.push(f);
@@ -189,7 +242,7 @@ pub fn attachments_interface_view() -> Element {
                             attachments_contents.push(Some(b));
                             attachments_indices.push(index);
                         }
-                    },
+                    }
                     Err(err) => tracing::error!("{err:?}"),
                 }
             }

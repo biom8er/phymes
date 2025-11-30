@@ -27,9 +27,7 @@ use tracing::instrument;
 use crate::{
     ToolTrait,
     candle_data::{DataAggregatorOperator, DataConfig},
-    candle_operators::{
-        data_operator::DataOperatorTrait, sort::sort,
-    },
+    candle_operators::{data_operator::DataOperatorTrait, sort::sort},
 };
 
 /// Group the [RecordBatch] according to the `lhs_values` columns and aggregate using a specified aggregation operator over specified columns
@@ -648,7 +646,9 @@ pub fn group_by(
                     ));
                 }
             },
-            DataAggregatorOperator::ConcatSemicolonSeperator => match lhs_table.get_column_data_type(agg_column)? {
+            DataAggregatorOperator::ConcatSemicolonSeperator => match lhs_table
+                .get_column_data_type(agg_column)?
+            {
                 DataType::Utf8 => {
                     let agg_ranges = extract_aggregation_ranges(agg_column, &lhs_table, &ranges)?;
                     let agg_vecs = agg_ranges
@@ -1035,8 +1035,10 @@ pub fn group_by(
                                     .iter()
                                     .filter_map(|s| {
                                         s.map(|s| {
-                                            Table::get_array_as_vec_nonprimitive::<String>(&s, agg_column)
-                                                .unwrap_or_default()
+                                            Table::get_array_as_vec_nonprimitive::<String>(
+                                                &s, agg_column,
+                                            )
+                                            .unwrap_or_default()
                                         })
                                     })
                                     .collect::<Vec<_>>()
@@ -1230,8 +1232,10 @@ pub fn group_by(
                                     .iter()
                                     .filter_map(|s| {
                                         s.map(|s| {
-                                            Table::get_array_as_vec_nonprimitive::<String>(&s, agg_column)
-                                                .unwrap_or_default()
+                                            Table::get_array_as_vec_nonprimitive::<String>(
+                                                &s, agg_column,
+                                            )
+                                            .unwrap_or_default()
                                         })
                                     })
                                     .collect::<Vec<_>>()
@@ -1565,8 +1569,10 @@ pub fn group_by(
                                     .iter()
                                     .filter_map(|s| {
                                         s.map(|s| {
-                                            Table::get_array_as_vec_nonprimitive::<String>(&s, agg_column)
-                                                .unwrap_or_default()
+                                            Table::get_array_as_vec_nonprimitive::<String>(
+                                                &s, agg_column,
+                                            )
+                                            .unwrap_or_default()
                                         })
                                     })
                                     .collect::<Vec<_>>()
@@ -1760,8 +1766,10 @@ pub fn group_by(
                                     .iter()
                                     .filter_map(|s| {
                                         s.map(|s| {
-                                            Table::get_array_as_vec_nonprimitive::<String>(&s, agg_column)
-                                                .unwrap_or_default()
+                                            Table::get_array_as_vec_nonprimitive::<String>(
+                                                &s, agg_column,
+                                            )
+                                            .unwrap_or_default()
                                         })
                                     })
                                     .collect::<Vec<_>>()
@@ -2041,8 +2049,10 @@ pub fn group_by(
                                     .iter()
                                     .filter_map(|s| {
                                         s.map(|s| {
-                                            Table::get_array_as_vec_nonprimitive::<String>(&s, agg_column)
-                                                .unwrap_or_default()
+                                            Table::get_array_as_vec_nonprimitive::<String>(
+                                                &s, agg_column,
+                                            )
+                                            .unwrap_or_default()
                                         })
                                     })
                                     .flatten()
@@ -2200,8 +2210,10 @@ pub fn group_by(
                                     .iter()
                                     .filter_map(|s| {
                                         s.map(|s| {
-                                            Table::get_array_as_vec_nonprimitive::<String>(&s, agg_column)
-                                                .unwrap_or_default()
+                                            Table::get_array_as_vec_nonprimitive::<String>(
+                                                &s, agg_column,
+                                            )
+                                            .unwrap_or_default()
                                         })
                                     })
                                     .flatten()
@@ -2403,8 +2415,10 @@ pub fn group_by(
                                     .iter()
                                     .filter_map(|s| {
                                         s.map(|s| {
-                                            Table::get_array_as_vec_nonprimitive::<String>(&s, agg_column)
-                                                .unwrap_or_default()
+                                            Table::get_array_as_vec_nonprimitive::<String>(
+                                                &s, agg_column,
+                                            )
+                                            .unwrap_or_default()
                                         })
                                     })
                                     .collect::<HashSet<_>>()
@@ -2520,8 +2534,10 @@ pub fn group_by(
                                     .iter()
                                     .filter_map(|s| {
                                         s.map(|s| {
-                                            Table::get_array_as_vec_nonprimitive::<String>(&s, agg_column)
-                                                .unwrap_or_default()
+                                            Table::get_array_as_vec_nonprimitive::<String>(
+                                                &s, agg_column,
+                                            )
+                                            .unwrap_or_default()
                                         })
                                     })
                                     .collect::<HashSet<_>>()

@@ -40,9 +40,9 @@ pub fn sign_in_view() -> Element {
 #[component]
 pub fn sign_in_form() -> Element {
     // Sign-in signals
-    let mut email =  use_signal(String::new);
+    let mut email = use_signal(String::new);
     let mut password = use_signal(String::new);
-    let mut content =  use_signal(String::new);
+    let mut content = use_signal(String::new);
 
     // intialize state and coroutines
     use_coroutine(sync_jwt_state);

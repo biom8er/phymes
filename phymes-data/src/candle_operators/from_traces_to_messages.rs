@@ -18,9 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     candle_data::DataConfig,
-    candle_operators::{
-        data_operator::DataOperatorTrait, sort::sort,
-    },
+    candle_operators::{data_operator::DataOperatorTrait, sort::sort},
 };
 
 /// Compute the normalized start and end times in a [RecordBatch]

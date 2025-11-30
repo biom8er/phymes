@@ -354,12 +354,13 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             if tasks.contains(name) && table.count_rows() == 0 {
                 continue;
             }
+
             // Ignore Echo processors
-            if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
-                if processor == AvailableProcessors::ProcessorEcho {
-                    continue;
-                }
-            } 
+            if let Ok(processor) = AvailableProcessors::from_str(r#type, false)
+                && processor == AvailableProcessors::ProcessorEcho
+            {
+                continue;
+            }
 
             // Check everything else
             if let Ok(_config) = CandleChatConfig::from_table(table) {
@@ -438,9 +439,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                                 r#type
                             ));
                         } else if config.operator.to_string().as_str()
-                            != AvailableProcessors::Sort
-                                .to_string()
-                                .as_str()
+                            != AvailableProcessors::Sort.to_string().as_str()
                             && (r#type
                                 == AvailableProcessors::AttachmentAggregatorProcessor
                                     .to_string()

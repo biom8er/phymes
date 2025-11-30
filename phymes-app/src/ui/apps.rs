@@ -3,16 +3,21 @@ use phymes_agents::AvailableSessionPlans;
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait,
     SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-    TablePublication, TableTrait, TableBuilder, TableBuilderTrait
+    TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_server::create_session_name;
 
 use crate::{
     state::{
-        ACTIVE_SESSION_NAME, BUILDER, EMAIL, JWT, SESSION_NAMES, SyncCurrentActiveSessionState, filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, svg_icons::{ms_search_icon_svg, ms_sync_icon_svg}, sync_current_active_session_state
+        filter_in_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects,
+        svg_icons::{ms_search_icon_svg, ms_sync_icon_svg},
+        sync_current_active_session_state, SyncCurrentActiveSessionState, ACTIVE_SESSION_NAME,
+        BUILDER, EMAIL, JWT, SESSION_NAMES,
     },
     ui::{
-        builds::session_name_editor, builds_dropdown_view, diagram_code_editor, main_window::{SnapPct, split_panel}
+        builds::session_name_editor,
+        builds_dropdown_view, diagram_code_editor,
+        main_window::{split_panel, SnapPct},
     },
 };
 
@@ -117,22 +122,43 @@ pub fn apps_interface_view() -> Element {
                 match TableBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
-                        let combined = table.get_column_as_vec_nonprimitive::<String>("session_context_name").unwrap().into_iter()
-                            .zip(table.get_column_as_vec_nonprimitive::<String>("flowchart_diagram").unwrap().into_iter())
-                            .zip(table.get_column_as_vec_nonprimitive::<String>("er_diagram").unwrap().into_iter())
-                            .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
-                            .filter_map(|(((scn, fd), ed), t)| if scn.contains("__deleted__") {
-                                None
-                            } else {
-                                Some((scn, fd, ed, t))
-                            }).collect::<Vec<_>>();
+                        let combined = table
+                            .get_column_as_vec_nonprimitive::<String>("session_context_name")
+                            .unwrap()
+                            .into_iter()
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("flowchart_diagram")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("er_diagram")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_primitive::<i64>("timestamp")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .filter_map(|(((scn, fd), ed), t)| {
+                                if scn.contains("__deleted__") {
+                                    None
+                                } else {
+                                    Some((scn, fd, ed, t))
+                                }
+                            })
+                            .collect::<Vec<_>>();
                         for (scn, fd, ed, t) in combined {
                             mermaid_session_context_names.push(scn);
                             mermaid_flowchart_diagrams.push(fd);
                             mermaid_er_diagrams.push(ed);
                             mermaid_timestamps.push(t);
                         }
-                    },
+                    }
                     Err(err) => tracing::error!("{err:?}"),
                 }
             }
@@ -160,22 +186,43 @@ pub fn apps_interface_view() -> Element {
                 match TableBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
-                        let combined = table.get_column_as_vec_nonprimitive::<String>("session_context_name").unwrap().into_iter()
-                            .zip(table.get_column_as_vec_nonprimitive::<String>("flowchart_diagram").unwrap().into_iter())
-                            .zip(table.get_column_as_vec_nonprimitive::<String>("er_diagram").unwrap().into_iter())
-                            .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
-                            .filter_map(|(((scn, fd), ed), t)| if scn.contains("__deleted__") {
-                                None
-                            } else {
-                                Some((scn, fd, ed, t))
-                            }).collect::<Vec<_>>();
+                        let combined = table
+                            .get_column_as_vec_nonprimitive::<String>("session_context_name")
+                            .unwrap()
+                            .into_iter()
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("flowchart_diagram")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("er_diagram")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_primitive::<i64>("timestamp")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .filter_map(|(((scn, fd), ed), t)| {
+                                if scn.contains("__deleted__") {
+                                    None
+                                } else {
+                                    Some((scn, fd, ed, t))
+                                }
+                            })
+                            .collect::<Vec<_>>();
                         for (scn, fd, ed, t) in combined {
                             mermaid_session_context_names.push(scn);
                             mermaid_flowchart_diagrams.push(fd);
                             mermaid_er_diagrams.push(ed);
                             mermaid_timestamps.push(t);
                         }
-                    },
+                    }
                     Err(err) => tracing::error!("{err:?}"),
                 }
             }
@@ -431,12 +478,15 @@ pub fn apps_dropdown_view(mut is_flowchart_shown: Signal<bool>) -> Element {
 }
 
 /// View to visualize mermaid.js diagrams
-/// 
+///
 /// # Notes
 /// * mermaid.js is used to render SVG diagrams
 /// * errors when creating the SVG are also shown
 #[component]
-pub fn mermaid_view(diagram_code: Memo<(String, Option<String>)>, mut build_errors: Signal<String>) -> Element {
+pub fn mermaid_view(
+    diagram_code: Memo<(String, Option<String>)>,
+    mut build_errors: Signal<String>,
+) -> Element {
     let mut diagram_svg = use_signal(String::new);
     let mut error_mjs = use_signal(String::new);
     let id = use_signal(|| "graphDiv".to_string());

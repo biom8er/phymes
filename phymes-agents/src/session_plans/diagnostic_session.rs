@@ -7,7 +7,8 @@ use phymes_core::{
     TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan,
 };
 use phymes_data::{
-    AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataConfig
+    AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator,
+    DataColumnOperator, DataConfig,
 };
 use serde_json::json;
 

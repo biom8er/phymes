@@ -6,7 +6,8 @@ use phymes_core::{
     TableBuilderTrait, TablePublication, TableSubscription, TaskPlan,
 };
 use phymes_data::{
-    AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig, DataDistanceOperator, DataSummaryConfig
+    AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
+    DataDistanceOperator, DataSummaryConfig,
 };
 #[cfg(feature = "openai_api")]
 use phymes_ml::AvailableOpenAIAssets;

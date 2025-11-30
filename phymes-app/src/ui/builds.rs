@@ -11,9 +11,13 @@ use phymes_diagnostics::create_timestamp_micros;
 use phymes_server::create_session_name;
 
 use crate::state::{
-    EMAIL, JWT, SESSION_NAMES, SyncSessionNamesState, filter_in_mermaid_diagrams_by_session_name, filter_out_mermaid_diagrams_by_session_name, get_non_duplicated_sorted_subjects, svg_icons::{
-        b8_save_icon_svg, fa_trash_icon_svg, ms_code_icon_svg, ms_column_arrow_right_icon_svg, ms_deploy_icon_svg, ms_edit_icon_svg, ms_search_icon_svg, ms_sync_icon_svg
-    }, sync_session_names_state
+    filter_in_mermaid_diagrams_by_session_name, filter_out_mermaid_diagrams_by_session_name,
+    get_non_duplicated_sorted_subjects,
+    svg_icons::{
+        b8_save_icon_svg, fa_trash_icon_svg, ms_code_icon_svg, ms_column_arrow_right_icon_svg,
+        ms_deploy_icon_svg, ms_edit_icon_svg, ms_search_icon_svg, ms_sync_icon_svg,
+    },
+    sync_session_names_state, SyncSessionNamesState, EMAIL, JWT, SESSION_NAMES,
 };
 
 #[cfg(not(feature = "serverless"))]
@@ -576,7 +580,7 @@ code.addEventListener('scroll', () => {
 pub fn session_name_editor(mut active_session_name: Signal<String>) -> Element {
     let mut is_editing = use_signal(|| false);
     let mut session_name = use_signal(String::new);
-    
+
     if !active_session_name().is_empty() {
         if is_editing() {
             rsx! {
@@ -613,9 +617,9 @@ pub fn session_name_editor(mut active_session_name: Signal<String>) -> Element {
                             dangerous_inner_html: fa_trash_icon_svg()
                         },
                     }
-                }                
+                }
             }
-        } else {            
+        } else {
             rsx! {
                 div {
                     class: "w-full rounded p-2 items-center flex flex-row bg-neutral-800",
@@ -637,6 +641,6 @@ pub fn session_name_editor(mut active_session_name: Signal<String>) -> Element {
             }
         }
     } else {
-        rsx! { }
+        rsx! {}
     }
 }

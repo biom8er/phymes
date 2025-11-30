@@ -4,17 +4,16 @@ mod jinja2_templates;
 
 pub use candle_data::{
     AggregatorStream, AttachmentAggregatorProcessor, CandleDataProcessor, CandleTensorService,
-    DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate,
-    DataConfig, DataConfigTrait, DataDistanceOperator, DataStreamManager, DataSummaryConfig,
-    DataSummaryProcessor, collect_messages_by_schema,
+    DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator,
+    DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataStreamManager,
+    DataSummaryConfig, DataSummaryProcessor, collect_messages_by_schema,
 };
 pub use candle_operators::{
     ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait, ExtractPDF,
-    ExtractXML, ExtractTabular, Filter, FromTasksToParticipants,
-    FromTracesToMessages, GroupBy, HumanInTheLoop, Join, NormalizeTime, Pivot,
-    Select, Sort, ToolTrait, VectorDistance, convert_destinations_to_tools,
-    extract_xml, filter, group_by, make_pdf_document,
-    sort, test_extract_tabular_data,
+    ExtractTabular, ExtractXML, Filter, FromTasksToParticipants, FromTracesToMessages, GroupBy,
+    HumanInTheLoop, Join, NormalizeTime, Pivot, Select, Sort, ToolTrait, VectorDistance,
+    convert_destinations_to_tools, extract_xml, filter, group_by, make_pdf_document, sort,
+    test_extract_tabular_data,
 };
 pub use jinja2_templates::{
     AvailableJinja2Templates, MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_INPUT,

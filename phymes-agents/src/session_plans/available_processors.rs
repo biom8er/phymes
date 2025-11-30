@@ -8,7 +8,10 @@ use phymes_core::{
     TablePublication, TableSubscribePolicyTrait, TableSubscription, test_processor::ProcessorMock,
 };
 use phymes_data::{
-    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataStreamManager, DataSummaryConfig, DataSummaryProcessor, ToolTrait
+    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,
+    CandleDataProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator,
+    DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait,
+    DataDistanceOperator, DataStreamManager, DataSummaryConfig, DataSummaryProcessor, ToolTrait,
 };
 use phymes_ml::{
     AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, CandleEmbedConfig,
@@ -425,15 +428,9 @@ impl ToolTrait for AvailableProcessors {
             Self::CandleDataProcessor => todo!(),
             Self::ChunkDocuments => AvailableCandleOperators::ChunkDocuments.get_description(),
             Self::ExtractPDF => AvailableCandleOperators::ExtractPDF.get_description(),
-            Self::ExtractTabular => {
-                AvailableCandleOperators::ExtractTabular.get_description()
-            }
-            Self::Filter => {
-                AvailableCandleOperators::Filter.get_description()
-            }
-            Self::GroupBy => {
-                AvailableCandleOperators::GroupBy.get_description()
-            }
+            Self::ExtractTabular => AvailableCandleOperators::ExtractTabular.get_description(),
+            Self::Filter => AvailableCandleOperators::Filter.get_description(),
+            Self::GroupBy => AvailableCandleOperators::GroupBy.get_description(),
             Self::HumanInTheLoop => AvailableCandleOperators::HumanInTheLoop.get_description(),
             Self::Join => AvailableCandleOperators::Join.get_description(),
             Self::NormalizeTime => AvailableCandleOperators::NormalizeTime.get_description(),
@@ -441,9 +438,7 @@ impl ToolTrait for AvailableProcessors {
             Self::ExtractXML => AvailableCandleOperators::ExtractXML.get_description(),
             Self::Melt => AvailableCandleOperators::Melt.get_description(),
             Self::Select => AvailableCandleOperators::Select.get_description(),
-            Self::Sort => {
-                AvailableCandleOperators::Sort.get_description()
-            }
+            Self::Sort => AvailableCandleOperators::Sort.get_description(),
             Self::VectorDistance => AvailableCandleOperators::VectorDistance.get_description(),
             Self::ApplyTemplate => AvailableCandleOperators::ApplyTemplate.get_description(),
             Self::AttachmentAggregatorProcessor => todo!(),
@@ -465,15 +460,9 @@ impl ToolTrait for AvailableProcessors {
             Self::CandleDataProcessor => todo!(),
             Self::ChunkDocuments => AvailableCandleOperators::ChunkDocuments.to_json_tool_schema(),
             Self::ExtractPDF => AvailableCandleOperators::ExtractPDF.to_json_tool_schema(),
-            Self::ExtractTabular => {
-                AvailableCandleOperators::ExtractTabular.to_json_tool_schema()
-            }
-            Self::Filter => {
-                AvailableCandleOperators::Filter.to_json_tool_schema()
-            }
-            Self::GroupBy => {
-                AvailableCandleOperators::GroupBy.to_json_tool_schema()
-            }
+            Self::ExtractTabular => AvailableCandleOperators::ExtractTabular.to_json_tool_schema(),
+            Self::Filter => AvailableCandleOperators::Filter.to_json_tool_schema(),
+            Self::GroupBy => AvailableCandleOperators::GroupBy.to_json_tool_schema(),
             Self::HumanInTheLoop => AvailableCandleOperators::HumanInTheLoop.to_json_tool_schema(),
             Self::Join => AvailableCandleOperators::Join.to_json_tool_schema(),
             Self::NormalizeTime => AvailableCandleOperators::NormalizeTime.to_json_tool_schema(),
@@ -481,9 +470,7 @@ impl ToolTrait for AvailableProcessors {
             Self::ExtractXML => AvailableCandleOperators::ExtractXML.to_json_tool_schema(),
             Self::Melt => AvailableCandleOperators::Melt.to_json_tool_schema(),
             Self::Select => AvailableCandleOperators::Select.to_json_tool_schema(),
-            Self::Sort => {
-                AvailableCandleOperators::Sort.to_json_tool_schema()
-            }
+            Self::Sort => AvailableCandleOperators::Sort.to_json_tool_schema(),
             Self::VectorDistance => AvailableCandleOperators::VectorDistance.to_json_tool_schema(),
             Self::ApplyTemplate => AvailableCandleOperators::ApplyTemplate.to_json_tool_schema(),
             Self::AttachmentAggregatorProcessor => todo!(),

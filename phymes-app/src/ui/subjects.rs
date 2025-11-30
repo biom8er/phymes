@@ -2,7 +2,7 @@ use dioxus::prelude::*;
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait,
     SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-    TablePublication, TableTrait, TableBuilder, TableBuilderTrait
+    TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_server::create_session_name;
 
@@ -104,13 +104,25 @@ pub fn subjects_interface_view() -> Element {
                 match TableBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
-                        subject_schema_names.set(table.get_column_as_vec_nonprimitive::<String>("subject_name").unwrap());
-                        subject_schema_columns.set(table.get_column_as_vec_nonprimitive::<String>("column_name").unwrap());
-                        subject_schema_types.set(table.get_column_as_vec_nonprimitive::<String>("type_name").unwrap());
-                    },
+                        subject_schema_names.set(
+                            table
+                                .get_column_as_vec_nonprimitive::<String>("subject_name")
+                                .unwrap(),
+                        );
+                        subject_schema_columns.set(
+                            table
+                                .get_column_as_vec_nonprimitive::<String>("column_name")
+                                .unwrap(),
+                        );
+                        subject_schema_types.set(
+                            table
+                                .get_column_as_vec_nonprimitive::<String>("type_name")
+                                .unwrap(),
+                        );
+                    }
                     Err(err) => {
                         tracing::error!("{err:?}");
-                    },
+                    }
                 }
             }
             Err(err) => tracing::error!("{err:?}"),
@@ -137,13 +149,25 @@ pub fn subjects_interface_view() -> Element {
                 match TableBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
-                        subject_schema_names.set(table.get_column_as_vec_nonprimitive::<String>("subject_name").unwrap());
-                        subject_schema_columns.set(table.get_column_as_vec_nonprimitive::<String>("column_name").unwrap());
-                        subject_schema_types.set(table.get_column_as_vec_nonprimitive::<String>("type_name").unwrap());
-                    },
+                        subject_schema_names.set(
+                            table
+                                .get_column_as_vec_nonprimitive::<String>("subject_name")
+                                .unwrap(),
+                        );
+                        subject_schema_columns.set(
+                            table
+                                .get_column_as_vec_nonprimitive::<String>("column_name")
+                                .unwrap(),
+                        );
+                        subject_schema_types.set(
+                            table
+                                .get_column_as_vec_nonprimitive::<String>("type_name")
+                                .unwrap(),
+                        );
+                    }
                     Err(err) => {
                         tracing::error!("{err:?}");
-                    },
+                    }
                 }
             }
             Err(err) => tracing::error!("{err:?}"),
@@ -187,12 +211,23 @@ pub fn subjects_interface_view() -> Element {
                 match TableBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
-                        subject_names.set(table.get_column_as_vec_nonprimitive::<String>("subject_name").unwrap());
-                        subject_num_rows.set(table.get_column_as_vec_primitive::<u64>("num_rows").unwrap().into_iter().map(|n| n as usize).collect::<Vec<_>>());
-                    },
+                        subject_names.set(
+                            table
+                                .get_column_as_vec_nonprimitive::<String>("subject_name")
+                                .unwrap(),
+                        );
+                        subject_num_rows.set(
+                            table
+                                .get_column_as_vec_primitive::<u64>("num_rows")
+                                .unwrap()
+                                .into_iter()
+                                .map(|n| n as usize)
+                                .collect::<Vec<_>>(),
+                        );
+                    }
                     Err(err) => {
                         tracing::error!("{err:?}");
-                    },
+                    }
                 }
             }
             Err(err) => tracing::error!("{err:?}"),
@@ -219,12 +254,23 @@ pub fn subjects_interface_view() -> Element {
                 match TableBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
-                        subject_names.set(table.get_column_as_vec_nonprimitive::<String>("subject_name").unwrap());
-                        subject_num_rows.set(table.get_column_as_vec_primitive::<u64>("num_rows").unwrap().into_iter().map(|n| n as usize).collect::<Vec<_>>());
-                    },
+                        subject_names.set(
+                            table
+                                .get_column_as_vec_nonprimitive::<String>("subject_name")
+                                .unwrap(),
+                        );
+                        subject_num_rows.set(
+                            table
+                                .get_column_as_vec_primitive::<u64>("num_rows")
+                                .unwrap()
+                                .into_iter()
+                                .map(|n| n as usize)
+                                .collect::<Vec<_>>(),
+                        );
+                    }
                     Err(err) => {
                         tracing::error!("{err:?}");
-                    },
+                    }
                 }
             }
             Err(err) => tracing::error!("{err:?}"),

@@ -76,7 +76,7 @@ impl OwlFormat {
             "oboInOwl:default-namespace",
             "oboInOwl:hasOBOFormatVersion",
             "owl:versionInfo",
-            "foaf:homepage"
+            "foaf:homepage",
         ]
         .into_iter()
         .map(|s| s.to_string())

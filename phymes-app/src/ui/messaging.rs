@@ -4,7 +4,6 @@ use dioxus::prelude::*;
 // General imports
 use phymes_agents::AvailableInterfaceSubjects;
 use phymes_diagnostics::{convert_timestamp_micros_to_str, create_timestamp_micros};
-use serde_json::{self, Map, Value};
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
@@ -13,7 +12,8 @@ use reqwest::{self, header::CONTENT_TYPE};
 use phymes_core::{
     AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, DataFormat,
     MappableTrait, MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
-    SessionInterfaceMessageBuilderTrait, TablePublication, TableTrait, TableBuilder, TableBuilderTrait
+    SessionInterfaceMessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication,
+    TableTrait,
 };
 use phymes_server::create_session_name;
 
@@ -116,23 +116,39 @@ pub fn messaging_interface_view() -> Element {
                 match TableBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
-                        let combined = table.get_column_as_vec_nonprimitive::<String>("role").unwrap().into_iter()
-                            .zip(table.get_column_as_vec_nonprimitive::<String>("content").unwrap().into_iter())
-                            .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
+                        let combined = table
+                            .get_column_as_vec_nonprimitive::<String>("role")
+                            .unwrap()
+                            .into_iter()
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("content")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_primitive::<i64>("timestamp")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
                             .enumerate()
-                            .filter_map(|(i, ((r, c), t))| if r.is_empty() {
-                                None
-                            } else {
-                                let index = current_index() + i + 1;
-                                Some((r, c, t, index))
-                            }).collect::<Vec<_>>();
+                            .filter_map(|(i, ((r, c), t))| {
+                                if r.is_empty() {
+                                    None
+                                } else {
+                                    let index = current_index() + i + 1;
+                                    Some((r, c, t, index))
+                                }
+                            })
+                            .collect::<Vec<_>>();
                         for (r, c, t, index) in combined {
                             messaging_roles.push(r);
                             messaging_contents.push(c);
                             messaging_timestamps.push(t);
                             messaging_indices.push(index);
                         }
-                    },
+                    }
                     Err(err) => {
                         tracing::error!("{err:?}");
 
@@ -144,7 +160,7 @@ pub fn messaging_interface_view() -> Element {
                             "assistant",
                             "Welcome to the Biom8er messaging interface. I am your assistant. Please ask me a question 😊", 
                             create_timestamp_micros());
-                    },
+                    }
                 }
             }
             Err(err) => {
@@ -184,23 +200,39 @@ pub fn messaging_interface_view() -> Element {
                 match TableBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
-                        let combined = table.get_column_as_vec_nonprimitive::<String>("role").unwrap().into_iter()
-                            .zip(table.get_column_as_vec_nonprimitive::<String>("content").unwrap().into_iter())
-                            .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
+                        let combined = table
+                            .get_column_as_vec_nonprimitive::<String>("role")
+                            .unwrap()
+                            .into_iter()
+                            .zip(
+                                table
+                                    .get_column_as_vec_nonprimitive::<String>("content")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
+                            .zip(
+                                table
+                                    .get_column_as_vec_primitive::<i64>("timestamp")
+                                    .unwrap()
+                                    .into_iter(),
+                            )
                             .enumerate()
-                            .filter_map(|(i, ((r, c), t))| if r.is_empty() {
-                                None
-                            } else {
-                                let index = current_index() + i + 1;
-                                Some((r, c, t, index))
-                            }).collect::<Vec<_>>();
+                            .filter_map(|(i, ((r, c), t))| {
+                                if r.is_empty() {
+                                    None
+                                } else {
+                                    let index = current_index() + i + 1;
+                                    Some((r, c, t, index))
+                                }
+                            })
+                            .collect::<Vec<_>>();
                         for (r, c, t, index) in combined {
                             messaging_roles.push(r);
                             messaging_contents.push(c);
                             messaging_timestamps.push(t);
                             messaging_indices.push(index);
                         }
-                    },
+                    }
                     Err(err) => tracing::error!("{err:?}"),
                 }
             }
@@ -462,14 +494,14 @@ pub fn messaging_interface_footer(
                             let mut serverless = Serverless::new(None);
                             #[cfg(feature = "serverless")]
                             match serverless_app(config, &mut serverless).await {
-                                Ok(response) => {                                    
+                                Ok(response) => {
                                     let bytes: Vec<Bytes> = response
                                         .into_body()
                                         .into_data_stream()
                                         .try_collect()
                                         .await
                                         .unwrap();
-                                    
+
                                     // Remove the last message
                                     messaging_roles.write().pop();
                                     messaging_contents.write().pop();
