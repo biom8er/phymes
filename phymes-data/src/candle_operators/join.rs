@@ -1,5 +1,5 @@
 use arrow::{
-    array::{Array, ArrayRef, UInt8Array},
+    array::{Array, ArrayRef, UInt32Array},
     datatypes::DataType,
     record_batch::RecordBatch,
 };
@@ -179,19 +179,19 @@ fn join_inner_tensor(
     let match_tensor = lhs_tensor.cmp(&rhs_tensor, CmpOp::Eq)?;
 
     // Convert the matches into indices
-    let lhs_indices_tensor = (&Tensor::arange(1u8, (lhs_dim_0 + 1) as u8, device)?
+    let lhs_indices_tensor = (&Tensor::arange(1u32, (lhs_dim_0 + 1) as u32, device)?
         .reshape((lhs_dim_0, 1))?
         .broadcast_as((lhs_dim_0, rhs_dim_0))?
         * &match_tensor)?
         .flatten_all()?;
-    let rhs_indices_tensor = (&Tensor::arange(1u8, (rhs_dim_0 + 1) as u8, device)?
+    let rhs_indices_tensor = (&Tensor::arange(1u32, (rhs_dim_0 + 1) as u32, device)?
         .reshape((1, rhs_dim_0))?
         .broadcast_as((lhs_dim_0, rhs_dim_0))?
         * &match_tensor)?
         .flatten_all()?;
 
     // Extract out the indices
-    let lhs_indices = lhs_indices_tensor.to_vec1::<u8>()?;
+    let lhs_indices = lhs_indices_tensor.to_vec1::<u32>()?;
     let lhs_indices = lhs_indices
         .into_iter()
         .filter_map(|v| if v >= 1 { Some(v - 1) } else { None })
@@ -200,8 +200,8 @@ fn join_inner_tensor(
         lhs_indices.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
         device,
     )?;
-    let lhs_arr: ArrayRef = Arc::new(UInt8Array::from(lhs_indices));
-    let rhs_indices = rhs_indices_tensor.to_vec1::<u8>()?;
+    let lhs_arr: ArrayRef = Arc::new(UInt32Array::from(lhs_indices));
+    let rhs_indices = rhs_indices_tensor.to_vec1::<u32>()?;
     let rhs_indices = rhs_indices
         .into_iter()
         .filter_map(|v| if v >= 1 { Some(v - 1) } else { None })
@@ -210,7 +210,7 @@ fn join_inner_tensor(
         rhs_indices.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
         device,
     )?;
-    let rhs_arr: ArrayRef = Arc::new(UInt8Array::from(rhs_indices));
+    let rhs_arr: ArrayRef = Arc::new(UInt32Array::from(rhs_indices));
     Ok((lhs_arr, lhs_tensor, rhs_arr, rhs_tensor))
 }
 
@@ -344,8 +344,8 @@ pub fn join(
                     let mut rfk_found = false;
                     for (ri, rfk) in rhs_fk_vec.iter().enumerate() {
                         if lfk == rfk {
-                            lhs_indices.push(li as u8);
-                            rhs_indices.push(ri as u8);
+                            lhs_indices.push(li as u32);
+                            rhs_indices.push(ri as u32);
                             rfk_found = true;
                         }
 
@@ -359,12 +359,12 @@ pub fn join(
                     lhs_indices.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
                     device,
                 )?;
-                let lhs_arr: ArrayRef = Arc::new(UInt8Array::from(lhs_indices));
+                let lhs_arr: ArrayRef = Arc::new(UInt32Array::from(lhs_indices));
                 let rhs_tensor = Tensor::from_iter(
                     rhs_indices.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
                     device,
                 )?;
-                let rhs_arr: ArrayRef = Arc::new(UInt8Array::from(rhs_indices));
+                let rhs_arr: ArrayRef = Arc::new(UInt32Array::from(rhs_indices));
                 (lhs_arr, lhs_tensor, rhs_arr, rhs_tensor)
             }
             _ => {

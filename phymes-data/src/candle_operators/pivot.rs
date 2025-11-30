@@ -326,7 +326,7 @@ fn pivot_missing_values(
     Ok(table.get_record_batches_own().pop().unwrap())
 }
 
-/// Hardware accelerated version when there are not missing values
+/// Hardware accelerated version when there are no missing values
 fn pivot_values(
     lhs_values: &[&str],
     pvt_columns: &[&str],
@@ -411,7 +411,7 @@ pub fn pivot(
     device: &Device,
 ) -> Result<RecordBatch> {
     // Group and aggregate by the lhs_values and pvt_columns
-    // Note that the pvt_columns are last so that the gorup partition ranges can be used directly to extract out the columns for the pivot table
+    // Note that the pvt_columns are last so that the group partition ranges can be used directly to extract out the columns for the pivot table
     let pvt_values: &[&str] = &lhs_values
         .iter()
         .chain(pvt_columns)

@@ -406,8 +406,8 @@ fn extract_aggregation_ranges(
     let array_ref = lhs_table.get_column_as_array(agg_column);
     let mut agg_vec = Vec::new();
     for range in ranges.iter() {
-        let gather_arr: ArrayRef = Arc::new(UInt8Array::from_iter_values(
-            range.start as u8..range.end as u8,
+        let gather_arr: ArrayRef = Arc::new(UInt32Array::from_iter_values(
+            range.start as u32..range.end as u32,
         ));
         let taken_arr = arrow::compute::take(&array_ref, &gather_arr, None)?;
         agg_vec.push(taken_arr);

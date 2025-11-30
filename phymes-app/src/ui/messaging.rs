@@ -412,7 +412,16 @@ pub fn messaging_interface_footer(
                                     match TableBuilder::new_from_ipc_stream(&bytes) {
                                         Ok(builder) => {
                                             let table = builder.with_name("").build().unwrap();
-                                            if table.get_schema().fields().iter().map(|f| f.name()).collect::<Vec<_>>().contains(&&"role".to_string()) {
+                                            let batches = table.get_record_batches_own().into_iter().filter(|batch| batch
+                                                .schema()
+                                                .fields()
+                                                .iter()
+                                                .map(|f| f.name())
+                                                .collect::<Vec<_>>()
+                                                .contains(&&"role".to_string())) // DM: filtering out UserQuery
+                                                .collect::<Vec<_>>();
+                                            if !batches.is_empty() {
+                                                let table = TableBuilder::new().with_record_batches(batches).unwrap().with_name("").build().unwrap();
                                                 let combined = table.get_column_as_vec_nonprimitive::<String>("role").unwrap().into_iter()
                                                     .zip(table.get_column_as_vec_nonprimitive::<String>("content").unwrap().into_iter())
                                                     .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
@@ -429,8 +438,6 @@ pub fn messaging_interface_footer(
                                                     messaging_timestamps.push(t);
                                                     messaging_indices.push(index);
                                                 }
-                                            } else {
-                                                tracing::error!("Message response does not have key role.");
                                             }
                                         },
                                         Err(err) => {
