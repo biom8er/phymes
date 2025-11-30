@@ -637,7 +637,6 @@ pub fn melt(
         };
         batch_vec.push((&"value", arr));
     }
-    dbg!(&batch_vec);
 
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Ok(batch)

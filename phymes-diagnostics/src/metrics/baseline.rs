@@ -200,7 +200,6 @@ mod tests {
             timer.done();
         }
         for metric in diagnostics.clone_inner().to_json_object() {
-            dbg!(&metric);
             if metric.get("metric_name").unwrap().as_str().unwrap() == "output_rows" {
                 assert_eq!(metric.get("metric_value").unwrap().as_u64().unwrap(), 0);
             } else if metric.get("metric_name").unwrap().as_str().unwrap() == "start_timestamp"
@@ -236,7 +235,6 @@ mod tests {
             let _ = baseline_metrics.record_poll(poll);
         }
         for metric in diagnostics.clone_inner().to_json_object() {
-            dbg!(&metric);
             if metric.get("metric_name").unwrap().as_str().unwrap() == "output_rows" {
                 assert_eq!(metric.get("metric_value").unwrap().as_u64().unwrap(), 9);
             } else if metric.get("metric_name").unwrap().as_str().unwrap() == "start_timestamp"

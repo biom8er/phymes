@@ -5,7 +5,7 @@ use arrow::{
 };
 
 use anyhow::{Result, anyhow};
-use candle_core::{Device, Tensor, op::CmpOp};
+use candle_core::{DType, Device, Tensor, op::CmpOp};
 use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
@@ -176,7 +176,9 @@ fn join_inner_tensor(
     rhs_tensor: Tensor,
     device: &Device,
 ) -> Result<JointInnerTensorResult> {
-    let match_tensor = lhs_tensor.cmp(&rhs_tensor, CmpOp::Eq)?;
+    let match_tensor = lhs_tensor
+        .cmp(&rhs_tensor, CmpOp::Eq)?
+        .to_dtype(DType::U32)?;
 
     // Convert the matches into indices
     let lhs_indices_tensor = (&Tensor::arange(1u32, (lhs_dim_0 + 1) as u32, device)?
