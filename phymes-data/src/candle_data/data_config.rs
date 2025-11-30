@@ -518,6 +518,16 @@ pub struct DataConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dist_operator: Option<DataDistanceOperator>,
+
+    /// The number of rows to skip when limiting the row count
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub skip: Option<usize>,
+
+    /// The number of rows to fetch when limiting the row count
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fetch: Option<usize>,
 }
 
 impl Default for DataConfig {
@@ -557,6 +567,8 @@ impl Default for DataConfig {
             pvt_columns: None,
             default_values: None,
             dist_operator: None,
+            skip: None,
+            fetch: None,
         }
     }
 }

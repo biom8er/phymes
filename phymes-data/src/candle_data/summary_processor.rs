@@ -173,7 +173,6 @@ impl ProcessorTrait for DataSummaryProcessor {
     }
 }
 
-#[allow(dead_code)]
 pub struct DataSummaryStream {
     /// Output schema (role and content)
     schema: SchemaRef,
@@ -184,7 +183,7 @@ pub struct DataSummaryStream {
     /// Parameters for chat inference
     config_stream: SendableRecordBatchStream,
     /// The Candle model assets needed for inference
-    runtime_env: Arc<Mutex<RuntimeEnv>>,
+    _runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for chat inference
@@ -204,7 +203,7 @@ impl DataSummaryStream {
             message_stream,
             table_name,
             config_stream,
-            runtime_env,
+            _runtime_env: runtime_env,
             diagnostic_builder,
             config: None,
         })

@@ -35,7 +35,7 @@ use std::sync::Arc;
 ///
 /// Generally speaking, larger [`RecordBatch`]es are more efficient to process
 /// than smaller record batches (until the CPU cache is exceeded) because there
-/// is fixed processing overhead per batch. DataFusion tries to operate on
+/// is fixed processing overhead per batch. We try to operate on
 /// batches of `target_batch_size` rows to amortize this overhead
 ///
 /// ```text

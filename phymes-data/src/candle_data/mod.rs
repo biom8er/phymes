@@ -4,6 +4,8 @@ mod data_processor;
 mod summary_config;
 mod summary_processor;
 mod tensor_service;
+mod limit;
+mod coalesce;
 
 pub use attachment_aggregator_processor::{
     AggregatorStream, AttachmentAggregatorProcessor, collect_messages_by_schema,
