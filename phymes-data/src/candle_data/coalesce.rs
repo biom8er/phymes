@@ -1,34 +1,161 @@
-#![allow(dead_code)]
+use std::pin::Pin;
+use std::sync::Arc;
+use std::task::{Context, Poll, ready};
 
-// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use arrow::array::builder::StringViewBuilder;
 use arrow::array::cast::AsArray;
 use arrow::array::{Array, ArrayRef, RecordBatch, RecordBatchOptions};
 use arrow::compute::concat_batches;
 use arrow::datatypes::SchemaRef;
-use std::sync::Arc;
+use futures::stream::{Stream, StreamExt};
+use parking_lot::Mutex;
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, remove_message_by_subject
+};
+use phymes_diagnostics::{
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait,
+    TraceBuilderTrait
+};
+use tracing::{Level, event};
+
+use crate::{DataConfig, DataConfigTrait};
+
+/// Processor that implements the [RecordBatch] coalesce operator to combine smaller [RecordBatch]es into larger [RecordBatch]es of a specifid size
+#[derive(Debug)]
+pub struct CoalesceProcessor {
+    name: String,
+    r#type: String,
+    publications: Vec<TablePublication>,
+    subscriptions: Vec<TableSubscription>,
+    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
+}
+
+impl MappableTrait for CoalesceProcessor {
+    fn get_name(&self) -> &str {
+        &self.name
+    }
+}
+
+impl PublishAndSubscribeTrait for CoalesceProcessor {
+    fn get_publications(&self) -> Vec<&TablePublication> {
+        self.publications.iter().collect()
+    }
+
+    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
+        self.subscriptions.iter().collect()
+    }
+    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
+        self.subscribe_policy
+            .check_subscriptions(&self.subscriptions, updates, state)
+    }
+}
+
+impl ProcessorTrait for CoalesceProcessor {
+    fn new(
+        name: &str,
+        r#type: &str,
+        publications: &[TablePublication],
+        subscriptions: &[TableSubscription],
+        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
+    ) -> Self {
+        Self {
+            name: name.to_string(),
+            r#type: r#type.to_string(),
+            publications: publications.to_owned(),
+            subscriptions: subscriptions.to_owned(),
+            subscribe_policy,
+        }
+    }
+
+    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
+        self.subscribe_policy.as_ref()
+    }
+
+    fn get_type(&self) -> &str {
+        &self.r#type
+    }
+
+    fn process(
+        &self,
+        mut message: SendableRecordBatchStreamMessageMap,
+        diagnostic_builder: Option<&DiagnosticBuilder>,
+        runtime_env: Arc<Mutex<RuntimeEnv>>,
+    ) -> Result<SendableRecordBatchStreamMessageMap> {
+        // Trace the inbox
+        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
+            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+            let trace = trace_builder
+                .clone()
+                .messages(line!(), file!(), self.get_name());
+            trace.enter(&message.values().collect::<Vec<_>>());
+            Some((trace, trace_builder))
+        } else {
+            None
+        };
+
+        // Extract out the config
+        let config = match remove_message_by_subject(self.get_name(), &mut message) {
+            Some(s) => s.get_message_own(),
+            None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
+        };
+
+        // Extract out the message to be summarized
+        let mut subscriptions = Vec::new();
+        let mut table_names = Vec::new();
+        for subs in self.subscriptions.iter() {
+            if subs.get_table_name() != self.get_name() {
+                match remove_message_by_subject(subs.get_table_name(), &mut message) {
+                    Some(m) => {
+                        subscriptions.push(m);
+                        table_names.push(subs.get_table_name())
+                    }
+                    None => {
+                        event!(
+                            Level::WARN,
+                            "Subscription {} not provided for {}.",
+                            subs.get_table_name(),
+                            self.get_name()
+                        );
+                    }
+                }
+            }
+        }
+        if subscriptions.len() > 1 {
+            return Err(anyhow!("More than one subscription was found for Limit."));
+        } else if subscriptions.is_empty() {
+            return Err(anyhow!("No subscriptions were found for Limit."));
+        }
+
+        // Make the outbox and send
+        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
+        let out = Box::pin(CoalesceStream::new(
+            subscriptions.swap_remove(0).get_message_own(),
+            config,
+            Arc::clone(&runtime_env),
+            stream_diagnostic_builder,
+        ));
+        let mut outbox = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let out_m = SendableRecordBatchStreamMessage::get_builder()
+            .with_publisher(self.get_name())
+            .with_subject(self.publications.first().unwrap().get_table_name())
+            .with_message(out)
+            .with_update(self.publications.first().unwrap())
+            .make_name()?
+            .build()?;
+        let _ = outbox.insert(out_m.get_name().to_string(), out_m);
+
+        // Trace the outbox
+        if let Some(trace) = trace {
+            trace.0.exit(&outbox.values().collect::<Vec<_>>());
+        }
+        Ok(outbox)
+    }
+}
 
 /// Concatenate multiple [`RecordBatch`]es
 ///
-/// `BatchCoalescer` concatenates multiple small [`RecordBatch`]es, produced by
-/// operations such as `FilterExec` and `RepartitionExec`, into larger ones for
+/// `BatchCoalescer` concatenates multiple small [`RecordBatch`]es into larger ones for
 /// more efficient processing by subsequent operations.
 ///
 /// # Background
@@ -65,67 +192,71 @@ use std::sync::Arc;
 /// 1. Output rows are produced in the same order as the input rows
 ///
 /// 2. The output is a sequence of batches, with all but the last being at least
-///    `target_batch_size` rows.
-///
-/// 3. Eventually this may also be able to handle other optimizations such as a
-///    combined filter/coalesce operation.
-///
-#[allow(dead_code)]
-#[derive(Debug)]
-pub struct BatchCoalescer {
-    /// The input schema
+///    `fetch` rows.
+pub struct CoalesceStream {
+    /// The input to read from. This is set to None once the limit is
+    /// reached to enable early termination
+    message_stream: Option<SendableRecordBatchStream>,
+    /// Copy of the input schema
     schema: SchemaRef,
-    /// Minimum number of rows for coalesces batches
-    target_batch_size: usize,
-    /// Total number of rows returned so far
-    total_rows: usize,
+    /// Parameters for chat inference
+    config_stream: SendableRecordBatchStream,
+    /// The Candle model assets needed for inference
+    _runtime_env: Arc<Mutex<RuntimeEnv>>,
+    /// Runtime metrics recording
+    diagnostic_builder: Option<DiagnosticBuilder>,
+    /// Parameters for chat inference
+    config: Option<DataConfig>,
     /// Buffered batches
     buffer: Vec<RecordBatch>,
     /// Buffered row count
     buffered_rows: usize,
-    /// Limit: maximum number of rows to fetch, `None` means fetch all rows
+    /// Row size of the concatenated batch, `None` means fetch all rows without a limit
     fetch: Option<usize>,
+    /// Overflow batch after the limit has been reached
+    overflow: Option<RecordBatch>,
 }
 
-impl BatchCoalescer {
-    /// Create a new `BatchCoalescer`
-    ///
-    /// # Arguments
-    /// - `schema` - the schema of the output batches
-    /// - `target_batch_size` - the minimum number of rows for each output batch (until limit reached)
-    /// - `fetch` - the maximum number of rows to fetch, `None` means fetch all rows
-    pub fn new(schema: SchemaRef, target_batch_size: usize, fetch: Option<usize>) -> Self {
+impl CoalesceStream {
+    pub fn new(message_stream: SendableRecordBatchStream,
+        config_stream: SendableRecordBatchStream,
+        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        diagnostic_builder: Option<DiagnosticBuilder>
+    ) -> Self {
+        let schema = message_stream.schema();
         Self {
+            message_stream: Some(message_stream),
             schema,
-            target_batch_size,
-            total_rows: 0,
-            buffer: vec![],
+            config_stream,
+            _runtime_env: runtime_env,
+            diagnostic_builder,
+            config: None,
+            buffer: Vec::new(),
             buffered_rows: 0,
-            fetch,
+            fetch: None,
+            overflow: None,
         }
     }
 
-    /// Return the schema of the output batches
-    pub fn schema(&self) -> SchemaRef {
-        Arc::clone(&self.schema)
+    /// Initialize the config and update the values for skip and fetch
+    fn init_config(&mut self, config_table: Table) -> Result<()> {
+        if self.config.is_none() {
+            let config = DataConfig::from_table(&config_table)?;
+            self.config.replace(config);
+        }
+        self.fetch.replace(self.config.as_ref().unwrap().fetch.as_ref().unwrap().to_owned());
+        Ok(())
     }
 
     /// Push next batch, and returns [`CoalescerState`] indicating the current
     /// state of the buffer.
-    pub fn push_batch(&mut self, batch: RecordBatch) -> CoalescerState {
+    fn push_batch(&mut self, batch: RecordBatch) -> CoalescerState {
         let batch = gc_string_view_batch(&batch);
-        if self.limit_reached(&batch) {
+        if self.limit_reached(batch) {
             CoalescerState::LimitReached
-        } else if self.target_reached(batch) {
-            CoalescerState::TargetReached
         } else {
             CoalescerState::Continue
         }
-    }
-
-    /// Return true if the there is no data buffered
-    pub fn is_empty(&self) -> bool {
-        self.buffer.is_empty()
     }
 
     /// Checks if the buffer will reach the specified limit after getting
@@ -135,48 +266,128 @@ impl BatchCoalescer {
     /// buffer with it, and returns `true`.
     ///
     /// Otherwise: does nothing and returns `false`.
-    fn limit_reached(&mut self, batch: &RecordBatch) -> bool {
-        match self.fetch {
-            Some(fetch) if self.total_rows + batch.num_rows() >= fetch => {
-                // Limit is reached
-                let remaining_rows = fetch - self.total_rows;
-                debug_assert!(remaining_rows > 0);
+    fn limit_reached(&mut self, batch: RecordBatch) -> bool {
+        if let Some(fetch) = self.fetch && self.buffered_rows + batch.num_rows() >= fetch {
+            // Limit is reached
+            let remaining_rows = fetch - self.buffered_rows;
+            debug_assert!(remaining_rows > 0);
 
-                let batch = batch.slice(0, remaining_rows);
-                self.buffered_rows += batch.num_rows();
-                self.total_rows = fetch;
-                self.buffer.push(batch);
-                true
+            // Fill the buffer up to fetch
+            let batch_buf = batch.slice(0, remaining_rows);
+            self.buffered_rows += batch_buf.num_rows();
+            let overflow_rows = batch.num_rows() - batch_buf.num_rows();
+
+            // Track the overflow
+            if overflow_rows > 0 {
+                let batch_over = batch.slice(remaining_rows, overflow_rows);
+                self.overflow.replace(batch_over);
             }
-            _ => false,
-        }
-    }
 
-    /// Updates the buffer with the given batch.
-    ///
-    /// If the target batch size is reached, returns `true`. Otherwise, returns
-    /// `false`.
-    fn target_reached(&mut self, batch: RecordBatch) -> bool {
-        if batch.num_rows() == 0 {
-            false
+            self.buffer.push(batch_buf);       
+            true
         } else {
-            self.total_rows += batch.num_rows();
+            // Limit has not been reached
             self.buffered_rows += batch.num_rows();
             self.buffer.push(batch);
-            self.buffered_rows >= self.target_batch_size
+            false
         }
     }
 
     /// Concatenates and returns all buffered batches, and clears the buffer.
-    pub fn finish_batch(&mut self) -> Result<RecordBatch> {
+    fn finish_batch(&mut self) -> Result<RecordBatch> {
         let batch = concat_batches(&self.schema, &self.buffer)?;
-        self.buffer.clear();
-        self.buffered_rows = 0;
+        if let Some(overflow) = self.overflow.take() {
+            self.buffered_rows = overflow.num_rows();
+            self.buffer = vec![overflow];
+        } else {
+            self.buffered_rows = 0;
+            self.buffer.clear();
+        }        
         Ok(batch)
     }
 }
 
-/// Indicates the state of the [`BatchCoalescer`] buffer after the
+impl Stream for CoalesceStream {
+    type Item = Result<RecordBatch>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        if self.message_stream.is_none() {
+            return Poll::Ready(None);
+        }
+        
+        // Initialize the metrics
+        let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
+            Some(
+                diagnostic_builder
+                    .clone()
+                    .to_child("CandleDataStream")?
+                    .baseline_metrics(line!(), file!(), "poll_next"),
+            )
+        } else {
+            None
+        };
+        let _timer = baseline_metrics
+            .as_ref()
+            .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
+
+        // Intialize the config
+        if self.config.is_none() {
+            let mut batches = Vec::new();
+            while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
+                batches.push(batch);
+            }
+            let config_table = Table::get_builder()
+                .with_name("config")
+                .with_record_batches(batches)?
+                .build()?;
+            self.init_config(config_table)?;
+        }
+
+        // Coalesce the batches
+        while let Some(Ok(batch)) = ready!(self.message_stream.as_mut().unwrap().poll_next_unpin(cx)) {
+            match self.push_batch(batch) {
+                CoalescerState::Continue => {}
+                CoalescerState::LimitReached => {
+                    let output_batch = self.finish_batch().unwrap();
+                    let poll = Poll::Ready(Some(Ok(output_batch)));
+
+                    // Return the poll
+                    if let Some(baseline_metrics) = &baseline_metrics {
+                        return baseline_metrics.record_poll(poll);
+                    } else {
+                        return poll;
+                    }
+                }
+            }
+        }
+
+        // Clear out the remaining batches from the buffer
+        if self.buffer.is_empty() {
+            Poll::Ready(None)
+        } else {
+            let output_batch = self.finish_batch().unwrap();
+            let poll = Poll::Ready(Some(Ok(output_batch)));
+
+            // Trigger the end of the stream
+            self.message_stream.take();
+
+            // Return the poll
+            if let Some(baseline_metrics) = &baseline_metrics {
+                baseline_metrics.record_poll(poll)
+            } else {
+                poll
+            }
+        }        
+    }
+}
+
+impl RecordBatchStream for CoalesceStream {
+    fn schema(&self) -> SchemaRef {
+        Arc::clone(&self.schema)
+    }
+}
+
+/// Indicates the state of the [`CoalescerStream`] buffer after the
 /// [`BatchCoalescer::push_batch()`] operation.
 ///
 /// The caller should take different actions, depending on the variant returned.
@@ -188,13 +399,8 @@ pub enum CoalescerState {
     /// The limit has been reached.
     ///
     /// Action: call [`BatchCoalescer::finish_batch()`] to get the final
-    /// buffered results as a batch and finish the query.
-    LimitReached,
-    /// The specified minimum number of rows a batch should have is reached.
-    ///
-    /// Action: call [`BatchCoalescer::finish_batch()`] to get the current
     /// buffered results as a batch and then continue pushing batches.
-    TargetReached,
+    LimitReached,
 }
 
 /// Heuristically compact `StringViewArray`s to reduce memory usage, if needed
@@ -275,191 +481,99 @@ mod tests {
     use arrow::array::builder::ArrayBuilder;
     use arrow::array::{StringViewArray, UInt32Array};
     use arrow::datatypes::{DataType, Field, Schema};
+    use futures::TryStreamExt;
+    use phymes_core::{RecordBatchStreamAdapter, TableBuilder, TableTrait};
+    use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
-    #[test]
-    fn test_coalesce() {
+    #[tokio::test]
+    async fn test_coalesce() -> Result<()> {
+        // Make the batches
         let batch = uint32_batch(0..8);
-        Test::new()
-            .with_batches(std::iter::repeat_n(batch, 10))
-            // expected output is batches of at least 20 rows (except for the final batch)
-            .with_target_batch_size(21)
-            .with_expected_output_sizes(vec![24, 24, 24, 8])
-            .run()
-    }
+        
+        // Make the diagnostics
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
-    #[test]
-    fn test_coalesce_with_fetch_larger_than_input_size() {
-        let batch = uint32_batch(0..8);
-        Test::new()
-            .with_batches(std::iter::repeat_n(batch, 10))
-            // input is 10 batches x 8 rows (80 rows) with fetch limit of 100
-            // expected to behave the same as `test_concat_batches`
-            .with_target_batch_size(21)
-            .with_fetch(Some(100))
-            .with_expected_output_sizes(vec![24, 24, 24, 8])
-            .run();
-    }
+        // Make the Runtime Env
+        let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
+            name: "service".to_string(),
+            ..Default::default()
+        }));
 
-    #[test]
-    fn test_coalesce_with_fetch_less_than_input_size() {
-        let batch = uint32_batch(0..8);
-        Test::new()
-            .with_batches(std::iter::repeat_n(batch, 10))
-            // input is 10 batches x 8 rows (80 rows) with fetch limit of 50
-            .with_target_batch_size(21)
-            .with_fetch(Some(50))
-            .with_expected_output_sizes(vec![24, 24, 2])
-            .run();
-    }
+        // --- Coalesce without intermediate overflow ---
+        // Make the config
+        let config = DataConfig {
+            fetch: Some(24),
+            ..Default::default()
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = TableBuilder::new()
+            .with_name("CoalesceStream")
+            .with_json(&config_json, 1)?
+            .build()?;
 
-    #[test]
-    fn test_coalesce_with_fetch_less_than_target_and_no_remaining_rows() {
-        let batch = uint32_batch(0..8);
-        Test::new()
-            .with_batches(std::iter::repeat_n(batch, 10))
-            // input is 10 batches x 8 rows (80 rows) with fetch limit of 48
-            .with_target_batch_size(21)
-            .with_fetch(Some(48))
-            .with_expected_output_sizes(vec![24, 24])
-            .run();
-    }
+        // Coalesce batches
+        let stream = futures::stream::iter(std::iter::repeat_n(batch.clone(), 10).into_iter().map(Ok));
+        let input = Box::pin(RecordBatchStreamAdapter::new(
+            Arc::clone(&batch.schema()),
+            stream,
+        ));
+        let coalesce_stream = CoalesceStream::new(input, config_table.to_record_batch_stream(), Arc::clone(&runtime_env), Some(diagnostic_builder.clone()));
 
-    #[test]
-    fn test_coalesce_with_fetch_less_target_batch_size() {
-        let batch = uint32_batch(0..8);
-        Test::new()
-            .with_batches(std::iter::repeat_n(batch, 10))
-            // input is 10 batches x 8 rows (80 rows) with fetch limit of 10
-            .with_target_batch_size(21)
-            .with_fetch(Some(10))
-            .with_expected_output_sizes(vec![10])
-            .run();
-    }
+        let results = Box::pin(coalesce_stream).try_collect::<Vec<_>>().await?;
+        let num_rows = results.into_iter().map(|b| b.num_rows()).collect::<Vec<_>>();
+        assert_eq!(num_rows, [24, 24, 24, 8]);
 
-    #[test]
-    fn test_coalesce_single_large_batch_over_fetch() {
-        let large_batch = uint32_batch(0..100);
-        Test::new()
-            .with_batch(large_batch)
-            .with_target_batch_size(20)
-            .with_fetch(Some(7))
-            .with_expected_output_sizes(vec![7])
-            .run()
-    }
+        // --- Coalesce without overflow ---
+        // Make the config
+        let config = DataConfig {
+            fetch: Some(100),
+            ..Default::default()
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = TableBuilder::new()
+            .with_name("CoalesceStream")
+            .with_json(&config_json, 1)?
+            .build()?;
 
-    /// Test for [`BatchCoalescer`]
-    ///
-    /// Pushes the input batches to the coalescer and verifies that the resulting
-    /// batches have the expected number of rows and contents.
-    #[derive(Debug, Clone, Default)]
-    struct Test {
-        /// Batches to feed to the coalescer. Tests must have at least one
-        /// schema
-        input_batches: Vec<RecordBatch>,
-        /// Expected output sizes of the resulting batches
-        expected_output_sizes: Vec<usize>,
-        /// target batch size
-        target_batch_size: usize,
-        /// Fetch (limit)
-        fetch: Option<usize>,
-    }
+        // Coalesce batches
+        let stream = futures::stream::iter(std::iter::repeat_n(batch.clone(), 10).into_iter().map(Ok));
+        let input = Box::pin(RecordBatchStreamAdapter::new(
+            Arc::clone(&batch.schema()),
+            stream,
+        ));
+        let coalesce_stream = CoalesceStream::new(input, config_table.to_record_batch_stream(), Arc::clone(&runtime_env), Some(diagnostic_builder.clone()));
 
-    impl Test {
-        fn new() -> Self {
-            Self::default()
-        }
+        let results = Box::pin(coalesce_stream).try_collect::<Vec<_>>().await?;
+        let num_rows = results.into_iter().map(|b| b.num_rows()).collect::<Vec<_>>();
+        assert_eq!(num_rows, [80]);
 
-        /// Set the target batch size
-        fn with_target_batch_size(mut self, target_batch_size: usize) -> Self {
-            self.target_batch_size = target_batch_size;
-            self
-        }
+        // --- Coalesce with intermediate overflow ---
+        // Make the config
+        let config = DataConfig {
+            fetch: Some(10),
+            ..Default::default()
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = TableBuilder::new()
+            .with_name("CoalesceStream")
+            .with_json(&config_json, 1)?
+            .build()?;
 
-        /// Set the fetch (limit)
-        fn with_fetch(mut self, fetch: Option<usize>) -> Self {
-            self.fetch = fetch;
-            self
-        }
+        // Coalesce batches
+        let stream = futures::stream::iter(std::iter::repeat_n(batch.clone(), 10).into_iter().map(Ok));
+        let input = Box::pin(RecordBatchStreamAdapter::new(
+            Arc::clone(&batch.schema()),
+            stream,
+        ));
+        let coalesce_stream = CoalesceStream::new(input, config_table.to_record_batch_stream(), Arc::clone(&runtime_env), Some(diagnostic_builder.clone()));
 
-        /// Extend the input batches with `batch`
-        fn with_batch(mut self, batch: RecordBatch) -> Self {
-            self.input_batches.push(batch);
-            self
-        }
+        let results = Box::pin(coalesce_stream).try_collect::<Vec<_>>().await?;
+        let num_rows = results.into_iter().map(|b| b.num_rows()).collect::<Vec<_>>();
+        assert_eq!(num_rows, [10, 10, 10, 10, 10, 10, 10, 10]);
 
-        /// Extends the input batches with `batches`
-        fn with_batches(mut self, batches: impl IntoIterator<Item = RecordBatch>) -> Self {
-            self.input_batches.extend(batches);
-            self
-        }
-
-        /// Extends `sizes` to expected output sizes
-        fn with_expected_output_sizes(mut self, sizes: impl IntoIterator<Item = usize>) -> Self {
-            self.expected_output_sizes.extend(sizes);
-            self
-        }
-
-        /// Runs the test -- see documentation on [`Test`] for details
-        fn run(self) {
-            let Self {
-                input_batches,
-                target_batch_size,
-                fetch,
-                expected_output_sizes,
-            } = self;
-
-            let schema = input_batches[0].schema();
-
-            // create a single large input batch for output comparison
-            let single_input_batch = concat_batches(&schema, &input_batches).unwrap();
-
-            let mut coalescer = BatchCoalescer::new(Arc::clone(&schema), target_batch_size, fetch);
-
-            let mut output_batches = vec![];
-            for batch in input_batches {
-                match coalescer.push_batch(batch) {
-                    CoalescerState::Continue => {}
-                    CoalescerState::LimitReached => {
-                        output_batches.push(coalescer.finish_batch().unwrap());
-                        break;
-                    }
-                    CoalescerState::TargetReached => {
-                        coalescer.buffered_rows = 0;
-                        output_batches.push(coalescer.finish_batch().unwrap());
-                    }
-                }
-            }
-            if coalescer.buffered_rows != 0 {
-                output_batches.extend(coalescer.buffer);
-            }
-
-            // make sure we got the expected number of output batches and content
-            let mut starting_idx = 0;
-            assert_eq!(expected_output_sizes.len(), output_batches.len());
-            for (i, (expected_size, batch)) in
-                expected_output_sizes.iter().zip(output_batches).enumerate()
-            {
-                assert_eq!(
-                    *expected_size,
-                    batch.num_rows(),
-                    "Unexpected number of rows in Batch {i}"
-                );
-
-                // compare the contents of the batch (using `==` compares the
-                // underlying memory layout too)
-                let expected_batch = single_input_batch.slice(starting_idx, *expected_size);
-                let batch_strings = batch_to_pretty_strings(&batch);
-                let expected_batch_strings = batch_to_pretty_strings(&expected_batch);
-                let batch_strings = batch_strings.lines().collect::<Vec<_>>();
-                let expected_batch_strings = expected_batch_strings.lines().collect::<Vec<_>>();
-                assert_eq!(
-                    expected_batch_strings, batch_strings,
-                    "Unexpected content in Batch {i}:\
-                    \n\nExpected:\n{expected_batch_strings:#?}\n\nActual:\n{batch_strings:#?}"
-                );
-                starting_idx += *expected_size;
-            }
-        }
+        Ok(())
     }
 
     /// Return a batch of  UInt32 with the specified range

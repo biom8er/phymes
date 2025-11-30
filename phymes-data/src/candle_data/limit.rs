@@ -331,7 +331,7 @@ mod tests {
     use arrow::datatypes::{DataType, Field, Schema};
     use arrow::record_batch::RecordBatchOptions;
     use futures::{Stream, TryStreamExt};
-    use phymes_core::TableBuilder;
+    use phymes_core::{TableBuilder, TableTrait};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     /// Return a RecordBatch with a single Int32 array with values (0..sz) in a field named "i"
