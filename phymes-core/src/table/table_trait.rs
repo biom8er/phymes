@@ -831,6 +831,18 @@ pub struct TableBuilder {
     pub record_batches: Option<Vec<RecordBatch>>,
 }
 
+impl TableBuilder {
+    pub fn from_ipc_stream_to_record_batches(bytes: &[u8]) -> Result<Vec<RecordBatch>> {
+        let cursor = Cursor::new(bytes);
+        let mut reader = StreamReader::try_new(cursor, None)?;
+        let mut record_batches = Vec::new();
+        while let Some(Ok(read_batch)) = reader.next() {
+            record_batches.push(read_batch);
+        }
+        Ok(record_batches)
+    }
+}
+
 impl BuilderTrait for TableBuilder {
     type T = Table;
     fn new() -> Self {
@@ -954,12 +966,7 @@ impl TableBuilderTrait for TableBuilder {
 
     #[instrument(level = "trace")]
     fn new_from_ipc_stream(bytes: &[u8]) -> Result<Self> {
-        let cursor = Cursor::new(bytes);
-        let mut reader = StreamReader::try_new(cursor, None)?;
-        let mut record_batches = Vec::new();
-        while let Some(Ok(read_batch)) = reader.next() {
-            record_batches.push(read_batch);
-        }
+        let record_batches = Self::from_ipc_stream_to_record_batches(bytes)?;
         let schema = match record_batches.first() {
             Some(batch) => batch.schema(),
             None => {
