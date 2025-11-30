@@ -21,7 +21,7 @@ use tracing::{Level, event};
 
 use crate::{DataConfigTrait, DataSummaryConfig};
 
-/// Processor that implements the [RecordBatch] coalesce operator to combine smaller [RecordBatch]es into larger [RecordBatch]es of a specifid size
+/// Processor that implements the [RecordBatch] coalesce operator to combine smaller [RecordBatch]es into larger [RecordBatch]es of a specified size
 #[derive(Debug)]
 pub struct CoalesceProcessor {
     name: String,
