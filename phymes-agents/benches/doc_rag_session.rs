@@ -94,7 +94,10 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 let sort_scores_processor_name = format!("sort_scores_processor_1_{tag}_{iter}");
                 let join_chunks_processor_name =
                     format!("join_scores_chunks_processor_1_{tag}_{iter}");
-                let top_k_processor_name = format!("top_k_processor_1_{tag}_{iter}");
+                let top_k_select_processor_name = format!("top_k_select_processor_1_{tag}_{iter}");
+                let top_k_limit_processor_name = format!("top_k_limit_processor_1_{tag}_{iter}");
+                let top_k_summary_processor_name =
+                    format!("top_k_summary_processor_1_{tag}_{iter}");
                 let session_context_name = format!("session_1_{tag}_{iter}");
 
                 let mut config = DocumentRAGSession {
@@ -118,7 +121,9 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     relative_similarity_processor_name: &relative_similarity_processor_name,
                     sort_scores_processor_name: &sort_scores_processor_name,
                     join_chunks_processor_name: &join_chunks_processor_name,
-                    top_k_processor_name: &top_k_processor_name,
+                    top_k_select_processor_name: &top_k_select_processor_name,
+                    top_k_limit_processor_name: &top_k_limit_processor_name,
+                    top_k_summary_processor_name: &top_k_summary_processor_name,
                     session_context_name: &session_context_name,
                     chat_api_url: None,
                     embed_api_url: None,
