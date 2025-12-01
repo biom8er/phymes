@@ -1,6 +1,7 @@
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll, ready};
+use std::usize;
 
 use anyhow::{Result, anyhow};
 use arrow::array::builder::StringViewBuilder;
@@ -198,7 +199,7 @@ impl ProcessorTrait for CoalesceProcessor {
 pub struct CoalesceStream {
     /// The input to read from. This is set to None once the limit is
     /// reached to enable early termination
-    message_stream: Option<SendableRecordBatchStream>,
+    message_stream: SendableRecordBatchStream,
     /// Copy of the input schema
     schema: SchemaRef,
     /// Parameters for coalesce
@@ -217,6 +218,8 @@ pub struct CoalesceStream {
     fetch: Option<usize>,
     /// Overflow batch after the limit has been reached
     overflow: Option<RecordBatch>,
+    /// Switch to finished polling
+    is_finished: bool,
 }
 
 impl CoalesceStream {
@@ -228,7 +231,7 @@ impl CoalesceStream {
     ) -> Self {
         let schema = message_stream.schema();
         Self {
-            message_stream: Some(message_stream),
+            message_stream,
             schema,
             config_stream,
             _runtime_env: runtime_env,
@@ -238,6 +241,7 @@ impl CoalesceStream {
             buffered_rows: 0,
             fetch: None,
             overflow: None,
+            is_finished: false,
         }
     }
 
@@ -247,22 +251,14 @@ impl CoalesceStream {
             let config = DataSummaryConfig::from_table(&config_table)?;
             self.config.replace(config);
         }
-        self.fetch.replace(
-            self.config
-                .as_ref()
-                .unwrap()
-                .fetch
-                .as_ref()
-                .unwrap()
-                .to_owned(),
-        );
+        self.fetch = self.config.as_ref().unwrap().fetch;
         Ok(())
     }
 
     /// Push next batch, and returns [`CoalescerState`] indicating the current
     /// state of the buffer.
     fn push_batch(&mut self, batch: RecordBatch) -> CoalescerState {
-        let batch = gc_string_view_batch(&batch);
+        // let batch = gc_string_view_batch(&batch);
         if self.limit_reached(batch) {
             CoalescerState::LimitReached
         } else {
@@ -308,7 +304,12 @@ impl CoalesceStream {
 
     /// Concatenates and returns all buffered batches, and clears the buffer.
     fn finish_batch(&mut self) -> Result<RecordBatch> {
-        let batch = concat_batches(&self.schema, &self.buffer)?;
+        dbg!(&self.buffer);
+        let batch = if self.buffer.len() == 1 {
+            self.buffer.pop().unwrap()
+        } else {
+            concat_batches(&self.schema, &self.buffer)?
+        };
         if let Some(overflow) = self.overflow.take() {
             self.buffered_rows = overflow.num_rows();
             self.buffer = vec![overflow];
@@ -324,7 +325,7 @@ impl Stream for CoalesceStream {
     type Item = Result<RecordBatch>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        if self.message_stream.is_none() {
+        if self.is_finished {
             return Poll::Ready(None);
         }
 
@@ -358,12 +359,13 @@ impl Stream for CoalesceStream {
 
         // Coalesce the batches
         while let Some(Ok(batch)) =
-            ready!(self.message_stream.as_mut().unwrap().poll_next_unpin(cx))
+            ready!(self.message_stream.as_mut().poll_next_unpin(cx))
         {
             match self.push_batch(batch) {
                 CoalescerState::Continue => {}
                 CoalescerState::LimitReached => {
                     let output_batch = self.finish_batch().unwrap();
+                    dbg!(&output_batch);
                     let poll = Poll::Ready(Some(Ok(output_batch)));
 
                     // Return the poll
@@ -384,7 +386,7 @@ impl Stream for CoalesceStream {
             let poll = Poll::Ready(Some(Ok(output_batch)));
 
             // Trigger the end of the stream
-            self.message_stream.take();
+            self.is_finished = true;
 
             // Return the poll
             if let Some(baseline_metrics) = &baseline_metrics {
