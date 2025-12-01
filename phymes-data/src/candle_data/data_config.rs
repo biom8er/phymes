@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{AvailableJinja2Templates, candle_operators::AvailableCandleOperators};
 
-#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
 pub enum DataStreamManager {
     /// Accumulate the LHS record batches before
     /// streaming operations for each RHS record batch
@@ -16,6 +16,7 @@ pub enum DataStreamManager {
     AccumulateLHSStreamRHS,
     /// Accumulate the LHS and RHS record batches before
     /// operating over the accumulated record batches
+    #[default]
     #[value(name = "accumulate-lhs-accumulate-rhs")]
     AccumulateLHSAccumulateRHS,
     /// Stream LHS and RHS record batches

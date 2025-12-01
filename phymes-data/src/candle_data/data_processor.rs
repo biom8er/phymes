@@ -1,5 +1,5 @@
 use super::{data_config::DataConfig, tensor_service::CandleTensorService};
-use crate::{DataConfigTrait, candle_operators::DataOperatorTrait};
+use crate::{DataConfigTrait, DataStreamManager, candle_operators::DataOperatorTrait};
 use phymes_core::{
     BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
     PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
@@ -325,7 +325,8 @@ impl Stream for CandleDataStream {
             self.data_operator.replace(operator);
         }
 
-        // Collect the LHS queries
+        // Collect the LHS batches
+        let stream = self.config.as_ref().unwrap().stream.clone();
         if self.lhs_inbox.is_empty() && self.config.as_ref().unwrap().lhs_name.is_some() {
             let lhs_name = self
                 .config
@@ -338,36 +339,63 @@ impl Stream for CandleDataStream {
                     self.config
                 ))?
                 .clone();
+
+            // Poll all the LHS batches (accumulation) or the next LHS batch (stream)
             let lhs = match self.messages.get_mut(lhs_name.as_str()) {
-                Some(lhs) => {
-                    // Poll the input streams and collect/transform the batches
-                    let mut batches = Vec::new();
-                    while let Some(Ok(batch)) = ready!(lhs.get_message_mut().poll_next_unpin(cx)) {
-                        batches.push(batch);
+                Some(lhs) => match stream {
+                    DataStreamManager::AccumulateLHSAccumulateRHS | DataStreamManager::AccumulateLHSStreamRHS => {
+                        let mut batches = Vec::new();
+                        while let Some(Ok(batch)) = ready!(lhs.get_message_mut().poll_next_unpin(cx)) {
+                            batches.push(batch);
+                        }
+                        batches
                     }
-                    batches
+                    DataStreamManager::StreamLHSAccumulateRHS | DataStreamManager::StreamLHSStreamRHS => {
+                        let mut batches = Vec::new();
+                        while let Some(Ok(batch)) = ready!(lhs.get_message_mut().poll_next_unpin(cx)) {
+                            batches.push(batch);
+                            break;
+                        }
+                        batches
+                    }
                 }
-                None => {
-                    // Extract the input from the config
-                    match self.config.as_ref().unwrap().lhs_args.as_ref() {
-                        Some(qs) => {
-                            let table = TableBuilder::new()
-                                .with_json(qs.as_bytes(), 512)?
-                                .with_name("")
-                                .build()?;
-                            table.get_record_batches_own()
+                // Check for the LHS in the config (accumulation only)
+                None => match stream {
+                    DataStreamManager::AccumulateLHSAccumulateRHS | DataStreamManager::AccumulateLHSStreamRHS => {
+                        // Extract the input from the config
+                        match self.config.as_ref().unwrap().lhs_args.as_ref() {
+                            Some(qs) => {
+                                let table = TableBuilder::new()
+                                    .with_json(qs.as_bytes(), 512)?
+                                    .with_name("")
+                                    .build()?;
+                                table.get_record_batches_own()
+                            }
+                            None => {
+                                self.is_finished = true;
+                                return Poll::Ready(Some(Err(anyhow!(
+                                    "lhs_name {lhs_name} does not exist. Available options are {:?}",
+                                    self.messages.keys()
+                                ))));
+                            }
                         }
-                        None => {
-                            self.is_finished = true;
-                            return Poll::Ready(Some(Err(anyhow!(
-                                "lhs_name {lhs_name} does not exist. Available options are {:?}",
-                                self.messages.keys()
-                            ))));
-                        }
+                    }
+                    DataStreamManager::StreamLHSAccumulateRHS | DataStreamManager::StreamLHSStreamRHS => {
+                        self.is_finished = true;
+                        return Poll::Ready(Some(Err(anyhow!(
+                            "lhs_name {lhs_name} does not exist. Available options are {:?}",
+                            self.messages.keys()
+                        ))));
                     }
                 }
             };
-            self.lhs_inbox = lhs;
+
+            // Break if the lhs as been exhausted
+            if lhs.is_empty() {
+                return Poll::Ready(None);
+            } else {
+                self.lhs_inbox = lhs;
+            }            
         };
         // DM: need to implement a trigger for event verbosity
         // if let Some(diagnostic_builder) = &self.diagnostic_builder {
@@ -381,7 +409,7 @@ impl Stream for CandleDataStream {
         //     );
         // };
 
-        // Collect the RHS document chunks
+        // Collect the RHS batches through accumulating or as stream
         if self.rhs_inbox.is_empty() && self.config.as_ref().unwrap().rhs_name.is_some() {
             let rhs_name = self
                 .config
@@ -394,43 +422,62 @@ impl Stream for CandleDataStream {
                     self.config
                 ))?
                 .clone();
-            let rhs = match self.messages.get_mut(rhs_name.as_str()) {
-                Some(rhs) => {
-                    // DM: this is for streaming...
-                    // // Poll the input streams and collect/transform the batches
-                    // match ready!(rhs.get_message_mut().poll_next_unpin(cx)) {
-                    //     Some(Ok(batch)) => vec![batch],
-                    //     _ => return Poll::Ready(None),
-                    // }
 
-                    // Poll the input streams and collect/transform the batches
-                    let mut batches = Vec::new();
-                    while let Some(Ok(batch)) = ready!(rhs.get_message_mut().poll_next_unpin(cx)) {
-                        batches.push(batch);
+            // Poll all the RHS batches (accumulation) or the next RHS batch (stream)
+            let rhs = match self.messages.get_mut(rhs_name.as_str()) {
+                Some(rhs) => match stream {
+                    DataStreamManager::AccumulateLHSAccumulateRHS | DataStreamManager::StreamLHSAccumulateRHS => {
+                        let mut batches = Vec::new();
+                        while let Some(Ok(batch)) = ready!(rhs.get_message_mut().poll_next_unpin(cx)) {
+                            batches.push(batch);
+                        }
+                        batches
                     }
-                    batches
+                    DataStreamManager::StreamLHSStreamRHS| DataStreamManager::AccumulateLHSStreamRHS => {
+                        let mut batches = Vec::new();
+                        while let Some(Ok(batch)) = ready!(rhs.get_message_mut().poll_next_unpin(cx)) {
+                            batches.push(batch);
+                            break;
+                        }
+                        batches
+                    }
                 }
-                None => {
-                    // Extract the input from the config
-                    match self.config.as_ref().unwrap().rhs_args.as_ref() {
-                        Some(qs) => {
-                            let table = TableBuilder::new()
-                                .with_json(qs.as_bytes(), 512)?
-                                .with_name("")
-                                .build()?;
-                            table.get_record_batches_own()
+                // Check for the RHS in the config (accumulation only)
+                None => match stream {
+                    DataStreamManager::AccumulateLHSAccumulateRHS | DataStreamManager::StreamLHSAccumulateRHS => {// Extract the input from the config
+                        match self.config.as_ref().unwrap().rhs_args.as_ref() {
+                            Some(qs) => {
+                                let table = TableBuilder::new()
+                                    .with_json(qs.as_bytes(), 512)?
+                                    .with_name("")
+                                    .build()?;
+                                table.get_record_batches_own()
+                            }
+                            None => {
+                                self.is_finished = true;
+                                return Poll::Ready(Some(Err(anyhow!(
+                                    "rhs_name {rhs_name} does not exist. Available options are {:?}",
+                                    self.messages.keys()
+                                ))));
+                            }
                         }
-                        None => {
-                            self.is_finished = true;
-                            return Poll::Ready(Some(Err(anyhow!(
-                                "rhs_name {rhs_name} does not exist. Available options are {:?}",
-                                self.messages.keys()
-                            ))));
-                        }
+                    }
+                    DataStreamManager::StreamLHSStreamRHS| DataStreamManager::AccumulateLHSStreamRHS => {
+                        self.is_finished = true;
+                        return Poll::Ready(Some(Err(anyhow!(
+                            "rhs_name {rhs_name} does not exist. Available options are {:?}",
+                            self.messages.keys()
+                        ))));
                     }
                 }
             };
-            self.rhs_inbox = rhs;
+
+            // Break if the rhs has been exhausted
+            if rhs.is_empty() {
+                return Poll::Ready(None);
+            } else {
+                self.rhs_inbox = rhs;
+            }
         }
         // DM: need to implement a trigger for event verbosity
         // if let Some(diagnostic_builder) = &self.diagnostic_builder {
@@ -500,23 +547,45 @@ impl Stream for CandleDataStream {
         //     event.insert("result", &serde_json::Value::String(format!("{batch:?}")));
         // };
 
-        // DM: need to update this with the other config options for streaming
-        // self.rhs_inbox.clear();
-        // if self.config.as_ref().unwrap().rhs_name.is_none() {
-        //     self.config
-        //         .as_mut()
-        //         .unwrap()
-        //         .rhs_name
-        //         .replace("".to_string());
-        // }
-
-        // record the poll
-        self.is_finished = true;
-        let poll = Poll::Ready(Some(Ok(batch)));
-        if let Some(baseline_metrics) = &baseline_metrics {
-            baseline_metrics.record_poll(poll)
-        } else {
-            poll
+        // Reset the inboxes for the next poll and return the current poll
+        match stream {
+            DataStreamManager::AccumulateLHSAccumulateRHS => {
+                self.is_finished = true;
+                let poll = Poll::Ready(Some(Ok(batch)));
+                if let Some(baseline_metrics) = &baseline_metrics {
+                    baseline_metrics.record_poll(poll)
+                } else {
+                    poll
+                }
+            }
+            DataStreamManager::AccumulateLHSStreamRHS => {
+                self.rhs_inbox.clear();
+                let poll = Poll::Ready(Some(Ok(batch)));
+                if let Some(baseline_metrics) = &baseline_metrics {
+                    baseline_metrics.record_poll(poll)
+                } else {
+                    poll
+                }
+            }
+            DataStreamManager::StreamLHSAccumulateRHS => {
+                self.lhs_inbox.clear();
+                let poll = Poll::Ready(Some(Ok(batch)));
+                if let Some(baseline_metrics) = &baseline_metrics {
+                    baseline_metrics.record_poll(poll)
+                } else {
+                    poll
+                }
+            }
+            DataStreamManager::StreamLHSStreamRHS => {
+                self.lhs_inbox.clear();
+                self.rhs_inbox.clear();
+                let poll = Poll::Ready(Some(Ok(batch)));
+                if let Some(baseline_metrics) = &baseline_metrics {
+                    baseline_metrics.record_poll(poll)
+                } else {
+                    poll
+                }
+            }
         }
     }
 
@@ -810,7 +879,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(rhs_id.first().unwrap(), &"RESPONSE");
 
-        // Case 3: LHS and RHS messages from multiple stream batch
+        // Case 3: LHS and RHS messages from multiple stream batch (accumulate LHS and RHS)
         let lhs_ids_vec_1 = vec!["1"];
         let lhs_embeddings_vec_1: Vec<Vec<f32>> = vec![vec![1., 1., 1., 1.]];
         let lhs_batch_1 = test_candle_ops_processor::make_embeddings_record_batch_str_f32(
@@ -880,12 +949,325 @@ mod tests {
         )?;
         let result = ops_stream.try_collect::<Vec<_>>().await?;
 
+        // Expected values 
+        let lhs_ids_test = vec!["1", "1", "1", "1", "2", "2", "2", "2", "3", "3", "3", "3"];
+        let rhs_ids_test = vec!["1", "2", "3", "4", "1", "2", "3", "4", "1", "2", "3", "4"];
+        let scores_test: Vec<f32> = vec![
+            1.0, 1.0, 1.0, 1.0, 0.70710677, 0.70710677, 0.70710677, 0.70710677, 0.5, 0.5, 0.5, 0.5,
+        ];
+
+        let lhs_id = result
+            .iter()
+            .flat_map(|batch| {
+                batch
+                    .column_by_name("lhs_pk")
+                    .unwrap()
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .unwrap()
+                    .iter()
+                    .map(|s| s.unwrap_or_default())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(lhs_id, lhs_ids_test);
+        let rhs_id = result
+            .iter()
+            .flat_map(|batch| {
+                batch
+                    .column_by_name("rhs_pk")
+                    .unwrap()
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .unwrap()
+                    .iter()
+                    .map(|s| s.unwrap_or_default())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(rhs_id, rhs_ids_test);
+        let scores = result
+            .iter()
+            .flat_map(|batch| {
+                batch
+                    .column_by_name("score")
+                    .unwrap()
+                    .as_any()
+                    .downcast_ref::<Float32Array>()
+                    .unwrap()
+                    .iter()
+                    .map(|s| s.unwrap())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(scores, scores_test);
+
+        // Case 4: LHS and RHS messages from multiple stream batch (accumulate LHS and Stream RHS)
+        // Make the config
+        let config = DataConfig {
+            lhs_name: Some("lhs_name".to_string()),
+            rhs_name: Some("rhs_name".to_string()),
+            lhs_pk: Some("lhs_pk".to_string()),
+            lhs_fk: Some("lhs_fk".to_string()),
+            lhs_values: Some(vec!["embedding".to_string()]),
+            rhs_pk: Some("rhs_pk".to_string()),
+            rhs_fk: Some("rhs_fk".to_string()),
+            rhs_values: Some(vec!["embedding".to_string()]),
+            dist_operator: Some(DataDistanceOperator::NormalizedDotProduct),
+            operator: AvailableCandleOperators::VectorDistance,
+            stream: DataStreamManager::AccumulateLHSStreamRHS,
+            ..Default::default()
+        };
+        let config_table = Table::get_builder()
+            .with_name("candle_embed_processor")
+            .with_json(&serde_json::to_vec(&config)?, 1)?
+            .build()?;
+
+        // Make the input message
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = messages.insert(
+            lhs_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(lhs_table.get_name())
+                .with_publisher("s1")
+                .with_subject("d1")
+                .with_update(&TablePublication::None)
+                .with_message(lhs_table.clone().to_record_batch_stream())
+                .build()?,
+        );
+        let _ = messages.insert(
+            rhs_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(rhs_table.get_name())
+                .with_publisher("s1")
+                .with_subject("d1")
+                .with_update(&TablePublication::None)
+                .with_message(rhs_table.clone().to_record_batch_stream())
+                .build()?,
+        );
+
+        // Make the stream and run
+        let ops_stream = CandleDataStream::new(
+            messages,
+            config_table.clone().to_record_batch_stream(),
+            Arc::clone(&runtime_env),
+            Some(diagnostic_builder.clone()),
+        )?;
+        let result = ops_stream.try_collect::<Vec<_>>().await?;
+
         // Expected values (for RHS streaming)
-        // let lhs_ids_test = vec!["1", "1", "2", "2", "3", "3", "1", "1", "2", "2", "3", "3"];
-        // let rhs_ids_test = vec!["1", "2", "1", "2", "1", "2", "3", "4", "3", "4", "3", "4"];
-        // let scores_test: Vec<f32> = vec![
-        //     1.0, 1.0, 0.70710677, 0.70710677, 0.5, 0.5, 1.0, 1.0, 0.70710677, 0.70710677, 0.5, 0.5,
-        // ];
+        let lhs_ids_test = vec!["1", "1", "2", "2", "3", "3", "1", "1", "2", "2", "3", "3"];
+        let rhs_ids_test = vec!["1", "2", "1", "2", "1", "2", "3", "4", "3", "4", "3", "4"];
+        let scores_test: Vec<f32> = vec![
+            1.0, 1.0, 0.70710677, 0.70710677, 0.5, 0.5, 1.0, 1.0, 0.70710677, 0.70710677, 0.5, 0.5,
+        ];
+
+        let lhs_id = result
+            .iter()
+            .flat_map(|batch| {
+                batch
+                    .column_by_name("lhs_pk")
+                    .unwrap()
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .unwrap()
+                    .iter()
+                    .map(|s| s.unwrap_or_default())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(lhs_id, lhs_ids_test);
+        let rhs_id = result
+            .iter()
+            .flat_map(|batch| {
+                batch
+                    .column_by_name("rhs_pk")
+                    .unwrap()
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .unwrap()
+                    .iter()
+                    .map(|s| s.unwrap_or_default())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(rhs_id, rhs_ids_test);
+        let scores = result
+            .iter()
+            .flat_map(|batch| {
+                batch
+                    .column_by_name("score")
+                    .unwrap()
+                    .as_any()
+                    .downcast_ref::<Float32Array>()
+                    .unwrap()
+                    .iter()
+                    .map(|s| s.unwrap())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(scores, scores_test);
+
+        // Case 5: LHS and RHS messages from multiple stream batch (Stream LHS and Stream RHS)
+        // Make the config
+        let config = DataConfig {
+            lhs_name: Some("lhs_name".to_string()),
+            rhs_name: Some("rhs_name".to_string()),
+            lhs_pk: Some("lhs_pk".to_string()),
+            lhs_fk: Some("lhs_fk".to_string()),
+            lhs_values: Some(vec!["embedding".to_string()]),
+            rhs_pk: Some("rhs_pk".to_string()),
+            rhs_fk: Some("rhs_fk".to_string()),
+            rhs_values: Some(vec!["embedding".to_string()]),
+            dist_operator: Some(DataDistanceOperator::NormalizedDotProduct),
+            operator: AvailableCandleOperators::VectorDistance,
+            stream: DataStreamManager::StreamLHSStreamRHS,
+            ..Default::default()
+        };
+        let config_table = Table::get_builder()
+            .with_name("candle_embed_processor")
+            .with_json(&serde_json::to_vec(&config)?, 1)?
+            .build()?;
+
+        // Make the input message
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = messages.insert(
+            lhs_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(lhs_table.get_name())
+                .with_publisher("s1")
+                .with_subject("d1")
+                .with_update(&TablePublication::None)
+                .with_message(lhs_table.clone().to_record_batch_stream())
+                .build()?,
+        );
+        let _ = messages.insert(
+            rhs_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(rhs_table.get_name())
+                .with_publisher("s1")
+                .with_subject("d1")
+                .with_update(&TablePublication::None)
+                .with_message(rhs_table.clone().to_record_batch_stream())
+                .build()?,
+        );
+
+        // Make the stream and run
+        let ops_stream = CandleDataStream::new(
+            messages,
+            config_table.clone().to_record_batch_stream(),
+            Arc::clone(&runtime_env),
+            Some(diagnostic_builder.clone()),
+        )?;
+        let result = ops_stream.try_collect::<Vec<_>>().await?;
+
+        // Expected values
+        let lhs_ids_test = vec!["1", "1", "2", "2", "3", "3"];
+        let rhs_ids_test = vec!["1", "2", "3", "4", "3", "4"];
+        let scores_test: Vec<f32> = vec![
+            1.0, 1.0, 0.70710677, 0.70710677, 0.5, 0.5,
+        ];
+
+        let lhs_id = result
+            .iter()
+            .flat_map(|batch| {
+                batch
+                    .column_by_name("lhs_pk")
+                    .unwrap()
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .unwrap()
+                    .iter()
+                    .map(|s| s.unwrap_or_default())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(lhs_id, lhs_ids_test);
+        let rhs_id = result
+            .iter()
+            .flat_map(|batch| {
+                batch
+                    .column_by_name("rhs_pk")
+                    .unwrap()
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .unwrap()
+                    .iter()
+                    .map(|s| s.unwrap_or_default())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(rhs_id, rhs_ids_test);
+        let scores = result
+            .iter()
+            .flat_map(|batch| {
+                batch
+                    .column_by_name("score")
+                    .unwrap()
+                    .as_any()
+                    .downcast_ref::<Float32Array>()
+                    .unwrap()
+                    .iter()
+                    .map(|s| s.unwrap())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(scores, scores_test);
+
+        // Case 6: LHS and RHS messages from multiple stream batch (Stream LHS and Accumulate RHS)
+        // Make the config
+        let config = DataConfig {
+            lhs_name: Some("lhs_name".to_string()),
+            rhs_name: Some("rhs_name".to_string()),
+            lhs_pk: Some("lhs_pk".to_string()),
+            lhs_fk: Some("lhs_fk".to_string()),
+            lhs_values: Some(vec!["embedding".to_string()]),
+            rhs_pk: Some("rhs_pk".to_string()),
+            rhs_fk: Some("rhs_fk".to_string()),
+            rhs_values: Some(vec!["embedding".to_string()]),
+            dist_operator: Some(DataDistanceOperator::NormalizedDotProduct),
+            operator: AvailableCandleOperators::VectorDistance,
+            stream: DataStreamManager::StreamLHSAccumulateRHS,
+            ..Default::default()
+        };
+        let config_table = Table::get_builder()
+            .with_name("candle_embed_processor")
+            .with_json(&serde_json::to_vec(&config)?, 1)?
+            .build()?;
+
+        // Make the input message
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = messages.insert(
+            lhs_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(lhs_table.get_name())
+                .with_publisher("s1")
+                .with_subject("d1")
+                .with_update(&TablePublication::None)
+                .with_message(lhs_table.clone().to_record_batch_stream())
+                .build()?,
+        );
+        let _ = messages.insert(
+            rhs_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(rhs_table.get_name())
+                .with_publisher("s1")
+                .with_subject("d1")
+                .with_update(&TablePublication::None)
+                .with_message(rhs_table.clone().to_record_batch_stream())
+                .build()?,
+        );
+
+        // Make the stream and run
+        let ops_stream = CandleDataStream::new(
+            messages,
+            config_table.clone().to_record_batch_stream(),
+            Arc::clone(&runtime_env),
+            Some(diagnostic_builder.clone()),
+        )?;
+        let result = ops_stream.try_collect::<Vec<_>>().await?;
+
+        // Expected values
         let lhs_ids_test = vec!["1", "1", "1", "1", "2", "2", "2", "2", "3", "3", "3", "3"];
         let rhs_ids_test = vec!["1", "2", "3", "4", "1", "2", "3", "4", "1", "2", "3", "4"];
         let scores_test: Vec<f32> = vec![
