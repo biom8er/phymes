@@ -333,8 +333,83 @@ mod tests {
     use arrow::datatypes::{DataType, Field, Schema};
     use arrow::record_batch::RecordBatchOptions;
     use futures::{Stream, TryStreamExt};
-    use phymes_core::{TableBuilder, TableTrait};
+    use phymes_core::{AvailableTableSubscribePolicies, TableBuilder, TableTrait, test_table};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
+
+    #[tokio::test]
+    async fn test_limit_processor() -> Result<()> {
+        // Make the test batches (12 rows total)
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let test_table = test_table::make_test_table("input", 4, 8, 3)?;
+        let test_message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("input")
+            .with_subject("input")
+            .with_publisher("")
+            .with_message(test_table.to_record_batch_stream())
+            .with_update(&TablePublication::None)
+            .build()?;
+        let _ = message.insert(test_message.get_name().to_string(), test_message);
+
+        // Make the config
+        let config = DataSummaryConfig {
+            skip: Some(0),
+            fetch: Some(6),
+            ..Default::default()
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = TableBuilder::new()
+            .with_name("LimitProcessor")
+            .with_json(&config_json, 1)?
+            .build()?;
+        let config_message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name(config_table.get_name())
+            .with_publisher("")
+            .with_subject(config_table.get_name())
+            .with_update(&TablePublication::None)
+            .with_message(config_table.to_record_batch_stream())
+            .build()?;
+        let _ = message.insert(config_message.get_name().to_string(), config_message);
+
+        // Make the diagnostics
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
+        // Make the Runtime Env
+        let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
+            name: "service".to_string(),
+            ..Default::default()
+        }));
+
+        // Limit of six
+        let processor = LimitProcessor::new(
+            "LimitProcessor",
+            "",
+            &[TablePublication::Extend {
+                table_name: "output".to_string(),
+            }],
+            &[TableSubscription::AlwaysFullTable {
+                table_name: "input".to_string(),
+            }],
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+        );
+        let mut stream =
+            processor.process(message, Some(&diagnostic_builder), runtime_env.clone())?;
+
+        // Wrap the results in a table
+        let partitions = TableBuilder::new_from_sendable_record_batch_stream(
+            stream
+                .remove("from_LimitProcessor_on_output")
+                .unwrap()
+                .get_message_own(),
+            )
+            .await?
+            .with_name("")
+            .build()?;
+        
+        assert_eq!(partitions.count_rows(), 6);
+        Ok(())
+    }
 
     /// Return a RecordBatch with a single Int32 array with values (0..sz) in a field named "i"
     fn make_partition(sz: i32) -> RecordBatch {

@@ -482,11 +482,85 @@ mod tests {
     use arrow::array::{StringViewArray, UInt32Array};
     use arrow::datatypes::{DataType, Field, Schema};
     use futures::TryStreamExt;
-    use phymes_core::{RecordBatchStreamAdapter, TableBuilder, TableTrait};
+    use phymes_core::{AvailableTableSubscribePolicies, RecordBatchStreamAdapter, TableBuilder, TableTrait, test_table};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     #[tokio::test]
-    async fn test_coalesce() -> Result<()> {
+    async fn test_coalesce_processor() -> Result<()> {
+        // Make the test batches
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let test_table = test_table::make_test_table("input", 4, 8, 4)?;
+        let test_message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("input")
+            .with_subject("input")
+            .with_publisher("")
+            .with_message(test_table.to_record_batch_stream())
+            .with_update(&TablePublication::None)
+            .build()?;
+        let _ = message.insert(test_message.get_name().to_string(), test_message);
+
+        // Make the config
+        let config = DataSummaryConfig {
+            fetch: Some(6),
+            ..Default::default()
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = TableBuilder::new()
+            .with_name("CoalesceProcessor")
+            .with_json(&config_json, 1)?
+            .build()?;
+        let config_message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name(config_table.get_name())
+            .with_publisher("")
+            .with_subject(config_table.get_name())
+            .with_update(&TablePublication::None)
+            .with_message(config_table.to_record_batch_stream())
+            .build()?;
+        let _ = message.insert(config_message.get_name().to_string(), config_message);
+
+        // Make the diagnostics
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
+        // Make the Runtime Env
+        let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
+            name: "service".to_string(),
+            ..Default::default()
+        }));
+
+        // Coalesce into batches of six
+        let processor = CoalesceProcessor::new(
+            "CoalesceProcessor",
+            "",
+            &[TablePublication::Extend {
+                table_name: "output".to_string(),
+            }],
+            &[TableSubscription::AlwaysFullTable {
+                table_name: "input".to_string(),
+            }],
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+        );
+        let mut stream =
+            processor.process(message, Some(&diagnostic_builder), runtime_env.clone())?;
+
+        // Wrap the results in a table
+        let partitions = TableBuilder::new_from_sendable_record_batch_stream(
+            stream
+                .remove("from_CoalesceProcessor_on_output")
+                .unwrap()
+                .get_message_own(),
+            )
+            .await?
+            .with_name("")
+            .build()?;
+        let sizes = partitions.get_record_batches().iter().map(|b| b.num_rows()).collect::<Vec<_>>();
+        assert_eq!(sizes, [6, 6, 4]);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_coalesce_stream() -> Result<()> {
         // Make the batches
         let batch = uint32_batch(0..8);
         
@@ -688,10 +762,5 @@ mod tests {
                 }
             }
         }
-    }
-    fn batch_to_pretty_strings(batch: &RecordBatch) -> String {
-        arrow::util::pretty::pretty_format_batches(std::slice::from_ref(batch))
-            .unwrap()
-            .to_string()
     }
 }
