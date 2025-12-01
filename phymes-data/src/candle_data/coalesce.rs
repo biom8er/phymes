@@ -138,7 +138,6 @@ impl ProcessorTrait for CoalesceProcessor {
             Arc::clone(&runtime_env),
             stream_diagnostic_builder,
         ));
-        let mut outbox = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let out_m = SendableRecordBatchStreamMessage::get_builder()
             .with_publisher(self.get_name())
             .with_subject(self.publications.first().unwrap().get_table_name())
@@ -146,13 +145,13 @@ impl ProcessorTrait for CoalesceProcessor {
             .with_update(self.publications.first().unwrap())
             .make_name()?
             .build()?;
-        let _ = outbox.insert(out_m.get_name().to_string(), out_m);
+        let _ = message.insert(out_m.get_name().to_string(), out_m);
 
         // Trace the outbox
         if let Some(trace) = trace {
-            trace.0.exit(&outbox.values().collect::<Vec<_>>());
+            trace.0.exit(&message.values().collect::<Vec<_>>());
         }
-        Ok(outbox)
+        Ok(message)
     }
 }
 
