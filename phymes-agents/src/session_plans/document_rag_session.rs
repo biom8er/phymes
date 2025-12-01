@@ -1,9 +1,7 @@
 use std::{sync::Arc, vec};
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
-    DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder,
-    TableBuilderTrait, TablePublication, TableSubscription, TaskPlan,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_schema_from_fields
 };
 use phymes_data::{
     AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
@@ -13,7 +11,7 @@ use phymes_data::{
 use phymes_ml::AvailableOpenAIAssets;
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig};
 
-use arrow::datatypes::{DataType, SchemaRef};
+use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
 
 use crate::{
     AvailableProcessors, session_plans::AvailableInterfaceSubjects,
@@ -63,14 +61,18 @@ pub struct DocumentRAGSession<'a> {
     pub relative_similarity_processor_name: &'a str,
     pub sort_scores_processor_name: &'a str,
     pub join_chunks_processor_name: &'a str,
-    pub top_k_processor_name: &'a str,
+    pub top_k_select_processor_name: &'a str,
+    pub top_k_limit_processor_name: &'a str,
+    pub top_k_summary_processor_name: &'a str,
     pub vector_search_runtime_env_name: &'a str,
     /// Session and state
     pub session_context_name: &'a str,
     pub state_documents_table_name: &'a str,
     pub state_doc_embed_table_name: &'a str,
     pub state_q_embed_table_name: &'a str,
-    pub state_top_k_docs_table_name: &'a str,
+    pub state_top_k_select_docs_table_name: &'a str,
+    pub state_top_k_limit_docs_table_name: &'a str,
+    pub state_top_k_summary_docs_table_name: &'a str,
     pub state_scores_table_name: &'a str,
     pub state_scores_chunks_join_table_name: &'a str,
     /// Other parameters
@@ -107,13 +109,17 @@ impl Default for DocumentRAGSession<'_> {
             relative_similarity_processor_name: "rel_sim_processor_1",
             sort_scores_processor_name: "sort_scores_processor_1",
             join_chunks_processor_name: "join_scores_chunks_processor_1",
-            top_k_processor_name: "top_k_processor_1",
+            top_k_select_processor_name: "top_k_select_processor_1",
+            top_k_limit_processor_name: "top_k_limit_processor_1",
+            top_k_summary_processor_name: "top_k_summary_processor_1",
             vector_search_runtime_env_name: "vs_rt_1",
             session_context_name: "session_context_1",
             state_documents_table_name: "documents",
             state_doc_embed_table_name: "doc_embeddings",
             state_q_embed_table_name: "q_embeddings",
-            state_top_k_docs_table_name: "top_k",
+            state_top_k_select_docs_table_name: "top_k_select",
+            state_top_k_limit_docs_table_name: "top_k_limit",
+            state_top_k_summary_docs_table_name: "top_k_summary",
             state_scores_table_name: "tmp_scores",
             state_scores_chunks_join_table_name: "tmp_scores_chunks_join",
             chat_api_url: None,
@@ -186,7 +192,9 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     self.relative_similarity_processor_name.to_string(),
                     self.sort_scores_processor_name.to_string(),
                     self.join_chunks_processor_name.to_string(),
-                    self.top_k_processor_name.to_string(),
+                    self.top_k_select_processor_name.to_string(),
+                    self.top_k_limit_processor_name.to_string(),
+                    self.top_k_summary_processor_name.to_string(),
                 ],
             },
         ];
@@ -207,7 +215,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
                     TableSubscription::OnUpdateFullTable {
-                        table_name: self.state_top_k_docs_table_name.to_string(),
+                        table_name: self.state_top_k_summary_docs_table_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
@@ -447,17 +455,47 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::DataSummaryProcessor.build_arc(
-                self.top_k_processor_name,
+            AvailableProcessors::Select.build_arc(
+                self.top_k_select_processor_name,
                 &[TablePublication::Replace {
-                    table_name: self.state_top_k_docs_table_name.to_string(),
+                    table_name: self.state_top_k_select_docs_table_name.to_string(),
                 }],
                 &[
                     TableSubscription::AlwaysFullTable {
-                        table_name: self.top_k_processor_name.to_string(),
+                        table_name: self.top_k_select_processor_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self.state_scores_chunks_join_table_name.to_string(),
+                    },
+                ],
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+            ),
+            AvailableProcessors::LimitProcessor.build_arc(
+                self.top_k_limit_processor_name,
+                &[TablePublication::Replace {
+                    table_name: self.state_top_k_limit_docs_table_name.to_string(),
+                }],
+                &[
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self.top_k_limit_processor_name.to_string(),
+                    },
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self.state_top_k_select_docs_table_name.to_string(),
+                    },
+                ],
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+            ),
+            AvailableProcessors::DataSummaryProcessor.build_arc(
+                self.top_k_summary_processor_name,
+                &[TablePublication::Replace {
+                    table_name: self.state_top_k_summary_docs_table_name.to_string(),
+                }],
+                &[
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self.top_k_summary_processor_name.to_string(),
+                    },
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self.state_top_k_limit_docs_table_name.to_string(),
                     },
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
@@ -769,7 +807,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
 
         // Select top K config
         let top_k_select_config = DataConfig {
-            // lhs_name: Some(AvailableInterfaceSubjects::UserMessages.to_string()),
+            lhs_name: Some(self.state_scores_chunks_join_table_name.to_string()),
             lhs_values: Some(vec!["text".to_string()]),
             rhs_values: Some(vec!["".to_string()]),
             as_columns: Some(vec!["".to_string()]),
@@ -782,7 +820,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         };
         let top_k_select_config_json = serde_json::to_vec(&top_k_select_config).unwrap();
         let top_k_select_state = TableBuilder::new()
-            // .with_name(self.message_to_query_processor_name)
+            .with_name(self.top_k_select_processor_name)
             .with_json(&top_k_select_config_json, 1)
             .unwrap()
             .build()
@@ -796,8 +834,30 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         };
         let top_k_limit_config_json = serde_json::to_vec(&top_k_limit_config).unwrap();
         let top_k_limit_state = TableBuilder::new()
-            // .with_name(self.top_k_processor_name)
+            .with_name(self.top_k_limit_processor_name)
             .with_json(&top_k_limit_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        // Scores and summary table schemas
+        fn create_top_k_fields() -> Fields {
+            let fields_vec = vec![
+                Field::new("text", DataType::Utf8, false),
+            ];
+            Fields::from(fields_vec)
+        }
+        let top_k_select_table = Table::get_builder()
+            .with_name(self.state_top_k_select_docs_table_name)
+            .with_schema(create_schema_from_fields(&create_top_k_fields))
+            .with_record_batches(Vec::new())
+            .unwrap()
+            .build()
+            .unwrap();
+        let top_k_limit_table = Table::get_builder()
+            .with_name(self.state_top_k_limit_docs_table_name)
+            .with_schema(create_schema_from_fields(&create_top_k_fields))
+            .with_record_batches(Vec::new())
             .unwrap()
             .build()
             .unwrap();
@@ -809,7 +869,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         };
         let top_k_summary_config_json = serde_json::to_vec(&top_k_summary_config).unwrap();
         let top_k_summary_state = TableBuilder::new()
-            .with_name(self.top_k_processor_name)
+            .with_name(self.top_k_summary_processor_name)
             .with_json(&top_k_summary_config_json, 1)
             .unwrap()
             .build()
@@ -843,8 +903,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             AvailableInterfaceSubjects::AssistantMessages
                 .to_table(None, None)
                 .unwrap(),
+            top_k_select_table,
+            top_k_limit_table,
             AvailableSubjects::Messages
-                .to_table(Some(self.state_top_k_docs_table_name), None)
+                .to_table(Some(self.state_top_k_summary_docs_table_name), None)
                 .unwrap(),
             AvailableInterfaceSubjects::UserPdf
                 .to_table(None, None)
