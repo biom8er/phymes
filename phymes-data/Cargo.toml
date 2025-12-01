@@ -53,7 +53,7 @@ num-traits = { version = "0.2", default-features = false }
 quick-xml = { version = "0.38.4", default-features = false, optional = true }
 
 [dev-dependencies]
-criterion = { version = "0.7", default-features = false, features = ["cargo_bench_support"] }
+criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
 
 [[bench]]
 name = "candle_ops"
