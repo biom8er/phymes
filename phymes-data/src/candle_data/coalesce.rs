@@ -611,8 +611,7 @@ mod tests {
             .build()?;
 
         // Coalesce batches
-        let stream =
-            futures::stream::iter(std::iter::repeat_n(batch.clone(), 10).map(Ok));
+        let stream = futures::stream::iter(std::iter::repeat_n(batch.clone(), 10).map(Ok));
         let input = Box::pin(RecordBatchStreamAdapter::new(
             Arc::clone(&batch.schema()),
             stream,
@@ -644,8 +643,7 @@ mod tests {
             .build()?;
 
         // Coalesce batches
-        let stream =
-            futures::stream::iter(std::iter::repeat_n(batch.clone(), 10).map(Ok));
+        let stream = futures::stream::iter(std::iter::repeat_n(batch.clone(), 10).map(Ok));
         let input = Box::pin(RecordBatchStreamAdapter::new(
             Arc::clone(&batch.schema()),
             stream,
@@ -677,8 +675,7 @@ mod tests {
             .build()?;
 
         // Coalesce batches
-        let stream =
-            futures::stream::iter(std::iter::repeat_n(batch.clone(), 10).map(Ok));
+        let stream = futures::stream::iter(std::iter::repeat_n(batch.clone(), 10).map(Ok));
         let input = Box::pin(RecordBatchStreamAdapter::new(
             Arc::clone(&batch.schema()),
             stream,
