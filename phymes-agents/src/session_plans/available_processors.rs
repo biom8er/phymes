@@ -8,7 +8,11 @@ use phymes_core::{
     TablePublication, TableSubscribePolicyTrait, TableSubscription, test_processor::ProcessorMock,
 };
 use phymes_data::{
-    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor, CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataStreamManager, DataSummaryConfig, DataSummaryProcessor, LimitProcessor, ToolTrait
+    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,
+    CandleDataProcessor, CoalesceProcessor, DataAggregatorOperator, DataCastOperator,
+    DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig,
+    DataConfigTrait, DataDistanceOperator, DataStreamManager, DataSummaryConfig,
+    DataSummaryProcessor, LimitProcessor, ToolTrait,
 };
 use phymes_ml::{
     AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, CandleEmbedConfig,
@@ -799,9 +803,9 @@ impl AvailableProcessors {
             | Self::ApplyTemplate
             | Self::AttachmentAggregatorProcessor
             | Self::MessageAggregatorProcessor => "DataConfig",
-            Self::DataSummaryProcessor
-            | Self::CoalesceProcessor 
-            | Self::LimitProcessor => "DataSummaryConfig",
+            Self::DataSummaryProcessor | Self::CoalesceProcessor | Self::LimitProcessor => {
+                "DataSummaryConfig"
+            }
             Self::CandleChatProcessor | Self::MessageParserProcessor => "CandleChatConfig",
             Self::CandleEmbedProcessor => "CandleEmbedConfig",
             #[cfg(feature = "openai_api")]

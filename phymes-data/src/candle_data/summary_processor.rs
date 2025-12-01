@@ -15,10 +15,7 @@ use phymes_core::{
 };
 
 use anyhow::{Result, anyhow};
-use arrow::{
-    array::RecordBatch,
-    datatypes::SchemaRef,
-};
+use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_diagnostics::{
@@ -360,7 +357,7 @@ impl Stream for DataSummaryStream {
             while let Some(Ok(batch)) = ready!(self.message_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
-            let table= Table::get_builder()
+            let table = Table::get_builder()
                 .with_name(&self.table_name)
                 .with_record_batches(batches)?
                 .build()?

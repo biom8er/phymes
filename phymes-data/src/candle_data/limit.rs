@@ -8,11 +8,14 @@ use arrow::record_batch::RecordBatch;
 use futures::stream::{Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, remove_message_by_subject
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
+    PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table,
+    TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription,
+    remove_message_by_subject,
 };
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait,
-    TraceBuilderTrait
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
 };
 use tracing::{Level, event};
 
@@ -172,10 +175,11 @@ pub struct LimitStream {
 }
 
 impl LimitStream {
-    pub fn new(message_stream: SendableRecordBatchStream,
+    pub fn new(
+        message_stream: SendableRecordBatchStream,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        diagnostic_builder: Option<DiagnosticBuilder>
+        diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Self {
         let schema = message_stream.schema();
         Self {
@@ -196,8 +200,24 @@ impl LimitStream {
             let config = DataSummaryConfig::from_table(&config_table)?;
             self.config.replace(config);
         }
-        self.skip.replace(self.config.as_ref().unwrap().skip.as_ref().unwrap().to_owned());
-        self.fetch.replace(self.config.as_ref().unwrap().fetch.as_ref().unwrap().to_owned());
+        self.skip.replace(
+            self.config
+                .as_ref()
+                .unwrap()
+                .skip
+                .as_ref()
+                .unwrap()
+                .to_owned(),
+        );
+        self.fetch.replace(
+            self.config
+                .as_ref()
+                .unwrap()
+                .fetch
+                .as_ref()
+                .unwrap()
+                .to_owned(),
+        );
         Ok(())
     }
 
@@ -213,7 +233,8 @@ impl LimitStream {
                 } else {
                     let new_batch = batch.slice(
                         self.skip.as_ref().unwrap().to_owned(),
-                        batch.num_rows() - self.skip.as_ref().unwrap().to_owned());
+                        batch.num_rows() - self.skip.as_ref().unwrap().to_owned(),
+                    );
                     self.skip.replace(0);
                     new_batch
                 }
@@ -261,7 +282,6 @@ impl Stream for LimitStream {
     type Item = Result<RecordBatch>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-
         // Initialize the metrics
         let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
             Some(
@@ -402,11 +422,11 @@ mod tests {
                 .remove("from_LimitProcessor_on_output")
                 .unwrap()
                 .get_message_own(),
-            )
-            .await?
-            .with_name("")
-            .build()?;
-        
+        )
+        .await?
+        .with_name("")
+        .build()?;
+
         assert_eq!(partitions.count_rows(), 6);
         Ok(())
     }
@@ -542,7 +562,12 @@ mod tests {
 
         // Limit of six needs to consume the entire first record batch
         // (5 rows) and 1 row from the second (1 row)
-        let limit_stream = LimitStream::new(Box::pin(input), config_table.to_record_batch_stream(), runtime_env, Some(diagnostic_builder));
+        let limit_stream = LimitStream::new(
+            Box::pin(input),
+            config_table.to_record_batch_stream(),
+            runtime_env,
+            Some(diagnostic_builder),
+        );
         assert_eq!(index.value(), 0);
 
         let results = Box::pin(limit_stream).try_collect::<Vec<_>>().await?;
@@ -589,7 +614,12 @@ mod tests {
 
         // Limit of six needs to consume the entire first record batch
         // (6 rows) and stop immediately
-        let limit_stream = LimitStream::new(Box::pin(input), config_table.to_record_batch_stream(), runtime_env, Some(diagnostic_builder));
+        let limit_stream = LimitStream::new(
+            Box::pin(input),
+            config_table.to_record_batch_stream(),
+            runtime_env,
+            Some(diagnostic_builder),
+        );
         assert_eq!(index.value(), 0);
 
         let results = Box::pin(limit_stream).try_collect::<Vec<_>>().await?;
@@ -640,7 +670,12 @@ mod tests {
 
         // Limit of six needs to consume the entire first record batch
         // (6 rows) and stop immediately
-        let limit_stream = LimitStream::new(Box::pin(input), config_table.to_record_batch_stream(), runtime_env, Some(diagnostic_builder));
+        let limit_stream = LimitStream::new(
+            Box::pin(input),
+            config_table.to_record_batch_stream(),
+            runtime_env,
+            Some(diagnostic_builder),
+        );
         assert_eq!(index.value(), 0);
 
         let results = Box::pin(limit_stream).try_collect::<Vec<_>>().await?;

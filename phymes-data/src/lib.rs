@@ -4,9 +4,10 @@ mod jinja2_templates;
 
 pub use candle_data::{
     AggregatorStream, AttachmentAggregatorProcessor, CandleDataProcessor, CandleTensorService,
-    DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator,
-    DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataStreamManager,
-    DataSummaryConfig, DataSummaryProcessor, LimitProcessor, CoalesceProcessor, collect_messages_by_schema,
+    CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator,
+    DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait,
+    DataDistanceOperator, DataStreamManager, DataSummaryConfig, DataSummaryProcessor,
+    LimitProcessor, collect_messages_by_schema,
 };
 pub use candle_operators::{
     ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait, ExtractPDF,

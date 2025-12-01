@@ -343,25 +343,33 @@ impl Stream for CandleDataStream {
             // Poll all the LHS batches (accumulation) or the next LHS batch (stream)
             let lhs = match self.messages.get_mut(lhs_name.as_str()) {
                 Some(lhs) => match stream {
-                    DataStreamManager::AccumulateLHSAccumulateRHS | DataStreamManager::AccumulateLHSStreamRHS => {
+                    DataStreamManager::AccumulateLHSAccumulateRHS
+                    | DataStreamManager::AccumulateLHSStreamRHS => {
                         let mut batches = Vec::new();
-                        while let Some(Ok(batch)) = ready!(lhs.get_message_mut().poll_next_unpin(cx)) {
+                        while let Some(Ok(batch)) =
+                            ready!(lhs.get_message_mut().poll_next_unpin(cx))
+                        {
                             batches.push(batch);
                         }
                         batches
                     }
-                    DataStreamManager::StreamLHSAccumulateRHS | DataStreamManager::StreamLHSStreamRHS => {
+                    DataStreamManager::StreamLHSAccumulateRHS
+                    | DataStreamManager::StreamLHSStreamRHS => {
                         let mut batches = Vec::new();
-                        while let Some(Ok(batch)) = ready!(lhs.get_message_mut().poll_next_unpin(cx)) {
+                        #[allow(clippy::never_loop)]
+                        while let Some(Ok(batch)) =
+                            ready!(lhs.get_message_mut().poll_next_unpin(cx))
+                        {
                             batches.push(batch);
                             break;
                         }
                         batches
                     }
-                }
+                },
                 // Check for the LHS in the config (accumulation only)
                 None => match stream {
-                    DataStreamManager::AccumulateLHSAccumulateRHS | DataStreamManager::AccumulateLHSStreamRHS => {
+                    DataStreamManager::AccumulateLHSAccumulateRHS
+                    | DataStreamManager::AccumulateLHSStreamRHS => {
                         // Extract the input from the config
                         match self.config.as_ref().unwrap().lhs_args.as_ref() {
                             Some(qs) => {
@@ -380,14 +388,15 @@ impl Stream for CandleDataStream {
                             }
                         }
                     }
-                    DataStreamManager::StreamLHSAccumulateRHS | DataStreamManager::StreamLHSStreamRHS => {
+                    DataStreamManager::StreamLHSAccumulateRHS
+                    | DataStreamManager::StreamLHSStreamRHS => {
                         self.is_finished = true;
                         return Poll::Ready(Some(Err(anyhow!(
                             "lhs_name {lhs_name} does not exist. Available options are {:?}",
                             self.messages.keys()
                         ))));
                     }
-                }
+                },
             };
 
             // Break if the lhs as been exhausted
@@ -395,7 +404,7 @@ impl Stream for CandleDataStream {
                 return Poll::Ready(None);
             } else {
                 self.lhs_inbox = lhs;
-            }            
+            }
         };
         // DM: need to implement a trigger for event verbosity
         // if let Some(diagnostic_builder) = &self.diagnostic_builder {
@@ -426,25 +435,34 @@ impl Stream for CandleDataStream {
             // Poll all the RHS batches (accumulation) or the next RHS batch (stream)
             let rhs = match self.messages.get_mut(rhs_name.as_str()) {
                 Some(rhs) => match stream {
-                    DataStreamManager::AccumulateLHSAccumulateRHS | DataStreamManager::StreamLHSAccumulateRHS => {
+                    DataStreamManager::AccumulateLHSAccumulateRHS
+                    | DataStreamManager::StreamLHSAccumulateRHS => {
                         let mut batches = Vec::new();
-                        while let Some(Ok(batch)) = ready!(rhs.get_message_mut().poll_next_unpin(cx)) {
+                        while let Some(Ok(batch)) =
+                            ready!(rhs.get_message_mut().poll_next_unpin(cx))
+                        {
                             batches.push(batch);
                         }
                         batches
                     }
-                    DataStreamManager::StreamLHSStreamRHS| DataStreamManager::AccumulateLHSStreamRHS => {
+                    DataStreamManager::StreamLHSStreamRHS
+                    | DataStreamManager::AccumulateLHSStreamRHS => {
                         let mut batches = Vec::new();
-                        while let Some(Ok(batch)) = ready!(rhs.get_message_mut().poll_next_unpin(cx)) {
+                        #[allow(clippy::never_loop)]
+                        while let Some(Ok(batch)) =
+                            ready!(rhs.get_message_mut().poll_next_unpin(cx))
+                        {
                             batches.push(batch);
                             break;
                         }
                         batches
                     }
-                }
+                },
                 // Check for the RHS in the config (accumulation only)
                 None => match stream {
-                    DataStreamManager::AccumulateLHSAccumulateRHS | DataStreamManager::StreamLHSAccumulateRHS => {// Extract the input from the config
+                    DataStreamManager::AccumulateLHSAccumulateRHS
+                    | DataStreamManager::StreamLHSAccumulateRHS => {
+                        // Extract the input from the config
                         match self.config.as_ref().unwrap().rhs_args.as_ref() {
                             Some(qs) => {
                                 let table = TableBuilder::new()
@@ -462,14 +480,15 @@ impl Stream for CandleDataStream {
                             }
                         }
                     }
-                    DataStreamManager::StreamLHSStreamRHS| DataStreamManager::AccumulateLHSStreamRHS => {
+                    DataStreamManager::StreamLHSStreamRHS
+                    | DataStreamManager::AccumulateLHSStreamRHS => {
                         self.is_finished = true;
                         return Poll::Ready(Some(Err(anyhow!(
                             "rhs_name {rhs_name} does not exist. Available options are {:?}",
                             self.messages.keys()
                         ))));
                     }
-                }
+                },
             };
 
             // Break if the rhs has been exhausted
@@ -949,7 +968,7 @@ mod tests {
         )?;
         let result = ops_stream.try_collect::<Vec<_>>().await?;
 
-        // Expected values 
+        // Expected values
         let lhs_ids_test = vec!["1", "1", "1", "1", "2", "2", "2", "2", "3", "3", "3", "3"];
         let rhs_ids_test = vec!["1", "2", "3", "4", "1", "2", "3", "4", "1", "2", "3", "4"];
         let scores_test: Vec<f32> = vec![
@@ -1164,9 +1183,7 @@ mod tests {
         // Expected values
         let lhs_ids_test = vec!["1", "1", "2", "2", "3", "3"];
         let rhs_ids_test = vec!["1", "2", "3", "4", "3", "4"];
-        let scores_test: Vec<f32> = vec![
-            1.0, 1.0, 0.70710677, 0.70710677, 0.5, 0.5,
-        ];
+        let scores_test: Vec<f32> = vec![1.0, 1.0, 0.70710677, 0.70710677, 0.5, 0.5];
 
         let lhs_id = result
             .iter()

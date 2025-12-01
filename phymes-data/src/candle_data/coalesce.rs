@@ -11,11 +11,14 @@ use arrow::datatypes::SchemaRef;
 use futures::stream::{Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, remove_message_by_subject
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
+    PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table,
+    TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription,
+    remove_message_by_subject,
 };
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait,
-    TraceBuilderTrait
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
 };
 use tracing::{Level, event};
 
@@ -218,10 +221,11 @@ pub struct CoalesceStream {
 }
 
 impl CoalesceStream {
-    pub fn new(message_stream: SendableRecordBatchStream,
+    pub fn new(
+        message_stream: SendableRecordBatchStream,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
-        diagnostic_builder: Option<DiagnosticBuilder>
+        diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Self {
         let schema = message_stream.schema();
         Self {
@@ -244,7 +248,15 @@ impl CoalesceStream {
             let config = DataSummaryConfig::from_table(&config_table)?;
             self.config.replace(config);
         }
-        self.fetch.replace(self.config.as_ref().unwrap().fetch.as_ref().unwrap().to_owned());
+        self.fetch.replace(
+            self.config
+                .as_ref()
+                .unwrap()
+                .fetch
+                .as_ref()
+                .unwrap()
+                .to_owned(),
+        );
         Ok(())
     }
 
@@ -267,7 +279,9 @@ impl CoalesceStream {
     ///
     /// Otherwise: does nothing and returns `false`.
     fn limit_reached(&mut self, batch: RecordBatch) -> bool {
-        if let Some(fetch) = self.fetch && self.buffered_rows + batch.num_rows() >= fetch {
+        if let Some(fetch) = self.fetch
+            && self.buffered_rows + batch.num_rows() >= fetch
+        {
             // Limit is reached
             let remaining_rows = fetch - self.buffered_rows;
             debug_assert!(remaining_rows > 0);
@@ -283,7 +297,7 @@ impl CoalesceStream {
                 self.overflow.replace(batch_over);
             }
 
-            self.buffer.push(batch_buf);       
+            self.buffer.push(batch_buf);
             true
         } else {
             // Limit has not been reached
@@ -302,7 +316,7 @@ impl CoalesceStream {
         } else {
             self.buffered_rows = 0;
             self.buffer.clear();
-        }        
+        }
         Ok(batch)
     }
 }
@@ -314,7 +328,7 @@ impl Stream for CoalesceStream {
         if self.message_stream.is_none() {
             return Poll::Ready(None);
         }
-        
+
         // Initialize the metrics
         let baseline_metrics = if let Some(diagnostic_builder) = &self.diagnostic_builder {
             Some(
@@ -344,7 +358,9 @@ impl Stream for CoalesceStream {
         }
 
         // Coalesce the batches
-        while let Some(Ok(batch)) = ready!(self.message_stream.as_mut().unwrap().poll_next_unpin(cx)) {
+        while let Some(Ok(batch)) =
+            ready!(self.message_stream.as_mut().unwrap().poll_next_unpin(cx))
+        {
             match self.push_batch(batch) {
                 CoalescerState::Continue => {}
                 CoalescerState::LimitReached => {
@@ -377,7 +393,7 @@ impl Stream for CoalesceStream {
             } else {
                 poll
             }
-        }        
+        }
     }
 }
 
@@ -482,7 +498,10 @@ mod tests {
     use arrow::array::{StringViewArray, UInt32Array};
     use arrow::datatypes::{DataType, Field, Schema};
     use futures::TryStreamExt;
-    use phymes_core::{AvailableTableSubscribePolicies, RecordBatchStreamAdapter, TableBuilder, TableTrait, test_table};
+    use phymes_core::{
+        AvailableTableSubscribePolicies, RecordBatchStreamAdapter, TableBuilder, TableTrait,
+        test_table,
+    };
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     #[tokio::test]
@@ -550,11 +569,15 @@ mod tests {
                 .remove("from_CoalesceProcessor_on_output")
                 .unwrap()
                 .get_message_own(),
-            )
-            .await?
-            .with_name("")
-            .build()?;
-        let sizes = partitions.get_record_batches().iter().map(|b| b.num_rows()).collect::<Vec<_>>();
+        )
+        .await?
+        .with_name("")
+        .build()?;
+        let sizes = partitions
+            .get_record_batches()
+            .iter()
+            .map(|b| b.num_rows())
+            .collect::<Vec<_>>();
         assert_eq!(sizes, [6, 6, 4]);
         Ok(())
     }
@@ -563,7 +586,7 @@ mod tests {
     async fn test_coalesce_stream() -> Result<()> {
         // Make the batches
         let batch = uint32_batch(0..8);
-        
+
         // Make the diagnostics
         let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
@@ -588,15 +611,24 @@ mod tests {
             .build()?;
 
         // Coalesce batches
-        let stream = futures::stream::iter(std::iter::repeat_n(batch.clone(), 10).into_iter().map(Ok));
+        let stream =
+            futures::stream::iter(std::iter::repeat_n(batch.clone(), 10).map(Ok));
         let input = Box::pin(RecordBatchStreamAdapter::new(
             Arc::clone(&batch.schema()),
             stream,
         ));
-        let coalesce_stream = CoalesceStream::new(input, config_table.to_record_batch_stream(), Arc::clone(&runtime_env), Some(diagnostic_builder.clone()));
+        let coalesce_stream = CoalesceStream::new(
+            input,
+            config_table.to_record_batch_stream(),
+            Arc::clone(&runtime_env),
+            Some(diagnostic_builder.clone()),
+        );
 
         let results = Box::pin(coalesce_stream).try_collect::<Vec<_>>().await?;
-        let num_rows = results.into_iter().map(|b| b.num_rows()).collect::<Vec<_>>();
+        let num_rows = results
+            .into_iter()
+            .map(|b| b.num_rows())
+            .collect::<Vec<_>>();
         assert_eq!(num_rows, [24, 24, 24, 8]);
 
         // --- Coalesce without overflow ---
@@ -612,15 +644,24 @@ mod tests {
             .build()?;
 
         // Coalesce batches
-        let stream = futures::stream::iter(std::iter::repeat_n(batch.clone(), 10).into_iter().map(Ok));
+        let stream =
+            futures::stream::iter(std::iter::repeat_n(batch.clone(), 10).map(Ok));
         let input = Box::pin(RecordBatchStreamAdapter::new(
             Arc::clone(&batch.schema()),
             stream,
         ));
-        let coalesce_stream = CoalesceStream::new(input, config_table.to_record_batch_stream(), Arc::clone(&runtime_env), Some(diagnostic_builder.clone()));
+        let coalesce_stream = CoalesceStream::new(
+            input,
+            config_table.to_record_batch_stream(),
+            Arc::clone(&runtime_env),
+            Some(diagnostic_builder.clone()),
+        );
 
         let results = Box::pin(coalesce_stream).try_collect::<Vec<_>>().await?;
-        let num_rows = results.into_iter().map(|b| b.num_rows()).collect::<Vec<_>>();
+        let num_rows = results
+            .into_iter()
+            .map(|b| b.num_rows())
+            .collect::<Vec<_>>();
         assert_eq!(num_rows, [80]);
 
         // --- Coalesce with intermediate overflow ---
@@ -636,15 +677,24 @@ mod tests {
             .build()?;
 
         // Coalesce batches
-        let stream = futures::stream::iter(std::iter::repeat_n(batch.clone(), 10).into_iter().map(Ok));
+        let stream =
+            futures::stream::iter(std::iter::repeat_n(batch.clone(), 10).map(Ok));
         let input = Box::pin(RecordBatchStreamAdapter::new(
             Arc::clone(&batch.schema()),
             stream,
         ));
-        let coalesce_stream = CoalesceStream::new(input, config_table.to_record_batch_stream(), Arc::clone(&runtime_env), Some(diagnostic_builder.clone()));
+        let coalesce_stream = CoalesceStream::new(
+            input,
+            config_table.to_record_batch_stream(),
+            Arc::clone(&runtime_env),
+            Some(diagnostic_builder.clone()),
+        );
 
         let results = Box::pin(coalesce_stream).try_collect::<Vec<_>>().await?;
-        let num_rows = results.into_iter().map(|b| b.num_rows()).collect::<Vec<_>>();
+        let num_rows = results
+            .into_iter()
+            .map(|b| b.num_rows())
+            .collect::<Vec<_>>();
         assert_eq!(num_rows, [10, 10, 10, 10, 10, 10, 10, 10]);
 
         Ok(())

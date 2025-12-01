@@ -1,7 +1,9 @@
 use std::{sync::Arc, vec};
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_schema_from_fields
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
+    BuilderTrait, DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder,
+    TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_schema_from_fields,
 };
 use phymes_data::{
     AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
@@ -842,9 +844,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
 
         // Scores and summary table schemas
         fn create_top_k_fields() -> Fields {
-            let fields_vec = vec![
-                Field::new("text", DataType::Utf8, false),
-            ];
+            let fields_vec = vec![Field::new("text", DataType::Utf8, false)];
             Fields::from(fields_vec)
         }
         let top_k_select_table = Table::get_builder()

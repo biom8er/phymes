@@ -96,7 +96,8 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     format!("join_scores_chunks_processor_1_{tag}_{iter}");
                 let top_k_select_processor_name = format!("top_k_select_processor_1_{tag}_{iter}");
                 let top_k_limit_processor_name = format!("top_k_limit_processor_1_{tag}_{iter}");
-                let top_k_summary_processor_name = format!("top_k_summary_processor_1_{tag}_{iter}");
+                let top_k_summary_processor_name =
+                    format!("top_k_summary_processor_1_{tag}_{iter}");
                 let session_context_name = format!("session_1_{tag}_{iter}");
 
                 let mut config = DocumentRAGSession {
