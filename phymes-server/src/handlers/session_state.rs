@@ -78,16 +78,11 @@ pub async fn session_put_state(
                 .get(payload.get_session_name())
             {
                 Some(session_stream_state) => {
-                    let schema = session_stream_state
-                        .try_read()
-                        .unwrap()
-                        .get_session_context()
-                        .get_states()
-                        .get(payload.get_subject())
-                        .unwrap()
-                        .try_read()
-                        .unwrap()
-                        .get_schema();
+                    let schema = if let Some(subject) = session_stream_state.try_read().unwrap().get_session_context().get_states().get(payload.get_subject()) {
+                        subject.try_read().unwrap().get_schema()
+                    } else {
+                        return JsonError::new("Failed to get the session stream state".to_string()).to_response(StatusCode::INTERNAL_SERVER_ERROR);
+                    };
                     let bytes = match payload.get_format() {
                         DataFormat::Csv(csv_format) => TableBuilder::new()
                             .with_schema(schema)

@@ -304,7 +304,6 @@ impl CoalesceStream {
 
     /// Concatenates and returns all buffered batches, and clears the buffer.
     fn finish_batch(&mut self) -> Result<RecordBatch> {
-        dbg!(&self.buffer);
         let batch = if self.buffer.len() == 1 {
             self.buffer.pop().unwrap()
         } else {
@@ -365,7 +364,6 @@ impl Stream for CoalesceStream {
                 CoalescerState::Continue => {}
                 CoalescerState::LimitReached => {
                     let output_batch = self.finish_batch().unwrap();
-                    dbg!(&output_batch);
                     let poll = Poll::Ready(Some(Ok(output_batch)));
 
                     // Return the poll
