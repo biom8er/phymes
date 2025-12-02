@@ -172,7 +172,7 @@ pub fn normalize_time(
     ];
     let schema = lhs_table.get_schema();
     for field in schema.fields().iter() {
-        batch_vec.push((field.name(), lhs_table.get_column_as_array(field.name())));
+        batch_vec.push((field.name(), lhs_table.get_column_as_array(field.name())?));
     }
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Ok(batch)

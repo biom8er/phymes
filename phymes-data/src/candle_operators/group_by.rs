@@ -160,7 +160,7 @@ impl DataOperatorTrait for GroupBy {
 fn partition_record_batches(lhs_values: &[&str], lhs_table: &Table) -> Result<Vec<Range<usize>>> {
     let mut columns = Vec::new();
     for column_name in lhs_values.iter() {
-        columns.push(lhs_table.get_column_as_array(column_name));
+        columns.push(lhs_table.get_column_as_array(column_name)?);
     }
     let ranges = partition(&columns)?.ranges();
     Ok(ranges)
@@ -401,7 +401,7 @@ fn extract_aggregation_ranges(
     lhs_table: &Table,
     ranges: &[Range<usize>],
 ) -> Result<Vec<ArrayRef>> {
-    let array_ref = lhs_table.get_column_as_array(agg_column);
+    let array_ref = lhs_table.get_column_as_array(agg_column)?;
     let mut agg_vec = Vec::new();
     for range in ranges.iter() {
         let gather_arr: ArrayRef = Arc::new(UInt32Array::from_iter_values(

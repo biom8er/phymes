@@ -397,7 +397,7 @@ pub fn melt(
         // Cast values to strings
         let mut values_vec = Vec::new();
         for column_name in variable_columns.iter() {
-            let arr = cast(&lhs_table.get_column_as_array(column_name), &DataType::Utf8)?;
+            let arr = cast(&lhs_table.get_column_as_array(column_name)?, &DataType::Utf8)?;
             let values = Table::get_array_as_vec_nonprimitive::<String>(&arr, column_name)?;
             values_vec.extend(values);
         }

@@ -296,8 +296,8 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 let value = if config_data && processor_names.contains(subject.get_name())
                     || example_data
                 {
-                    if let Some(mut example_data) =
-                        subject.get_column_as_vec_string(field.name())?
+                    if let Ok(mut example_data) =
+                        subject.get_column_as_vec_string(field.name())
                     {
                         example_data.pop().unwrap_or_default()
                     } else {

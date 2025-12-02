@@ -83,6 +83,25 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
 
     /// Write record batches to CSV
     fn to_csv_file(&self, file: &mut File, delimiter: u8, header: bool) -> Result<()> {
+        // Convert nested columns to String
+        let batches = self.get_record_batches()
+            .iter()
+            .map(|batch| {
+                let binding = batch.schema();
+                let batches = binding.fields().iter().map(|f| if f.data_type().is_nested() {
+                    let arr = batch.column_by_name(f.name()).unwrap();
+                    let vec_str = Self::get_array_as_vec_string(arr, f.name()).unwrap();
+                    let arr: ArrayRef = Arc::new(StringArray::from(vec_str));
+                    (f.name(), arr)
+                } else {
+                    let arr = batch.column_by_name(f.name()).unwrap();
+                    (f.name(), arr.to_owned())
+                }).collect::<Vec<_>>();
+                RecordBatch::try_from_iter(batches).unwrap()
+            })
+            .collect::<Vec<_>>();
+
+        // Write to CSV
         let builder = WriterBuilder::new()
             .with_header(header)
             .with_delimiter(delimiter)
@@ -90,8 +109,8 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             .with_null("NULL".to_string())
             .with_time_format("%r".to_string());
         let mut writer = builder.build(file);
-        for batch in self.get_record_batches() {
-            writer.write(batch).unwrap();
+        for batch in batches {
+            writer.write(&batch).unwrap();
         }
         drop(writer);
         Ok(())
@@ -99,6 +118,25 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
 
     /// Write record batches to CSV
     fn to_csv(&self, delimiter: u8, header: bool) -> Result<Vec<u8>> {
+        // Convert nested columns to String
+        let batches = self.get_record_batches()
+            .iter()
+            .map(|batch| {
+                let binding = batch.schema();
+                let batches = binding.fields().iter().map(|f| if f.data_type().is_nested() {
+                    let arr = batch.column_by_name(f.name()).unwrap();
+                    let vec_str = Self::get_array_as_vec_string(arr, f.name()).unwrap();
+                    let arr: ArrayRef = Arc::new(StringArray::from(vec_str));
+                    (f.name(), arr)
+                } else {
+                    let arr = batch.column_by_name(f.name()).unwrap();
+                    (f.name(), arr.to_owned())
+                }).collect::<Vec<_>>();
+                RecordBatch::try_from_iter(batches).unwrap()
+            })
+            .collect::<Vec<_>>();
+
+        // Write to CSV
         let mut bytes = Vec::new();
         let builder = WriterBuilder::new()
             .with_header(header)
@@ -107,8 +145,8 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             .with_null("NULL".to_string())
             .with_time_format("%r".to_string());
         let mut writer = builder.build(&mut bytes);
-        for batch in self.get_record_batches() {
-            writer.write(batch).unwrap();
+        for batch in batches {
+            writer.write(&batch).unwrap();
         }
         let data = writer.into_inner().to_vec();
         Ok(data)
@@ -229,26 +267,17 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             .collect::<Vec<_>>()
     }
 
-    /// Get a column as a vector of strings
-    fn get_column_as_vec_string(&self, column_name: &str) -> Result<Option<Vec<String>>> {
-        match self.get_column_data_type(column_name)? {
+    /// Get an array as a vector of strings
+    fn get_array_as_vec_string(arr: &Arc<dyn Array>, column_name: &str) -> Result<Vec<String>> {
+        match arr.data_type() {
             DataType::Utf8 => {
-                let vec_str = self
-                    .get_record_batches()
+                let vec_str = arr.as_any()
+                    .downcast_ref::<StringArray>()
+                    .unwrap()
                     .iter()
-                    .flat_map(|batch| {
-                        batch
-                            .column_by_name(column_name)
-                            .unwrap()
-                            .as_any()
-                            .downcast_ref::<StringArray>()
-                            .unwrap()
-                            .iter()
-                            .map(|s| s.unwrap_or_default().to_string())
-                            .collect::<Vec<_>>()
-                    })
+                    .map(|s| s.unwrap_or_default().to_string())
                     .collect::<Vec<_>>();
-                Ok(Some(vec_str))
+                Ok(vec_str)
             }
             DataType::UInt8
             | DataType::UInt16
@@ -263,20 +292,18 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             | DataType::Boolean
             | DataType::Null => {
                 // Cast the column to a String
-                let arr = cast(&self.get_column_as_array(column_name), &DataType::Utf8)?;
-                let vec_str = arr
-                    .as_any()
+                let arr = cast(arr, &DataType::Utf8)?;
+                let vec_str = arr.as_any()
                     .downcast_ref::<StringArray>()
                     .unwrap()
                     .iter()
                     .map(|s| s.unwrap_or_default().to_string())
                     .collect::<Vec<_>>();
-                Ok(Some(vec_str))
+                Ok(vec_str)
             }
             DataType::List(_) | DataType::FixedSizeList(_, _) => {
                 // Convert the column to JSON
-                let arr = self.get_column_as_array(column_name);
-                let batch = RecordBatch::try_from_iter(vec![(column_name, arr)])?;
+                let batch = RecordBatch::try_from_iter(vec![(column_name, arr.to_owned())])?;
                 let buf = Vec::new();
                 let mut writer = ArrayWriter::new(buf);
                 writer.write(&batch)?;
@@ -288,10 +315,18 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
                     .into_iter()
                     .map(|m| serde_json::to_string(m.get(column_name).unwrap()).unwrap())
                     .collect::<Vec<_>>();
-                Ok(Some(vec_str))
+                Ok(vec_str)
             }
-            _ => Ok(None),
+            _ => Err(anyhow!(
+                "Unsupported data type {} for column {column_name} when trying to convert to String.", arr.data_type()
+            )),
         }
+    }
+
+    /// Get a column as a vector of strings
+    fn get_column_as_vec_string(&self, column_name: &str) -> Result<Vec<String>> {
+        let arr = self.get_column_as_array(column_name)?;
+        Self::get_array_as_vec_string(&arr, column_name)
     }
 
     /// Get the type of the column
@@ -675,13 +710,21 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     }
 
     /// Get a column as an arrow array
-    fn get_column_as_array(&self, column_name: &str) -> Arc<dyn Array> {
-        let array_refs = self
-            .get_record_batches()
-            .iter()
-            .map(|batch| batch.column_by_name(column_name).unwrap().as_ref())
-            .collect::<Vec<_>>();
-        concat::concat(&array_refs).unwrap()
+    fn get_column_as_array(&self, column_name: &str) -> Result<Arc<dyn Array>> {
+        if self.get_record_batches().len() > 1 {
+            let array_refs = self
+                .get_record_batches()
+                .iter()
+                .map(|batch| batch.column_by_name(column_name).unwrap().as_ref())
+                .collect::<Vec<_>>();
+            let concatenated = concat::concat(&array_refs).unwrap();
+            Ok(concatenated)
+        } else if let Some(batch) = self.get_record_batches().first() {
+            let arr = batch.column_by_name(column_name).unwrap();
+            Ok(Arc::clone(arr))
+        } else {
+            Err(anyhow!("Cannot get column {column_name} as an Array because there are no RecordBatches."))
+        }
     }
 }
 
@@ -1746,7 +1789,7 @@ mod tests {
         // Create a file inside of `env::temp_dir()`.
         let mut file = tempfile()?;
 
-        // Write data to IPC file
+        // Write data to CSV file
         test_table.to_csv_file(&mut file, b',', true)?;
 
         // Read in the file with schema
@@ -1785,6 +1828,13 @@ mod tests {
                 .map(|x| x as u32)
                 .collect::<Vec<u32>>()
         );
+
+        // Test that we can write csv with nested fields
+        let test_table = make_test_table("test_table", 4, 8, 3)?;
+        let mut file = tempfile()?;
+
+        // Write data to CSV file
+        test_table.to_csv_file(&mut file, b',', true)?;
 
         Ok(())
     }
@@ -1892,6 +1942,12 @@ mod tests {
                 .map(|x| x as u32)
                 .collect::<Vec<u32>>()
         );
+
+        // Test that we can write csv with nested fields
+        let test_table = make_test_table("test_table", 4, 8, 3)?;
+
+        // Write data to CSV file
+        test_table.to_csv(b',', true)?;
 
         Ok(())
     }

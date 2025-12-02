@@ -176,11 +176,11 @@ pub fn take_columns_by_indices(
                 arrow::compute::take(&array_ref, asort_arr, None)?
             }
             DataType::FixedSizeList(_f, _s) => {
-                let array_ref: ArrayRef = table.get_column_as_array(column);
+                let array_ref: ArrayRef = table.get_column_as_array(column)?;
                 arrow::compute::take(&array_ref, asort_arr, None)?
             }
             DataType::List(_f) => {
-                let array_ref: ArrayRef = table.get_column_as_array(column);
+                let array_ref: ArrayRef = table.get_column_as_array(column)?;
                 arrow::compute::take(&array_ref, asort_arr, None)?
             }
             // Note: Candle::Tensor library supports u8, u32, i64, bf16, f16, f32, f64
@@ -297,7 +297,7 @@ pub fn sort(
             (asort_arr, asort_tensor, lhs_sorted)
         }
         DataType::FixedSizeList(_f, _s) => {
-            let array_ref: ArrayRef = lhs_table.get_column_as_array(lhs_values);
+            let array_ref: ArrayRef = lhs_table.get_column_as_array(lhs_values)?;
             let sorted_indices = arrow::compute::sort_to_indices(
                 &array_ref,
                 Some(arrow::compute::SortOptions {
@@ -316,7 +316,7 @@ pub fn sort(
             (asort_arr, asort_tensor, lhs_sorted)
         }
         DataType::List(_f) => {
-            let array_ref: ArrayRef = lhs_table.get_column_as_array(lhs_values);
+            let array_ref: ArrayRef = lhs_table.get_column_as_array(lhs_values)?;
             let sorted_indices = arrow::compute::sort_to_indices(
                 &array_ref,
                 Some(arrow::compute::SortOptions {

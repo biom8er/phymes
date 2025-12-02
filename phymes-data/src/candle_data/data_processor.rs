@@ -356,7 +356,6 @@ impl Stream for CandleDataStream {
                     DataStreamManager::StreamLHSAccumulateRHS
                     | DataStreamManager::StreamLHSStreamRHS => {
                         let mut batches = Vec::new();
-                        #[allow(clippy::never_loop)]
                         while let Some(Ok(batch)) =
                             ready!(lhs.get_message_mut().poll_next_unpin(cx))
                         {
@@ -450,7 +449,6 @@ impl Stream for CandleDataStream {
                     DataStreamManager::StreamLHSStreamRHS
                     | DataStreamManager::AccumulateLHSStreamRHS => {
                         let mut batches = Vec::new();
-                        #[allow(clippy::never_loop)]
                         while let Some(Ok(batch)) =
                             ready!(rhs.get_message_mut().poll_next_unpin(cx))
                         {

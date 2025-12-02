@@ -231,9 +231,9 @@ pub fn table_and_data_format_to_record_batch(
         DataFormat::None => {
             // Extract out the content
             let content = if let Some(content) = content {
-                match table.get_column_as_vec_string(content)? {
-                    Some(column) => column.join(""),
-                    None => String::new(),
+                match table.get_column_as_vec_string(content) {
+                    Ok(column) => column.join(""),
+                    Err(_err) => String::new(),
                 }
             } else {
                 serde_json::to_string(&table.to_json_object()?)?

@@ -370,7 +370,7 @@ fn find_column(
     if let Some(arr) = lhs_filtered.pop() {
         Ok(arr.clone())
     } else if let Ok(_field) = lhs_table.get_schema().field_with_name(column_name) {
-        Ok(lhs_table.get_column_as_array(column_name))
+        Ok(lhs_table.get_column_as_array(column_name)?)
     } else {
         Err(anyhow!(
             "Unable to find column {column_name} in the provided lhs_args nor in the new lhs batches for `Select` Operator."
