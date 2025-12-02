@@ -351,6 +351,19 @@ pub fn messaging_interface_footer(
         }
     });
 
+    // Check if the last message is assistant pending
+    let assistent_pending: Memo<bool> = use_memo(move || {
+        if let (Some(role), Some(contents)) = (messaging_roles.read().last(), messaging_contents.read().last()) {
+            if role.as_str() == "assistant" && contents.as_str() == "Preparing response..." {
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    });
+
     rsx! {
         footer {
             class: "h-full grid grid-rows-[auto_1fr] grid-cols-[auto_1fr_auto] items-center p-2",
@@ -436,10 +449,12 @@ pub fn messaging_interface_footer(
                                 .await {
                                 Ok(stream) => {
                                     // Remove the last message
-                                    messaging_roles.write().pop();
-                                    messaging_contents.write().pop();
-                                    messaging_timestamps.write().pop();
-                                    messaging_indices.write().pop();
+                                    if assistent_pending() {
+                                        messaging_roles.write().pop();
+                                        messaging_contents.write().pop();
+                                        messaging_timestamps.write().pop();
+                                        messaging_indices.write().pop();
+                                    }
 
                                     // Collect the bytes
                                     let mut stream = stream.bytes_stream();

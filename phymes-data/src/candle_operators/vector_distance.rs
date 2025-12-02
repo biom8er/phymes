@@ -204,7 +204,11 @@ fn embeddings_to_tensor(
             DataType::UInt8 => {
                 let lhs_embeddings = table.get_column_as_vec_nested_primitive::<u8>(values)?;
                 let lhs_dim_0 = lhs_embeddings.len();
-                let lhs_dim_1 = lhs_embeddings.first().unwrap().len();
+                let lhs_dim_1 = if let Some(embeddings) = lhs_embeddings.first() {
+                    embeddings.len()
+                } else {
+                    return Err(anyhow!("Embeddings vector for {} is empty.", table.get_name()))
+                };
                 let lhs_vec = lhs_embeddings.into_iter().flatten().collect::<Vec<_>>();
                 let lhs_tensor =
                     Tensor::from_iter(lhs_vec, device)?.reshape((lhs_dim_0, lhs_dim_1))?;
@@ -213,7 +217,11 @@ fn embeddings_to_tensor(
             DataType::UInt32 => {
                 let lhs_embeddings = table.get_column_as_vec_nested_primitive::<u32>(values)?;
                 let lhs_dim_0 = lhs_embeddings.len();
-                let lhs_dim_1 = lhs_embeddings.first().unwrap().len();
+                let lhs_dim_1 = if let Some(embeddings) = lhs_embeddings.first() {
+                    embeddings.len()
+                } else {
+                    return Err(anyhow!("Embeddings vector for {} is empty.", table.get_name()))
+                };
                 let lhs_vec = lhs_embeddings.into_iter().flatten().collect::<Vec<_>>();
                 let lhs_tensor =
                     Tensor::from_iter(lhs_vec, device)?.reshape((lhs_dim_0, lhs_dim_1))?;
@@ -222,7 +230,11 @@ fn embeddings_to_tensor(
             DataType::Int64 => {
                 let lhs_embeddings = table.get_column_as_vec_nested_primitive::<i64>(values)?;
                 let lhs_dim_0 = lhs_embeddings.len();
-                let lhs_dim_1 = lhs_embeddings.first().unwrap().len();
+                let lhs_dim_1 = if let Some(embeddings) = lhs_embeddings.first() {
+                    embeddings.len()
+                } else {
+                    return Err(anyhow!("Embeddings vector for {} is empty.", table.get_name()))
+                };
                 let lhs_vec = lhs_embeddings.into_iter().flatten().collect::<Vec<_>>();
                 let lhs_tensor =
                     Tensor::from_iter(lhs_vec, device)?.reshape((lhs_dim_0, lhs_dim_1))?;
@@ -233,7 +245,11 @@ fn embeddings_to_tensor(
             DataType::Float32 => {
                 let lhs_embeddings = table.get_column_as_vec_nested_primitive::<f32>(values)?;
                 let lhs_dim_0 = lhs_embeddings.len();
-                let lhs_dim_1 = lhs_embeddings.first().unwrap().len();
+                let lhs_dim_1 = if let Some(embeddings) = lhs_embeddings.first() {
+                    embeddings.len()
+                } else {
+                    return Err(anyhow!("Embeddings vector for {} is empty.", table.get_name()))
+                };
                 let lhs_vec = lhs_embeddings.into_iter().flatten().collect::<Vec<_>>();
                 let lhs_tensor =
                     Tensor::from_iter(lhs_vec, device)?.reshape((lhs_dim_0, lhs_dim_1))?;
@@ -242,7 +258,11 @@ fn embeddings_to_tensor(
             DataType::Float64 => {
                 let lhs_embeddings = table.get_column_as_vec_nested_primitive::<f64>(values)?;
                 let lhs_dim_0 = lhs_embeddings.len();
-                let lhs_dim_1 = lhs_embeddings.first().unwrap().len();
+                let lhs_dim_1 = if let Some(embeddings) = lhs_embeddings.first() {
+                    embeddings.len()
+                } else {
+                    return Err(anyhow!("Embeddings vector for {} is empty.", table.get_name()))
+                };
                 let lhs_vec = lhs_embeddings.into_iter().flatten().collect::<Vec<_>>();
                 let lhs_tensor =
                     Tensor::from_iter(lhs_vec, device)?.reshape((lhs_dim_0, lhs_dim_1))?;
