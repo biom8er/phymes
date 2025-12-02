@@ -360,8 +360,10 @@ impl Stream for CandleDataStream {
                         while let Some(Ok(batch)) =
                             ready!(lhs.get_message_mut().poll_next_unpin(cx))
                         {
-                            batches.push(batch);
-                            break;
+                            if batch.num_rows() > 0 {
+                                batches.push(batch);
+                                break;
+                            }                            
                         }
                         batches
                     }
@@ -452,8 +454,10 @@ impl Stream for CandleDataStream {
                         while let Some(Ok(batch)) =
                             ready!(rhs.get_message_mut().poll_next_unpin(cx))
                         {
-                            batches.push(batch);
-                            break;
+                            if batch.num_rows() > 0 {
+                                batches.push(batch);
+                                break;
+                            }
                         }
                         batches
                     }
