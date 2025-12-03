@@ -1077,7 +1077,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             // Check the chart type
             if erdiagram_lines.get(iter).unwrap().contains("erDiagram") {
 
-                // Ignore blank lines
+                // Ignore blank lines and comments
             } else if erdiagram_lines.get(iter).unwrap().trim().is_empty() {
 
                 // Ignore relationship connectors
@@ -1110,7 +1110,8 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 iter += 1;
                 while iter < erdiagram_lines.len() {
                     // Check for end of subject section (and exclude jinja2 templating brackets)
-                    if erdiagram_lines.get(iter).unwrap().trim_end() == "    }" {
+                    if erdiagram_lines.get(iter).unwrap().trim_end() == "    }"
+                        || erdiagram_lines.get(iter).unwrap().trim_end() == "\t}" {
                         // Build and add the table to the subjects list
                         let schema = Arc::new(Schema::new(fields));
                         let table = if with_values && !data.is_empty() {

@@ -34,7 +34,7 @@ pub fn device(cpu: bool) -> candle_core::Result<Device> {
         }
         #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
         {
-            println!("Running on CPU, to run on GPU, build this example with `--features cuda`");
+            println!("Running on CPU, to run on GPU, build this example with `--features gpu`");
         }
         candle_core::Result::Ok(Device::Cpu)
     }

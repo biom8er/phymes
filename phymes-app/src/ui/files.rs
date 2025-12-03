@@ -1,6 +1,6 @@
 use dioxus::{html::FileData, prelude::*};
 use phymes_core::{
-    create_blob_batch, BuildableTrait, BuilderTrait, DataFormat, MappableTrait,
+    create_blob_batch, BuildableTrait, BuilderTrait, DataFormat,
     MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, Table,
     TableBuilderTrait, TablePublication, TableTrait,
 };
