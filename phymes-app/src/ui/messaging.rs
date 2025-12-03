@@ -464,38 +464,51 @@ pub fn messaging_interface_footer(
                                     }
 
                                     // Collect the batches
-                                    let batches = TableBuilder::from_ipc_stream_to_record_batches(&bytes).unwrap()
-                                        .into_iter()
-                                        .filter(|batch| batch.schema() // DM: filtering out UserQuery
-                                            .fields()
-                                            .iter()
-                                            .map(|f| f.name())
-                                            .collect::<Vec<_>>()
-                                            .contains(&&"role".to_string()))
-                                        .collect::<Vec<_>>();
+                                    match TableBuilder::from_ipc_stream_to_record_batches(&bytes) {
+                                        Ok(builder) => {
+                                            let batches = builder.into_iter()
+                                                .filter(|batch| batch.schema() // DM: filtering out UserQuery
+                                                    .fields()
+                                                    .iter()
+                                                    .map(|f| f.name())
+                                                    .collect::<Vec<_>>()
+                                                    .contains(&&"role".to_string()))
+                                                .collect::<Vec<_>>();
 
-                                    // Update the messages
-                                    if !batches.is_empty() {
-                                        let table = TableBuilder::new().with_record_batches(batches).unwrap().with_name("").build().unwrap();
-                                        let combined = table.get_column_as_vec_nonprimitive::<String>("role").unwrap().into_iter()
-                                            .zip(table.get_column_as_vec_nonprimitive::<String>("content").unwrap().into_iter())
-                                            .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
-                                            .enumerate()
-                                            .filter_map(|(i, ((r, c), t))| if r.is_empty() {
-                                                None
-                                            } else {
-                                                let index = current_index() + i + 1;
-                                                Some((r, c, t, index))
-                                            }).collect::<Vec<_>>();
-                                        for (r, c, t, index) in combined {
-                                            messaging_roles.push(r);
-                                            messaging_contents.push(c);
-                                            messaging_timestamps.push(t);
-                                            messaging_indices.push(index);
+                                            // Update the messages
+                                            if !batches.is_empty() {
+                                                let table = TableBuilder::new().with_record_batches(batches).unwrap().with_name("").build().unwrap();
+                                                let combined = table.get_column_as_vec_nonprimitive::<String>("role").unwrap().into_iter()
+                                                    .zip(table.get_column_as_vec_nonprimitive::<String>("content").unwrap().into_iter())
+                                                    .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
+                                                    .enumerate()
+                                                    .filter_map(|(i, ((r, c), t))| if r.is_empty() {
+                                                        None
+                                                    } else {
+                                                        let index = current_index() + i + 1;
+                                                        Some((r, c, t, index))
+                                                    }).collect::<Vec<_>>();
+                                                for (r, c, t, index) in combined {
+                                                    messaging_roles.push(r);
+                                                    messaging_contents.push(c);
+                                                    messaging_timestamps.push(t);
+                                                    messaging_indices.push(index);
+                                                }
+                                            }
                                         }
+                                        Err(err) => {
+                                            tracing::error!("{err:?}");
+                                            update_message_state(messaging_roles,
+                                                messaging_contents,
+                                                messaging_indices,
+                                                messaging_timestamps,
+                                                "assistant",
+                                                "Please try again...",
+                                                create_timestamp_micros());
+                                        },
                                     }
                                 },
-                                Err(e) => update_message_content_state(messaging_contents, e.to_string().as_str(), true),
+                                Err(err) => update_message_content_state(messaging_contents, err.to_string().as_str(), true),
                             }
 
                             #[cfg(feature = "serverless")]

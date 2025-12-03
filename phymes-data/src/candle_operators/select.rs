@@ -479,6 +479,9 @@ pub fn select(
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
 
+    // Local mutable copy of `cast_template`
+    let mut cast_templates = cast_templates.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+
     // Apply the cast and optional column renaming and template injection based on the lhs_values
     let mut missing_vec: Vec<(&&str, ArrayRef)> = Vec::new();
     let mut batch_vec: Vec<(&&str, ArrayRef)> = Vec::new();
@@ -491,36 +494,91 @@ pub fn select(
         ) {
             match cast_datatypes.get(index).unwrap() {
                 DataType::UInt8 => {
+                    let value = if let Some(template) = cast_templates.get_mut(index) {
+                        if template.is_empty() {
+                            Default::default()
+                        } else {
+                            let value = template.parse::<u8>()?;
+                            *template = String::new();
+                            value
+                        }
+                    } else {
+                        Default::default()
+                    };
                     let default_vec = (0..lhs_table.count_rows())
-                        .map(|_| Default::default())
+                        .map(|_| value)
                         .collect::<Vec<u8>>();
                     let arr: ArrayRef = Arc::new(UInt8Array::from_iter_values(default_vec));
                     missing_vec.push((column_name, arr));
                 }
                 DataType::UInt32 => {
+                    let value = if let Some(template) = cast_templates.get_mut(index) {
+                        if template.is_empty() {
+                            Default::default()
+                        } else {
+                            let value = template.parse::<u32>()?;
+                            *template = String::new();
+                            value
+                        }
+                    } else {
+                        Default::default()
+                    };
                     let default_vec = (0..lhs_table.count_rows())
-                        .map(|_| Default::default())
+                        .map(|_| value)
                         .collect::<Vec<u32>>();
                     let arr: ArrayRef = Arc::new(UInt32Array::from_iter_values(default_vec));
                     missing_vec.push((column_name, arr));
                 }
                 DataType::Int64 => {
+                    let value = if let Some(template) = cast_templates.get_mut(index) {
+                        if template.is_empty() {
+                            Default::default()
+                        } else {
+                            let value = template.parse::<i64>()?;
+                            *template = String::new();
+                            value
+                        }
+                    } else {
+                        Default::default()
+                    };
                     let default_vec = (0..lhs_table.count_rows())
-                        .map(|_| Default::default())
+                        .map(|_| value)
                         .collect::<Vec<i64>>();
                     let arr: ArrayRef = Arc::new(Int64Array::from_iter_values(default_vec));
                     missing_vec.push((column_name, arr));
                 }
                 DataType::Float32 => {
+                    let value = if let Some(template) = cast_templates.get_mut(index) {
+                        if template.is_empty() {
+                            Default::default()
+                        } else {
+                            let value = template.parse::<f32>()?;
+                            *template = String::new();
+                            value
+                        }
+                    } else {
+                        Default::default()
+                    };
                     let default_vec = (0..lhs_table.count_rows())
-                        .map(|_| Default::default())
+                        .map(|_| value)
                         .collect::<Vec<f32>>();
                     let arr: ArrayRef = Arc::new(Float32Array::from_iter_values(default_vec));
                     missing_vec.push((column_name, arr));
                 }
                 DataType::Float64 => {
+                    let value = if let Some(template) = cast_templates.get_mut(index) {
+                        if template.is_empty() {
+                            Default::default()
+                        } else {
+                            let value = template.parse::<f64>()?;
+                            *template = String::new();
+                            value
+                        }
+                    } else {
+                        Default::default()
+                    };
                     let default_vec = (0..lhs_table.count_rows())
-                        .map(|_| Default::default())
+                        .map(|_| value)
                         .collect::<Vec<f64>>();
                     let arr: ArrayRef = Arc::new(Float64Array::from_iter_values(default_vec));
                     missing_vec.push((column_name, arr));
@@ -2317,9 +2375,9 @@ mod tests {
             ]
         );
         let lhs_id = result_table.get_column_as_vec_primitive::<u32>("new_pk")?;
-        assert_eq!(lhs_id, vec![0, 1, 2, 3]);
+        assert_eq!(lhs_id, [0, 1, 2, 3]);
         let metadata = result_table.get_column_as_vec_primitive::<f32>("new_metadata")?;
-        assert_eq!(metadata, vec![1., 2., 3., 4.]);
+        assert_eq!(metadata, [1., 2., 3., 4.]);
 
         // ------ String, UInt32, Cast, Operator ------
         let result = select(
@@ -2356,7 +2414,7 @@ mod tests {
         let lhs_text = result_table.get_column_as_vec_str("new_text");
         assert_eq!(
             lhs_text,
-            vec![
+            [
                 "Into template leftleft",
                 "Into template 11",
                 "Into template leftleft",
@@ -2379,16 +2437,16 @@ mod tests {
         let metadata = result_table.get_column_as_vec_primitive::<u32>("new_metadata")?;
         assert_eq!(metadata, vec![1, 3, 5, 7]);
 
-        // ------ String, UInt32, Missing column ------
+        // ------ String, UInt32, Float32, Missing column ------
         let result = select(
-            &["new_pk", "new_metadata"],
+            &["new_pk", "default_metadata", "broadcast_metadata"],
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
-            &["", ""],
-            &["new_pk1", ""],
-            &[DataColumnOperator::None, DataColumnOperator::None],
-            &[DataCastOperator::None, DataCastOperator::None],
-            &[DataType::Utf8, DataType::UInt32],
-            &["", ""],
+            &["", "", ""],
+            &["new_pk1", "", ""],
+            &[DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None],
+            &[DataCastOperator::None, DataCastOperator::None, DataCastOperator::None],
+            &[DataType::Utf8, DataType::UInt32, DataType::Float32],
+            &["", "", "0.75"],
             &device,
         )?;
         let result_table = Table::get_builder()
@@ -2397,9 +2455,11 @@ mod tests {
             .build()?;
 
         let lhs_text = result_table.get_column_as_vec_str("new_pk1");
-        assert_eq!(lhs_text, vec!["", "", "", ""]);
-        let lhs_id = result_table.get_column_as_vec_primitive::<u32>("new_metadata")?;
-        assert_eq!(lhs_id, vec![0, 0, 0, 0]);
+        assert_eq!(lhs_text, ["", "", "", ""]);
+        let lhs_id = result_table.get_column_as_vec_primitive::<u32>("default_metadata")?;
+        assert_eq!(lhs_id, [0, 0, 0, 0]);
+        let lhs_id = result_table.get_column_as_vec_primitive::<f32>("broadcast_metadata")?;
+        assert_eq!(lhs_id, [0.75, 0.75, 0.75, 0.75]);
         let column_names = result_table
             .get_schema()
             .fields()
