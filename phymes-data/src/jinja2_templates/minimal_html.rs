@@ -43,21 +43,8 @@ pub static MINIMAL_HTML_PRE: &str = r#"<!DOCTYPE html>
 <html>    
     <head>
         <meta http-equiv="Content-type" content="text/html;charset=UTF-8">
-        <meta name="color-scheme" content="dark light">
-        <style>
-            @media (prefers-color-scheme: dark) {
-                body {
-                    background-color: black;
-                    color: white;
-                }
-            }
-            @media (prefers-color-scheme: light) {
-                body {
-                    background-color: white;
-                    color: black;
-                }
-            }
-        </style>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   </head>
   <body>"#;
 
