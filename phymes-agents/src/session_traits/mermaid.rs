@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::session_plans::{AvailableProcessors, check_agent_subjects};
+use crate::{SessionContextBuilderAgentsTrait, session_plans::{AvailableProcessors, check_agent_subjects}};
 use anyhow::{Result, anyhow};
 use arrow::{
     array::RecordBatch,
@@ -1238,7 +1238,17 @@ pub struct SessionContextBuilderMermaid {
     pub name: Option<String>,
     pub flowchart: Option<String>,
     pub erdiagram: Option<String>,
-    pub max_iter: Option<usize>,
+}
+
+impl SessionContextBuilderMermaid {
+    pub fn with_flowchart(mut self, flowchart: &str) -> Self {
+        self.flowchart = Some(flowchart.to_string());
+        self
+    }
+    pub fn with_erdiagram(mut self, erdiagram: &str) -> Self {
+        self.erdiagram = Some(erdiagram.to_string());
+        self
+    }
 }
 
 impl BuilderTrait for SessionContextBuilderMermaid {
@@ -1248,7 +1258,6 @@ impl BuilderTrait for SessionContextBuilderMermaid {
             name: None,
             flowchart: None,
             erdiagram: None,
-            max_iter: None,
         }
     }
 
@@ -1286,12 +1295,15 @@ impl BuilderTrait for SessionContextBuilderMermaid {
                 ));
             }
         };
-        let builder = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_name(&name)
-            .with_state_from_mermaid_erdiagram(&erdiagram, true, true)?;
 
         // Use defaults for diagnostics and max iters
-        builder.build()
+        SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_name(&name)
+            .with_state_from_mermaid_erdiagram(&erdiagram, true, true)?
+            .add_processor_subjects()?
+            .add_session_interface(None)?
+            .with_diagnostics(true)
+            .build_with_tables()
     }
 }
 

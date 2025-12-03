@@ -22,7 +22,7 @@ async fn main() {
     };
 
     if let Err(e) = run_main().await {
-        println!("Failed to run Candle: {e:?}");
+        println!("Failed to run Session: {e:?}");
     }
 }
 
@@ -30,6 +30,6 @@ async fn main() {
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     if let Err(e) = run_main().await {
-        println!("Failed to run Candle: {e:?}");
+        println!("Failed to run Session: {e:?}");
     }
 }
