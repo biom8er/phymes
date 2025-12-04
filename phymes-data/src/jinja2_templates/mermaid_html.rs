@@ -66,6 +66,10 @@ pub static MERMAID_HTML_PRE: &str = r#"<!DOCTYPE html>
                 }
             }
         </style>
+        <script type="module">
+            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+            mermaid.initialize({theme: "dark", startOnLoad: true });
+        </script>
   </head>
   <body>
     <pre class="mermaid">"#;
@@ -73,9 +77,5 @@ pub static MERMAID_HTML_PRE: &str = r#"<!DOCTYPE html>
 /// Part 2 of the Mermaid.js html jinja2 template
 pub static MERMAID_HTML_POST: &str = r#"
     </pre>
-    <script type="module">
-        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-        mermaid.initialize({theme: "dark", startOnLoad: true });
-    </script>
   </body>
 </html>"#;

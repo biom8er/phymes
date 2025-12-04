@@ -45,12 +45,16 @@ pub static MINIMAL_HTML_PRE: &str = r#"<!DOCTYPE html>
         <meta http-equiv="Content-type" content="text/html;charset=UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-  </head>
-  <body>"#;
+        <script type="module">
+            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+            mermaid.initialize({theme: "dark", startOnLoad: true });
+        </script>
+    </head>
+    <body>"#;
 
 /// Part 2 of the minimal html jinja2 template
 pub static MINIMAL_HTML_POST: &str = r#"
-  </body>
+    </body>
 </html>"#;
 
 /// Template for rendering a minimal html jinja2 template with specified HTML tag elements
