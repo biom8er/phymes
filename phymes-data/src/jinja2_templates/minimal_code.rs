@@ -10,22 +10,30 @@
 ///   see <https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/kbd>
 pub static MINIMAL_CODE_TEMPLATE: &str = r#"
 {%- if samp %}
-<pre><samp>
+<pre{%- if pre_class %} class="{{ pre_class }}"{%- endif %}{%- if pre_style %} style="{{ pre_style }}"{%- endif %}>
+    <samp{%- if code_class %} class="{{ code_class }}"{%- endif %}{%- if code_style %} style="{{ code_style }}"{%- endif %}>
 {%- else %}
-<pre><code>
+<pre{%- if pre_class %} class="{{ pre_class }}"{%- endif %}{%- if pre_style %} style="{{ pre_style }}"{%- endif %}>
+    <code{%- if code_class %} class="{{ code_class }}"{%- endif %}{%- if code_style %} style="{{ code_style }}"{%- endif %}>
 {%- endif %}
 {%- for row in rows %}
 {{ row.item }}
 {%- endfor %}
 {%- if samp %}
-</samp></pre>
+    </samp>
+</pre>
 {%- else %}
-</code></pre>
+    </code>
+</pre>
 {%- endif %}"#;
 
 /// HTML table input jinja2 template
 pub static MINIMAL_CODE_INPUT: &str = r#"{
-"samp": "{{ samp }}"
+"samp": "{{ samp }}",
+"pre_class": "{{ pre_class }}",
+"pre_style": "{{ pre_style }}",
+"code_class": "{{ code_class }}",
+"code_style": "{{ code_style }}"
 }"#;
 
 #[cfg(test)]
@@ -64,6 +72,10 @@ mod tests {
         // Create the input for the template
         let inputs = serde_json::json!({
             "samp": "",
+            "pre_class": "p-4 overflow-x-auto text-sm leading-relaxed bg-gray-800 text-gray-200 rounded-lg shadow-lg overflow-hidden",
+            "pre_style": "",
+            "code_class": "font-mono",
+            "code_style": ""
         });
         let input_string = TableScript::new_from_template(MINIMAL_CODE_INPUT.to_string())
             .apply_template(&inputs)?
@@ -84,7 +96,7 @@ mod tests {
 
         assert_eq!(
             script_string,
-            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"color-scheme\" content=\"dark light\">\n        <style>\n            @media (prefers-color-scheme: dark) {\n                body {\n                    background-color: black;\n                    color: white;\n                }\n            }\n            @media (prefers-color-scheme: light) {\n                body {\n                    background-color: white;\n                    color: black;\n                }\n            }\n        </style>\n  </head>\n  <body>\n<pre><code>\ny1 = m*x1 + b1;\ny2 = m*x2 + b2;\ny3 = m*x3 + b3;\n</code></pre>\n  </body>\n</html>"
+            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n        <script src=\"https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4\"></script>\n        <script type=\"module\">\n            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';\n            mermaid.initialize({theme: \"dark\", startOnLoad: true });\n        </script>\n    </head>\n    <body>\n<pre class=\"p-4 overflow-x-auto text-sm leading-relaxed bg-gray-800 text-gray-200 rounded-lg shadow-lg overflow-hidden\">\n    <code class=\"font-mono\">\ny1 = m*x1 + b1;\ny2 = m*x2 + b2;\ny3 = m*x3 + b3;\n    </code>\n</pre>\n    </body>\n</html>"
         );
         Ok(())
     }
