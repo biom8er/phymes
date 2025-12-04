@@ -359,7 +359,7 @@ impl Stream for CandleDataStream {
                         while let Some(Ok(batch)) =
                             ready!(lhs.get_message_mut().poll_next_unpin(cx))
                         {
-                            if batch.num_rows() > 0 {
+                            if batch.num_rows() > 0 && batch.num_columns() > 0 {
                                 batches.push(batch);
                                 break;
                             }                            
@@ -402,6 +402,7 @@ impl Stream for CandleDataStream {
 
             // Break if the lhs as been exhausted
             if lhs.is_empty() {
+                self.is_finished = true;
                 return Poll::Ready(None);
             } else {
                 self.lhs_inbox = lhs;
@@ -452,7 +453,7 @@ impl Stream for CandleDataStream {
                         while let Some(Ok(batch)) =
                             ready!(rhs.get_message_mut().poll_next_unpin(cx))
                         {
-                            if batch.num_rows() > 0 {
+                            if batch.num_rows() > 0 && batch.num_columns() > 0 {
                                 batches.push(batch);
                                 break;
                             }
@@ -495,6 +496,7 @@ impl Stream for CandleDataStream {
 
             // Break if the rhs has been exhausted
             if rhs.is_empty() {
+                self.is_finished = true;
                 return Poll::Ready(None);
             } else {
                 self.rhs_inbox = rhs;
