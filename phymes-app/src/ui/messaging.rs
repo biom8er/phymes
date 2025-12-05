@@ -482,7 +482,7 @@ pub fn messaging_interface_footer(
                                                     .zip(table.get_column_as_vec_nonprimitive::<String>("content").unwrap().into_iter())
                                                     .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
                                                     .enumerate()
-                                                    .filter_map(|(i, ((r, c), t))| if r.is_empty() {
+                                                    .filter_map(|(i, ((r, c), t))| if r.is_empty() || r != "assistant" {
                                                         None
                                                     } else {
                                                         let index = current_index() + i + 1;
