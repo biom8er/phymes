@@ -1,7 +1,5 @@
 use std::{
-    collections::HashMap,
-    ops::{BitAnd, BitOr, BitXor, Not},
-    sync::Arc,
+    collections::HashMap, hash::{DefaultHasher, Hash, Hasher}, ops::{BitAnd, BitOr, BitXor, Not}, str::FromStr, sync::Arc
 };
 
 use anyhow::{Result, anyhow};
@@ -394,6 +392,23 @@ fn rhs_helper(
         }
     } else {
         Ok((None, None))
+    }
+}
+
+/// Hashes a string into an integer using Rust's DefaultHasher if it cannot be parsed into an integer directly.
+/// # Notes
+/// - This is NOT cryptographically secure — use for non-security purposes only.
+fn hash_string<T>(s: &str) -> Result<T> 
+where
+    T: Num + Bounded + NumCast + Send + Sync + WithDType + FromStr + 'static,
+{
+    match s.parse::<T>() {
+        Ok(parsed) => Ok(parsed),
+        Err(_) => {
+            let mut hasher = DefaultHasher::new();
+            s.hash(&mut hasher);
+            T::from(hasher.finish()).ok_or(anyhow!("Could not Hash {s} to type {:?}", T::DTYPE))
+        }
     }
 }
 
@@ -2165,6 +2180,34 @@ pub fn select(
                     }
                 }
             }
+            DataCastOperator::Hash => match (column_data_type, cast_datatypes.get(index).unwrap()) {
+                (DataType::Utf8, DataType::UInt32) => {
+                    let lhs_vec = column_cast
+                        .as_any()
+                        .downcast_ref::<StringArray>()
+                        .unwrap()
+                        .iter()
+                        .map(|s| hash_string::<u32>(s.unwrap_or_default()).unwrap_or_default())
+                        .collect::<Vec<_>>();
+                    Arc::new(UInt32Array::from(lhs_vec))
+                }
+                (DataType::Utf8, DataType::Int64) => {
+                    let lhs_vec = column_cast
+                        .as_any()
+                        .downcast_ref::<StringArray>()
+                        .unwrap()
+                        .iter()
+                        .map(|s| hash_string::<i64>(s.unwrap_or_default()).unwrap_or_default())
+                        .collect::<Vec<_>>();
+                    Arc::new(Int64Array::from(lhs_vec))
+                }
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported data type {column_data_type} for Hashing to {} for column {column_name}. The supported data types are from Utf8 to UInt32 and Int64",
+                        cast_datatypes.get(index).unwrap()
+                    ));
+                }
+            }
             DataCastOperator::None => column_cast,
         };
 
@@ -2439,14 +2482,14 @@ mod tests {
 
         // ------ String, UInt32, Float32, Missing column ------
         let result = select(
-            &["new_pk", "default_metadata", "broadcast_metadata"],
+            &["new_pk", "default_metadata", "broadcast_metadata", "lhs_pk"],
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
-            &["", "", ""],
-            &["new_pk1", "", ""],
-            &[DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None],
-            &[DataCastOperator::None, DataCastOperator::None, DataCastOperator::None],
-            &[DataType::Utf8, DataType::UInt32, DataType::Float32],
-            &["", "", "0.75"],
+            &["", "", "", ""],
+            &["new_pk1", "", "", "hash_pk"],
+            &[DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None],
+            &[DataCastOperator::None, DataCastOperator::None, DataCastOperator::None, DataCastOperator::Hash],
+            &[DataType::Utf8, DataType::UInt32, DataType::Float32, DataType::UInt32],
+            &["", "", "0.75", ""],
             &device,
         )?;
         let result_table = Table::get_builder()
@@ -2460,6 +2503,8 @@ mod tests {
         assert_eq!(lhs_id, [0, 0, 0, 0]);
         let lhs_id = result_table.get_column_as_vec_primitive::<f32>("broadcast_metadata")?;
         assert_eq!(lhs_id, [0.75, 0.75, 0.75, 0.75]);
+        let lhs_id = result_table.get_column_as_vec_primitive::<u32>("hash_pk")?;
+        assert_eq!(lhs_id, [0, 1, 2, 3]);
         let column_names = result_table
             .get_schema()
             .fields()

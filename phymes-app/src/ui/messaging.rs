@@ -488,12 +488,30 @@ pub fn messaging_interface_footer(
                                                         let index = current_index() + i + 1;
                                                         Some((r, c, t, index))
                                                     }).collect::<Vec<_>>();
-                                                for (r, c, t, index) in combined {
-                                                    messaging_roles.push(r);
-                                                    messaging_contents.push(c);
-                                                    messaging_timestamps.push(t);
-                                                    messaging_indices.push(index);
-                                                }
+                                                if combined.is_empty() {
+                                                    update_message_state(messaging_roles,
+                                                        messaging_contents,
+                                                        messaging_indices,
+                                                        messaging_timestamps,
+                                                        "assistant",
+                                                        "Session returned without a text message response.",
+                                                        create_timestamp_micros());
+                                                } else {
+                                                    for (r, c, t, index) in combined {
+                                                        messaging_roles.push(r);
+                                                        messaging_contents.push(c);
+                                                        messaging_timestamps.push(t);
+                                                        messaging_indices.push(index);
+                                                    }
+                                                }                                                
+                                            } else {
+                                                update_message_state(messaging_roles,
+                                                    messaging_contents,
+                                                    messaging_indices,
+                                                    messaging_timestamps,
+                                                    "assistant",
+                                                    "Session returned without a text message response.",
+                                                    create_timestamp_micros());
                                             }
                                         }
                                         Err(err) => {
@@ -503,7 +521,7 @@ pub fn messaging_interface_footer(
                                                 messaging_indices,
                                                 messaging_timestamps,
                                                 "assistant",
-                                                "Please try again...",
+                                                "Session returned without a text message response.",
                                                 create_timestamp_micros());
                                         },
                                     }
