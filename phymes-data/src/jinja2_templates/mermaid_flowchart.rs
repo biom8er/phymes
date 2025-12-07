@@ -7,7 +7,7 @@
 /// * Link IDs is not yet supported
 /// * Nested subgraphs is not yet supported
 pub static MERMAID_FLOWCHART_TEMPLATE: &str = r#"
-        flowchart
+        flowchart {% if direction %}{{ direction }}{% endif %}
 {%- for row in rows %}
             {{ row.content }}
 {%- endfor %}"#;

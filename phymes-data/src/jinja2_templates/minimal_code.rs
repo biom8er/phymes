@@ -10,21 +10,17 @@
 ///   see <https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/kbd>
 pub static MINIMAL_CODE_TEMPLATE: &str = r#"
 {%- if samp %}
-<pre{%- if pre_class %} class="{{ pre_class }}"{%- endif %}{%- if pre_style %} style="{{ pre_style }}"{%- endif %}>
-    <samp{%- if code_class %} class="{{ code_class }}"{%- endif %}{%- if code_style %} style="{{ code_style }}"{%- endif %}>
+<pre{%- if pre_class %} class="{{ pre_class }}"{%- endif %}{%- if pre_style %} style="{{ pre_style }}"{%- endif %}><samp{%- if code_class %} class="{{ code_class }}"{%- endif %}{%- if code_style %} style="{{ code_style }}"{%- endif %}>
 {%- else %}
-<pre{%- if pre_class %} class="{{ pre_class }}"{%- endif %}{%- if pre_style %} style="{{ pre_style }}"{%- endif %}>
-    <code{%- if code_class %} class="{{ code_class }}"{%- endif %}{%- if code_style %} style="{{ code_style }}"{%- endif %}>
-{%- endif %}
-{%- for row in rows %}
+<pre{%- if pre_class %} class="{{ pre_class }}"{%- endif %}{%- if pre_style %} style="{{ pre_style }}"{%- endif %}><code{%- if code_class %} class="{{ code_class }}"{%- endif %}{%- if code_style %} style="{{ code_style }}"{%- endif %}>
+{%- endif -%}
+{%- for row in rows -%}
 {{ row.item }}
-{%- endfor %}
-{%- if samp %}
-    </samp>
-</pre>
-{%- else %}
-    </code>
-</pre>
+{% endfor -%}
+{%- if samp -%}
+</samp></pre>
+{%- else -%}
+</code></pre>
 {%- endif %}"#;
 
 /// HTML table input jinja2 template
@@ -96,7 +92,7 @@ mod tests {
 
         assert_eq!(
             script_string,
-            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n        <script src=\"https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4\"></script>\n        <script type=\"module\">\n            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';\n            mermaid.initialize({theme: \"dark\", startOnLoad: true });\n        </script>\n    </head>\n    <body>\n<pre class=\"p-4 overflow-x-auto text-sm leading-relaxed bg-gray-800 text-gray-200 rounded-lg shadow-lg overflow-hidden\">\n    <code class=\"font-mono\">\ny1 = m*x1 + b1;\ny2 = m*x2 + b2;\ny3 = m*x3 + b3;\n    </code>\n</pre>\n    </body>\n</html>"
+            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n        <script src=\"https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4\"></script>\n        <script type=\"module\">\n            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';\n            mermaid.initialize({theme: \"dark\", startOnLoad: true });\n        </script>\n    </head>\n    <body>\n<pre class=\"p-4 overflow-x-auto text-sm leading-relaxed bg-gray-800 text-gray-200 rounded-lg shadow-lg overflow-hidden\"><code class=\"font-mono\">y1 = m*x1 + b1;\ny2 = m*x2 + b2;\ny3 = m*x3 + b3;\n</code></pre>\n    </body>\n</html>"
         );
         Ok(())
     }

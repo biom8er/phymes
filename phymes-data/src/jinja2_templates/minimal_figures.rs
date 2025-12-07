@@ -11,8 +11,8 @@ pub static MINIMAL_FIGURE_TEMPLATE: &str = r#"<div class="mt-6 grid grid-cols-1 
         <h3{%- if h3_class %} class="{{ h3_class }}"{%- endif %}{%- if h3_style %} style="{{ h3_style }}"{%- endif %}>{{ row.title }}</h3>
         <p{%- if p_class %} class="{{ p_class }}"{%- endif %}{%- if p_style %} style="{{ p_style }}"{%- endif %}>{{ row.caption }}</p>
     </div>
-</div>
-{%- endfor %}"#;
+{%- endfor %}
+</div>"#;
 
 /// HTML table input jinja2 template
 pub static MINIMAL_FIGURE_INPUT: &str = r#"{
