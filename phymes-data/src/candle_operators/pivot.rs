@@ -456,11 +456,11 @@ pub fn pivot(
     let mut pvt_columns_vec = Vec::new();
     let mut pvt_values_vec = Vec::new();
     for column_name in pvt_columns {
-        let arr = pvt_values_table.get_column_as_array(column_name);
+        let arr = pvt_values_table.get_column_as_array(column_name)?;
         pvt_columns_vec.push((column_name, arr));
     }
     for column_name in lhs_values {
-        let arr = pvt_values_table.get_column_as_array(column_name);
+        let arr = pvt_values_table.get_column_as_array(column_name)?;
         pvt_values_vec.push((column_name, arr));
     }
 

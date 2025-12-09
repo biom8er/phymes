@@ -450,7 +450,6 @@ pub fn subjects_schema_table(
 
     rsx! {
         div {
-            class: "output_table",
             table {
                 class: "table-auto rounded bg-neutral-800 text-gray-200",
                 if active_subject_name().is_empty() {

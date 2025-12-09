@@ -562,7 +562,7 @@ pub fn mermaid_view(
             div {
                 class: "rounded p-2 items-center bg-neutral-700",
                 p {
-                    class: "text-gray-200",
+                    class: "text-gray-200 overflow-auto",
                     "{build_errors}"
                 },
             }
@@ -571,7 +571,7 @@ pub fn mermaid_view(
             div {
                 class: "rounded p-2 items-center text-gray-200 bg-neutral-700",
                 p {
-                    class: "text-gray-200",
+                    class: "text-gray-200 overflow-auto",
                     "{error_mjs}"
                 },
             }
@@ -580,7 +580,7 @@ pub fn mermaid_view(
             div {
                 class: "rounded p-2 items-center bg-neutral-700",
                 p {
-                    class: "text-gray-200",
+                    class: "text-gray-200 overflow-auto",
                     "{error_ctxb}"
                 },
             }

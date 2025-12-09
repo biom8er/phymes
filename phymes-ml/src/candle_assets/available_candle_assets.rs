@@ -463,7 +463,7 @@ pub fn load_tokenizer(path: Result<std::path::PathBuf>) -> Result<Tokenizer> {
 fn load_config<T: for<'a> serde::Deserialize<'a>>(path: Result<std::path::PathBuf>) -> Result<T> {
     match path {
         Ok(asset_path) => {
-            let config_str: String = std::fs::read_to_string(asset_path).expect("File not found.");
+            let config_str: String = std::fs::read_to_string(asset_path)?;
             let config: T = serde_json::from_str(&config_str)?; //.map_err(anyhow::Error::msg);
             Ok(config)
         }

@@ -4,12 +4,12 @@
 /// see <https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/ol>
 pub static MINIMAL_LIST_TEMPLATE: &str = r#"
 {%- if ordered %}
-<ol>
+<ol{%- if ul_class %} class="{{ ul_class }}"{%- endif %}{%- if ul_style %} style="{{ ul_style }}"{%- endif %}>
 {%- else %}
-<ul>
+<ul{%- if ul_class %} class="{{ ul_class }}"{%- endif %}{%- if ul_style %} style="{{ ul_style }}"{%- endif %}>
 {%- endif %}
 {%- for row in rows %}
-    <li>{{ row.item }}</li>
+    <li{%- if li_class %} class="{{ li_class }}"{%- endif %}{%- if li_style %} style="{{ li_style }}"{%- endif %}>{{ row.item }}</li>
 {%- endfor %}
 {%- if ordered %}
 </ol>
@@ -19,7 +19,11 @@ pub static MINIMAL_LIST_TEMPLATE: &str = r#"
 
 /// HTML table input jinja2 template
 pub static MINIMAL_LIST_INPUT: &str = r#"{
-"ordered": "{{ ordered }}"
+"ordered": "{{ ordered }}",
+"ul_class": "{{ ul_class }}",
+"ul_style": "{{ ul_style }}",
+"li_class": "{{ li_class }}",
+"li_style": "{{ li_style }}"
 }"#;
 
 #[cfg(test)]
@@ -58,6 +62,10 @@ mod tests {
         // Create the input for the template
         let inputs = serde_json::json!({
             "ordered": "",
+            "ul_class": "p-2 flex flex-col list-disc",
+            "ul_style": "",
+            "li_class": "flex flex-col flex-content-start gap-1 my-2",
+            "li_style": ""
         });
         let input_string = TableScript::new_from_template(MINIMAL_LIST_INPUT.to_string())
             .apply_template(&inputs)?
@@ -78,7 +86,7 @@ mod tests {
 
         assert_eq!(
             script_string,
-            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"color-scheme\" content=\"dark light\">\n        <style>\n            @media (prefers-color-scheme: dark) {\n                body {\n                    background-color: black;\n                    color: white;\n                }\n            }\n            @media (prefers-color-scheme: light) {\n                body {\n                    background-color: white;\n                    color: black;\n                }\n            }\n        </style>\n  </head>\n  <body>\n<ul>\n    <li>Item 1</li>\n    <li>Item 2</li>\n    <li>Item 3</li>\n    <li>Item 4</li>\n    <li>Item 5</li>\n    <li>Item 6</li>\n</ul>\n  </body>\n</html>"
+            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n        <script src=\"https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4\"></script>\n        <script type=\"module\">\n            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';\n            mermaid.initialize({theme: \"dark\", startOnLoad: true });\n        </script>\n    </head>\n    <body>\n<ul class=\"p-2 flex flex-col list-disc\">\n    <li class=\"flex flex-col flex-content-start gap-1 my-2\">Item 1</li>\n    <li class=\"flex flex-col flex-content-start gap-1 my-2\">Item 2</li>\n    <li class=\"flex flex-col flex-content-start gap-1 my-2\">Item 3</li>\n    <li class=\"flex flex-col flex-content-start gap-1 my-2\">Item 4</li>\n    <li class=\"flex flex-col flex-content-start gap-1 my-2\">Item 5</li>\n    <li class=\"flex flex-col flex-content-start gap-1 my-2\">Item 6</li>\n</ul>\n    </body>\n</html>"
         );
         Ok(())
     }

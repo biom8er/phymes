@@ -198,7 +198,7 @@ impl ProcessorTrait for CoalesceProcessor {
 pub struct CoalesceStream {
     /// The input to read from. This is set to None once the limit is
     /// reached to enable early termination
-    message_stream: Option<SendableRecordBatchStream>,
+    message_stream: SendableRecordBatchStream,
     /// Copy of the input schema
     schema: SchemaRef,
     /// Parameters for coalesce
@@ -217,6 +217,10 @@ pub struct CoalesceStream {
     fetch: Option<usize>,
     /// Overflow batch after the limit has been reached
     overflow: Option<RecordBatch>,
+    /// The state of the CoalesceStream
+    coalescer_state: CoalescerState,
+    /// Switch to finished polling
+    is_finished: bool,
 }
 
 impl CoalesceStream {
@@ -228,7 +232,7 @@ impl CoalesceStream {
     ) -> Self {
         let schema = message_stream.schema();
         Self {
-            message_stream: Some(message_stream),
+            message_stream,
             schema,
             config_stream,
             _runtime_env: runtime_env,
@@ -238,6 +242,8 @@ impl CoalesceStream {
             buffered_rows: 0,
             fetch: None,
             overflow: None,
+            coalescer_state: CoalescerState::Continue,
+            is_finished: false,
         }
     }
 
@@ -247,37 +253,17 @@ impl CoalesceStream {
             let config = DataSummaryConfig::from_table(&config_table)?;
             self.config.replace(config);
         }
-        self.fetch.replace(
-            self.config
-                .as_ref()
-                .unwrap()
-                .fetch
-                .as_ref()
-                .unwrap()
-                .to_owned(),
-        );
+        self.fetch = self.config.as_ref().unwrap().fetch;
         Ok(())
     }
 
-    /// Push next batch, and returns [`CoalescerState`] indicating the current
-    /// state of the buffer.
-    fn push_batch(&mut self, batch: RecordBatch) -> CoalescerState {
+    /// Push next batch, and determines [`CoalescerState`] indicating the current state of the buffer.
+    ///
+    /// # Notes
+    /// * Checks if the buffer will reach the specified limit after getting `batch`.
+    /// * If fetch would be exceeded, slices the received batch, updates the buffer and overflow with it.
+    fn push_batch(&mut self, batch: RecordBatch) {
         let batch = gc_string_view_batch(&batch);
-        if self.limit_reached(batch) {
-            CoalescerState::LimitReached
-        } else {
-            CoalescerState::Continue
-        }
-    }
-
-    /// Checks if the buffer will reach the specified limit after getting
-    /// `batch`.
-    ///
-    /// If fetch would be exceeded, slices the received batch, updates the
-    /// buffer with it, and returns `true`.
-    ///
-    /// Otherwise: does nothing and returns `false`.
-    fn limit_reached(&mut self, batch: RecordBatch) -> bool {
         if let Some(fetch) = self.fetch
             && self.buffered_rows + batch.num_rows() >= fetch
         {
@@ -289,32 +275,41 @@ impl CoalesceStream {
             let batch_buf = batch.slice(0, remaining_rows);
             self.buffered_rows += batch_buf.num_rows();
             let overflow_rows = batch.num_rows() - batch_buf.num_rows();
+            self.buffer.push(batch_buf);
 
             // Track the overflow
             if overflow_rows > 0 {
                 let batch_over = batch.slice(remaining_rows, overflow_rows);
                 self.overflow.replace(batch_over);
             }
-
-            self.buffer.push(batch_buf);
-            true
+            self.coalescer_state = CoalescerState::LimitReached;
         } else {
             // Limit has not been reached
             self.buffered_rows += batch.num_rows();
             self.buffer.push(batch);
-            false
+            self.coalescer_state = CoalescerState::Continue;
         }
     }
 
     /// Concatenates and returns all buffered batches, and clears the buffer.
     fn finish_batch(&mut self) -> Result<RecordBatch> {
-        let batch = concat_batches(&self.schema, &self.buffer)?;
-        if let Some(overflow) = self.overflow.take() {
-            self.buffered_rows = overflow.num_rows();
-            self.buffer = vec![overflow];
+        // Concatenate the buffer
+        let batch = if self.buffer.len() == 1 {
+            self.buffer.pop().unwrap()
         } else {
+            concat_batches(&self.schema, &self.buffer)?
+        };
+
+        // Clear the buffer
+        self.buffered_rows = 0;
+        self.buffer.clear();
+
+        // Check for overflow
+        if let Some(overflow) = self.overflow.take() {
             self.buffered_rows = 0;
-            self.buffer.clear();
+            self.push_batch(overflow);
+        } else {
+            self.coalescer_state = CoalescerState::Continue;
         }
         Ok(batch)
     }
@@ -324,7 +319,7 @@ impl Stream for CoalesceStream {
     type Item = Result<RecordBatch>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        if self.message_stream.is_none() {
+        if self.is_finished {
             return Poll::Ready(None);
         }
 
@@ -356,11 +351,26 @@ impl Stream for CoalesceStream {
             self.init_config(config_table)?;
         }
 
-        // Coalesce the batches
-        while let Some(Ok(batch)) =
-            ready!(self.message_stream.as_mut().unwrap().poll_next_unpin(cx))
-        {
-            match self.push_batch(batch) {
+        // Continue to clear the overflow
+        match self.coalescer_state {
+            CoalescerState::Continue => {}
+            CoalescerState::LimitReached => {
+                let output_batch = self.finish_batch().unwrap();
+                let poll = Poll::Ready(Some(Ok(output_batch)));
+
+                // Return the poll
+                if let Some(baseline_metrics) = &baseline_metrics {
+                    return baseline_metrics.record_poll(poll);
+                } else {
+                    return poll;
+                }
+            }
+        }
+
+        // Push more batches to coalesce
+        while let Some(Ok(batch)) = ready!(self.message_stream.as_mut().poll_next_unpin(cx)) {
+            self.push_batch(batch);
+            match self.coalescer_state {
                 CoalescerState::Continue => {}
                 CoalescerState::LimitReached => {
                     let output_batch = self.finish_batch().unwrap();
@@ -384,7 +394,7 @@ impl Stream for CoalesceStream {
             let poll = Poll::Ready(Some(Ok(output_batch)));
 
             // Trigger the end of the stream
-            self.message_stream.take();
+            self.is_finished = true;
 
             // Return the poll
             if let Some(baseline_metrics) = &baseline_metrics {
@@ -414,7 +424,7 @@ pub enum CoalescerState {
     /// The limit has been reached.
     ///
     /// Action: call [`BatchCoalescer::finish_batch()`] to get the final
-    /// buffered results as a batch and then continue pushing batches.
+    /// buffered results as a batch and then continue pushing batches if not in overflow.
     LimitReached,
 }
 
@@ -675,6 +685,40 @@ mod tests {
 
         // Coalesce batches
         let stream = futures::stream::iter(std::iter::repeat_n(batch.clone(), 10).map(Ok));
+        let input = Box::pin(RecordBatchStreamAdapter::new(
+            Arc::clone(&batch.schema()),
+            stream,
+        ));
+        let coalesce_stream = CoalesceStream::new(
+            input,
+            config_table.to_record_batch_stream(),
+            Arc::clone(&runtime_env),
+            Some(diagnostic_builder.clone()),
+        );
+
+        let results = Box::pin(coalesce_stream).try_collect::<Vec<_>>().await?;
+        let num_rows = results
+            .into_iter()
+            .map(|b| b.num_rows())
+            .collect::<Vec<_>>();
+        assert_eq!(num_rows, [10, 10, 10, 10, 10, 10, 10, 10]);
+
+        // --- Coalesce with continuous overvlow ---
+        // Make the batches
+        let batch = uint32_batch(0..80);
+        // Make the config
+        let config = DataSummaryConfig {
+            fetch: Some(10),
+            ..Default::default()
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = TableBuilder::new()
+            .with_name("CoalesceStream")
+            .with_json(&config_json, 1)?
+            .build()?;
+
+        // Coalesce batches
+        let stream = futures::stream::iter(std::iter::repeat_n(batch.clone(), 1).map(Ok));
         let input = Box::pin(RecordBatchStreamAdapter::new(
             Arc::clone(&batch.schema()),
             stream,

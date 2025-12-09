@@ -43,27 +43,18 @@ pub static MINIMAL_HTML_PRE: &str = r#"<!DOCTYPE html>
 <html>    
     <head>
         <meta http-equiv="Content-type" content="text/html;charset=UTF-8">
-        <meta name="color-scheme" content="dark light">
-        <style>
-            @media (prefers-color-scheme: dark) {
-                body {
-                    background-color: black;
-                    color: white;
-                }
-            }
-            @media (prefers-color-scheme: light) {
-                body {
-                    background-color: white;
-                    color: black;
-                }
-            }
-        </style>
-  </head>
-  <body>"#;
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+        <script type="module">
+            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+            mermaid.initialize({theme: "dark", startOnLoad: true });
+        </script>
+    </head>
+    <body>"#;
 
 /// Part 2 of the minimal html jinja2 template
 pub static MINIMAL_HTML_POST: &str = r#"
-  </body>
+    </body>
 </html>"#;
 
 /// Template for rendering a minimal html jinja2 template with specified HTML tag elements
@@ -197,7 +188,7 @@ mod tests {
 
         assert_eq!(
             script_string,
-            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"color-scheme\" content=\"dark light\">\n        <style>\n            @media (prefers-color-scheme: dark) {\n                body {\n                    background-color: black;\n                    color: white;\n                }\n            }\n            @media (prefers-color-scheme: light) {\n                body {\n                    background-color: white;\n                    color: black;\n                }\n            }\n        </style>\n  </head>\n  <body>\n<h1>Title 1</h1>\n<p>Version 1</p>\n<p>Description 1</p>\n<h2> Background</h2>\n<h1>Title 2</h1>\n<p>Version 2</p>\n<p>Description 2</p>\n<h2> Background</h2>\n<h1>Title 3</h1>\n<p>Version 3</p>\n<p>Description 3</p>\n<h2> Background</h2>\n  </body>\n</html>"
+            "<!DOCTYPE html>\n<html>    \n    <head>\n        <meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n        <script src=\"https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4\"></script>\n        <script type=\"module\">\n            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';\n            mermaid.initialize({theme: \"dark\", startOnLoad: true });\n        </script>\n    </head>\n    <body>\n<h1>Title 1</h1>\n<p>Version 1</p>\n<p>Description 1</p>\n<h2> Background</h2>\n<h1>Title 2</h1>\n<p>Version 2</p>\n<p>Description 2</p>\n<h2> Background</h2>\n<h1>Title 3</h1>\n<p>Version 3</p>\n<p>Description 3</p>\n<h2> Background</h2>\n    </body>\n</html>"
         );
         Ok(())
     }

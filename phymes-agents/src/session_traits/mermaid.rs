@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::session_plans::{AvailableProcessors, check_agent_subjects};
+use crate::{
+    SessionContextBuilderAgentsTrait,
+    session_plans::{AvailableProcessors, check_agent_subjects},
+};
 use anyhow::{Result, anyhow};
 use arrow::{
     array::RecordBatch,
@@ -296,9 +299,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 let value = if config_data && processor_names.contains(subject.get_name())
                     || example_data
                 {
-                    if let Some(mut example_data) =
-                        subject.get_column_as_vec_string(field.name())?
-                    {
+                    if let Ok(mut example_data) = subject.get_column_as_vec_string(field.name()) {
                         example_data.pop().unwrap_or_default()
                     } else {
                         String::new()
@@ -1077,7 +1078,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             // Check the chart type
             if erdiagram_lines.get(iter).unwrap().contains("erDiagram") {
 
-                // Ignore blank lines
+                // Ignore blank lines and comments
             } else if erdiagram_lines.get(iter).unwrap().trim().is_empty() {
 
                 // Ignore relationship connectors
@@ -1110,7 +1111,9 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 iter += 1;
                 while iter < erdiagram_lines.len() {
                     // Check for end of subject section (and exclude jinja2 templating brackets)
-                    if erdiagram_lines.get(iter).unwrap().trim_end() == "    }" {
+                    if erdiagram_lines.get(iter).unwrap().trim_end() == "    }"
+                        || erdiagram_lines.get(iter).unwrap().trim_end() == "\t}"
+                    {
                         // Build and add the table to the subjects list
                         let schema = Arc::new(Schema::new(fields));
                         let table = if with_values && !data.is_empty() {
@@ -1238,7 +1241,17 @@ pub struct SessionContextBuilderMermaid {
     pub name: Option<String>,
     pub flowchart: Option<String>,
     pub erdiagram: Option<String>,
-    pub max_iter: Option<usize>,
+}
+
+impl SessionContextBuilderMermaid {
+    pub fn with_flowchart(mut self, flowchart: &str) -> Self {
+        self.flowchart = Some(flowchart.to_string());
+        self
+    }
+    pub fn with_erdiagram(mut self, erdiagram: &str) -> Self {
+        self.erdiagram = Some(erdiagram.to_string());
+        self
+    }
 }
 
 impl BuilderTrait for SessionContextBuilderMermaid {
@@ -1248,7 +1261,6 @@ impl BuilderTrait for SessionContextBuilderMermaid {
             name: None,
             flowchart: None,
             erdiagram: None,
-            max_iter: None,
         }
     }
 
@@ -1286,12 +1298,15 @@ impl BuilderTrait for SessionContextBuilderMermaid {
                 ));
             }
         };
-        let builder = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_name(&name)
-            .with_state_from_mermaid_erdiagram(&erdiagram, true, true)?;
 
         // Use defaults for diagnostics and max iters
-        builder.build()
+        SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
+            .with_name(&name)
+            .with_state_from_mermaid_erdiagram(&erdiagram, true, true)?
+            .add_processor_subjects()?
+            .add_session_interface(None)?
+            .with_diagnostics(true)
+            .build_with_tables()
     }
 }
 

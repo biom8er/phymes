@@ -59,8 +59,8 @@ fn mermaid_js() -> Element {
                     mermaid.initialize({
                         theme: "dark",
                         startOnLoad: false,
-                        maxTextSize: 100000,
-                        maxEdges: 1000,
+                        maxTextSize: 50000,
+                        maxEdges: 500,
                         securityLevel: "loose",
                         suppressErrorRendering: true
                     });
@@ -78,8 +78,8 @@ fn mermaid_js() -> Element {
                 mermaid.initialize({
                     theme: "dark",
                     startOnLoad: false,
-                    maxTextSize: 100000,
-                    maxEdges: 1000,
+                    maxTextSize: 50000,
+                    maxEdges: 500,
                     securityLevel: "loose",
                     suppressErrorRendering: true
                 });

@@ -227,6 +227,8 @@ pub enum DataCastOperator {
     Cast,
     #[value(name = "BytesToString")]
     BytesToString,
+    #[value(name = "Hash")]
+    Hash,
     #[value(name = "None")]
     None,
 }
@@ -238,6 +240,7 @@ impl Display for DataCastOperator {
             // Self::Base64Decode => write!(f, "Base64Decode"),
             Self::Cast => write!(f, "Cast"),
             Self::BytesToString => write!(f, "BytesToString"),
+            Self::Hash => write!(f, "Hash"),
             Self::None => write!(f, "None"),
         }
     }

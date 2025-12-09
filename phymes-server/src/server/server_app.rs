@@ -123,7 +123,7 @@ impl AppBuilder {
     #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
     fn with_max_body_limit(self) -> Self {
         use axum::extract::DefaultBodyLimit;
-        let limit = RequestBodyLimitLayer::new(1024 * 1024 * 100); // 100 MB
+        let limit = RequestBodyLimitLayer::new(1024 * 1024 * 1000); // 1000 MB
         Self {
             app: self.app.layer(DefaultBodyLimit::disable()).layer(limit),
         }

@@ -386,7 +386,7 @@ pub fn from_diagnostics_to_tables(
 /// Add normalized start and end time for use in gantt or barplot visualizations
 pub fn get_metrics_as_gantt_table(pivot_table: Table, table_name: &str) -> Result<Table> {
     // determine the minimum start time
-    let start_time_arr: ArrayRef = pivot_table.get_column_as_array("start_timestamp");
+    let start_time_arr: ArrayRef = pivot_table.get_column_as_array("start_timestamp")?;
     let start_time_arr_prim = start_time_arr
         .as_any()
         .downcast_ref::<Int64Array>()
@@ -399,7 +399,7 @@ pub fn get_metrics_as_gantt_table(pivot_table: Table, table_name: &str) -> Resul
     let normalized_start_time_arr = sub(&start_time_arr, &min_start_time_arr).unwrap();
 
     // normalize the end time
-    let end_time_arr: ArrayRef = pivot_table.get_column_as_array("end_timestamp");
+    let end_time_arr: ArrayRef = pivot_table.get_column_as_array("end_timestamp")?;
     let duration_arr = sub(&end_time_arr, &start_time_arr).unwrap();
     let normalized_end_time_arr = add(&normalized_start_time_arr, &duration_arr).unwrap();
 
@@ -410,7 +410,7 @@ pub fn get_metrics_as_gantt_table(pivot_table: Table, table_name: &str) -> Resul
     ];
     let schema = pivot_table.get_schema();
     for field in schema.fields().iter() {
-        batch_vec.push((field.name(), pivot_table.get_column_as_array(field.name())));
+        batch_vec.push((field.name(), pivot_table.get_column_as_array(field.name())?));
     }
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Table::get_builder()
