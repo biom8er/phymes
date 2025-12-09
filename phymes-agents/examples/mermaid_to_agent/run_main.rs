@@ -39,7 +39,6 @@ impl MermaidBuildConfig {
             let file_str = std::fs::read_to_string(path)?;
             let file_str_indent = file_str
                 .lines()
-                .into_iter()
                 .map(|l| format!("{indentation}{l}"))
                 .collect::<Vec<_>>()
                 .join("\n");
