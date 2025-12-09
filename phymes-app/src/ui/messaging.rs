@@ -357,11 +357,7 @@ pub fn messaging_interface_footer(
             messaging_roles.read().last(),
             messaging_contents.read().last(),
         ) {
-            if role.as_str() == "assistant" && contents.as_str() == "Preparing response..." {
-                true
-            } else {
-                false
-            }
+            role.as_str() == "assistant" && contents.as_str() == "Preparing response..."
         } else {
             false
         }
