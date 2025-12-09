@@ -37,7 +37,8 @@ impl MermaidBuildConfig {
             let path_str = format!("{dir}/{file}");
             let path = std::path::PathBuf::from_str(path_str.as_str())?;
             let file_str = std::fs::read_to_string(path)?;
-            let file_str_indent = file_str.lines()
+            let file_str_indent = file_str
+                .lines()
                 .into_iter()
                 .map(|l| format!("{indentation}{l}"))
                 .collect::<Vec<_>>()
@@ -47,18 +48,26 @@ impl MermaidBuildConfig {
         let files_str = files_str_vec.join("\n");
         Ok(files_str)
     }
-    
+
     /// Read flowchart files
     pub fn read_flowchart(&self) -> Result<String> {
         let dir = self.dir.as_ref().map_or(".", |v| v);
-        let files = self.flowchart_files.iter().map(|s| s.as_str()).collect::<Vec<_>>();
+        let files = self
+            .flowchart_files
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
         Self::read(dir, &files, "flowchart TD", "\t")
     }
-    
+
     /// Read erdiagram files
     pub fn read_erdiagram(&self) -> Result<String> {
         let dir = self.dir.as_ref().map_or(".", |v| v);
-        let files = self.erdiagram_files.iter().map(|s| s.as_str()).collect::<Vec<_>>();
+        let files = self
+            .erdiagram_files
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
         Self::read(dir, &files, "erDiagram", "\t")
     }
 
@@ -84,12 +93,10 @@ impl MermaidBuildConfig {
         let file = self.erdiagram_out.as_ref().map_or("out.erdiagram", |v| v);
         Self::write(dir, file, contents)
     }
-    
 }
 
 /// Generates the Mermaid.js Flowchart and ERDiagram representations of the [SessionContextBuilderMermaid]
 pub fn run_main() -> Result<()> {
-
     // CLI arguments
     let config = MermaidBuildConfig::parse();
 

@@ -37,7 +37,7 @@ pub use mermaid_sequence_diagram::{
 };
 pub use mermaid_xychart::{MERMAID_XYCHART_INPUT, MERMAID_XYCHART_TEMPLATE};
 pub use minimal_code::{MINIMAL_CODE_INPUT, MINIMAL_CODE_TEMPLATE};
-pub use minimal_figures::{MINIMAL_FIGURE_TEMPLATE, MINIMAL_FIGURE_INPUT};
+pub use minimal_figures::{MINIMAL_FIGURE_INPUT, MINIMAL_FIGURE_TEMPLATE};
 pub use minimal_html::{
     MINIMAL_HTML_BODY_TEMPLATE, MINIMAL_HTML_POST, MINIMAL_HTML_PRE, test_minimal_html,
 };

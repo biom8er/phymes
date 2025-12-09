@@ -207,7 +207,10 @@ fn embeddings_to_tensor(
                 let lhs_dim_1 = if let Some(embeddings) = lhs_embeddings.first() {
                     embeddings.len()
                 } else {
-                    return Err(anyhow!("Embeddings vector for {} is empty.", table.get_name()))
+                    return Err(anyhow!(
+                        "Embeddings vector for {} is empty.",
+                        table.get_name()
+                    ));
                 };
                 let lhs_vec = lhs_embeddings.into_iter().flatten().collect::<Vec<_>>();
                 let lhs_tensor =
@@ -220,7 +223,10 @@ fn embeddings_to_tensor(
                 let lhs_dim_1 = if let Some(embeddings) = lhs_embeddings.first() {
                     embeddings.len()
                 } else {
-                    return Err(anyhow!("Embeddings vector for {} is empty.", table.get_name()))
+                    return Err(anyhow!(
+                        "Embeddings vector for {} is empty.",
+                        table.get_name()
+                    ));
                 };
                 let lhs_vec = lhs_embeddings.into_iter().flatten().collect::<Vec<_>>();
                 let lhs_tensor =
@@ -233,7 +239,10 @@ fn embeddings_to_tensor(
                 let lhs_dim_1 = if let Some(embeddings) = lhs_embeddings.first() {
                     embeddings.len()
                 } else {
-                    return Err(anyhow!("Embeddings vector for {} is empty.", table.get_name()))
+                    return Err(anyhow!(
+                        "Embeddings vector for {} is empty.",
+                        table.get_name()
+                    ));
                 };
                 let lhs_vec = lhs_embeddings.into_iter().flatten().collect::<Vec<_>>();
                 let lhs_tensor =
@@ -248,7 +257,10 @@ fn embeddings_to_tensor(
                 let lhs_dim_1 = if let Some(embeddings) = lhs_embeddings.first() {
                     embeddings.len()
                 } else {
-                    return Err(anyhow!("Embeddings vector for {} is empty.", table.get_name()))
+                    return Err(anyhow!(
+                        "Embeddings vector for {} is empty.",
+                        table.get_name()
+                    ));
                 };
                 let lhs_vec = lhs_embeddings.into_iter().flatten().collect::<Vec<_>>();
                 let lhs_tensor =
@@ -261,7 +273,10 @@ fn embeddings_to_tensor(
                 let lhs_dim_1 = if let Some(embeddings) = lhs_embeddings.first() {
                     embeddings.len()
                 } else {
-                    return Err(anyhow!("Embeddings vector for {} is empty.", table.get_name()))
+                    return Err(anyhow!(
+                        "Embeddings vector for {} is empty.",
+                        table.get_name()
+                    ));
                 };
                 let lhs_vec = lhs_embeddings.into_iter().flatten().collect::<Vec<_>>();
                 let lhs_tensor =

@@ -1,5 +1,9 @@
 use std::{
-    collections::HashMap, hash::{DefaultHasher, Hash, Hasher}, ops::{BitAnd, BitOr, BitXor, Not}, str::FromStr, sync::Arc
+    collections::HashMap,
+    hash::{DefaultHasher, Hash, Hasher},
+    ops::{BitAnd, BitOr, BitXor, Not},
+    str::FromStr,
+    sync::Arc,
 };
 
 use anyhow::{Result, anyhow};
@@ -398,7 +402,7 @@ fn rhs_helper(
 /// Hashes a string into an integer using Rust's DefaultHasher if it cannot be parsed into an integer directly.
 /// # Notes
 /// - This is NOT cryptographically secure — use for non-security purposes only.
-fn hash_string<T>(s: &str) -> Result<T> 
+fn hash_string<T>(s: &str) -> Result<T>
 where
     T: Num + Bounded + NumCast + Send + Sync + WithDType + FromStr + 'static,
 {
@@ -495,7 +499,10 @@ pub fn select(
         .build()?;
 
     // Local mutable copy of `cast_template`
-    let mut cast_templates = cast_templates.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+    let mut cast_templates = cast_templates
+        .iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
 
     // Apply the cast and optional column renaming and template injection based on the lhs_values
     let mut missing_vec: Vec<(&&str, ArrayRef)> = Vec::new();
@@ -2180,32 +2187,34 @@ pub fn select(
                     }
                 }
             }
-            DataCastOperator::Hash => match (column_data_type, cast_datatypes.get(index).unwrap()) {
-                (DataType::Utf8, DataType::UInt32) => {
-                    let lhs_vec = column_cast
-                        .as_any()
-                        .downcast_ref::<StringArray>()
-                        .unwrap()
-                        .iter()
-                        .map(|s| hash_string::<u32>(s.unwrap_or_default()).unwrap_or_default())
-                        .collect::<Vec<_>>();
-                    Arc::new(UInt32Array::from(lhs_vec))
-                }
-                (DataType::Utf8, DataType::Int64) => {
-                    let lhs_vec = column_cast
-                        .as_any()
-                        .downcast_ref::<StringArray>()
-                        .unwrap()
-                        .iter()
-                        .map(|s| hash_string::<i64>(s.unwrap_or_default()).unwrap_or_default())
-                        .collect::<Vec<_>>();
-                    Arc::new(Int64Array::from(lhs_vec))
-                }
-                _ => {
-                    return Err(anyhow!(
-                        "Unsupported data type {column_data_type} for Hashing to {} for column {column_name}. The supported data types are from Utf8 to UInt32 and Int64",
-                        cast_datatypes.get(index).unwrap()
-                    ));
+            DataCastOperator::Hash => {
+                match (column_data_type, cast_datatypes.get(index).unwrap()) {
+                    (DataType::Utf8, DataType::UInt32) => {
+                        let lhs_vec = column_cast
+                            .as_any()
+                            .downcast_ref::<StringArray>()
+                            .unwrap()
+                            .iter()
+                            .map(|s| hash_string::<u32>(s.unwrap_or_default()).unwrap_or_default())
+                            .collect::<Vec<_>>();
+                        Arc::new(UInt32Array::from(lhs_vec))
+                    }
+                    (DataType::Utf8, DataType::Int64) => {
+                        let lhs_vec = column_cast
+                            .as_any()
+                            .downcast_ref::<StringArray>()
+                            .unwrap()
+                            .iter()
+                            .map(|s| hash_string::<i64>(s.unwrap_or_default()).unwrap_or_default())
+                            .collect::<Vec<_>>();
+                        Arc::new(Int64Array::from(lhs_vec))
+                    }
+                    _ => {
+                        return Err(anyhow!(
+                            "Unsupported data type {column_data_type} for Hashing to {} for column {column_name}. The supported data types are from Utf8 to UInt32 and Int64",
+                            cast_datatypes.get(index).unwrap()
+                        ));
+                    }
                 }
             }
             DataCastOperator::None => column_cast,
@@ -2486,9 +2495,24 @@ mod tests {
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
             &["", "", "", ""],
             &["new_pk1", "", "", "hash_pk"],
-            &[DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::None],
-            &[DataCastOperator::None, DataCastOperator::None, DataCastOperator::None, DataCastOperator::Hash],
-            &[DataType::Utf8, DataType::UInt32, DataType::Float32, DataType::UInt32],
+            &[
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+            ],
+            &[
+                DataCastOperator::None,
+                DataCastOperator::None,
+                DataCastOperator::None,
+                DataCastOperator::Hash,
+            ],
+            &[
+                DataType::Utf8,
+                DataType::UInt32,
+                DataType::Float32,
+                DataType::UInt32,
+            ],
             &["", "", "0.75", ""],
             &device,
         )?;

@@ -84,19 +84,26 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     /// Write record batches to CSV
     fn to_csv_file(&self, file: &mut File, delimiter: u8, header: bool) -> Result<()> {
         // Convert nested columns to String
-        let batches = self.get_record_batches()
+        let batches = self
+            .get_record_batches()
             .iter()
             .map(|batch| {
                 let binding = batch.schema();
-                let batches = binding.fields().iter().map(|f| if f.data_type().is_nested() {
-                    let arr = batch.column_by_name(f.name()).unwrap();
-                    let vec_str = Self::get_array_as_vec_string(arr, f.name()).unwrap();
-                    let arr: ArrayRef = Arc::new(StringArray::from(vec_str));
-                    (f.name(), arr)
-                } else {
-                    let arr = batch.column_by_name(f.name()).unwrap();
-                    (f.name(), arr.to_owned())
-                }).collect::<Vec<_>>();
+                let batches = binding
+                    .fields()
+                    .iter()
+                    .map(|f| {
+                        if f.data_type().is_nested() {
+                            let arr = batch.column_by_name(f.name()).unwrap();
+                            let vec_str = Self::get_array_as_vec_string(arr, f.name()).unwrap();
+                            let arr: ArrayRef = Arc::new(StringArray::from(vec_str));
+                            (f.name(), arr)
+                        } else {
+                            let arr = batch.column_by_name(f.name()).unwrap();
+                            (f.name(), arr.to_owned())
+                        }
+                    })
+                    .collect::<Vec<_>>();
                 RecordBatch::try_from_iter(batches).unwrap()
             })
             .collect::<Vec<_>>();
@@ -119,19 +126,26 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     /// Write record batches to CSV
     fn to_csv(&self, delimiter: u8, header: bool) -> Result<Vec<u8>> {
         // Convert nested columns to String
-        let batches = self.get_record_batches()
+        let batches = self
+            .get_record_batches()
             .iter()
             .map(|batch| {
                 let binding = batch.schema();
-                let batches = binding.fields().iter().map(|f| if f.data_type().is_nested() {
-                    let arr = batch.column_by_name(f.name()).unwrap();
-                    let vec_str = Self::get_array_as_vec_string(arr, f.name()).unwrap();
-                    let arr: ArrayRef = Arc::new(StringArray::from(vec_str));
-                    (f.name(), arr)
-                } else {
-                    let arr = batch.column_by_name(f.name()).unwrap();
-                    (f.name(), arr.to_owned())
-                }).collect::<Vec<_>>();
+                let batches = binding
+                    .fields()
+                    .iter()
+                    .map(|f| {
+                        if f.data_type().is_nested() {
+                            let arr = batch.column_by_name(f.name()).unwrap();
+                            let vec_str = Self::get_array_as_vec_string(arr, f.name()).unwrap();
+                            let arr: ArrayRef = Arc::new(StringArray::from(vec_str));
+                            (f.name(), arr)
+                        } else {
+                            let arr = batch.column_by_name(f.name()).unwrap();
+                            (f.name(), arr.to_owned())
+                        }
+                    })
+                    .collect::<Vec<_>>();
                 RecordBatch::try_from_iter(batches).unwrap()
             })
             .collect::<Vec<_>>();
@@ -271,7 +285,8 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     fn get_array_as_vec_string(arr: &Arc<dyn Array>, column_name: &str) -> Result<Vec<String>> {
         match arr.data_type() {
             DataType::Utf8 => {
-                let vec_str = arr.as_any()
+                let vec_str = arr
+                    .as_any()
                     .downcast_ref::<StringArray>()
                     .unwrap()
                     .iter()
@@ -293,7 +308,8 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             | DataType::Null => {
                 // Cast the column to a String
                 let arr = cast(arr, &DataType::Utf8)?;
-                let vec_str = arr.as_any()
+                let vec_str = arr
+                    .as_any()
                     .downcast_ref::<StringArray>()
                     .unwrap()
                     .iter()
@@ -318,7 +334,8 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
                 Ok(vec_str)
             }
             _ => Err(anyhow!(
-                "Unsupported data type {} for column {column_name} when trying to convert to String.", arr.data_type()
+                "Unsupported data type {} for column {column_name} when trying to convert to String.",
+                arr.data_type()
             )),
         }
     }
@@ -723,7 +740,9 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             let arr = batch.column_by_name(column_name).unwrap();
             Ok(Arc::clone(arr))
         } else {
-            Err(anyhow!("Cannot get column {column_name} as an Array because there are no RecordBatches."))
+            Err(anyhow!(
+                "Cannot get column {column_name} as an Array because there are no RecordBatches."
+            ))
         }
     }
 }

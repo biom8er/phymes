@@ -353,7 +353,10 @@ pub fn messaging_interface_footer(
 
     // Check if the last message is assistant pending
     let assistent_pending: Memo<bool> = use_memo(move || {
-        if let (Some(role), Some(contents)) = (messaging_roles.read().last(), messaging_contents.read().last()) {
+        if let (Some(role), Some(contents)) = (
+            messaging_roles.read().last(),
+            messaging_contents.read().last(),
+        ) {
             if role.as_str() == "assistant" && contents.as_str() == "Preparing response..." {
                 true
             } else {
@@ -503,7 +506,7 @@ pub fn messaging_interface_footer(
                                                         messaging_timestamps.push(t);
                                                         messaging_indices.push(index);
                                                     }
-                                                }                                                
+                                                }
                                             } else {
                                                 update_message_state(messaging_roles,
                                                     messaging_contents,
@@ -547,7 +550,7 @@ pub fn messaging_interface_footer(
                                         .try_collect()
                                         .await
                                         .unwrap();
-                                    
+
                                     // Remove the last message
                                     if assistent_pending() {
                                         messaging_roles.write().pop();

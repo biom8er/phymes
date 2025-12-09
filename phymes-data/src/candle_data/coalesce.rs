@@ -354,8 +354,8 @@ impl Stream for CoalesceStream {
 
         // Continue to clear the overflow
         match self.coalescer_state {
-            CoalescerState::Continue => {},
-            CoalescerState::LimitReached  => {
+            CoalescerState::Continue => {}
+            CoalescerState::LimitReached => {
                 let output_batch = self.finish_batch().unwrap();
                 let poll = Poll::Ready(Some(Ok(output_batch)));
 
@@ -369,9 +369,7 @@ impl Stream for CoalesceStream {
         }
 
         // Push more batches to coalesce
-        while let Some(Ok(batch)) =
-            ready!(self.message_stream.as_mut().poll_next_unpin(cx))
-        {
+        while let Some(Ok(batch)) = ready!(self.message_stream.as_mut().poll_next_unpin(cx)) {
             self.push_batch(batch);
             match self.coalescer_state {
                 CoalescerState::Continue => {}

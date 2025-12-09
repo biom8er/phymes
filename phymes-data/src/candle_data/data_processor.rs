@@ -362,7 +362,7 @@ impl Stream for CandleDataStream {
                             if batch.num_rows() > 0 && batch.num_columns() > 0 {
                                 batches.push(batch);
                                 break;
-                            }                            
+                            }
                         }
                         batches
                     }

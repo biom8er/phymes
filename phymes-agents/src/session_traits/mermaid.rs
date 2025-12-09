@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::{SessionContextBuilderAgentsTrait, session_plans::{AvailableProcessors, check_agent_subjects}};
+use crate::{
+    SessionContextBuilderAgentsTrait,
+    session_plans::{AvailableProcessors, check_agent_subjects},
+};
 use anyhow::{Result, anyhow};
 use arrow::{
     array::RecordBatch,
@@ -296,9 +299,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 let value = if config_data && processor_names.contains(subject.get_name())
                     || example_data
                 {
-                    if let Ok(mut example_data) =
-                        subject.get_column_as_vec_string(field.name())
-                    {
+                    if let Ok(mut example_data) = subject.get_column_as_vec_string(field.name()) {
                         example_data.pop().unwrap_or_default()
                     } else {
                         String::new()
@@ -1111,7 +1112,8 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 while iter < erdiagram_lines.len() {
                     // Check for end of subject section (and exclude jinja2 templating brackets)
                     if erdiagram_lines.get(iter).unwrap().trim_end() == "    }"
-                        || erdiagram_lines.get(iter).unwrap().trim_end() == "\t}" {
+                        || erdiagram_lines.get(iter).unwrap().trim_end() == "\t}"
+                    {
                         // Build and add the table to the subjects list
                         let schema = Arc::new(Schema::new(fields));
                         let table = if with_values && !data.is_empty() {
