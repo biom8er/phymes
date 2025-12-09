@@ -1,7 +1,6 @@
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll, ready};
-use std::usize;
 
 use anyhow::{Result, anyhow};
 use arrow::array::builder::StringViewBuilder;
