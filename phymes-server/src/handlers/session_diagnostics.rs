@@ -12,8 +12,7 @@ use bytes::Bytes;
 use futures::prelude::*;
 use parking_lot::RwLock;
 use phymes_agents::{
-    CustomAgentsBuilderTrait, DiagnosticSession, SessionContextBuilderAgentsTrait,
-    create_message_map,
+    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DiagnosticSession, SessionContextBuilderAgentsTrait, create_message_map
 };
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, IPCMessage,
@@ -48,7 +47,7 @@ pub async fn session_diagnostics(
         Ok(payload) => {
             // We got a valid JSON payload
             tracing::debug!(
-                "Running chat session for session_name {}",
+                "Running diagnostic session for session_name {}",
                 payload.get_session_name()
             );
 
@@ -187,6 +186,9 @@ pub async fn session_diagnostics(
             let session_ctx = diagnostic_session
                 .build()
                 .with_name(diagnostic_session.session_context_name)
+                .add_session_interface(Some(&[AvailableInterfaceSubjects::AggregatedAttachments
+                    .to_string()
+                    .as_str()])).unwrap()
                 .build_with_tables()
                 .unwrap();
             let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
