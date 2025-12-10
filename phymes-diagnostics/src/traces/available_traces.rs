@@ -45,6 +45,7 @@ impl JSONObjectTrait for Trace {
             );
             map.insert("message_name".to_string(), tracer.message_name.into());
             map.insert("subject_name".to_string(), tracer.subject_name.into());
+            map.insert("tracer_timestamp".to_string(), tracer.timestamp.into());
             object.push(map);
         }
         for tracer in self.exited().into_iter() {
@@ -56,6 +57,7 @@ impl JSONObjectTrait for Trace {
             );
             map.insert("message_name".to_string(), tracer.message_name.into());
             map.insert("subject_name".to_string(), tracer.subject_name.into());
+            map.insert("tracer_timestamp".to_string(), tracer.timestamp.into());
             object.push(map);
         }
         object

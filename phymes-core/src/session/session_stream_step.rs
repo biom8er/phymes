@@ -412,22 +412,6 @@ mod tests {
                 .is_none()
         );
 
-        let updated = session_stream_state
-            .try_write()
-            .unwrap()
-            .get_session_context_mut()
-            .update_metrics_mermaid_gantt_table()?;
-        assert!(!updated);
-        assert!(
-            session_stream_state
-                .try_read()
-                .unwrap()
-                .get_session_context()
-                .get_states()
-                .get(AvailableSubjects::MetricPivot.to_string().as_str())
-                .is_none()
-        );
-
         Ok(())
     }
 
@@ -535,39 +519,6 @@ mod tests {
             1
         );
 
-        let updated = session_stream_state
-            .try_write()
-            .unwrap()
-            .get_session_context_mut()
-            .update_metrics_mermaid_gantt_table()?;
-        assert!(updated);
-
-        assert_eq!(
-            session_stream_state
-                .try_read()
-                .unwrap()
-                .get_session_context()
-                .get_states()
-                .get(AvailableSubjects::MetricPivot.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        let output_rows = session_stream_state
-            .try_read()
-            .unwrap()
-            .get_session_context()
-            .get_states()
-            .get(AvailableSubjects::MetricPivot.to_string().as_str())
-            .unwrap()
-            .try_read()
-            .unwrap()
-            .get_column_as_vec_primitive::<i64>("output_rows")?;
-        assert_eq!(output_rows.iter().sum::<i64>(), 30);
-
         Ok(())
     }
 
@@ -674,39 +625,6 @@ mod tests {
                 .len(),
             1
         );
-
-        let updated = session_stream_state
-            .try_write()
-            .unwrap()
-            .get_session_context_mut()
-            .update_metrics_mermaid_gantt_table()?;
-        assert!(updated);
-
-        assert_eq!(
-            session_stream_state
-                .try_read()
-                .unwrap()
-                .get_session_context()
-                .get_states()
-                .get(AvailableSubjects::MetricPivot.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        let output_rows = session_stream_state
-            .try_read()
-            .unwrap()
-            .get_session_context()
-            .get_states()
-            .get(AvailableSubjects::MetricPivot.to_string().as_str())
-            .unwrap()
-            .try_read()
-            .unwrap()
-            .get_column_as_vec_primitive::<i64>("output_rows")?;
-        assert_eq!(output_rows.iter().sum::<i64>(), 15);
 
         Ok(())
     }
@@ -865,40 +783,7 @@ mod tests {
                 .len(),
             1
         );
-
-        let updated = session_stream_state
-            .try_write()
-            .unwrap()
-            .get_session_context_mut()
-            .update_metrics_mermaid_gantt_table()?;
-        assert!(updated);
-
-        assert_eq!(
-            session_stream_state
-                .try_read()
-                .unwrap()
-                .get_session_context()
-                .get_states()
-                .get(AvailableSubjects::MetricPivot.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        let output_rows = session_stream_state
-            .try_read()
-            .unwrap()
-            .get_session_context()
-            .get_states()
-            .get(AvailableSubjects::MetricPivot.to_string().as_str())
-            .unwrap()
-            .try_read()
-            .unwrap()
-            .get_column_as_vec_primitive::<i64>("output_rows")?;
-        assert_eq!(output_rows.iter().sum::<i64>(), 45);
-
+        
         // Superstep 2
         let mut response = SessionStreamStep::run_superstep(
             Arc::clone(&session_stream_state),
@@ -1147,38 +1032,6 @@ mod tests {
             2
         );
 
-        let updated = session_stream_state
-            .try_write()
-            .unwrap()
-            .get_session_context_mut()
-            .update_metrics_mermaid_gantt_table()?;
-        assert!(updated);
-        assert_eq!(
-            session_stream_state
-                .try_read()
-                .unwrap()
-                .get_session_context()
-                .get_states()
-                .get(AvailableSubjects::MetricPivot.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        let output_rows = session_stream_state
-            .try_read()
-            .unwrap()
-            .get_session_context()
-            .get_states()
-            .get(AvailableSubjects::MetricPivot.to_string().as_str())
-            .unwrap()
-            .try_read()
-            .unwrap()
-            .get_column_as_vec_primitive::<i64>("output_rows")?;
-        assert_eq!(output_rows.iter().sum::<i64>(), 63);
-
         Ok(())
     }
 
@@ -1256,39 +1109,6 @@ mod tests {
                 .len(),
             1
         );
-
-        let updated = session_stream_state
-            .try_write()
-            .unwrap()
-            .get_session_context_mut()
-            .update_metrics_mermaid_gantt_table()?;
-        assert!(updated);
-
-        assert_eq!(
-            session_stream_state
-                .try_read()
-                .unwrap()
-                .get_session_context()
-                .get_states()
-                .get(AvailableSubjects::MetricPivot.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        let output_rows = session_stream_state
-            .try_read()
-            .unwrap()
-            .get_session_context()
-            .get_states()
-            .get(AvailableSubjects::MetricPivot.to_string().as_str())
-            .unwrap()
-            .try_read()
-            .unwrap()
-            .get_column_as_vec_primitive::<i64>("output_rows")?;
-        assert_eq!(output_rows.iter().sum::<i64>(), 45);
 
         // Supersteps 2, 3, and 4
         let _ = SessionStreamStep::run_superstep(
@@ -1423,38 +1243,6 @@ mod tests {
                 .len(),
             4
         );
-
-        let updated = session_stream_state
-            .try_write()
-            .unwrap()
-            .get_session_context_mut()
-            .update_metrics_mermaid_gantt_table()?;
-        assert!(updated);
-        assert_eq!(
-            session_stream_state
-                .try_read()
-                .unwrap()
-                .get_session_context()
-                .get_states()
-                .get(AvailableSubjects::MetricPivot.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        let output_rows = session_stream_state
-            .try_read()
-            .unwrap()
-            .get_session_context()
-            .get_states()
-            .get(AvailableSubjects::MetricPivot.to_string().as_str())
-            .unwrap()
-            .try_read()
-            .unwrap()
-            .get_column_as_vec_primitive::<i64>("output_rows")?;
-        assert_eq!(output_rows.iter().sum::<i64>(), 5385);
 
         Ok(())
     }

@@ -77,22 +77,18 @@ pub fn from_traces_to_messages(
         .into_iter()
         .collect::<HashSet<_>>();
 
-    // // Presort the traces by columns
-    // let lhs_values = ["tracer_event", "parent_name", "span_name", "timestamp", "subject_name"];
-    // let mut lhs_sorted = RecordBatch::new_empty(Arc::new(Schema::empty()));
-    // for (iter, column_name) in lhs_values.iter().enumerate() {
-    //     if iter > 0 {
-    //         lhs_sorted = sort_column_and_indices(column_name, &[lhs_sorted], true, device)?;
-    //     } else {
-    //         lhs_sorted = sort_column_and_indices(column_name, lhs_args, true, device)?;
-    //     }
-    // }
-    // let lhs_table = Table::get_builder()
-    //     .with_record_batches(vec![lhs_sorted])?
-    //     .with_name("")
-    //     .build()?;
+    // Presort the traces by columns
+    let lhs_values = ["tracer_event", "parent_name", "span_name", "tracer_timestamp", "subject_name"];
+    let mut lhs_sorted = RecordBatch::new_empty(Arc::new(Schema::empty()));
+    for (iter, column_name) in lhs_values.iter().enumerate() {
+        if iter > 0 {
+            lhs_sorted = sort(column_name, &[lhs_sorted], true, device)?;
+        } else {
+            lhs_sorted = sort(column_name, lhs_args, true, device)?;
+        }
+    }
     let lhs_table = Table::get_builder()
-        .with_record_batches(lhs_args.to_vec())?
+        .with_record_batches(vec![lhs_sorted])?
         .with_name("")
         .build()?;
 
@@ -106,7 +102,7 @@ pub fn from_traces_to_messages(
         .zip(lhs_table.get_column_as_vec_primitive::<i64>("parent_id")?)
         .zip(lhs_table.get_column_as_vec_nonprimitive::<String>("subject_name")?)
         .zip(lhs_table.get_column_as_vec_nonprimitive::<String>("message_name")?)
-        .zip(lhs_table.get_column_as_vec_primitive::<i64>("timestamp")?)
+        .zip(lhs_table.get_column_as_vec_primitive::<i64>("tracer_timestamp")?)
         .map(|(((((((a, b), c), d), e), f), g), h)| (a, b, c, d, e, f, g, h))
         .collect::<Vec<_>>();
     let mut subject_name_vec: Vec<String> = Vec::new();
@@ -118,12 +114,8 @@ pub fn from_traces_to_messages(
     let mut note_location_vec: Vec<String> = Vec::new();
     let mut timestamp_messages_vec = Vec::new();
 
-    // DM: TODO: add in dimensions of tracer run depth
-
-    // Track the beginning and end of a message triple
-    // let mut subject = &combined.first().unwrap().5;
-    // let mut entered = None;
-    // let mut exited = None;
+    let mut entered: Option<(String, String, String, i64, i64, String, String, i64)> = None;
+    let mut exited: Option<(String, String, String, i64, i64, String, String, i64)> = None;
     for (
         tracer_event,
         span_name,
@@ -133,68 +125,130 @@ pub fn from_traces_to_messages(
         subject_name,
         message_name,
         timestamp,
-    ) in combined.iter()
+    ) in combined.into_iter()
     {
-        subject_name_vec.push("State".to_string());
-        object_name_vec.push(span_name.to_string());
-        message_type_vec.push("->>".to_string());
-        activation_type_vec.push(String::new());
-        message_content_vec.push(format!("subject: {subject_name}"));
-        note_content_vec.push(String::new());
-        note_location_vec.push(String::new());
-        timestamp_messages_vec.push(timestamp.to_owned());
+        // Check for either an entered or exited state
+        if tracer_event == "entered" {
+            if let Some(previous) = entered.take() {
+                // Determine the subjects and objects based on the parents and if the subjects match
+                let so_names = if parent_name.is_empty() {
+                    let subject_name = "User".to_string();
+                    // let object_name = "State".to_string();
+                    let object_name = span_name.clone();
+                    Some((subject_name, object_name))
+                } else if previous.5 == subject_name && previous.2.is_empty() {
+                    // let subject_name = "State".to_string();
+                    let subject_name = previous.1;
+                    // let object_name = format!("parent-{}<br>span-{}", parent_name, span_name);
+                    let object_name = span_name.clone();
+                    Some((subject_name, object_name))
+                } else if previous.5 == subject_name {                    
+                    // let subject_name = format!("parent-{}<br>span-{}", previous.2, previous.1);
+                    // let object_name = format!("parent-{}<br>span-{}", parent_name, span_name);
+                    let subject_name = previous.1;
+                    let object_name = span_name.clone();
+                    Some((subject_name, object_name))
+                } else {                    
+                    None
+                };
 
-        // if subject_name != subject && tracer_event == "entered" && parent_name.is_empty() {
-        //     // From user to state: enter() only with no parent
-        //     subject_name_vec.push("User".to_string());
-        //     object_name_vec.push(span_name.to_string());
-        //     message_type_vec.push("->>".to_string());
-        //     activation_type_vec.push(String::new());
-        //     message_content_vec.push(format!("subject: {}", subject_name));
-        //     note_content_vec.push(String::new());
-        //     note_location_vec.push(String::new());
-        //     timestamp_messages_vec.push(timestamp.to_owned());
-        //     subject = subject_name;
-        //     entered.replace((tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
-        // } else if subject_name != subject && tracer_event == "entered" && !parent_name.is_empty() {
-        //     // From state to task: enter() only
-        //     subject_name_vec.push("State".to_string());
-        //     object_name_vec.push(span_name.to_string());
-        //     message_type_vec.push("->>".to_string());
-        //     activation_type_vec.push(String::new());
-        //     message_content_vec.push(format!("subject: {}", subject_name));
-        //     note_content_vec.push(String::new());
-        //     note_location_vec.push(String::new());
-        //     timestamp_messages_vec.push(timestamp.to_owned());
-        //     subject = subject_name;
-        //     entered.replace((tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
-        // } else if subject_name != subject && tracer_event == "exited" && !parent_name.is_empty() {
-        //     // From task to state: exit() only
-        //     subject_name_vec.push(span_name.to_string());
-        //     object_name_vec.push("State".to_string());
-        //     message_type_vec.push("->>".to_string());
-        //     activation_type_vec.push(String::new());
-        //     message_content_vec.push(format!("subject: {}", subject_name));
-        //     note_content_vec.push(String::new());
-        //     note_location_vec.push(String::new());
-        //     timestamp_messages_vec.push(timestamp.to_owned());
-        //     subject = subject_name;
-        //     exited.replace((tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
-        // } else if subject_name == subject_name && tracer_event == "entered" && parent_name == entered.unwrap().1 {
-        //     // Parent to child: enter() -> enter() where parent name of child matches parent
-        //     subject = subject_name;
+                // Record the trace
+                if let Some((s_name, o_name)) = so_names {
+                    subject_name_vec.push(s_name);
+                    object_name_vec.push(o_name);
+                    message_type_vec.push("->>".to_string());
+                    activation_type_vec.push(String::new());
+                    message_content_vec.push(format!("subject: {subject_name}<br>message: {message_name}"));
+                    note_content_vec.push(String::new());
+                    note_location_vec.push(String::new());
+                    timestamp_messages_vec.push(timestamp.to_owned());
+                }
 
-        // } else if subject_name == subject_name && tracer_event == "exited" && span_name == exited.unwrap().2 {
-        //     // Child to parent: exit() -> exit() where parent name of child matches parent
-        //     subject = subject_name;
+                // Update entered
+                entered.replace((tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
 
-        // } else if subject_name == subject_name && tracer_event == "entered" && parent_name == exited.unwrap().2 {
-        //     // Span to span at the same hierarchy: exit() -> enter() where parent_name is the same
-        //     subject = subject_name;
+            } else if let Some(previous) = exited.take() {
+                // Determine the subjects and objects based on the parents and if the subjects match
+                let so_names = if previous.5 == subject_name {
+                    // let subject_name = format!("parent-{}<br>span-{}", previous.2, previous.1);
+                    // let object_name = format!("parent-{}<br>span-{}", parent_name, span_name);
+                    let subject_name = previous.1;
+                    let object_name = span_name.clone();
+                    Some((subject_name, object_name))
+                } else {                    
+                    None
+                };
 
-        // } else {
-        //     return Err(anyhow!("Unexpected enter/exit trace found {}, {}, {}, {}, {}, {}, {}, {}", tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
-        // }
+                // Record the trace
+                if let Some((s_name, o_name)) = so_names {
+                    subject_name_vec.push(s_name);
+                    object_name_vec.push(o_name);
+                    message_type_vec.push("->>".to_string());
+                    activation_type_vec.push(String::new());
+                    message_content_vec.push(format!("subject: {subject_name}<br>message: {message_name}"));
+                    note_content_vec.push(String::new());
+                    note_location_vec.push(String::new());
+                    timestamp_messages_vec.push(timestamp.to_owned());
+                }
+
+                // Update entered
+                entered.replace((tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
+            } else {
+
+                // Update entered
+                entered.replace((tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
+            }
+
+        } else if tracer_event == "exited" {
+            if let Some(previous) = entered.take() {
+                // Nothing todo here except to update exited
+                exited.replace((tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
+
+            } else if let Some(previous) = exited.take() {
+                // Determine the subjects and objects based on the parents and if the subjects match
+                let so_names = if previous.2.is_empty() {
+                    // let subject_name = "State".to_string();
+                    let subject_name = previous.1;
+                    let object_name = "User".to_string();
+                    Some((subject_name, object_name))
+                } else if previous.5 == subject_name && previous.2.is_empty() {
+                    // let subject_name = format!("parent-{}<br>span-{}", previous.2, previous.1);
+                    let subject_name = previous.1;
+                    // let object_name = "State".to_string();
+                    let object_name = span_name.clone();
+                    Some((subject_name, object_name))
+                } else if previous.5 == subject_name {
+                    // let subject_name = format!("parent-{}<br>span-{}", previous.2, previous.1);
+                    // let object_name = format!("parent-{}<br>span-{}", parent_name, span_name);
+                    let subject_name = previous.1;
+                    let object_name = span_name.clone();
+                    Some((subject_name, object_name))
+                } else {                    
+                    None
+                };
+
+                // Record the trace
+                if let Some((s_name, o_name)) = so_names {
+                    subject_name_vec.push(s_name);
+                    object_name_vec.push(o_name);
+                    message_type_vec.push("->>".to_string());
+                    activation_type_vec.push(String::new());
+                    message_content_vec.push(format!("subject: {subject_name}<br>message: {message_name}"));
+                    note_content_vec.push(String::new());
+                    note_location_vec.push(String::new());
+                    timestamp_messages_vec.push(timestamp.to_owned());
+                }
+
+                // Update exited
+                exited.replace((tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
+            } else {
+
+                // Update exited
+                exited.replace((tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
+            }
+        } else {
+            return Err(anyhow!("Unexpected enter/exit trace found {}, {}, {}, {}, {}, {}, {}, {}", tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
+        }
     }
 
     // Re-sort by timestamp
@@ -232,331 +286,34 @@ mod tests {
 
     #[test]
     fn test_from_traces_to_messages() -> Result<()> {
-        // Make the test record batches
-        let tracer_type = [
-            "Messages", "Messages", "Messages", "Messages", "Messages", "Messages", "Messages",
-            "Messages", "Messages", "Messages", "Messages", "Messages", "Messages", "Messages",
-            "Messages", "Messages", "Messages", "Messages", "Messages", "Messages", "Messages",
-            "Messages", "Messages", "Messages", "Messages", "Messages", "Messages", "Messages",
-            "Messages", "Messages", "Messages", "Messages", "Messages", "Messages", "Messages",
-            "Messages", "Messages", "Messages", "Messages", "Messages", "Messages", "Messages",
-            "Messages", "Messages", "Messages", "Messages", "Messages", "Messages",
+        // Make the test traces which are based on chat session with two interactions
+        let tracer_type = ["Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages","Messages"
         ];
-        let tracer_event = [
-            "exited", "entered", "exited", "entered", "exited", "entered", "exited", "entered",
-            "exited", "entered", "exited", "entered", "exited", "entered", "exited", "entered",
-            "entered", "exited", "exited", "entered", "exited", "entered", "exited", "exited",
-            "entered", "exited", "entered", "exited", "exited", "entered", "exited", "entered",
-            "exited", "entered", "exited", "entered", "exited", "entered", "exited", "entered",
-            "exited", "entered", "exited", "entered", "exited", "entered", "exited", "entered",
+        let tracer_event = ["entered","entered","entered","exited","entered","entered","exited","entered","entered","exited","entered","entered","exited","exited","entered","exited","entered","exited","entered","entered","entered","exited","entered","entered","entered","exited","entered","entered","entered","entered","exited","entered","entered","entered","exited","entered","entered","exited","entered","entered","exited","exited","entered","exited","entered","exited","entered","entered","entered","exited","entered","entered","entered","exited"
         ];
-        let message_name = [
-            "state_1_145400443860007532692884143026107463224",
-            "state_1_145400443860007532692884143026107463224",
-            "state_1_186565055984087162001738051867427998330",
-            "state_1_186565055984087162001738051867427998330",
-            "state_1_261489347384847644355362190768032642075",
-            "state_1_261489347384847644355362190768032642075",
-            "state_1_228173522346316916885579131611404317204",
-            "state_1_228173522346316916885579131611404317204",
-            "state_1_243773822264980459180624445440384838248",
-            "state_1_243773822264980459180624445440384838248",
-            "state_1_37631294003838125574527916569345721805",
-            "state_1_37631294003838125574527916569345721805",
-            "state_1_26064730536607422073993808491441966412",
-            "state_1_26064730536607422073993808491441966412",
-            "state_1_80362914748176319296854015531470579852",
-            "state_1_80362914748176319296854015531470579852",
-            "task_1",
-            "from_session_1_on_state_1",
-            "from_session_1_on_state_1",
-            "state_1_41487522459421544509868281222405207298",
-            "state_1_41487522459421544509868281222405207298",
-            "state_1_41487522459421544509868281222405207298",
-            "from_session_1_on_state_1",
-            "from_session_1_on_state_1",
-            "state_1_244362090279249268952833896150924961301",
-            "state_1_244362090279249268952833896150924961301",
-            "state_1_244362090279249268952833896150924961301",
-            "from_session_1_on_state_1",
-            "from_session_1_on_state_1",
-            "state_1_238106427844863423206506895364015149421",
-            "state_1_238106427844863423206506895364015149421",
-            "state_1_238106427844863423206506895364015149421",
-            "from_task_1_on_state_1",
-            "state_1_145400443860007532692884143026107463224",
-            "from_task_1_on_state_1",
-            "state_1_186565055984087162001738051867427998330",
-            "from_task_1_on_state_1",
-            "state_1_261489347384847644355362190768032642075",
-            "from_task_1_on_state_1",
-            "state_1_228173522346316916885579131611404317204",
-            "from_task_2_on_state_1",
-            "state_1_243773822264980459180624445440384838248",
-            "from_task_2_on_state_1",
-            "state_1_37631294003838125574527916569345721805",
-            "from_task_2_on_state_1",
-            "state_1_26064730536607422073993808491441966412",
-            "from_task_2_on_state_1",
-            "state_1_80362914748176319296854015531470579852",
+        let message_name = ["from_contactbiom8ercomChat_on_UserMessages","UserMessages_336755146826193674558598646911320250777","message_aggregator_1_240209703317829971128596458254746874195","from_message_aggregator_task_1_on_chat_task_1","UserMessages_336755146826193674558598646911320250777","message_aggregator_1_240209703317829971128596458254746874195","from_message_aggregator_1_on_chat_task_1","chat_task_1_135480752921071220051689844034448398990","chat_processor_1_272383947361372855682470157595452953961","from_chat_task_1_on_AssistantMessages","chat_task_1_135480752921071220051689844034448398990","chat_processor_1_272383947361372855682470157595452953961","from_chat_processor_1_on_AssistantMessages","from_contactbiom8ercomChat_on_AssistantMessages","AssistantMessages_152245860784190681801447320465701877133","from_contactbiom8ercomChat_on_AssistantMessages","AssistantMessages_152245860784190681801447320465701877133","AssistantMessages_152245860784190681801447320465701877133","UserMessages_186135087994148068496551680515614784075","AssistantMessages_241124620828277571948638243843444336216","message_aggregator_2_305770844663281506055820666779255212610","from_message_aggregator_task_2_on_AggregatedMessages","UserMessages_186135087994148068496551680515614784075","AssistantMessages_241124620828277571948638243843444336216","message_aggregator_2_305770844663281506055820666779255212610","from_message_aggregator_2_on_AggregatedMessages","from_contactbiom8ercomChat_on_UserMessages","AssistantMessages_157336070741302015672910225198795432608","message_aggregator_1_49904971912152367753684983521976556855","UserMessages_239034416761099333322888321976723638008","from_message_aggregator_task_1_on_chat_task_1","AssistantMessages_157336070741302015672910225198795432608","message_aggregator_1_49904971912152367753684983521976556855","UserMessages_239034416761099333322888321976723638008","from_message_aggregator_1_on_chat_task_1","chat_task_1_337200085168065351548915970648389364830","chat_processor_1_260744394084496639907163803786907002860","from_chat_task_1_on_AssistantMessages","chat_task_1_337200085168065351548915970648389364830","chat_processor_1_260744394084496639907163803786907002860","from_chat_processor_1_on_AssistantMessages","from_contactbiom8ercomChat_on_AssistantMessages","AssistantMessages_295546099496625232658165418514664934409","from_contactbiom8ercomChat_on_AssistantMessages","AssistantMessages_295546099496625232658165418514664934409","AssistantMessages_295546099496625232658165418514664934409","AssistantMessages_301756319473837870842740763107819233568","message_aggregator_2_198642670475012020917323289448933916779","UserMessages_17089268937073073383526759130015932611","from_message_aggregator_task_2_on_AggregatedMessages","AssistantMessages_301756319473837870842740763107819233568","message_aggregator_2_198642670475012020917323289448933916779","UserMessages_17089268937073073383526759130015932611","from_message_aggregator_2_on_AggregatedMessages"
         ];
-        let subject_name = [
-            "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1",
-            "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1",
-            "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1",
-            "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1",
-            "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1",
-            "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1", "state_1",
+        let subject_name = ["UserMessages","UserMessages","message_aggregator_1","chat_task_1","UserMessages","message_aggregator_1","chat_task_1","chat_task_1","chat_processor_1","AssistantMessages","chat_task_1","chat_processor_1","AssistantMessages","AssistantMessages","AssistantMessages","AssistantMessages","AssistantMessages","AssistantMessages","UserMessages","AssistantMessages","message_aggregator_2","AggregatedMessages","UserMessages","AssistantMessages","message_aggregator_2","AggregatedMessages","UserMessages","AssistantMessages","message_aggregator_1","UserMessages","chat_task_1","AssistantMessages","message_aggregator_1","UserMessages","chat_task_1","chat_task_1","chat_processor_1","AssistantMessages","chat_task_1","chat_processor_1","AssistantMessages","AssistantMessages","AssistantMessages","AssistantMessages","AssistantMessages","AssistantMessages","AssistantMessages","message_aggregator_2","UserMessages","AggregatedMessages","AssistantMessages","message_aggregator_2","UserMessages","AggregatedMessages"
         ];
-        let span_name = [
-            "processor_1",
-            "processor_1",
-            "processor_1",
-            "processor_1",
-            "processor_1",
-            "processor_1",
-            "processor_1",
-            "processor_1",
-            "processor_2",
-            "processor_2",
-            "processor_2",
-            "processor_2",
-            "processor_2",
-            "processor_2",
-            "processor_2",
-            "processor_2",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "task_1",
-            "task_1",
-            "task_1",
-            "task_1",
-            "task_1",
-            "task_1",
-            "task_1",
-            "task_1",
-            "task_2",
-            "task_2",
-            "task_2",
-            "task_2",
-            "task_2",
-            "task_2",
-            "task_2",
-            "task_2",
+        let span_name = ["contactbiom8ercomChat","message_aggregator_task_1","message_aggregator_task_1","message_aggregator_task_1","message_aggregator_1","message_aggregator_1","message_aggregator_1","chat_task_1","chat_task_1","chat_task_1","chat_processor_1","chat_processor_1","chat_processor_1","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","message_aggregator_task_2","message_aggregator_task_2","message_aggregator_task_2","message_aggregator_task_2","message_aggregator_2","message_aggregator_2","message_aggregator_2","message_aggregator_2","contactbiom8ercomChat","message_aggregator_task_1","message_aggregator_task_1","message_aggregator_task_1","message_aggregator_task_1","message_aggregator_1","message_aggregator_1","message_aggregator_1","message_aggregator_1","chat_task_1","chat_task_1","chat_task_1","chat_processor_1","chat_processor_1","chat_processor_1","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","message_aggregator_task_2","message_aggregator_task_2","message_aggregator_task_2","message_aggregator_task_2","message_aggregator_2","message_aggregator_2","message_aggregator_2","message_aggregator_2"
         ];
-        let parent_name = [
-            "task_1",
-            "task_1",
-            "task_1",
-            "task_1",
-            "task_1",
-            "task_1",
-            "task_1",
-            "task_1",
-            "task_2",
-            "task_2",
-            "task_2",
-            "task_2",
-            "task_2",
-            "task_2",
-            "task_2",
-            "task_2",
-            "",
-            "",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
-            "session_1",
+        let parent_name = ["","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","message_aggregator_task_1","message_aggregator_task_1","message_aggregator_task_1","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","chat_task_1","chat_task_1","chat_task_1","","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","message_aggregator_task_2","message_aggregator_task_2","message_aggregator_task_2","message_aggregator_task_2","","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","message_aggregator_task_1","message_aggregator_task_1","message_aggregator_task_1","message_aggregator_task_1","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","chat_task_1","chat_task_1","chat_task_1","","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","message_aggregator_task_2","message_aggregator_task_2","message_aggregator_task_2","message_aggregator_task_2"
         ];
-        let span_id: [i128; 48] = [
-            16184082946072572162,
-            16184082946072572162,
-            2186547869047037942,
-            2186547869047037942,
-            3256812710579872580,
-            3256812710579872580,
-            14510244696094898731,
-            14510244696094898731,
-            14456963133862203229,
-            14456963133862203229,
-            1712640329960440735,
-            1712640329960440735,
-            13165260631272995056,
-            13165260631272995056,
-            16797564894134450851,
-            16797564894134450851,
-            13469193432104994765,
-            7391730627494635845,
-            14870679813591216503,
-            14870679813591216503,
-            10817813420396259474,
-            10817813420396259474,
-            188058941559050804,
-            5644835324380142827,
-            5644835324380142827,
-            14010568442619868195,
-            14010568442619868195,
-            15574280659243175955,
-            1298132286589933723,
-            1298132286589933723,
-            17936549320446211319,
-            17936549320446211319,
-            14509531658266103530,
-            14509531658266103530,
-            2257952061453635836,
-            2257952061453635836,
-            7283200596918334309,
-            7283200596918334309,
-            7053620394350563160,
-            7053620394350563160,
-            14042324002796455054,
-            14042324002796455054,
-            1187106305792110079,
-            1187106305792110079,
-            1038112178665446702,
-            1038112178665446702,
-            558667721896770324,
-            558667721896770324,
+        let file = ["phymes-core/src/session/session_stream_step.rs","phymes-core/src/task/task_trait.rs","phymes-core/src/task/task_trait.rs","phymes-core/src/task/task_trait.rs","phymes-ml/src/candle_chat/message_aggregator_processor.rs","phymes-ml/src/candle_chat/message_aggregator_processor.rs","phymes-ml/src/candle_chat/message_aggregator_processor.rs","phymes-core/src/task/task_trait.rs","phymes-core/src/task/task_trait.rs","phymes-core/src/task/task_trait.rs","phymes-ml/src/candle_chat/chat_processor.rs","phymes-ml/src/candle_chat/chat_processor.rs","phymes-ml/src/candle_chat/chat_processor.rs","phymes-core/src/session/session_stream_step.rs","phymes-core/src/task/task_trait.rs","phymes-core/src/task/task_trait.rs","phymes-core/src/task/processor.rs","phymes-core/src/task/processor.rs","phymes-core/src/task/task_trait.rs","phymes-core/src/task/task_trait.rs","phymes-core/src/task/task_trait.rs","phymes-core/src/task/task_trait.rs","phymes-ml/src/candle_chat/message_aggregator_processor.rs","phymes-ml/src/candle_chat/message_aggregator_processor.rs","phymes-ml/src/candle_chat/message_aggregator_processor.rs","phymes-ml/src/candle_chat/message_aggregator_processor.rs","phymes-core/src/session/session_stream_step.rs","phymes-core/src/task/task_trait.rs","phymes-core/src/task/task_trait.rs","phymes-core/src/task/task_trait.rs","phymes-core/src/task/task_trait.rs","phymes-ml/src/candle_chat/message_aggregator_processor.rs","phymes-ml/src/candle_chat/message_aggregator_processor.rs","phymes-ml/src/candle_chat/message_aggregator_processor.rs","phymes-ml/src/candle_chat/message_aggregator_processor.rs","phymes-core/src/task/task_trait.rs","phymes-core/src/task/task_trait.rs","phymes-core/src/task/task_trait.rs","phymes-ml/src/candle_chat/chat_processor.rs","phymes-ml/src/candle_chat/chat_processor.rs","phymes-ml/src/candle_chat/chat_processor.rs","phymes-core/src/session/session_stream_step.rs","phymes-core/src/task/task_trait.rs","phymes-core/src/task/task_trait.rs","phymes-core/src/task/processor.rs","phymes-core/src/task/processor.rs","phymes-core/src/task/task_trait.rs","phymes-core/src/task/task_trait.rs","phymes-core/src/task/task_trait.rs","phymes-core/src/task/task_trait.rs","phymes-ml/src/candle_chat/message_aggregator_processor.rs","phymes-ml/src/candle_chat/message_aggregator_processor.rs","phymes-ml/src/candle_chat/message_aggregator_processor.rs","phymes-ml/src/candle_chat/message_aggregator_processor.rs"
         ];
-        let parent_id: [i128; 48] = [
-            14509531658266103530,
-            14509531658266103530,
-            2257952061453635836,
-            2257952061453635836,
-            7283200596918334309,
-            7283200596918334309,
-            7053620394350563160,
-            7053620394350563160,
-            14042324002796455054,
-            14042324002796455054,
-            1187106305792110079,
-            1187106305792110079,
-            1038112178665446702,
-            1038112178665446702,
-            558667721896770324,
-            558667721896770324,
-            0,
-            0,
-            7391730627494635845,
-            7391730627494635845,
-            14870679813591216503,
-            14870679813591216503,
-            0,
-            188058941559050804,
-            188058941559050804,
-            5644835324380142827,
-            5644835324380142827,
-            0,
-            15574280659243175955,
-            15574280659243175955,
-            1298132286589933723,
-            1298132286589933723,
-            13469193432104994765,
-            13469193432104994765,
-            7391730627494635845,
-            7391730627494635845,
-            188058941559050804,
-            188058941559050804,
-            15574280659243175955,
-            15574280659243175955,
-            13469193432104994765,
-            13469193432104994765,
-            7391730627494635845,
-            7391730627494635845,
-            188058941559050804,
-            188058941559050804,
-            15574280659243175955,
-            15574280659243175955,
+        let thread = ["ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)","ThreadId(23)"
         ];
-        let timestamp = [
-            1760807167220159,
-            1760807167220159,
-            1760807167226960,
-            1760807167226960,
-            1760807167236238,
-            1760807167236238,
-            1760807167268072,
-            1760807167268072,
-            1760807167220113,
-            1760807167220113,
-            1760807167226933,
-            1760807167226933,
-            1760807167236201,
-            1760807167236201,
-            1760807167268017,
-            1760807167268017,
-            1760807167217971,
-            1760807167226865,
-            1760807167226896,
-            1760807167226896,
-            1760807167226901,
-            1760807167226901,
-            1760807167236091,
-            1760807167236122,
-            1760807167236122,
-            1760807167236128,
-            1760807167236128,
-            1760807167267856,
-            1760807167267892,
-            1760807167267892,
-            1760807167267898,
-            1760807167267898,
-            1760807167220155,
-            1760807167220155,
-            1760807167226957,
-            1760807167226957,
-            1760807167236234,
-            1760807167236234,
-            1760807167268068,
-            1760807167268068,
-            1760807167220101,
-            1760807167220101,
-            1760807167226929,
-            1760807167226929,
-            1760807167236195,
-            1760807167236195,
-            1760807167268013,
-            1760807167268013,
+        let function = ["contactbiom8ercomChat","message_aggregator_task_1","message_aggregator_task_1","message_aggregator_task_1","message_aggregator_1","message_aggregator_1","message_aggregator_1","chat_task_1","chat_task_1","chat_task_1","chat_processor_1","chat_processor_1","chat_processor_1","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","message_aggregator_task_2","message_aggregator_task_2","message_aggregator_task_2","message_aggregator_task_2","message_aggregator_2","message_aggregator_2","message_aggregator_2","message_aggregator_2","contactbiom8ercomChat","message_aggregator_task_1","message_aggregator_task_1","message_aggregator_task_1","message_aggregator_task_1","message_aggregator_1","message_aggregator_1","message_aggregator_1","message_aggregator_1","chat_task_1","chat_task_1","chat_task_1","chat_processor_1","chat_processor_1","chat_processor_1","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","contactbiom8ercomChat","message_aggregator_task_2","message_aggregator_task_2","message_aggregator_task_2","message_aggregator_task_2","message_aggregator_2","message_aggregator_2","message_aggregator_2","message_aggregator_2"
+        ];
+        let line = [169,158,158,158,91,91,91,158,158,158,107,107,107,169,158,158,269,269,158,158,158,158,91,91,91,91,169,158,158,158,158,91,91,91,91,158,158,158,107,107,107,169,158,158,269,269,158,158,158,158,91,91,91,91
+        ];
+        let span_id: [i64; 54] = [2423125168095290289,-6290470452849520000,-6290470452849520000,-6290470452849520000,725936955998133113,725936955998133113,725936955998133113,-2976063072544730000,-2976063072544730000,-2976063072544730000,4672773661716737199,4672773661716737199,4672773661716737199,1627393037850540817,8205752543250100092,8205752543250100092,-1736242488042860000,-1736242488042860000,4056747569687788544,4056747569687788544,4056747569687788544,4056747569687788544,-729888377209831000,-729888377209831000,-729888377209831000,-729888377209831000,3217246414627855450,-3086786702679540000,-3086786702679540000,-3086786702679540000,-3086786702679540000,-1411873010140140000,-1411873010140140000,-1411873010140140000,-1411873010140140000,7833809350697111777,7833809350697111777,7833809350697111777,1038913386499437312,1038913386499437312,1038913386499437312,-3041123569125720000,8191798950735311332,8191798950735311332,1055250054529791544,1055250054529791544,1381392355749085769,1381392355749085769,1381392355749085769,1381392355749085769,6758425213845207512,6758425213845207512,6758425213845207512,6758425213845207512
+        ];
+        let parent_id: [i64; 54] = [0,2423125168095290289,2423125168095290289,2423125168095290289,-6290470452849520000,-6290470452849520000,-6290470452849520000,5808914344790812863,5808914344790812863,5808914344790812863,-2976063072544730000,-2976063072544730000,-2976063072544730000,0,1627393037850540817,1627393037850540817,8205752543250100092,8205752543250100092,1627393037850540817,1627393037850540817,1627393037850540817,1627393037850540817,4056747569687788544,4056747569687788544,4056747569687788544,4056747569687788544,0,3217246414627855450,3217246414627855450,3217246414627855450,3217246414627855450,-3086786702679540000,-3086786702679540000,-3086786702679540000,-3086786702679540000,1119528872034831779,1119528872034831779,1119528872034831779,7833809350697111777,7833809350697111777,7833809350697111777,0,-3041123569125720000,-3041123569125720000,8191798950735311332,8191798950735311332,-3041123569125720000,-3041123569125720000,-3041123569125720000,-3041123569125720000,1381392355749085769,1381392355749085769,1381392355749085769,1381392355749085769
+        ];
+        let tracer_timestamp = [1765368584283582,1765368584283841,1765368584283842,1765368584283918,1765368584283858,1765368584283859,1765368584283907,1765368584294174,1765368584294175,1765368584294710,1765368584294664,1765368584294664,1765368584294698,1765368588878155,1765368588876990,1765368588877002,1765368588876994,1765368588876995,1765368588877030,1765368588877030,1765368588877030,1765368588877072,1765368588877036,1765368588877037,1765368588877037,1765368588877066,1765368822456781,1765368822457057,1765368822457058,1765368822457058,1765368822457136,1765368822457073,1765368822457073,1765368822457074,1765368822457122,1765368822459006,1765368822459006,1765368822459036,1765368822459012,1765368822459012,1765368822459030,1765368823421759,1765368823420489,1765368823420507,1765368823420496,1765368823420498,1765368823420545,1765368823420545,1765368823420546,1765368823420598,1765368823420554,1765368823420554,1765368823420554,1765368823420590
+        ];
+        let timestamp: [i64; 54] = [1765368584283566,1765368584283833,1765368584283833,1765368584283833,1765368584283856,1765368584283856,1765368584283856,1765368584294171,1765368584294171,1765368584294171,1765368584294657,1765368584294657,1765368584294657,1765368588876946,1765368588876986,1765368588876986,1765368588876993,1765368588876993,1765368588877028,1765368588877028,1765368588877028,1765368588877028,1765368588877035,1765368588877035,1765368588877035,1765368588877035,1765368822456764,1765368822457049,1765368822457049,1765368822457049,1765368822457049,1765368822457068,1765368822457068,1765368822457068,1765368822457068,1765368822459003,1765368822459003,1765368822459003,1765368822459011,1765368822459011,1765368822459011,1765368823420432,1765368823420484,1765368823420484,1765368823420493,1765368823420493,1765368823420542,1765368823420542,1765368823420542,1765368823420542,1765368823420551,1765368823420551,1765368823420551,1765368823420551,
         ];
 
         let tracer_type: ArrayRef = Arc::new(StringArray::from(
@@ -598,7 +355,7 @@ mod tests {
         let parent_id: ArrayRef = Arc::new(Int64Array::from_iter(
             parent_id.into_iter().map(|s| s as i64).collect::<Vec<_>>(),
         ));
-        let timestamp: ArrayRef = Arc::new(Int64Array::from_iter(timestamp));
+        let tracer_timestamp: ArrayRef = Arc::new(Int64Array::from_iter(tracer_timestamp));
         let lhs_batch = RecordBatch::try_from_iter(vec![
             ("tracer_type", tracer_type),
             ("tracer_event", tracer_event),
@@ -608,7 +365,7 @@ mod tests {
             ("parent_name", parent_name),
             ("span_id", span_id),
             ("parent_id", parent_id),
-            ("timestamp", timestamp),
+            ("tracer_timestamp", tracer_timestamp),
         ])?;
 
         let tasks = ["task_1", "task_2"];
@@ -634,10 +391,20 @@ mod tests {
         // let bytes = result_table.to_csv(b',', true)?;
         // let string = String::from_utf8(bytes)?;
         // dbg!(&string);
-        // let participants = result_table.get_column_as_vec_str("participant_name");
-        // assert_eq!(participants, ["User", "State", "t1", "p1", "p2", "t2", "p3", "p4", "t3"]);
-        // let participants = result_table.get_column_as_vec_str("participant_type");
-        // assert_eq!(participants, ["actor", "database", "collections", "participant", "participant", "collections", "participant", "participant", "collections"]);
+        let results = result_table.get_column_as_vec_str("subject_name");
+        assert_eq!(results, ["User"]);
+        let results = result_table.get_column_as_vec_str("object_name");
+        assert_eq!(results, ["actor"]);
+        let results = result_table.get_column_as_vec_str("message_type");
+        assert_eq!(results, ["actor"]);
+        let results = result_table.get_column_as_vec_str("activation_type");
+        assert_eq!(results, ["actor"]);
+        let results = result_table.get_column_as_vec_str("message_content");
+        assert_eq!(results, ["actor"]);
+        let results = result_table.get_column_as_vec_str("note_content");
+        assert_eq!(results, ["actor"]);
+        let results = result_table.get_column_as_vec_str("note_location");
+        assert_eq!(results, ["actor"]);
 
         Ok(())
     }

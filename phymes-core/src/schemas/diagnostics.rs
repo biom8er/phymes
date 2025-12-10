@@ -194,6 +194,13 @@ pub(crate) fn create_traces_fields() -> Fields {
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
+    let field_names = ["tracer_timestamp"];
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Int64, false))
+            .collect::<Vec<_>>(),
+    );
     fields_vec.extend(create_diagnostic_span_fields());
     Fields::from(fields_vec)
 }

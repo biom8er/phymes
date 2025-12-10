@@ -12,7 +12,6 @@ use super::{
 };
 use crate::schemas::{
     AvailableSubjects, create_session_subjects_num_rows_batch, from_diagnostics_to_tables,
-    get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt, pivot_metrics_table,
 };
 use crate::table::{
     Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableTrait,
@@ -182,88 +181,6 @@ impl SessionContext {
         };
 
         Ok((updated_metrics, updated_traces, updated_events))
-    }
-
-    /// Create the metrics mermaid gannt table if it does not exist or update with the new metrics
-    /// DM: in the future, move to a dedicated session that uses the data processor to update
-    pub fn update_metrics_mermaid_gantt_table(&mut self) -> Result<bool> {
-        // get the metrics table
-        if let Some(table) = self
-            .state
-            .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-        {
-            let table = table.read().clone();
-
-            // update the state with the metrics
-            if table.count_rows() > 0 {
-                // Create the pivot view
-                let pivot_table = pivot_metrics_table(
-                    table,
-                    AvailableSubjects::MetricPivot.to_string().as_str(),
-                )?;
-
-                // Add the metrics pivot table to the state or update
-                if self
-                    .state
-                    .contains_key(AvailableSubjects::MetricPivot.to_string().as_str())
-                {
-                    self.state
-                        .get_mut(AvailableSubjects::MetricPivot.to_string().as_str())
-                        .unwrap()
-                        .try_write()
-                        .unwrap()
-                        .publish_to_table(
-                            pivot_table.clone().get_record_batches_own(),
-                            TablePublication::Replace {
-                                table_name: AvailableSubjects::MetricPivot
-                                    .to_string()
-                                    .as_str()
-                                    .to_string(),
-                            },
-                        )?;
-                } else {
-                    self.state.insert(
-                        AvailableSubjects::MetricPivot.to_string(),
-                        Arc::new(RwLock::new(pivot_table.clone())),
-                    );
-                }
-
-                // Create the gantt view
-                let gantt_table = get_metrics_as_gantt_table(
-                    pivot_table,
-                    AvailableSubjects::MetricMermaidGantt.to_string().as_str(),
-                )?;
-                let mermaid_gantt_table = get_metrics_as_mermaid_gantt(gantt_table)?;
-
-                // Add the metrics gantt table to the state or update
-                if self
-                    .state
-                    .contains_key(AvailableSubjects::MetricMermaidGantt.to_string().as_str())
-                {
-                    self.state
-                        .get_mut(AvailableSubjects::MetricMermaidGantt.to_string().as_str())
-                        .unwrap()
-                        .write()
-                        .publish_to_table(
-                            mermaid_gantt_table.get_record_batches_own(),
-                            TablePublication::Replace {
-                                table_name: AvailableSubjects::MetricMermaidGantt.to_string(),
-                            },
-                        )?;
-                } else {
-                    self.state.insert(
-                        AvailableSubjects::MetricMermaidGantt.to_string(),
-                        Arc::new(RwLock::new(mermaid_gantt_table)),
-                    );
-                }
-
-                Ok(true)
-            } else {
-                Ok(false)
-            }
-        } else {
-            Ok(false)
-        }
     }
 
     /// Get the max iterations

@@ -63,8 +63,10 @@ pub fn from_tasks_to_participants(
         .build()?;
 
     // Initialize the participants vecs
-    let mut participant_name_vec = vec!["User", "State"];
-    let mut participant_type_vec = vec!["actor", "database"];
+    // let mut participant_name_vec = vec!["User", "State"];
+    // let mut participant_type_vec = vec!["actor", "database"];
+    let mut participant_name_vec = vec!["User"];
+    let mut participant_type_vec = vec!["actor"];
 
     // Get the unique tasks and processors
     let task_name_set = lhs_table
@@ -100,6 +102,16 @@ pub fn from_tasks_to_participants(
             // New processor from object
             participant_name_vec.push(object);
             participant_type_vec.push("participant");
+            found_set.insert(object);
+        } else if !task_name_set.contains(subject) && !processor_name_set.contains(subject) && !found_set.contains(subject){
+            // New processor from object
+            participant_name_vec.push(subject);
+            participant_type_vec.push("database");
+            found_set.insert(subject);
+        } else if !task_name_set.contains(object) && !processor_name_set.contains(object) && !found_set.contains(object){
+            // New processor from object
+            participant_name_vec.push(object);
+            participant_type_vec.push("database");
             found_set.insert(object);
         }
     }
