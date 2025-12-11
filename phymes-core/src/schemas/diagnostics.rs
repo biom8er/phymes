@@ -24,6 +24,8 @@ pub enum DiagnosticsVisualizations {
     TraceSequenceDiagram,
     /// Events as a kanban diagram
     EventKanban,
+    /// Error as a kanban diagram
+    ErrorKanban,
     /// Metrics (processor traces) as a gantt chart
     #[default]
     MetricProcessorTracesGantt,
@@ -38,6 +40,7 @@ impl Display for DiagnosticsVisualizations {
         match self {
             Self::TraceSequenceDiagram => write!(f, "TraceSequenceDiagram"),
             Self::EventKanban => write!(f, "EventKanban"),
+            Self::ErrorKanban => write!(f, "ErrorKanban"),
             Self::MetricProcessorTracesGantt => write!(f, "MetricProcessorTracesGantt"),
             Self::MetricElapsedComputeGantt => write!(f, "MetricElapsedComputeGantt"),
             Self::MetricOutputRowsGantt => write!(f, "MetricOutputRowsGantt"),

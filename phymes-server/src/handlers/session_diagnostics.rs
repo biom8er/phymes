@@ -174,12 +174,41 @@ pub async fn session_diagnostics(
                     .unwrap()
                     .build()
                     .unwrap();
-                create_message_map(vec![
-                    metrics_message,
-                    traces_message,
-                    events_message,
-                    tasks_message,
-                ])
+                let table = sss
+                    .get_session_context()
+                    .get_states()
+                    .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                    .unwrap()
+                    .read();
+                if table.count_rows() > 0 {
+                    let errors_message = IPCMessage::get_builder()
+                        .with_message(table.to_ipc_stream().unwrap())
+                        .with_subject(AvailableSubjects::AnalyticsErrors.to_string().as_str())
+                        .with_update(&TablePublication::Replace {
+                            table_name: AvailableSubjects::AnalyticsErrors.to_string(),
+                        })
+                        .with_publisher(diagnostic_session.session_context_name)
+                        .make_name()
+                        .unwrap()
+                        .build()
+                        .unwrap();
+
+                    create_message_map(vec![
+                        metrics_message,
+                        traces_message,
+                        events_message,
+                        errors_message,
+                        tasks_message,
+                    ])
+                } else {
+                    create_message_map(vec![
+                        metrics_message,
+                        traces_message,
+                        events_message,
+                        tasks_message,
+                    ])
+
+                }
             };
 
             // Make the diagnostics session stream

@@ -48,6 +48,8 @@ pub struct DiagnosticSession<'a> {
     /// Metrics analytics
     pub metrics_pivot_task_name: &'a str,
     pub metrics_pivot_processor_name: &'a str,
+    pub metrics_sort_task_name: &'a str,
+    pub metrics_sort_processor_name: &'a str,
     pub metrics_normalize_time_task_name: &'a str,
     pub metrics_normalize_time_processor_name: &'a str,
     pub metrics_processors_traces_select_and_cast_to_gantt_task_name: &'a str,
@@ -82,17 +84,21 @@ pub struct DiagnosticSession<'a> {
     pub apply_sequence_diagram_processor_name: &'a str,
     pub traces_runtime_env_name: &'a str,
 
+    /// Errors analytics
+    pub errors_select_and_cast_to_kanban_task_name: &'a str,
+    pub errors_select_and_cast_to_kanban_processor_name: &'a str,
+    pub errors_runtime_env_name: &'a str,
+    pub errors_apply_kanban_task_name: &'a str,
+    pub errors_apply_kanban_processor_name: &'a str,
+
     /// Events analytics
     pub events_select_and_cast_to_kanban_task_name: &'a str,
     pub events_select_and_cast_to_kanban_processor_1_name: &'a str,
     pub events_select_and_cast_to_kanban_processor_2_name: &'a str,
     pub events_select_and_cast_tmp: &'a str,
-    pub apply_kanban_task_name: &'a str,
-    pub apply_kanban_processor_name: &'a str,
+    pub events_apply_kanban_task_name: &'a str,
+    pub events_apply_kanban_processor_name: &'a str,
     pub events_runtime_env_name: &'a str,
-
-    /// Errors analytics
-    // todo!()
 
     /// Outbox
     pub aggregate_visualizations_task_name: &'a str,
@@ -119,6 +125,8 @@ impl Default for DiagnosticSession<'_> {
             // Metrics analytics
             metrics_pivot_task_name: "metrics_pivot_task_name",
             metrics_pivot_processor_name: "metrics_pivot_processor_name",
+            metrics_sort_task_name: "metrics_sort_task_name",
+            metrics_sort_processor_name: "metrics_sort_processor_name",
             metrics_normalize_time_task_name: "metrics_normalize_time_task_name",
             metrics_normalize_time_processor_name: "metrics_normalize_time_processor_name",
             metrics_processors_traces_select_and_cast_to_gantt_task_name: "metrics_processors_traces_select_and_cast_to_gantt_task_name",
@@ -127,7 +135,7 @@ impl Default for DiagnosticSession<'_> {
             metrics_elapsed_compute_select_and_cast_to_gantt_processor_name: "metrics_elapsed_compute_select_and_cast_to_gantt_processor_name",
             metrics_output_rows_select_and_cast_to_gantt_task_name: "metrics_output_rows_select_and_cast_to_gantt_task_name",
             metrics_output_rows_select_and_cast_to_gantt_processor_name: "metrics_output_rows_select_and_cast_to_gantt_processor_name",
-            metrics_processors_traces_apply_gantt_task_name: "Processor traces gant",
+            metrics_processors_traces_apply_gantt_task_name: "Processor traces gantt",
             metrics_processors_traces_apply_gantt_processor_name: "metrics_processors_traces_apply_gantt_processor_name",
             metrics_elapsed_compute_apply_gantt_task_name: "Elapsed compute barplot",
             metrics_elapsed_compute_apply_gantt_processor_name: "metrics_elapsed_compute_apply_gantt_processor_name",
@@ -153,13 +161,20 @@ impl Default for DiagnosticSession<'_> {
             apply_sequence_diagram_processor_name: "apply_sequence_diagram_processor_name",
             traces_runtime_env_name: "traces_runtime_env_name",
 
+            // Errors analytics
+            errors_select_and_cast_to_kanban_task_name: "errors_select_and_cast_to_kanban_task_name",
+            errors_select_and_cast_to_kanban_processor_name: "errors_select_and_cast_to_kanban_processor_name",
+            errors_runtime_env_name: "errors_runtime_env_name",
+            errors_apply_kanban_task_name: "errors_apply_kanban_task_name",
+            errors_apply_kanban_processor_name: "errors_apply_kanban_processor_name",
+
             // Events analytics
             events_select_and_cast_to_kanban_task_name: "events_select_and_cast_to_kanban_task_name",
             events_select_and_cast_to_kanban_processor_1_name: "events_select_and_cast_to_kanban_processor_1_name",
             events_select_and_cast_to_kanban_processor_2_name: "events_select_and_cast_to_kanban_processor_2_name",
             events_select_and_cast_tmp: "events_select_and_cast_tmp",
-            apply_kanban_task_name: "apply_kanban_task_name",
-            apply_kanban_processor_name: "apply_kanban_processor_name",
+            events_apply_kanban_task_name: "events_apply_kanban_task_name",
+            events_apply_kanban_processor_name: "events_apply_kanban_processor_name",
             events_runtime_env_name: "events_runtime_env_name",
 
             // Errors analytics
@@ -182,7 +197,8 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             TaskPlan {
                 task_name: self.metrics_normalize_time_task_name.to_string(),
                 runtime_env_name: self.metrics_runtime_env_name.to_string(),
-                processor_names: vec![self.metrics_normalize_time_processor_name.to_string()],
+                processor_names: vec![self.metrics_sort_processor_name.to_string(),
+                self.metrics_normalize_time_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self
@@ -296,6 +312,16 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 processor_names: vec![self.apply_sequence_diagram_processor_name.to_string()],
             },
             TaskPlan {
+                task_name: self.errors_select_and_cast_to_kanban_task_name.to_string(),
+                runtime_env_name: self.errors_runtime_env_name.to_string(),
+                processor_names: vec![self.errors_select_and_cast_to_kanban_processor_name.to_string()],
+            },
+            TaskPlan {
+                task_name: self.errors_apply_kanban_task_name.to_string(),
+                runtime_env_name: self.errors_runtime_env_name.to_string(),
+                processor_names: vec![self.errors_apply_kanban_processor_name.to_string()],
+            },
+            TaskPlan {
                 task_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
                 runtime_env_name: self.events_runtime_env_name.to_string(),
                 processor_names: vec![
@@ -306,9 +332,9 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
             },
             TaskPlan {
-                task_name: self.apply_kanban_task_name.to_string(),
+                task_name: self.events_apply_kanban_task_name.to_string(),
                 runtime_env_name: self.events_runtime_env_name.to_string(),
-                processor_names: vec![self.apply_kanban_processor_name.to_string()],
+                processor_names: vec![self.events_apply_kanban_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.aggregate_visualizations_task_name.to_string(),
@@ -338,14 +364,29 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
+            AvailableProcessors::Sort.build_arc(
+                self.metrics_sort_processor_name,
+                &[TablePublication::Replace {
+                    table_name: self.metrics_sort_task_name.to_string(),
+                }],
+                &[
+                    TableSubscription::OnUpdateFullTable {
+                        table_name: AvailableSubjects::MetricPivot.to_string(),
+                    },
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self.metrics_sort_processor_name.to_string(),
+                    },
+                ],
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+            ),
             AvailableProcessors::NormalizeTime.build_arc(
                 self.metrics_normalize_time_processor_name,
                 &[TablePublication::Replace {
                     table_name: AvailableSubjects::MetricPivotNormTime.to_string(),
                 }],
                 &[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::MetricPivot.to_string(),
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self.metrics_sort_task_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self.metrics_normalize_time_processor_name.to_string(),
@@ -595,6 +636,38 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             AvailableProcessors::Select.build_arc(
+                self.errors_select_and_cast_to_kanban_processor_name,
+                &[TablePublication::Replace {
+                    table_name: self.errors_select_and_cast_to_kanban_task_name.to_string(),
+                }],
+                &[
+                    TableSubscription::OnUpdateFullTable {
+                        table_name: AvailableSubjects::AnalyticsErrors.to_string(),
+                    },
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self
+                            .errors_select_and_cast_to_kanban_processor_name
+                            .to_string(),
+                    },
+                ],
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+            ),
+            AvailableProcessors::ApplyTemplate.build_arc(
+                self.errors_apply_kanban_processor_name,
+                &[TablePublication::Replace {
+                    table_name: DiagnosticsVisualizations::ErrorKanban.to_string(),
+                }],
+                &[
+                    TableSubscription::OnUpdateFullTable {
+                        table_name: self.errors_select_and_cast_to_kanban_task_name.to_string(),
+                    },
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self.errors_apply_kanban_processor_name.to_string(),
+                    },
+                ],
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+            ),
+            AvailableProcessors::Select.build_arc(
                 self.events_select_and_cast_to_kanban_processor_1_name,
                 &[TablePublication::Replace {
                     table_name: self.events_select_and_cast_tmp.to_string(),
@@ -629,7 +702,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             AvailableProcessors::ApplyTemplate.build_arc(
-                self.apply_kanban_processor_name,
+                self.events_apply_kanban_processor_name,
                 &[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::EventKanban.to_string(),
                 }],
@@ -638,7 +711,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                         table_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
-                        table_name: self.apply_kanban_processor_name.to_string(),
+                        table_name: self.events_apply_kanban_processor_name.to_string(),
                     },
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
@@ -685,6 +758,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             RuntimeEnv::new().with_name(self.metrics_output_rows_runtime_env_name),
             RuntimeEnv::new().with_name(self.traces_runtime_env_name),
             RuntimeEnv::new().with_name(self.events_runtime_env_name),
+            RuntimeEnv::new().with_name(self.errors_runtime_env_name)
         ])
     }
 
@@ -714,8 +788,29 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             .unwrap();
 
         // Metrics normalize time
-        let metrics_normalize_time_config = DataConfig {
+        let metrics_sort_config = DataConfig {
             lhs_name: Some(AvailableSubjects::MetricPivot.to_string()),
+            lhs_values: Some(vec![
+                "end_timestamp-metric_value-Sum".to_string(),
+                "start_timestamp-metric_value-Sum".to_string(),
+            ]),
+            cpu: true,
+            asc: Some(true),
+            operator: AvailableCandleOperators::Sort,
+            ..Default::default()
+        };
+        let metrics_sort_config_json =
+            serde_json::to_vec(&metrics_sort_config).unwrap();
+        let metrics_sort_config_state = TableBuilder::new()
+            .with_name(self.metrics_sort_processor_name)
+            .with_json(&metrics_sort_config_json.clone(), 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        // Metrics normalize time
+        let metrics_normalize_time_config = DataConfig {
+            lhs_name: Some(self.metrics_sort_task_name.to_string()),
             lhs_values: Some(vec![
                 "start_timestamp-metric_value-Sum".to_string(),
                 "end_timestamp-metric_value-Sum".to_string(),
@@ -737,7 +832,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             lhs_name: Some(AvailableSubjects::MetricPivotNormTime.to_string()),
             lhs_values: Some(vec![
                 "span_name".to_string(),
-                "span_name".to_string(),
+                "parent_name".to_string(),
                 "start_timestamp-metric_value-Sum-normalized".to_string(),
                 "end_timestamp-metric_value-Sum-normalized".to_string(),
             ]),
@@ -797,7 +892,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             lhs_name: Some(AvailableSubjects::MetricPivotNormTime.to_string()),
             lhs_values: Some(vec![
                 "span_name".to_string(),
-                "span_name".to_string(),
+                "parent_name".to_string(),
                 "span_name".to_string(),
                 "elapsed_compute-metric_value-Sum".to_string(),
             ]),
@@ -857,7 +952,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             lhs_name: Some(AvailableSubjects::MetricPivotNormTime.to_string()),
             lhs_values: Some(vec![
                 "span_name".to_string(),
-                "span_name".to_string(),
+                "parent_name".to_string(),
                 "span_name".to_string(),
                 "output_rows-metric_value-Sum".to_string(),
             ]),
@@ -1105,6 +1200,102 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             .build()
             .unwrap();
 
+        // Errors select and cast kanban
+        let errors_select_and_cast_to_kanban_config = DataConfig {
+            lhs_name: Some(AvailableSubjects::AnalyticsErrors.to_string()),
+            lhs_values: Some(vec![
+                "role".to_string(),
+                "role".to_string(),
+                "timestamp".to_string(),
+                "content".to_string(),
+                "role".to_string(),
+                "timestamp".to_string(),
+                "role".to_string(),
+            ]),
+            rhs_values: Some(vec![
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            ]),
+            as_columns: Some(vec![
+                "column_name".to_string(),
+                "column_label".to_string(),
+                "task_name".to_string(),
+                "task_description".to_string(),
+                "task_assigned".to_string(),
+                "task_ticket".to_string(),
+                "task_priority".to_string(),
+            ]),
+            column_operators: Some(vec![
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+            ]),
+            cast_operators: Some(vec![
+                DataCastOperator::None,
+                DataCastOperator::None,
+                DataCastOperator::Cast,
+                DataCastOperator::None,
+                DataCastOperator::None,
+                DataCastOperator::Cast,
+                DataCastOperator::None,
+            ]),
+            cast_datatypes: Some(vec![
+                DataType::Utf8.to_string(),
+                DataType::Utf8.to_string(),
+                DataType::Utf8.to_string(),
+                DataType::Utf8.to_string(),
+                DataType::Utf8.to_string(),
+                DataType::Utf8.to_string(),
+                DataType::Utf8.to_string(),
+            ]),
+            cast_templates: Some(vec![
+                "Error".to_string(),
+                "Error".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "''".to_string(),
+                "".to_string(),
+                "Low".to_string(),
+            ]),
+            operator: AvailableCandleOperators::Select,
+            ..Default::default()
+        };
+        let errors_select_and_cast_to_kanban_config_json =
+            serde_json::to_vec(&errors_select_and_cast_to_kanban_config).unwrap();
+        let errors_select_and_cast_to_kanban_config_state = TableBuilder::new()
+            .with_name(self.errors_select_and_cast_to_kanban_processor_name)
+            .with_json(&errors_select_and_cast_to_kanban_config_json.clone(), 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        // Errors apply kanban
+        let errors_apply_kanban_config = DataConfig {
+            lhs_name: Some(self.errors_select_and_cast_to_kanban_task_name.to_string()),
+            doc_template: Some(AvailableJinja2Templates::MermaidKanbanTemplate),
+            doc_name: Some(DiagnosticsVisualizations::ErrorKanban.to_string()),
+            doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
+            format: Some(DataFormat::Txt),
+            operator: AvailableCandleOperators::ApplyTemplate,
+            ..Default::default()
+        };
+        let errors_apply_kanban_config_json = serde_json::to_vec(&errors_apply_kanban_config).unwrap();
+        let errors_apply_kanban_config_state = TableBuilder::new()
+            .with_name(self.errors_apply_kanban_processor_name)
+            .with_json(&errors_apply_kanban_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
         // Events select and cast kanban
         let events_select_and_cast_to_kanban_1_config = DataConfig {
             lhs_name: Some(AvailableSubjects::AnalyticsEvents.to_string()),
@@ -1182,10 +1373,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             ]),
             cast_templates: Some(vec![
                 "".to_string(),
-                "**Span**: {{ span_name }}\\n".to_string(),
-                // "**Function**: {{ function }}\\n".to_string(),
-                "**Record**: {{ record_name }}\\n".to_string(),
-                "**Value**: {{ record_value }}\\n".to_string(),
+                "**Span** {{ span_name }}<br>".to_string(),
+                // "**Function** {{ function }}<br>".to_string(),
+                "**Record** {{ record_name }}<br>".to_string(),
+                "**Value** {{ record_value }}<br>".to_string(),
                 // "".to_string(),
                 "".to_string(),
                 "".to_string(),
@@ -1281,7 +1472,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             .unwrap();
 
         // Events apply kanban
-        let apply_kanban_config = DataConfig {
+        let events_apply_kanban_config = DataConfig {
             lhs_name: Some(self.events_select_and_cast_to_kanban_task_name.to_string()),
             doc_template: Some(AvailableJinja2Templates::MermaidKanbanTemplate),
             doc_name: Some(DiagnosticsVisualizations::EventKanban.to_string()),
@@ -1290,10 +1481,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
         };
-        let apply_kanban_config_json = serde_json::to_vec(&apply_kanban_config).unwrap();
-        let apply_kanban_config_state = TableBuilder::new()
-            .with_name(self.apply_kanban_processor_name)
-            .with_json(&apply_kanban_config_json, 1)
+        let events_apply_kanban_config_json = serde_json::to_vec(&events_apply_kanban_config).unwrap();
+        let events_apply_kanban_config_state = TableBuilder::new()
+            .with_name(self.events_apply_kanban_processor_name)
+            .with_json(&events_apply_kanban_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
@@ -1322,6 +1513,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         Some(vec![
             // Processor configs
             metrics_pivot_config_1_state,
+            metrics_sort_config_state,
             metrics_normalize_time_config_1_state,
             metrics_processors_traces_select_and_cast_to_gantt_config_1_state,
             metrics_elapsed_compute_select_and_cast_to_gantt_config_1_state,
@@ -1335,15 +1527,20 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             apply_sequence_diagram_participants_config_state,
             aggregator_1_state,
             apply_sequence_diagram_config_state,
+            errors_select_and_cast_to_kanban_config_state,
+            errors_apply_kanban_config_state,
             events_select_and_cast_to_kanban_1_config_state,
             events_select_and_cast_to_kanban_2_config_state,
-            apply_kanban_config_state,
+            events_apply_kanban_config_state,
             aggregator_2_state,
             // Metrics
             AvailableSubjects::AnalyticsMetrics
                 .to_table(None, None)
                 .unwrap(),
             AvailableSubjects::MetricPivot.to_table(None, None).unwrap(),
+            AvailableSubjects::MetricPivotNormTime
+                .to_table(Some(self.metrics_sort_task_name), None)
+                .unwrap(),
             AvailableSubjects::MetricPivotNormTime
                 .to_table(None, None)
                 .unwrap(),
@@ -1436,6 +1633,19 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                             .to_string()
                             .as_str(),
                     ),
+                    None,
+                )
+                .unwrap(),
+            // Errors
+            AvailableSubjects::AnalyticsErrors
+                .to_table(None, None)
+                .unwrap(),
+            AvailableSubjects::MermaidKanbanTemplate
+                .to_table(Some(self.errors_select_and_cast_to_kanban_task_name), None)
+                .unwrap(),
+            AvailableSubjects::Blob
+                .to_table(
+                    Some(DiagnosticsVisualizations::ErrorKanban.to_string().as_str()),
                     None,
                 )
                 .unwrap(),
@@ -1562,13 +1772,39 @@ mod tests {
                 .with_publisher(diagnostic_session.session_context_name)
                 .make_name()?
                 .build()?;
+            let table = usss
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                .unwrap()
+                .read();
+            if table.count_rows() > 0 {
+                let errors_message = IPCMessage::get_builder()
+                    .with_message(table.to_ipc_stream()?)
+                    .with_subject(AvailableSubjects::AnalyticsErrors.to_string().as_str())
+                    .with_update(&TablePublication::Replace {
+                        table_name: AvailableSubjects::AnalyticsErrors.to_string(),
+                    })
+                    .with_publisher(diagnostic_session.session_context_name)
+                    .make_name()?
+                    .build()?;
 
-            create_message_map(vec![
-                metrics_message,
-                traces_message,
-                events_message,
-                tasks_message,
-            ])
+                create_message_map(vec![
+                    metrics_message,
+                    traces_message,
+                    events_message,
+                    errors_message,
+                    tasks_message,
+                ])
+            } else {
+                create_message_map(vec![
+                    metrics_message,
+                    traces_message,
+                    events_message,
+                    tasks_message,
+                ])
+
+            }
         };
 
         // Run

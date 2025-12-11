@@ -377,9 +377,6 @@
   .list-none {
     list-style-type: none;
   }
-  .grid-cols-\[1fr_96px\] {
-    grid-template-columns: 1fr 96px;
-  }
   .grid-cols-\[1fr_auto\] {
     grid-template-columns: 1fr auto;
   }
@@ -388,9 +385,6 @@
   }
   .grid-cols-\[auto_1fr_auto\] {
     grid-template-columns: auto 1fr auto;
-  }
-  .grid-rows-\[48px_1fr\] {
-    grid-template-rows: 48px 1fr;
   }
   .grid-rows-\[auto_1fr\] {
     grid-template-rows: auto 1fr;
