@@ -129,67 +129,57 @@ pub fn from_traces_to_messages(
     {
         // Check for either an entered or exited state
         if tracer_event == "entered" {
+            // Always record the trace
             if let Some(previous) = entered.take() {
-                // Determine the subjects and objects based on the parents and if the subjects match
-                let so_names = if parent_name.is_empty() {
+                // Check for the special case of a User message
+                let (s_name, o_name) = if parent_name.is_empty() {
                     let subject_name = "User".to_string();
-                    // let object_name = "State".to_string();
                     let object_name = span_name.clone();
-                    Some((subject_name, object_name))
-                } else if previous.5 == subject_name && previous.2.is_empty() {
-                    // let subject_name = "State".to_string();
-                    let subject_name = previous.1;
-                    // let object_name = format!("parent-{}<br>span-{}", parent_name, span_name);
+                    (subject_name, object_name)
+                } else {
+                    let subject_name = parent_name.clone();
                     let object_name = span_name.clone();
-                    Some((subject_name, object_name))
-                } else if previous.5 == subject_name {                    
-                    // let subject_name = format!("parent-{}<br>span-{}", previous.2, previous.1);
-                    // let object_name = format!("parent-{}<br>span-{}", parent_name, span_name);
-                    let subject_name = previous.1;
-                    let object_name = span_name.clone();
-                    Some((subject_name, object_name))
-                } else {                    
-                    None
+                    (subject_name, object_name)
                 };
 
                 // Record the trace
-                if let Some((s_name, o_name)) = so_names {
-                    subject_name_vec.push(s_name);
-                    object_name_vec.push(o_name);
-                    message_type_vec.push("->>".to_string());
-                    activation_type_vec.push(String::new());
-                    message_content_vec.push(format!("subject: {subject_name}<br>message: {message_name}"));
-                    note_content_vec.push(String::new());
-                    note_location_vec.push(String::new());
-                    timestamp_messages_vec.push(timestamp.to_owned());
-                }
+                subject_name_vec.push(s_name);
+                object_name_vec.push(o_name);
+                message_type_vec.push("->>".to_string());
+                activation_type_vec.push(String::new());
+                message_content_vec.push(subject_name.clone());
+                note_content_vec.push(String::new());
+                note_location_vec.push(String::new());
+                timestamp_messages_vec.push(timestamp.to_owned());
 
                 // Update entered
                 entered.replace((tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
 
             } else if let Some(previous) = exited.take() {
-                // Determine the subjects and objects based on the parents and if the subjects match
-                let so_names = if previous.5 == subject_name {
-                    // let subject_name = format!("parent-{}<br>span-{}", previous.2, previous.1);
-                    // let object_name = format!("parent-{}<br>span-{}", parent_name, span_name);
+                // Check for the case of an exit -> enter by the same subject
+                let (s_name, o_name) = if parent_name.is_empty() {
+                    let subject_name = "User".to_string();
+                    let object_name = span_name.clone();
+                    (subject_name, object_name)
+                } else if previous.5 == subject_name {;
                     let subject_name = previous.1;
                     let object_name = span_name.clone();
-                    Some((subject_name, object_name))
-                } else {                    
-                    None
+                    (subject_name, object_name)
+                } else {
+                    let subject_name = parent_name.clone();
+                    let object_name = span_name.clone();
+                    (subject_name, object_name)
                 };
 
                 // Record the trace
-                if let Some((s_name, o_name)) = so_names {
-                    subject_name_vec.push(s_name);
-                    object_name_vec.push(o_name);
-                    message_type_vec.push("->>".to_string());
-                    activation_type_vec.push(String::new());
-                    message_content_vec.push(format!("subject: {subject_name}<br>message: {message_name}"));
-                    note_content_vec.push(String::new());
-                    note_location_vec.push(String::new());
-                    timestamp_messages_vec.push(timestamp.to_owned());
-                }
+                subject_name_vec.push(s_name);
+                object_name_vec.push(o_name);
+                message_type_vec.push("->>".to_string());
+                activation_type_vec.push(String::new());
+                message_content_vec.push(subject_name.clone());
+                note_content_vec.push(String::new());
+                note_location_vec.push(String::new());
+                timestamp_messages_vec.push(timestamp.to_owned());
 
                 // Update entered
                 entered.replace((tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
@@ -201,39 +191,41 @@ pub fn from_traces_to_messages(
 
         } else if tracer_event == "exited" {
             if let Some(previous) = entered.take() {
-                // Nothing todo here except to update exited
+                // Check for an exit from the session
+                if parent_name.is_empty() {
+                    subject_name_vec.push(span_name.clone());
+                    object_name_vec.push("User".to_string());
+                    message_type_vec.push("->>".to_string());
+                    activation_type_vec.push(String::new());
+                    message_content_vec.push(subject_name.clone());
+                    note_content_vec.push(String::new());
+                    note_location_vec.push(String::new());
+                    timestamp_messages_vec.push(timestamp.to_owned());
+                }
+                
+                // Update exited
                 exited.replace((tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
 
             } else if let Some(previous) = exited.take() {
-                // Determine the subjects and objects based on the parents and if the subjects match
-                let so_names = if previous.2.is_empty() {
-                    // let subject_name = "State".to_string();
-                    let subject_name = previous.1;
-                    let object_name = "User".to_string();
-                    Some((subject_name, object_name))
-                } else if previous.5 == subject_name && previous.2.is_empty() {
-                    // let subject_name = format!("parent-{}<br>span-{}", previous.2, previous.1);
-                    let subject_name = previous.1;
-                    // let object_name = "State".to_string();
-                    let object_name = span_name.clone();
-                    Some((subject_name, object_name))
-                } else if previous.5 == subject_name {
-                    // let subject_name = format!("parent-{}<br>span-{}", previous.2, previous.1);
-                    // let object_name = format!("parent-{}<br>span-{}", parent_name, span_name);
-                    let subject_name = previous.1;
-                    let object_name = span_name.clone();
-                    Some((subject_name, object_name))
-                } else {                    
-                    None
-                };
-
-                // Record the trace
-                if let Some((s_name, o_name)) = so_names {
-                    subject_name_vec.push(s_name);
-                    object_name_vec.push(o_name);
+                // Check for an exit from the session
+                if parent_name.is_empty() {
+                    subject_name_vec.push(span_name.clone());
+                    object_name_vec.push("User".to_string());
                     message_type_vec.push("->>".to_string());
                     activation_type_vec.push(String::new());
-                    message_content_vec.push(format!("subject: {subject_name}<br>message: {message_name}"));
+                    message_content_vec.push(subject_name.clone());
+                    note_content_vec.push(String::new());
+                    note_location_vec.push(String::new());
+                    timestamp_messages_vec.push(timestamp.to_owned());
+                }
+
+                // Check for two consecutive exits by the same subject
+                if previous.5 == subject_name {
+                    subject_name_vec.push(previous.1);
+                    object_name_vec.push(span_name.clone());
+                    message_type_vec.push("->>".to_string());
+                    activation_type_vec.push(String::new());
+                    message_content_vec.push(subject_name.clone());
                     note_content_vec.push(String::new());
                     note_location_vec.push(String::new());
                     timestamp_messages_vec.push(timestamp.to_owned());
@@ -388,9 +380,9 @@ mod tests {
             .with_name("")
             .build()?;
 
-        // let bytes = result_table.to_csv(b',', true)?;
-        // let string = String::from_utf8(bytes)?;
-        // dbg!(&string);
+        let bytes = result_table.to_csv(b',', true)?;
+        let string = String::from_utf8(bytes)?;
+        dbg!(&string);
         let results = result_table.get_column_as_vec_str("subject_name");
         assert_eq!(results, ["User"]);
         let results = result_table.get_column_as_vec_str("object_name");

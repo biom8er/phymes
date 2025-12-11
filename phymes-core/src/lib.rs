@@ -18,8 +18,7 @@ pub use schemas::{
     create_session_subjects_batch, create_session_subjects_num_rows_batch,
     create_session_tasks_batch, create_tools_record_batch, create_user_batch,
     create_user_inbox_batch, create_user_session_contexts_batch, create_values_record_batch,
-    from_diagnostics_to_tables, get_metrics_as_gantt_table, get_metrics_as_mermaid_gantt,
-    pivot_metrics_table,
+    from_diagnostics_to_tables,
 };
 pub use session::{
     BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, ProcessorMap, RunnableTrait,

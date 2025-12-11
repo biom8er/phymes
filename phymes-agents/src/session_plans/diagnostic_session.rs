@@ -603,12 +603,12 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 }],
                 &[
                     TableSubscription::OnUpdateFullTable {
-                        table_name: self.apply_sequence_diagram_messages_task_name.to_string(),
-                    },
-                    TableSubscription::OnUpdateFullTable {
                         table_name: self
                             .apply_sequence_diagram_participants_task_name
                             .to_string(),
+                    },
+                    TableSubscription::OnUpdateFullTable {
+                        table_name: self.apply_sequence_diagram_messages_task_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self
@@ -777,6 +777,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             default_values: Some(vec!["0".to_string()]),
             pvt_columns: Some(vec!["metric_name".to_string()]),
             operator: AvailableCandleOperators::Pivot,
+            cpu: true,
             ..Default::default()
         };
         let metrics_pivot_config_json = serde_json::to_vec(&metrics_pivot_config).unwrap();
@@ -794,7 +795,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "end_timestamp-metric_value-Sum".to_string(),
                 "start_timestamp-metric_value-Sum".to_string(),
             ]),
-            cpu: true,
             asc: Some(true),
             operator: AvailableCandleOperators::Sort,
             ..Default::default()

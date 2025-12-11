@@ -82,33 +82,34 @@ pub fn from_tasks_to_participants(
     let subject_name_vec = rhs_table.get_column_as_vec_nonprimitive::<String>("subject_name")?;
     let object_name_vec = rhs_table.get_column_as_vec_nonprimitive::<String>("object_name")?;
     let mut found_set = HashSet::new();
+    found_set.insert("User");
     for (subject, object) in subject_name_vec.iter().zip(object_name_vec.iter()) {
-        if task_name_set.contains(subject) && !found_set.contains(subject) {
+        if task_name_set.contains(subject) && !found_set.contains(subject.as_str()) {
             // New task from subject
             participant_name_vec.push(subject);
             participant_type_vec.push("collections");
             found_set.insert(subject);
-        } else if processor_name_set.contains(subject) && !found_set.contains(subject) {
+        } else if processor_name_set.contains(subject) && !found_set.contains(subject.as_str()) {
             // New processor from subject
             participant_name_vec.push(subject);
             participant_type_vec.push("participant");
             found_set.insert(subject);
-        } else if task_name_set.contains(object) && !found_set.contains(object) {
+        } else if task_name_set.contains(object) && !found_set.contains(object.as_str()) {
             // New task from object
             participant_name_vec.push(object);
             participant_type_vec.push("collections");
             found_set.insert(object);
-        } else if processor_name_set.contains(object) && !found_set.contains(object) {
+        } else if processor_name_set.contains(object) && !found_set.contains(object.as_str()) {
             // New processor from object
             participant_name_vec.push(object);
             participant_type_vec.push("participant");
             found_set.insert(object);
-        } else if !task_name_set.contains(subject) && !processor_name_set.contains(subject) && !found_set.contains(subject){
+        } else if !task_name_set.contains(subject) && !processor_name_set.contains(subject) && !found_set.contains(subject.as_str()){
             // New processor from object
             participant_name_vec.push(subject);
             participant_type_vec.push("database");
             found_set.insert(subject);
-        } else if !task_name_set.contains(object) && !processor_name_set.contains(object) && !found_set.contains(object){
+        } else if !task_name_set.contains(object) && !processor_name_set.contains(object) && !found_set.contains(object.as_str()){
             // New processor from object
             participant_name_vec.push(object);
             participant_type_vec.push("database");

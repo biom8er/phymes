@@ -210,7 +210,7 @@ pub async fn session_diagnostics(
 
                 }
             };
-
+            dbg!(&message_map.keys());
             // Make the diagnostics session stream
             let session_ctx = diagnostic_session
                 .build()
@@ -304,6 +304,16 @@ pub async fn session_diagnostics(
                         })
                         .flat_map(|(_k, v)| v.get_message_own())
                         .collect::<Vec<_>>();
+
+                    let sss = session_stream_state.read();
+                    let table = sss
+                        .get_session_context()
+                        .get_states()
+                        .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                        .unwrap()
+                        .read();
+                    println!("__ERRORS__");
+                    println!("{}", String::from_utf8(table.to_csv(b',', true).unwrap()).unwrap());
 
                     // Send the stream
                     Body::from(response).into_response()

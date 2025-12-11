@@ -7,7 +7,7 @@ use phymes_core::{
     AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MessageBuilderTrait,
     MessageTrait, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessage, Table,
     TableBuilderTrait, TablePublication, TableSubscription, TableTrait, device,
-    from_diagnostics_to_tables, pivot_metrics_table, test_table::TestTableSizes,
+    from_diagnostics_to_tables, test_table::TestTableSizes,
 };
 use phymes_data::{
     AvailableCandleOperators, CandleDataProcessor, CandleTensorService, DataAggregatorOperator,
