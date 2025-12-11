@@ -12,7 +12,7 @@ pub static MERMAID_KANBAN_TEMPLATE: &str = r#"
     {%- if loop.changed(row.column_name) %}
             {{ row.column_name }}[{{ row.column_label }}]
     {%- endif %}
-                {{ row.task_name }}[{{ row.task_description }}]@{ ticket: {{ row.task_ticket }}, assigned: '{{ row.task_assigned }}'}
+                {{ row.task_name }}[{{ row.task_description }}]@{ ticket: {{ row.task_ticket }}, assigned: {{ row.task_assigned }}}
 {%- endfor %}"#;
 
 #[cfg(test)]

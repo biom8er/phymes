@@ -84,7 +84,9 @@ pub struct DiagnosticSession<'a> {
 
     /// Events analytics
     pub events_select_and_cast_to_kanban_task_name: &'a str,
-    pub events_select_and_cast_to_kanban_processor_name: &'a str,
+    pub events_select_and_cast_to_kanban_processor_1_name: &'a str,
+    pub events_select_and_cast_to_kanban_processor_2_name: &'a str,
+    pub events_select_and_cast_tmp: &'a str,
     pub apply_kanban_task_name: &'a str,
     pub apply_kanban_processor_name: &'a str,
     pub events_runtime_env_name: &'a str,
@@ -98,6 +100,15 @@ pub struct DiagnosticSession<'a> {
 
     /// Session
     pub session_context_name: &'a str,
+}
+
+impl<'a> DiagnosticSession<'a> {
+    pub fn new_with_session_name(session_context_name: &'a str) -> Self {
+        DiagnosticSession {
+            session_context_name,
+            ..Default::default()
+        }
+    }
 }
 
 impl Default for DiagnosticSession<'_> {
@@ -144,7 +155,9 @@ impl Default for DiagnosticSession<'_> {
 
             // Events analytics
             events_select_and_cast_to_kanban_task_name: "events_select_and_cast_to_kanban_task_name",
-            events_select_and_cast_to_kanban_processor_name: "events_select_and_cast_to_kanban_processor_name",
+            events_select_and_cast_to_kanban_processor_1_name: "events_select_and_cast_to_kanban_processor_1_name",
+            events_select_and_cast_to_kanban_processor_2_name: "events_select_and_cast_to_kanban_processor_2_name",
+            events_select_and_cast_tmp: "events_select_and_cast_tmp",
             apply_kanban_task_name: "apply_kanban_task_name",
             apply_kanban_processor_name: "apply_kanban_processor_name",
             events_runtime_env_name: "events_runtime_env_name",
@@ -286,7 +299,9 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 task_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
                 runtime_env_name: self.events_runtime_env_name.to_string(),
                 processor_names: vec![
-                    self.events_select_and_cast_to_kanban_processor_name
+                    self.events_select_and_cast_to_kanban_processor_1_name
+                        .to_string(),
+                    self.events_select_and_cast_to_kanban_processor_2_name
                         .to_string(),
                 ],
             },
@@ -580,9 +595,9 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             AvailableProcessors::Select.build_arc(
-                self.events_select_and_cast_to_kanban_processor_name,
+                self.events_select_and_cast_to_kanban_processor_1_name,
                 &[TablePublication::Replace {
-                    table_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
+                    table_name: self.events_select_and_cast_tmp.to_string(),
                 }],
                 &[
                     TableSubscription::OnUpdateFullTable {
@@ -590,7 +605,24 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self
-                            .events_select_and_cast_to_kanban_processor_name
+                            .events_select_and_cast_to_kanban_processor_1_name
+                            .to_string(),
+                    },
+                ],
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+            ),
+            AvailableProcessors::Select.build_arc(
+                self.events_select_and_cast_to_kanban_processor_2_name,
+                &[TablePublication::Replace {
+                    table_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
+                }],
+                &[
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self.events_select_and_cast_tmp.to_string(),
+                    },
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self
+                            .events_select_and_cast_to_kanban_processor_2_name
                             .to_string(),
                     },
                 ],
@@ -1074,16 +1106,113 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             .unwrap();
 
         // Events select and cast kanban
-        let events_select_and_cast_to_kanban_config = DataConfig {
+        let events_select_and_cast_to_kanban_1_config = DataConfig {
             lhs_name: Some(AvailableSubjects::AnalyticsEvents.to_string()),
             lhs_values: Some(vec![
                 "event_level".to_string(),
+                "span_name".to_string(),
+                // "function".to_string(),
+                "record_name".to_string(),
+                "record_value".to_string(),
+                "span_name".to_string(),
+                "span_name".to_string(),
+                "span_name".to_string(),
                 "event_level".to_string(),
-                "span_name".to_string(),
-                "span_name".to_string(),
-                "function".to_string(),
-                "function".to_string(),
                 "id".to_string(),
+            ]),
+            rhs_values: Some(vec![
+                "".to_string(),
+                "".to_string(),
+                // "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                // "function".to_string(),
+                "record_name".to_string(),
+                "event_level".to_string(),
+                "".to_string(),
+                "".to_string(),
+            ]),
+            as_columns: Some(vec![
+                "".to_string(),
+                "".to_string(),
+                // "".to_string(),
+                "".to_string(),
+                "event_level".to_string(),
+                // "span_name".to_string(),
+                "span_name".to_string(),
+                "record_value".to_string(),
+                "".to_string(),
+                "".to_string(),
+            ]),
+            column_operators: Some(vec![
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                // DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                // DataColumnOperator::Concat,
+                DataColumnOperator::Concat,
+                DataColumnOperator::Concat,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+            ]),
+            cast_operators: Some(vec![
+                DataCastOperator::None,
+                DataCastOperator::None,
+                // DataCastOperator::None,
+                DataCastOperator::None,
+                DataCastOperator::None,
+                // DataCastOperator::None,
+                DataCastOperator::None,
+                DataCastOperator::None,
+                DataCastOperator::None,
+                DataCastOperator::None,
+            ]),
+            cast_datatypes: Some(vec![
+                DataType::Utf8.to_string(),
+                DataType::Utf8.to_string(),
+                // DataType::Utf8.to_string(),
+                DataType::Utf8.to_string(),
+                DataType::Utf8.to_string(),
+                // DataType::Utf8.to_string(),
+                DataType::Utf8.to_string(),
+                DataType::Utf8.to_string(),
+                DataType::Utf8.to_string(),
+                DataType::Utf8.to_string(),
+            ]),
+            cast_templates: Some(vec![
+                "".to_string(),
+                "**Span**: {{ span_name }} ".to_string(),
+                // "**Function**: {{ function }} ".to_string(),
+                "**Record**: {{ record_name }} ".to_string(),
+                "**Value**: {{ record_value }} ".to_string(),
+                // "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            ]),
+            operator: AvailableCandleOperators::Select,
+            ..Default::default()
+        };
+        let events_select_and_cast_to_kanban_1_config_json =
+            serde_json::to_vec(&events_select_and_cast_to_kanban_1_config).unwrap();
+        let events_select_and_cast_to_kanban_1_config_state = TableBuilder::new()
+            .with_name(self.events_select_and_cast_to_kanban_processor_1_name)
+            .with_json(&events_select_and_cast_to_kanban_1_config_json.clone(), 1)
+            .unwrap()
+            .build()
+            .unwrap();
+        let events_select_and_cast_to_kanban_2_config = DataConfig {
+            lhs_name: Some(self.events_select_and_cast_tmp.to_string()),
+            lhs_values: Some(vec![
+                "event_level".to_string(),
+                "event_level".to_string(),
+                "id".to_string(),
+                "record_value".to_string(),
+                "event_level".to_string(),
+                "id".to_string(),
+                "event_level".to_string(),
             ]),
             rhs_values: Some(vec![
                 "".to_string(),
@@ -1115,10 +1244,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             cast_operators: Some(vec![
                 DataCastOperator::None,
                 DataCastOperator::None,
+                DataCastOperator::Cast,
                 DataCastOperator::None,
                 DataCastOperator::None,
-                DataCastOperator::None,
-                DataCastOperator::None,
+                DataCastOperator::Cast,
                 DataCastOperator::None,
             ]),
             cast_datatypes: Some(vec![
@@ -1135,18 +1264,18 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "".to_string(),
                 "".to_string(),
                 "".to_string(),
-                "".to_string(),
+                "''".to_string(),
                 "".to_string(),
                 "Low".to_string(),
             ]),
             operator: AvailableCandleOperators::Select,
             ..Default::default()
         };
-        let events_select_and_cast_to_kanban_config_json =
-            serde_json::to_vec(&events_select_and_cast_to_kanban_config).unwrap();
-        let events_select_and_cast_to_kanban_config_state = TableBuilder::new()
-            .with_name(self.events_select_and_cast_to_kanban_processor_name)
-            .with_json(&events_select_and_cast_to_kanban_config_json.clone(), 1)
+        let events_select_and_cast_to_kanban_2_config_json =
+            serde_json::to_vec(&events_select_and_cast_to_kanban_2_config).unwrap();
+        let events_select_and_cast_to_kanban_2_config_state = TableBuilder::new()
+            .with_name(self.events_select_and_cast_to_kanban_processor_2_name)
+            .with_json(&events_select_and_cast_to_kanban_2_config_json.clone(), 1)
             .unwrap()
             .build()
             .unwrap();
@@ -1206,7 +1335,8 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             apply_sequence_diagram_participants_config_state,
             aggregator_1_state,
             apply_sequence_diagram_config_state,
-            events_select_and_cast_to_kanban_config_state,
+            events_select_and_cast_to_kanban_1_config_state,
+            events_select_and_cast_to_kanban_2_config_state,
             apply_kanban_config_state,
             aggregator_2_state,
             // Metrics
@@ -1312,6 +1442,9 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             // Events
             AvailableSubjects::AnalyticsEvents
                 .to_table(None, None)
+                .unwrap(),
+            AvailableSubjects::AnalyticsEvents
+                .to_table(Some(self.events_select_and_cast_tmp), None)
                 .unwrap(),
             AvailableSubjects::MermaidKanbanTemplate
                 .to_table(Some(self.events_select_and_cast_to_kanban_task_name), None)
@@ -1442,24 +1575,23 @@ mod tests {
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
         let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-        // DM: debugging
-        // let sss = session_stream_state.read();
-        // let table = sss
-        //     .get_session_context()
-        //     .get_states()
-        //     .get(AvailableSubjects::SessionErrors.to_string().as_str())
-        //     .unwrap()
-        //     .read();
-        // println!("__ERRORS__");
-        // println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
-        // let table = sss
-        //     .get_session_context()
-        //     .get_states()
-        //     .get(AvailableSubjects::SessionTraces.to_string().as_str())
-        //     .unwrap()
-        //     .read();
-        // println!("__TRACES__");
-        // println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
+        let sss = session_stream_state.read();
+        let table = sss
+            .get_session_context()
+            .get_states()
+            .get(AvailableSubjects::SessionErrors.to_string().as_str())
+            .unwrap()
+            .read();
+        println!("__ERRORS__");
+        println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
+        let table = sss
+            .get_session_context()
+            .get_states()
+            .get(AvailableSubjects::SessionTraces.to_string().as_str())
+            .unwrap()
+            .read();
+        println!("__TRACES__");
+        println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
 
         let bytes = response
             .iter_mut()
