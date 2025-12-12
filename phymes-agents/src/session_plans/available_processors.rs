@@ -62,8 +62,6 @@ pub enum AvailableProcessors {
     Melt,
     #[value(name = "NormalizeTime")]
     NormalizeTime,
-    #[value(name = "TrimTimeGaps")]
-    TrimTimeGaps,
     #[value(name = "DataSummaryProcessor")]
     DataSummaryProcessor,
     #[value(name = "CoalesceProcessor")]
@@ -114,7 +112,6 @@ impl Display for AvailableProcessors {
             Self::ExtractXML => write!(f, "{}", AvailableCandleOperators::ExtractXML),
             Self::Melt => write!(f, "{}", AvailableCandleOperators::Melt),
             Self::NormalizeTime => write!(f, "{}", AvailableCandleOperators::NormalizeTime),
-            Self::TrimTimeGaps => write!(f, "{}", AvailableCandleOperators::TrimTimeGaps),
             Self::ProcessorMock => write!(f, "{}", ProcessorMock::get_static_name()),
             Self::ProcessorEcho => write!(f, "{}", ProcessorEcho::get_static_name()),
             Self::CandleDataProcessor => write!(f, "{}", CandleDataProcessor::get_static_name()),
@@ -302,14 +299,6 @@ impl DataConfigTrait for AvailableProcessors {
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
                 ..Default::default()
             }),
-            Self::TrimTimeGaps => serde_json::to_vec(&DataConfig {
-                lhs_name: Some("lhs_name".to_string()),
-                lhs_values: Some(vec!["lhs_values".to_string()]),
-                cpu: false,
-                operator: AvailableCandleOperators::TrimTimeGaps,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
-                ..Default::default()
-            }),
             Self::DataSummaryProcessor => serde_json::to_vec(&DataSummaryConfig {
                 summary_format: DataFormat::None,
                 ..Default::default()
@@ -459,7 +448,6 @@ impl ToolTrait for AvailableProcessors {
             Self::HumanInTheLoop => AvailableCandleOperators::HumanInTheLoop.get_description(),
             Self::Join => AvailableCandleOperators::Join.get_description(),
             Self::NormalizeTime => AvailableCandleOperators::NormalizeTime.get_description(),
-            Self::TrimTimeGaps => AvailableCandleOperators::TrimTimeGaps.get_description(),
             Self::Pivot => AvailableCandleOperators::Pivot.get_description(),
             Self::ExtractXML => AvailableCandleOperators::ExtractXML.get_description(),
             Self::Melt => AvailableCandleOperators::Melt.get_description(),
@@ -494,7 +482,6 @@ impl ToolTrait for AvailableProcessors {
             Self::HumanInTheLoop => AvailableCandleOperators::HumanInTheLoop.to_json_tool_schema(),
             Self::Join => AvailableCandleOperators::Join.to_json_tool_schema(),
             Self::NormalizeTime => AvailableCandleOperators::NormalizeTime.to_json_tool_schema(),
-            Self::TrimTimeGaps => AvailableCandleOperators::TrimTimeGaps.to_json_tool_schema(),
             Self::Pivot => AvailableCandleOperators::Pivot.to_json_tool_schema(),
             Self::ExtractXML => AvailableCandleOperators::ExtractXML.to_json_tool_schema(),
             Self::Melt => AvailableCandleOperators::Melt.to_json_tool_schema(),
@@ -540,7 +527,6 @@ impl AvailableProcessors {
             AvailableProcessors::ExtractXML.to_string(),
             AvailableProcessors::Melt.to_string(),
             AvailableProcessors::NormalizeTime.to_string(),
-            AvailableProcessors::TrimTimeGaps.to_string(),
             AvailableProcessors::DataSummaryProcessor.to_string(),
             AvailableProcessors::CoalesceProcessor.to_string(),
             AvailableProcessors::LimitProcessor.to_string(),
@@ -598,8 +584,6 @@ impl AvailableProcessors {
             Ok(AvailableProcessors::Select)
         } else if line.contains(&AvailableProcessors::NormalizeTime.to_string()) {
             Ok(AvailableProcessors::NormalizeTime)
-        } else if line.contains(&AvailableProcessors::TrimTimeGaps.to_string()) {
-            Ok(AvailableProcessors::TrimTimeGaps)
         } else if line.contains(&AvailableProcessors::CandleDataProcessor.to_string()) {
             Ok(AvailableProcessors::CandleDataProcessor)
         } else if line.contains(&AvailableProcessors::DataSummaryProcessor.to_string()) {
@@ -670,7 +654,6 @@ impl AvailableProcessors {
             | Self::HumanInTheLoop
             | Self::Join
             | Self::NormalizeTime
-            | Self::TrimTimeGaps
             | Self::Pivot
             | Self::ExtractXML
             | Self::Melt
@@ -773,7 +756,6 @@ impl AvailableProcessors {
             | Self::HumanInTheLoop
             | Self::Join
             | Self::NormalizeTime
-            | Self::TrimTimeGaps
             | Self::Pivot
             | Self::ExtractXML
             | Self::Melt
@@ -812,7 +794,6 @@ impl AvailableProcessors {
             | Self::HumanInTheLoop
             | Self::Join
             | Self::NormalizeTime
-            | Self::TrimTimeGaps
             | Self::Pivot
             | Self::ExtractXML
             | Self::Melt

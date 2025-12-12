@@ -36,9 +36,7 @@ pub use vector_distance::VectorDistance;
 mod from_tasks_to_participants;
 mod from_traces_to_messages;
 mod normalize_time;
-mod trim_time_gaps;
 
 pub use from_tasks_to_participants::FromTasksToParticipants;
 pub use from_traces_to_messages::FromTracesToMessages;
 pub use normalize_time::NormalizeTime;
-pub use trim_time_gaps::TrimTimeGaps;

@@ -209,7 +209,7 @@ pub async fn session_diagnostics(
                     ])
                 }
             };
-            dbg!(&message_map.keys());
+
             // Make the diagnostics session stream
             let session_ctx = diagnostic_session
                 .build()
