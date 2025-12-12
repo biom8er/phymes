@@ -7,11 +7,13 @@ use phymes_core::{BuilderTrait, MappableTrait, Table, TableBuilder, TableBuilder
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ExtractXML, ToolTrait, candle_data::DataConfig, candle_operators::{
+    ExtractXML, ToolTrait,
+    candle_data::DataConfig,
+    candle_operators::{
         ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDF, ExtractTabular, Filter,
         FromTasksToParticipants, FromTracesToMessages, GroupBy, HumanInTheLoop, Join, Melt,
         NormalizeTime, Pivot, Select, Sort, VectorDistance,
-    }
+    },
 };
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]

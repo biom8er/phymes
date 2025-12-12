@@ -1,7 +1,10 @@
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{Result, anyhow};
-use arrow::{array::{ArrayRef, Int64Array, RecordBatch}, datatypes::Schema};
+use arrow::{
+    array::{ArrayRef, Int64Array, RecordBatch},
+    datatypes::Schema,
+};
 use candle_core::{Device, Tensor};
 use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
@@ -10,7 +13,11 @@ use phymes_core::{
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::{ToolTrait, candle_data::DataConfig, candle_operators::{DataOperatorTrait, sort}};
+use crate::{
+    ToolTrait,
+    candle_data::DataConfig,
+    candle_operators::{DataOperatorTrait, sort},
+};
 
 /// Compute the normalized start and end times in a [RecordBatch] and remove any gaps in time
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -104,8 +111,11 @@ impl DataOperatorTrait for NormalizeTime {
 }
 
 /// Compute the normalized time and duration
-fn normalize_time_tensor(lhs_values: &[&str],lhs_table: &Table, device: &Device) -> Result<(Vec<i64>, Vec<i64>, Vec<i64>)> {
-
+fn normalize_time_tensor(
+    lhs_values: &[&str],
+    lhs_table: &Table,
+    device: &Device,
+) -> Result<(Vec<i64>, Vec<i64>, Vec<i64>)> {
     // Determine the minimum start time
     let start_time_vec = lhs_table
         .get_column_as_vec_primitive::<i64>(lhs_values.first().unwrap())?
@@ -183,14 +193,19 @@ pub fn normalize_time(
         .build()?;
 
     // Normalize to a 0 start time
-    let (start_time_norm_vec, end_time_norm_vec, duration_vec) = normalize_time_tensor(lhs_values, &lhs_table, device)?;
+    let (start_time_norm_vec, end_time_norm_vec, duration_vec) =
+        normalize_time_tensor(lhs_values, &lhs_table, device)?;
 
     // Find and remove gaps in time
     let mut gap_cum: i128 = 0;
     let mut last_end: i128 = 0;
     let mut start_time = Vec::new();
     let mut end_time = Vec::new();
-    for (i, (s, e)) in start_time_norm_vec.into_iter().zip(end_time_norm_vec.into_iter()).enumerate() {
+    for (i, (s, e)) in start_time_norm_vec
+        .into_iter()
+        .zip(end_time_norm_vec.into_iter())
+        .enumerate()
+    {
         if i > 0 {
             let gap = s as i128 - last_end;
             if gap > 0 {

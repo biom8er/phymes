@@ -29,7 +29,9 @@ mod error;
 pub use error::{create_error_message_map, create_error_message_map_stream};
 
 mod diagnostics;
-pub use diagnostics::{DiagnosticsVisualizations, create_metrics_mermaid_gantt_batch, from_diagnostics_to_tables};
+pub use diagnostics::{
+    DiagnosticsVisualizations, create_metrics_mermaid_gantt_batch, from_diagnostics_to_tables,
+};
 
 mod session;
 pub use session::{

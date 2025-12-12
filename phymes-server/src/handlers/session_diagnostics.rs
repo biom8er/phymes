@@ -12,7 +12,8 @@ use bytes::Bytes;
 use futures::prelude::*;
 use parking_lot::RwLock;
 use phymes_agents::{
-    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DiagnosticSession, SessionContextBuilderAgentsTrait, create_message_map
+    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DiagnosticSession,
+    SessionContextBuilderAgentsTrait, create_message_map,
 };
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, IPCMessage,
@@ -216,7 +217,8 @@ pub async fn session_diagnostics(
                 .with_name(diagnostic_session.session_context_name)
                 .add_session_interface(Some(&[AvailableInterfaceSubjects::AggregatedAttachments
                     .to_string()
-                    .as_str()])).unwrap()
+                    .as_str()]))
+                .unwrap()
                 .build_with_tables()
                 .unwrap();
             let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));

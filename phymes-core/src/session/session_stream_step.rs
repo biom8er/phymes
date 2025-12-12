@@ -783,7 +783,7 @@ mod tests {
                 .len(),
             1
         );
-        
+
         // Superstep 2
         let mut response = SessionStreamStep::run_superstep(
             Arc::clone(&session_stream_state),

@@ -335,7 +335,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             TaskPlan {
                 task_name: self.errors_select_and_cast_to_kanban_task_name.to_string(),
                 runtime_env_name: self.errors_runtime_env_name.to_string(),
-                processor_names: vec![self.errors_select_and_cast_to_kanban_processor_name.to_string()],
+                processor_names: vec![
+                    self.errors_select_and_cast_to_kanban_processor_name
+                        .to_string(),
+                ],
             },
             TaskPlan {
                 task_name: self.errors_apply_kanban_task_name.to_string(),
@@ -562,9 +565,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 }],
                 &[
                     TableSubscription::OnUpdateFullTable {
-                        table_name: self
-                            .apply_sequence_diagram_messages_task_name
-                            .to_string(),
+                        table_name: self.apply_sequence_diagram_messages_task_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self
@@ -804,7 +805,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             RuntimeEnv::new().with_name(self.metrics_output_rows_runtime_env_name),
             RuntimeEnv::new().with_name(self.traces_runtime_env_name),
             RuntimeEnv::new().with_name(self.events_runtime_env_name),
-            RuntimeEnv::new().with_name(self.errors_runtime_env_name)
+            RuntimeEnv::new().with_name(self.errors_runtime_env_name),
         ])
     }
 
@@ -1163,16 +1164,8 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "content".to_string(),
                 "timestamp".to_string(),
             ]),
-            rhs_values: Some(vec![
-                "".to_string(),
-                "".to_string(),
-                "".to_string(),
-            ]),
-            as_columns: Some(vec![
-                "".to_string(),
-                "".to_string(),
-                "".to_string(),
-            ]),
+            rhs_values: Some(vec!["".to_string(), "".to_string(), "".to_string()]),
+            as_columns: Some(vec!["".to_string(), "".to_string(), "".to_string()]),
             column_operators: Some(vec![
                 DataColumnOperator::None,
                 DataColumnOperator::None,
@@ -1256,22 +1249,17 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
         // Traces select sequence diagram participants
         let select_sequence_diagram_participants_config = DataConfig {
-            lhs_name: Some(self.apply_sequence_diagram_participants_task_name.to_string()),
+            lhs_name: Some(
+                self.apply_sequence_diagram_participants_task_name
+                    .to_string(),
+            ),
             lhs_values: Some(vec![
                 "role".to_string(),
                 "content".to_string(),
                 "timestamp".to_string(),
             ]),
-            rhs_values: Some(vec![
-                "".to_string(),
-                "".to_string(),
-                "".to_string(),
-            ]),
-            as_columns: Some(vec![
-                "".to_string(),
-                "".to_string(),
-                "".to_string(),
-            ]),
+            rhs_values: Some(vec!["".to_string(), "".to_string(), "".to_string()]),
+            as_columns: Some(vec!["".to_string(), "".to_string(), "".to_string()]),
             column_operators: Some(vec![
                 DataColumnOperator::None,
                 DataColumnOperator::None,
@@ -1414,7 +1402,8 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
         };
-        let errors_apply_kanban_config_json = serde_json::to_vec(&errors_apply_kanban_config).unwrap();
+        let errors_apply_kanban_config_json =
+            serde_json::to_vec(&errors_apply_kanban_config).unwrap();
         let errors_apply_kanban_config_state = TableBuilder::new()
             .with_name(self.errors_apply_kanban_processor_name)
             .with_json(&errors_apply_kanban_config_json, 1)
@@ -1607,7 +1596,8 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
         };
-        let events_apply_kanban_config_json = serde_json::to_vec(&events_apply_kanban_config).unwrap();
+        let events_apply_kanban_config_json =
+            serde_json::to_vec(&events_apply_kanban_config).unwrap();
         let events_apply_kanban_config_state = TableBuilder::new()
             .with_name(self.events_apply_kanban_processor_name)
             .with_json(&events_apply_kanban_config_json, 1)
@@ -1943,7 +1933,6 @@ mod tests {
                     events_message,
                     tasks_message,
                 ])
-
             }
         };
 

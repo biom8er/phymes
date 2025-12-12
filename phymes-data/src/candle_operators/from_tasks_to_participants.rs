@@ -83,7 +83,11 @@ pub fn from_tasks_to_participants(
     let object_name_vec = rhs_table.get_column_as_vec_nonprimitive::<String>("object_name")?;
     let mut found_set = HashSet::new();
     found_set.insert("User");
-    for (i, (subject, object)) in subject_name_vec.iter().zip(object_name_vec.iter()).enumerate() {
+    for (i, (subject, object)) in subject_name_vec
+        .iter()
+        .zip(object_name_vec.iter())
+        .enumerate()
+    {
         // The first entry should be User -> Session
         if i == 0 {
             participant_name_vec.push(subject);
@@ -157,7 +161,8 @@ mod tests {
         ];
         let rhs_1_array: ArrayRef = Arc::new(StringArray::from(rhs_1_vec));
         let rhs_2_vec = vec![
-            "State", "t1", "p1", "p2", "t1", "s", "t2", "p3", "p4", "t2", "s", "t3", "p1", "t3", "s",
+            "State", "t1", "p1", "p2", "t1", "s", "t2", "p3", "p4", "t2", "s", "t3", "p1", "t3",
+            "s",
         ];
         let rhs_2_array: ArrayRef = Arc::new(StringArray::from(rhs_2_vec));
         let rhs_batch = RecordBatch::try_from_iter(vec![
