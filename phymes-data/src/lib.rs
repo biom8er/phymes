@@ -12,7 +12,7 @@ pub use candle_data::{
 pub use candle_operators::{
     ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait, ExtractPDF,
     ExtractTabular, ExtractXML, Filter, FromTasksToParticipants, FromTracesToMessages, GroupBy,
-    HumanInTheLoop, Join, NormalizeTime, Pivot, Select, Sort, ToolTrait, VectorDistance,
+    HumanInTheLoop, Join, NormalizeTime, TrimTimeGaps, Pivot, Select, Sort, ToolTrait, VectorDistance,
     convert_destinations_to_tools, extract_xml, filter, group_by, make_pdf_document, sort,
     test_extract_tabular_data,
 };

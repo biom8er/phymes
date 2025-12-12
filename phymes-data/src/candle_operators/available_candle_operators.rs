@@ -7,13 +7,11 @@ use phymes_core::{BuilderTrait, MappableTrait, Table, TableBuilder, TableBuilder
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ExtractXML, ToolTrait,
-    candle_data::DataConfig,
-    candle_operators::{
+    ExtractXML, ToolTrait, TrimTimeGaps, candle_data::DataConfig, candle_operators::{
         ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDF, ExtractTabular, Filter,
         FromTasksToParticipants, FromTracesToMessages, GroupBy, HumanInTheLoop, Join, Melt,
         NormalizeTime, Pivot, Select, Sort, VectorDistance,
-    },
+    }
 };
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
@@ -70,6 +68,9 @@ pub enum AvailableCandleOperators {
     #[value(name = "FromTracesToMessages")]
     #[serde(alias = "FromTracesToMessages")]
     FromTracesToMessages,
+    #[value(name = "TrimTimeGaps")]
+    #[serde(alias = "TrimTimeGaps")]
+    TrimTimeGaps,
 }
 
 impl Display for AvailableCandleOperators {
@@ -96,6 +97,7 @@ impl Display for AvailableCandleOperators {
                 write!(f, "{}", FromTasksToParticipants::get_static_name())
             }
             Self::FromTracesToMessages => write!(f, "{}", FromTracesToMessages::get_static_name()),
+            Self::TrimTimeGaps => write!(f, "{}", TrimTimeGaps::get_static_name()),
         }
     }
 }
@@ -120,6 +122,7 @@ impl ToolTrait for AvailableCandleOperators {
             Self::NormalizeTime => NormalizeTime::default().to_json_tool_schema(),
             Self::FromTasksToParticipants => String::new(),
             Self::FromTracesToMessages => String::new(),
+            Self::TrimTimeGaps => TrimTimeGaps::default().to_json_tool_schema(),
         }
     }
     fn get_description(&self) -> String {
@@ -141,6 +144,7 @@ impl ToolTrait for AvailableCandleOperators {
             Self::NormalizeTime => NormalizeTime::default().get_description(),
             Self::FromTasksToParticipants => String::new(),
             Self::FromTracesToMessages => String::new(),
+            Self::TrimTimeGaps => TrimTimeGaps::default().get_description(),
         }
     }
 }
@@ -162,6 +166,7 @@ impl AvailableCandleOperators {
             Self::ExtractXML.to_string(),
             Self::Melt.to_string(),
             Self::NormalizeTime.to_string(),
+            Self::TrimTimeGaps.to_string(),
         ];
         processor_names
             .iter()
@@ -188,6 +193,7 @@ impl AvailableCandleOperators {
             Self::NormalizeTime => Ok(Box::new(NormalizeTime::new(config)?)),
             Self::FromTasksToParticipants => Ok(Box::new(FromTasksToParticipants::new(config)?)),
             Self::FromTracesToMessages => Ok(Box::new(FromTracesToMessages::new(config)?)),
+            Self::TrimTimeGaps => Ok(Box::new(TrimTimeGaps::new(config)?)),
         }
     }
 }
@@ -244,6 +250,7 @@ mod tests {
                 "NormalizeTime".to_string(),
                 "FromTasksToParticipants".to_string(),
                 "FromTracesToMessages".to_string(),
+                "TrimTimeGaps".to_string(),
             ],
         )
         .unwrap();
@@ -266,6 +273,7 @@ mod tests {
                 "NormalizeTime",
                 "FromTasksToParticipants",
                 "FromTracesToMessages",
+                "TrimTimeGaps",
             ]
         );
     }
