@@ -148,7 +148,8 @@ pub fn from_traces_to_messages(
                 object_name_vec.push(o_name);
                 message_type_vec.push("->>".to_string());
                 activation_type_vec.push(String::new());
-                message_content_vec.push(format!("subject: {subject_name}<br>name: {message_name}"));
+                message_content_vec.push(subject_name.clone());
+                // message_content_vec.push(format!("subject: {subject_name}<br>name: {message_name}"));
                 note_content_vec.push(String::new());
                 note_location_vec.push(String::new());
                 timestamp_messages_vec.push(timestamp.to_owned());

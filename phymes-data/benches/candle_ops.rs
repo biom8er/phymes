@@ -297,7 +297,6 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
     println!("exporting metrics");
     let (metrics_table, _traces_table, _events_table) =
         from_diagnostics_to_tables(&metrics_vec).unwrap();
-    let metrics_table = pivot_metrics_table(metrics_table.unwrap(), "metrics").unwrap();
     let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
     let pathname =
         format!("{target_dir}/.cache/metrics/benchmark_ops_processor_{wasm}_{gpu}_{candle}.csv");

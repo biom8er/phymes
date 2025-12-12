@@ -207,7 +207,6 @@ pub async fn session_diagnostics(
                         events_message,
                         tasks_message,
                     ])
-
                 }
             };
             dbg!(&message_map.keys());

@@ -74,10 +74,14 @@ pub struct DiagnosticSession<'a> {
     pub traces_to_sequence_diagram_messages_processor_name: &'a str,
     pub apply_sequence_diagram_messages_task_name: &'a str,
     pub apply_sequence_diagram_messages_processor_name: &'a str,
+    pub select_sequence_diagram_messages_task_name: &'a str,
+    pub select_sequence_diagram_messages_processor_name: &'a str,
     pub session_tasks_to_sequence_diagram_participants_task_name: &'a str,
     pub session_tasks_to_sequence_diagram_participants_processor_name: &'a str,
     pub apply_sequence_diagram_participants_task_name: &'a str,
     pub apply_sequence_diagram_participants_processor_name: &'a str,
+    pub select_sequence_diagram_participants_task_name: &'a str,
+    pub select_sequence_diagram_participants_processor_name: &'a str,
     pub traces_aggregate_sequence_diagram_content_task_name: &'a str,
     pub traces_aggregate_sequence_diagram_content_processor_name: &'a str,
     pub apply_sequence_diagram_task_name: &'a str,
@@ -151,10 +155,14 @@ impl Default for DiagnosticSession<'_> {
             traces_to_sequence_diagram_messages_processor_name: "traces_to_sequence_diagram_messages_processor_name",
             apply_sequence_diagram_messages_task_name: "apply_sequence_diagram_messages_task_name",
             apply_sequence_diagram_messages_processor_name: "apply_sequence_diagram_messages_processor_name",
+            select_sequence_diagram_messages_task_name: "select_sequence_diagram_messages_task_name",
+            select_sequence_diagram_messages_processor_name: "select_sequence_diagram_messages_processor_name",
             session_tasks_to_sequence_diagram_participants_task_name: "session_tasks_to_sequence_diagram_participants_task_name",
             session_tasks_to_sequence_diagram_participants_processor_name: "session_tasks_to_sequence_diagram_participants_processor_name",
             apply_sequence_diagram_participants_task_name: "apply_sequence_diagram_participants_task_name",
             apply_sequence_diagram_participants_processor_name: "apply_sequence_diagram_participants_processor_name",
+            select_sequence_diagram_participants_task_name: "select_sequence_diagram_participants_task_name",
+            select_sequence_diagram_participants_processor_name: "select_sequence_diagram_participants_processor_name",
             traces_aggregate_sequence_diagram_content_task_name: "traces_aggregate_sequence_diagram_content_task_name",
             traces_aggregate_sequence_diagram_content_processor_name: "traces_aggregate_sequence_diagram_content_processor_name",
             apply_sequence_diagram_task_name: "apply_sequence_diagram_task_name",
@@ -277,6 +285,14 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
             },
             TaskPlan {
+                task_name: self.select_sequence_diagram_messages_task_name.to_string(),
+                runtime_env_name: self.traces_runtime_env_name.to_string(),
+                processor_names: vec![
+                    self.select_sequence_diagram_messages_processor_name
+                        .to_string(),
+                ],
+            },
+            TaskPlan {
                 task_name: self
                     .session_tasks_to_sequence_diagram_participants_task_name
                     .to_string(),
@@ -293,6 +309,16 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 runtime_env_name: self.traces_runtime_env_name.to_string(),
                 processor_names: vec![
                     self.apply_sequence_diagram_participants_processor_name
+                        .to_string(),
+                ],
+            },
+            TaskPlan {
+                task_name: self
+                    .select_sequence_diagram_participants_task_name
+                    .to_string(),
+                runtime_env_name: self.traces_runtime_env_name.to_string(),
+                processor_names: vec![
+                    self.select_sequence_diagram_participants_processor_name
                         .to_string(),
                 ],
             },
@@ -549,6 +575,25 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
+            AvailableProcessors::Select.build_arc(
+                self.select_sequence_diagram_messages_processor_name,
+                &[TablePublication::Replace {
+                    table_name: self.select_sequence_diagram_messages_task_name.to_string(),
+                }],
+                &[
+                    TableSubscription::OnUpdateFullTable {
+                        table_name: self
+                            .apply_sequence_diagram_messages_task_name
+                            .to_string(),
+                    },
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self
+                            .select_sequence_diagram_messages_processor_name
+                            .to_string(),
+                    },
+                ],
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+            ),
             AvailableProcessors::CandleDataProcessor.build_arc(
                 self.session_tasks_to_sequence_diagram_participants_processor_name,
                 &[TablePublication::Replace {
@@ -594,6 +639,27 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
+            AvailableProcessors::Select.build_arc(
+                self.select_sequence_diagram_participants_processor_name,
+                &[TablePublication::Replace {
+                    table_name: self
+                        .select_sequence_diagram_participants_task_name
+                        .to_string(),
+                }],
+                &[
+                    TableSubscription::OnUpdateFullTable {
+                        table_name: self
+                            .apply_sequence_diagram_participants_task_name
+                            .to_string(),
+                    },
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self
+                            .select_sequence_diagram_participants_processor_name
+                            .to_string(),
+                    },
+                ],
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+            ),
             AvailableProcessors::MessageAggregatorProcessor.build_arc(
                 self.traces_aggregate_sequence_diagram_content_processor_name,
                 &[TablePublication::Replace {
@@ -604,11 +670,11 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 &[
                     TableSubscription::OnUpdateFullTable {
                         table_name: self
-                            .apply_sequence_diagram_participants_task_name
+                            .select_sequence_diagram_participants_task_name
                             .to_string(),
                     },
                     TableSubscription::OnUpdateFullTable {
-                        table_name: self.apply_sequence_diagram_messages_task_name.to_string(),
+                        table_name: self.select_sequence_diagram_messages_task_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self
@@ -1129,6 +1195,56 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             .build()
             .unwrap();
 
+        // Traces select sequence diagram messages
+        let select_sequence_diagram_messages_config = DataConfig {
+            lhs_name: Some(self.apply_sequence_diagram_messages_task_name.to_string()),
+            lhs_values: Some(vec![
+                "role".to_string(),
+                "content".to_string(),
+                "timestamp".to_string(),
+            ]),
+            rhs_values: Some(vec![
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            ]),
+            as_columns: Some(vec![
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            ]),
+            column_operators: Some(vec![
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+            ]),
+            cast_operators: Some(vec![
+                DataCastOperator::None,
+                DataCastOperator::None,
+                DataCastOperator::None,
+            ]),
+            cast_datatypes: Some(vec![
+                DataType::Utf8.to_string(),
+                DataType::Utf8.to_string(),
+                DataType::Int64.to_string(),
+            ]),
+            cast_templates: Some(vec![
+                "1".to_string(), // Needs to come second in the aggregation
+                "".to_string(),
+                "".to_string(),
+            ]),
+            operator: AvailableCandleOperators::Select,
+            ..Default::default()
+        };
+        let select_sequence_diagram_messages_config_json =
+            serde_json::to_vec(&select_sequence_diagram_messages_config).unwrap();
+        let select_sequence_diagram_messages_config_state = TableBuilder::new()
+            .with_name(self.select_sequence_diagram_messages_processor_name)
+            .with_json(&select_sequence_diagram_messages_config_json.clone(), 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
         // Traces to sequence diagram participants
         let session_tasks_to_sequence_diagram_participants_config = DataConfig {
             lhs_name: Some(AvailableSubjects::AnalyticsTasks.to_string()),
@@ -1174,6 +1290,56 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         let apply_sequence_diagram_participants_config_state = TableBuilder::new()
             .with_name(self.apply_sequence_diagram_participants_processor_name)
             .with_json(&apply_sequence_diagram_participants_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        // Traces select sequence diagram participants
+        let select_sequence_diagram_participants_config = DataConfig {
+            lhs_name: Some(self.apply_sequence_diagram_participants_task_name.to_string()),
+            lhs_values: Some(vec![
+                "role".to_string(),
+                "content".to_string(),
+                "timestamp".to_string(),
+            ]),
+            rhs_values: Some(vec![
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            ]),
+            as_columns: Some(vec![
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            ]),
+            column_operators: Some(vec![
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+                DataColumnOperator::None,
+            ]),
+            cast_operators: Some(vec![
+                DataCastOperator::None,
+                DataCastOperator::None,
+                DataCastOperator::None,
+            ]),
+            cast_datatypes: Some(vec![
+                DataType::Utf8.to_string(),
+                DataType::Utf8.to_string(),
+                DataType::Int64.to_string(),
+            ]),
+            cast_templates: Some(vec![
+                "0".to_string(), // Needs to come first in the aggregation
+                "".to_string(),
+                "".to_string(),
+            ]),
+            operator: AvailableCandleOperators::Select,
+            ..Default::default()
+        };
+        let select_sequence_diagram_participants_config_json =
+            serde_json::to_vec(&select_sequence_diagram_participants_config).unwrap();
+        let select_sequence_diagram_participants_config_state = TableBuilder::new()
+            .with_name(self.select_sequence_diagram_participants_processor_name)
+            .with_json(&select_sequence_diagram_participants_config_json.clone(), 1)
             .unwrap()
             .build()
             .unwrap();
@@ -1490,22 +1656,29 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             .unwrap();
 
         // traces and Outbox aggregate
-        let aggregator_config = DataConfig {
+        let aggregator_1_config = DataConfig {
+            lhs_values: Some(vec!["role".to_string()]),
+            asc: Some(true),
+            operator: AvailableCandleOperators::Sort,
+            ..Default::default()
+        };
+        let aggregator_1_config_json = serde_json::to_vec(&aggregator_1_config).unwrap();
+        let aggregator_1_state = TableBuilder::new()
+            .with_name(self.traces_aggregate_sequence_diagram_content_processor_name)
+            .with_json(&aggregator_1_config_json.clone(), 1)
+            .unwrap()
+            .build()
+            .unwrap();
+        let aggregator_2_config = DataConfig {
             lhs_values: Some(vec!["timestamp".to_string()]),
             asc: Some(true),
             operator: AvailableCandleOperators::Sort,
             ..Default::default()
         };
-        let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
-        let aggregator_1_state = TableBuilder::new()
-            .with_name(self.traces_aggregate_sequence_diagram_content_processor_name)
-            .with_json(&aggregator_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
+        let aggregator_2_config_json = serde_json::to_vec(&aggregator_2_config).unwrap();
         let aggregator_2_state = TableBuilder::new()
             .with_name(self.aggregate_visualizations_processor_name)
-            .with_json(&aggregator_config_json, 1)
+            .with_json(&aggregator_2_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
@@ -1523,8 +1696,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             metrics_output_rows_apply_gantt_config_state,
             traces_to_sequence_diagram_messages_config_state,
             apply_sequence_diagram_messages_config_state,
+            select_sequence_diagram_messages_config_state,
             session_tasks_to_sequence_diagram_participants_config_state,
             apply_sequence_diagram_participants_config_state,
+            select_sequence_diagram_participants_config_state,
             aggregator_1_state,
             apply_sequence_diagram_config_state,
             errors_select_and_cast_to_kanban_config_state,
@@ -1618,7 +1793,16 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 )
                 .unwrap(),
             AvailableSubjects::Messages
+                .to_table(
+                    Some(self.select_sequence_diagram_participants_task_name),
+                    None,
+                )
+                .unwrap(),
+            AvailableSubjects::Messages
                 .to_table(Some(self.apply_sequence_diagram_messages_task_name), None)
+                .unwrap(),
+            AvailableSubjects::Messages
+                .to_table(Some(self.select_sequence_diagram_messages_task_name), None)
                 .unwrap(),
             AvailableSubjects::Messages
                 .to_table(
