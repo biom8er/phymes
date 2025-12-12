@@ -186,26 +186,26 @@ pub fn normalize_time(
     let (start_time_norm_vec, end_time_norm_vec, duration_vec) = normalize_time_tensor(lhs_values, &lhs_table, device)?;
 
     // Find and remove gaps in time
-    let mut gap_cum: i64 = 0;
-    let mut last_end: i64 = 0;
+    let mut gap_cum: i128 = 0;
+    let mut last_end: i128 = 0;
     let mut start_time = Vec::new();
     let mut end_time = Vec::new();
     for (i, (s, e)) in start_time_norm_vec.into_iter().zip(end_time_norm_vec.into_iter()).enumerate() {
         if i > 0 {
-            let gap = s - last_end;
+            let gap = s as i128 - last_end;
             if gap > 0 {
                 // println!("gap: {gap}; gap_cum: {gap_cum}");
                 gap_cum += gap;
             }
-            start_time.push(s-gap_cum);
-            end_time.push(e-gap_cum);
-            if e > last_end {
-                last_end = e;
+            start_time.push(s - gap_cum as i64);
+            end_time.push(e - gap_cum as i64);
+            if e as i128 > last_end {
+                last_end = e as i128;
             }
         } else {
             start_time.push(s);
             end_time.push(e);
-            last_end = e;
+            last_end = e as i128;
         }
     }
 
