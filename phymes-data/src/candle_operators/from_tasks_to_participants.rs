@@ -83,7 +83,20 @@ pub fn from_tasks_to_participants(
     let object_name_vec = rhs_table.get_column_as_vec_nonprimitive::<String>("object_name")?;
     let mut found_set = HashSet::new();
     found_set.insert("User");
-    for (subject, object) in subject_name_vec.iter().zip(object_name_vec.iter()) {
+    for (i, (subject, object)) in subject_name_vec.iter().zip(object_name_vec.iter()).enumerate() {
+        // The first entry should be User -> Session
+        if i == 0 {
+            participant_name_vec.push(subject);
+            participant_type_vec.push("actor");
+            found_set.insert(subject);
+            participant_name_vec.push(object);
+            participant_type_vec.push("database");
+            found_set.insert(object);
+            continue;
+        }
+
+        // Prioritize the tasks when the task_name == processor_name
+        // DM: cases of task_name == processor_name will appear as self-loops in the sequence diagram
         if task_name_set.contains(subject) && !found_set.contains(subject.as_str()) {
             // New task from subject
             participant_name_vec.push(subject);
@@ -103,16 +116,6 @@ pub fn from_tasks_to_participants(
             // New processor from object
             participant_name_vec.push(object);
             participant_type_vec.push("participant");
-            found_set.insert(object);
-        } else if !task_name_set.contains(subject) && !processor_name_set.contains(subject) && !found_set.contains(subject.as_str()){
-            // New processor from object
-            participant_name_vec.push(subject);
-            participant_type_vec.push("database");
-            found_set.insert(subject);
-        } else if !task_name_set.contains(object) && !processor_name_set.contains(object) && !found_set.contains(object.as_str()){
-            // New processor from object
-            participant_name_vec.push(object);
-            participant_type_vec.push("database");
             found_set.insert(object);
         }
     }

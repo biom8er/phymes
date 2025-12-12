@@ -131,11 +131,12 @@ pub fn from_traces_to_messages(
         if tracer_event == "entered" {
             // Always record the trace
             if let Some(previous) = entered.take() {
-                // Check for the special case of a User message
+                // User -> session
                 let (s_name, o_name) = if parent_name.is_empty() {
                     let subject_name = "User".to_string();
                     let object_name = span_name.clone();
                     (subject_name, object_name)
+                // _ -> enter (task or processor)
                 } else {
                     let subject_name = parent_name.clone();
                     let object_name = span_name.clone();
@@ -147,7 +148,7 @@ pub fn from_traces_to_messages(
                 object_name_vec.push(o_name);
                 message_type_vec.push("->>".to_string());
                 activation_type_vec.push(String::new());
-                message_content_vec.push(subject_name.clone());
+                message_content_vec.push(format!("subject: {subject_name}<br>name: {message_name}"));
                 note_content_vec.push(String::new());
                 note_location_vec.push(String::new());
                 timestamp_messages_vec.push(timestamp.to_owned());
@@ -156,15 +157,39 @@ pub fn from_traces_to_messages(
                 entered.replace((tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
 
             } else if let Some(previous) = exited.take() {
-                // Check for the case of an exit -> enter by the same subject
+                // Split into two traces for the exit and for the enter
+                if previous.5 == subject_name {
+
+                    // Session -> User 
+                    let (s_name, o_name) = if previous.2.is_empty() {
+                        let subject_name = previous.1.clone();
+                        let object_name = "User".to_string();
+                        (subject_name, object_name)             
+                    // exit -> _ (task or processor)
+                    } else {
+                        let subject_name = previous.1.clone();
+                        let object_name = previous.2.clone();
+                        (subject_name, object_name)
+                    };
+
+                    // Record the trace
+                    subject_name_vec.push(s_name);
+                    object_name_vec.push(o_name);
+                    message_type_vec.push("->>".to_string());
+                    activation_type_vec.push(String::new());
+                    message_content_vec.push(subject_name.clone());
+                    // message_content_vec.push(format!("subject: {subject_name}<br>name: {message_name}"));
+                    note_content_vec.push(String::new());
+                    note_location_vec.push(String::new());
+                    timestamp_messages_vec.push(previous.7.to_owned());
+                }
+
+                // User -> session 
                 let (s_name, o_name) = if parent_name.is_empty() {
                     let subject_name = "User".to_string();
                     let object_name = span_name.clone();
-                    (subject_name, object_name)
-                } else if previous.5 == subject_name {;
-                    let subject_name = previous.1;
-                    let object_name = span_name.clone();
-                    (subject_name, object_name)
+                    (subject_name, object_name)             
+                // _ -> enter (task or processor)
                 } else {
                     let subject_name = parent_name.clone();
                     let object_name = span_name.clone();
@@ -177,6 +202,7 @@ pub fn from_traces_to_messages(
                 message_type_vec.push("->>".to_string());
                 activation_type_vec.push(String::new());
                 message_content_vec.push(subject_name.clone());
+                // message_content_vec.push(format!("subject: {subject_name}<br>name: {message_name}"));
                 note_content_vec.push(String::new());
                 note_location_vec.push(String::new());
                 timestamp_messages_vec.push(timestamp.to_owned());
@@ -191,44 +217,49 @@ pub fn from_traces_to_messages(
 
         } else if tracer_event == "exited" {
             if let Some(previous) = entered.take() {
-                // Check for an exit from the session
+                // Session -> User
                 if parent_name.is_empty() {
                     subject_name_vec.push(span_name.clone());
                     object_name_vec.push("User".to_string());
                     message_type_vec.push("->>".to_string());
                     activation_type_vec.push(String::new());
                     message_content_vec.push(subject_name.clone());
+                    // message_content_vec.push(format!("subject: {subject_name}<br>name: {message_name}"));
                     note_content_vec.push(String::new());
                     note_location_vec.push(String::new());
                     timestamp_messages_vec.push(timestamp.to_owned());
                 }
-                
+
                 // Update exited
                 exited.replace((tracer_event, span_name, parent_name, span_id, parent_id, subject_name, message_name, timestamp));
 
             } else if let Some(previous) = exited.take() {
-                // Check for an exit from the session
+                // Session -> User
                 if parent_name.is_empty() {
                     subject_name_vec.push(span_name.clone());
                     object_name_vec.push("User".to_string());
                     message_type_vec.push("->>".to_string());
                     activation_type_vec.push(String::new());
                     message_content_vec.push(subject_name.clone());
+                    // message_content_vec.push(format!("subject: {subject_name}<br>name: {message_name}"));
                     note_content_vec.push(String::new());
                     note_location_vec.push(String::new());
                     timestamp_messages_vec.push(timestamp.to_owned());
                 }
 
-                // Check for two consecutive exits by the same subject
+                // exit (processor) -> exit (task) or
+                // exit (task) -> exit (session)
                 if previous.5 == subject_name {
+                    println!("exit->exit: s: {}; o: {}", previous.1, span_name);
                     subject_name_vec.push(previous.1);
                     object_name_vec.push(span_name.clone());
                     message_type_vec.push("->>".to_string());
                     activation_type_vec.push(String::new());
                     message_content_vec.push(subject_name.clone());
+                    // message_content_vec.push(format!("subject: {subject_name}<br>name: {message_name}"));
                     note_content_vec.push(String::new());
                     note_location_vec.push(String::new());
-                    timestamp_messages_vec.push(timestamp.to_owned());
+                    timestamp_messages_vec.push(previous.7.to_owned());
                 }
 
                 // Update exited
@@ -360,8 +391,8 @@ mod tests {
             ("tracer_timestamp", tracer_timestamp),
         ])?;
 
-        let tasks = ["task_1", "task_2"];
-        let processors = ["processor_1", "processor_2"];
+        let tasks = ["chat_task_1", "message_aggregator_task_1", "message_aggregator_task_1", "contactbiom8ercomChat"];
+        let processors = ["message_aggregator_1", "message_aggregator_2", "chat_processor_1", "contactbiom8ercomChat"];
         let tasks: ArrayRef = Arc::new(StringArray::from(
             tasks.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
         ));
