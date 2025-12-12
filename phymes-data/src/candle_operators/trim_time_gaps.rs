@@ -108,7 +108,7 @@ impl DataOperatorTrait for TrimTimeGaps {
 /// # Notes
 ///
 /// * The existence of a `start_timestamp` and `end_timestamp` columns of types UInt64
-/// * No new columns will be created but the order of the columns will be changed
+/// * No new columns will be created
 ///
 /// # Arguments
 ///
@@ -121,12 +121,14 @@ pub fn trim_time_gaps(
     lhs_args: &[RecordBatch],
     device: &Device,
 ) -> Result<RecordBatch> {
+    // Check the input
     if lhs_values.len() != 2 {
         return Err(anyhow!(
             "Two lhs_values columns for `start_timestamp` and `end_timestamp` need to be provided. lhs_values {lhs_values:?} were provided."
         ));
     }
-    // Pre-sort by end and start time
+
+    // Pre-sort by start then end time
     let mut lhs_sorted = RecordBatch::new_empty(Arc::new(Schema::empty()));
     for (iter, column_name) in lhs_values.iter().enumerate() {
         if iter > 0 {
@@ -134,6 +136,12 @@ pub fn trim_time_gaps(
         } else {
             lhs_sorted = sort(column_name, lhs_args, true, device)?;
         }
+    }
+
+    // Check for a single interval which is trivially non-overlapping
+    let count = lhs_sorted.num_rows();
+    if count <= 1 {
+        return Ok(lhs_sorted);
     }
 
     // Wrap the lhs into an ArrowTable and extract out the start and end times
@@ -150,13 +158,14 @@ pub fn trim_time_gaps(
         .into_iter()
         .collect::<Vec<_>>();
 
-    // Find and remove the gaps in time
+    // Find and remove gaps in time
     let mut gap_cum: i64 = 0;
+    let mut last_end: i64 = 0;
     let mut start_time = Vec::new();
     let mut end_time = Vec::new();
     for (i, (s, e)) in start_time_vec.iter().zip(end_time_vec.iter()).enumerate() {
         if i > 0 {
-            let gap = s - end_time_vec.get(i-1).unwrap();
+            let gap = s - last_end;
             if gap > 0 {
                 gap_cum += gap;
                 start_time.push(s-gap_cum);
@@ -165,10 +174,14 @@ pub fn trim_time_gaps(
                 start_time.push(*s);
                 end_time.push(*e);
             }
+            if e > &last_end {
+                last_end = *e;
+            } 
         } else {
+            last_end = *e;
             start_time.push(*s);
             end_time.push(*e);
-        }       
+        }
     }
 
     // Convert tensors to Arrays
@@ -176,17 +189,21 @@ pub fn trim_time_gaps(
     let end_time_arr: ArrayRef = Arc::new(Int64Array::from_iter_values(end_time));
 
     // Replace the start_time and end_time columns in the table
-    let mut batch_vec = vec![
-        (lhs_values.first().unwrap().to_string(), start_time_arr),
-        (lhs_values.get(1).unwrap().to_string(), end_time_arr),
-    ];
+    let mut batch_vec = Vec::new();
     let schema = lhs_table.get_schema();
     for field in schema.fields().iter() {
-        if !lhs_values.contains(&field.name().as_str()) {
+        if lhs_values.first().unwrap() == field.name() {
+            batch_vec.push((field.name().to_string(), start_time_arr.clone()));
+        } else if lhs_values.get(1).unwrap() == field.name() {
+            batch_vec.push((field.name().to_string(), end_time_arr.clone()));
+        } else {
             batch_vec.push((field.name().to_string(), lhs_table.get_column_as_array(field.name())?));
-        }        
+        }
     }
     let batch = RecordBatch::try_from_iter(batch_vec)?;
+
+    // Re-sort by start time
+    let batch = sort(lhs_values.first().unwrap(), &[batch], true, device)?;
     Ok(batch)
 }
 

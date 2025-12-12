@@ -48,8 +48,8 @@ pub struct DiagnosticSession<'a> {
     /// Metrics analytics
     pub metrics_pivot_task_name: &'a str,
     pub metrics_pivot_processor_name: &'a str,
-    pub metrics_sort_task_name: &'a str,
-    pub metrics_sort_processor_name: &'a str,
+    pub metrics_trim_time_gaps_task_name: &'a str,
+    pub metrics_trim_time_gaps_processor_name: &'a str,
     pub metrics_normalize_time_task_name: &'a str,
     pub metrics_normalize_time_processor_name: &'a str,
     pub metrics_processors_traces_select_and_cast_to_gantt_task_name: &'a str,
@@ -129,8 +129,8 @@ impl Default for DiagnosticSession<'_> {
             // Metrics analytics
             metrics_pivot_task_name: "metrics_pivot_task_name",
             metrics_pivot_processor_name: "metrics_pivot_processor_name",
-            metrics_sort_task_name: "metrics_sort_task_name",
-            metrics_sort_processor_name: "metrics_sort_processor_name",
+            metrics_trim_time_gaps_task_name: "metrics_trim_time_gaps_task_name",
+            metrics_trim_time_gaps_processor_name: "metrics_trim_time_gaps_processor_name",
             metrics_normalize_time_task_name: "metrics_normalize_time_task_name",
             metrics_normalize_time_processor_name: "metrics_normalize_time_processor_name",
             metrics_processors_traces_select_and_cast_to_gantt_task_name: "metrics_processors_traces_select_and_cast_to_gantt_task_name",
@@ -205,7 +205,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             TaskPlan {
                 task_name: self.metrics_normalize_time_task_name.to_string(),
                 runtime_env_name: self.metrics_runtime_env_name.to_string(),
-                processor_names: vec![self.metrics_sort_processor_name.to_string(),
+                processor_names: vec![self.metrics_trim_time_gaps_processor_name.to_string(),
                 self.metrics_normalize_time_processor_name.to_string()],
             },
             TaskPlan {
@@ -390,17 +390,17 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::Sort.build_arc(
-                self.metrics_sort_processor_name,
+            AvailableProcessors::TrimTimeGaps.build_arc(
+                self.metrics_trim_time_gaps_processor_name,
                 &[TablePublication::Replace {
-                    table_name: self.metrics_sort_task_name.to_string(),
+                    table_name: self.metrics_trim_time_gaps_task_name.to_string(),
                 }],
                 &[
                     TableSubscription::OnUpdateFullTable {
                         table_name: AvailableSubjects::MetricPivot.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
-                        table_name: self.metrics_sort_processor_name.to_string(),
+                        table_name: self.metrics_trim_time_gaps_processor_name.to_string(),
                     },
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
@@ -412,7 +412,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 }],
                 &[
                     TableSubscription::AlwaysFullTable {
-                        table_name: self.metrics_sort_task_name.to_string(),
+                        table_name: self.metrics_trim_time_gaps_task_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self.metrics_normalize_time_processor_name.to_string(),
@@ -854,29 +854,29 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             .build()
             .unwrap();
 
-        // Metrics normalize time
-        let metrics_sort_config = DataConfig {
+        // Metrics trim time gaps
+        let metrics_trim_time_gaps_config = DataConfig {
             lhs_name: Some(AvailableSubjects::MetricPivot.to_string()),
             lhs_values: Some(vec![
-                "end_timestamp-metric_value-Sum".to_string(),
                 "start_timestamp-metric_value-Sum".to_string(),
+                "end_timestamp-metric_value-Sum".to_string(),
             ]),
             asc: Some(true),
-            operator: AvailableCandleOperators::Sort,
+            operator: AvailableCandleOperators::TrimTimeGaps,
             ..Default::default()
         };
-        let metrics_sort_config_json =
-            serde_json::to_vec(&metrics_sort_config).unwrap();
-        let metrics_sort_config_state = TableBuilder::new()
-            .with_name(self.metrics_sort_processor_name)
-            .with_json(&metrics_sort_config_json.clone(), 1)
+        let metrics_trim_time_gaps_config_json =
+            serde_json::to_vec(&metrics_trim_time_gaps_config).unwrap();
+        let metrics_trim_time_gaps_config_state = TableBuilder::new()
+            .with_name(self.metrics_trim_time_gaps_processor_name)
+            .with_json(&metrics_trim_time_gaps_config_json.clone(), 1)
             .unwrap()
             .build()
             .unwrap();
 
         // Metrics normalize time
         let metrics_normalize_time_config = DataConfig {
-            lhs_name: Some(self.metrics_sort_task_name.to_string()),
+            lhs_name: Some(self.metrics_trim_time_gaps_task_name.to_string()),
             lhs_values: Some(vec![
                 "start_timestamp-metric_value-Sum".to_string(),
                 "end_timestamp-metric_value-Sum".to_string(),
@@ -1686,7 +1686,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         Some(vec![
             // Processor configs
             metrics_pivot_config_1_state,
-            metrics_sort_config_state,
+            metrics_trim_time_gaps_config_state,
             metrics_normalize_time_config_1_state,
             metrics_processors_traces_select_and_cast_to_gantt_config_1_state,
             metrics_elapsed_compute_select_and_cast_to_gantt_config_1_state,
@@ -1714,7 +1714,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .unwrap(),
             AvailableSubjects::MetricPivot.to_table(None, None).unwrap(),
             AvailableSubjects::MetricPivotNormTime
-                .to_table(Some(self.metrics_sort_task_name), None)
+                .to_table(Some(self.metrics_trim_time_gaps_task_name), None)
                 .unwrap(),
             AvailableSubjects::MetricPivotNormTime
                 .to_table(None, None)

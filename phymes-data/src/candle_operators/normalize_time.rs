@@ -142,7 +142,7 @@ pub fn normalize_time(
         .min_all()?
         .broadcast_as(start_time_tensor.shape())?;
 
-    // Normalize the start and time
+    // Normalize the start and end time
     let start_time_norm_tensor = start_time_tensor.sub(&min_tensor)?;
     let end_time_vec = lhs_table
         .get_column_as_vec_primitive::<i64>(lhs_values.get(1).unwrap())?
