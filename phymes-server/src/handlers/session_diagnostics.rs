@@ -12,8 +12,8 @@ use bytes::Bytes;
 use futures::prelude::*;
 use parking_lot::RwLock;
 use phymes_agents::{
-    CustomAgentsBuilderTrait, DiagnosticSession, SessionContextBuilderAgentsTrait,
-    create_message_map,
+    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DiagnosticSession,
+    SessionContextBuilderAgentsTrait, create_message_map,
 };
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, IPCMessage,
@@ -48,7 +48,7 @@ pub async fn session_diagnostics(
         Ok(payload) => {
             // We got a valid JSON payload
             tracing::debug!(
-                "Running chat session for session_name {}",
+                "Running diagnostic session for session_name {}",
                 payload.get_session_name()
             );
 
@@ -175,18 +175,50 @@ pub async fn session_diagnostics(
                     .unwrap()
                     .build()
                     .unwrap();
-                create_message_map(vec![
-                    metrics_message,
-                    traces_message,
-                    events_message,
-                    tasks_message,
-                ])
+                let table = sss
+                    .get_session_context()
+                    .get_states()
+                    .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                    .unwrap()
+                    .read();
+                if table.count_rows() > 0 {
+                    let errors_message = IPCMessage::get_builder()
+                        .with_message(table.to_ipc_stream().unwrap())
+                        .with_subject(AvailableSubjects::AnalyticsErrors.to_string().as_str())
+                        .with_update(&TablePublication::Replace {
+                            table_name: AvailableSubjects::AnalyticsErrors.to_string(),
+                        })
+                        .with_publisher(diagnostic_session.session_context_name)
+                        .make_name()
+                        .unwrap()
+                        .build()
+                        .unwrap();
+
+                    create_message_map(vec![
+                        metrics_message,
+                        traces_message,
+                        events_message,
+                        errors_message,
+                        tasks_message,
+                    ])
+                } else {
+                    create_message_map(vec![
+                        metrics_message,
+                        traces_message,
+                        events_message,
+                        tasks_message,
+                    ])
+                }
             };
 
             // Make the diagnostics session stream
             let session_ctx = diagnostic_session
                 .build()
                 .with_name(diagnostic_session.session_context_name)
+                .add_session_interface(Some(&[AvailableInterfaceSubjects::AggregatedAttachments
+                    .to_string()
+                    .as_str()]))
+                .unwrap()
                 .build_with_tables()
                 .unwrap();
             let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
@@ -273,6 +305,16 @@ pub async fn session_diagnostics(
                         })
                         .flat_map(|(_k, v)| v.get_message_own())
                         .collect::<Vec<_>>();
+
+                    // let sss = session_stream_state.read();
+                    // let table = sss
+                    //     .get_session_context()
+                    //     .get_states()
+                    //     .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                    //     .unwrap()
+                    //     .read();
+                    // println!("__ERRORS__");
+                    // println!("{}", String::from_utf8(table.to_csv(b',', true).unwrap()).unwrap());
 
                     // Send the stream
                     Body::from(response).into_response()

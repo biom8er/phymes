@@ -63,8 +63,10 @@ pub fn from_tasks_to_participants(
         .build()?;
 
     // Initialize the participants vecs
-    let mut participant_name_vec = vec!["User", "State"];
-    let mut participant_type_vec = vec!["actor", "database"];
+    // let mut participant_name_vec = vec!["User", "State"];
+    // let mut participant_type_vec = vec!["actor", "database"];
+    let mut participant_name_vec = Vec::new();
+    let mut participant_type_vec = Vec::new();
 
     // Get the unique tasks and processors
     let task_name_set = lhs_table
@@ -80,23 +82,41 @@ pub fn from_tasks_to_participants(
     let subject_name_vec = rhs_table.get_column_as_vec_nonprimitive::<String>("subject_name")?;
     let object_name_vec = rhs_table.get_column_as_vec_nonprimitive::<String>("object_name")?;
     let mut found_set = HashSet::new();
-    for (subject, object) in subject_name_vec.iter().zip(object_name_vec.iter()) {
-        if task_name_set.contains(subject) && !found_set.contains(subject) {
+    found_set.insert("User");
+    for (i, (subject, object)) in subject_name_vec
+        .iter()
+        .zip(object_name_vec.iter())
+        .enumerate()
+    {
+        // The first entry should be User -> Session
+        if i == 0 {
+            participant_name_vec.push(subject);
+            participant_type_vec.push("actor");
+            found_set.insert(subject);
+            participant_name_vec.push(object);
+            participant_type_vec.push("database");
+            found_set.insert(object);
+            continue;
+        }
+
+        // Prioritize the tasks when the task_name == processor_name
+        // DM: cases of task_name == processor_name will appear as self-loops in the sequence diagram
+        if task_name_set.contains(subject) && !found_set.contains(subject.as_str()) {
             // New task from subject
             participant_name_vec.push(subject);
             participant_type_vec.push("collections");
             found_set.insert(subject);
-        } else if processor_name_set.contains(subject) && !found_set.contains(subject) {
+        } else if processor_name_set.contains(subject) && !found_set.contains(subject.as_str()) {
             // New processor from subject
             participant_name_vec.push(subject);
             participant_type_vec.push("participant");
             found_set.insert(subject);
-        } else if task_name_set.contains(object) && !found_set.contains(object) {
+        } else if task_name_set.contains(object) && !found_set.contains(object.as_str()) {
             // New task from object
             participant_name_vec.push(object);
             participant_type_vec.push("collections");
             found_set.insert(object);
-        } else if processor_name_set.contains(object) && !found_set.contains(object) {
+        } else if processor_name_set.contains(object) && !found_set.contains(object.as_str()) {
             // New processor from object
             participant_name_vec.push(object);
             participant_type_vec.push("participant");
@@ -128,20 +148,21 @@ mod tests {
     #[test]
     fn test_from_tasks_to_participants() -> Result<()> {
         // Make the test record batches
-        let lhs_1_vec = vec!["t1", "t1", "t2", "t2", "t3"];
+        let lhs_1_vec = vec!["State", "t1", "t1", "t2", "t2", "t3"];
         let lhs_1_array: ArrayRef = Arc::new(StringArray::from(lhs_1_vec));
-        let lhs_2_vec = vec!["p1", "p2", "p3", "p4", "p1"];
+        let lhs_2_vec = vec!["State", "p1", "p2", "p3", "p4", "p1"];
         let lhs_2_array: ArrayRef = Arc::new(StringArray::from(lhs_2_vec));
         let lhs_batch = RecordBatch::try_from_iter(vec![
             ("task_name", lhs_1_array),
             ("processor_name", lhs_2_array),
         ])?;
         let rhs_1_vec = vec![
-            "s", "t1", "p1", "p2", "t1", "s", "t2", "p3", "p4", "t2", "s", "t3", "p1", "t3",
+            "User", "s", "t1", "p1", "p2", "t1", "s", "t2", "p3", "p4", "t2", "s", "t3", "p1", "t3",
         ];
         let rhs_1_array: ArrayRef = Arc::new(StringArray::from(rhs_1_vec));
         let rhs_2_vec = vec![
-            "t1", "p1", "p2", "t1", "s", "t2", "p3", "p4", "t2", "s", "t3", "p1", "t3", "s",
+            "State", "t1", "p1", "p2", "t1", "s", "t2", "p3", "p4", "t2", "s", "t3", "p1", "t3",
+            "s",
         ];
         let rhs_2_array: ArrayRef = Arc::new(StringArray::from(rhs_2_vec));
         let rhs_batch = RecordBatch::try_from_iter(vec![

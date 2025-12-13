@@ -186,13 +186,7 @@ pub async fn session_stream(
                         .collect::<Vec<_>>();
                     let response = Bytes::from(serde_json::to_string(&response).unwrap());
 
-                    // Update the metrics and row counts
-                    session_stream_state
-                        .try_write()
-                        .unwrap()
-                        .get_session_context_mut()
-                        .update_metrics_mermaid_gantt_table()
-                        .unwrap();
+                    // Update the row counts
                     session_stream_state
                         .try_write()
                         .unwrap()
@@ -236,13 +230,7 @@ pub async fn session_stream(
                         .flat_map(|(_k, v)| v.get_message_own())
                         .collect::<Vec<_>>();
 
-                    // Update the metrics and row counts
-                    session_stream_state
-                        .try_write()
-                        .unwrap()
-                        .get_session_context_mut()
-                        .update_metrics_mermaid_gantt_table()
-                        .unwrap();
+                    // Update the row counts
                     session_stream_state
                         .try_write()
                         .unwrap()

@@ -3,6 +3,8 @@ use std::{fmt::Display, sync::Arc};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
+use crate::create_timestamp_micros;
+
 /// Convert to a Tracer
 pub trait TraceableTrait {
     fn to_trace(&self) -> Tracer;
@@ -15,6 +17,8 @@ pub struct Tracer {
     pub message_name: String,
     /// The name of the subject of the message
     pub subject_name: String,
+    /// The timestamp of the trace
+    pub timestamp: i64,
 }
 
 impl Tracer {
@@ -22,6 +26,7 @@ impl Tracer {
         Self {
             message_name: message_name.to_string(),
             subject_name: subject_name.to_string(),
+            timestamp: create_timestamp_micros(),
         }
     }
 }

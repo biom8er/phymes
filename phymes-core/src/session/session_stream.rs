@@ -217,34 +217,6 @@ mod tests {
             4
         );
 
-        // Check gantt
-        {
-            let update = session_stream_state
-                .write()
-                .get_session_context_mut()
-                .update_metrics_mermaid_gantt_table()?;
-            assert!(update);
-            let sss = session_stream_state.read();
-            let metrics_table = sss
-                .get_session_context()
-                .get_states()
-                .get(AvailableSubjects::MetricPivot.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap();
-            let output_rows = metrics_table.get_column_as_vec_primitive::<i64>("output_rows")?;
-            assert_eq!(output_rows.iter().sum::<i64>(), 5385);
-            let gantt = sss
-                .get_session_context()
-                .get_states()
-                .get(AvailableSubjects::MetricMermaidGantt.to_string().as_str())
-                .unwrap()
-                .read();
-            assert!(gantt.get_column_as_vec_str("processor_traces").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tProcessor Traces\n\n\tsection Traces[ns]\n\t"));
-            assert!(gantt.get_column_as_vec_str("elapsed_compute").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tElapsed compute\n\n\tsection Time[ns]\n\t"));
-            assert!(gantt.get_column_as_vec_str("output_rows").join("").contains("gantt\n\tdateFormat\tx\n\taxisFormat\t%s\n\ttitle\tRow count\n\n\tsection Counts\n\t"));
-        }
-
         Ok(())
     }
 }

@@ -279,13 +279,7 @@ pub async fn session_get_state(
                 .get(payload.get_session_name())
             {
                 Some(session_stream_state) => {
-                    // Update the metrics and row counts just in case...
-                    session_stream_state
-                        .try_write()
-                        .unwrap()
-                        .get_session_context_mut()
-                        .update_metrics_mermaid_gantt_table()
-                        .unwrap();
+                    // Update the row counts just in case...
                     session_stream_state
                         .try_write()
                         .unwrap()

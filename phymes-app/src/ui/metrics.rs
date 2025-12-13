@@ -203,7 +203,10 @@ pub fn metrics_interface_view() -> Element {
                 p { "Waiting to retrieve session plan metrics..." },
             }
         } else if active_metric.read().is_empty() {
-            metrics_dropdown {active_metric, metric_names}
+            div {
+                class: "h-full w-full p-2 flex flex-col items-center",
+                metrics_dropdown {active_metric, metric_names}
+            }
         } else {
             div {
                 class: "h-full w-full p-2 flex flex-col items-center",
@@ -236,7 +239,7 @@ pub fn metrics_dropdown(
 
     rsx! {
         div {
-            class: "p-2 gap-2 rounded bg-neutral-800 grid grid-rows-[48px_1fr] grid-cols-[1fr_96px] sm:max-w-3/4",
+            class: "p-2 rounded bg-neutral-800 grid grid-rows-[auto_1fr] grid-cols-[1fr_auto] md:max-w-3/4",
             form {
                 class: "w-full h-full flex row-span-1 col-span-1 row-start-1 col-start-1",
                 input {

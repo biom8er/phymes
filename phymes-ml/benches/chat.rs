@@ -1,5 +1,5 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use phymes_core::{TableTrait, from_diagnostics_to_tables, pivot_metrics_table};
+use phymes_core::{TableTrait, from_diagnostics_to_tables};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, MetricBuilderTrait, SpanBuilder,
 };
@@ -177,15 +177,17 @@ fn benchmark_chat_processor(c: &mut Criterion) {
     // Export the metrics to CSV
     let (metrics_table, _traces_table, _events_table) =
         from_diagnostics_to_tables(&metrics_vec).unwrap();
-    let metrics_table = pivot_metrics_table(metrics_table.unwrap(), "metrics").unwrap();
-    let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let pathname =
-        format!("{target_dir}/.cache/metrics/benchmark_chat_processor_{wasm}_{gpu}_{candle}.csv");
-    let path = std::path::Path::new(pathname.as_str());
-    let prefix = path.parent().unwrap();
-    std::fs::create_dir_all(prefix).unwrap();
-    let mut file = std::fs::File::create(pathname).unwrap();
-    metrics_table.to_csv_file(&mut file, b',', true).unwrap();
+    if let Some(metrics_table) = metrics_table {
+        let target_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        let pathname = format!(
+            "{target_dir}/.cache/metrics/benchmark_chat_processor_{wasm}_{gpu}_{candle}.csv"
+        );
+        let path = std::path::Path::new(pathname.as_str());
+        let prefix = path.parent().unwrap();
+        std::fs::create_dir_all(prefix).unwrap();
+        let mut file = std::fs::File::create(pathname).unwrap();
+        metrics_table.to_csv_file(&mut file, b',', true).unwrap();
+    }
 }
 
 criterion_group!(benches, benchmark_chat_processor);
