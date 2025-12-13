@@ -1,6 +1,7 @@
 mod candle_data;
 mod candle_operators;
 mod jinja2_templates;
+#[cfg(feature = "openai_api")]
 mod external_operators;
 
 pub use candle_data::{
