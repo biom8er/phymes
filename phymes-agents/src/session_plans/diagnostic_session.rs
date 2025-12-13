@@ -1811,8 +1811,7 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, SessionStream,
-        SessionStreamState, TableTrait,
+        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, SessionContextBuilderTrait, SessionStream, SessionStreamState, TableTrait
     };
     use phymes_diagnostics::HashMap;
 
@@ -1830,7 +1829,7 @@ mod tests {
         let session_ctx = diagnostic_session
             .build()
             .with_name(diagnostic_session.session_context_name)
-            // .with_diagnostics(true) // Debugging
+            .with_diagnostics(true) // Debugging
             .add_session_interface(Some(&[AvailableInterfaceSubjects::AggregatedAttachments
                 .to_string()
                 .as_str()]))?
@@ -1941,24 +1940,25 @@ mod tests {
         // Run
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
         let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let keys = response.iter().flat_map(|m| m.keys()).collect::<Vec<_>>();
 
-        let sss = session_stream_state.read();
-        let table = sss
-            .get_session_context()
-            .get_states()
-            .get(AvailableSubjects::SessionErrors.to_string().as_str())
-            .unwrap()
-            .read();
-        println!("__ERRORS__");
-        println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
-        let table = sss
-            .get_session_context()
-            .get_states()
-            .get(AvailableSubjects::SessionTraces.to_string().as_str())
-            .unwrap()
-            .read();
-        println!("__TRACES__");
-        println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
+        // let sss = session_stream_state.read();
+        // let table = sss
+        //     .get_session_context()
+        //     .get_states()
+        //     .get(AvailableSubjects::SessionErrors.to_string().as_str())
+        //     .unwrap()
+        //     .read();
+        // println!("__ERRORS__");
+        // println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
+        // let table = sss
+        //     .get_session_context()
+        //     .get_states()
+        //     .get(AvailableSubjects::SessionTraces.to_string().as_str())
+        //     .unwrap()
+        //     .read();
+        // println!("__TRACES__");
+        // println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
 
         let bytes = response
             .iter_mut()
@@ -1970,12 +1970,13 @@ mod tests {
                 ))
                 .map(|v| v.get_message_own())
             })
-            .flatten()
             .collect::<Vec<_>>();
-        let attachment_data = TableBuilder::new_from_ipc_stream(&bytes)?
-            .with_name("")
-            .build()?
-            .to_json_object()?;
+        let attachment_data = bytes.into_iter()
+            .flat_map(|b| TableBuilder::new_from_ipc_stream(&b).unwrap()
+                .with_name("")
+                .build().unwrap()
+                .to_json_object().unwrap())
+            .collect::<Vec<_>>();
         for row in &attachment_data {
             let bytes = row["bytes"]
                 .as_array()
