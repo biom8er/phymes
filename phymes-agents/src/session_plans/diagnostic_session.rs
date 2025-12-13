@@ -181,8 +181,6 @@ impl Default for DiagnosticSession<'_> {
             events_apply_kanban_processor_name: "events_apply_kanban_processor_name",
             events_runtime_env_name: "events_runtime_env_name",
 
-            // Errors analytics
-
             // Outbox
             aggregate_visualizations_task_name: "aggregate_visualizations_task_name",
             aggregate_visualizations_processor_name: "aggregate_visualizations_processor_name",
@@ -765,7 +763,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             ),
             AvailableProcessors::AttachmentAggregatorProcessor.build_arc(
                 self.aggregate_visualizations_processor_name,
-                &[TablePublication::Replace {
+                &[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
                 }],
                 &[
@@ -786,11 +784,15 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     TableSubscription::OnUpdateFullTable {
                         table_name: DiagnosticsVisualizations::EventKanban.to_string(),
                     },
+                    TableSubscription::OnUpdateFullTable {
+                        table_name: DiagnosticsVisualizations::ErrorKanban.to_string(),
+                    },
                     TableSubscription::AlwaysFullTable {
                         table_name: self.aggregate_visualizations_processor_name.to_string(),
                     },
                 ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
+                // AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(), // DM: Was Replace Publish, but changed to Extend
             ),
         ];
 
