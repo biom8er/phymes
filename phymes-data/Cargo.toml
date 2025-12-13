@@ -17,7 +17,7 @@ cuda = ["candle-core/cuda"]
 cudnn = ["candle-core/cudnn"]
 nccl = ["cuda", "cudarc/nccl"]
 wasip2 = ["phymes-core/wasip2", "phymes-diagnostics/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "lopdf/wasm_js", "dep:quick-xml"]
-wsl = ["phymes-core/wsl", "phymes-diagnostics/wsl", "tokio/full", "lopdf/async", "lopdf/rayon", "quick-xml/tokio"]
+wsl = ["phymes-core/wsl", "phymes-diagnostics/wsl", "tokio/full", "lopdf/async", "lopdf/rayon", "quick-xml/tokio", "dep:reqwest"]
 gpu = ["cuda", "cudnn", "nccl"]
 openai_api = []
 candle = [] # force use of candle models when openai_api is available
@@ -51,6 +51,7 @@ rayon = { version = "1.6"}
 lopdf = { version = "0.38.0", default-features = false, features = ["rayon"], optional = true }
 num-traits = { version = "0.2", default-features = false }
 quick-xml = { version = "0.38.4", default-features = false, optional = true }
+reqwest = { version = "0.12.22", features = ["json", "stream"], default-features = false, optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.7", default-features = false, features = ["cargo_bench_support"] }

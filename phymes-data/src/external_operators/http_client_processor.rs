@@ -1,29 +1,25 @@
 use std::{
     pin::Pin,
     sync::Arc,
-    task::{Context, Poll, ready},
+    task::{Context, Poll, ready}, time::Duration,
 };
 
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
+use bytes::Bytes;
 use futures::{FutureExt, Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatCompletionRequest,
-    ChatCompletionResponse, ChatTraitExt, FinishReason, MappableTrait, MessageBuilderTrait,
-    MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication,
-    TableSubscribePolicyTrait, TableSubscription, TableTrait,
-    create_chat_record_batch, remove_message_by_subject,
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatCompletionRequest, ChatCompletionResponse, ChatTraitExt, FinishReason, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, create_blob_batch, create_chat_record_batch, remove_message_by_subject
 };
-use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
     create_timestamp_micros,
 };
-use reqwest::{Client, header::CONTENT_TYPE};
+use reqwest::{Client, Response, header::CONTENT_TYPE};
 use tracing::{Level, event};
+
+use crate::{DataConfigTrait, external_operators::http_client_config::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType}};
 
 /// The state of the HTTP Client API request
 ///
@@ -109,41 +105,41 @@ impl ProcessorTrait for HTTPClientRequestProcessor {
             None
         };
 
-        // Extract out the messages, tools, and config
-        let messages = match remove_message_by_subject(
-            self.subscriptions.first().unwrap().get_table_name(),
-            &mut message,
-        ) {
-            Some(i) => i.get_message_own(),
-            None => {
-                return Err(anyhow!(
-                    "Messages not provided for {}. Available messages are {:?}",
-                    self.get_name(),
-                    message.keys()
-                ));
-            }
-        };
-        let tools = remove_message_by_subject(
-            self.subscriptions.get(1).unwrap().get_table_name(),
-            &mut message,
-        )
-        .map(|i| i.get_message_own());
+        // Extract out the config
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
-            None => {
-                return Err(anyhow!(
-                    "Config not provided for {}. Available messages are {:?}",
-                    self.get_name(),
-                    message.keys()
-                ));
-            }
+            None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
 
-        // Run the chat stream
+        // Extract out the subscribed messages
+        let mut subscriptions = Vec::new();
+        for subs in self.subscriptions.iter() {
+            if subs.get_table_name() != self.get_name() {
+                match remove_message_by_subject(subs.get_table_name(), &mut message) {
+                    Some(m) => {
+                        subscriptions.push(m);
+                    }
+                    None => {
+                        event!(
+                            Level::WARN,
+                            "Subscription {} not provided for {}.",
+                            subs.get_table_name(),
+                            self.get_name()
+                        );
+                    }
+                }
+            }
+        }
+        if subscriptions.len() > 1 {
+            return Err(anyhow!("More than one subscription was found."));
+        } else if subscriptions.is_empty() {
+            return Err(anyhow!("No subscriptions were found."));
+        }
+
+        // Run the stream
         let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(HTTPClientRequestStream::new(
-            messages,
-            tools,
+            subscriptions.swap_remove(0).get_message_own(),
             config,
             Arc::clone(&runtime_env),
             stream_diagnostic_builder,
@@ -166,12 +162,10 @@ impl ProcessorTrait for HTTPClientRequestProcessor {
 }
 
 pub struct HTTPClientRequestStream {
-    /// Output schema (role and content)
+    /// Output schema
     schema: SchemaRef,
     /// The input message to process
     message_stream: SendableRecordBatchStream,
-    /// Optional tools to add to the message
-    tools_stream: Option<SendableRecordBatchStream>,
     /// Parameters for chat inference
     config_stream: SendableRecordBatchStream,
     /// The candle assets needed for inference
@@ -179,15 +173,14 @@ pub struct HTTPClientRequestStream {
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for chat inference
-    config: Option<CandleChatConfig>,
+    config: Option<HTTPClientConfig>,
     /// State of the OpenAI API request
-    state: OpenAIRequestState,
+    state: HTTPClientRequestState,
 }
 
 impl HTTPClientRequestStream {
     pub fn new(
         message_stream: SendableRecordBatchStream,
-        tools_stream: Option<SendableRecordBatchStream>,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
         diagnostic_builder: Option<DiagnosticBuilder>,
@@ -195,53 +188,21 @@ impl HTTPClientRequestStream {
         Ok(Self {
             schema: AvailableSubjects::Messages.to_schema(),
             message_stream,
-            tools_stream,
             diagnostic_builder,
             config_stream,
             _runtime_env: runtime_env,
             config: None,
-            state: OpenAIRequestState::NotStarted,
+            state: HTTPClientRequestState::NotStarted,
         })
     }
 
     /// Initialize the config for text generation inference
     fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
-            let config = CandleChatConfig::from_table(&config_table)?;
+            let config = HTTPClientConfig::from_table(&config_table)?;
             self.config.replace(config);
         }
         Ok(())
-    }
-
-    /// Create the request
-    fn make_request(&self, messages: Table, tools: Option<Vec<Tool>>) -> ChatCompletionRequest {
-        // Convert messages to openAI schema
-        let messages_openai = messages.to_openai_messages();
-
-        // Create the request
-        let mut req = ChatCompletionRequest::new(
-            self.config
-                .as_ref()
-                .unwrap()
-                .openai_asset
-                .as_ref()
-                .unwrap()
-                .get_repository()
-                .to_string(),
-            messages_openai,
-        )
-        .max_tokens(self.config.as_ref().unwrap().max_tokens.try_into().unwrap())
-        .frequency_penalty(self.config.as_ref().unwrap().frequency_penalty.into())
-        .presence_penalty(self.config.as_ref().unwrap().repeat_penalty.into())
-        .seed(self.config.as_ref().unwrap().seed.try_into().unwrap())
-        .temperature(self.config.as_ref().unwrap().temperature);
-        // .top_p(self.config.as_ref().unwrap().top_p.unwrap());
-
-        // Tool arguments
-        if let Some(tools) = tools {
-            req = req.tools(tools).tool_choice(ToolChoiceType::Required);
-        }
-        req
     }
 }
 
@@ -251,8 +212,8 @@ impl Stream for HTTPClientRequestStream {
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // Iterate through each state until the API request is completed
         match &mut self.state {
-            OpenAIRequestState::NotStarted => {
-                // Collect the chat history
+            HTTPClientRequestState::NotStarted => {
+                // Collect the message data
                 let mut batches = Vec::new();
                 while let Some(Ok(batch)) = ready!(self.message_stream.poll_next_unpin(cx)) {
                     batches.push(batch);
@@ -262,31 +223,7 @@ impl Stream for HTTPClientRequestStream {
                     .with_record_batches(batches)?
                     .build()?;
 
-                // Collect the tools
-                let tools = match self.tools_stream {
-                    Some(ref mut tools) => {
-                        let mut batches = Vec::new();
-                        while let Some(Ok(batch)) = ready!(tools.poll_next_unpin(cx)) {
-                            batches.push(batch);
-                        }
-                        let tool_table = Table::get_builder()
-                            .with_name("messages")
-                            .with_record_batches(batches)?
-                            .build()?;
-                        let tool_vec: Vec<Tool> = tool_table
-                            .get_column_as_vec_str("tool")
-                            .iter()
-                            .map(|s| {
-                                let tool: Tool = serde_json::from_str(s).unwrap();
-                                tool
-                            })
-                            .collect::<Vec<_>>();
-                        Some(tool_vec)
-                    }
-                    None => None,
-                };
-
-                // initialize the config
+                // Initialize the config
                 let mut batches = Vec::new();
                 while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                     batches.push(batch);
@@ -297,42 +234,64 @@ impl Stream for HTTPClientRequestStream {
                     .build()?;
                 self.init_config(config_table)?;
 
-                // make the request
-                let fut = Client::new()
-                    .post(
-                        self.config
+                // Create HTTP client with timeout
+                let client = Client::builder()
+                    .timeout(Duration::from_secs(self.config.as_ref().unwrap().timeout.try_into()?))
+                    .build()?;
+
+                // Make the request
+                let fut = match self.config.as_ref().unwrap().request_type {
+                    HTTPClientRequestType::Get => {
+                        // DM: Todo: extract out the query URL from the config or the batches (e.g., join the entire `content` column)
+                        client.get(self.config
                             .as_ref()
                             .unwrap()
-                            .openai_asset
-                            .unwrap()
-                            .get_api_url(self.config.as_ref().unwrap().api_url.clone()),
-                    )
-                    .bearer_auth(
-                        self.config
+                            .base_url
+                            .clone()
+                            .unwrap())
+                        .bearer_auth(self.config
                             .as_ref()
                             .unwrap()
-                            .openai_asset
+                            .api_key()?)
+                        .header(CONTENT_TYPE, self.config.as_ref().unwrap().content_type.clone().ok_or(anyhow!("Content type needs to be specified for GET requests."))?)
+                        .send()
+                    },
+                    HTTPClientRequestType::Post => client
+                        .post(self.config
+                            .as_ref()
                             .unwrap()
-                            .get_api_key(),
-                    )
-                    .header(CONTENT_TYPE, "application/json")
-                    .json(&self.make_request(messages, tools))
-                    .send();
-                self.state = OpenAIRequestState::Connecting(Box::pin(fut));
+                            .base_url
+                            .clone()
+                            .unwrap())
+                        .bearer_auth(self.config
+                            .as_ref()
+                            .unwrap()
+                            .api_key()?)
+                        .header(CONTENT_TYPE, self.config.as_ref().unwrap().content_type.clone().ok_or(anyhow!("Content type needs to be specified for POST requests."))?)
+                        .json(&messages.to_json()?)
+                        .send(),
+                    _ => {
+                        self.state = HTTPClientRequestState::Done;
+                        return Poll::Ready(Some(Err(anyhow!("Request type {} is not supported yet.", self.config.as_ref().unwrap().request_type))))
+                    }
+                };
+
+                // Update the request state and poll next
+                self.state = HTTPClientRequestState::Connecting(Box::pin(fut));
                 self.poll_next(cx)
             }
-            OpenAIRequestState::Connecting(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
+            HTTPClientRequestState::Connecting(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                 Ok(response) => {
                     let fut = response.text();
-                    self.state = OpenAIRequestState::ToText(Box::pin(fut));
+                    self.state = HTTPClientRequestState::ToText(Box::pin(fut));
                     self.poll_next(cx)
                 }
                 Err(err) => {
-                    self.state = OpenAIRequestState::Done;
+                    self.state = HTTPClientRequestState::Done;
                     Poll::Ready(Some(Err(anyhow!(err.to_string()))))
                 }
             },
-            OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
+            HTTPClientRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                 Ok(text) => {
                     // Initialize the metrics
                     let baseline_metrics =
@@ -351,41 +310,19 @@ impl Stream for HTTPClientRequestStream {
                         .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                     // Parse the response
-                    let result = serde_json::from_str::<ChatCompletionResponse>(&text).unwrap();
-                    let content = match result.choices[0].finish_reason {
-                        None => result.choices[0].message.content.to_owned(),
-                        Some(FinishReason::stop) => result.choices[0].message.content.to_owned(),
-                        Some(FinishReason::length) => result.choices[0].message.content.to_owned(),
-                        Some(FinishReason::tool_calls) => Some(
-                            serde_json::to_string(
-                                result.choices[0].message.tool_calls.as_ref().unwrap(),
-                            )
-                            .unwrap(),
-                        ),
-                        Some(FinishReason::content_filter) => {
-                            result.choices[0].message.content.to_owned()
+                    let batch = match self.config.as_ref().unwrap().request_schema {
+                        HTTPClientRequestSchemas::None => create_chat_record_batch(
+                                vec!["tool".to_string()],
+                                vec![text],
+                                vec![create_timestamp_micros()],
+                            )?,
+                        _ => {
+                            self.state = HTTPClientRequestState::Done;
+                            return Poll::Ready(Some(Err(anyhow!("Request schema {} is not supported yet.", self.config.as_ref().unwrap().request_schema))))
                         }
-                        Some(FinishReason::null) => result.choices[0].message.content.to_owned(),
+                        
                     };
-
-                    // Handle the returned content
-                    let content = match content {
-                        Some(s) => s,
-                        _ => "".to_string(),
-                    };
-                    event!(
-                        Level::INFO,
-                        "Generated the next token {}.",
-                        content.as_str()
-                    );
-
-                    // Wrap into a record batch
-                    let batch = create_chat_record_batch(
-                        vec!["assistant".to_string()],
-                        vec![content.to_string()],
-                        vec![create_timestamp_micros()],
-                    )?;
-                    self.state = OpenAIRequestState::Done;
+                    self.state = HTTPClientRequestState::Done;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
@@ -396,11 +333,11 @@ impl Stream for HTTPClientRequestStream {
                     }
                 }
                 Err(err) => {
-                    self.state = OpenAIRequestState::Done;
+                    self.state = HTTPClientRequestState::Done;
                     Poll::Ready(Some(Err(anyhow!(err.to_string()))))
                 }
             },
-            OpenAIRequestState::Done => Poll::Ready(None),
+            HTTPClientRequestState::Done => Poll::Ready(None),
         }
     }
 
@@ -417,20 +354,13 @@ impl RecordBatchStream for HTTPClientRequestStream {
 
 #[cfg(test)]
 mod tests {
-    #[allow(unused_imports)]
     use super::*;
-    #[allow(unused_imports)]
-    use phymes_core::{ChatBuilderTraitExt, TableBuilder};
-    #[allow(unused_imports)]
+    use phymes_core::{AvailableTableSubscribePolicies, ChatBuilderTraitExt, RuntimeEnvTrait, TableBuilder};
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
 
-    #[cfg(not(feature = "candle"))]
+    //#[cfg(not(feature = "candle"))]
     #[tokio::test]
-    async fn test_openai_chat_processor() -> Result<()> {
-        use phymes_core::{AvailableTableSubscribePolicies, RuntimeEnvTrait};
-
-        use crate::AvailableOpenAIAssets;
-
+    async fn test_http_client_processor() -> Result<()> {
         let name = "HTTPClientRequestProcessor";
         let messages = "messages";
 
@@ -440,7 +370,7 @@ mod tests {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // State for the chat processor config
-        let candle_chat_config = CandleChatConfig {
+        let candle_chat_config = HTTPClientConfig {
             max_tokens: 1000,
             temperature: 0.8,
             seed: 299792458,
@@ -489,7 +419,7 @@ mod tests {
         );
 
         // Build the chat task
-        let chat_processor = HTTPClientRequestProcessor::new(
+        let processor = HTTPClientRequestProcessor::new(
             name,
             HTTPClientRequestProcessor::get_static_name(),
             &[TablePublication::ExtendChunks {
@@ -507,42 +437,11 @@ mod tests {
             ],
             AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
-        let mut stream = chat_processor.process(
+        let mut stream = processor.process(
             message,
             Some(&diagnostic_builder),
             Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
         )?;
-
-        // Update the chat history with the response
-        let (message_builder, _stream) = message_builder
-            .append_chat_response_sendable_record_batch_stream(
-                &mut stream.remove(messages).unwrap().get_message_own(),
-                1000,
-            )
-            .await?;
-        let messages = message_builder.clone().build()?;
-        let json_data = messages.to_json_object()?;
-        for row in &json_data {
-            if row["role"] != "system" {
-                println!("{}: {}", row["role"], row["content"])
-            }
-        }
-
-        // Expected
-        // "**Counting Prime Numbers Up to N**\n=====================================\n\nHere is a Python function that counts prime numbers up to a given number `N`:\n\n```python\ndef count_prime_numbers(n):\n    \"\"\"\n    Returns the count of prime numbers up to n.\n\n    Args:\n        n (int): The upper limit (exclusive) for counting prime numbers.\n\n    Returns:\n        int: The count of prime numbers up to n.\n    \"\"\"\n    def is_prime(num):\n        \"\"\"\n        Checks if a number is prime.\n\n        Args:\n            num (int): The number to check.\n\n        Returns:\n            bool: True if the number is prime, False otherwise.\n        \"\"\"\n        if num < 2:\n            return False\n        for i in range(2, int(num ** 0.5) + 1):\n            if num % i == 0:\n                return False\n        return True\n\n    count = 0\n    for i in range(2, n):\n        if is_prime(i):\n            count += 1\n    return count\n```\n\n**Example Use Cases**\n---------------------\n\n```python\n# Count prime numbers up to 20\nprint(count_prime_numbers(20))  # Output: 8\n\n# Count prime numbers up to 50\nprint(count_prime_numbers(50))  # Output: 15\n```\n\nThis function works by defining a helper function `is_prime` that checks whether a given number is prime or not. It then uses a simple loop to iterate from 2 to `n-1`, and increments the count each time it finds a prime number. The final count is returned by the main function `count_prime_numbers`."
-
-        assert_eq!(json_data.first().unwrap().get("role").unwrap(), "system");
-        assert_eq!(
-            json_data.first().unwrap().get("content").unwrap(),
-            "You are a helpful assistant."
-        );
-        assert_eq!(json_data.get(1).unwrap().get("role").unwrap(), "user");
-        assert_eq!(
-            json_data.get(1).unwrap().get("content").unwrap(),
-            "Write a function to count prime numbers up to N."
-        );
-        assert_eq!(json_data.get(2).unwrap().get("role").unwrap(), "assistant");
-        assert!(json_data.get(2).unwrap().get("content").is_some());
 
         Ok(())
     }

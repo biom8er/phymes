@@ -5323,6 +5323,7 @@ dependencies = [
  "phymes-diagnostics",
  "quick-xml 0.38.4",
  "rayon",
+ "reqwest",
  "serde",
  "serde_json",
  "tokio",
