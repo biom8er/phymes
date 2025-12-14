@@ -1,4 +1,5 @@
-mod command_io_processor;
+mod command_sandbox_config;
+mod command_sandbox_processor;
 mod http_client_config;
 mod http_client_processor;
 

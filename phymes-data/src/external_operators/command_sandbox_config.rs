@@ -1,0 +1,185 @@
+use std::{env, fmt::Display};
+
+use anyhow::{Result, anyhow};
+use clap::{Parser, ValueEnum};
+use phymes_core::{MappableTrait, Table, TableTrait};
+use phymes_diagnostics::HashSet;
+use serde::{Deserialize, Serialize};
+
+use crate::DataConfigTrait;
+
+/// Command runners
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
+pub enum CommandSandboxRunners {
+    /// Run the command in a docker container
+    #[default]
+    #[value(name = "Docker")]
+    Docker,
+    /// Run the command using wasmtime
+    #[value(name = "Wasmtime")]
+    Wasmtime,
+    #[value(skip)]
+    Custom(String),
+}
+impl Display for CommandSandboxRunners {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Docker => write!(f, "Docker"),
+            Self::Wasmtime => write!(f, "Wasmtime"),
+            Self::Custom(s) => write!(f, "{s}"),
+        }
+    }
+}
+
+/// Command environments
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
+pub enum CommandSandboxEnvironments {
+    /// Python coding environment
+    #[value(name = "Python")]
+    Python,
+    /// Rust coding environment
+    #[default]
+    #[value(name = "Rust")]
+    Rust,
+    /// WASM component or module environment
+    #[value(name = "WASM")]
+    WASM,
+    #[value(skip)]
+    Custom(String),
+}
+impl Display for CommandSandboxEnvironments {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Python => write!(f, "Python"),
+            Self::Rust => write!(f, "Rust"),
+            Self::WASM => write!(f, "WASM"),
+            Self::Custom(s) => write!(f, "{s}"),
+        }
+    }
+}
+
+#[derive(Parser, Debug, Serialize, Deserialize, Clone, Default)]
+#[command(author, version, about, long_about = None)]
+#[serde(default)]
+pub struct CommandSandboxConfig {
+    /// The sandboxed runner
+    #[arg(long)]
+    pub runner: CommandSandboxRunners,
+
+    /// The sandboxed environment
+    #[arg(long)]
+    pub environment: CommandSandboxEnvironments,
+
+    /// The timeout in seconds
+    #[arg(long, default_value_t = 15)]
+    pub timeout: usize,
+
+    /// Project directory
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_dir: Option<String>,
+
+    /// Entry script
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entry_script: Option<String>,
+
+    /// Temporary input file
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temp_input: Option<String>,
+
+    /// Temporary output file
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temp_output: Option<String>,
+
+    /// Host input path
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub host_input_path: Option<String>,
+
+    /// Container input path
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub container_input_path: Option<String>,
+
+    /// Container project directory
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub container_project_dir: Option<String>,
+
+    /// Container entry format!("{}/{}", container_project_dir, entry_script);
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub container_entry: Option<String>,
+
+    /// List of arguments for running the command
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cli_args: Option<Vec<String>>,
+
+    /// List of environmental variables for running the command
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub env_args: Option<Vec<String>>,
+
+    /// Container image or WASM component/module
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub container_image: Option<String>,
+
+    /// Skip the installation of dependencies e.g., pip for python or cargo for rust
+    #[arg(long, default_value_t = false)]
+    pub skip_deps: bool,
+
+    /// Force the re-installation of dependencies e.g., pip for python or cargo for rust
+    #[arg(long, default_value_t = false)]
+    pub force_dep_reinstall: bool,
+}
+
+impl CommandSandboxConfig {
+    /// Return environmental arguments as key/value pairs
+    pub fn env_args(&self) -> Result<String> {
+        todo!()
+    }
+}
+
+impl DataConfigTrait for CommandSandboxConfig {
+    fn to_example_json(&self) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_vec(&Self::default())
+    }
+    fn from_table(table: &Table) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        // Check for the required fields
+        let column_names = table
+            .get_schema()
+            .fields()
+            .iter()
+            .map(|f| f.name().to_string())
+            .collect::<HashSet<_>>();
+        if !(column_names.contains("timeout") && column_names.contains("runner") && column_names.contains("environment") && column_names.contains("skip_deps") && column_names.contains("force_dep_reinstall")) {
+            return Err(anyhow!(
+                "Table {} is missing required Field for `timeout`, `runner`, `environment`, `skip_deps`, and `force_dep_reinstall` in CommandSandboxConfig.",
+                table.get_name()
+            ));
+        }
+
+        // Try to build the config
+        match table.to_struct::<CommandSandboxConfig>() {
+            Ok(config_vec) => match config_vec.first() {
+                Some(config) => Ok(config.to_owned()),
+                None => Err(anyhow!(
+                    "No config data found for CommandSandboxConfig with subject {}",
+                    table.get_name()
+                )),
+            },
+            Err(err) => Err(anyhow!(
+                "CommandSandboxConfig could not be built for subject {}. {err}",
+                table.get_name()
+            )),
+        }
+    }
+}
