@@ -17,9 +17,10 @@ use phymes_diagnostics::{
     create_timestamp_micros,
 };
 use reqwest::{Client, Response, header::{CONTENT_TYPE, USER_AGENT}};
+use serde_json::{Map, Value};
 use tracing::{Level, event};
 
-use crate::{DataConfigTrait, external_operators::http_client_config::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType, e_utils_schemas, open_alex_schemas}};
+use crate::{DataConfigTrait, external_operators::http_client_config::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType, e_utils_schemas, open_alex_schemas, semantic_scholar_schemas}};
 
 /// The state of the HTTP Client API request
 ///
@@ -224,20 +225,31 @@ impl Stream for HTTPClientRequestStream {
         match &mut self.state {
             HTTPClientRequestState::NotStarted => {
                 // Initialize the config
-                let mut batches = Vec::new();
-                while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
-                    batches.push(batch);
+                if self.config.is_none() {
+                    let mut batches = Vec::new();
+                    while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
+                        batches.push(batch);
+                    }
+                    let config_table = Table::get_builder()
+                        .with_name("config")
+                        .with_record_batches(batches)?
+                        .build()?;
+                    self.init_config(config_table)?;
                 }
-                let config_table = Table::get_builder()
-                    .with_name("config")
-                    .with_record_batches(batches)?
-                    .build()?;
-                self.init_config(config_table)?;
 
-                // Collect the message data
+                // Collect the message data in a streaming fashion
                 let mut batches = Vec::new();
                 while let Some(Ok(batch)) = ready!(self.message_stream.poll_next_unpin(cx)) {
-                    batches.push(batch);
+                    if batch.num_rows() > 0 {
+                        batches.push(batch);
+                        break;
+                    }                    
+                }
+
+                // The poll ends when there are no more batches
+                if batches.is_empty() {
+                    self.state = HTTPClientRequestState::Done;
+                    return Poll::Ready(None)
                 }
                 let messages = Table::get_builder()
                     .with_name("messages")
@@ -250,46 +262,56 @@ impl Stream for HTTPClientRequestStream {
                     .build()?;
 
                 // Make the request
-                //Prioritize the message data over the config
+                // DM: A future optimization maybe to treat each row as a parallel API request
                 let fut = match self.config.as_ref().unwrap().request_type {
                     HTTPClientRequestType::Get => {
+                        // Join the `content` fields together for the case of multiple rows
                         let query_str = messages.get_column_as_vec_str("content").join("");
+                        
+                        // Prioritize the message data over the config when building the url
                         let query_url = if query_str.is_empty() {
                             None
                         } else {
                             Some(query_str)
                         };
                         let url = self.config.as_ref().unwrap().url(query_url.as_deref());
-                        client.get(url)
-                        // .bearer_auth(self.config
-                        //     .as_ref()
-                        //     .unwrap()
-                        //     .api_key()?)
-                        .header(USER_AGENT, self.config.as_ref().unwrap().content_type.clone().ok_or(anyhow!("Content type (header value) needs to be specified for GET requests."))?)
-                        .send()
+
+                        // Make the request
+                        let mut client = client.get(url);
+                        if let Ok(token) = self.config.as_ref().unwrap().api_key() {
+                            client = client.bearer_auth(token)
+                        }
+                        client.header(USER_AGENT, self.config.as_ref().unwrap().content_type.clone().ok_or(anyhow!("Content type (header value) needs to be specified for GET requests."))?)
+                            .send()
                     },
                     HTTPClientRequestType::Post => {
-                        let json_object = messages.to_json_object()?;
-                        let json_data = if json_object.len() > 0 {
-                            serde_json::to_string(&json_object)?
+                        // Extract the table as a JSON object
+                        // DM: currently, only the last row is used similar to configs...
+                        let mut json_object = messages.to_json_object()?;
+
+                        // Prioritize the message data over the config when building the JSON body and url
+                        let (json_data, url) = if json_object.len() > 0 {
+                            let json_data = json_object.pop().unwrap();
+                            let url = self.config.as_ref().unwrap().url(None);
+                            (json_data, url)
                         } else if let Some(json_str) = self.config.as_ref().unwrap().json.as_ref() {
-                            json_str.to_string()
+                            let json_data = serde_json::from_str::<Map<String, Value>>(json_str)?;
+                            let url = self.config.as_ref().unwrap().base_url.clone();
+                            (json_data, url)
                         } else {
                             self.state = HTTPClientRequestState::Done;
                             return Poll::Ready(Some(Err(anyhow!("POST json data was not found in the messages nor in the config."))))
                         };
-                        client.post(self.config
-                            .as_ref()
-                            .unwrap()
-                            .base_url
-                            .clone())
-                        .bearer_auth(self.config
-                            .as_ref()
-                            .unwrap()
-                            .api_key()?)
-                        .header(CONTENT_TYPE, self.config.as_ref().unwrap().content_type.clone().ok_or(anyhow!("Content type needs to be specified for POST requests."))?)
-                        .json(&json_data)
-                        .send()
+                        dbg!(&json_data);
+                        
+                        // Make the request
+                        let mut client = client.post(url);                        
+                        if let Ok(token) = self.config.as_ref().unwrap().api_key() {
+                            client = client.bearer_auth(token)
+                        }
+                        client.header(CONTENT_TYPE, self.config.as_ref().unwrap().content_type.clone().ok_or(anyhow!("Content type needs to be specified for POST requests."))?)
+                            .json(&json_data)
+                            .send()
                     },
                     _ => {
                         self.state = HTTPClientRequestState::Done;
@@ -338,7 +360,13 @@ impl Stream for HTTPClientRequestStream {
                                 vec![create_timestamp_micros()],
                             )?,
                         HTTPClientRequestSchemas::OpenAlex => {
-                            let parsed = serde_json::from_str::<open_alex_schemas::OpenAlexResponse>(&text)?;
+                            let parsed = match serde_json::from_str::<open_alex_schemas::OpenAlexResponse>(&text) {
+                                Ok(parsed) => parsed,
+                                Err(err) => {
+                                    self.state = HTTPClientRequestState::Done;
+                                    return Poll::Ready(Some(Err(anyhow!("A parsing error {err:?} was encountered when parsing response {text} for schema {}.", self.config.as_ref().unwrap().request_schema))))
+                                }
+                            };
                             let content = parsed.results.into_iter().map(|w| serde_json::to_string(&w).unwrap()).collect::<Vec<_>>();
                             let roles = content.iter().map(|_| "tool".to_string()).collect::<Vec<_>>();
                             let timestamps = content.iter().map(|_| create_timestamp_micros()).collect::<Vec<_>>();
@@ -349,7 +377,13 @@ impl Stream for HTTPClientRequestStream {
                             )?
                         }
                         HTTPClientRequestSchemas::ESearch => {
-                            let parsed = serde_json::from_str::<e_utils_schemas::ESearchResponse>(&text)?;
+                            let parsed = match serde_json::from_str::<e_utils_schemas::ESearchResponse>(&text) {
+                                Ok(parsed) => parsed,
+                                Err(err) => {
+                                    self.state = HTTPClientRequestState::Done;
+                                    return Poll::Ready(Some(Err(anyhow!("A parsing error {err:?} was encountered when parsing response {text} for schema {}.", self.config.as_ref().unwrap().request_schema))))
+                                }
+                            };
                             let content = parsed.esearchresult.idlist;
                             let roles = content.iter().map(|_| "tool".to_string()).collect::<Vec<_>>();
                             let timestamps = content.iter().map(|_| create_timestamp_micros()).collect::<Vec<_>>();
@@ -364,8 +398,31 @@ impl Stream for HTTPClientRequestStream {
                                 .replace("</sup>", "")
                                 .replace("<sub>", "")
                                 .replace("</sub>", "");
-                            let parsed = quick_xml::de::from_str::<e_utils_schemas::PubmedArticleSet>(&cleaned_text)?;
+                            let parsed = match serde_json::from_str::<e_utils_schemas::PubmedArticleSet>(&cleaned_text) {
+                                Ok(parsed) => parsed,
+                                Err(err) => {
+                                    self.state = HTTPClientRequestState::Done;
+                                    return Poll::Ready(Some(Err(anyhow!("A parsing error {err:?} was encountered when parsing response {text} for schema {}.", self.config.as_ref().unwrap().request_schema))))
+                                }
+                            };
                             let content = parsed.articles.into_iter().map(|w| serde_json::to_string(&w).unwrap()).collect::<Vec<_>>();
+                            let roles = content.iter().map(|_| "tool".to_string()).collect::<Vec<_>>();
+                            let timestamps = content.iter().map(|_| create_timestamp_micros()).collect::<Vec<_>>();
+                            create_chat_record_batch(
+                                roles,
+                                content,
+                                timestamps,
+                            )?
+                        }
+                        HTTPClientRequestSchemas::SemanticScholarRecomendations => {
+                            let parsed = match serde_json::from_str::<semantic_scholar_schemas::RecommendationsResponse>(&text) {
+                                Ok(parsed) => parsed,
+                                Err(err) => {
+                                    self.state = HTTPClientRequestState::Done;
+                                    return Poll::Ready(Some(Err(anyhow!("A parsing error {err:?} was encountered when parsing response {text} for schema {}.", self.config.as_ref().unwrap().request_schema))))
+                                }
+                            };
+                            let content = parsed.papers.into_iter().map(|w| serde_json::to_string(&w).unwrap()).collect::<Vec<_>>();
                             let roles = content.iter().map(|_| "tool".to_string()).collect::<Vec<_>>();
                             let timestamps = content.iter().map(|_| create_timestamp_micros()).collect::<Vec<_>>();
                             create_chat_record_batch(
@@ -380,7 +437,9 @@ impl Stream for HTTPClientRequestStream {
                         }
                         
                     };
-                    self.state = HTTPClientRequestState::Done;
+
+                    // Reset the state to poll the next batch
+                    self.state = HTTPClientRequestState::NotStarted;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
@@ -400,7 +459,7 @@ impl Stream for HTTPClientRequestStream {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (1, Some(1))
+        (1, None)
     }
 }
 
@@ -412,6 +471,8 @@ impl RecordBatchStream for HTTPClientRequestStream {
 
 #[cfg(test)]
 mod tests {
+    use crate::external_operators::http_client_config::semantic_scholar_schemas;
+
     use super::*;
     use futures::TryStreamExt;
     use phymes_core::{AvailableTableSubscribePolicies, ChatBuilderTraitExt, RuntimeEnvTrait, TableBuilder};
@@ -544,7 +605,7 @@ mod tests {
         }
 
         let esearch_url = format!(
-            "db=pubmed&term={}&retmode=json&retmax=5&mindate={}&maxdate={}",
+            "db=pubmed&term={}&retmode=json&retmax=50&mindate={}&maxdate={}",
             urlencoding::encode(&query),
             year_from,
             year_to
@@ -720,6 +781,112 @@ mod tests {
         assert_eq!(result, ["tool","tool","tool","tool","tool"]);
         let result = table.get_column_as_vec_str("content");
         assert_eq!(*result.first().unwrap(), "{\"MedlineCitation\":{\"Article\":{\"ArticleTitle\":\"Effectiveness of interventions for improving physical activity level in working-age people (aged 18-60 years) with type 2 diabetes: a systematic review and meta-analysis.\",\"Abstract\":{\"AbstractText\":[\"The increasing prevalence of type 2 diabetes in working-age people imposes a substantial societal burden. Although physical activity is crucial for diabetes management, limited evidence exists to inform optimal strategies for promoting physical activity in this population. We aimed to determine and compare the effectiveness of interventions for increasing physical activity level in working-age people with diabetes.\",\"In this systematic review and meta-analysis, we searched Web of Science, the Cochrane Library, Medline, Embase, PsycINFO, ClinicalTrials.gov, and ICTRP for papers published between Jan 1, 1931, and June 30, 2022, in English. Search terms included \\\"physical activity\\\", \\\"diabetes\\\", and \\\"randomised controlled trial\\\". We included trials reporting the effects of interventions on physical activity level (objectively or subjectively measured) in people with type 2 diabetes aged 18-60 years. Two independent reviewers conducted summary data extraction and quality assessment. We used pairwise random-effects, frequentist network meta-analyses, and meta-regression to obtain pooled effects. Heterogeneity was evaluated using I2 statistic. The risk of bias and certainty of evidence were assessed using the Cochrane risk-of-bias 2 tool and the Grading of Recommendations Assessment, Development, and Evaluation. This study is registered with PROSPERO (CRD42022323165).\",\"We identified 52 trials (6257 participants) from 21 countries (32 Asia, ten North America, eight Europe, one Australia, one Africa). The overall risk of bias was classified as \\\"some concerns\\\" for included studies. Four types of interventions (structured exercise training, physical activity education, psychological intervention, physical activity education plus psychological intervention) were identified. Compared with control groups, the interventions showed significant effects in objectively measured (standardised mean difference 0·77, 95% CI 0·27-1·27, low certainty), subjectively measured (0·88, 0·40-1·35, very low certainty), and overall physical activity (0·82, 0·48-1·16, moderate certainty). Physical activity education exerted large effect in overall physical activity compared with control groups. Psychological intervention exerted large effects in overall physical activity compared with other interventions. Heterogeneity was high (I2=96-97%). Intervention setting (p=0·04) and facilitator (p=0·03) showed effects on heterogeneity.\",\"Psychologically modelled education might be the most beneficial way of promoting physical activity. Intervention setting and facilitator type should be considered when designing interventions for improving physical activity level in working-age people with type 2 diabetes. Limitations of this review include restriction to the English language and considerable heterogeneity between studies.\",\"King's-China Scholarship Council PhD Scholarship (202108440151).\"]},\"Journal\":{\"Title\":\"Lancet (London, England)\",\"ISSN\":\"1474-547X\",\"JournalIssue\":{\"PubDate\":{\"Year\":\"2023\",\"Month\":\"Nov\",\"Day\":null},\"Volume\":\"402 Suppl 1\",\"Issue\":null}},\"AuthorList\":{\"Author\":[{\"LastName\":\"Zhao\",\"ForeName\":\"Xiaoyan\",\"AffiliationInfo\":[{\"Affiliation\":\"Florence Nightingale Faculty of Nursing & Midwifery, King's College London, London, UK. Electronic address: xiaoyan.zhao@kcl.ac.uk.\"}]},{\"LastName\":\"Duaso\",\"ForeName\":\"Maria\",\"AffiliationInfo\":[{\"Affiliation\":\"Florence Nightingale Faculty of Nursing & Midwifery, King's College London, London, UK.\"}]},{\"LastName\":\"Ghazaleh\",\"ForeName\":\"Haya Abu\",\"AffiliationInfo\":[{\"Affiliation\":\"Florence Nightingale Faculty of Nursing & Midwifery, King's College London, London, UK.\"}]},{\"LastName\":\"Cheng\",\"ForeName\":\"Li\",\"AffiliationInfo\":[{\"Affiliation\":\"School of Nursing, Sun Yat-sen University, Guangzhou, China.\"}]},{\"LastName\":\"Forbes\",\"ForeName\":\"Angus\",\"AffiliationInfo\":[{\"Affiliation\":\"Florence Nightingale Faculty of Nursing & Midwifery, King's College London, London, UK.\"}]}]},\"Pagination\":{\"MedlinePgn\":\"S97\"},\"ELocationID\":[{\"$value\":\"10.1016/S0140-6736(23)02145-1\",\"EIdType\":null},{\"$value\":\"S0140-6736(23)02145-1\",\"EIdType\":null}]},\"MeshHeadingList\":{\"MeshHeading\":[{\"DescriptorName\":\"Humans\"},{\"DescriptorName\":\"Diabetes Mellitus, Type 2\"},{\"DescriptorName\":\"Exercise\"},{\"DescriptorName\":\"Africa\"},{\"DescriptorName\":\"Asia\"},{\"DescriptorName\":\"Australia\"}]}},\"PubmedData\":{\"ArticleIdList\":{\"ArticleId\":[{\"$value\":\"37997144\",\"IdType\":null},{\"$value\":\"10.1016/S0140-6736(23)02145-1\",\"IdType\":null},{\"$value\":\"S0140-6736(23)02145-1\",\"IdType\":null}]}}}");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_http_client_processor_semantic_scholar() -> Result<()> {
+        let name = "HTTPClientRequestProcessor";
+        let messages = "messages";
+
+        // Runtime env
+        let rt_env = Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt")));
+
+        // Metrics to compute time and rows
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
+        // State for the http client processor config
+        let http_client_config = HTTPClientConfig {
+            timeout: 30,
+            request_type: HTTPClientRequestType::Post,
+            content_type: Some("rust-openalex-client/2.0".to_string()),
+            base_url: "https://api.semanticscholar.org/recommendations/v1/papers/".to_string(),
+            json: Some("fields=title,url,authors&limit=3".to_string()),
+            request_schema: HTTPClientRequestSchemas::SemanticScholarRecomendations,
+            ..Default::default()
+        };
+        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
+        let http_client_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&http_client_config_json, 1)?
+            .build()?;
+
+        // Make the request body
+        let req_body = semantic_scholar_schemas::RecommendationsRequest {
+            positive_papers: Some(vec![
+                "649def34f8be52c8b66281af98ae884c09aef38b".to_string(),
+            ]),
+            negative_papers: Some(vec![
+                "ArXiv:1805.02262".to_string(),
+            ])
+        };
+        let req_body_json = serde_json::to_vec(&req_body)?;
+        let req_body_table = TableBuilder::new()
+            .with_name(messages)
+            .with_json(&req_body_json, 1)?
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            messages.to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(messages)
+                .with_publisher("")
+                .with_subject(messages)
+                .with_update(&TablePublication::None)
+                .with_message(req_body_table.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            http_client_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(http_client_config_table.get_name())
+                .with_publisher("")
+                .with_subject(http_client_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(http_client_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the http client processor
+        let processor = HTTPClientRequestProcessor::new(
+            name,
+            HTTPClientRequestProcessor::get_static_name(),
+            &[TablePublication::Replace {
+                table_name: messages.to_string(),
+            }],
+            &[
+                TableSubscription::OnUpdateFullTable {
+                    table_name: messages.to_string(),
+                },
+                TableSubscription::AlwaysFullTable {
+                    table_name: http_client_config_table.get_name().to_string(),
+                },
+            ],
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+        );
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
+
+        // Check the response        
+        let result = stream
+            .remove(&format!("from_{name}_on_{messages}"))
+            .unwrap()
+            .get_message_own()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("role");
+        assert_eq!(result, ["tool", "tool", "tool"]);
+        let result = table.get_column_as_vec_str("content");
+        assert_eq!(*result.first().unwrap(), "{\"paperId\":\"65947afa8f1a6673ae9d4932b1262dca776c097c\",\"title\":\"A systematic review of relation extraction task since the emergence of Transformers\",\"abstract\":null,\"year\":null,\"venue\":null,\"publicationTypes\":null,\"publicationDate\":null,\"doi\":null,\"arxivId\":null,\"url\":\"https://www.semanticscholar.org/paper/65947afa8f1a6673ae9d4932b1262dca776c097c\",\"isOpenAccess\":null,\"openAccessPdf\":null,\"citationCount\":null,\"influentialCitationCount\":null,\"isHighlyCited\":null,\"referenceCount\":null,\"fieldsOfStudy\":null,\"authors\":[{\"authorId\":\"2284776050\",\"name\":\"Célian Ringwald\",\"aliases\":null,\"affiliations\":null,\"homepage\":null,\"paperCount\":null,\"citationCount\":null,\"hIndex\":null,\"url\":null},{\"authorId\":\"2287849105\",\"name\":\"Fabien L. Gandon\",\"aliases\":null,\"affiliations\":null,\"homepage\":null,\"paperCount\":null,\"citationCount\":null,\"hIndex\":null,\"url\":null},{\"authorId\":\"2239966124\",\"name\":\"Catherine Faron-Zucker\",\"aliases\":null,\"affiliations\":null,\"homepage\":null,\"paperCount\":null,\"citationCount\":null,\"hIndex\":null,\"url\":null},{\"authorId\":\"2287787061\",\"name\":\"Franck Michel\",\"aliases\":null,\"affiliations\":null,\"homepage\":null,\"paperCount\":null,\"citationCount\":null,\"hIndex\":null,\"url\":null},{\"authorId\":\"1514280691\",\"name\":\"Hanna Abi Akl\",\"aliases\":null,\"affiliations\":null,\"homepage\":null,\"paperCount\":null,\"citationCount\":null,\"hIndex\":null,\"url\":null}],\"tldr\":null,\"externalIds\":null,\"publicationVenue\":null,\"journal\":null}");
 
         Ok(())
     }
