@@ -29,3 +29,5 @@ pub use jinja2_templates::{
     MINIMAL_FIGURE_INPUT, MINIMAL_FIGURE_TEMPLATE, MINIMAL_LIST_INPUT, MINIMAL_TABLE_INPUT,
     MINIMAL_TABLE_TEMPLATE, test_minimal_html,
 };
+#[cfg(feature = "openai_api")]
+pub use external_operators::{HTTPClientConfig, HTTPClientRequestProcessor, HTTPClientRequestSchemas, HTTPClientRequestState, HTTPClientRequestType};
