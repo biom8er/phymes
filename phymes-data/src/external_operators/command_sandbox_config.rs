@@ -3,7 +3,7 @@ use std::{env, fmt::Display};
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
 use phymes_core::{MappableTrait, Table, TableTrait};
-use phymes_diagnostics::HashSet;
+use phymes_diagnostics::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 
 use crate::DataConfigTrait;
@@ -70,6 +70,15 @@ pub struct CommandSandboxConfig {
     #[arg(long)]
     pub environment: CommandSandboxEnvironments,
 
+    /// Container image or WASM component/module
+    #[arg(long)]
+    pub container_image: String,
+
+    /// The command to run inside container or the wasm module to invoke
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command: Option<String>,
+
     /// The timeout in seconds
     #[arg(long, default_value_t = 15)]
     pub timeout: usize,
@@ -79,40 +88,20 @@ pub struct CommandSandboxConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project_dir: Option<String>,
 
-    /// Entry script
-    #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub entry_script: Option<String>,
-
-    /// Temporary input file
-    #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub temp_input: Option<String>,
-
-    /// Temporary output file
-    #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub temp_output: Option<String>,
-
-    /// Host input path
-    #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub host_input_path: Option<String>,
-
-    /// Container input path
-    #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub container_input_path: Option<String>,
-
     /// Container project directory
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub container_project_dir: Option<String>,
 
-    /// Container entry format!("{}/{}", container_project_dir, entry_script);
+    /// Entry script
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub container_entry: Option<String>,
+    pub entry_script: Option<String>,
+
+    /// List of arguments for the container in addition to the environment-specific defaults
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub container_args: Option<Vec<String>>,
 
     /// List of arguments for running the command
     #[arg(long)]
@@ -124,11 +113,6 @@ pub struct CommandSandboxConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub env_args: Option<Vec<String>>,
 
-    /// Container image or WASM component/module
-    #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub container_image: Option<String>,
-
     /// Skip the installation of dependencies e.g., pip for python or cargo for rust
     #[arg(long, default_value_t = false)]
     pub skip_deps: bool,
@@ -136,12 +120,80 @@ pub struct CommandSandboxConfig {
     /// Force the re-installation of dependencies e.g., pip for python or cargo for rust
     #[arg(long, default_value_t = false)]
     pub force_dep_reinstall: bool,
+
+    /// Temporary input file
+    /// 
+    /// # Notes
+    /// 
+    /// * Not implemented
+    /// * See `container_input_path` for how it could be implemented
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temp_input: Option<String>,
+
+    /// Temporary output file
+    /// 
+    /// # Notes
+    /// 
+    /// * Not implemented
+    /// * See `container_input_path` for how it could be implemented
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temp_output: Option<String>,
+
+    /// Host input path
+    /// 
+    /// # Notes
+    /// 
+    /// * Not implemented
+    /// * See `container_input_path` for how it could be implemented
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub host_input_path: Option<String>,
+
+    /// Container input path
+    /// 
+    /// # Notes
+    /// 
+    /// * Not implemented
+    /// * e.g., ```
+    /// use tempfile::NamedTempFile;
+    /// // Create a temporary input file (auto-deletes on drop)
+    /// let mut temp_input = NamedTempFile::new().expect("Failed to create temp input file");
+    /// writeln!(temp_input, "42\n99\n123").expect("Failed to write to temp input file");
+    /// 
+    /// let host_input_path = temp_input.path().to_str().unwrap();
+    /// let container_input_path = "/home/sandbox/input.txt";
+    /// 
+    /// // Container paths
+    /// let container_project_dir = "/home/sandbox/project";
+    /// let container_entry = format!("{}/{}", container_project_dir, entry_script);
+    /// ```
+    /// 
+    /// Then add to the command arguments as
+    /// `"-v", &format!("{}:{}:ro", host_input_path, container_input_path), // Input file read-only`
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub container_input_path: Option<String>,
 }
 
 impl CommandSandboxConfig {
     /// Return environmental arguments as key/value pairs
-    pub fn env_args(&self) -> Result<String> {
-        todo!()
+    pub fn env_args(&self) -> Result<HashMap<String, String>> {
+        let mut map = HashMap::<String, String>::new();
+        if let Some(env_args) = &self.env_args {
+            for env_var in env_args {
+                match env::var(env_var) {
+                    Ok(key) => {
+                        map.insert(env_var.to_string(), key);
+                    },
+                    Err(e) => {
+                        return Err(anyhow!("{e:?}"));
+                    },
+                }
+            }
+        }
+        Ok(map)
     }
 }
 
@@ -160,9 +212,10 @@ impl DataConfigTrait for CommandSandboxConfig {
             .iter()
             .map(|f| f.name().to_string())
             .collect::<HashSet<_>>();
-        if !(column_names.contains("timeout") && column_names.contains("runner") && column_names.contains("environment") && column_names.contains("skip_deps") && column_names.contains("force_dep_reinstall")) {
+        if !(column_names.contains("timeout") && column_names.contains("runner") && column_names.contains("environment") && column_names.contains("container_image")
+        && column_names.contains("skip_deps") && column_names.contains("force_dep_reinstall")) {
             return Err(anyhow!(
-                "Table {} is missing required Field for `timeout`, `runner`, `environment`, `skip_deps`, and `force_dep_reinstall` in CommandSandboxConfig.",
+                "Table {} is missing required Field for `timeout`, `runner`, `environment`, `container_image`, `skip_deps`, and `force_dep_reinstall` in CommandSandboxConfig.",
                 table.get_name()
             ));
         }

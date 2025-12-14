@@ -35,7 +35,7 @@ pub enum HTTPClientRequestState {
 }
 
 /// Error reporting method for Reqwest error
-fn error_report(mut err: &(dyn std::error::Error + 'static)) -> String {
+pub(crate) fn error_report(mut err: &(dyn std::error::Error + 'static)) -> String {
     let mut s = format!("{}", err);
     while let Some(src) = err.source() {
         let _ = write!(s, "\n\nCaused by: {}", src);

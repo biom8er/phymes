@@ -616,6 +616,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         .unwrap()
                         .build()
                         .unwrap();
+                    
+                    // DM: potentially where we could override the defaults to update with the known lhs_name and rhs_name
                     Some(table)
                 }
             })
