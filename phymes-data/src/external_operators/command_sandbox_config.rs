@@ -59,7 +59,7 @@ impl Display for CommandSandboxEnvironments {
 }
 
 /// Data transfer methods
-#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default, PartialEq)]
 pub enum DataIOMethod {
     /// Transfer [RecordBatch]es as bytes over the stdio interface
     /// 
@@ -167,16 +167,6 @@ pub struct CommandSandboxConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub temp_output: Option<String>,
-
-    /// Host input path
-    /// 
-    /// # Notes
-    /// 
-    /// * Not implemented
-    /// * See `container_input_path` for how it could be implemented
-    #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub host_input_path: Option<String>,
 
     /// Container input path
     /// 

@@ -1,5 +1,5 @@
 use std::{
-    path::Path, pin::Pin, process::Output, sync::Arc, task::{Context, Poll, ready}
+    io::Stderr, path::Path, pin::Pin, process::{Output, Stdio}, sync::Arc, task::{Context, Poll, ready}
 };
 
 use anyhow::{Result, anyhow};
@@ -26,7 +26,7 @@ use crate::{DataConfigTrait, external_operators::{command_sandbox_config::{Comma
 ///   is not dropped during repeated polling of the stream.
 pub enum CommandSandboxState {
     NotStarted,
-    Started(Pin<Box<dyn Future<Output = std::io::Result<Output>> + Send + 'static>>),
+    Output(Pin<Box<dyn Future<Output = std::io::Result<Output>> + Send + 'static>>),
     Done,
 }
 
@@ -267,20 +267,6 @@ impl Stream for CommandSandboxStream {
                     return Poll::Ready(Some(Err(anyhow!(err))))
                 }
 
-                // Extract out the message
-                let input_args = match self.config.as_ref().unwrap().data_io {
-                    DataIOMethod::Stdio => {
-                        let content = messages.to_ipc_stream()?;
-                        Some(content)
-                    }
-                    DataIOMethod::TempFile => {
-                        let mut file = NamedTempFile::new()?;
-                        messages.to_ipc_file(&mut file)?;
-                        None
-                    }
-                    DataIOMethod::None => None
-                };
-
                 // Execute the command
                 // DM: A future optimization maybe to treat each row as a parallel Command
                 let fut = match self.config.as_ref().unwrap().runner {
@@ -296,6 +282,16 @@ impl Stream for CommandSandboxStream {
                             "--pids-limit".to_string(), "50".to_string(), // Process limit
                             "-v".to_string(), "sandbox_tmp:/tmp".to_string(), // Writable /tmp inside container
                         ];
+
+                        // Add the input file
+                        // DM: needed later but this could be optimized to prevent the write operation...
+                        let mut file = NamedTempFile::new()?;
+                        let host_input_path = file.path().to_str().unwrap().to_string();
+                        if let Some(container_input_path) = self.config.as_ref().unwrap().container_input_path.as_ref()
+                            && DataIOMethod::TempFile == self.config.as_ref().unwrap().data_io {
+                            command_args.push("-v".to_string());
+                            command_args.push(format!("{host_input_path}:{container_input_path}:ro")); // Input file read-only
+                        }
 
                         // User defined container arguments
                         if let Some(args) = self.config.as_ref().unwrap().container_args.as_ref() {
@@ -332,6 +328,22 @@ impl Stream for CommandSandboxStream {
                             }                            
                         }
 
+                        // Extract out the message and run the command
+                        match self.config.as_ref().unwrap().data_io {
+                            DataIOMethod::Stdio => {
+                                let content = messages.to_json_object()?;
+                                let arg = serde_json::to_string(&content)?;
+                                command_args.push("--lhs-args".to_string());
+                                command_args.push(arg);
+                            }
+                            DataIOMethod::TempFile => {
+                                messages.to_ipc_file(&mut file)?;
+                                command_args.push("--lhs-args".to_string());
+                                command_args.push(host_input_path);
+                            }
+                            DataIOMethod::None => {}
+                        };
+
                         // Run the command
                         Command::new("docker").args(&command_args).output()
                     },
@@ -351,6 +363,15 @@ impl Stream for CommandSandboxStream {
                             command_args.push(format!("--dir={project_dir}"));
                         }
 
+                        // Add the input file
+                        // DM: needed later but this could be optimized to prevent the write operation...
+                        let mut file = NamedTempFile::new()?;
+                        let host_input_dir = file.path().parent().unwrap().to_str().unwrap().to_string();
+                        let host_input_path = file.path().to_str().unwrap().to_string();
+                        if DataIOMethod::TempFile == self.config.as_ref().unwrap().data_io {
+                            command_args.push(format!("--dir={host_input_dir}")); // Input file read-only
+                        }
+
                         // Add environment variables to command args
                         for (k, v) in self.config.as_ref().unwrap().env_args()? {
                             command_args.push(format!("--env={}={}", k, v));
@@ -367,6 +388,22 @@ impl Stream for CommandSandboxStream {
                             }                            
                         }
 
+                        // Extract out the message and run the command
+                        match self.config.as_ref().unwrap().data_io {
+                            DataIOMethod::Stdio => {
+                                let content = messages.to_json_object()?;
+                                let arg = serde_json::to_string(&content)?;
+                                command_args.push("--lhs-args".to_string());
+                                command_args.push(arg);
+                            }
+                            DataIOMethod::TempFile => {
+                                messages.to_ipc_file(&mut file)?;
+                                command_args.push("--lhs-args".to_string());
+                                command_args.push(host_input_path);
+                            }
+                            DataIOMethod::None => {}
+                        };
+
                         // Run the command
                         Command::new("wasmtime").args(&command_args).output()
                     },
@@ -377,10 +414,10 @@ impl Stream for CommandSandboxStream {
                 };
 
                 // Update the request state and poll next
-                self.state = CommandSandboxState::Started(Box::pin(fut));
+                self.state = CommandSandboxState::Output(Box::pin(fut));
                 self.poll_next(cx)
             }
-            CommandSandboxState::Started(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
+            CommandSandboxState::Output(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                 Ok(output) => {
                     // Initialize the metrics
                     let baseline_metrics =
@@ -541,7 +578,7 @@ mod tests {
             ],
             AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
-        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
         // Check the response        
         let result = stream
@@ -619,7 +656,7 @@ mod tests {
             ],
             AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
-        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
         // Check the response        
         let result = stream
@@ -636,7 +673,7 @@ mod tests {
         let result = table.get_column_as_vec_str("role");
         assert_eq!(result, ["tool"]);
         let result = table.get_column_as_vec_str("content");
-        assert_eq!(*result.first().unwrap(), "Hello from Docker!\n");
+        assert!(result.first().unwrap().contains("--lhs-args [{\"content\":\"Hello from Docker!\",\"role\":\"user\",\"timestamp\":"));
 
         // --- From TempFile ---
 
@@ -714,7 +751,7 @@ mod tests {
         let result = table.get_column_as_vec_str("role");
         assert_eq!(result, ["tool"]);
         let result = table.get_column_as_vec_str("content");
-        assert_eq!(*result.first().unwrap(), "Hello from Docker!\n");
+        assert!(result.first().unwrap().contains("--lhs-args /tmp/."));
 
         Ok(())
     }
