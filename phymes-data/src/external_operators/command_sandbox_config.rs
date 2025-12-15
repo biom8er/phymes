@@ -63,16 +63,24 @@ impl Display for CommandSandboxEnvironments {
 pub enum DataIOMethod {
     /// Transfer [RecordBatch]es as bytes over the stdio interface
     /// 
-    /// The [RecordBatch]es will be serialized as IPC and added as a named argument `lhs_args` to the CLI arguments
+    /// The [RecordBatch]es will be serialized as JSON and added as a named argument `lhs_args` to the CLI arguments
+    /// and the output will be deserialized from JSON
+    /// 
+    /// # Notes
+    /// * The schema between input and output data must be the same since JSON is used and we need to know the schema
+    ///   to correctly interpret the JSON data types
     #[default]
     #[value(name = "Stdio")]
     Stdio,
     /// Write [RecordBatch]es as IPC bytes to a temporary file 
     /// 
     /// The [RecordBatch]es will be serialized as IPC and written to a named temporary file called `lhs_args.ipc`
+    /// and the output will be deserialized from IPC from the same temporary file
     #[value(name = "TempFile")]
     TempFile,
     /// Use the config and ignore the batches
+    /// 
+    /// The output will be read in from the Stdout and packaged as a message
     #[value(name = "None")]
     None,
 }
@@ -102,9 +110,13 @@ pub struct CommandSandboxConfig {
     #[arg(long)]
     pub container_image: String,
 
-    /// Data transfer method
+    /// Data input transfer method
     #[arg(long)]
-    pub data_io: DataIOMethod,
+    pub data_i: DataIOMethod,
+
+    /// Data output transfer method
+    #[arg(long)]
+    pub data_o: DataIOMethod,
 
     /// The command to run inside container or the wasm module to invoke
     #[arg(long)]
@@ -230,9 +242,9 @@ impl DataConfigTrait for CommandSandboxConfig {
             .map(|f| f.name().to_string())
             .collect::<HashSet<_>>();
         if !(column_names.contains("timeout") && column_names.contains("runner") && column_names.contains("environment") && column_names.contains("container_image")
-        && column_names.contains("data_io")) {
+        && column_names.contains("data_i") && column_names.contains("data_o")) {
             return Err(anyhow!(
-                "Table {} is missing required Field for `timeout`, `runner`, `environment`, `container_image`, and `data_io` in CommandSandboxConfig.",
+                "Table {} is missing required Field for `timeout`, `runner`, `environment`, `container_image`, `data_i`, and `data_o` in CommandSandboxConfig.",
                 table.get_name()
             ));
         }
