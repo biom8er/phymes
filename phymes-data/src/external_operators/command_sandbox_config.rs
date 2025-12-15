@@ -58,6 +58,34 @@ impl Display for CommandSandboxEnvironments {
     }
 }
 
+/// Data transfer methods
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
+pub enum DataIOMethod {
+    /// Transfer [RecordBatch]es as bytes over the stdio interface
+    /// 
+    /// The [RecordBatch]es will be serialized as IPC and added as a named argument `lhs_args` to the CLI arguments
+    #[default]
+    #[value(name = "Stdio")]
+    Stdio,
+    /// Write [RecordBatch]es as IPC bytes to a temporary file 
+    /// 
+    /// The [RecordBatch]es will be serialized as IPC and written to a named temporary file called `lhs_args.ipc`
+    #[value(name = "TempFile")]
+    TempFile,
+    /// Use the config and ignore the batches
+    #[value(name = "None")]
+    None,
+}
+impl Display for DataIOMethod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Stdio => write!(f, "Stdio"),
+            Self::TempFile => write!(f, "TempFile"),
+            Self::None => write!(f, "None"),
+        }
+    }
+}
+
 #[derive(Parser, Debug, Serialize, Deserialize, Clone, Default)]
 #[command(author, version, about, long_about = None)]
 #[serde(default)]
@@ -74,12 +102,19 @@ pub struct CommandSandboxConfig {
     #[arg(long)]
     pub container_image: String,
 
+    /// Data transfer method
+    #[arg(long)]
+    pub data_io: DataIOMethod,
+
     /// The command to run inside container or the wasm module to invoke
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub command: Option<String>,
 
     /// The timeout in seconds
+    /// 
+    /// # Notes
+    /// * Not yet implemented
     #[arg(long, default_value_t = 15)]
     pub timeout: usize,
 
@@ -112,14 +147,6 @@ pub struct CommandSandboxConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub env_args: Option<Vec<String>>,
-
-    /// Skip the installation of dependencies e.g., pip for python or cargo for rust
-    #[arg(long, default_value_t = false)]
-    pub skip_deps: bool,
-
-    /// Force the re-installation of dependencies e.g., pip for python or cargo for rust
-    #[arg(long, default_value_t = false)]
-    pub force_dep_reinstall: bool,
 
     /// Temporary input file
     /// 
@@ -213,9 +240,9 @@ impl DataConfigTrait for CommandSandboxConfig {
             .map(|f| f.name().to_string())
             .collect::<HashSet<_>>();
         if !(column_names.contains("timeout") && column_names.contains("runner") && column_names.contains("environment") && column_names.contains("container_image")
-        && column_names.contains("skip_deps") && column_names.contains("force_dep_reinstall")) {
+        && column_names.contains("data_io")) {
             return Err(anyhow!(
-                "Table {} is missing required Field for `timeout`, `runner`, `environment`, `container_image`, `skip_deps`, and `force_dep_reinstall` in CommandSandboxConfig.",
+                "Table {} is missing required Field for `timeout`, `runner`, `environment`, `container_image`, and `data_io` in CommandSandboxConfig.",
                 table.get_name()
             ));
         }

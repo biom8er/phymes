@@ -13,11 +13,11 @@ use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
     create_timestamp_micros,
 };
-use serde_json::{Map, Value};
+use tempfile::NamedTempFile;
 use tokio::process::Command;
 use tracing::{Level, event};
 
-use crate::{DataConfigTrait, external_operators::{command_sandbox_config::{CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners}, http_client_processor::error_report}};
+use crate::{DataConfigTrait, external_operators::{command_sandbox_config::{CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod}, http_client_processor::error_report}};
 
 /// The state of the Command
 ///
@@ -267,6 +267,20 @@ impl Stream for CommandSandboxStream {
                     return Poll::Ready(Some(Err(anyhow!(err))))
                 }
 
+                // Extract out the message
+                let input_args = match self.config.as_ref().unwrap().data_io {
+                    DataIOMethod::Stdio => {
+                        let content = messages.to_ipc_stream()?;
+                        Some(content)
+                    }
+                    DataIOMethod::TempFile => {
+                        let mut file = NamedTempFile::new()?;
+                        messages.to_ipc_file(&mut file)?;
+                        None
+                    }
+                    DataIOMethod::None => None
+                };
+
                 // Execute the command
                 // DM: A future optimization maybe to treat each row as a parallel Command
                 let fut = match self.config.as_ref().unwrap().runner {
@@ -430,30 +444,292 @@ impl RecordBatchStream for CommandSandboxStream {
 
 #[cfg(test)]
 mod tests {
+    use futures::TryStreamExt;
+    use phymes_core::{AvailableTableSubscribePolicies, ChatBuilderTraitExt, RuntimeEnvTrait, TableBuilder};
+    use phymes_diagnostics::{Diagnostics, SpanBuilder};
+
+    use crate::external_operators::command_sandbox_config::DataIOMethod;
+
     use super::*;
 
     /// WASM component and module example
     #[tokio::test]
-    async fn test_command_io_processor_wasmtime() -> Result<()> {
+    async fn test_command_sandbox_processor_wasmtime() -> Result<()> {
         Ok(())
     }
 
     /// Docker CLI example
+    /// docker run --rm alpine echo "Hello from Docker!"
     #[tokio::test]
-    async fn test_command_io_processor_docker_echo() -> Result<()> {
-        //docker run --rm alpine echo "Hello from Docker!"
+    async fn test_command_sandbox_processor_docker_echo() -> Result<()> {
+        let name = "CommandSandboxProcessor";
+        let messages = "messages";
+
+        // Runtime env
+        let rt_env = Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt")));
+
+        // Metrics to compute time and rows
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
+        // --- From config ---
+
+        // State for the command processor config
+        let command_config = CommandSandboxConfig {
+            runner: CommandSandboxRunners::Docker,
+            environment: CommandSandboxEnvironments::Custom("bash".to_string()),
+            container_image: "alpine".to_string(),
+            data_io: DataIOMethod::None,
+            command: Some("echo".to_string()),
+            timeout: 5,
+            container_args: Some(vec!["--rm".to_string()]),
+            cli_args: Some(vec!["Hello from Docker!".to_string()]),
+            ..Default::default()
+        };
+        let command_config_json = serde_json::to_vec(&command_config)?;
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
+
+        // Make the system prompt and add the user query
+        let message_builder = TableBuilder::new()
+            .with_name(messages)
+            .append_new_user_query_str(
+                "Hello from Docker!",
+                "user",
+            )?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            messages.to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(messages)
+                .with_publisher("")
+                .with_subject(messages)
+                .with_update(&TablePublication::None)
+                .with_message(message_builder.clone().build()?.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor = CommandSandboxProcessor::new(
+            name,
+            CommandSandboxProcessor::get_static_name(),
+            &[TablePublication::Replace {
+                table_name: messages.to_string(),
+            }],
+            &[
+                TableSubscription::OnUpdateFullTable {
+                    table_name: messages.to_string(),
+                },
+                TableSubscription::AlwaysFullTable {
+                    table_name: command_config_table.get_name().to_string(),
+                },
+            ],
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+        );
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
+
+        // Check the response        
+        let result = stream
+            .remove(&format!("from_{name}_on_{messages}"))
+            .unwrap()
+            .get_message_own()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("role");
+        assert_eq!(result, ["tool"]);
+        let result = table.get_column_as_vec_str("content");
+        assert_eq!(*result.first().unwrap(), "Hello from Docker!\n");
+
+        // --- From Stdio ---
+
+        // State for the command processor config
+        let command_config = CommandSandboxConfig {
+            runner: CommandSandboxRunners::Docker,
+            environment: CommandSandboxEnvironments::Custom("bash".to_string()),
+            container_image: "alpine".to_string(),
+            data_io: DataIOMethod::Stdio,
+            command: Some("echo".to_string()),
+            timeout: 5,
+            container_args: Some(vec!["--rm".to_string()]),
+            ..Default::default()
+        };
+        let command_config_json = serde_json::to_vec(&command_config)?;
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            messages.to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(messages)
+                .with_publisher("")
+                .with_subject(messages)
+                .with_update(&TablePublication::None)
+                .with_message(message_builder.clone().build()?.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor = CommandSandboxProcessor::new(
+            name,
+            CommandSandboxProcessor::get_static_name(),
+            &[TablePublication::Replace {
+                table_name: messages.to_string(),
+            }],
+            &[
+                TableSubscription::OnUpdateFullTable {
+                    table_name: messages.to_string(),
+                },
+                TableSubscription::AlwaysFullTable {
+                    table_name: command_config_table.get_name().to_string(),
+                },
+            ],
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+        );
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
+
+        // Check the response        
+        let result = stream
+            .remove(&format!("from_{name}_on_{messages}"))
+            .unwrap()
+            .get_message_own()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("role");
+        assert_eq!(result, ["tool"]);
+        let result = table.get_column_as_vec_str("content");
+        assert_eq!(*result.first().unwrap(), "Hello from Docker!\n");
+
+        // --- From TempFile ---
+
+        // State for the command processor config
+        let command_config = CommandSandboxConfig {
+            runner: CommandSandboxRunners::Docker,
+            environment: CommandSandboxEnvironments::Custom("bash".to_string()),
+            container_image: "alpine".to_string(),
+            data_io: DataIOMethod::TempFile,
+            command: Some("echo".to_string()),
+            timeout: 5,
+            container_args: Some(vec!["--rm".to_string()]),
+            ..Default::default()
+        };
+        let command_config_json = serde_json::to_vec(&command_config)?;
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            messages.to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(messages)
+                .with_publisher("")
+                .with_subject(messages)
+                .with_update(&TablePublication::None)
+                .with_message(message_builder.clone().build()?.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor = CommandSandboxProcessor::new(
+            name,
+            CommandSandboxProcessor::get_static_name(),
+            &[TablePublication::Replace {
+                table_name: messages.to_string(),
+            }],
+            &[
+                TableSubscription::OnUpdateFullTable {
+                    table_name: messages.to_string(),
+                },
+                TableSubscription::AlwaysFullTable {
+                    table_name: command_config_table.get_name().to_string(),
+                },
+            ],
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+        );
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
+
+        // Check the response        
+        let result = stream
+            .remove(&format!("from_{name}_on_{messages}"))
+            .unwrap()
+            .get_message_own()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("role");
+        assert_eq!(result, ["tool"]);
+        let result = table.get_column_as_vec_str("content");
+        assert_eq!(*result.first().unwrap(), "Hello from Docker!\n");
+
         Ok(())
     }
 
     /// Python code execution example
     #[tokio::test]
-    async fn test_command_io_processor_docker_py() -> Result<()> {
+    async fn test_command_sandbox_processor_docker_py() -> Result<()> {
+        // docker run --rm -v $(pwd):/app -w /app python:3.11 python script.py arg1 arg2
         Ok(())
     }
 
     /// Rust code execution example
     #[tokio::test]
-    async fn test_command_io_processor_docker_rs() -> Result<()> {
+    async fn test_command_sandbox_processor_docker_rs() -> Result<()> {
+        // docker run --rm -v $(pwd):/app -w /app amd64/rust cargo run arg1 arg2
         Ok(())
     }
 }
