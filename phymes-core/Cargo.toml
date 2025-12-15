@@ -45,7 +45,7 @@ web-time = "1.1.0"
 hashbrown = "0.15.4"
 chrono = { version = "0.4.41", features = ["wasmbind"] }
 minijinja = { version = "2.6.0", features = ["json"] }
-minijinja-contrib = { version = "2.6.0", features = ["pycompat"] }
+minijinja-contrib = { version = "2.14.0", features = ["pycompat"] }
 candle-core = { version = "0.9.1" }
 tokenizers = { version = "0.21.1", default-features = false, optional = true }
 bytes = "1.10.1"
