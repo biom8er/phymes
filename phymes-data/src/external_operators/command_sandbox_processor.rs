@@ -31,6 +31,11 @@ pub enum CommandSandboxState {
     Done,
 }
 
+/// Runs commands in a sandboxed environment and returns the result or error message
+/// 
+/// # Notes
+/// * Current sandboxed environments include docker and wasmtime
+/// * Stderr messages are routed to `SessionError`s
 #[derive(Debug)]
 pub struct CommandSandboxProcessor {
     name: String,
@@ -293,11 +298,11 @@ impl Stream for CommandSandboxStream {
                             "-v".to_string(), "sandbox_tmp:/tmp".to_string(), // Writable /tmp inside container
                         ];
 
-                        // Add the input file
+                        // Add the input/output file
                         if let Some(container_input_path) = self.config.as_ref().unwrap().container_input_path.as_ref()
                             && DataIOMethod::TempFile == self.config.as_ref().unwrap().data_i {
                             command_args.push("-v".to_string());
-                            command_args.push(format!("{host_input_path}:{container_input_path}:ro")); // Input file read-only
+                            command_args.push(format!("{host_input_path}:{container_input_path}"));
                         }
 
                         // User defined container arguments
@@ -346,7 +351,7 @@ impl Stream for CommandSandboxStream {
                             DataIOMethod::TempFile => {
                                 messages.to_ipc_file(&mut file)?;
                                 command_args.push("--lhs-args".to_string());
-                                command_args.push(host_input_path);
+                                command_args.push(self.config.as_ref().unwrap().container_input_path.as_ref().ok_or(anyhow!("Container input path must be provided for data input method {}.", self.config.as_ref().unwrap().data_i))?.to_string());
                             }
                             DataIOMethod::None => {}
                         };
@@ -381,7 +386,9 @@ impl Stream for CommandSandboxStream {
                         }
 
                         // Add command and wasm component
-                        command_args.push(self.config.as_ref().unwrap().command.as_ref().ok_or(anyhow!("Missing container image for {} runner and {} environment.", self.config.as_ref().unwrap().runner, self.config.as_ref().unwrap().environment))?.to_string());
+                        if let Some(command) = self.config.as_ref().unwrap().command.as_ref() {
+                            command_args.push(command.to_string());
+                        }
                         command_args.push(self.config.as_ref().unwrap().container_image.to_string());
 
                         // User defined ClI arguments
@@ -443,7 +450,7 @@ impl Stream for CommandSandboxStream {
                     if !output.status.success() {
                         self.state = CommandSandboxState::Done;
                         let stderr = String::from_utf8_lossy(&output.stderr);
-                        return Poll::Ready(Some(Err(anyhow!("Command exited with code {:?} and error {}.", output.status.code(), stderr))));
+                        return Poll::Ready(Some(Err(anyhow!("Command exited with code {} and error {}.", output.status.code().unwrap_or(0), stderr))));
                     }
 
                     // Parse the response
@@ -507,6 +514,7 @@ impl RecordBatchStream for CommandSandboxStream {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Write;
     use arrow::array::{ArrayRef, StringArray, UInt32Array};
     use futures::TryStreamExt;
     use phymes_core::{AvailableTableSubscribePolicies, ChatBuilderTraitExt, RuntimeEnvTrait, TableBuilder};
@@ -519,11 +527,124 @@ mod tests {
     /// WASM component and module example
     #[tokio::test]
     async fn test_command_sandbox_processor_wasmtime() -> Result<()> {
+        let name = "CommandSandboxProcessor";
+        let messages = "messages";
+
+        // Runtime env
+        let rt_env = Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt")));
+
+        // Metrics to compute time and rows
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
+        // --- From config ---
+
+        // Create the wasm module
+        let wasm_module_str = r#"(module
+  (func (export "add") (param i32 i32) (result i32)
+    local.get 0
+    local.get 1
+    i32.add
+  )
+)"#;
+        let mut wasm_module_file = NamedTempFile::new()?;
+        writeln!(wasm_module_file, "{wasm_module_str}")?;
+
+        // State for the command processor config
+        let command_config = CommandSandboxConfig {
+            runner: CommandSandboxRunners::Wasmtime,
+            environment: CommandSandboxEnvironments::WASM,
+            container_image: wasm_module_file.path().to_str().unwrap().to_string(),
+            data_i: DataIOMethod::None,
+            data_o: DataIOMethod::None,
+            command: Some("add".to_string()),
+            timeout: 5,
+            container_args: Some(vec!["run".to_string(), "--invoke".to_string()]),
+            cli_args: Some(vec!["1".to_string(), "2".to_string()]),
+            ..Default::default()
+        };
+        let command_config_json = serde_json::to_vec(&command_config)?;
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
+
+        // Make the system prompt and add the user query
+        let message_builder = TableBuilder::new()
+            .with_name(messages)
+            .append_new_user_query_str(
+                "Hello from WASM!",
+                "user",
+            )?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            messages.to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(messages)
+                .with_publisher("")
+                .with_subject(messages)
+                .with_update(&TablePublication::None)
+                .with_message(message_builder.clone().build()?.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor = CommandSandboxProcessor::new(
+            name,
+            CommandSandboxProcessor::get_static_name(),
+            &[TablePublication::Replace {
+                table_name: messages.to_string(),
+            }],
+            &[
+                TableSubscription::OnUpdateFullTable {
+                    table_name: messages.to_string(),
+                },
+                TableSubscription::AlwaysFullTable {
+                    table_name: command_config_table.get_name().to_string(),
+                },
+            ],
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+        );
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response        
+        let result = stream
+            .remove(&format!("from_{name}_on_{messages}"))
+            .unwrap()
+            .get_message_own()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("role");
+        assert_eq!(result, ["tool"]);
+        let result = table.get_column_as_vec_str("content");
+        assert_eq!(result, ["3\n"]);
+        
+        // --- From stdio ---
+        // DM: requires named arguments which is only possible with .wasm
+        // DM, todo: create a small wasm example that takes a RecordBatch, modifies it, and returns the modified RecordBatch
+
         Ok(())
     }
 
     /// Docker CLI example
-    /// docker run --rm alpine echo "Hello from Docker!"
     #[tokio::test]
     async fn test_command_sandbox_processor_docker_echo() -> Result<()> {
         let name = "CommandSandboxProcessor";
@@ -538,6 +659,7 @@ mod tests {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // --- From config ---
+        // based on docker run --rm alpine echo "Hello from Docker!"
 
         // State for the command processor config
         let command_config = CommandSandboxConfig {
@@ -787,11 +909,6 @@ mod tests {
     }
 
     /// Python code execution example
-    /// 
-    /// example 1: docker run --rm python:3.12-slim-trixie python -c "import json, sys; data=json.loads(sys.argv[1]); print(json.dumps([{'name': item['user']['name']} for item in data]))" '[{"user": {"name": "Alice", "age": 30}}, {"user": {"name": "Bob", "age": 25}}]'
-    /// result 1: [{"name": "Alice"}, {"name": "Bob"}]
-    /// 
-    /// example 2 (draft): docker run --rm -v $(pwd):/app -w /app python:3.11 python script.py arg1 arg2
     #[tokio::test]
     async fn test_command_sandbox_processor_docker_py() -> Result<()> {
         let name = "CommandSandboxProcessor";
@@ -994,6 +1111,7 @@ mod tests {
         let command_config = CommandSandboxConfig {
             data_i: DataIOMethod::TempFile,
             data_o: DataIOMethod::TempFile,
+            container_input_path: Some("/home/sandbox/input.ipc".to_string()),
             runner: CommandSandboxRunners::Docker,
             environment: CommandSandboxEnvironments::Python,
             container_image: "python:3.12-slim-trixie".to_string(),
@@ -1001,13 +1119,14 @@ mod tests {
             timeout: 5,
             container_args: Some(vec!["--rm".to_string()]),
             cli_args: Some(vec!["-c".to_string(),
-                "python -c \"import pandas as pd, argparse, json; \
+                r#""pip3 install pandas pyarrow >/dev/null && \
+                python -c \"import pandas as pd, argparse, json; \
                 parser = argparse.ArgumentParser(); \
                 parser.add_argument('--lhs-args', required=True); \
                 args = parser.parse_args(); \
                 df = pd.read_feather(args.lhs_args); \
-                df = df.drop(columns=['age']) \
-                df.to_feather(args.lhs_args);\"".to_string()]),
+                df = df.drop(columns=['age']); \
+                df.to_feather(args.lhs_args);\"""#.to_string()]),
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
@@ -1079,7 +1198,8 @@ mod tests {
     /// Rust code execution example
     #[tokio::test]
     async fn test_command_sandbox_processor_docker_rs() -> Result<()> {
-        // docker run --rm -v $(pwd):/app -w /app amd64/rust cargo run arg1 arg2
+        // DM, todo: create a small rust example that takes a RecordBatch, modifies it, and returns the modified RecordBatch
+        // DM, examples: code execution loop which requires diff'ing https://github.com/AnubhabB/diff-match-patch-rs
         Ok(())
     }
 }
