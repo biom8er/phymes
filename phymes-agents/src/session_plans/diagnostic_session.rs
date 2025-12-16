@@ -1940,7 +1940,6 @@ mod tests {
         // Run
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
         let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
-        let keys = response.iter().flat_map(|m| m.keys()).collect::<Vec<_>>();
 
         // let sss = session_stream_state.read();
         // let table = sss

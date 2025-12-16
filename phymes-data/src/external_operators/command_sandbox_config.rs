@@ -34,6 +34,9 @@ impl Display for CommandSandboxRunners {
 /// Command environments
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
 pub enum CommandSandboxEnvironments {
+    /// Basic Bash shell to run commands
+    #[value(name = "Bash")]
+    Bash,
     /// Python coding environment
     #[value(name = "Python")]
     Python,
@@ -41,18 +44,28 @@ pub enum CommandSandboxEnvironments {
     #[default]
     #[value(name = "Rust")]
     Rust,
-    /// WASM component or module environment
-    #[value(name = "WASM")]
-    WASM,
+    /// WASM module (without using the component model)
+    /// 
+    /// e.g., `wasmtime run foo.wasm` or `wasmtime run foo.wat` with optional CLI arguments for `foo` following
+    #[value(name = "WasmModule")]
+    WasmModule,
+    /// WASM component (using WAVE syntax)
+    /// 
+    /// e.g., `wasmtime run --invoke 'add(1, 2)' foo.wasm` with no CLI arguments included using WAVE syntax
+    /// where `add` is the command
+    #[value(name = "WasmComponent")]
+    WasmComponent,
     #[value(skip)]
     Custom(String),
 }
 impl Display for CommandSandboxEnvironments {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Bash => write!(f, "Bash"),
             Self::Python => write!(f, "Python"),
             Self::Rust => write!(f, "Rust"),
-            Self::WASM => write!(f, "WASM"),
+            Self::WasmModule => write!(f, "WasmModule"),
+            Self::WasmComponent => write!(f, "WasmComponent"),
             Self::Custom(s) => write!(f, "{s}"),
         }
     }

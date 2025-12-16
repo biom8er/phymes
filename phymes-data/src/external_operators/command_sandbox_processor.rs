@@ -363,6 +363,14 @@ impl Stream for CommandSandboxStream {
                         // Build wasmtime args
                         let mut command_args = Vec::new();
 
+                        // Add run for the component model
+                        match self.config.as_ref().unwrap().environment {
+                            CommandSandboxEnvironments::WasmComponent => {
+                                command_args.push("run".to_string());
+                            }
+                            _ => {}
+                        }
+
                         // User defined container arguments
                         if let Some(args) = self.config.as_ref().unwrap().container_args.as_ref() {
                             for arg in args {
@@ -385,34 +393,67 @@ impl Stream for CommandSandboxStream {
                             command_args.push(format!("--env={}={}", k, v));
                         }
 
-                        // Add command and wasm component
-                        if let Some(command) = self.config.as_ref().unwrap().command.as_ref() {
-                            command_args.push(command.to_string());
+                        // Add command for the component model
+                        match self.config.as_ref().unwrap().environment {
+                            CommandSandboxEnvironments::WasmComponent => {
+                                command_args.push("--invoke".to_string());
+                                let command = self.config.as_ref().unwrap().command.as_ref().ok_or(anyhow!("Command to run must be defined when using the {} environment.", self.config.as_ref().unwrap().environment))?;
+                                let mut args_vec =  if let Some(args) = self.config.as_ref().unwrap().cli_args.as_ref() {
+                                    args.to_owned()                   
+                                } else {
+                                    Vec::new()
+                                };
+
+                                // Extract out the message and add as the last argument
+                                match self.config.as_ref().unwrap().data_i {
+                                    DataIOMethod::Stdio => {
+                                        let content = messages.to_json_object()?;
+                                        let arg = serde_json::to_string(&content)?;
+                                        args_vec.push(arg);
+                                    }
+                                    DataIOMethod::TempFile => {
+                                        messages.to_ipc_file(&mut file)?;
+                                        args_vec.push(host_input_path.clone());
+                                    }
+                                    DataIOMethod::None => {}
+                                };
+                                command_args.push(format!("'{command}({})'", args_vec.join(",")));
+                            }
+                            _ => {                                
+                                if let Some(command) = self.config.as_ref().unwrap().command.as_ref() {
+                                    command_args.push(command.to_string());                                
+                                }
+                            }
                         }
                         command_args.push(self.config.as_ref().unwrap().container_image.to_string());
 
-                        // User defined ClI arguments
-                        if let Some(args) = self.config.as_ref().unwrap().cli_args.as_ref() {
-                            for arg in args {
-                                command_args.push(arg.to_string());
-                            }                            
-                        }
+                        // User defined CII arguments for modules                        
+                        match self.config.as_ref().unwrap().environment {
+                            CommandSandboxEnvironments::WasmModule => {
+                                if let Some(args) = self.config.as_ref().unwrap().cli_args.as_ref() {
+                                    for arg in args {
+                                        command_args.push(arg.to_string());
+                                    }                            
+                                }
 
-                        // Extract out the message and run the command
-                        match self.config.as_ref().unwrap().data_i {
-                            DataIOMethod::Stdio => {
-                                let content = messages.to_json_object()?;
-                                let arg = serde_json::to_string(&content)?;
-                                command_args.push("--lhs-args".to_string());
-                                command_args.push(arg);
+                                // Extract out the message and add as CLI arguments
+                                match self.config.as_ref().unwrap().data_i {
+                                    DataIOMethod::Stdio => {
+                                        let content = messages.to_json_object()?;
+                                        let arg = serde_json::to_string(&content)?;
+                                        command_args.push("--lhs-args".to_string());
+                                        command_args.push(arg);
+                                    }
+                                    DataIOMethod::TempFile => {
+                                        messages.to_ipc_file(&mut file)?;
+                                        command_args.push("--lhs-args".to_string());
+                                        command_args.push(host_input_path);
+                                    }
+                                    DataIOMethod::None => {}
+                                };
                             }
-                            DataIOMethod::TempFile => {
-                                messages.to_ipc_file(&mut file)?;
-                                command_args.push("--lhs-args".to_string());
-                                command_args.push(host_input_path);
-                            }
-                            DataIOMethod::None => {}
-                        };
+                            _ => {}
+                        }
 
                         // Run the command
                         Command::new("wasmtime").args(&command_args).output()
@@ -538,7 +579,7 @@ mod tests {
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
-        // --- From config ---
+        // --- From config with wasm module env ---
 
         // Create the wasm module
         let wasm_module_str = r#"(module
@@ -553,14 +594,122 @@ mod tests {
 
         // State for the command processor config
         let command_config = CommandSandboxConfig {
+            timeout: 5,
             runner: CommandSandboxRunners::Wasmtime,
-            environment: CommandSandboxEnvironments::WASM,
+            environment: CommandSandboxEnvironments::WasmModule,
+            container_image: wasm_module_file.path().to_str().unwrap().to_string(),
+            data_i: DataIOMethod::None,
+            data_o: DataIOMethod::None,
+            command: Some("add".to_string()), // DM: mimic module style CLI without WAVE
+            container_args: Some(vec!["run".to_string(), "--invoke".to_string()]), // DM: mimic module style CLI without WAVE
+            cli_args: Some(vec!["1".to_string(), "2".to_string()]),
+            ..Default::default()
+        };
+        let command_config_json = serde_json::to_vec(&command_config)?;
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
+
+        // Make the system prompt and add the user query
+        let message_builder = TableBuilder::new()
+            .with_name(messages)
+            .append_new_user_query_str(
+                "Hello from WASM!",
+                "user",
+            )?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            messages.to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(messages)
+                .with_publisher("")
+                .with_subject(messages)
+                .with_update(&TablePublication::None)
+                .with_message(message_builder.clone().build()?.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor = CommandSandboxProcessor::new(
+            name,
+            CommandSandboxProcessor::get_static_name(),
+            &[TablePublication::Replace {
+                table_name: messages.to_string(),
+            }],
+            &[
+                TableSubscription::OnUpdateFullTable {
+                    table_name: messages.to_string(),
+                },
+                TableSubscription::AlwaysFullTable {
+                    table_name: command_config_table.get_name().to_string(),
+                },
+            ],
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+        );
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response        
+        let result = stream
+            .remove(&format!("from_{name}_on_{messages}"))
+            .unwrap()
+            .get_message_own()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("role");
+        assert_eq!(result, ["tool"]);
+        let result = table.get_column_as_vec_str("content");
+        assert_eq!(result, ["3\n"]);
+
+        // --- From config with wasm component env ---
+
+        // Create the wasm module
+        let wasm_module_str = r#";; Core module
+(module $math
+  (func $add (param $a i32) (param $b i32) (result i32)
+    local.get $a
+    local.get $b
+    i32.add
+  )
+  (export "add" (func $add))
+)
+
+;; Component wrapping the core module
+(component
+  (core module $math (import "math" "add" (func (param i32 i32) (result i32))))
+  (core instance $math-inst (instantiate $math))
+  (export "add" (func $math-inst "add"))
+)"#;
+        let mut wasm_module_file = NamedTempFile::new()?;
+        writeln!(wasm_module_file, "{wasm_module_str}")?;
+
+        // State for the command processor config
+        let command_config = CommandSandboxConfig {
+            runner: CommandSandboxRunners::Wasmtime,
+            environment: CommandSandboxEnvironments::WasmComponent,
             container_image: wasm_module_file.path().to_str().unwrap().to_string(),
             data_i: DataIOMethod::None,
             data_o: DataIOMethod::None,
             command: Some("add".to_string()),
             timeout: 5,
-            container_args: Some(vec!["run".to_string(), "--invoke".to_string()]),
+            container_args: None,
             cli_args: Some(vec!["1".to_string(), "2".to_string()]),
             ..Default::default()
         };
