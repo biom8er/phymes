@@ -417,7 +417,7 @@ impl Stream for CommandSandboxStream {
                                     }
                                     DataIOMethod::None => {}
                                 };
-                                command_args.push(format!("'{command}({})'", args_vec.join(",")));
+                                command_args.push(format!("{command}({})", args_vec.join(" ,")));
                             }
                             _ => {                                
                                 if let Some(command) = self.config.as_ref().unwrap().command.as_ref() {
@@ -681,21 +681,26 @@ mod tests {
         // --- From config with wasm component env ---
 
         // Create the wasm module
-        let wasm_module_str = r#";; Core module
-(module $math
-  (func $add (param $a i32) (param $b i32) (result i32)
-    local.get $a
-    local.get $b
-    i32.add
+        let wasm_module_str = r#"(component
+  ;; Define a core module
+  (core module $math
+    (func $add (param $a i32) (param $b i32) (result i32)
+      local.get $a
+      local.get $b
+      i32.add
+    )
+    (export "add" (func $add))
   )
-  (export "add" (func $add))
-)
 
-;; Component wrapping the core module
-(component
-  (core module $math (import "math" "add" (func (param i32 i32) (result i32))))
-  (core instance $math-inst (instantiate $math))
-  (export "add" (func $math-inst "add"))
+  ;; Instantiate the core module
+  (core instance $math-inst
+    (instantiate $math)
+  )
+
+  ;; Lift the core function into the component world
+  (func (export "add") (param "a" u32) (param "b" u32) (result u32)
+    (canon lift (core func $math-inst "add"))
+  )
 )"#;
         let mut wasm_module_file = NamedTempFile::new()?;
         writeln!(wasm_module_file, "{wasm_module_str}")?;
