@@ -289,7 +289,7 @@ impl Stream for CommandSandboxStream {
                         // Build Docker args
                         let mut command_args = vec![
                             "run".to_string(),
-                            "--rm".to_string(),
+                            "--rm".to_string(), // Remove the container after exit
                             "--network".to_string(), "none".to_string(), // No network
                             "--memory".to_string(), "128m".to_string(), // Memory limit
                             "--cpus".to_string(), "0.5".to_string(), // CPU limit

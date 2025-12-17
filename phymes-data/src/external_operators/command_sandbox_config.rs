@@ -11,7 +11,7 @@ use crate::DataConfigTrait;
 /// Command runners
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
 pub enum CommandSandboxRunners {
-    /// Run the command in a docker container
+    /// Run the command in a sandboxed docker container
     #[default]
     #[value(name = "Docker")]
     Docker,
@@ -35,6 +35,10 @@ impl Display for CommandSandboxRunners {
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
 pub enum CommandSandboxEnvironments {
     /// Basic Bash shell to run commands
+    /// 
+    /// # Notes
+    /// * Not intended for use except to setup Docker resources
+    ///   e.g., `docker pull`, `docker run python pip install ...`, `docker run git pull ...`, etc.
     #[value(name = "Bash")]
     Bash,
     /// Python coding environment
@@ -159,6 +163,11 @@ pub struct CommandSandboxConfig {
     pub entry_script: Option<String>,
 
     /// List of arguments for the container in addition to the environment-specific defaults
+    /// 
+    /// # Examples
+    /// * `--rm` to remove the container after execution
+    /// * `-v` to mount directories and files
+    /// * `-e` include environmental arguments
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub container_args: Option<Vec<String>>,
