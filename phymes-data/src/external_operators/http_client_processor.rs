@@ -605,7 +605,7 @@ mod tests {
         }
 
         let esearch_url = format!(
-            "db=pubmed&term={}&retmode=json&retmax=50&mindate={}&maxdate={}",
+            "db=pubmed&term={}&retmode=json&retmax=5&mindate={}&maxdate={}",
             urlencoding::encode(&query),
             year_from,
             year_to

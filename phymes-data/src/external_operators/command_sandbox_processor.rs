@@ -285,31 +285,37 @@ impl Stream for CommandSandboxStream {
                 // Execute the command
                 // DM: A future optimization maybe to treat each row as a parallel Command
                 let fut = match self.config.as_ref().unwrap().runner {
-                    CommandSandboxRunners::Docker => {
+                    CommandSandboxRunners::Docker | CommandSandboxRunners::DockerUnsafe => {
                         // Build Docker args
-                        let mut command_args = vec![
-                            "run".to_string(),
-                            "--rm".to_string(), // Remove the container after exit
-                            "--network".to_string(), "none".to_string(), // No network
-                            "--memory".to_string(), "128m".to_string(), // Memory limit
-                            "--cpus".to_string(), "0.5".to_string(), // CPU limit
-                            "--read-only".to_string(), // Entire container FS read-only
-                            "--pids-limit".to_string(), "50".to_string(), // Process limit
-                            "-v".to_string(), "sandbox_tmp:/tmp".to_string(), // Writable /tmp inside container
-                        ];
+                        let mut command_args = match self.config.as_ref().unwrap().runner {
+                            CommandSandboxRunners::Docker => vec![
+                                "run".to_string(),
+                                "--rm".to_string(), // Remove the container after exit
+                                "--network".to_string(), "none".to_string(), // No network
+                                "--memory".to_string(), "128m".to_string(), // Memory limit
+                                "--cpus".to_string(), "0.5".to_string(), // CPU limit
+                                "--read-only".to_string(), // Entire container FS read-only
+                                "--pids-limit".to_string(), "50".to_string(), // Process limit
+                                "-v".to_string(), "sandbox_tmp:/tmp".to_string(), // Writable /tmp inside container
+                            ],
+                            CommandSandboxRunners::DockerUnsafe => {
+                                let mut command_args = Vec::new();
+                                // User defined container arguments
+                                if let Some(args) = self.config.as_ref().unwrap().container_args.as_ref() {
+                                    for arg in args {
+                                        command_args.push(arg.to_string());
+                                    }                            
+                                }
+                                command_args
+                            }
+                            _ => unreachable!(),
+                        };
 
                         // Add the input/output file
                         if let Some(container_input_path) = self.config.as_ref().unwrap().container_input_path.as_ref()
                             && DataIOMethod::TempFile == self.config.as_ref().unwrap().data_i {
                             command_args.push("-v".to_string());
                             command_args.push(format!("{host_input_path}:{container_input_path}"));
-                        }
-
-                        // User defined container arguments
-                        if let Some(args) = self.config.as_ref().unwrap().container_args.as_ref() {
-                            for arg in args {
-                                command_args.push(arg.to_string());
-                            }                            
                         }
 
                         // Mount the project dir if it exists
@@ -909,7 +915,7 @@ mod tests {
             environment: CommandSandboxEnvironments::Custom("bash".to_string()),
             container_image: "alpine".to_string(),
             data_i: DataIOMethod::Stdio,
-            data_o: DataIOMethod::Stdio,
+            data_o: DataIOMethod::None,
             command: Some("echo".to_string()),
             timeout: 5,
             container_args: Some(vec!["--rm".to_string()]),
@@ -986,6 +992,7 @@ mod tests {
         let command_config = CommandSandboxConfig {
             runner: CommandSandboxRunners::Docker,
             environment: CommandSandboxEnvironments::Custom("bash".to_string()),
+            container_input_path: Some("/home/sandbox/input.ipc".to_string()),
             container_image: "alpine".to_string(),
             data_i: DataIOMethod::TempFile,
             data_o: DataIOMethod::None,
@@ -1057,14 +1064,14 @@ mod tests {
         let result = table.get_column_as_vec_str("role");
         assert_eq!(result, ["tool"]);
         let result = table.get_column_as_vec_str("content");
-        assert!(result.first().unwrap().contains("--lhs-args /tmp/."));
+        assert!(result.first().unwrap().contains("--lhs-args /home/sandbox/input.ipc"));
 
         Ok(())
     }
 
     /// Python code execution example
     #[tokio::test]
-    async fn test_command_sandbox_processor_docker_py() -> Result<()> {
+    async fn test_command_sandbox_processor_docker_py_no_pip() -> Result<()> {
         let name = "CommandSandboxProcessor";
         let messages = "messages";
 
@@ -1259,6 +1266,116 @@ mod tests {
         let result = table.get_column_as_vec_primitive::<u32>("age")?;
         assert_eq!(result, [40, 35]);
 
+        Ok(())
+    }
+
+    /// Python code execution example
+    #[tokio::test]
+    async fn test_command_sandbox_processor_docker_py_pip() -> Result<()> {
+        let name = "CommandSandboxProcessor";
+        let messages = "messages";
+
+        // Runtime env
+        let rt_env = Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt")));
+
+        // Metrics to compute time and rows
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
+        // --- Prepare the Docker container by installing pip dependencies ---
+
+        // State for the command processor config
+        let command_config = CommandSandboxConfig {
+            data_i: DataIOMethod::None,
+            data_o: DataIOMethod::None,
+            container_input_path: None,
+            runner: CommandSandboxRunners::DockerUnsafe,
+            environment: CommandSandboxEnvironments::Bash,
+            container_image: "python:3.12-slim-trixie".to_string(),
+            command: Some("bash".to_string()),
+            timeout: 5,
+            container_args: Some(vec!["run".to_string(), 
+                // Detach the container
+                "-d".to_string(), 
+                // Name the container
+                "--name".to_string(), "my-container".to_string()]),
+            cli_args: Some(vec!["-c".to_string(),
+                // Install dependencies and keep the container running without consuming CPU
+                r#""pip3 install pandas pyarrow && tail -f /dev/null""#.to_string()]),
+            ..Default::default()
+        };
+        let command_config_json = serde_json::to_vec(&command_config)?;
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
+
+        // Make the input data for the script
+        let names = vec!["Alice", "Bob"];
+        let names_arr: ArrayRef = Arc::new(StringArray::from(names));
+        let ages = vec![30, 25];
+        let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
+        let batch = RecordBatch::try_from_iter(vec![
+            ("name",  names_arr),
+            ("age", ages_arr)
+        ])?;
+
+        let message_table = TableBuilder::new()
+            .with_record_batches(vec![batch])?
+            .with_name(messages)
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            messages.to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(messages)
+                .with_publisher("")
+                .with_subject(messages)
+                .with_update(&TablePublication::None)
+                .with_message(message_table.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor = CommandSandboxProcessor::new(
+            name,
+            CommandSandboxProcessor::get_static_name(),
+            &[TablePublication::Replace {
+                table_name: messages.to_string(),
+            }],
+            &[
+                TableSubscription::OnUpdateFullTable {
+                    table_name: messages.to_string(),
+                },
+                TableSubscription::AlwaysFullTable {
+                    table_name: command_config_table.get_name().to_string(),
+                },
+            ],
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+        );
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response        
+        let _result = stream
+            .remove(&format!("from_{name}_on_{messages}"))
+            .unwrap()
+            .get_message_own()
+            .try_collect::<Vec<_>>()
+            .await?;
+
         // --- From TempFile ---
 
         // State for the command processor config
@@ -1266,21 +1383,101 @@ mod tests {
             data_i: DataIOMethod::TempFile,
             data_o: DataIOMethod::TempFile,
             container_input_path: Some("/home/sandbox/input.ipc".to_string()),
-            runner: CommandSandboxRunners::Docker,
+            runner: CommandSandboxRunners::DockerUnsafe,
             environment: CommandSandboxEnvironments::Python,
-            container_image: "python:3.12-slim-trixie".to_string(),
-            command: Some("bash".to_string()),
+            container_image: "my-container".to_string(),
+            command: Some("python".to_string()),
             timeout: 5,
-            container_args: Some(vec!["--rm".to_string()]),
+            container_args: Some(vec!["exec".to_string(), "-it".to_string()]),
             cli_args: Some(vec!["-c".to_string(),
-                r#""pip3 install pandas pyarrow >/dev/null && \
-                python -c \"import pandas as pd, argparse, json; \
+                r#""import pandas as pd, argparse, json; \
                 parser = argparse.ArgumentParser(); \
                 parser.add_argument('--lhs-args', required=True); \
                 args = parser.parse_args(); \
                 df = pd.read_feather(args.lhs_args); \
                 df = df.drop(columns=['age']); \
-                df.to_feather(args.lhs_args);\"""#.to_string()]),
+                df.to_feather(args.lhs_args);""#.to_string()]),
+            ..Default::default()
+        };
+        let command_config_json = serde_json::to_vec(&command_config)?;
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            messages.to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(messages)
+                .with_publisher("")
+                .with_subject(messages)
+                .with_update(&TablePublication::None)
+                .with_message(message_table.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor = CommandSandboxProcessor::new(
+            name,
+            CommandSandboxProcessor::get_static_name(),
+            &[TablePublication::Replace {
+                table_name: messages.to_string(),
+            }],
+            &[
+                TableSubscription::OnUpdateFullTable {
+                    table_name: messages.to_string(),
+                },
+                TableSubscription::AlwaysFullTable {
+                    table_name: command_config_table.get_name().to_string(),
+                },
+            ],
+            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+        );
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response        
+        let result = stream
+            .remove(&format!("from_{name}_on_{messages}"))
+            .unwrap()
+            .get_message_own()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("name");
+        assert_eq!(result, ["alice", "bob"]);
+
+        // --- Remove the container ---
+
+        // State for the command processor config
+        let command_config = CommandSandboxConfig {
+            data_i: DataIOMethod::None,
+            data_o: DataIOMethod::None,
+            container_input_path: None,
+            runner: CommandSandboxRunners::DockerUnsafe,
+            environment: CommandSandboxEnvironments::Bash,
+            container_image: "my-container".to_string(),
+            command: Some("&&".to_string()),
+            timeout: 5,
+            container_args: Some(vec!["exec".to_string(), "stop".to_string()]),
+            cli_args: Some(vec!["docker".to_string(),
+                "rm".to_string(),
+                "my-container".to_string()]),
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
@@ -1332,19 +1529,12 @@ mod tests {
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
 
         // Check the response        
-        let result = stream
+        let _result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()
             .get_message_own()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
-            .with_record_batches(result)?
-            .with_name("")
-            .build()?;
-
-        let result = table.get_column_as_vec_str("name");
-        assert_eq!(result, ["alice", "bob"]);
 
         Ok(())
     }

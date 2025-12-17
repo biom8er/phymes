@@ -15,6 +15,9 @@ pub enum CommandSandboxRunners {
     #[default]
     #[value(name = "Docker")]
     Docker,
+    /// Run the command in a non-sandboxed (unsafe) docker container
+    #[value(name = "DockerUnsafe")]
+    DockerUnsafe,
     /// Run the command using wasmtime
     #[value(name = "Wasmtime")]
     Wasmtime,
@@ -25,6 +28,7 @@ impl Display for CommandSandboxRunners {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Docker => write!(f, "Docker"),
+            Self::DockerUnsafe => write!(f, "DockerUnsafe"),
             Self::Wasmtime => write!(f, "Wasmtime"),
             Self::Custom(s) => write!(f, "{s}"),
         }
