@@ -46,9 +46,30 @@ pub enum CommandSandboxEnvironments {
     #[value(name = "Bash")]
     Bash,
     /// Python coding environment
+    /// 
+    /// # Notes
+    /// * A project directory that follows normal convention below is assumed
+    /// 
+    /// my_python_project/
+    /// ├── requirements.txt
+    /// ├── src/
+    /// │   └── main.py
+    /// └── venv/
     #[value(name = "Python")]
     Python,
     /// Rust coding environment
+    /// 
+    /// # Notes
+    /// * A project directory that follows normal convention below is assumed
+    /// 
+    /// my_python_project/
+    /// ├── Cargo.toml.txt
+    /// ├── examples/
+    /// │   └── example/
+    /// │       └── main.rs
+    /// ├── src/
+    /// │   ├── lib.rs
+    /// │   └── main.rs
     #[default]
     #[value(name = "Rust")]
     Rust,
@@ -165,17 +186,37 @@ pub struct CommandSandboxConfig {
     /// 
     /// # Notes
     /// * Used during the initialization phase to install or setup additional resources
+    /// * Can either be the name of the file in the project directory or the text for the script that will be created on the fly
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub initialization_script: Option<String>,
+
+    /// Initialization file
+    /// 
+    /// # Notes
+    /// * Used during the initialization phase to install or setup additional resources
+    /// * Name of the file at the root level of the directory
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub initialization_file: Option<String>,
 
     /// Run script
     /// 
     /// # Notes
     /// * Used during the run phase
+    /// * Can either be the name of the file in the project directory or the text for the script that will be created on the fly
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub run_script: Option<String>,
+
+    /// Run script
+    /// 
+    /// # Notes
+    /// * Used during the run phase
+    /// * Name of the file within the /src folder (for most projects) of the directory
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub run_file: Option<String>,
 
     /// List of arguments for the container in addition to the environment-specific defaults
     /// 

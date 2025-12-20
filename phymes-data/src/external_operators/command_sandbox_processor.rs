@@ -1,5 +1,5 @@
 use std::{
-    fs, path::Path, pin::Pin, process::Output, sync::Arc, task::{Context, Poll, ready}
+    fs::{self, File}, io::Write, path::Path, pin::Pin, process::Output, sync::Arc, task::{Context, Poll, ready}
 };
 
 use anyhow::{Result, anyhow};
@@ -40,6 +40,10 @@ pub struct CommandSandboxRunnerInfo {
     io_file: Option<String>,
     /// Content 
     content: Option<String>,
+    /// Installation script file
+    installation_file: Option<String>,
+    /// Run script file
+    run_file: Option<String>,
 }
 
 impl CommandSandboxRunnerInfo {
@@ -56,6 +60,14 @@ impl CommandSandboxRunnerInfo {
     }
     pub fn with_content(mut self, content: &str) -> Self {
         self.content = Some(content.to_string());
+        self
+    }
+    pub fn with_installation_file(mut self, installation_file: &str) -> Self {
+        self.installation_file = Some(installation_file.to_string());
+        self
+    }
+    pub fn with_run_file(mut self, run_file: &str) -> Self {
+        self.run_file = Some(run_file.to_string());
         self
     }
 }
@@ -307,47 +319,7 @@ impl Stream for CommandSandboxStream {
                         .build()?
                 };
 
-                // Validate the config paths
-                let err_str = if let Some(project_dir) = &self.config.as_ref().unwrap().project_dir {
-                    // Validate the directory
-                    if !Path::new(project_dir).exists() {
-                        Some("Project folder '{project_dir}' does not exist.")
-                    } else {
-                        // Validate the run script
-                        let err_str = if let Some(run_script) = self.config.as_ref().unwrap().run_script.as_ref() {
-                            if !Path::new(&format!("{project_dir}/{run_script}")).exists() {
-                                Some("Entry script '{run_script}' does not exist in the project folder '{project_dir}'.")
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        };
-
-                        if let Some(err_str) = err_str {
-                            Some(err_str)
-                        } else {
-                            // Validate the initialization script
-                            if let Some(initialization_script) = self.config.as_ref().unwrap().initialization_script.as_ref() {
-                                if !Path::new(&format!("{project_dir}/{initialization_script}")).exists() {
-                                    Some("Entry script '{initialization_script}' does not exist in the project folder '{project_dir}'.")
-                                } else {
-                                    None
-                                }
-                            } else {
-                                None
-                            }
-                        }
-                    }
-                } else {
-                    None
-                };
-                if let Some(err) = err_str {
-                    self.stream_state = CommandSandboxStreamState::Done;
-                    return Poll::Ready(Some(Err(anyhow!(err))))
-                }
-
-                // Create the temporary input file or content for the next batch based on the runner state
+                // Create the input/output file or content for the next batch based on the runner state
                 match &self.runner_state {
                     CommandSandboxRunnerState::NotStarted => {
                         // Make a random name for the runner                
@@ -356,8 +328,69 @@ impl Stream for CommandSandboxStream {
                         let hash = u128::from_ne_bytes(buf);
                         let name = format!("phymes-sandbox_{hash}");
 
+                        // Create the installation and runner files
+                        let (run_file, installation_file) = if let Some(project_dir) = self.config.as_ref().unwrap().project_dir.as_ref() {
+
+                            // Check the directory
+                            if !Path::new(project_dir).exists() {
+                                let err_str = format!("Project folder '{project_dir}' does not exist.");
+                                self.stream_state = CommandSandboxStreamState::Done;
+                                return Poll::Ready(Some(Err(anyhow!(err_str))));
+                            }
+
+                            // Check the run file
+                            let run_file_path = if let Some(run_file) = self.config.as_ref().unwrap().run_file.as_ref() {
+                                let run_file_path = format!("{project_dir}/src/{run_file}");
+                                if !Path::new(&run_file_path).exists() {
+                                    let err_str = format!("Run script '{run_file}' does not exist in the project src folder '{project_dir}/src'.");
+                                    self.stream_state = CommandSandboxStreamState::Done;
+                                    return Poll::Ready(Some(Err(anyhow!(err_str))));
+                                }
+                                Some(run_file_path)
+                            } else {
+                                // Create the run file from script
+                                if let Some(run_script) = self.config.as_ref().unwrap().run_script.as_ref() {
+                                    // DM: update based on environment
+                                    let run_file_path = format!("{project_dir}/src/main.py");
+                                    let mut file = File::create(&run_file_path)?;
+                                    let _ = file.write(run_script.as_bytes())?;
+                                    file.flush()?;
+                                    Some(run_file_path)
+                                } else {
+                                    None
+                                }
+                            };
+
+                            // Check the initialization file
+                            let installation_file_path = if let Some(initialization_file) = self.config.as_ref().unwrap().initialization_file.as_ref() {
+                                let installation_file_path = format!("{project_dir}/{initialization_file}");
+                                if !Path::new(&installation_file_path).exists() {
+                                    let err_str = format!("Installation script '{initialization_file}' does not exist in the project folder '{project_dir}'.");
+                                    self.stream_state = CommandSandboxStreamState::Done;
+                                    return Poll::Ready(Some(Err(anyhow!(err_str))));
+                                }
+                                Some(installation_file_path)
+                            } else {
+                                // Create the initialization file from script
+                                if let Some(initialization_script) = self.config.as_ref().unwrap().initialization_script.as_ref() {
+                                    // DM: update based on environment
+                                    let installation_file_path = format!("{project_dir}/install.sh");
+                                    let mut file = File::create(&installation_file_path)?;
+                                    let _ = file.write(initialization_script.as_bytes())?;
+                                    file.flush()?;
+                                    Some(installation_file_path)
+                                } else {
+                                    None
+                                }
+                            };
+
+                            (run_file_path, installation_file_path)
+                        } else {
+                            (None, None)
+                        };
+
                         // Create the temporary input file or stdin content
-                        let runner_info = match (&self.config.as_ref().unwrap().data_i, &self.config.as_ref().unwrap().data_o) {
+                        let mut runner_info = match (&self.config.as_ref().unwrap().data_i, &self.config.as_ref().unwrap().data_o) {
                             (DataIOMethod::None, DataIOMethod::None) => {
                                 CommandSandboxRunnerInfo::new().with_name(&name)
                             },
@@ -413,7 +446,13 @@ impl Stream for CommandSandboxStream {
                             },
                         };
 
-                        // Change to initialize state
+                        // Change to initialize state                        
+                        if let Some(installation_file) = installation_file {
+                            runner_info = runner_info.with_installation_file(&installation_file);
+                        }
+                        if let Some(run_file) = run_file {
+                            runner_info = runner_info.with_run_file(&run_file);
+                        }
                         self.runner_state = CommandSandboxRunnerState::Initializing(runner_info);
                     }
                     CommandSandboxRunnerState::Initializing(runner_info)
@@ -512,6 +551,9 @@ impl Stream for CommandSandboxStream {
                                 if let (Some(project_dir), Some(container_project_dir)) = (self.config.as_ref().unwrap().project_dir.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
                                     command_args.push("-v".to_string());
                                     command_args.push(format!("{project_dir}:{container_project_dir}:ro")); // Project folder read-only
+                                    command_args.push("-w".to_string());
+                                    command_args.push(container_project_dir.to_string());
+
                                 }
                                 command_args
                             },
@@ -520,7 +562,7 @@ impl Stream for CommandSandboxStream {
                                     "run".to_string(),
                                     "--name".to_string(), // Name the container for later calls
                                     runner_info.name.as_ref().expect("Missing name for runner.").to_string(),
-                                    "-d".to_string(), // Detach for subsequent calls
+                                    // "-d".to_string(), // Detach for subsequent calls
                                 ];
 
                                 // User defined container arguments allowed only in an unsafe environment
@@ -541,7 +583,9 @@ impl Stream for CommandSandboxStream {
                                 // Mount the project dir if it exists
                                 if let (Some(project_dir), Some(container_project_dir)) = (self.config.as_ref().unwrap().project_dir.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
                                     command_args.push("-v".to_string());
-                                    command_args.push(format!("{project_dir}:{container_project_dir}:ro")); // Project folder read-only
+                                    command_args.push(format!("{project_dir}:{container_project_dir}"));
+                                    command_args.push("-w".to_string());
+                                    command_args.push(container_project_dir.to_string());
                                 }
                                 command_args
                             }
@@ -568,18 +612,54 @@ impl Stream for CommandSandboxStream {
                             CommandSandboxRunnerState::NotStarted => unreachable!(),
                             CommandSandboxRunnerState::Initializing(runner_info) => {
 
-                                // Add docker image and command
+                                // Add docker image, initialization/run script, and optional command
                                 command_args.push(self.config.as_ref().unwrap().container_image.to_string());
-                                command_args.push(self.config.as_ref().unwrap().command.as_ref().ok_or(anyhow!("Missing container image for {} runner and {} environment.", self.config.as_ref().unwrap().runner, self.config.as_ref().unwrap().environment))?.to_string());
-                                    
-                                // Initialization or Run script
-                                if let (Some(initialization_script), Some(container_project_dir)) = (self.config.as_ref().unwrap().initialization_script.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
-                                    command_args.push(format!("{}/{}", container_project_dir, initialization_script));
-                                } else if let (Some(run_script), Some(container_project_dir)) = (self.config.as_ref().unwrap().run_script.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
-                                    command_args.push(format!("{}/{}", container_project_dir, run_script));
+                                match self.config.as_ref().unwrap().environment {
+                                    CommandSandboxEnvironments::Python => {
+                                        if let (Some(initialization_file), Some(container_project_dir)) = (runner_info.installation_file.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
+                                            command_args.push("bash".to_string());
+                                            let initialization_path = Path::new(initialization_file);
+                                            command_args.push(format!("/{}/{}", container_project_dir, initialization_path.file_name().unwrap().to_str().unwrap()));
+                                        } else if let (Some(run_file), Some(container_project_dir)) = (runner_info.run_file.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
+                                            command_args.push("python".to_string());
+                                            let run_path = Path::new(run_file);
+                                            command_args.push(format!("/{}/src/{}", container_project_dir, run_path.file_name().unwrap().to_str().unwrap()));
+                                        } else {
+                                            command_args.push("python".to_string());
+                                            if let Some(command) = self.config.as_ref().unwrap().command.as_ref() {
+                                                command_args.push(command.to_string());
+                                            }
+                                        }
+                                    }
+                                    CommandSandboxEnvironments::Rust => {
+                                        if let (Some(initialization_file), Some(container_project_dir)) = (runner_info.installation_file.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
+                                            command_args.push("bash".to_string());
+                                            let initialization_path = Path::new(initialization_file);
+                                            command_args.push(format!("/{}/{}", container_project_dir, initialization_path.file_name().unwrap().to_str().unwrap()));
+                                        } else if let (Some(_run_file), Some(_container_project_dir)) = (runner_info.run_file.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
+                                            command_args.push("cargo".to_string());
+                                            command_args.push("run".to_string());
+                                            // let run_path = Path::new(run_file);
+                                            // command_args.push(format!("/{}/src/{}", container_project_dir, run_path.file_name().unwrap().to_str().unwrap()));
+                                        } else {
+                                            command_args.push("cargo".to_string());
+                                            if let Some(command) = self.config.as_ref().unwrap().command.as_ref() {
+                                                command_args.push(command.to_string());
+                                            }
+                                        }
+                                    }
+                                    CommandSandboxEnvironments::Bash => {
+                                        if let Some(command) = self.config.as_ref().unwrap().command.as_ref() {
+                                            command_args.push(command.to_string());
+                                        }
+                                    }
+                                    _ => {
+                                        self.stream_state = CommandSandboxStreamState::Done;
+                                        return Poll::Ready(Some(Err(anyhow!("Environment type {} is not yet supported for Runner type {}.", self.config.as_ref().unwrap().environment, self.config.as_ref().unwrap().runner))))
+                                    }
                                 }
 
-                                // User defined ClI arguments
+                                // User defined CLI arguments
                                 if let Some(args) = self.config.as_ref().unwrap().cli_args.as_ref() {
                                     for arg in args {
                                         command_args.push(arg.to_string());
@@ -602,12 +682,45 @@ impl Stream for CommandSandboxStream {
                             CommandSandboxRunnerState::Running(runner_info) => {                                
 
                                 // Add container name and command
-                                command_args.push(runner_info.name.as_ref().expect("Missing name for runner.").to_string());
                                 command_args.push(self.config.as_ref().unwrap().command.as_ref().ok_or(anyhow!("Missing container image for {} runner and {} environment.", self.config.as_ref().unwrap().runner, self.config.as_ref().unwrap().environment))?.to_string());
-                                    
-                                // Run script
-                                if let (Some(run_script), Some(container_project_dir)) = (self.config.as_ref().unwrap().run_script.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
-                                    command_args.push(format!("{}/{}", container_project_dir, run_script));
+                                
+                                // Add docker container name, run script, and optional command
+                                command_args.push(runner_info.name.as_ref().expect("Missing name for runner.").to_string());
+                                match self.config.as_ref().unwrap().environment {
+                                    CommandSandboxEnvironments::Python => {
+                                        if let (Some(run_file), Some(container_project_dir)) = (runner_info.run_file.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
+                                            command_args.push("python".to_string());
+                                            let run_path = Path::new(run_file);
+                                            command_args.push(format!("/{}/src/{}", container_project_dir, run_path.file_name().unwrap().to_str().unwrap()));
+                                        } else {
+                                            command_args.push("python".to_string());
+                                            if let Some(command) = self.config.as_ref().unwrap().command.as_ref() {
+                                                command_args.push(command.to_string());
+                                            }
+                                        }
+                                    }
+                                    CommandSandboxEnvironments::Rust => {
+                                        if let (Some(_run_file), Some(_container_project_dir)) = (runner_info.run_file.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
+                                            command_args.push("cargo".to_string());
+                                            command_args.push("run".to_string());
+                                            // let run_path = Path::new(run_file);
+                                            // command_args.push(format!("/{}/src/{}", container_project_dir, run_path.file_name().unwrap().to_str().unwrap()));
+                                        } else {
+                                            command_args.push("cargo".to_string());
+                                            if let Some(command) = self.config.as_ref().unwrap().command.as_ref() {
+                                                command_args.push(command.to_string());
+                                            }
+                                        }
+                                    }
+                                    CommandSandboxEnvironments::Bash => {
+                                        if let Some(command) = self.config.as_ref().unwrap().command.as_ref() {
+                                            command_args.push(command.to_string());
+                                        }
+                                    }
+                                    _ => {
+                                        self.stream_state = CommandSandboxStreamState::Done;
+                                        return Poll::Ready(Some(Err(anyhow!("Environment type {} is not yet supported for Runner type {}.", self.config.as_ref().unwrap().environment, self.config.as_ref().unwrap().runner))))
+                                    }
                                 }
 
                                 // User defined ClI arguments
@@ -795,17 +908,18 @@ impl Stream for CommandSandboxStream {
                         (DataIOMethod::Stdio, CommandSandboxRunnerState::Running(_runner_info)) => {
                             let json_values = serde_json::from_slice::<Vec<Value>>(&output.stdout)?;
                             let table = TableBuilder::new()
+                                .with_name("sandbox_stdio_running")
                                 .with_schema(self.schema.clone())
                                 .with_json_values(&json_values)?
-                                .with_name("cmd_sandbox")
                                 .build()?;
                             table.get_record_batches_own().pop().unwrap()
                         }
                         (DataIOMethod::TempFile,  CommandSandboxRunnerState::Running(runner_info)) => {
                             let file = fs::File::open(runner_info.io_file.as_ref().expect("Missing TempFile from runner."))?;
                             let table = TableBuilder::new_from_ipc_file(file)?
-                                .with_name("cmd_sandbox")
+                                .with_name("sandbox_tempfile_running")
                                 .build()?;
+                            dbg!(&table);
                             table.get_record_batches_own().pop().unwrap()
                         }
                         (DataIOMethod::None, CommandSandboxRunnerState::Initializing(_runner_info)) => {
@@ -828,21 +942,22 @@ impl Stream for CommandSandboxStream {
                             } else {
                                 let json_values = serde_json::from_slice::<Vec<Value>>(&output.stdout)?;
                                 let table = TableBuilder::new()
+                                    .with_name("sandbox_stdio_initializing")
                                     .with_schema(self.schema.clone())
                                     .with_json_values(&json_values)?
-                                    .with_name("cmd_sandbox")
                                     .build()?;
                                 table.get_record_batches_own().pop().unwrap()
                             }
                         }
                         (DataIOMethod::TempFile, CommandSandboxRunnerState::Initializing(runner_info)) => {
                             if self.config.as_ref().unwrap().initialization_script.is_some() {
+                                println!("finished initialzing.");
                                 self.stream_state = CommandSandboxStreamState::NotStarted;
                                 return self.poll_next(cx);
                             } else {
                                 let file = fs::File::open(runner_info.io_file.as_ref().expect("Missing TempFile from runner."))?;
                                 let table = TableBuilder::new_from_ipc_file(file)?
-                                    .with_name("cmd_sandbox")
+                                    .with_name("sandbox_tempfile_initializing")
                                     .build()?;
                                 table.get_record_batches_own().pop().unwrap()
                             }
@@ -1170,7 +1285,7 @@ mod tests {
         // State for the command processor config
         let command_config = CommandSandboxConfig {
             runner: CommandSandboxRunners::Docker,
-            environment: CommandSandboxEnvironments::Custom("bash".to_string()),
+            environment: CommandSandboxEnvironments::Bash,
             container_image: "alpine".to_string(),
             data_i: DataIOMethod::None,
             data_o: DataIOMethod::None,
@@ -1258,7 +1373,7 @@ mod tests {
         // State for the command processor config
         let command_config = CommandSandboxConfig {
             runner: CommandSandboxRunners::Docker,
-            environment: CommandSandboxEnvironments::Custom("bash".to_string()),
+            environment: CommandSandboxEnvironments::Bash,
             container_image: "alpine".to_string(),
             data_i: DataIOMethod::Stdio,
             data_o: DataIOMethod::None,
@@ -1337,7 +1452,7 @@ mod tests {
         // State for the command processor config
         let command_config = CommandSandboxConfig {
             runner: CommandSandboxRunners::Docker,
-            environment: CommandSandboxEnvironments::Custom("bash".to_string()),
+            environment: CommandSandboxEnvironments::Bash,
             container_input_path: Some("/home/sandbox/input.ipc".to_string()),
             container_image: "alpine".to_string(),
             data_i: DataIOMethod::TempFile,
@@ -1417,7 +1532,7 @@ mod tests {
 
     /// Python code execution example
     #[tokio::test]
-    async fn test_command_sandbox_processor_docker_py_no_pip() -> Result<()> {
+    async fn test_command_sandbox_processor_docker_py_run() -> Result<()> {
         let name = "CommandSandboxProcessor";
         let messages = "messages";
 
@@ -1438,10 +1553,10 @@ mod tests {
             container_image: "python:3.12-slim-trixie".to_string(),
             data_i: DataIOMethod::None,
             data_o: DataIOMethod::None,
-            command: Some("python".to_string()),
+            command: Some("-c".to_string()),
             timeout: 5,
             container_args: Some(vec!["--rm".to_string()]),
-            cli_args: Some(vec!["-c".to_string(),
+            cli_args: Some(vec![
                 "import json, sys; data=json.loads(sys.argv[1]); print(json.dumps([{\"name\": item[\"name\"]} for item in data]))".to_string(),
                 "[{\"name\": \"Alice\", \"age\": 30}, {\"name\": \"Bob\", \"age\": 25}]".to_string()]),
             ..Default::default()
@@ -1535,11 +1650,10 @@ mod tests {
             runner: CommandSandboxRunners::Docker,
             environment: CommandSandboxEnvironments::Python,
             container_image: "python:3.12-slim-trixie".to_string(),
-            command: Some("python".to_string()),
+            command: Some("-c".to_string()),
             timeout: 5,
             container_args: Some(vec!["--rm".to_string()]),
-            cli_args: Some(vec!["-c".to_string(),
-                "import json, argparse; \
+            cli_args: Some(vec!["import json, argparse; \
                 parser = argparse.ArgumentParser(); \
                 parser.add_argument('--lhs-args', required=True); \
                 args = parser.parse_args(); \
@@ -1616,15 +1730,15 @@ mod tests {
     }
 
     /// Python code execution example
-    #[ignore]
     #[tokio::test]
-    async fn test_command_sandbox_processor_docker_py_pip() -> Result<()> {
+    async fn test_command_sandbox_processor_docker_py_install() -> Result<()> {
         let name = "CommandSandboxProcessor";
         let messages = "messages";
 
         // Create project directory
         let project_name = "phymes-py-project";
         let project_dir = std::env::temp_dir().join(project_name);
+        let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
         fs::create_dir(&project_dir).expect("Failed to create project directory");
 
         // Create src directory
@@ -1644,9 +1758,9 @@ pyarrow==17.0.0"#;
 pip3 install -r requirements.txt"#;
 
         // Create the run script
-        let main_file_path = format!("{}/src/main.py", project_dir.as_path().to_str().unwrap());
-        let mut main_file = File::create(&main_file_path).expect("Failed to create main.py");
-        let run_str = r#"import pandas as pd, argparse, json;
+        let run_str = r#"import pandas as pd
+import argparse
+import json
 if __name__ == '__main__':
     parser = argparse.ArgumentParser();
     parser.add_argument('--lhs-args', required=True);
@@ -1663,27 +1777,23 @@ if __name__ == '__main__':
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
-        // --- Prepare the Docker container by installing pip dependencies ---
-
         // State for the command processor config
         let command_config = CommandSandboxConfig {
             // We need to mount the directories when we first run the container
-            data_i: DataIOMethod::None,
-            data_o: DataIOMethod::None,
-            container_input_path: None,
+            data_i: DataIOMethod::TempFile,
+            data_o: DataIOMethod::TempFile,
+            container_input_path: Some("/home/sandbox/input.ipc".to_string()),
+            project_dir: Some(project_dir.as_path().to_str().unwrap().to_string()),
+            container_project_dir: Some("/home/sandbox".to_string()),
+            initialization_script: Some(installation_str.to_string()),
+            run_script: Some(run_str.to_string()), 
             runner: CommandSandboxRunners::DockerUnsafe,
-            environment: CommandSandboxEnvironments::Bash,
+            environment: CommandSandboxEnvironments::Python,
             container_image: "python:3.12-slim-trixie".to_string(),
-            command: Some("bash".to_string()),
+            command: None,
             timeout: 5,
-            container_args: Some(vec!["run".to_string(), 
-                // Detach the container
-                "-d".to_string(), 
-                // Name the container
-                "--name".to_string(), "my-container".to_string()]),
-            cli_args: Some(vec!["-c".to_string(),
-                // Install dependencies and keep the container running without consuming CPU
-                r#""pip3 install pandas pyarrow && tail -f /dev/null""#.to_string()]),
+            container_args: None,
+            cli_args: None,
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
@@ -1750,172 +1860,20 @@ if __name__ == '__main__':
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
         // Check the response        
-        let _result = stream
-            .remove(&format!("from_{name}_on_{messages}"))
-            .unwrap()
-            .get_message_own()
-            .try_collect::<Vec<_>>()
-            .await?;
-
-        // --- From TempFile ---
-
-        // State for the command processor config
-        let command_config = CommandSandboxConfig {
-            data_i: DataIOMethod::TempFile,
-            data_o: DataIOMethod::TempFile,
-            container_input_path: Some("/home/sandbox/input.ipc".to_string()),
-            runner: CommandSandboxRunners::DockerUnsafe,
-            environment: CommandSandboxEnvironments::Python,
-            container_image: "my-container".to_string(),
-            command: Some("python".to_string()),
-            timeout: 5,
-            container_args: Some(vec!["exec".to_string(), "-it".to_string()]),
-            cli_args: Some(vec!["-c".to_string(),
-                r#""import pandas as pd, argparse, json; \
-                parser = argparse.ArgumentParser(); \
-                parser.add_argument('--lhs-args', required=True); \
-                args = parser.parse_args(); \
-                df = pd.read_feather(args.lhs_args); \
-                df = df.drop(columns=['age']); \
-                df.to_feather(args.lhs_args);""#.to_string()]),
-            ..Default::default()
-        };
-        let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
-            .with_name(name)
-            .with_json(&command_config_json, 1)?
-            .build()?;
-
-        // Build the current message state
-        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            messages.to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(messages)
-                .with_publisher("")
-                .with_subject(messages)
-                .with_update(&TablePublication::None)
-                .with_message(message_table.to_record_batch_stream())
-                .build()?,
-        );
-        let _ = message.insert(
-            command_config_table.get_name().to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(command_config_table.get_name())
-                .with_publisher("")
-                .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
-                .with_message(command_config_table.to_record_batch_stream())
-                .build()?,
-        );
-
-        // Build the command processor
-        let processor = CommandSandboxProcessor::new(
-            name,
-            CommandSandboxProcessor::get_static_name(),
-            &[TablePublication::Replace {
-                table_name: messages.to_string(),
-            }],
-            &[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: messages.to_string(),
-                },
-                TableSubscription::AlwaysFullTable {
-                    table_name: command_config_table.get_name().to_string(),
-                },
-            ],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
-        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
-
-        // Check the response        
         let result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()
             .get_message_own()
             .try_collect::<Vec<_>>()
             .await?;
+        fs::remove_dir_all(project_dir)?;
         let table = TableBuilder::new()
+            .with_name("test_command_sandbox_processor_docker_py_install")
             .with_record_batches(result)?
-            .with_name("")
             .build()?;
 
         let result = table.get_column_as_vec_str("name");
         assert_eq!(result, ["alice", "bob"]);
-
-        // --- Remove the container ---
-
-        // State for the command processor config
-        let command_config = CommandSandboxConfig {
-            data_i: DataIOMethod::None,
-            data_o: DataIOMethod::None,
-            container_input_path: None,
-            runner: CommandSandboxRunners::DockerUnsafe,
-            environment: CommandSandboxEnvironments::Bash,
-            container_image: "my-container".to_string(),
-            command: Some("&&".to_string()),
-            timeout: 5,
-            container_args: Some(vec!["exec".to_string(), "stop".to_string()]),
-            cli_args: Some(vec!["docker".to_string(),
-                "rm".to_string(),
-                "my-container".to_string()]),
-            ..Default::default()
-        };
-        let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
-            .with_name(name)
-            .with_json(&command_config_json, 1)?
-            .build()?;
-
-        // Build the current message state
-        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            messages.to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(messages)
-                .with_publisher("")
-                .with_subject(messages)
-                .with_update(&TablePublication::None)
-                .with_message(message_table.to_record_batch_stream())
-                .build()?,
-        );
-        let _ = message.insert(
-            command_config_table.get_name().to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(command_config_table.get_name())
-                .with_publisher("")
-                .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
-                .with_message(command_config_table.to_record_batch_stream())
-                .build()?,
-        );
-
-        // Build the command processor
-        let processor = CommandSandboxProcessor::new(
-            name,
-            CommandSandboxProcessor::get_static_name(),
-            &[TablePublication::Replace {
-                table_name: messages.to_string(),
-            }],
-            &[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: messages.to_string(),
-                },
-                TableSubscription::AlwaysFullTable {
-                    table_name: command_config_table.get_name().to_string(),
-                },
-            ],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
-        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
-
-        // Check the response        
-        let _result = stream
-            .remove(&format!("from_{name}_on_{messages}"))
-            .unwrap()
-            .get_message_own()
-            .try_collect::<Vec<_>>()
-            .await?;
 
         Ok(())
     }
