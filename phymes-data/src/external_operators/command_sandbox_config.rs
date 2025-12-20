@@ -161,10 +161,21 @@ pub struct CommandSandboxConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub container_project_dir: Option<String>,
 
-    /// Entry script
+    /// Initialization script
+    /// 
+    /// # Notes
+    /// * Used during the initialization phase to install or setup additional resources
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub entry_script: Option<String>,
+    pub initialization_script: Option<String>,
+
+    /// Run script
+    /// 
+    /// # Notes
+    /// * Used during the run phase
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub run_script: Option<String>,
 
     /// List of arguments for the container in addition to the environment-specific defaults
     /// 
@@ -186,47 +197,7 @@ pub struct CommandSandboxConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub env_args: Option<Vec<String>>,
 
-    /// Temporary input file
-    /// 
-    /// # Notes
-    /// 
-    /// * Not implemented
-    /// * See `container_input_path` for how it could be implemented
-    #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub temp_input: Option<String>,
-
-    /// Temporary output file
-    /// 
-    /// # Notes
-    /// 
-    /// * Not implemented
-    /// * See `container_input_path` for how it could be implemented
-    #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub temp_output: Option<String>,
-
     /// Container input path
-    /// 
-    /// # Notes
-    /// 
-    /// * Not implemented
-    /// * e.g., ```
-    /// use tempfile::NamedTempFile;
-    /// // Create a temporary input file (auto-deletes on drop)
-    /// let mut temp_input = NamedTempFile::new().expect("Failed to create temp input file");
-    /// writeln!(temp_input, "42\n99\n123").expect("Failed to write to temp input file");
-    /// 
-    /// let host_input_path = temp_input.path().to_str().unwrap();
-    /// let container_input_path = "/home/sandbox/input.txt";
-    /// 
-    /// // Container paths
-    /// let container_project_dir = "/home/sandbox/project";
-    /// let container_entry = format!("{}/{}", container_project_dir, entry_script);
-    /// ```
-    /// 
-    /// Then add to the command arguments as
-    /// `"-v", &format!("{}:{}:ro", host_input_path, container_input_path), // Input file read-only`
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub container_input_path: Option<String>,
