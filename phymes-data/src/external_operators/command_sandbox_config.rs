@@ -237,11 +237,6 @@ pub struct CommandSandboxConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub env_args: Option<Vec<String>>,
-
-    /// Container input path
-    #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub container_input_path: Option<String>,
 }
 
 impl CommandSandboxConfig {
