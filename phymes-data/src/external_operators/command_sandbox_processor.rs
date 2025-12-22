@@ -1594,11 +1594,19 @@ mod tests {
 
         // --- From TempFile ---
 
+        // Create project directory
+        let project_name = "phymes-echo-project";
+        let project_dir = std::env::temp_dir().join(project_name);
+        let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
+        fs::create_dir(&project_dir).expect("Failed to create project directory");
+
         // State for the command processor config
         let command_config = CommandSandboxConfig {
             runner: CommandSandboxRunners::Docker,
             environment: CommandSandboxEnvironments::Bash,
             container_image: "alpine".to_string(),
+            project_dir: Some(project_dir.as_path().to_str().unwrap().to_string()),
+            container_project_dir: Some("/home/sandbox".to_string()),
             data_i: DataIOMethod::TempFile,
             data_o: DataIOMethod::None,
             command: Some("echo".to_string()),
@@ -1660,6 +1668,7 @@ mod tests {
             .get_message_own()
             .try_collect::<Vec<_>>()
             .await?;
+        let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
         let table = TableBuilder::new()
             .with_record_batches(result)?
             .with_name("")
@@ -1798,7 +1807,7 @@ mod tests {
                 parser = argparse.ArgumentParser(); \
                 parser.add_argument('--input', required=True); \
                 args = parser.parse_args(); \
-                data = json.loads(args.lhs_args); \
+                data = json.loads(args.input); \
                 print(json.dumps([{\"name\": item[\"name\"], \"age\": item[\"age\"] + 10} for item in data]))".to_string()]),
             ..Default::default()
         };
@@ -1871,6 +1880,7 @@ mod tests {
     }
 
     /// Python code execution example
+    // #[ignore = "Pip cache not updating within the container."]
     #[tokio::test]
     async fn test_command_sandbox_processor_docker_py_install() -> Result<()> {
         let name = "CommandSandboxProcessor";
@@ -1899,7 +1909,7 @@ pyarrow==17.0.0"#;
         let initialization_str = r#"#!/bin/bash
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install --no-cache-dir -r requirements.txt
+.venv/bin/pip install --no-cache-dir -r requirements.txt
 sleep infinity"#;
 
         // Create the run script
