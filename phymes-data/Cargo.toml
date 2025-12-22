@@ -9,7 +9,7 @@ repository = "https://github.com/biom8er/phymes"
 documentation = "https://docs.rs/phymes-data"
 
 [features]
-default = ["wsl", "candle", "openai_api"]
+default = ["wsl", "candle"]
 accelerate = ["dep:accelerate-src", "candle-core/accelerate"]
 mkl = ["dep:intel-mkl-src", "intel-mkl-src/mkl-static-lp64-iomp", "candle-core/mkl"]
 mkl-dynamic = ["dep:intel-mkl-src", "intel-mkl-src/mkl-dynamic-lp64-iomp", "candle-core/mkl"]

@@ -1221,7 +1221,9 @@ impl Stream for CommandSandboxStream {
                                 let mut command_args = Vec::new();
 
                                 // Add run for the component model
-                                if let CommandSandboxEnvironments::WasmComponent = self.config.as_ref().unwrap().environment {
+                                if let CommandSandboxEnvironments::WasmComponent =
+                                    self.config.as_ref().unwrap().environment
+                                {
                                     command_args.push("run".to_string());
                                 }
 
@@ -1322,7 +1324,9 @@ impl Stream for CommandSandboxStream {
                                 );
 
                                 // User defined CLI arguments for modules
-                                if let CommandSandboxEnvironments::WasmModule = self.config.as_ref().unwrap().environment {
+                                if let CommandSandboxEnvironments::WasmModule =
+                                    self.config.as_ref().unwrap().environment
+                                {
                                     if let Some(args) =
                                         self.config.as_ref().unwrap().cli_args.as_ref()
                                     {
@@ -1373,9 +1377,7 @@ impl Stream for CommandSandboxStream {
                                                 runner_info
                                                     .output_file
                                                     .as_ref()
-                                                    .expect(
-                                                        "Missing output tempfile for runner.",
-                                                    )
+                                                    .expect("Missing output tempfile for runner.")
                                                     .to_string(),
                                             );
                                         }
@@ -1396,9 +1398,7 @@ impl Stream for CommandSandboxStream {
                                                 runner_info
                                                     .input_file
                                                     .as_ref()
-                                                    .expect(
-                                                        "Missing input tempfile for runner.",
-                                                    )
+                                                    .expect("Missing input tempfile for runner.")
                                                     .to_string(),
                                             );
                                             command_args.push("--output-file".to_string());
@@ -1406,9 +1406,7 @@ impl Stream for CommandSandboxStream {
                                                 runner_info
                                                     .output_file
                                                     .as_ref()
-                                                    .expect(
-                                                        "Missing output tempfile for runner.",
-                                                    )
+                                                    .expect("Missing output tempfile for runner.")
                                                     .to_string(),
                                             );
                                         }
@@ -1419,9 +1417,7 @@ impl Stream for CommandSandboxStream {
                                                 runner_info
                                                     .input_file
                                                     .as_ref()
-                                                    .expect(
-                                                        "Missing input tempfile for runner.",
-                                                    )
+                                                    .expect("Missing input tempfile for runner.")
                                                     .to_string(),
                                             );
                                         }
@@ -1472,17 +1468,19 @@ impl Stream for CommandSandboxStream {
 
                     // Check for an error
                     if let Some(exit_code) = output.status.code()
-                        && exit_code != 1 && !output.status.success() {
-                            self.stream_state = CommandSandboxStreamState::Done;
-                            let stderr = String::from_utf8_lossy(&output.stderr);
-                            let stdout = String::from_utf8_lossy(&output.stdout);
-                            return Poll::Ready(Some(Err(anyhow!(
-                                "Command exited with code {}, stderr {}, and stdout {}.",
-                                output.status.code().unwrap_or(0),
-                                stderr,
-                                stdout
-                            ))));
-                        }
+                        && exit_code != 1
+                        && !output.status.success()
+                    {
+                        self.stream_state = CommandSandboxStreamState::Done;
+                        let stderr = String::from_utf8_lossy(&output.stderr);
+                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        return Poll::Ready(Some(Err(anyhow!(
+                            "Command exited with code {}, stderr {}, and stdout {}.",
+                            output.status.code().unwrap_or(0),
+                            stderr,
+                            stdout
+                        ))));
+                    }
                     {
                         let stdout = String::from_utf8_lossy(&output.stdout);
                         dbg!(stdout);
@@ -1630,13 +1628,15 @@ impl Stream for CommandSandboxStream {
                     CommandSandboxRunnerState::Done(runner_info) => {
                         // Remove the temporary input/output file
                         if let Some(input_file) = runner_info.input_file.as_ref()
-                            && fs::metadata(input_file).is_ok() {
-                                fs::remove_file(input_file)?;
-                            }
+                            && fs::metadata(input_file).is_ok()
+                        {
+                            fs::remove_file(input_file)?;
+                        }
                         if let Some(output_file) = runner_info.output_file.as_ref()
-                            && fs::metadata(output_file).is_ok() {
-                                fs::remove_file(output_file)?;
-                            }
+                            && fs::metadata(output_file).is_ok()
+                        {
+                            fs::remove_file(output_file)?;
+                        }
 
                         // End the poll
                         Poll::Ready(None)
