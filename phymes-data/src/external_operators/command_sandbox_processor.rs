@@ -519,17 +519,10 @@ impl Stream for CommandSandboxStream {
                             (DataIOMethod::None, DataIOMethod::TempFile) => {
                                 let output_file = NamedTempFile::new()?;
                                 let output_persist_path = output_file_path.ok_or(anyhow!("Missing output file path for data input method {} and data output method {}.", &self.config.as_ref().unwrap().data_i, &self.config.as_ref().unwrap().data_o))?;
-                                if initialization_file_path.is_none() {
-                                    let _output_file = output_file.persist(&output_persist_path)?;
-                                    CommandSandboxRunnerInfo::new()
-                                        .with_name(&name)
-                                        .with_output_file(&output_persist_path)
-                                } else {
-                                    let _output_file = output_file.persist(&output_persist_path)?;
-                                    CommandSandboxRunnerInfo::new()
-                                        .with_name(&name)
-                                        .with_output_file(&output_persist_path)
-                                }
+                                let _output_file = output_file.persist(&output_persist_path)?;
+                                CommandSandboxRunnerInfo::new()
+                                    .with_name(&name)
+                                    .with_output_file(&output_persist_path)
                             }
                             (DataIOMethod::TempFile, DataIOMethod::TempFile) => {
                                 let input_file = NamedTempFile::new()?;
@@ -825,7 +818,7 @@ impl Stream for CommandSandboxStream {
                         // Add environment variables to command args
                         for (k, v) in self.config.as_ref().unwrap().env_args()? {
                             command_args.push("-e".to_string());
-                            command_args.push(format!("{}={}", k, v));
+                            command_args.push(format!("{k}={v}"));
                         }
 
                         // Add docker image/command CLI arguments depending upon the runner state
@@ -1228,11 +1221,8 @@ impl Stream for CommandSandboxStream {
                                 let mut command_args = Vec::new();
 
                                 // Add run for the component model
-                                match self.config.as_ref().unwrap().environment {
-                                    CommandSandboxEnvironments::WasmComponent => {
-                                        command_args.push("run".to_string());
-                                    }
-                                    _ => {}
+                                if let CommandSandboxEnvironments::WasmComponent = self.config.as_ref().unwrap().environment {
+                                    command_args.push("run".to_string());
                                 }
 
                                 // User defined container arguments
@@ -1279,7 +1269,7 @@ impl Stream for CommandSandboxStream {
 
                                 // Add environment variables to command args
                                 for (k, v) in self.config.as_ref().unwrap().env_args()? {
-                                    command_args.push(format!("--env={}={}", k, v));
+                                    command_args.push(format!("--env={k}={v}"));
                                 }
 
                                 // Add command for the component model
@@ -1332,114 +1322,111 @@ impl Stream for CommandSandboxStream {
                                 );
 
                                 // User defined CLI arguments for modules
-                                match self.config.as_ref().unwrap().environment {
-                                    CommandSandboxEnvironments::WasmModule => {
-                                        if let Some(args) =
-                                            self.config.as_ref().unwrap().cli_args.as_ref()
-                                        {
-                                            for arg in args {
-                                                command_args.push(arg.to_string());
-                                            }
-                                        }
-
-                                        // Extract out the message and add as CLI arguments
-                                        match self.config.as_ref().unwrap().data_i {
-                                            DataIOMethod::Stdio => {
-                                                command_args.push("--input".to_string());
-                                                command_args.push(
-                                                    runner_info
-                                                        .content
-                                                        .as_ref()
-                                                        .expect("Missing content for runner.")
-                                                        .to_string(),
-                                                );
-                                            }
-                                            DataIOMethod::TempFile => {
-                                                command_args.push("--input-file".to_string());
-                                                let host_input_path = runner_info
-                                                    .input_file
-                                                    .as_ref()
-                                                    .expect("Missing input tempfile for runner.")
-                                                    .to_string();
-                                                command_args.push(host_input_path);
-                                            }
-                                            DataIOMethod::None => {}
-                                        };
-                                        // Add data
-                                        match (
-                                            &self.config.as_ref().unwrap().data_i,
-                                            &self.config.as_ref().unwrap().data_o,
-                                        ) {
-                                            (DataIOMethod::Stdio, DataIOMethod::TempFile) => {
-                                                command_args.push("--input".to_string());
-                                                command_args.push(
-                                                    runner_info
-                                                        .content
-                                                        .as_ref()
-                                                        .expect("Missing content for runner.")
-                                                        .to_string(),
-                                                );
-                                                command_args.push("--output-file".to_string());
-                                                command_args.push(
-                                                    runner_info
-                                                        .output_file
-                                                        .as_ref()
-                                                        .expect(
-                                                            "Missing output tempfile for runner.",
-                                                        )
-                                                        .to_string(),
-                                                );
-                                            }
-                                            (DataIOMethod::Stdio, DataIOMethod::Stdio)
-                                            | (DataIOMethod::Stdio, DataIOMethod::None) => {
-                                                command_args.push("--input".to_string());
-                                                command_args.push(
-                                                    runner_info
-                                                        .content
-                                                        .as_ref()
-                                                        .expect("Missing content for runner.")
-                                                        .to_string(),
-                                                );
-                                            }
-                                            (DataIOMethod::TempFile, DataIOMethod::TempFile) => {
-                                                command_args.push("--input-file".to_string());
-                                                command_args.push(
-                                                    runner_info
-                                                        .input_file
-                                                        .as_ref()
-                                                        .expect(
-                                                            "Missing input tempfile for runner.",
-                                                        )
-                                                        .to_string(),
-                                                );
-                                                command_args.push("--output-file".to_string());
-                                                command_args.push(
-                                                    runner_info
-                                                        .output_file
-                                                        .as_ref()
-                                                        .expect(
-                                                            "Missing output tempfile for runner.",
-                                                        )
-                                                        .to_string(),
-                                                );
-                                            }
-                                            (DataIOMethod::TempFile, DataIOMethod::Stdio)
-                                            | (DataIOMethod::TempFile, DataIOMethod::None) => {
-                                                command_args.push("--input-file".to_string());
-                                                command_args.push(
-                                                    runner_info
-                                                        .input_file
-                                                        .as_ref()
-                                                        .expect(
-                                                            "Missing input tempfile for runner.",
-                                                        )
-                                                        .to_string(),
-                                                );
-                                            }
-                                            _ => {}
+                                if let CommandSandboxEnvironments::WasmModule = self.config.as_ref().unwrap().environment {
+                                    if let Some(args) =
+                                        self.config.as_ref().unwrap().cli_args.as_ref()
+                                    {
+                                        for arg in args {
+                                            command_args.push(arg.to_string());
                                         }
                                     }
-                                    _ => {}
+
+                                    // Extract out the message and add as CLI arguments
+                                    match self.config.as_ref().unwrap().data_i {
+                                        DataIOMethod::Stdio => {
+                                            command_args.push("--input".to_string());
+                                            command_args.push(
+                                                runner_info
+                                                    .content
+                                                    .as_ref()
+                                                    .expect("Missing content for runner.")
+                                                    .to_string(),
+                                            );
+                                        }
+                                        DataIOMethod::TempFile => {
+                                            command_args.push("--input-file".to_string());
+                                            let host_input_path = runner_info
+                                                .input_file
+                                                .as_ref()
+                                                .expect("Missing input tempfile for runner.")
+                                                .to_string();
+                                            command_args.push(host_input_path);
+                                        }
+                                        DataIOMethod::None => {}
+                                    };
+                                    // Add data
+                                    match (
+                                        &self.config.as_ref().unwrap().data_i,
+                                        &self.config.as_ref().unwrap().data_o,
+                                    ) {
+                                        (DataIOMethod::Stdio, DataIOMethod::TempFile) => {
+                                            command_args.push("--input".to_string());
+                                            command_args.push(
+                                                runner_info
+                                                    .content
+                                                    .as_ref()
+                                                    .expect("Missing content for runner.")
+                                                    .to_string(),
+                                            );
+                                            command_args.push("--output-file".to_string());
+                                            command_args.push(
+                                                runner_info
+                                                    .output_file
+                                                    .as_ref()
+                                                    .expect(
+                                                        "Missing output tempfile for runner.",
+                                                    )
+                                                    .to_string(),
+                                            );
+                                        }
+                                        (DataIOMethod::Stdio, DataIOMethod::Stdio)
+                                        | (DataIOMethod::Stdio, DataIOMethod::None) => {
+                                            command_args.push("--input".to_string());
+                                            command_args.push(
+                                                runner_info
+                                                    .content
+                                                    .as_ref()
+                                                    .expect("Missing content for runner.")
+                                                    .to_string(),
+                                            );
+                                        }
+                                        (DataIOMethod::TempFile, DataIOMethod::TempFile) => {
+                                            command_args.push("--input-file".to_string());
+                                            command_args.push(
+                                                runner_info
+                                                    .input_file
+                                                    .as_ref()
+                                                    .expect(
+                                                        "Missing input tempfile for runner.",
+                                                    )
+                                                    .to_string(),
+                                            );
+                                            command_args.push("--output-file".to_string());
+                                            command_args.push(
+                                                runner_info
+                                                    .output_file
+                                                    .as_ref()
+                                                    .expect(
+                                                        "Missing output tempfile for runner.",
+                                                    )
+                                                    .to_string(),
+                                            );
+                                        }
+                                        (DataIOMethod::TempFile, DataIOMethod::Stdio)
+                                        | (DataIOMethod::TempFile, DataIOMethod::None) => {
+                                            command_args.push("--input-file".to_string());
+                                            command_args.push(
+                                                runner_info
+                                                    .input_file
+                                                    .as_ref()
+                                                    .expect(
+                                                        "Missing input tempfile for runner.",
+                                                    )
+                                                    .to_string(),
+                                            );
+                                        }
+                                        _ => {}
+                                    }
                                 }
                                 command_args
                             }
@@ -1484,8 +1471,8 @@ impl Stream for CommandSandboxStream {
                         .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                     // Check for an error
-                    if let Some(exit_code) = output.status.code() {
-                        if exit_code != 1 && !output.status.success() {
+                    if let Some(exit_code) = output.status.code()
+                        && exit_code != 1 && !output.status.success() {
                             self.stream_state = CommandSandboxStreamState::Done;
                             let stderr = String::from_utf8_lossy(&output.stderr);
                             let stdout = String::from_utf8_lossy(&output.stdout);
@@ -1496,7 +1483,6 @@ impl Stream for CommandSandboxStream {
                                 stdout
                             ))));
                         }
-                    }
                     {
                         let stdout = String::from_utf8_lossy(&output.stdout);
                         dbg!(stdout);
@@ -1643,16 +1629,14 @@ impl Stream for CommandSandboxStream {
                     }
                     CommandSandboxRunnerState::Done(runner_info) => {
                         // Remove the temporary input/output file
-                        if let Some(input_file) = runner_info.input_file.as_ref() {
-                            if fs::metadata(input_file).is_ok() {
+                        if let Some(input_file) = runner_info.input_file.as_ref()
+                            && fs::metadata(input_file).is_ok() {
                                 fs::remove_file(input_file)?;
                             }
-                        }
-                        if let Some(output_file) = runner_info.output_file.as_ref() {
-                            if fs::metadata(output_file).is_ok() {
+                        if let Some(output_file) = runner_info.output_file.as_ref()
+                            && fs::metadata(output_file).is_ok() {
                                 fs::remove_file(output_file)?;
                             }
-                        }
 
                         // End the poll
                         Poll::Ready(None)

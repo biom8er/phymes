@@ -51,9 +51,9 @@ pub enum HTTPClientRequestState {
 
 /// Error reporting method for Reqwest error
 pub(crate) fn error_report(mut err: &(dyn std::error::Error + 'static)) -> String {
-    let mut s = format!("{}", err);
+    let mut s = format!("{err}");
     while let Some(src) = err.source() {
-        let _ = write!(s, "\n\nCaused by: {}", src);
+        let _ = write!(s, "\n\nCaused by: {src}");
         err = src;
     }
     s
@@ -307,7 +307,7 @@ impl Stream for HTTPClientRequestStream {
                         let mut json_object = messages.to_json_object()?;
 
                         // Prioritize the message data over the config when building the JSON body and url
-                        let (json_data, url) = if json_object.len() > 0 {
+                        let (json_data, url) = if !json_object.is_empty() {
                             let json_data = json_object.pop().unwrap();
                             let url = self.config.as_ref().unwrap().url(None);
                             (json_data, url)
