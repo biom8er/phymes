@@ -398,11 +398,11 @@ impl Stream for HTTPClientRequestStream {
                                 .replace("</sup>", "")
                                 .replace("<sub>", "")
                                 .replace("</sub>", "");
-                            let parsed = match serde_json::from_str::<e_utils_schemas::PubmedArticleSet>(&cleaned_text) {
+                            let parsed = match quick_xml::de::from_str::<e_utils_schemas::PubmedArticleSet>(&cleaned_text) {
                                 Ok(parsed) => parsed,
                                 Err(err) => {
                                     self.state = HTTPClientRequestState::Done;
-                                    return Poll::Ready(Some(Err(anyhow!("A parsing error {err:?} was encountered when parsing response {text} for schema {}.", self.config.as_ref().unwrap().request_schema))))
+                                    return Poll::Ready(Some(Err(anyhow!("A parsing error {err:?} was encountered when parsing response {cleaned_text} for schema {}.", self.config.as_ref().unwrap().request_schema))))
                                 }
                             };
                             let content = parsed.articles.into_iter().map(|w| serde_json::to_string(&w).unwrap()).collect::<Vec<_>>();

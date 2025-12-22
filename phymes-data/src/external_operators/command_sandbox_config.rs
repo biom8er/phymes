@@ -39,10 +39,6 @@ impl Display for CommandSandboxRunners {
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
 pub enum CommandSandboxEnvironments {
     /// Basic Bash shell to run commands
-    /// 
-    /// # Notes
-    /// * Not intended for use except to setup Docker resources
-    ///   e.g., `docker pull`, `docker run python pip install ...`, `docker run git pull ...`, etc.
     #[value(name = "Bash")]
     Bash,
     /// Python coding environment
@@ -54,7 +50,7 @@ pub enum CommandSandboxEnvironments {
     /// ├── requirements.txt
     /// ├── src/
     /// │   └── main.py
-    /// └── venv/
+    /// └── .venv/
     #[value(name = "Python")]
     Python,
     /// Rust coding environment

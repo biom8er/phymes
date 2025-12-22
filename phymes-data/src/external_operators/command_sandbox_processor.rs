@@ -645,14 +645,25 @@ impl Stream for CommandSandboxStream {
                                 command_args
                             }
                             (CommandSandboxRunners::Docker, CommandSandboxRunnerState::Running(_runner_info)) 
-                            | (CommandSandboxRunners::DockerUnsafe, CommandSandboxRunnerState::Running(_runner_info)) => vec![
-                                "exec".to_string(),
-                                "-it".to_string(), // Interactive mode to keep STDIN open
-                            ],
-                            (_, CommandSandboxRunnerState::Done(_runner_info)) => vec![
-                                "rm".to_string(),
-                                "-f".to_string(), // DM: not best practices but can be done in one step
-                            ],
+                            | (CommandSandboxRunners::DockerUnsafe, CommandSandboxRunnerState::Running(_runner_info)) => {
+                                let mut command_args = vec![
+                                    "exec".to_string(),
+                                    "-it".to_string(), // Interactive mode to keep STDIN open
+                                ];
+
+                                // Mount the project dir if it exists
+                                if let Some(container_project_dir) = self.config.as_ref().unwrap().container_project_dir.as_ref() {
+                                    command_args.push("-w".to_string());
+                                    command_args.push(container_project_dir.to_string());
+                                }
+                                command_args
+                            },
+                            (_, CommandSandboxRunnerState::Done(_runner_info)) => {
+                                vec![
+                                    "rm".to_string(),
+                                    "-f".to_string(), // DM: not best practices but can be done in one step
+                                ]
+                            },
                             _ => unreachable!(),
                         };
 
@@ -674,11 +685,11 @@ impl Stream for CommandSandboxStream {
                                         if let (Some(initialization_file), Some(container_project_dir)) = (runner_info.initialization_file.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
                                             command_args.push("bash".to_string());
                                             let initialization_path = Path::new(initialization_file);
-                                            command_args.push(format!("{}/{}", container_project_dir, initialization_path.file_name().unwrap().to_str().unwrap()));
+                                            command_args.push(format!("{container_project_dir}/{}", initialization_path.file_name().unwrap().to_str().unwrap()));
                                         } else if let (Some(run_file), Some(container_project_dir)) = (runner_info.run_file.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
-                                            command_args.push("python3".to_string());
+                                            command_args.push(format!("{container_project_dir}/.venv/bin/python"));
                                             let run_path = Path::new(run_file);
-                                            command_args.push(format!("{}/src/{}", container_project_dir, run_path.file_name().unwrap().to_str().unwrap()));
+                                            command_args.push(format!("{container_project_dir}/src/{}", run_path.file_name().unwrap().to_str().unwrap()));
                                         } else {
                                             command_args.push("python3".to_string());
                                             if let Some(command) = self.config.as_ref().unwrap().command.as_ref() {
@@ -690,7 +701,7 @@ impl Stream for CommandSandboxStream {
                                         if let (Some(initialization_file), Some(container_project_dir)) = (runner_info.initialization_file.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
                                             command_args.push("bash".to_string());
                                             let initialization_path = Path::new(initialization_file);
-                                            command_args.push(format!("{}/{}", container_project_dir, initialization_path.file_name().unwrap().to_str().unwrap()));
+                                            command_args.push(format!("{container_project_dir}/{}", initialization_path.file_name().unwrap().to_str().unwrap()));
                                         } else if let (Some(_run_file), Some(_container_project_dir)) = (runner_info.run_file.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
                                             command_args.push("cargo".to_string());
                                             command_args.push("run".to_string());
@@ -761,9 +772,9 @@ impl Stream for CommandSandboxStream {
                                 match self.config.as_ref().unwrap().environment {
                                     CommandSandboxEnvironments::Python => {
                                         if let (Some(run_file), Some(container_project_dir)) = (runner_info.run_file.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
-                                            command_args.push("python3".to_string());
+                                            command_args.push(format!("{container_project_dir}/.venv/bin/python"));
                                             let run_path = Path::new(run_file);
-                                            command_args.push(format!("{}/src/{}", container_project_dir, run_path.file_name().unwrap().to_str().unwrap()));
+                                            command_args.push(format!("{container_project_dir}/src/{}", run_path.file_name().unwrap().to_str().unwrap()));
                                         } else {
                                             command_args.push("python3".to_string());
                                             if let Some(command) = self.config.as_ref().unwrap().command.as_ref() {
@@ -809,7 +820,7 @@ impl Stream for CommandSandboxStream {
                                         command_args.push(runner_info.content.as_ref().expect("Missing content for runner.").to_string());
                                         command_args.push("--output-file".to_string());
                                         let output_path = Path::new(runner_info.output_file.as_ref().ok_or(anyhow!("Container output path must be provided for data output method {}.", self.config.as_ref().unwrap().data_o))?);
-                                        command_args.push(format!("{}/{}", container_project_dir, output_path.file_name().unwrap().to_str().unwrap()));
+                                        command_args.push(format!("{container_project_dir}/{}", output_path.file_name().unwrap().to_str().unwrap()));
                                     }
                                     (DataIOMethod::Stdio, DataIOMethod::Stdio, _)
                                     | (DataIOMethod::Stdio, DataIOMethod::None, _) => {
@@ -819,16 +830,16 @@ impl Stream for CommandSandboxStream {
                                     (DataIOMethod::TempFile, DataIOMethod::TempFile, Some(container_project_dir)) => {
                                         command_args.push("--input-file".to_string());
                                         let input_path = Path::new(runner_info.input_file.as_ref().ok_or(anyhow!("Container input path must be provided for data output method {}.", self.config.as_ref().unwrap().data_i))?);
-                                        command_args.push(format!("{}/{}", container_project_dir, input_path.file_name().unwrap().to_str().unwrap()));
+                                        command_args.push(format!("{container_project_dir}/{}", input_path.file_name().unwrap().to_str().unwrap()));
                                         command_args.push("--output-file".to_string());
                                         let output_path = Path::new(runner_info.output_file.as_ref().ok_or(anyhow!("Container output path must be provided for data output method {}.", self.config.as_ref().unwrap().data_o))?);
-                                        command_args.push(format!("{}/{}", container_project_dir, output_path.file_name().unwrap().to_str().unwrap()));
+                                        command_args.push(format!("{container_project_dir}/{}", output_path.file_name().unwrap().to_str().unwrap()));
                                     }
                                     (DataIOMethod::TempFile, DataIOMethod::Stdio, Some(container_project_dir))
                                     | (DataIOMethod::TempFile, DataIOMethod::None, Some(container_project_dir)) => {
                                         command_args.push("--input-file".to_string());
                                         let input_path = Path::new(runner_info.input_file.as_ref().ok_or(anyhow!("Container input path must be provided for data output method {}.", self.config.as_ref().unwrap().data_i))?);
-                                        command_args.push(format!("{}/{}", container_project_dir, input_path.file_name().unwrap().to_str().unwrap()));
+                                        command_args.push(format!("{container_project_dir}/{}", input_path.file_name().unwrap().to_str().unwrap()));
                                     }
                                     _ => {}
                                 }
@@ -840,6 +851,7 @@ impl Stream for CommandSandboxStream {
                         }
 
                         // Run the command
+                        dbg!(&command_args);
                         Command::new("docker").args(&command_args).output()
                     },
                     CommandSandboxRunners::Wasmtime => {
@@ -1019,6 +1031,10 @@ impl Stream for CommandSandboxStream {
                             let stdout = String::from_utf8_lossy(&output.stdout);
                             return Poll::Ready(Some(Err(anyhow!("Command exited with code {}, stderr {}, and stdout {}.", output.status.code().unwrap_or(0), stderr, stdout))));
                         }
+                    }
+                    {
+                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        dbg!(stdout);
                     }
 
                     // Parse the response if running and skip if initializing or done
@@ -1879,12 +1895,16 @@ pyarrow==17.0.0"#;
         requirements_file.flush()?;
 
         // Create the initialization script
+        // DM: add `sleep infinity` to keep the terminal open to inspect with docker
         let initialization_str = r#"#!/bin/bash
-pip3 install -r requirements.txt
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --no-cache-dir -r requirements.txt
 sleep infinity"#;
 
         // Create the run script
-        let run_str = r#"import pandas as pd
+        let run_str = r#"#!/bin/bash
+import pandas as pd
 import argparse
 import json
 if __name__ == '__main__':
