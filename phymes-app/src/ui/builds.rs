@@ -482,13 +482,11 @@ pub fn builds_dropdown_view(
                                 Ok(builder) => {
                                     let builder = if active_er_diagram().is_empty() {
                                         builder
+                                    } else if let Ok(builder) = builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), true, true) {
+                                        builder
                                     } else {
-                                        if let Ok(builder) = builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), true, true) {
-                                            builder
-                                        } else {
-                                            // Revert
-                                            SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), true).unwrap()
-                                        }
+                                        // Revert
+                                        SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), true).unwrap()
                                     };
                                     match builder.with_name(&active_session_name()).add_processor_subjects() {
                                         // Include the last row of data during the prototyping stage
