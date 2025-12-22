@@ -678,9 +678,9 @@ mod tests {
         let year_from = 2020;
         let year_to = 2023;
         let journal_filter = Some("Lancet");
-        let mut query = format!("{}[MeSH Terms]", mesh_term);
+        let mut query = format!("{mesh_term}[MeSH Terms]");
         if let Some(journal) = journal_filter {
-            query.push_str(&format!(" AND \"{}\"[Journal]", journal));
+            query.push_str(&format!(" AND \"{journal}\"[Journal]"));
         }
 
         let esearch_url = format!(
@@ -774,7 +774,7 @@ mod tests {
 
         // Build EFetch query
         let ids = table.get_column_as_vec_str("content").join(",");
-        let efetch_url = format!("db=pubmed&id={}&retmode=xml", ids);
+        let efetch_url = format!("db=pubmed&id={ids}&retmode=xml");
 
         // State for the http client processor config
         let http_client_config = HTTPClientConfig {
