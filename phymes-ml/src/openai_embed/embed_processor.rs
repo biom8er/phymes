@@ -1,6 +1,4 @@
-use crate::{
-    CandleEmbedConfig, candle_embed::convert_embedding_vector_to_record_batch,
-};
+use crate::{CandleEmbedConfig, candle_embed::convert_embedding_vector_to_record_batch};
 
 use phymes_data::{DataConfigTrait, HTTPClientRequestState};
 use reqwest::{Client, header::CONTENT_TYPE};
@@ -291,17 +289,19 @@ impl Stream for OpenAIEmbedStream {
                     self.state = HTTPClientRequestState::Connecting(Box::pin(fut));
                     self.poll_next(cx)
                 }
-                HTTPClientRequestState::Connecting(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
-                    Ok(response) => {
-                        let fut = response.text();
-                        self.state = HTTPClientRequestState::ToText(Box::pin(fut));
-                        self.poll_next(cx)
+                HTTPClientRequestState::Connecting(fut) => {
+                    match ready!(fut.as_mut().poll_unpin(cx)) {
+                        Ok(response) => {
+                            let fut = response.text();
+                            self.state = HTTPClientRequestState::ToText(Box::pin(fut));
+                            self.poll_next(cx)
+                        }
+                        Err(err) => {
+                            self.state = HTTPClientRequestState::Done;
+                            Poll::Ready(Some(Err(anyhow!(err.to_string()))))
+                        }
                     }
-                    Err(err) => {
-                        self.state = HTTPClientRequestState::Done;
-                        Poll::Ready(Some(Err(anyhow!(err.to_string()))))
-                    }
-                },
+                }
                 HTTPClientRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                     Ok(text) => {
                         // Initialize the metrics
@@ -404,17 +404,19 @@ impl Stream for OpenAIEmbedStream {
                     self.state = HTTPClientRequestState::Connecting(Box::pin(fut));
                     self.poll_next(cx)
                 }
-                HTTPClientRequestState::Connecting(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
-                    Ok(response) => {
-                        let fut = response.text();
-                        self.state = HTTPClientRequestState::ToText(Box::pin(fut));
-                        self.poll_next(cx)
+                HTTPClientRequestState::Connecting(fut) => {
+                    match ready!(fut.as_mut().poll_unpin(cx)) {
+                        Ok(response) => {
+                            let fut = response.text();
+                            self.state = HTTPClientRequestState::ToText(Box::pin(fut));
+                            self.poll_next(cx)
+                        }
+                        Err(err) => {
+                            self.state = HTTPClientRequestState::Done;
+                            Poll::Ready(Some(Err(anyhow!(err.to_string()))))
+                        }
                     }
-                    Err(err) => {
-                        self.state = HTTPClientRequestState::Done;
-                        Poll::Ready(Some(Err(anyhow!(err.to_string()))))
-                    }
-                },
+                }
                 HTTPClientRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                     Ok(text) => {
                         // Initialize the metrics

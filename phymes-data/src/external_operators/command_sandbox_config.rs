@@ -42,10 +42,10 @@ pub enum CommandSandboxEnvironments {
     #[value(name = "Bash")]
     Bash,
     /// Python coding environment
-    /// 
+    ///
     /// # Notes
     /// * A project directory that follows normal convention below is assumed
-    /// 
+    ///
     /// my_python_project/
     /// ├── requirements.txt
     /// ├── src/
@@ -54,10 +54,10 @@ pub enum CommandSandboxEnvironments {
     #[value(name = "Python")]
     Python,
     /// Rust coding environment
-    /// 
+    ///
     /// # Notes
     /// * A project directory that follows normal convention below is assumed
-    /// 
+    ///
     /// my_python_project/
     /// ├── Cargo.toml.txt
     /// ├── examples/
@@ -70,12 +70,12 @@ pub enum CommandSandboxEnvironments {
     #[value(name = "Rust")]
     Rust,
     /// WASM module (without using the component model)
-    /// 
+    ///
     /// e.g., `wasmtime run foo.wasm` or `wasmtime run foo.wat` with optional CLI arguments for `foo` following
     #[value(name = "WasmModule")]
     WasmModule,
     /// WASM component (using WAVE syntax)
-    /// 
+    ///
     /// e.g., `wasmtime run --invoke 'add(1, 2)' foo.wasm` with no CLI arguments included using WAVE syntax
     /// where `add` is the command
     #[value(name = "WasmComponent")]
@@ -100,24 +100,24 @@ impl Display for CommandSandboxEnvironments {
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default, PartialEq)]
 pub enum DataIOMethod {
     /// Transfer [RecordBatch]es as bytes over the stdio interface
-    /// 
+    ///
     /// The [RecordBatch]es will be serialized as JSON and added as a named argument `lhs_args` to the CLI arguments
     /// and the output will be deserialized from JSON
-    /// 
+    ///
     /// # Notes
     /// * The schema between input and output data must be the same since JSON is used and we need to know the schema
     ///   to correctly interpret the JSON data types
     #[default]
     #[value(name = "Stdio")]
     Stdio,
-    /// Write [RecordBatch]es as IPC bytes to a temporary file 
-    /// 
+    /// Write [RecordBatch]es as IPC bytes to a temporary file
+    ///
     /// The [RecordBatch]es will be serialized as IPC and written to a named temporary file called `lhs_args.ipc`
     /// and the output will be deserialized from IPC from the same temporary file
     #[value(name = "TempFile")]
     TempFile,
     /// Use the config and ignore the batches
-    /// 
+    ///
     /// The output will be read in from the Stdout and packaged as a message
     #[value(name = "None")]
     None,
@@ -162,7 +162,7 @@ pub struct CommandSandboxConfig {
     pub command: Option<String>,
 
     /// The timeout in seconds
-    /// 
+    ///
     /// # Notes
     /// * Not yet implemented
     #[arg(long, default_value_t = 15)]
@@ -179,7 +179,7 @@ pub struct CommandSandboxConfig {
     pub container_project_dir: Option<String>,
 
     /// Initialization script
-    /// 
+    ///
     /// # Notes
     /// * Used during the initialization phase to install or setup additional resources
     /// * Can either be the name of the file in the project directory or the text for the script that will be created on the fly
@@ -188,7 +188,7 @@ pub struct CommandSandboxConfig {
     pub initialization_script: Option<String>,
 
     /// Initialization file
-    /// 
+    ///
     /// # Notes
     /// * Used during the initialization phase to install or setup additional resources
     /// * Name of the file at the root level of the directory
@@ -197,7 +197,7 @@ pub struct CommandSandboxConfig {
     pub initialization_file: Option<String>,
 
     /// Run script
-    /// 
+    ///
     /// # Notes
     /// * Used during the run phase
     /// * Can either be the name of the file in the project directory or the text for the script that will be created on the fly
@@ -206,7 +206,7 @@ pub struct CommandSandboxConfig {
     pub run_script: Option<String>,
 
     /// Run script
-    /// 
+    ///
     /// # Notes
     /// * Used during the run phase
     /// * Name of the file within the /src folder (for most projects) of the directory
@@ -215,7 +215,7 @@ pub struct CommandSandboxConfig {
     pub run_file: Option<String>,
 
     /// List of arguments for the container in addition to the environment-specific defaults
-    /// 
+    ///
     /// # Examples
     /// * `--rm` to remove the container after execution
     /// * `-v` to mount directories and files
@@ -244,10 +244,10 @@ impl CommandSandboxConfig {
                 match env::var(env_var) {
                     Ok(key) => {
                         map.insert(env_var.to_string(), key);
-                    },
+                    }
                     Err(e) => {
                         return Err(anyhow!("{e:?}"));
-                    },
+                    }
                 }
             }
         }
@@ -270,8 +270,13 @@ impl DataConfigTrait for CommandSandboxConfig {
             .iter()
             .map(|f| f.name().to_string())
             .collect::<HashSet<_>>();
-        if !(column_names.contains("timeout") && column_names.contains("runner") && column_names.contains("environment") && column_names.contains("container_image")
-        && column_names.contains("data_i") && column_names.contains("data_o")) {
+        if !(column_names.contains("timeout")
+            && column_names.contains("runner")
+            && column_names.contains("environment")
+            && column_names.contains("container_image")
+            && column_names.contains("data_i")
+            && column_names.contains("data_o"))
+        {
             return Err(anyhow!(
                 "Table {} is missing required Field for `timeout`, `runner`, `environment`, `container_image`, `data_i`, and `data_o` in CommandSandboxConfig.",
                 table.get_name()

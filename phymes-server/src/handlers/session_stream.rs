@@ -219,7 +219,7 @@ pub async fn session_stream(
                     // Send the stream
                     Body::from_stream(response).into_response()
                 }
-                (DataFormat::Ipc, false) => {                    
+                (DataFormat::Ipc, false) => {
                     // Convert the output to IPC messages
                     // DM: the bytes cannot be flattened and then read as a single table
                     //  because the reader will break at the end of the first batch encountered!
@@ -227,25 +227,36 @@ pub async fn session_stream(
                         session_stream.try_collect().await.unwrap();
                     let batches = response
                         .into_iter()
-                        .flat_map(|map| map.into_iter()
-                            .filter_map(|(_k, v)| if v.get_name().contains(payload.get_session_name()) {
-                                let batches = TableBuilder::new_from_ipc_stream(&v.get_message_own()).unwrap()
-                                    .with_name("")
-                                    .build().unwrap()
-                                    .get_record_batches_own();
-                                Some(batches)
-                            } else {
-                                None
-                            })
-                            .flatten()
-                            .collect::<Vec<_>>()
-                        )
+                        .flat_map(|map| {
+                            map.into_iter()
+                                .filter_map(|(_k, v)| {
+                                    if v.get_name().contains(payload.get_session_name()) {
+                                        let batches =
+                                            TableBuilder::new_from_ipc_stream(&v.get_message_own())
+                                                .unwrap()
+                                                .with_name("")
+                                                .build()
+                                                .unwrap()
+                                                .get_record_batches_own();
+                                        Some(batches)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .flatten()
+                                .collect::<Vec<_>>()
+                        })
                         .collect::<Vec<_>>();
-                    let response = TableBuilder::new().with_record_batches(batches).unwrap()
+                    let response = TableBuilder::new()
+                        .with_record_batches(batches)
+                        .unwrap()
                         .with_name("")
-                        .build().unwrap()
-                        .concat_record_batches().unwrap()
-                        .to_ipc_stream().unwrap();
+                        .build()
+                        .unwrap()
+                        .concat_record_batches()
+                        .unwrap()
+                        .to_ipc_stream()
+                        .unwrap();
 
                     // Update the row counts
                     session_stream_state

@@ -1,5 +1,11 @@
 use std::{
-    fs::{self, File}, io::Write, path::Path, pin::Pin, process::Output, sync::Arc, task::{Context, Poll, ready}
+    fs::{self, File},
+    io::Write,
+    path::Path,
+    pin::Pin,
+    process::Output,
+    sync::Arc,
+    task::{Context, Poll, ready},
 };
 
 use anyhow::{Result, anyhow};
@@ -7,7 +13,11 @@ use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, create_chat_record_batch, remove_message_by_subject
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
+    PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table,
+    TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait,
+    TableSubscription, TableTrait, create_chat_record_batch, remove_message_by_subject,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
@@ -18,12 +28,20 @@ use tempfile::NamedTempFile;
 use tokio::process::Command;
 use tracing::{Level, event};
 
-use crate::{DataConfigTrait, external_operators::{command_sandbox_config::{CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod}, http_client_processor::error_report}};
+use crate::{
+    DataConfigTrait,
+    external_operators::{
+        command_sandbox_config::{
+            CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod,
+        },
+        http_client_processor::error_report,
+    },
+};
 
 /// The state of the command stream
 ///
 /// # Notes
-/// * We need to capture each stage of the request so that the connection 
+/// * We need to capture each stage of the request so that the connection
 ///   is not dropped during repeated polling of the stream.
 pub enum CommandSandboxStreamState {
     NotStarted,
@@ -40,7 +58,7 @@ pub struct CommandSandboxRunnerInfo {
     input_file: Option<String>,
     /// Output file path
     output_file: Option<String>,
-    /// Content 
+    /// Content
     content: Option<String>,
     /// Installation script file
     initialization_file: Option<String>,
@@ -81,7 +99,7 @@ impl CommandSandboxRunnerInfo {
 /// The state of the runner
 ///
 /// # Notes
-/// * We need to capture each stage of the request so that the connection 
+/// * We need to capture each stage of the request so that the connection
 ///   is not dropped during repeated polling of the stream.
 #[derive(Debug)]
 pub enum CommandSandboxRunnerState {
@@ -95,7 +113,7 @@ pub enum CommandSandboxRunnerState {
 }
 
 /// Runs commands in a sandboxed environment and returns the result or error message
-/// 
+///
 /// # Notes
 /// * Current sandboxed environments include docker and wasmtime
 /// * Stderr messages are routed to `SessionError`s
@@ -300,31 +318,29 @@ impl Stream for CommandSandboxStream {
 
                 // Collect the next batch or continue processing the current batch
                 if self.message_inbox.is_none() {
-
                     // Collect the message data in a streaming fashion
                     let mut batches = Vec::new();
                     while let Some(Ok(batch)) = ready!(self.message_stream.poll_next_unpin(cx)) {
                         if batch.num_rows() > 0 {
                             batches.push(batch);
                             break;
-                        }                    
+                        }
                     }
 
                     // The poll ends when there are no more batches
                     let messages = if batches.is_empty() {
                         self.stream_state = CommandSandboxStreamState::Done;
                         match &self.runner_state {
-                            CommandSandboxRunnerState::NotStarted => {
-                                return Poll::Ready(None)
-                            },
+                            CommandSandboxRunnerState::NotStarted => return Poll::Ready(None),
                             CommandSandboxRunnerState::Initializing(runner_info)
                             | CommandSandboxRunnerState::Running(runner_info)
                             | CommandSandboxRunnerState::Done(runner_info) => {
                                 // Cleanup resources
-                                self.runner_state = CommandSandboxRunnerState::Done(runner_info.to_owned());
+                                self.runner_state =
+                                    CommandSandboxRunnerState::Done(runner_info.to_owned());
                                 Table::default()
                             }
-                        }                    
+                        }
                     } else {
                         Table::get_builder()
                             .with_name("messages")
@@ -338,40 +354,67 @@ impl Stream for CommandSandboxStream {
                 // Create the input/output file or content for the next batch based on the runner state
                 match &self.runner_state {
                     CommandSandboxRunnerState::NotStarted => {
-                        // Make a random name for the runner                
+                        // Make a random name for the runner
                         let mut buf = [0u8; 16];
                         getrandom::fill(&mut buf)?;
                         let hash = u128::from_ne_bytes(buf);
                         let name = format!("phymes-sandbox_{hash}");
 
                         // Create the initialization and runner files
-                        let (run_file_path, initialization_file_path, input_file_path, output_file_path) = if let Some(project_dir) = self.config.as_ref().unwrap().project_dir.as_ref() {
-
+                        let (
+                            run_file_path,
+                            initialization_file_path,
+                            input_file_path,
+                            output_file_path,
+                        ) = if let Some(project_dir) =
+                            self.config.as_ref().unwrap().project_dir.as_ref()
+                        {
                             // Check the directory
                             if !Path::new(project_dir).exists() {
-                                let err_str = format!("Project folder '{project_dir}' does not exist.");
+                                let err_str =
+                                    format!("Project folder '{project_dir}' does not exist.");
                                 self.stream_state = CommandSandboxStreamState::Done;
                                 return Poll::Ready(Some(Err(anyhow!(err_str))));
                             }
 
                             // Check the run file
-                            let run_file_path = if let Some(run_file) = self.config.as_ref().unwrap().run_file.as_ref() {
+                            let run_file_path = if let Some(run_file) =
+                                self.config.as_ref().unwrap().run_file.as_ref()
+                            {
                                 let run_file_path = format!("{project_dir}/src/{run_file}");
                                 if !Path::new(&run_file_path).exists() {
-                                    let err_str = format!("Run script '{run_file}' does not exist in the project src folder '{project_dir}/src'.");
+                                    let err_str = format!(
+                                        "Run script '{run_file}' does not exist in the project src folder '{project_dir}/src'."
+                                    );
                                     self.stream_state = CommandSandboxStreamState::Done;
                                     return Poll::Ready(Some(Err(anyhow!(err_str))));
                                 }
                                 Some(run_file_path)
                             } else {
                                 // Create the run file from script
-                                if let Some(run_script) = self.config.as_ref().unwrap().run_script.as_ref() {
-                                    let run_file_path = match self.config.as_ref().unwrap().environment {
-                                        CommandSandboxEnvironments::Python => format!("{project_dir}/src/main.py"),
-                                        CommandSandboxEnvironments::Rust => format!("{project_dir}/src/main.rs"),
-                                        CommandSandboxEnvironments::Bash => format!("{project_dir}/src/main.sh"),
+                                if let Some(run_script) =
+                                    self.config.as_ref().unwrap().run_script.as_ref()
+                                {
+                                    let run_file_path = match self
+                                        .config
+                                        .as_ref()
+                                        .unwrap()
+                                        .environment
+                                    {
+                                        CommandSandboxEnvironments::Python => {
+                                            format!("{project_dir}/src/main.py")
+                                        }
+                                        CommandSandboxEnvironments::Rust => {
+                                            format!("{project_dir}/src/main.rs")
+                                        }
+                                        CommandSandboxEnvironments::Bash => {
+                                            format!("{project_dir}/src/main.sh")
+                                        }
                                         _ => {
-                                            let err_str = format!("Sandbox Environment '{}' does not yet support a run script.", self.config.as_ref().unwrap().environment);
+                                            let err_str = format!(
+                                                "Sandbox Environment '{}' does not yet support a run script.",
+                                                self.config.as_ref().unwrap().environment
+                                            );
                                             self.stream_state = CommandSandboxStreamState::Done;
                                             return Poll::Ready(Some(Err(anyhow!(err_str))));
                                         }
@@ -386,19 +429,27 @@ impl Stream for CommandSandboxStream {
                             };
 
                             // Check the initialization file
-                            let initialization_file_path = if let Some(initialization_file) = self.config.as_ref().unwrap().initialization_file.as_ref() {
-                                let initialization_file_path = format!("{project_dir}/{initialization_file}");
+                            let initialization_file_path = if let Some(initialization_file) =
+                                self.config.as_ref().unwrap().initialization_file.as_ref()
+                            {
+                                let initialization_file_path =
+                                    format!("{project_dir}/{initialization_file}");
                                 if !Path::new(&initialization_file_path).exists() {
-                                    let err_str = format!("Initialization script '{initialization_file}' does not exist in the project folder '{project_dir}'.");
+                                    let err_str = format!(
+                                        "Initialization script '{initialization_file}' does not exist in the project folder '{project_dir}'."
+                                    );
                                     self.stream_state = CommandSandboxStreamState::Done;
                                     return Poll::Ready(Some(Err(anyhow!(err_str))));
                                 }
                                 Some(initialization_file_path)
                             } else {
                                 // Create the initialization file from script
-                                if let Some(initialization_script) = self.config.as_ref().unwrap().initialization_script.as_ref() {
+                                if let Some(initialization_script) =
+                                    self.config.as_ref().unwrap().initialization_script.as_ref()
+                                {
                                     // DM: update based on environment
-                                    let initialization_file_path = format!("{project_dir}/install.sh");
+                                    let initialization_file_path =
+                                        format!("{project_dir}/install.sh");
                                     let mut file = File::create(&initialization_file_path)?;
                                     let _ = file.write(initialization_script.as_bytes())?;
                                     file.flush()?;
@@ -412,52 +463,74 @@ impl Stream for CommandSandboxStream {
                             let input_file_path = format!("{project_dir}/input.ipc");
                             let output_file_path = format!("{project_dir}/output.ipc");
 
-                            (run_file_path, initialization_file_path, Some(input_file_path), Some(output_file_path))
+                            (
+                                run_file_path,
+                                initialization_file_path,
+                                Some(input_file_path),
+                                Some(output_file_path),
+                            )
                         } else {
                             (None, None, None, None)
                         };
 
                         // Create the temporary input and output files with content or stdin content ONLY if there is no initialization script else just create an empty temporary file
-                        let mut runner_info = match (&self.config.as_ref().unwrap().data_i, &self.config.as_ref().unwrap().data_o) {
+                        let mut runner_info = match (
+                            &self.config.as_ref().unwrap().data_i,
+                            &self.config.as_ref().unwrap().data_o,
+                        ) {
                             (DataIOMethod::None, DataIOMethod::None)
                             | (DataIOMethod::None, DataIOMethod::Stdio) => {
                                 let _ = self.message_inbox.take();
                                 CommandSandboxRunnerInfo::new().with_name(&name)
-                            },
+                            }
                             (DataIOMethod::Stdio, DataIOMethod::None)
                             | (DataIOMethod::Stdio, DataIOMethod::Stdio) => {
                                 if initialization_file_path.is_none() {
-                                    let content = self.message_inbox.take().unwrap().to_json_object()?;
+                                    let content =
+                                        self.message_inbox.take().unwrap().to_json_object()?;
                                     let content = serde_json::to_string(&content)?;
-                                    CommandSandboxRunnerInfo::new().with_name(&name).with_content(&content)
+                                    CommandSandboxRunnerInfo::new()
+                                        .with_name(&name)
+                                        .with_content(&content)
                                 } else {
                                     CommandSandboxRunnerInfo::new().with_name(&name)
                                 }
-                            },
+                            }
                             (DataIOMethod::TempFile, DataIOMethod::None)
                             | (DataIOMethod::TempFile, DataIOMethod::Stdio) => {
                                 let input_file = NamedTempFile::new()?;
                                 let input_persist_path = input_file_path.ok_or(anyhow!("Missing input file path for data input method {} and data output method {}.", &self.config.as_ref().unwrap().data_i, &self.config.as_ref().unwrap().data_o))?;
                                 if initialization_file_path.is_none() {
                                     let mut input_file = input_file.persist(&input_persist_path)?;
-                                    self.message_inbox.take().unwrap().to_ipc_file(&mut input_file)?;
-                                    CommandSandboxRunnerInfo::new().with_name(&name).with_input_file(&input_persist_path)
+                                    self.message_inbox
+                                        .take()
+                                        .unwrap()
+                                        .to_ipc_file(&mut input_file)?;
+                                    CommandSandboxRunnerInfo::new()
+                                        .with_name(&name)
+                                        .with_input_file(&input_persist_path)
                                 } else {
                                     let _input_file = input_file.persist(&input_persist_path)?;
-                                    CommandSandboxRunnerInfo::new().with_name(&name).with_input_file(&input_persist_path)
+                                    CommandSandboxRunnerInfo::new()
+                                        .with_name(&name)
+                                        .with_input_file(&input_persist_path)
                                 }
-                            },
+                            }
                             (DataIOMethod::None, DataIOMethod::TempFile) => {
                                 let output_file = NamedTempFile::new()?;
                                 let output_persist_path = output_file_path.ok_or(anyhow!("Missing output file path for data input method {} and data output method {}.", &self.config.as_ref().unwrap().data_i, &self.config.as_ref().unwrap().data_o))?;
                                 if initialization_file_path.is_none() {
                                     let _output_file = output_file.persist(&output_persist_path)?;
-                                    CommandSandboxRunnerInfo::new().with_name(&name).with_output_file(&output_persist_path)
+                                    CommandSandboxRunnerInfo::new()
+                                        .with_name(&name)
+                                        .with_output_file(&output_persist_path)
                                 } else {
                                     let _output_file = output_file.persist(&output_persist_path)?;
-                                    CommandSandboxRunnerInfo::new().with_name(&name).with_output_file(&output_persist_path)
+                                    CommandSandboxRunnerInfo::new()
+                                        .with_name(&name)
+                                        .with_output_file(&output_persist_path)
                                 }
-                            },
+                            }
                             (DataIOMethod::TempFile, DataIOMethod::TempFile) => {
                                 let input_file = NamedTempFile::new()?;
                                 let input_persist_path = input_file_path.ok_or(anyhow!("Missing input file path for data input method {} and data output method {}.", &self.config.as_ref().unwrap().data_i, &self.config.as_ref().unwrap().data_o))?;
@@ -465,15 +538,24 @@ impl Stream for CommandSandboxStream {
                                 let output_persist_path = output_file_path.ok_or(anyhow!("Missing output file path for data input method {} and data output method {}.", &self.config.as_ref().unwrap().data_i, &self.config.as_ref().unwrap().data_o))?;
                                 if initialization_file_path.is_none() {
                                     let mut input_file = input_file.persist(&input_persist_path)?;
-                                    self.message_inbox.take().unwrap().to_ipc_file(&mut input_file)?;
+                                    self.message_inbox
+                                        .take()
+                                        .unwrap()
+                                        .to_ipc_file(&mut input_file)?;
                                     let _output_file = output_file.persist(&output_persist_path)?;
-                                    CommandSandboxRunnerInfo::new().with_name(&name).with_input_file(&input_persist_path).with_output_file(&output_persist_path)
+                                    CommandSandboxRunnerInfo::new()
+                                        .with_name(&name)
+                                        .with_input_file(&input_persist_path)
+                                        .with_output_file(&output_persist_path)
                                 } else {
                                     let _input_file = input_file.persist(&input_persist_path)?;
                                     let _output_file = output_file.persist(&output_persist_path)?;
-                                    CommandSandboxRunnerInfo::new().with_name(&name).with_input_file(&input_persist_path).with_output_file(&output_persist_path)
+                                    CommandSandboxRunnerInfo::new()
+                                        .with_name(&name)
+                                        .with_input_file(&input_persist_path)
+                                        .with_output_file(&output_persist_path)
                                 }
-                            },
+                            }
                             (DataIOMethod::Stdio, DataIOMethod::TempFile) => {
                                 let output_file = NamedTempFile::new()?;
                                 let output_persist_path = output_file_path.ok_or(anyhow!("Missing output file path for data input method {} and data output method {}.", &self.config.as_ref().unwrap().data_i, &self.config.as_ref().unwrap().data_o))?;
@@ -482,17 +564,23 @@ impl Stream for CommandSandboxStream {
                                     let content = messages.to_json_object()?;
                                     let content = serde_json::to_string(&content)?;
                                     let _output_file = output_file.persist(&output_persist_path)?;
-                                    CommandSandboxRunnerInfo::new().with_name(&name).with_content(&content).with_output_file(&output_persist_path)
+                                    CommandSandboxRunnerInfo::new()
+                                        .with_name(&name)
+                                        .with_content(&content)
+                                        .with_output_file(&output_persist_path)
                                 } else {
                                     let _output_file = output_file.persist(&output_persist_path)?;
-                                    CommandSandboxRunnerInfo::new().with_name(&name).with_output_file(&output_persist_path)
+                                    CommandSandboxRunnerInfo::new()
+                                        .with_name(&name)
+                                        .with_output_file(&output_persist_path)
                                 }
-                            },
+                            }
                         };
 
-                        // Change to initialize state                        
+                        // Change to initialize state
                         if let Some(initialization_file) = initialization_file_path {
-                            runner_info = runner_info.with_initialization_file(&initialization_file);
+                            runner_info =
+                                runner_info.with_initialization_file(&initialization_file);
                         }
                         if let Some(run_file) = run_file_path {
                             runner_info = runner_info.with_run_file(&run_file);
@@ -502,33 +590,45 @@ impl Stream for CommandSandboxStream {
                     CommandSandboxRunnerState::Initializing(runner_info)
                     | CommandSandboxRunnerState::Running(runner_info) => {
                         // Clear the temporary input file and/or create the stdin content
-                        let runner_info = match (&self.config.as_ref().unwrap().data_i, &self.config.as_ref().unwrap().data_o) {
-                            (DataIOMethod::None, DataIOMethod::None) 
+                        let runner_info = match (
+                            &self.config.as_ref().unwrap().data_i,
+                            &self.config.as_ref().unwrap().data_o,
+                        ) {
+                            (DataIOMethod::None, DataIOMethod::None)
                             | (DataIOMethod::None, DataIOMethod::Stdio) => runner_info.to_owned(),
                             (DataIOMethod::Stdio, DataIOMethod::None)
                             | (DataIOMethod::Stdio, DataIOMethod::Stdio) => {
                                 // Update the content
                                 let runner_info = runner_info.to_owned();
-                                let content = self.message_inbox.take().unwrap().to_json_object()?;
+                                let content =
+                                    self.message_inbox.take().unwrap().to_json_object()?;
                                 let content = serde_json::to_string(&content)?;
                                 runner_info.with_content(&content)
-                            },
-                            (DataIOMethod::TempFile, DataIOMethod::None) 
+                            }
+                            (DataIOMethod::TempFile, DataIOMethod::None)
                             | (DataIOMethod::TempFile, DataIOMethod::Stdio) => {
                                 if let Some(input_file_path) = runner_info.input_file.as_ref() {
                                     let runner_info = runner_info.to_owned();
                                     // Update the file
                                     let input_file = NamedTempFile::new()?;
                                     let mut input_file = input_file.persist(input_file_path)?;
-                                    self.message_inbox.take().unwrap().to_ipc_file(&mut input_file)?;
+                                    self.message_inbox
+                                        .take()
+                                        .unwrap()
+                                        .to_ipc_file(&mut input_file)?;
                                     runner_info
                                 } else {
                                     self.stream_state = CommandSandboxStreamState::Done;
-                                    return Poll::Ready(Some(Err(anyhow!("Missing TempFile for runner."))))
+                                    return Poll::Ready(Some(Err(anyhow!(
+                                        "Missing TempFile for runner."
+                                    ))));
                                 }
-                            },
+                            }
                             (DataIOMethod::TempFile, DataIOMethod::TempFile) => {
-                                if let (Some(input_file_path), Some(output_file_path)) = (runner_info.input_file.as_ref(), runner_info.output_file.as_ref()) {
+                                if let (Some(input_file_path), Some(output_file_path)) = (
+                                    runner_info.input_file.as_ref(),
+                                    runner_info.output_file.as_ref(),
+                                ) {
                                     let runner_info = runner_info.to_owned();
                                     // Update the file
                                     let input_file = NamedTempFile::new()?;
@@ -537,13 +637,18 @@ impl Stream for CommandSandboxStream {
                                     // Truncate the file
                                     let output_file = NamedTempFile::new()?;
                                     let _output_file = output_file.persist(output_file_path)?;
-                                    self.message_inbox.take().unwrap().to_ipc_file(&mut input_file)?;
+                                    self.message_inbox
+                                        .take()
+                                        .unwrap()
+                                        .to_ipc_file(&mut input_file)?;
                                     runner_info
                                 } else {
                                     self.stream_state = CommandSandboxStreamState::Done;
-                                    return Poll::Ready(Some(Err(anyhow!("Missing TempFile for runner."))))
+                                    return Poll::Ready(Some(Err(anyhow!(
+                                        "Missing TempFile for runner."
+                                    ))));
                                 }
-                            },
+                            }
                             (DataIOMethod::None, DataIOMethod::TempFile) => {
                                 if let Some(output_file_path) = runner_info.output_file.as_ref() {
                                     // Truncate the file
@@ -552,9 +657,11 @@ impl Stream for CommandSandboxStream {
                                     runner_info.to_owned()
                                 } else {
                                     self.stream_state = CommandSandboxStreamState::Done;
-                                    return Poll::Ready(Some(Err(anyhow!("Missing TempFile for runner."))))
+                                    return Poll::Ready(Some(Err(anyhow!(
+                                        "Missing TempFile for runner."
+                                    ))));
                                 }
-                            },
+                            }
                             (DataIOMethod::Stdio, DataIOMethod::TempFile) => {
                                 if let Some(output_file_path) = runner_info.output_file.as_ref() {
                                     let runner_info = runner_info.to_owned();
@@ -563,19 +670,22 @@ impl Stream for CommandSandboxStream {
                                     let _output_file = output_file.persist(output_file_path)?;
 
                                     // Update the content
-                                    let content = self.message_inbox.take().unwrap().to_json_object()?;
+                                    let content =
+                                        self.message_inbox.take().unwrap().to_json_object()?;
                                     let content = serde_json::to_string(&content)?;
                                     runner_info.with_content(&content)
                                 } else {
                                     self.stream_state = CommandSandboxStreamState::Done;
-                                    return Poll::Ready(Some(Err(anyhow!("Missing TempFile for runner."))))
+                                    return Poll::Ready(Some(Err(anyhow!(
+                                        "Missing TempFile for runner."
+                                    ))));
                                 }
-                            },
+                            }
                         };
 
                         // Change to running state
                         self.runner_state = CommandSandboxRunnerState::Running(runner_info);
-                    } 
+                    }
                     CommandSandboxRunnerState::Done(_runner_info) => {
                         // Do nothing
                     }
@@ -587,85 +697,130 @@ impl Stream for CommandSandboxStream {
                 let fut = match self.config.as_ref().unwrap().runner {
                     CommandSandboxRunners::Docker | CommandSandboxRunners::DockerUnsafe => {
                         // Build Docker args
-                        let mut command_args = match (&self.config.as_ref().unwrap().runner, &self.runner_state) {
-                            (CommandSandboxRunners::Docker, CommandSandboxRunnerState::Initializing(runner_info)) => {
-                                let mut command_args = vec![
-                                    "run".to_string(),
-                                    "--name".to_string(), // Name the container for later calls
-                                    runner_info.name.as_ref().expect("Missing name for runner.").to_string(),
-                                    //"--rm".to_string(), // Remove the container after exit
-                                    "--network".to_string(), "none".to_string(), // No network
-                                    "--memory".to_string(), "128m".to_string(), // Memory limit
-                                    "--cpus".to_string(), "0.5".to_string(), // CPU limit
-                                    "--read-only".to_string(), // Entire container FS read-only
-                                    "--pids-limit".to_string(), "50".to_string(), // Process limit
-                                ];
+                        let mut command_args =
+                            match (&self.config.as_ref().unwrap().runner, &self.runner_state) {
+                                (
+                                    CommandSandboxRunners::Docker,
+                                    CommandSandboxRunnerState::Initializing(runner_info),
+                                ) => {
+                                    let mut command_args = vec![
+                                        "run".to_string(),
+                                        "--name".to_string(), // Name the container for later calls
+                                        runner_info
+                                            .name
+                                            .as_ref()
+                                            .expect("Missing name for runner.")
+                                            .to_string(),
+                                        //"--rm".to_string(), // Remove the container after exit
+                                        "--network".to_string(),
+                                        "none".to_string(), // No network
+                                        "--memory".to_string(),
+                                        "128m".to_string(), // Memory limit
+                                        "--cpus".to_string(),
+                                        "0.5".to_string(),         // CPU limit
+                                        "--read-only".to_string(), // Entire container FS read-only
+                                        "--pids-limit".to_string(),
+                                        "50".to_string(), // Process limit
+                                    ];
 
-                                // Detach for subsequent calls
-                                if runner_info.initialization_file.is_some() {
-                                    command_args.push("-d".to_string());
+                                    // Detach for subsequent calls
+                                    if runner_info.initialization_file.is_some() {
+                                        command_args.push("-d".to_string());
+                                    }
+
+                                    // Mount the project dir if it exists
+                                    if let (Some(project_dir), Some(container_project_dir)) = (
+                                        self.config.as_ref().unwrap().project_dir.as_ref(),
+                                        self.config
+                                            .as_ref()
+                                            .unwrap()
+                                            .container_project_dir
+                                            .as_ref(),
+                                    ) {
+                                        command_args.push("-v".to_string());
+                                        command_args.push(format!(
+                                            "{project_dir}:{container_project_dir}:ro"
+                                        )); // Project folder read-only
+                                        command_args.push("-w".to_string());
+                                        command_args.push(container_project_dir.to_string());
+                                    }
+                                    command_args
                                 }
+                                (
+                                    CommandSandboxRunners::DockerUnsafe,
+                                    CommandSandboxRunnerState::Initializing(runner_info),
+                                ) => {
+                                    let mut command_args = vec![
+                                        "run".to_string(),
+                                        "--name".to_string(), // Name the container for later calls
+                                        runner_info
+                                            .name
+                                            .as_ref()
+                                            .expect("Missing name for runner.")
+                                            .to_string(),
+                                    ];
 
-                                // Mount the project dir if it exists
-                                if let (Some(project_dir), Some(container_project_dir)) = (self.config.as_ref().unwrap().project_dir.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
-                                    command_args.push("-v".to_string());
-                                    command_args.push(format!("{project_dir}:{container_project_dir}:ro")); // Project folder read-only
-                                    command_args.push("-w".to_string());
-                                    command_args.push(container_project_dir.to_string());
+                                    // Detach for subsequent calls
+                                    if runner_info.initialization_file.is_some() {
+                                        command_args.push("-d".to_string());
+                                    }
 
+                                    // User defined container arguments allowed only in an unsafe environment
+                                    if let Some(args) =
+                                        self.config.as_ref().unwrap().container_args.as_ref()
+                                    {
+                                        for arg in args {
+                                            command_args.push(arg.to_string());
+                                        }
+                                    }
+
+                                    // Mount the project dir if it exists
+                                    if let (Some(project_dir), Some(container_project_dir)) = (
+                                        self.config.as_ref().unwrap().project_dir.as_ref(),
+                                        self.config
+                                            .as_ref()
+                                            .unwrap()
+                                            .container_project_dir
+                                            .as_ref(),
+                                    ) {
+                                        command_args.push("-v".to_string());
+                                        command_args
+                                            .push(format!("{project_dir}:{container_project_dir}"));
+                                        command_args.push("-w".to_string());
+                                        command_args.push(container_project_dir.to_string());
+                                    }
+                                    command_args
                                 }
-                                command_args
-                            },
-                            (CommandSandboxRunners::DockerUnsafe, CommandSandboxRunnerState::Initializing(runner_info)) => {
-                                let mut command_args = vec![
-                                    "run".to_string(),
-                                    "--name".to_string(), // Name the container for later calls
-                                    runner_info.name.as_ref().expect("Missing name for runner.").to_string(),
-                                ];
+                                (
+                                    CommandSandboxRunners::Docker,
+                                    CommandSandboxRunnerState::Running(_runner_info),
+                                )
+                                | (
+                                    CommandSandboxRunners::DockerUnsafe,
+                                    CommandSandboxRunnerState::Running(_runner_info),
+                                ) => {
+                                    let mut command_args = vec![
+                                        "exec".to_string(),
+                                        "-it".to_string(), // Interactive mode to keep STDIN open
+                                    ];
 
-                                // Detach for subsequent calls
-                                if runner_info.initialization_file.is_some() {
-                                    command_args.push("-d".to_string());
+                                    // Mount the project dir if it exists
+                                    if let Some(container_project_dir) =
+                                        self.config.as_ref().unwrap().container_project_dir.as_ref()
+                                    {
+                                        command_args.push("-w".to_string());
+                                        command_args.push(container_project_dir.to_string());
+                                    }
+                                    command_args
                                 }
-
-                                // User defined container arguments allowed only in an unsafe environment
-                                if let Some(args) = self.config.as_ref().unwrap().container_args.as_ref() {
-                                    for arg in args {
-                                        command_args.push(arg.to_string());
-                                    }                            
+                                (_, CommandSandboxRunnerState::Done(_runner_info)) => {
+                                    vec![
+                                        "rm".to_string(),
+                                        "-f".to_string(), // DM: not best practices but can be done in one step
+                                    ]
                                 }
-
-                                // Mount the project dir if it exists
-                                if let (Some(project_dir), Some(container_project_dir)) = (self.config.as_ref().unwrap().project_dir.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
-                                    command_args.push("-v".to_string());
-                                    command_args.push(format!("{project_dir}:{container_project_dir}"));
-                                    command_args.push("-w".to_string());
-                                    command_args.push(container_project_dir.to_string());
-                                }
-                                command_args
-                            }
-                            (CommandSandboxRunners::Docker, CommandSandboxRunnerState::Running(_runner_info)) 
-                            | (CommandSandboxRunners::DockerUnsafe, CommandSandboxRunnerState::Running(_runner_info)) => {
-                                let mut command_args = vec![
-                                    "exec".to_string(),
-                                    "-it".to_string(), // Interactive mode to keep STDIN open
-                                ];
-
-                                // Mount the project dir if it exists
-                                if let Some(container_project_dir) = self.config.as_ref().unwrap().container_project_dir.as_ref() {
-                                    command_args.push("-w".to_string());
-                                    command_args.push(container_project_dir.to_string());
-                                }
-                                command_args
-                            },
-                            (_, CommandSandboxRunnerState::Done(_runner_info)) => {
-                                vec![
-                                    "rm".to_string(),
-                                    "-f".to_string(), // DM: not best practices but can be done in one step
-                                ]
-                            },
-                            _ => unreachable!(),
-                        };
+                                _ => unreachable!(),
+                            };
 
                         // Add environment variables to command args
                         for (k, v) in self.config.as_ref().unwrap().env_args()? {
@@ -677,183 +832,393 @@ impl Stream for CommandSandboxStream {
                         match &self.runner_state {
                             CommandSandboxRunnerState::NotStarted => unreachable!(),
                             CommandSandboxRunnerState::Initializing(runner_info) => {
-
                                 // Add docker image, initialization/run script, and optional command
-                                command_args.push(self.config.as_ref().unwrap().container_image.to_string());
+                                command_args.push(
+                                    self.config.as_ref().unwrap().container_image.to_string(),
+                                );
                                 match self.config.as_ref().unwrap().environment {
                                     CommandSandboxEnvironments::Python => {
-                                        if let (Some(initialization_file), Some(container_project_dir)) = (runner_info.initialization_file.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
+                                        if let (
+                                            Some(initialization_file),
+                                            Some(container_project_dir),
+                                        ) = (
+                                            runner_info.initialization_file.as_ref(),
+                                            self.config
+                                                .as_ref()
+                                                .unwrap()
+                                                .container_project_dir
+                                                .as_ref(),
+                                        ) {
                                             command_args.push("bash".to_string());
-                                            let initialization_path = Path::new(initialization_file);
-                                            command_args.push(format!("{container_project_dir}/{}", initialization_path.file_name().unwrap().to_str().unwrap()));
-                                        } else if let (Some(run_file), Some(container_project_dir)) = (runner_info.run_file.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
-                                            command_args.push(format!("{container_project_dir}/.venv/bin/python"));
+                                            let initialization_path =
+                                                Path::new(initialization_file);
+                                            command_args.push(format!(
+                                                "{container_project_dir}/{}",
+                                                initialization_path
+                                                    .file_name()
+                                                    .unwrap()
+                                                    .to_str()
+                                                    .unwrap()
+                                            ));
+                                        } else if let (
+                                            Some(run_file),
+                                            Some(container_project_dir),
+                                        ) = (
+                                            runner_info.run_file.as_ref(),
+                                            self.config
+                                                .as_ref()
+                                                .unwrap()
+                                                .container_project_dir
+                                                .as_ref(),
+                                        ) {
+                                            command_args.push(format!(
+                                                "{container_project_dir}/.venv/bin/python"
+                                            ));
                                             let run_path = Path::new(run_file);
-                                            command_args.push(format!("{container_project_dir}/src/{}", run_path.file_name().unwrap().to_str().unwrap()));
+                                            command_args.push(format!(
+                                                "{container_project_dir}/src/{}",
+                                                run_path.file_name().unwrap().to_str().unwrap()
+                                            ));
                                         } else {
                                             command_args.push("python3".to_string());
-                                            if let Some(command) = self.config.as_ref().unwrap().command.as_ref() {
+                                            if let Some(command) =
+                                                self.config.as_ref().unwrap().command.as_ref()
+                                            {
                                                 command_args.push(command.to_string());
                                             }
                                         }
                                     }
                                     CommandSandboxEnvironments::Rust => {
-                                        if let (Some(initialization_file), Some(container_project_dir)) = (runner_info.initialization_file.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
+                                        if let (
+                                            Some(initialization_file),
+                                            Some(container_project_dir),
+                                        ) = (
+                                            runner_info.initialization_file.as_ref(),
+                                            self.config
+                                                .as_ref()
+                                                .unwrap()
+                                                .container_project_dir
+                                                .as_ref(),
+                                        ) {
                                             command_args.push("bash".to_string());
-                                            let initialization_path = Path::new(initialization_file);
-                                            command_args.push(format!("{container_project_dir}/{}", initialization_path.file_name().unwrap().to_str().unwrap()));
-                                        } else if let (Some(_run_file), Some(_container_project_dir)) = (runner_info.run_file.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
+                                            let initialization_path =
+                                                Path::new(initialization_file);
+                                            command_args.push(format!(
+                                                "{container_project_dir}/{}",
+                                                initialization_path
+                                                    .file_name()
+                                                    .unwrap()
+                                                    .to_str()
+                                                    .unwrap()
+                                            ));
+                                        } else if let (
+                                            Some(_run_file),
+                                            Some(_container_project_dir),
+                                        ) = (
+                                            runner_info.run_file.as_ref(),
+                                            self.config
+                                                .as_ref()
+                                                .unwrap()
+                                                .container_project_dir
+                                                .as_ref(),
+                                        ) {
                                             command_args.push("cargo".to_string());
                                             command_args.push("run".to_string());
                                             // let run_path = Path::new(run_file);
                                             // command_args.push(format!("/{}/src/{}", container_project_dir, run_path.file_name().unwrap().to_str().unwrap()));
                                         } else {
                                             command_args.push("cargo".to_string());
-                                            if let Some(command) = self.config.as_ref().unwrap().command.as_ref() {
+                                            if let Some(command) =
+                                                self.config.as_ref().unwrap().command.as_ref()
+                                            {
                                                 command_args.push(command.to_string());
                                             }
                                         }
                                     }
                                     CommandSandboxEnvironments::Bash => {
-                                        if let Some(command) = self.config.as_ref().unwrap().command.as_ref() {
+                                        if let Some(command) =
+                                            self.config.as_ref().unwrap().command.as_ref()
+                                        {
                                             command_args.push(command.to_string());
                                         }
                                     }
                                     _ => {
                                         self.stream_state = CommandSandboxStreamState::Done;
-                                        return Poll::Ready(Some(Err(anyhow!("Environment type {} is not yet supported for Runner type {}.", self.config.as_ref().unwrap().environment, self.config.as_ref().unwrap().runner))))
+                                        return Poll::Ready(Some(Err(anyhow!(
+                                            "Environment type {} is not yet supported for Runner type {}.",
+                                            self.config.as_ref().unwrap().environment,
+                                            self.config.as_ref().unwrap().runner
+                                        ))));
                                     }
                                 }
 
                                 // User defined CLI arguments
-                                if let Some(args) = self.config.as_ref().unwrap().cli_args.as_ref() {
-                                    for arg in args {
-                                        command_args.push(arg.to_string());
-                                    }                            
-                                }
-
-                                // Add the data                                
-                                if runner_info.initialization_file.is_none() {
-                                    match (&self.config.as_ref().unwrap().data_i, &self.config.as_ref().unwrap().data_o, self.config.as_ref().unwrap().container_project_dir.as_ref()) {
-                                        (DataIOMethod::Stdio, DataIOMethod::TempFile, Some(container_project_dir)) => {
-                                            command_args.push("--input".to_string());
-                                            command_args.push(runner_info.content.as_ref().expect("Missing content for runner.").to_string());
-                                            command_args.push("--output-file".to_string());
-                                            let output_path = Path::new(runner_info.output_file.as_ref().ok_or(anyhow!("Container output path must be provided for data output method {}.", self.config.as_ref().unwrap().data_o))?);
-                                            command_args.push(format!("{}/{}", container_project_dir, output_path.file_name().unwrap().to_str().unwrap()));
-                                        }
-                                        (DataIOMethod::Stdio, DataIOMethod::Stdio, _)
-                                        | (DataIOMethod::Stdio, DataIOMethod::None, _) => {
-                                            command_args.push("--input".to_string());
-                                            command_args.push(runner_info.content.as_ref().expect("Missing content for runner.").to_string());
-                                        }
-                                        (DataIOMethod::TempFile, DataIOMethod::TempFile, Some(container_project_dir)) => {
-                                            command_args.push("--input-file".to_string());
-                                            let input_path = Path::new(runner_info.input_file.as_ref().ok_or(anyhow!("Container input path must be provided for data output method {}.", self.config.as_ref().unwrap().data_i))?);
-                                            command_args.push(format!("{}/{}", container_project_dir, input_path.file_name().unwrap().to_str().unwrap()));
-                                            command_args.push("--output-file".to_string());
-                                            let output_path = Path::new(runner_info.output_file.as_ref().ok_or(anyhow!("Container output path must be provided for data output method {}.", self.config.as_ref().unwrap().data_o))?);
-                                            command_args.push(format!("{}/{}", container_project_dir, output_path.file_name().unwrap().to_str().unwrap()));
-                                        }
-                                        (DataIOMethod::TempFile, DataIOMethod::Stdio, Some(container_project_dir))
-                                        | (DataIOMethod::TempFile, DataIOMethod::None, Some(container_project_dir)) => {
-                                            command_args.push("--input-file".to_string());
-                                            let input_path = Path::new(runner_info.input_file.as_ref().ok_or(anyhow!("Container input path must be provided for data output method {}.", self.config.as_ref().unwrap().data_i))?);
-                                            command_args.push(format!("{}/{}", container_project_dir, input_path.file_name().unwrap().to_str().unwrap()));
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                            },
-                            CommandSandboxRunnerState::Running(runner_info) => {
-
-                                // Add docker container name, run script, and optional command
-                                command_args.push(runner_info.name.as_ref().expect("Missing name for runner.").to_string());
-                                match self.config.as_ref().unwrap().environment {
-                                    CommandSandboxEnvironments::Python => {
-                                        if let (Some(run_file), Some(container_project_dir)) = (runner_info.run_file.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
-                                            command_args.push(format!("{container_project_dir}/.venv/bin/python"));
-                                            let run_path = Path::new(run_file);
-                                            command_args.push(format!("{container_project_dir}/src/{}", run_path.file_name().unwrap().to_str().unwrap()));
-                                        } else {
-                                            command_args.push("python3".to_string());
-                                            if let Some(command) = self.config.as_ref().unwrap().command.as_ref() {
-                                                command_args.push(command.to_string());
-                                            }
-                                        }
-                                    }
-                                    CommandSandboxEnvironments::Rust => {
-                                        if let (Some(_run_file), Some(_container_project_dir)) = (runner_info.run_file.as_ref(), self.config.as_ref().unwrap().container_project_dir.as_ref()) {
-                                            command_args.push("cargo".to_string());
-                                            command_args.push("run".to_string());
-                                            // let run_path = Path::new(run_file);
-                                            // command_args.push(format!("{}/src/{}", container_project_dir, run_path.file_name().unwrap().to_str().unwrap()));
-                                        } else {
-                                            command_args.push("cargo".to_string());
-                                            if let Some(command) = self.config.as_ref().unwrap().command.as_ref() {
-                                                command_args.push(command.to_string());
-                                            }
-                                        }
-                                    }
-                                    CommandSandboxEnvironments::Bash => {
-                                        if let Some(command) = self.config.as_ref().unwrap().command.as_ref() {
-                                            command_args.push(command.to_string());
-                                        }
-                                    }
-                                    _ => {
-                                        self.stream_state = CommandSandboxStreamState::Done;
-                                        return Poll::Ready(Some(Err(anyhow!("Environment type {} is not yet supported for Runner type {}.", self.config.as_ref().unwrap().environment, self.config.as_ref().unwrap().runner))))
-                                    }
-                                }
-
-                                // User defined ClI arguments
-                                if let Some(args) = self.config.as_ref().unwrap().cli_args.as_ref() {
+                                if let Some(args) = self.config.as_ref().unwrap().cli_args.as_ref()
+                                {
                                     for arg in args {
                                         command_args.push(arg.to_string());
                                     }
                                 }
 
                                 // Add the data
-                                match (&self.config.as_ref().unwrap().data_i, &self.config.as_ref().unwrap().data_o, self.config.as_ref().unwrap().container_project_dir.as_ref()) {
-                                    (DataIOMethod::Stdio, DataIOMethod::TempFile, Some(container_project_dir)) => {
+                                if runner_info.initialization_file.is_none() {
+                                    match (
+                                        &self.config.as_ref().unwrap().data_i,
+                                        &self.config.as_ref().unwrap().data_o,
+                                        self.config
+                                            .as_ref()
+                                            .unwrap()
+                                            .container_project_dir
+                                            .as_ref(),
+                                    ) {
+                                        (
+                                            DataIOMethod::Stdio,
+                                            DataIOMethod::TempFile,
+                                            Some(container_project_dir),
+                                        ) => {
+                                            command_args.push("--input".to_string());
+                                            command_args.push(
+                                                runner_info
+                                                    .content
+                                                    .as_ref()
+                                                    .expect("Missing content for runner.")
+                                                    .to_string(),
+                                            );
+                                            command_args.push("--output-file".to_string());
+                                            let output_path = Path::new(runner_info.output_file.as_ref().ok_or(anyhow!("Container output path must be provided for data output method {}.", self.config.as_ref().unwrap().data_o))?);
+                                            command_args.push(format!(
+                                                "{}/{}",
+                                                container_project_dir,
+                                                output_path.file_name().unwrap().to_str().unwrap()
+                                            ));
+                                        }
+                                        (DataIOMethod::Stdio, DataIOMethod::Stdio, _)
+                                        | (DataIOMethod::Stdio, DataIOMethod::None, _) => {
+                                            command_args.push("--input".to_string());
+                                            command_args.push(
+                                                runner_info
+                                                    .content
+                                                    .as_ref()
+                                                    .expect("Missing content for runner.")
+                                                    .to_string(),
+                                            );
+                                        }
+                                        (
+                                            DataIOMethod::TempFile,
+                                            DataIOMethod::TempFile,
+                                            Some(container_project_dir),
+                                        ) => {
+                                            command_args.push("--input-file".to_string());
+                                            let input_path = Path::new(runner_info.input_file.as_ref().ok_or(anyhow!("Container input path must be provided for data output method {}.", self.config.as_ref().unwrap().data_i))?);
+                                            command_args.push(format!(
+                                                "{}/{}",
+                                                container_project_dir,
+                                                input_path.file_name().unwrap().to_str().unwrap()
+                                            ));
+                                            command_args.push("--output-file".to_string());
+                                            let output_path = Path::new(runner_info.output_file.as_ref().ok_or(anyhow!("Container output path must be provided for data output method {}.", self.config.as_ref().unwrap().data_o))?);
+                                            command_args.push(format!(
+                                                "{}/{}",
+                                                container_project_dir,
+                                                output_path.file_name().unwrap().to_str().unwrap()
+                                            ));
+                                        }
+                                        (
+                                            DataIOMethod::TempFile,
+                                            DataIOMethod::Stdio,
+                                            Some(container_project_dir),
+                                        )
+                                        | (
+                                            DataIOMethod::TempFile,
+                                            DataIOMethod::None,
+                                            Some(container_project_dir),
+                                        ) => {
+                                            command_args.push("--input-file".to_string());
+                                            let input_path = Path::new(runner_info.input_file.as_ref().ok_or(anyhow!("Container input path must be provided for data output method {}.", self.config.as_ref().unwrap().data_i))?);
+                                            command_args.push(format!(
+                                                "{}/{}",
+                                                container_project_dir,
+                                                input_path.file_name().unwrap().to_str().unwrap()
+                                            ));
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                            CommandSandboxRunnerState::Running(runner_info) => {
+                                // Add docker container name, run script, and optional command
+                                command_args.push(
+                                    runner_info
+                                        .name
+                                        .as_ref()
+                                        .expect("Missing name for runner.")
+                                        .to_string(),
+                                );
+                                match self.config.as_ref().unwrap().environment {
+                                    CommandSandboxEnvironments::Python => {
+                                        if let (Some(run_file), Some(container_project_dir)) = (
+                                            runner_info.run_file.as_ref(),
+                                            self.config
+                                                .as_ref()
+                                                .unwrap()
+                                                .container_project_dir
+                                                .as_ref(),
+                                        ) {
+                                            command_args.push(format!(
+                                                "{container_project_dir}/.venv/bin/python"
+                                            ));
+                                            let run_path = Path::new(run_file);
+                                            command_args.push(format!(
+                                                "{container_project_dir}/src/{}",
+                                                run_path.file_name().unwrap().to_str().unwrap()
+                                            ));
+                                        } else {
+                                            command_args.push("python3".to_string());
+                                            if let Some(command) =
+                                                self.config.as_ref().unwrap().command.as_ref()
+                                            {
+                                                command_args.push(command.to_string());
+                                            }
+                                        }
+                                    }
+                                    CommandSandboxEnvironments::Rust => {
+                                        if let (Some(_run_file), Some(_container_project_dir)) = (
+                                            runner_info.run_file.as_ref(),
+                                            self.config
+                                                .as_ref()
+                                                .unwrap()
+                                                .container_project_dir
+                                                .as_ref(),
+                                        ) {
+                                            command_args.push("cargo".to_string());
+                                            command_args.push("run".to_string());
+                                            // let run_path = Path::new(run_file);
+                                            // command_args.push(format!("{}/src/{}", container_project_dir, run_path.file_name().unwrap().to_str().unwrap()));
+                                        } else {
+                                            command_args.push("cargo".to_string());
+                                            if let Some(command) =
+                                                self.config.as_ref().unwrap().command.as_ref()
+                                            {
+                                                command_args.push(command.to_string());
+                                            }
+                                        }
+                                    }
+                                    CommandSandboxEnvironments::Bash => {
+                                        if let Some(command) =
+                                            self.config.as_ref().unwrap().command.as_ref()
+                                        {
+                                            command_args.push(command.to_string());
+                                        }
+                                    }
+                                    _ => {
+                                        self.stream_state = CommandSandboxStreamState::Done;
+                                        return Poll::Ready(Some(Err(anyhow!(
+                                            "Environment type {} is not yet supported for Runner type {}.",
+                                            self.config.as_ref().unwrap().environment,
+                                            self.config.as_ref().unwrap().runner
+                                        ))));
+                                    }
+                                }
+
+                                // User defined ClI arguments
+                                if let Some(args) = self.config.as_ref().unwrap().cli_args.as_ref()
+                                {
+                                    for arg in args {
+                                        command_args.push(arg.to_string());
+                                    }
+                                }
+
+                                // Add the data
+                                match (
+                                    &self.config.as_ref().unwrap().data_i,
+                                    &self.config.as_ref().unwrap().data_o,
+                                    self.config.as_ref().unwrap().container_project_dir.as_ref(),
+                                ) {
+                                    (
+                                        DataIOMethod::Stdio,
+                                        DataIOMethod::TempFile,
+                                        Some(container_project_dir),
+                                    ) => {
                                         command_args.push("--input".to_string());
-                                        command_args.push(runner_info.content.as_ref().expect("Missing content for runner.").to_string());
+                                        command_args.push(
+                                            runner_info
+                                                .content
+                                                .as_ref()
+                                                .expect("Missing content for runner.")
+                                                .to_string(),
+                                        );
                                         command_args.push("--output-file".to_string());
                                         let output_path = Path::new(runner_info.output_file.as_ref().ok_or(anyhow!("Container output path must be provided for data output method {}.", self.config.as_ref().unwrap().data_o))?);
-                                        command_args.push(format!("{container_project_dir}/{}", output_path.file_name().unwrap().to_str().unwrap()));
+                                        command_args.push(format!(
+                                            "{container_project_dir}/{}",
+                                            output_path.file_name().unwrap().to_str().unwrap()
+                                        ));
                                     }
                                     (DataIOMethod::Stdio, DataIOMethod::Stdio, _)
                                     | (DataIOMethod::Stdio, DataIOMethod::None, _) => {
                                         command_args.push("--input".to_string());
-                                        command_args.push(runner_info.content.as_ref().expect("Missing content for runner.").to_string());
+                                        command_args.push(
+                                            runner_info
+                                                .content
+                                                .as_ref()
+                                                .expect("Missing content for runner.")
+                                                .to_string(),
+                                        );
                                     }
-                                    (DataIOMethod::TempFile, DataIOMethod::TempFile, Some(container_project_dir)) => {
+                                    (
+                                        DataIOMethod::TempFile,
+                                        DataIOMethod::TempFile,
+                                        Some(container_project_dir),
+                                    ) => {
                                         command_args.push("--input-file".to_string());
                                         let input_path = Path::new(runner_info.input_file.as_ref().ok_or(anyhow!("Container input path must be provided for data output method {}.", self.config.as_ref().unwrap().data_i))?);
-                                        command_args.push(format!("{container_project_dir}/{}", input_path.file_name().unwrap().to_str().unwrap()));
+                                        command_args.push(format!(
+                                            "{container_project_dir}/{}",
+                                            input_path.file_name().unwrap().to_str().unwrap()
+                                        ));
                                         command_args.push("--output-file".to_string());
                                         let output_path = Path::new(runner_info.output_file.as_ref().ok_or(anyhow!("Container output path must be provided for data output method {}.", self.config.as_ref().unwrap().data_o))?);
-                                        command_args.push(format!("{container_project_dir}/{}", output_path.file_name().unwrap().to_str().unwrap()));
+                                        command_args.push(format!(
+                                            "{container_project_dir}/{}",
+                                            output_path.file_name().unwrap().to_str().unwrap()
+                                        ));
                                     }
-                                    (DataIOMethod::TempFile, DataIOMethod::Stdio, Some(container_project_dir))
-                                    | (DataIOMethod::TempFile, DataIOMethod::None, Some(container_project_dir)) => {
+                                    (
+                                        DataIOMethod::TempFile,
+                                        DataIOMethod::Stdio,
+                                        Some(container_project_dir),
+                                    )
+                                    | (
+                                        DataIOMethod::TempFile,
+                                        DataIOMethod::None,
+                                        Some(container_project_dir),
+                                    ) => {
                                         command_args.push("--input-file".to_string());
                                         let input_path = Path::new(runner_info.input_file.as_ref().ok_or(anyhow!("Container input path must be provided for data output method {}.", self.config.as_ref().unwrap().data_i))?);
-                                        command_args.push(format!("{container_project_dir}/{}", input_path.file_name().unwrap().to_str().unwrap()));
+                                        command_args.push(format!(
+                                            "{container_project_dir}/{}",
+                                            input_path.file_name().unwrap().to_str().unwrap()
+                                        ));
                                     }
                                     _ => {}
                                 }
-                            },
+                            }
                             CommandSandboxRunnerState::Done(runner_info) => {
                                 // Add container name
-                                command_args.push(runner_info.name.as_ref().expect("Missing name for runner.").to_string());
-                            },
+                                command_args.push(
+                                    runner_info
+                                        .name
+                                        .as_ref()
+                                        .expect("Missing name for runner.")
+                                        .to_string(),
+                                );
+                            }
                         }
 
                         // Run the command
                         dbg!(&command_args);
                         Command::new("docker").args(&command_args).output()
-                    },
+                    }
                     CommandSandboxRunners::Wasmtime => {
                         // Build wasmtime args
                         let command_args = match &self.runner_state {
@@ -871,28 +1236,44 @@ impl Stream for CommandSandboxStream {
                                 }
 
                                 // User defined container arguments
-                                if let Some(args) = self.config.as_ref().unwrap().container_args.as_ref() {
+                                if let Some(args) =
+                                    self.config.as_ref().unwrap().container_args.as_ref()
+                                {
                                     for arg in args {
                                         command_args.push(arg.to_string());
-                                    }                            
+                                    }
                                 }
 
                                 // Mount the project dir if it exists
-                                if let Some(project_dir) = self.config.as_ref().unwrap().project_dir.as_ref() {
+                                if let Some(project_dir) =
+                                    self.config.as_ref().unwrap().project_dir.as_ref()
+                                {
                                     command_args.push(format!("--dir={project_dir}"));
                                 }
 
                                 // Add the input file
                                 if DataIOMethod::TempFile == self.config.as_ref().unwrap().data_i {
-                                    let path = Path::new(runner_info.input_file.as_ref().expect("Missing tempfile for runner."));
-                                    let host_input_dir = path.parent().unwrap().to_str().unwrap().to_string();
+                                    let path = Path::new(
+                                        runner_info
+                                            .input_file
+                                            .as_ref()
+                                            .expect("Missing tempfile for runner."),
+                                    );
+                                    let host_input_dir =
+                                        path.parent().unwrap().to_str().unwrap().to_string();
                                     command_args.push(format!("--dir={host_input_dir}")); // Input file read-only
                                 }
 
                                 // Add the output file
                                 if DataIOMethod::TempFile == self.config.as_ref().unwrap().data_o {
-                                    let path = Path::new(runner_info.output_file.as_ref().expect("Missing tempfile for runner."));
-                                    let host_output_dir = path.parent().unwrap().to_str().unwrap().to_string();
+                                    let path = Path::new(
+                                        runner_info
+                                            .output_file
+                                            .as_ref()
+                                            .expect("Missing tempfile for runner."),
+                                    );
+                                    let host_output_dir =
+                                        path.parent().unwrap().to_str().unwrap().to_string();
                                     command_args.push(format!("--dir={host_output_dir}"));
                                 }
 
@@ -906,8 +1287,10 @@ impl Stream for CommandSandboxStream {
                                     CommandSandboxEnvironments::WasmComponent => {
                                         command_args.push("--invoke".to_string());
                                         let command = self.config.as_ref().unwrap().command.as_ref().ok_or(anyhow!("Command to run must be defined when using the {} environment.", self.config.as_ref().unwrap().environment))?;
-                                        let mut args_vec =  if let Some(args) = self.config.as_ref().unwrap().cli_args.as_ref() {
-                                            args.to_owned()                   
+                                        let mut args_vec = if let Some(args) =
+                                            self.config.as_ref().unwrap().cli_args.as_ref()
+                                        {
+                                            args.to_owned()
                                         } else {
                                             Vec::new()
                                         };
@@ -915,69 +1298,143 @@ impl Stream for CommandSandboxStream {
                                         // Extract out the message and add as the last argument
                                         match self.config.as_ref().unwrap().data_i {
                                             DataIOMethod::Stdio => {
-                                                args_vec.push(runner_info.content.as_ref().expect("Missing content for runner.").to_string());
+                                                args_vec.push(
+                                                    runner_info
+                                                        .content
+                                                        .as_ref()
+                                                        .expect("Missing content for runner.")
+                                                        .to_string(),
+                                                );
                                             }
                                             DataIOMethod::TempFile => {
-                                                let host_input_path = runner_info.input_file.as_ref().expect("Missing tempfile for runner.").to_string();
+                                                let host_input_path = runner_info
+                                                    .input_file
+                                                    .as_ref()
+                                                    .expect("Missing tempfile for runner.")
+                                                    .to_string();
                                                 args_vec.push(host_input_path);
                                             }
                                             DataIOMethod::None => {}
                                         };
-                                        command_args.push(format!("{command}({})", args_vec.join(" ,")));
+                                        command_args
+                                            .push(format!("{command}({})", args_vec.join(" ,")));
                                     }
-                                    _ => {                                
-                                        if let Some(command) = self.config.as_ref().unwrap().command.as_ref() {
-                                            command_args.push(command.to_string());                                
+                                    _ => {
+                                        if let Some(command) =
+                                            self.config.as_ref().unwrap().command.as_ref()
+                                        {
+                                            command_args.push(command.to_string());
                                         }
                                     }
                                 }
-                                command_args.push(self.config.as_ref().unwrap().container_image.to_string());
+                                command_args.push(
+                                    self.config.as_ref().unwrap().container_image.to_string(),
+                                );
 
-                                // User defined CLI arguments for modules                        
+                                // User defined CLI arguments for modules
                                 match self.config.as_ref().unwrap().environment {
                                     CommandSandboxEnvironments::WasmModule => {
-                                        if let Some(args) = self.config.as_ref().unwrap().cli_args.as_ref() {
+                                        if let Some(args) =
+                                            self.config.as_ref().unwrap().cli_args.as_ref()
+                                        {
                                             for arg in args {
                                                 command_args.push(arg.to_string());
-                                            }                            
+                                            }
                                         }
 
                                         // Extract out the message and add as CLI arguments
                                         match self.config.as_ref().unwrap().data_i {
                                             DataIOMethod::Stdio => {
                                                 command_args.push("--input".to_string());
-                                                command_args.push(runner_info.content.as_ref().expect("Missing content for runner.").to_string());
+                                                command_args.push(
+                                                    runner_info
+                                                        .content
+                                                        .as_ref()
+                                                        .expect("Missing content for runner.")
+                                                        .to_string(),
+                                                );
                                             }
                                             DataIOMethod::TempFile => {
                                                 command_args.push("--input-file".to_string());
-                                                let host_input_path = runner_info.input_file.as_ref().expect("Missing input tempfile for runner.").to_string();
+                                                let host_input_path = runner_info
+                                                    .input_file
+                                                    .as_ref()
+                                                    .expect("Missing input tempfile for runner.")
+                                                    .to_string();
                                                 command_args.push(host_input_path);
                                             }
                                             DataIOMethod::None => {}
                                         };
                                         // Add data
-                                        match (&self.config.as_ref().unwrap().data_i, &self.config.as_ref().unwrap().data_o) {
+                                        match (
+                                            &self.config.as_ref().unwrap().data_i,
+                                            &self.config.as_ref().unwrap().data_o,
+                                        ) {
                                             (DataIOMethod::Stdio, DataIOMethod::TempFile) => {
                                                 command_args.push("--input".to_string());
-                                                command_args.push(runner_info.content.as_ref().expect("Missing content for runner.").to_string());
+                                                command_args.push(
+                                                    runner_info
+                                                        .content
+                                                        .as_ref()
+                                                        .expect("Missing content for runner.")
+                                                        .to_string(),
+                                                );
                                                 command_args.push("--output-file".to_string());
-                                                command_args.push(runner_info.output_file.as_ref().expect("Missing output tempfile for runner.").to_string());
+                                                command_args.push(
+                                                    runner_info
+                                                        .output_file
+                                                        .as_ref()
+                                                        .expect(
+                                                            "Missing output tempfile for runner.",
+                                                        )
+                                                        .to_string(),
+                                                );
                                             }
                                             (DataIOMethod::Stdio, DataIOMethod::Stdio)
                                             | (DataIOMethod::Stdio, DataIOMethod::None) => {
                                                 command_args.push("--input".to_string());
-                                                command_args.push(runner_info.content.as_ref().expect("Missing content for runner.").to_string());
+                                                command_args.push(
+                                                    runner_info
+                                                        .content
+                                                        .as_ref()
+                                                        .expect("Missing content for runner.")
+                                                        .to_string(),
+                                                );
                                             }
                                             (DataIOMethod::TempFile, DataIOMethod::TempFile) => {
                                                 command_args.push("--input-file".to_string());
-                                                command_args.push(runner_info.input_file.as_ref().expect("Missing input tempfile for runner.").to_string());
+                                                command_args.push(
+                                                    runner_info
+                                                        .input_file
+                                                        .as_ref()
+                                                        .expect(
+                                                            "Missing input tempfile for runner.",
+                                                        )
+                                                        .to_string(),
+                                                );
                                                 command_args.push("--output-file".to_string());
-                                                command_args.push(runner_info.output_file.as_ref().expect("Missing output tempfile for runner.").to_string());
+                                                command_args.push(
+                                                    runner_info
+                                                        .output_file
+                                                        .as_ref()
+                                                        .expect(
+                                                            "Missing output tempfile for runner.",
+                                                        )
+                                                        .to_string(),
+                                                );
                                             }
                                             (DataIOMethod::TempFile, DataIOMethod::Stdio)
                                             | (DataIOMethod::TempFile, DataIOMethod::None) => {
                                                 command_args.push("--input-file".to_string());
-                                                command_args.push(runner_info.input_file.as_ref().expect("Missing input tempfile for runner.").to_string());
+                                                command_args.push(
+                                                    runner_info
+                                                        .input_file
+                                                        .as_ref()
+                                                        .expect(
+                                                            "Missing input tempfile for runner.",
+                                                        )
+                                                        .to_string(),
+                                                );
                                             }
                                             _ => {}
                                         }
@@ -989,15 +1446,18 @@ impl Stream for CommandSandboxStream {
                             CommandSandboxRunnerState::Done(_runner_info) => {
                                 self.stream_state = CommandSandboxStreamState::Done;
                                 return self.poll_next(cx);
-                            },
+                            }
                         };
 
                         // Run the command
                         Command::new("wasmtime").args(&command_args).output()
-                    },
+                    }
                     _ => {
                         self.stream_state = CommandSandboxStreamState::Done;
-                        return Poll::Ready(Some(Err(anyhow!("Runner type {} is not supported yet.", self.config.as_ref().unwrap().runner))))
+                        return Poll::Ready(Some(Err(anyhow!(
+                            "Runner type {} is not supported yet.",
+                            self.config.as_ref().unwrap().runner
+                        ))));
                     }
                 };
 
@@ -1029,7 +1489,12 @@ impl Stream for CommandSandboxStream {
                             self.stream_state = CommandSandboxStreamState::Done;
                             let stderr = String::from_utf8_lossy(&output.stderr);
                             let stdout = String::from_utf8_lossy(&output.stdout);
-                            return Poll::Ready(Some(Err(anyhow!("Command exited with code {}, stderr {}, and stdout {}.", output.status.code().unwrap_or(0), stderr, stdout))));
+                            return Poll::Ready(Some(Err(anyhow!(
+                                "Command exited with code {}, stderr {}, and stdout {}.",
+                                output.status.code().unwrap_or(0),
+                                stderr,
+                                stdout
+                            ))));
                         }
                     }
                     {
@@ -1056,17 +1521,34 @@ impl Stream for CommandSandboxStream {
                                 .build()?;
                             table.get_record_batches_own().pop().unwrap()
                         }
-                        (DataIOMethod::TempFile,  CommandSandboxRunnerState::Running(runner_info)) => {
+                        (
+                            DataIOMethod::TempFile,
+                            CommandSandboxRunnerState::Running(runner_info),
+                        ) => {
                             dbg!(&runner_info);
-                            let file = fs::File::open(runner_info.output_file.as_ref().expect("Missing output TempFile from runner."))?;
+                            let file = fs::File::open(
+                                runner_info
+                                    .output_file
+                                    .as_ref()
+                                    .expect("Missing output TempFile from runner."),
+                            )?;
                             let table = TableBuilder::new_from_ipc_file(file)?
                                 .with_name("sandbox_tempfile_running")
                                 .build()?;
                             dbg!(&table);
                             table.get_record_batches_own().pop().unwrap()
                         }
-                        (DataIOMethod::None, CommandSandboxRunnerState::Initializing(_runner_info)) => {
-                            if self.config.as_ref().unwrap().initialization_script.is_some() {
+                        (
+                            DataIOMethod::None,
+                            CommandSandboxRunnerState::Initializing(_runner_info),
+                        ) => {
+                            if self
+                                .config
+                                .as_ref()
+                                .unwrap()
+                                .initialization_script
+                                .is_some()
+                            {
                                 self.stream_state = CommandSandboxStreamState::NotStarted;
                                 return self.poll_next(cx);
                             } else {
@@ -1078,12 +1560,22 @@ impl Stream for CommandSandboxStream {
                                 )?
                             }
                         }
-                        (DataIOMethod::Stdio, CommandSandboxRunnerState::Initializing(_runner_info)) => {
-                            if self.config.as_ref().unwrap().initialization_script.is_some() {
+                        (
+                            DataIOMethod::Stdio,
+                            CommandSandboxRunnerState::Initializing(_runner_info),
+                        ) => {
+                            if self
+                                .config
+                                .as_ref()
+                                .unwrap()
+                                .initialization_script
+                                .is_some()
+                            {
                                 self.stream_state = CommandSandboxStreamState::NotStarted;
                                 return self.poll_next(cx);
                             } else {
-                                let json_values = serde_json::from_slice::<Vec<Value>>(&output.stdout)?;
+                                let json_values =
+                                    serde_json::from_slice::<Vec<Value>>(&output.stdout)?;
                                 let table = TableBuilder::new()
                                     .with_name("sandbox_stdio_initializing")
                                     .with_schema(self.schema.clone())
@@ -1092,12 +1584,26 @@ impl Stream for CommandSandboxStream {
                                 table.get_record_batches_own().pop().unwrap()
                             }
                         }
-                        (DataIOMethod::TempFile, CommandSandboxRunnerState::Initializing(runner_info)) => {
-                            if self.config.as_ref().unwrap().initialization_script.is_some() {
+                        (
+                            DataIOMethod::TempFile,
+                            CommandSandboxRunnerState::Initializing(runner_info),
+                        ) => {
+                            if self
+                                .config
+                                .as_ref()
+                                .unwrap()
+                                .initialization_script
+                                .is_some()
+                            {
                                 self.stream_state = CommandSandboxStreamState::NotStarted;
                                 return self.poll_next(cx);
                             } else {
-                                let file = fs::File::open(runner_info.output_file.as_ref().expect("Missing output TempFile from runner."))?;
+                                let file = fs::File::open(
+                                    runner_info
+                                        .output_file
+                                        .as_ref()
+                                        .expect("Missing output TempFile from runner."),
+                                )?;
                                 let table = TableBuilder::new_from_ipc_file(file)?
                                     .with_name("sandbox_tempfile_initializing")
                                     .build()?;
@@ -1109,7 +1615,7 @@ impl Stream for CommandSandboxStream {
                             return self.poll_next(cx);
                         }
                         _ => unreachable!(),
-                    };                    
+                    };
 
                     // Reset the state to poll the next batch
                     self.stream_state = CommandSandboxStreamState::NotStarted;
@@ -1134,7 +1640,7 @@ impl Stream for CommandSandboxStream {
                     | CommandSandboxRunnerState::Running(runner_info) => {
                         self.runner_state = CommandSandboxRunnerState::Done(runner_info.to_owned());
                         self.poll_next(cx)
-                    },
+                    }
                     CommandSandboxRunnerState::Done(runner_info) => {
                         // Remove the temporary input/output file
                         if let Some(input_file) = runner_info.input_file.as_ref() {
@@ -1152,7 +1658,7 @@ impl Stream for CommandSandboxStream {
                         Poll::Ready(None)
                     }
                 }
-            },
+            }
         }
     }
 
@@ -1169,11 +1675,13 @@ impl RecordBatchStream for CommandSandboxStream {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs::File, io::Write};
-    use arrow::{array::{ArrayRef, StringArray, UInt32Array}};
+    use arrow::array::{ArrayRef, StringArray, UInt32Array};
     use futures::TryStreamExt;
-    use phymes_core::{AvailableTableSubscribePolicies, ChatBuilderTraitExt, RuntimeEnvTrait, TableBuilder};
+    use phymes_core::{
+        AvailableTableSubscribePolicies, ChatBuilderTraitExt, RuntimeEnvTrait, TableBuilder,
+    };
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
+    use std::{fs::File, io::Write};
 
     use crate::external_operators::command_sandbox_config::DataIOMethod;
 
@@ -1228,10 +1736,7 @@ mod tests {
         // Make the system prompt and add the user query
         let message_builder = TableBuilder::new()
             .with_name(messages)
-            .append_new_user_query_str(
-                "Hello from WASM!",
-                "user",
-            )?;
+            .append_new_user_query_str("Hello from WASM!", "user")?;
 
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -1275,7 +1780,7 @@ mod tests {
         );
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
-        // Check the response        
+        // Check the response
         let result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()
@@ -1341,10 +1846,7 @@ mod tests {
         // Make the system prompt and add the user query
         let message_builder = TableBuilder::new()
             .with_name(messages)
-            .append_new_user_query_str(
-                "Hello from WASM!",
-                "user",
-            )?;
+            .append_new_user_query_str("Hello from WASM!", "user")?;
 
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -1388,7 +1890,7 @@ mod tests {
         );
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
-        // Check the response        
+        // Check the response
         let result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()
@@ -1404,7 +1906,7 @@ mod tests {
         assert_eq!(result, ["tool"]);
         let result = table.get_column_as_vec_str("content");
         assert_eq!(result, ["3\n"]);
-        
+
         // --- From stdio ---
         // DM: requires named arguments which is only possible with .wasm
         // DM, todo: create a small wasm example that takes a RecordBatch, modifies it, and returns the modified RecordBatch
@@ -1450,10 +1952,7 @@ mod tests {
         // Make the system prompt and add the user query
         let message_builder = TableBuilder::new()
             .with_name(messages)
-            .append_new_user_query_str(
-                "Hello from Docker!",
-                "user",
-            )?;
+            .append_new_user_query_str("Hello from Docker!", "user")?;
 
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -1497,7 +1996,7 @@ mod tests {
         );
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
-        // Check the response        
+        // Check the response
         let result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()
@@ -1575,7 +2074,7 @@ mod tests {
         );
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
-        // Check the response        
+        // Check the response
         let result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()
@@ -1590,7 +2089,9 @@ mod tests {
         let result = table.get_column_as_vec_str("role");
         assert_eq!(result, ["tool"]);
         let result = table.get_column_as_vec_str("content");
-        assert!(result.first().unwrap().contains("--input [{\"content\":\"Hello from Docker!\",\"role\":\"user\",\"timestamp\":"));
+        assert!(result.first().unwrap().contains(
+            "--input [{\"content\":\"Hello from Docker!\",\"role\":\"user\",\"timestamp\":"
+        ));
 
         // --- From TempFile ---
 
@@ -1661,7 +2162,7 @@ mod tests {
         );
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
 
-        // Check the response        
+        // Check the response
         let result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()
@@ -1677,7 +2178,12 @@ mod tests {
         let result = table.get_column_as_vec_str("role");
         assert_eq!(result, ["tool"]);
         let result = table.get_column_as_vec_str("content");
-        assert!(result.first().unwrap().contains("--input-file /home/sandbox/input.ipc"));
+        assert!(
+            result
+                .first()
+                .unwrap()
+                .contains("--input-file /home/sandbox/input.ipc")
+        );
 
         Ok(())
     }
@@ -1723,10 +2229,7 @@ mod tests {
         let names_arr: ArrayRef = Arc::new(StringArray::from(names));
         let ages = vec![30, 25];
         let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("name",  names_arr),
-            ("age", ages_arr)
-        ])?;
+        let batch = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
 
         let message_table = TableBuilder::new()
             .with_record_batches(vec![batch])?
@@ -1775,7 +2278,7 @@ mod tests {
         );
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
-        // Check the response        
+        // Check the response
         let result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()
@@ -1859,7 +2362,7 @@ mod tests {
         );
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
-        // Check the response        
+        // Check the response
         let result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()
@@ -1880,7 +2383,7 @@ mod tests {
     }
 
     /// Python code execution example
-    // #[ignore = "Pip cache not updating within the container."]
+    #[ignore = "Pip cache not updating within the container resulting in `Command exited with code 127, stderr , and stdout OCI runtime exec failed: exec failed: unable to start container process: exec: \"/home/sandbox/.venv/bin/python\": stat /home/sandbox/.venv/bin/python: no such file or directory: unknown`."]
     #[tokio::test]
     async fn test_command_sandbox_processor_docker_py_install() -> Result<()> {
         let name = "CommandSandboxProcessor";
@@ -1897,8 +2400,12 @@ mod tests {
         fs::create_dir(&src_path).expect("Failed to create src directory");
 
         // Create the requirements.txt
-        let requirements_file_path = format!("{}/requirements.txt", project_dir.as_path().to_str().unwrap());
-        let mut requirements_file = File::create(&requirements_file_path).expect("Failed to create requirements.txt");
+        let requirements_file_path = format!(
+            "{}/requirements.txt",
+            project_dir.as_path().to_str().unwrap()
+        );
+        let mut requirements_file =
+            File::create(&requirements_file_path).expect("Failed to create requirements.txt");
         let requirements_str = r#"pandas==2.2.3
 pyarrow==17.0.0"#;
         let _ = requirements_file.write(requirements_str.as_bytes())?;
@@ -1942,7 +2449,7 @@ if __name__ == '__main__':
             project_dir: Some(project_dir.as_path().to_str().unwrap().to_string()),
             container_project_dir: Some("/home/sandbox".to_string()),
             initialization_script: Some(initialization_str.to_string()),
-            run_script: Some(run_str.to_string()), 
+            run_script: Some(run_str.to_string()),
             runner: CommandSandboxRunners::DockerUnsafe,
             environment: CommandSandboxEnvironments::Python,
             container_image: "python:3.12-slim-trixie".to_string(),
@@ -1963,10 +2470,7 @@ if __name__ == '__main__':
         let names_arr: ArrayRef = Arc::new(StringArray::from(names));
         let ages = vec![30, 25];
         let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("name",  names_arr),
-            ("age", ages_arr)
-        ])?;
+        let batch = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
 
         let message_table = TableBuilder::new()
             .with_record_batches(vec![batch])?
@@ -2015,7 +2519,7 @@ if __name__ == '__main__':
         );
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
-        // Check the response        
+        // Check the response
         let result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()
@@ -2038,7 +2542,7 @@ if __name__ == '__main__':
     /// Rust code execution example
     /// DM, examples: code execution loop which requires diff'ing https://github.com/AnubhabB/diff-match-patch-rs
     #[tokio::test]
-    async fn test_command_sandbox_processor_docker_rs_install() -> Result<()> {        
+    async fn test_command_sandbox_processor_docker_rs_install() -> Result<()> {
         let name = "CommandSandboxProcessor";
         let messages = "messages";
 
@@ -2053,8 +2557,10 @@ if __name__ == '__main__':
         fs::create_dir(&src_path).expect("Failed to create src directory");
 
         // Create the cargo.toml
-        let requirements_file_path = format!("{}/Cargo.toml", project_dir.as_path().to_str().unwrap());
-        let mut requirements_file = File::create(&requirements_file_path).expect("Failed to create Cargo.toml");
+        let requirements_file_path =
+            format!("{}/Cargo.toml", project_dir.as_path().to_str().unwrap());
+        let mut requirements_file =
+            File::create(&requirements_file_path).expect("Failed to create Cargo.toml");
         let requirements_str = r#"[package]
 name = "phymes_rs"
 version = "0.1.0"
@@ -2153,7 +2659,7 @@ fn main() -> Result<()> {
     writer.finish()?;
 
     Ok(())
-}"#;            
+}"#;
 
         // Runtime env
         let rt_env = Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt")));
@@ -2171,7 +2677,7 @@ fn main() -> Result<()> {
             project_dir: Some(project_dir.as_path().to_str().unwrap().to_string()),
             container_project_dir: Some("/home/sandbox".to_string()),
             initialization_script: Some(initialization_str.to_string()),
-            run_script: Some(run_str.to_string()), 
+            run_script: Some(run_str.to_string()),
             runner: CommandSandboxRunners::DockerUnsafe,
             environment: CommandSandboxEnvironments::Rust,
             container_image: "amd64/rust".to_string(),
@@ -2192,10 +2698,7 @@ fn main() -> Result<()> {
         let names_arr: ArrayRef = Arc::new(StringArray::from(names));
         let ages = vec![30, 25];
         let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("name",  names_arr),
-            ("age", ages_arr)
-        ])?;
+        let batch = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
 
         let message_table = TableBuilder::new()
             .with_record_batches(vec![batch])?
@@ -2244,7 +2747,7 @@ fn main() -> Result<()> {
         );
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
-        // Check the response        
+        // Check the response
         let result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()

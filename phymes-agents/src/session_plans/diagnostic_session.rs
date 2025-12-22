@@ -1811,7 +1811,8 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, SessionContextBuilderTrait, SessionStream, SessionStreamState, TableTrait
+        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, SessionContextBuilderTrait,
+        SessionStream, SessionStreamState, TableTrait,
     };
     use phymes_diagnostics::HashMap;
 
@@ -1970,11 +1971,17 @@ mod tests {
                 .map(|v| v.get_message_own())
             })
             .collect::<Vec<_>>();
-        let attachment_data = bytes.into_iter()
-            .flat_map(|b| TableBuilder::new_from_ipc_stream(&b).unwrap()
-                .with_name("")
-                .build().unwrap()
-                .to_json_object().unwrap())
+        let attachment_data = bytes
+            .into_iter()
+            .flat_map(|b| {
+                TableBuilder::new_from_ipc_stream(&b)
+                    .unwrap()
+                    .with_name("")
+                    .build()
+                    .unwrap()
+                    .to_json_object()
+                    .unwrap()
+            })
             .collect::<Vec<_>>();
         for row in &attachment_data {
             let bytes = row["bytes"]

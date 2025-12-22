@@ -16,7 +16,11 @@ use phymes_agents::{
     SessionContextBuilderAgentsTrait, create_message_map,
 };
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, IPCMessage, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait, SessionContextBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait, SessionStream, SessionStreamState, TableBuilder, TableBuilderTrait, TablePublication, TableTrait
+    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, IPCMessage,
+    JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait,
+    SessionContextBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait,
+    SessionStream, SessionStreamState, TableBuilder, TableBuilderTrait, TablePublication,
+    TableTrait,
 };
 
 // General imports
@@ -304,19 +308,28 @@ pub async fn session_diagnostics(
                                 diagnostic_session.session_context_name,
                                 AvailableInterfaceSubjects::AggregatedAttachments
                             ))
-                            .map(|v| TableBuilder::new_from_ipc_stream(&v.get_message_own()).unwrap()
-                                .with_name("")
-                                .build().unwrap()
-                                .get_record_batches_own())
+                            .map(|v| {
+                                TableBuilder::new_from_ipc_stream(&v.get_message_own())
+                                    .unwrap()
+                                    .with_name("")
+                                    .build()
+                                    .unwrap()
+                                    .get_record_batches_own()
+                            })
                         })
                         .flatten()
                         .collect::<Vec<_>>();
-                    let response = TableBuilder::new().with_record_batches(batches).unwrap()
+                    let response = TableBuilder::new()
+                        .with_record_batches(batches)
+                        .unwrap()
                         .with_name("")
-                        .build().unwrap()
-                        .concat_record_batches().unwrap()
-                        .to_ipc_stream().unwrap();
-                    
+                        .build()
+                        .unwrap()
+                        .concat_record_batches()
+                        .unwrap()
+                        .to_ipc_stream()
+                        .unwrap();
+
                     // // DM: debugging...
                     // let sss = session_stream_state.read();
                     // let table = sss

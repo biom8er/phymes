@@ -18,12 +18,12 @@ pub enum HTTPClientRequestSchemas {
     #[value(name = "OpenAlex")]
     OpenAlex,
     /// EUtils ESearch utility
-    /// 
+    ///
     /// MUST use `retmode=json`
     #[value(name = "ESearch")]
     ESearch,
     /// EUtils Efetch utility
-    /// 
+    ///
     /// MUST use `retmode=xml`
     #[value(name = "EFetch")]
     EFetch,
@@ -166,7 +166,11 @@ impl DataConfigTrait for HTTPClientConfig {
             .iter()
             .map(|f| f.name().to_string())
             .collect::<HashSet<_>>();
-        if !(column_names.contains("timeout") && column_names.contains("request_type") && column_names.contains("content_type") && column_names.contains("request_schema")) {
+        if !(column_names.contains("timeout")
+            && column_names.contains("request_type")
+            && column_names.contains("content_type")
+            && column_names.contains("request_schema"))
+        {
             return Err(anyhow!(
                 "Table {} is missing required Field for `timeout`, `request_type`, `content_type`, and `request_schema` in HTTPClientConfig.",
                 table.get_name()
@@ -193,7 +197,7 @@ impl DataConfigTrait for HTTPClientConfig {
 /// Collection of structs for parsing OpenAlex data
 pub(crate) mod open_alex_schemas {
     use super::*;
-    
+
     /// Struct for authorship info
     #[derive(Debug, Serialize, Deserialize)]
     pub(crate) struct Authorship {
@@ -457,8 +461,13 @@ pub(crate) mod semantic_scholar_schemas {
     #[derive(Debug, Serialize, Deserialize)]
     #[serde(untagged)]
     pub(crate) enum SeedPaper {
-        PaperId { #[serde(rename = "paperId")] paper_id: String },
-        Doi { doi: String },
+        PaperId {
+            #[serde(rename = "paperId")]
+            paper_id: String,
+        },
+        Doi {
+            doi: String,
+        },
     }
 
     /// Top-level response for recommendations.
@@ -509,7 +518,7 @@ pub(crate) mod semantic_scholar_schemas {
 
     /// Publication venue metadata (conference, journal, etc.)
     #[derive(Debug, Serialize, Deserialize)]
-    pub(crate)  struct PublicationVenue {
+    pub(crate) struct PublicationVenue {
         pub id: Option<String>,
         pub name: Option<String>,
         pub conference: Option<String>,
@@ -522,14 +531,14 @@ pub(crate) mod semantic_scholar_schemas {
 
     /// Field of study classification
     #[derive(Debug, Serialize, Deserialize)]
-    pub(crate)  struct FieldOfStudy {
-        pub category: Option<String>,   // e.g. "Computer Science"
-        pub source: Option<String>,     // e.g. "s2-fos-model"
+    pub(crate) struct FieldOfStudy {
+        pub category: Option<String>, // e.g. "Computer Science"
+        pub source: Option<String>,   // e.g. "s2-fos-model"
     }
 
     /// Journal metadata
     #[derive(Debug, Serialize, Deserialize)]
-    pub(crate)  struct Journal {
+    pub(crate) struct Journal {
         pub name: Option<String>,
         pub volume: Option<String>,
         pub pages: Option<String>,
@@ -539,16 +548,16 @@ pub(crate) mod semantic_scholar_schemas {
 
     /// Open access PDF metadata
     #[derive(Debug, Serialize, Deserialize)]
-    pub(crate)  struct OpenAccessPdf {
+    pub(crate) struct OpenAccessPdf {
         pub url: Option<String>,
-        pub status: Option<String>,     // e.g. "HYBRID"
-        pub license: Option<String>,    // e.g. "CCBY"
-        pub version: Option<String>,    // e.g. "publishedVersion"
+        pub status: Option<String>,  // e.g. "HYBRID"
+        pub license: Option<String>, // e.g. "CCBY"
+        pub version: Option<String>, // e.g. "publishedVersion"
     }
 
     /// Paper metadata model with extended fields
     #[derive(Debug, Serialize, Deserialize)]
-    pub(crate)  struct Paper {
+    pub(crate) struct Paper {
         #[serde(rename = "paperId")]
         pub paper_id: String,
         pub title: String,

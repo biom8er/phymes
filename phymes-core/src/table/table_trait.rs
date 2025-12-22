@@ -47,10 +47,13 @@ use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 
 use num_traits::{Bounded, Num, NumCast};
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, io::{Read, Write}};
 use std::fs::File;
 use std::io::{Cursor, Seek};
 use std::sync::Arc;
+use std::{
+    fmt::Debug,
+    io::{Read, Write},
+};
 
 use anyhow::{Result, anyhow};
 use bytes::Bytes;
@@ -65,9 +68,9 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     fn get_record_batches_own(self) -> Vec<RecordBatch>;
 
     /// Write record batches to IPC file
-    fn to_ipc_file<F>(&self, file: &mut F) -> Result<()> 
+    fn to_ipc_file<F>(&self, file: &mut F) -> Result<()>
     where
-        F: Write + Seek
+        F: Write + Seek,
     {
         if self.get_record_batches().is_empty() {
             return Err(anyhow!(
@@ -84,9 +87,9 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     }
 
     /// Write record batches to CSV
-    fn to_csv_file<F>(&self, file: &mut F, delimiter: u8, header: bool) -> Result<()> 
+    fn to_csv_file<F>(&self, file: &mut F, delimiter: u8, header: bool) -> Result<()>
     where
-        F: Write + Seek
+        F: Write + Seek,
     {
         // Convert nested columns to String
         let batches = self
@@ -974,7 +977,7 @@ impl TableBuilderTrait for TableBuilder {
         Ok(self)
     }
 
-    fn new_from_ipc_file<F>(file: F) -> Result<Self> 
+    fn new_from_ipc_file<F>(file: F) -> Result<Self>
     where
         F: Read + Seek,
     {
