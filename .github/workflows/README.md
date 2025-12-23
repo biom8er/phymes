@@ -44,13 +44,13 @@ cargo check -p phymes-core --all-targets --no-default-features --features wsl
 cargo check -p phymes-data --all-targets --no-default-features --features wsl
 cargo check -p phymes-ml --all-targets --no-default-features --features wsl
 cargo check -p phymes-ml --all-targets --no-default-features --features wsl,hf_hub,candle
-cargo check -p phymes-ml --all-targets --no-default-features --features wsl,openai_api
+cargo check -p phymes-ml --all-targets --no-default-features --features wsl,api
 cargo check -p phymes-agents --all-targets --no-default-features --features wsl
 cargo check -p phymes-agents --all-targets --no-default-features --features wsl,hf_hub,candle
-cargo check -p phymes-agents --all-targets --no-default-features --features wsl,openai_api
+cargo check -p phymes-agents --all-targets --no-default-features --features wsl,api
 cargo check -p phymes-server --all-targets --no-default-features --features wsl
 cargo check -p phymes-server --all-targets --no-default-features --features wsl,hf_hub,candle
-cargo check -p phymes-server --all-targets --no-default-features --features wsl,openai_api
+cargo check -p phymes-server --all-targets --no-default-features --features wsl,api
 cargo check -p phymes-app --all-targets --no-default-features --features mobile
 cargo check -p phymes-app --all-targets --no-default-features --features desktop
 cargo clippy --all-targets -- -D warnings
@@ -168,13 +168,13 @@ tar -czf phymes-desktop-candle-cuda12.6.2-ubuntu24.04.tar.gz target/release/phym
 
 # Web app without GPU support using OpenAI API
 dx bundle -p phymes-app --platform web --release
-cargo build --package phymes-server --no-default-features --features wsl,openai_api --release
+cargo build --package phymes-server --no-default-features --features wsl,api --release
 mv target/release/phymes-server target/dx/phymes-app/release/web/public/
 tar -czf phymes-web-openai-ubuntu24.04.tar.gz -C target/dx/phymes-app/release/web/public .
 
 # Linux desktop app without GPU support using OpenAI API
 cargo build -p phymes-app --features desktop --release
-cargo build --package phymes-server --no-default-features --features wsl,openai_api --release
+cargo build --package phymes-server --no-default-features --features wsl,api --release
 tar -czf phymes-desktop-openai-ubuntu24.04.tar.gz target/release/phymes-app target/release/phymes-server
 
 # WASM app without GPU support using native Candle

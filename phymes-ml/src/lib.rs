@@ -3,9 +3,9 @@ mod candle_chat;
 mod candle_embed;
 mod candle_models;
 mod openai_asset;
-#[cfg(feature = "openai_api")]
+#[cfg(feature = "api")]
 mod openai_chat;
-#[cfg(feature = "openai_api")]
+#[cfg(feature = "api")]
 mod openai_embed;
 
 pub use candle_assets::{
@@ -19,7 +19,7 @@ pub use candle_chat::{
 pub use candle_embed::{CandleEmbedConfig, CandleEmbedProcessor};
 pub use candle_models::{QuantizedBert, QuantizedQwen2, QuantizerdBertConfig};
 pub use openai_asset::AvailableOpenAIAssets;
-#[cfg(feature = "openai_api")]
+#[cfg(feature = "api")]
 pub use openai_chat::OpenAIChatProcessor;
-#[cfg(feature = "openai_api")]
+#[cfg(feature = "api")]
 pub use openai_embed::OpenAIEmbedProcessor;

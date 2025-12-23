@@ -12,7 +12,7 @@ use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
     DataConfig, DataSummaryConfig, ToolTrait,
 };
-#[cfg(feature = "openai_api")]
+#[cfg(feature = "api")]
 use phymes_ml::AvailableOpenAIAssets;
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 
@@ -142,7 +142,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             // DM: `Reqwest` connections break prematurely in `OpenAIChatProcessor`
             //  when chained or nested within other streams
             // DM: another tool agent session publish/subscribe network needs to be
-            //  made for openai_api access that breaks down the chat task into seperate
+            //  made for api access that breaks down the chat task into seperate
             //  tasks for each processor...
             TaskPlan {
                 task_name: self.message_aggregator_task_1_name.to_string(),
@@ -304,7 +304,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             AvailableProcessors::OpenAIChatProcessor.build_arc(
                 self.chat_processor_name,
                 &[TablePublication::Replace {
@@ -508,7 +508,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         }
 
         // Add openAI_api if available
-        #[cfg(all(feature = "openai_api", not(feature = "candle")))]
+        #[cfg(all(feature = "api", not(feature = "candle")))]
         {
             candle_chat_config.candle_asset = None;
             // DM: Bug in Llama model system template that requires it to only call tools instead of respond...

@@ -181,8 +181,6 @@ impl Default for DiagnosticSession<'_> {
             events_apply_kanban_processor_name: "events_apply_kanban_processor_name",
             events_runtime_env_name: "events_runtime_env_name",
 
-            // Errors analytics
-
             // Outbox
             aggregate_visualizations_task_name: "aggregate_visualizations_task_name",
             aggregate_visualizations_processor_name: "aggregate_visualizations_processor_name",
@@ -765,7 +763,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             ),
             AvailableProcessors::AttachmentAggregatorProcessor.build_arc(
                 self.aggregate_visualizations_processor_name,
-                &[TablePublication::Replace {
+                &[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
                 }],
                 &[
@@ -786,11 +784,15 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     TableSubscription::OnUpdateFullTable {
                         table_name: DiagnosticsVisualizations::EventKanban.to_string(),
                     },
+                    TableSubscription::OnUpdateFullTable {
+                        table_name: DiagnosticsVisualizations::ErrorKanban.to_string(),
+                    },
                     TableSubscription::AlwaysFullTable {
                         table_name: self.aggregate_visualizations_processor_name.to_string(),
                     },
                 ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
+                // AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(), // DM: Was Replace Publish, but changed to Extend
             ),
         ];
 
@@ -1809,8 +1811,8 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, SessionStream,
-        SessionStreamState, TableTrait,
+        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, SessionContextBuilderTrait,
+        SessionStream, SessionStreamState, TableTrait,
     };
     use phymes_diagnostics::HashMap;
 
@@ -1828,7 +1830,7 @@ mod tests {
         let session_ctx = diagnostic_session
             .build()
             .with_name(diagnostic_session.session_context_name)
-            // .with_diagnostics(true) // Debugging
+            .with_diagnostics(true) // Debugging
             .add_session_interface(Some(&[AvailableInterfaceSubjects::AggregatedAttachments
                 .to_string()
                 .as_str()]))?
@@ -1940,23 +1942,23 @@ mod tests {
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
         let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-        let sss = session_stream_state.read();
-        let table = sss
-            .get_session_context()
-            .get_states()
-            .get(AvailableSubjects::SessionErrors.to_string().as_str())
-            .unwrap()
-            .read();
-        println!("__ERRORS__");
-        println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
-        let table = sss
-            .get_session_context()
-            .get_states()
-            .get(AvailableSubjects::SessionTraces.to_string().as_str())
-            .unwrap()
-            .read();
-        println!("__TRACES__");
-        println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
+        // let sss = session_stream_state.read();
+        // let table = sss
+        //     .get_session_context()
+        //     .get_states()
+        //     .get(AvailableSubjects::SessionErrors.to_string().as_str())
+        //     .unwrap()
+        //     .read();
+        // println!("__ERRORS__");
+        // println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
+        // let table = sss
+        //     .get_session_context()
+        //     .get_states()
+        //     .get(AvailableSubjects::SessionTraces.to_string().as_str())
+        //     .unwrap()
+        //     .read();
+        // println!("__TRACES__");
+        // println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
 
         let bytes = response
             .iter_mut()
@@ -1968,12 +1970,19 @@ mod tests {
                 ))
                 .map(|v| v.get_message_own())
             })
-            .flatten()
             .collect::<Vec<_>>();
-        let attachment_data = TableBuilder::new_from_ipc_stream(&bytes)?
-            .with_name("")
-            .build()?
-            .to_json_object()?;
+        let attachment_data = bytes
+            .into_iter()
+            .flat_map(|b| {
+                TableBuilder::new_from_ipc_stream(&b)
+                    .unwrap()
+                    .with_name("")
+                    .build()
+                    .unwrap()
+                    .to_json_object()
+                    .unwrap()
+            })
+            .collect::<Vec<_>>();
         for row in &attachment_data {
             let bytes = row["bytes"]
                 .as_array()

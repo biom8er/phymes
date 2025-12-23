@@ -1,9 +1,6 @@
-use crate::{
-    CandleEmbedConfig, candle_embed::convert_embedding_vector_to_record_batch,
-    openai_asset::OpenAIRequestState,
-};
+use crate::{CandleEmbedConfig, candle_embed::convert_embedding_vector_to_record_batch};
 
-use phymes_data::DataConfigTrait;
+use phymes_data::{DataConfigTrait, HTTPClientRequestState};
 use reqwest::{Client, header::CONTENT_TYPE};
 
 use phymes_core::{
@@ -159,7 +156,7 @@ pub struct OpenAIEmbedStream {
     /// The input documents
     documents: Option<Table>,
     /// State of the OpenAI API request
-    state: OpenAIRequestState,
+    state: HTTPClientRequestState,
     /// sample number
     sample: usize,
 }
@@ -179,7 +176,7 @@ impl OpenAIEmbedStream {
             _runtime_env: runtime_env,
             config: None,
             documents: None,
-            state: OpenAIRequestState::NotStarted,
+            state: HTTPClientRequestState::NotStarted,
             sample: 0,
         })
     }
@@ -238,7 +235,7 @@ impl Stream for OpenAIEmbedStream {
         if self.sample == 0 {
             // Iterate through each state until the API request is completed
             match &mut self.state {
-                OpenAIRequestState::NotStarted => {
+                HTTPClientRequestState::NotStarted => {
                     // Initialize the config
                     let mut batches = Vec::new();
                     while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
@@ -289,21 +286,23 @@ impl Stream for OpenAIEmbedStream {
                         .header(CONTENT_TYPE, "application/json")
                         .json(&self.make_request(input))
                         .send();
-                    self.state = OpenAIRequestState::Connecting(Box::pin(fut));
+                    self.state = HTTPClientRequestState::Connecting(Box::pin(fut));
                     self.poll_next(cx)
                 }
-                OpenAIRequestState::Connecting(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
-                    Ok(response) => {
-                        let fut = response.text();
-                        self.state = OpenAIRequestState::ToText(Box::pin(fut));
-                        self.poll_next(cx)
+                HTTPClientRequestState::Connecting(fut) => {
+                    match ready!(fut.as_mut().poll_unpin(cx)) {
+                        Ok(response) => {
+                            let fut = response.text();
+                            self.state = HTTPClientRequestState::ToText(Box::pin(fut));
+                            self.poll_next(cx)
+                        }
+                        Err(err) => {
+                            self.state = HTTPClientRequestState::Done;
+                            Poll::Ready(Some(Err(anyhow!(err.to_string()))))
+                        }
                     }
-                    Err(err) => {
-                        self.state = OpenAIRequestState::Done;
-                        Poll::Ready(Some(Err(anyhow!(err.to_string()))))
-                    }
-                },
-                OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
+                }
+                HTTPClientRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                     Ok(text) => {
                         // Initialize the metrics
                         let baseline_metrics =
@@ -337,7 +336,7 @@ impl Stream for OpenAIEmbedStream {
 
                         // Record the schema
                         self.schema = batch.schema();
-                        self.state = OpenAIRequestState::Done;
+                        self.state = HTTPClientRequestState::Done;
 
                         // record the poll
                         let poll = Poll::Ready(Some(Ok(batch)));
@@ -348,21 +347,21 @@ impl Stream for OpenAIEmbedStream {
                         }
                     }
                     Err(err) => {
-                        self.state = OpenAIRequestState::Done;
+                        self.state = HTTPClientRequestState::Done;
                         Poll::Ready(Some(Err(anyhow!(err.to_string()))))
                     }
                 },
-                OpenAIRequestState::Done => {
+                HTTPClientRequestState::Done => {
                     // Increase the sample count
                     self.sample += 1;
-                    self.state = OpenAIRequestState::NotStarted;
+                    self.state = HTTPClientRequestState::NotStarted;
                     self.poll_next(cx)
                 }
             }
         } else {
             // Iterate through each state until the API request is completed
             match &mut self.state {
-                OpenAIRequestState::NotStarted => {
+                HTTPClientRequestState::NotStarted => {
                     // Collect the next batch of queries
                     let batch = match ready!(self.document_stream.poll_next_unpin(cx)) {
                         Some(Ok(batch)) => batch,
@@ -402,21 +401,23 @@ impl Stream for OpenAIEmbedStream {
                         .header(CONTENT_TYPE, "application/json")
                         .json(&self.make_request(input))
                         .send();
-                    self.state = OpenAIRequestState::Connecting(Box::pin(fut));
+                    self.state = HTTPClientRequestState::Connecting(Box::pin(fut));
                     self.poll_next(cx)
                 }
-                OpenAIRequestState::Connecting(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
-                    Ok(response) => {
-                        let fut = response.text();
-                        self.state = OpenAIRequestState::ToText(Box::pin(fut));
-                        self.poll_next(cx)
+                HTTPClientRequestState::Connecting(fut) => {
+                    match ready!(fut.as_mut().poll_unpin(cx)) {
+                        Ok(response) => {
+                            let fut = response.text();
+                            self.state = HTTPClientRequestState::ToText(Box::pin(fut));
+                            self.poll_next(cx)
+                        }
+                        Err(err) => {
+                            self.state = HTTPClientRequestState::Done;
+                            Poll::Ready(Some(Err(anyhow!(err.to_string()))))
+                        }
                     }
-                    Err(err) => {
-                        self.state = OpenAIRequestState::Done;
-                        Poll::Ready(Some(Err(anyhow!(err.to_string()))))
-                    }
-                },
-                OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
+                }
+                HTTPClientRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                     Ok(text) => {
                         // Initialize the metrics
                         let baseline_metrics =
@@ -450,7 +451,7 @@ impl Stream for OpenAIEmbedStream {
 
                         // Record the schema
                         self.schema = batch.schema();
-                        self.state = OpenAIRequestState::Done;
+                        self.state = HTTPClientRequestState::Done;
 
                         // record the poll
                         let poll = Poll::Ready(Some(Ok(batch)));
@@ -461,14 +462,14 @@ impl Stream for OpenAIEmbedStream {
                         }
                     }
                     Err(err) => {
-                        self.state = OpenAIRequestState::Done;
+                        self.state = HTTPClientRequestState::Done;
                         Poll::Ready(Some(Err(anyhow!(err.to_string()))))
                     }
                 },
-                OpenAIRequestState::Done => {
+                HTTPClientRequestState::Done => {
                     // Increase the sample count
                     self.sample += 1;
-                    self.state = OpenAIRequestState::NotStarted;
+                    self.state = HTTPClientRequestState::NotStarted;
                     self.poll_next(cx)
                 }
             }

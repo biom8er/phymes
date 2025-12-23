@@ -9,7 +9,7 @@ use phymes_data::{
     AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
     DataDistanceOperator, DataSummaryConfig,
 };
-#[cfg(feature = "openai_api")]
+#[cfg(feature = "api")]
 use phymes_ml::AvailableOpenAIAssets;
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig};
 
@@ -276,7 +276,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             AvailableProcessors::OpenAIChatProcessor.build_arc(
                 self.chat_processor_name,
                 &[TablePublication::ExtendChunks {
@@ -342,7 +342,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             AvailableProcessors::OpenAIEmbedProcessor.build_arc(
                 self.embed_documents_processor_name,
                 &[TablePublication::Extend {
@@ -358,7 +358,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             AvailableProcessors::OpenAIEmbedProcessor.build_arc(
                 self.embed_query_processor_name,
                 &[TablePublication::Extend {
@@ -560,7 +560,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         }
 
         // Add openAI_api if available
-        #[cfg(all(feature = "openai_api", not(feature = "candle")))]
+        #[cfg(all(feature = "api", not(feature = "candle")))]
         {
             candle_chat_config.candle_asset = None;
             candle_chat_config.openai_asset = Some(AvailableOpenAIAssets::MetaLlamaV3p2_1B);
@@ -640,7 +640,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         }
 
         // Add openAI_api if available
-        #[cfg(all(feature = "openai_api", not(feature = "candle")))]
+        #[cfg(all(feature = "api", not(feature = "candle")))]
         {
             candle_embed_config.candle_asset = None;
             candle_embed_config.openai_asset =

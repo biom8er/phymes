@@ -56,11 +56,11 @@ Precompiled bundles for different Arch, OS, CUDA versions, and Token and Tensor 
 
 | Arch | OS | CUDA | Token service |
 | ---- | -- | ---- | ------------- |
-| x86_64-unknown-linux-gnu | ubuntu22.04, ubuntu24.04 | 12.6.2, 12.9.1 | candle, openai_api |
+| x86_64-unknown-linux-gnu | ubuntu22.04, ubuntu24.04 | 12.6.2, 12.9.1 | candle, api |
 | wasm32-wasip2 | n/a | n/a | candle |
 | wasm32-unknown-unknown | n/a | n/a | candle |
 
-Token services for agentic AI workflows can embedded in the application using `candle` or accessed locally e.g., self-hosted NVIDIA NIMs docker containers or remotely e.g., OpenAI, NVIDIA NIMs, etc. that adhere to the OpenAI API schema using `openai_api`. Tensor services are embedded in the application using `candle` with CPU vectorization and GPU acceleration support.
+Token services for agentic AI workflows can embedded in the application using `candle` or accessed locally e.g., self-hosted NVIDIA NIMs docker containers or remotely e.g., OpenAI, NVIDIA NIMs, etc. that adhere to the OpenAI API schema using `api`. Tensor services are embedded in the application using `candle` with CPU vectorization and GPU acceleration support.
 
 To install the phymes application, download the precompiled bundle that matches your system and needs, and unzip the bundle. Double click on `phymes-server` to start the server. Navigate to http://127.0.0.1:4000/ to view the web application. 
 

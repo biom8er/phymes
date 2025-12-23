@@ -88,7 +88,7 @@ fn benchmark_build_candle_chat_asset(c: &mut Criterion) {
     let candle = if cfg!(feature = "candle") {
         "candle"
     } else {
-        "openai_api"
+        "api"
     };
 
     // Benchmark each configuration with each user content sequentially
@@ -195,7 +195,7 @@ fn benchmark_build_candle_embed_asset(c: &mut Criterion) {
     let candle = if cfg!(feature = "candle") {
         "candle"
     } else {
-        "openai_api"
+        "api"
     };
 
     // Benchmark each configuration with each user content sequentially
@@ -282,7 +282,7 @@ fn benchmark_process_prompt_chat(c: &mut Criterion) {
     let candle = if cfg!(feature = "candle") {
         "candle"
     } else {
-        "openai_api"
+        "api"
     };
 
     for (prompt_name, prompt) in prompts.iter() {
@@ -388,7 +388,7 @@ fn benchmark_candle_chat_forward(c: &mut Criterion) {
     let candle = if cfg!(feature = "candle") {
         "candle"
     } else {
-        "openai_api"
+        "api"
     };
 
     // Benchmark each configuration sequentially

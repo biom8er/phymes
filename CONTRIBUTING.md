@@ -298,13 +298,13 @@ This is a standard cargo project with workspaces. To build the different workspa
 cargo build -p phymes-core
 ```
 
-CPU, GPU, and WASM-specific compilation features are gated behind feature flags `wsl`, `gpu`, and `wasip2` respectively. The use of embedded Candle or OpenAI API token services are gated behind the feature flag `candle` and `openai_api`, which enables the use of Candle or OpenAI API token services. Enabling `candle` will force the application to use embedded Candle models even if `openai_api` is enabled. The use of HuggingFace models from the HuggingFace Hub API are gated behind the feature flag `hf_hub`.
+CPU, GPU, and WASM-specific compilation features are gated behind feature flags `wsl`, `gpu`, and `wasip2` respectively. The use of embedded Candle or OpenAI API token services are gated behind the feature flag `candle` and `api`, which enables the use of Candle or OpenAI API token services. Enabling `candle` will force the application to use embedded Candle models even if `api` is enabled. The use of HuggingFace models from the HuggingFace Hub API are gated behind the feature flag `hf_hub`.
 
 The following will build the `phymes-agents` workspace with different configurations of CPU and GPU acceleration for Tensor and Token services:
 
 ```bash
 # Native CPU for tensor operations and local/remote OpenAI API token services
-cargo build -p phymes-agents --features wsl,openai_api --release
+cargo build -p phymes-agents --features wsl,api --release
 
 # Native CPU for tensor operations and embedded Candle for token services
 cargo build -p phymes-agents --features wsl,candle --release
@@ -313,7 +313,7 @@ cargo build -p phymes-agents --features wsl,candle --release
 cargo build -p phymes-agents --features wsl,candle,hf_hub --release
 
 # GPU support for tensor operations and local/remote OpenAI API token services
-cargo build -p phymes-agents --features wsl,gpu,openai_api --release
+cargo build -p phymes-agents --features wsl,gpu,api --release
 
 # GPU support for tensor operations and embedded Candle for token services
 cargo build -p phymes-agents --features wsl,gpu,candle --release
@@ -420,7 +420,7 @@ cargo test test_session_update_state -p phymes-core --features wsl -- --no-captu
 cargo test --doc
 ```
 
-You can find up-to-date information on the current CI tests in [.github/workflows](https://github.com/biom8er/phymes/tree/main/.github/workflows). The phymes-server, phymes-core, and phymes-agents crates have unit tests. Please note that many of the tests in the phymes-ml and phymes-agent crates do not run on the CPU due to the amount of time that it takes to run them. To run all tests in the phymes-ml and phymes-agents crates, either enable GPU acceleration with Candle using `--features wsl,gpu,candle` feature flag, or with OpenAI API local/remote token services using `--feature wsl,openai_api` or `--feature wsl,gpu,openai_api` feature flags depending upon GPU availability.
+You can find up-to-date information on the current CI tests in [.github/workflows](https://github.com/biom8er/phymes/tree/main/.github/workflows). The phymes-server, phymes-core, and phymes-agents crates have unit tests. Please note that many of the tests in the phymes-ml and phymes-agent crates do not run on the CPU due to the amount of time that it takes to run them. To run all tests in the phymes-ml and phymes-agents crates, either enable GPU acceleration with Candle using `--features wsl,gpu,candle` feature flag, or with OpenAI API local/remote token services using `--feature wsl,api` or `--feature wsl,gpu,api` feature flags depending upon GPU availability.
 
 ```bash
 # run tests for the phymes-core crate
@@ -436,14 +436,14 @@ cargo test --package phymes-ml --features wsl,gpu,candle --release
 # run tests for the phymes-ml crate with GPU acceleration with Candle assets from HuggingFace
 cargo test --package phymes-ml --features wsl,gpu,candle,hf_hub --release
 # or run tests for the phymes-ml crate on the CPU with OpenAI API token services
-cargo test --package phymes-ml --features wsl,openai_api --release
+cargo test --package phymes-ml --features wsl,api --release
 
 # run tests for the phymes-agents crate with GPU acceleration with Candle assets
 cargo test --package phymes-agents --features wsl,gpu,candle --release
 # run tests for the phymes-agents crate with GPU acceleration with Candle assets from HuggingFace
 cargo test --package phymes-agents --features wsl,gpu,candle,hf_hub --release
 # or run tests for the phymes-agents crate on the CPU with OpenAI API token services
-cargo test --package phymes-agents --no-default-features --features wsl,openai_api --release
+cargo test --package phymes-agents --no-default-features --features wsl,api --release
 
 # run tests for the phymes-server crate
 cargo test --package phymes-server --features wsl --release
@@ -501,8 +501,8 @@ cargo run --package phymes-ml --features wsl,gpu,candle --release --example chat
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat_agent_session
 
 # or run examples for the phymes-ml and phymes-agents crates on the CPU with OpenAI API token services
-cargo run --package phymes-ml --no-default-features --features wsl,openai_api --release --example chat -- --openai-asset Llama-3.2-1b-instruct
-cargo run --package phymes-agents --no-default-features --features wsl,openai_api --release --example chat_agent_session
+cargo run --package phymes-ml --no-default-features --features wsl,api --release --example chat -- --openai-asset Llama-3.2-1b-instruct
+cargo run --package phymes-agents --no-default-features --features wsl,api --release --example chat_agent_session
 ```
 
 The examples can also be ran using WASM. However, all assets needed to run the example need to be provided locally unlike native where we can rely on the HuggingFace API to download and cache models for us. The following bash script can be used to build the examples in wasm and run the examples using wasmtime:
@@ -641,7 +641,7 @@ Second, build the server with the desired features.
 cargo build --package phymes-server --features wsl,gpu,candle,hf_hub --release
 
 # Or OpenAI API
-cargo build --package phymes-server --no-default-features --features wsl,openai_api --release
+cargo build --package phymes-server --no-default-features --features wsl,api --release
 ```
 
 Third, move the server executable to the same directory as the web assets
@@ -671,7 +671,7 @@ Second, build the phymes-server application with the desired features.
 cargo build --package phymes-server --features wsl,gpu,candle --release
 
 # Or OpenAI API
-cargo build --package phymes-server --no-default-features --features wsl,openai_api --release
+cargo build --package phymes-server --no-default-features --features wsl,api --release
 ```
 
 Third, launch the `phymes-app` executable
@@ -704,7 +704,7 @@ Second, build the phymes-server application with the desired features. Note that
 cargo build --package phymes-server --features wsl,gpu,candle --release
 
 # Or OpenAI API
-cargo build --package phymes-server --no-default-features --features wsl,openai_api --release
+cargo build --package phymes-server --no-default-features --features wsl,api --release
 ```
 
 Third, launch the `phymes-app` executable on a device emulator or on the physical device.

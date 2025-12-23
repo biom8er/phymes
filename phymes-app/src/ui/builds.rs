@@ -471,24 +471,36 @@ pub fn builds_dropdown_view(
                     }
                 }
 
-                // Show the save button only when modified
-                if !is_flowchart_shown() && active_er_diagram().is_empty() {
+                // Fill in missing ER diagram entries with defaults
+                if !is_flowchart_shown() {
                     button {
                         class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         onclick: move |_| async move {
                             // Generate defaults if possible
                             match SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), true) {
-                                Ok(builder) => match builder.with_name(&active_session_name()).add_processor_subjects() {
-                                    Ok(builder) => match builder.to_mermaid_erdiagram(false, true) {
-                                        Ok(diagram) => {
-                                            active_er_diagram.set(diagram);
+                                // Read in what information is available and update the rest
+                                Ok(builder) => {
+                                    let builder = if active_er_diagram().is_empty() {
+                                        builder
+                                    } else if let Ok(builder) = builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), true, true) {
+                                        builder
+                                    } else {
+                                        // Revert
+                                        SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), true).unwrap()
+                                    };
+                                    match builder.with_name(&active_session_name()).add_processor_subjects() {
+                                        // Include the last row of data during the prototyping stage
+                                        Ok(builder) => match builder.to_mermaid_erdiagram(true, true) {
+                                            Ok(diagram) => {
+                                                active_er_diagram.set(diagram);
 
-                                            // Change to saved
-                                            is_saved.set(false);
+                                                // Change to saved
+                                                is_saved.set(false);
+                                            },
+                                            Err(err) => tracing::error!("{err:?}"),
                                         },
                                         Err(err) => tracing::error!("{err:?}"),
-                                    },
-                                    Err(err) => tracing::error!("{err:?}"),
+                                    }
                                 },
                                 Err(err) => tracing::error!("{err:?}"),
                             }

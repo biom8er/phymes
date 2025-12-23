@@ -46,7 +46,7 @@ wsl = ["phymes-diagnostics/wsl", "phymes-server/wsl", "phymes-agents/wsl", "phym
 gpu = ["phymes-server/gpu", "phymes-agents/gpu", "phymes-data/gpu"]
 candle = ["phymes-server/candle", "phymes-agents/candle", "phymes-data/candle"]
 hf_hub = ["phymes-server/hf_hub", "phymes-agents/hf_hub"]
-openai_api = ["phymes-server/openai_api", "phymes-agents/openai_api"]
+api = ["phymes-server/api", "phymes-agents/api"]
 # DM: this is a work in progress because we need to access
 #     resources on the device while in the browser context
 serverless = [] # Switch to use the serverless application

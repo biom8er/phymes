@@ -1,5 +1,7 @@
 mod candle_data;
 mod candle_operators;
+#[cfg(feature = "api")]
+mod external_operators;
 mod jinja2_templates;
 
 pub use candle_data::{
@@ -15,6 +17,12 @@ pub use candle_operators::{
     HumanInTheLoop, Join, NormalizeTime, Pivot, Select, Sort, ToolTrait, VectorDistance,
     convert_destinations_to_tools, extract_xml, filter, group_by, make_pdf_document, sort,
     test_extract_tabular_data,
+};
+#[cfg(feature = "api")]
+pub use external_operators::{
+    CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxProcessor,
+    CommandSandboxRunners, DataIOMethod, HTTPClientConfig, HTTPClientRequestProcessor,
+    HTTPClientRequestSchemas, HTTPClientRequestState, HTTPClientRequestType,
 };
 pub use jinja2_templates::{
     AvailableJinja2Templates, MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_INPUT,

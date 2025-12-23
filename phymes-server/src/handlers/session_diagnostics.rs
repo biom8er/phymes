@@ -18,8 +18,9 @@ use phymes_agents::{
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, IPCMessage,
     JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait,
-    SessionInterfaceMessage, SessionInterfaceMessageTrait, SessionStream, SessionStreamState,
-    TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
+    SessionContextBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait,
+    SessionStream, SessionStreamState, TableBuilder, TableBuilderTrait, TablePublication,
+    TableTrait,
 };
 
 // General imports
@@ -215,6 +216,7 @@ pub async fn session_diagnostics(
             let session_ctx = diagnostic_session
                 .build()
                 .with_name(diagnostic_session.session_context_name)
+                .with_diagnostics(true)
                 .add_session_interface(Some(&[AvailableInterfaceSubjects::AggregatedAttachments
                     .to_string()
                     .as_str()]))
@@ -293,19 +295,42 @@ pub async fn session_diagnostics(
                     Body::from_stream(response).into_response()
                 }
                 (DataFormat::Ipc, false) => {
-                    // Convert the output to bytes
-                    let response: Vec<HashMap<String, IPCMessage>> =
+                    // Convert the output to IPC messages
+                    // DM: the bytes cannot be flattened and then read as a single table
+                    //  because the reader will break at the end of the first batch encountered!
+                    let mut response: Vec<HashMap<String, IPCMessage>> =
                         session_stream.try_collect().await.unwrap();
-                    let response = response
-                        .into_iter()
-                        .flatten()
-                        .filter(|(_k, v)| {
-                            v.get_name()
-                                .contains(diagnostic_session.session_context_name)
+                    let batches = response
+                        .iter_mut()
+                        .filter_map(|map| {
+                            map.remove(&format!(
+                                "from_{}_on_{}",
+                                diagnostic_session.session_context_name,
+                                AvailableInterfaceSubjects::AggregatedAttachments
+                            ))
+                            .map(|v| {
+                                TableBuilder::new_from_ipc_stream(&v.get_message_own())
+                                    .unwrap()
+                                    .with_name("")
+                                    .build()
+                                    .unwrap()
+                                    .get_record_batches_own()
+                            })
                         })
-                        .flat_map(|(_k, v)| v.get_message_own())
+                        .flatten()
                         .collect::<Vec<_>>();
+                    let response = TableBuilder::new()
+                        .with_record_batches(batches)
+                        .unwrap()
+                        .with_name("")
+                        .build()
+                        .unwrap()
+                        .concat_record_batches()
+                        .unwrap()
+                        .to_ipc_stream()
+                        .unwrap();
 
+                    // // DM: debugging...
                     // let sss = session_stream_state.read();
                     // let table = sss
                     //     .get_session_context()
@@ -313,8 +338,14 @@ pub async fn session_diagnostics(
                     //     .get(AvailableSubjects::SessionErrors.to_string().as_str())
                     //     .unwrap()
                     //     .read();
-                    // println!("__ERRORS__");
-                    // println!("{}", String::from_utf8(table.to_csv(b',', true).unwrap()).unwrap());
+                    // tracing::debug!("Errors in diagnostic session: {}", String::from_utf8(table.to_csv(b',', true).unwrap()).unwrap());
+                    // let table = sss
+                    //     .get_session_context()
+                    //     .get_states()
+                    //     .get(AvailableSubjects::SessionTraces.to_string().as_str())
+                    //     .unwrap()
+                    //     .read();
+                    // tracing::debug!("Traces in diagnostic session: {}", String::from_utf8(table.to_csv(b',', true).unwrap()).unwrap());
 
                     // Send the stream
                     Body::from(response).into_response()

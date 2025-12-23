@@ -17,7 +17,7 @@ use phymes_core::{
     TableSubscribePolicyTrait, TableSubscription, TableTrait, Tool, ToolChoiceType,
     create_chat_record_batch, remove_message_by_subject,
 };
-use phymes_data::DataConfigTrait;
+use phymes_data::{DataConfigTrait, HTTPClientRequestState};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
     create_timestamp_micros,
@@ -25,7 +25,7 @@ use phymes_diagnostics::{
 use reqwest::{Client, header::CONTENT_TYPE};
 use tracing::{Level, event};
 
-use crate::{candle_chat::CandleChatConfig, openai_asset::OpenAIRequestState};
+use crate::candle_chat::CandleChatConfig;
 
 #[derive(Debug)]
 pub struct OpenAIChatProcessor {
@@ -173,7 +173,7 @@ pub struct OpenAIChatStream {
     /// Parameters for chat inference
     config: Option<CandleChatConfig>,
     /// State of the OpenAI API request
-    state: OpenAIRequestState,
+    state: HTTPClientRequestState,
 }
 
 impl OpenAIChatStream {
@@ -192,7 +192,7 @@ impl OpenAIChatStream {
             config_stream,
             _runtime_env: runtime_env,
             config: None,
-            state: OpenAIRequestState::NotStarted,
+            state: HTTPClientRequestState::NotStarted,
         })
     }
 
@@ -243,7 +243,7 @@ impl Stream for OpenAIChatStream {
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // Iterate through each state until the API request is completed
         match &mut self.state {
-            OpenAIRequestState::NotStarted => {
+            HTTPClientRequestState::NotStarted => {
                 // Collect the chat history
                 let mut batches = Vec::new();
                 while let Some(Ok(batch)) = ready!(self.message_stream.poll_next_unpin(cx)) {
@@ -310,21 +310,21 @@ impl Stream for OpenAIChatStream {
                     .header(CONTENT_TYPE, "application/json")
                     .json(&self.make_request(messages, tools))
                     .send();
-                self.state = OpenAIRequestState::Connecting(Box::pin(fut));
+                self.state = HTTPClientRequestState::Connecting(Box::pin(fut));
                 self.poll_next(cx)
             }
-            OpenAIRequestState::Connecting(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
+            HTTPClientRequestState::Connecting(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                 Ok(response) => {
                     let fut = response.text();
-                    self.state = OpenAIRequestState::ToText(Box::pin(fut));
+                    self.state = HTTPClientRequestState::ToText(Box::pin(fut));
                     self.poll_next(cx)
                 }
                 Err(err) => {
-                    self.state = OpenAIRequestState::Done;
+                    self.state = HTTPClientRequestState::Done;
                     Poll::Ready(Some(Err(anyhow!(err.to_string()))))
                 }
             },
-            OpenAIRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
+            HTTPClientRequestState::ToText(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                 Ok(text) => {
                     // Initialize the metrics
                     let baseline_metrics =
@@ -377,7 +377,7 @@ impl Stream for OpenAIChatStream {
                         vec![content.to_string()],
                         vec![create_timestamp_micros()],
                     )?;
-                    self.state = OpenAIRequestState::Done;
+                    self.state = HTTPClientRequestState::Done;
 
                     // record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
@@ -388,11 +388,11 @@ impl Stream for OpenAIChatStream {
                     }
                 }
                 Err(err) => {
-                    self.state = OpenAIRequestState::Done;
+                    self.state = HTTPClientRequestState::Done;
                     Poll::Ready(Some(Err(anyhow!(err.to_string()))))
                 }
             },
-            OpenAIRequestState::Done => Poll::Ready(None),
+            HTTPClientRequestState::Done => Poll::Ready(None),
         }
     }
 

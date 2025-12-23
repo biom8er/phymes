@@ -122,7 +122,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
     let candle = if cfg!(feature = "candle") {
         "candle"
     } else {
-        "openai_api"
+        "api"
     };
 
     // Benchmark each case sequentially

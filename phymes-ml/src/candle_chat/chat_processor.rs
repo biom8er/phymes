@@ -5,8 +5,6 @@ use candle_transformers::generation::{LogitsProcessor, Sampling};
 use phymes_data::DataConfigTrait;
 use tokenizers::Tokenizer;
 
-#[cfg(feature = "openai_api")]
-use crate::openai_chat::OpenAIChatProcessor;
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
     BuilderTrait, ChatTraitExt, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
@@ -694,6 +692,8 @@ pub fn process_prompt_chat(
 }
 
 pub mod bench_chat_processor {
+    #[cfg(feature = "api")]
+    use crate::openai_chat::OpenAIChatProcessor;
     use phymes_core::{ChatBuilderTraitExt, RuntimeEnvTrait};
 
     use super::*;
@@ -763,7 +763,7 @@ pub mod bench_chat_processor {
             ],
             AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
-        #[cfg(all(not(feature = "candle"), feature = "openai_api"))]
+        #[cfg(all(not(feature = "candle"), feature = "api"))]
         let chat_processor = OpenAIChatProcessor::new(
             name,
             OpenAIChatProcessor::get_static_name(),
