@@ -93,7 +93,7 @@ fn benchmark_chat_processor(c: &mut Criterion) {
     let candle = if cfg!(feature = "candle") {
         "candle"
     } else {
-        "openai_api"
+        "api"
     };
 
     // Benchmark each configuration with each user content sequentially

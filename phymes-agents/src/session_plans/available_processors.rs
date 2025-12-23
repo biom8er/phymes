@@ -18,7 +18,7 @@ use phymes_ml::{
     AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, CandleEmbedConfig,
     CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor,
 };
-#[cfg(feature = "openai_api")]
+#[cfg(feature = "api")]
 use phymes_ml::{AvailableOpenAIAssets, OpenAIChatProcessor, OpenAIEmbedProcessor};
 use serde::{Deserialize, Serialize};
 
@@ -78,10 +78,10 @@ pub enum AvailableProcessors {
     MessageParserProcessor,
     #[value(name = "CandleEmbedProcessor")]
     CandleEmbedProcessor,
-    #[cfg(feature = "openai_api")]
+    #[cfg(feature = "api")]
     #[value(name = "OpenAIChatProcessor")]
     OpenAIChatProcessor,
-    #[cfg(feature = "openai_api")]
+    #[cfg(feature = "api")]
     #[value(name = "OpenAIEmbedProcessor")]
     OpenAIEmbedProcessor,
 }
@@ -129,9 +129,9 @@ impl Display for AvailableProcessors {
                 write!(f, "{}", MessageParserProcessor::get_static_name())
             }
             Self::CandleEmbedProcessor => write!(f, "{}", CandleEmbedProcessor::get_static_name()),
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => write!(f, "{}", OpenAIChatProcessor::get_static_name()),
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             Self::OpenAIEmbedProcessor => write!(f, "{}", OpenAIEmbedProcessor::get_static_name()),
         }
     }
@@ -398,7 +398,7 @@ impl DataConfigTrait for AvailableProcessors {
                 candle_asset: Some(AvailableCandleAssets::QuantizedBertEmbed),
                 ..Default::default()
             }),
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => serde_json::to_vec(&CandleChatConfig {
                 max_tokens: 1000,
                 temperature: 0.8,
@@ -414,7 +414,7 @@ impl DataConfigTrait for AvailableProcessors {
                 api_url: Some("http://0.0.0.0:8000/v1".to_string()),
                 ..Default::default()
             }),
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             Self::OpenAIEmbedProcessor => serde_json::to_vec(&CandleEmbedConfig {
                 openai_asset: Some(AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2),
                 api_url: Some("http://0.0.0.0:8001/v1".to_string()),
@@ -463,9 +463,9 @@ impl ToolTrait for AvailableProcessors {
             Self::CandleChatProcessor => todo!(),
             Self::MessageParserProcessor => todo!(),
             Self::CandleEmbedProcessor => todo!(),
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => todo!(),
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             Self::OpenAIEmbedProcessor => todo!(),
         }
     }
@@ -497,9 +497,9 @@ impl ToolTrait for AvailableProcessors {
             Self::CandleChatProcessor => todo!(),
             Self::MessageParserProcessor => todo!(),
             Self::CandleEmbedProcessor => todo!(),
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => todo!(),
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             Self::OpenAIEmbedProcessor => todo!(),
         }
     }
@@ -535,9 +535,9 @@ impl AvailableProcessors {
             AvailableProcessors::MessageAggregatorProcessor.to_string(),
             AvailableProcessors::MessageParserProcessor.to_string(),
             AvailableProcessors::CandleEmbedProcessor.to_string(),
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             AvailableProcessors::OpenAIChatProcessor.to_string(),
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             AvailableProcessors::OpenAIEmbedProcessor.to_string(),
         ];
         processor_names
@@ -603,7 +603,7 @@ impl AvailableProcessors {
         } else if line.contains(&AvailableProcessors::CandleEmbedProcessor.to_string()) {
             Ok(AvailableProcessors::CandleEmbedProcessor)
         } else {
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             if line.contains(&AvailableProcessors::OpenAIChatProcessor.to_string()) {
                 Ok(AvailableProcessors::OpenAIChatProcessor)
             } else if line.contains(&AvailableProcessors::OpenAIEmbedProcessor.to_string()) {
@@ -614,7 +614,7 @@ impl AvailableProcessors {
                     AvailableProcessors::all_varient_names()
                 ))
             }
-            #[cfg(not(feature = "openai_api"))]
+            #[cfg(not(feature = "api"))]
             Err(anyhow!(
                 "Processor not found in {line}. Available processors are {:?}.",
                 AvailableProcessors::all_varient_names()
@@ -723,7 +723,7 @@ impl AvailableProcessors {
                 subscriptions,
                 subscribe_policy,
             )),
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => Arc::new(OpenAIChatProcessor::new(
                 name,
                 self.to_string().as_str(),
@@ -731,7 +731,7 @@ impl AvailableProcessors {
                 subscriptions,
                 subscribe_policy,
             )),
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             Self::OpenAIEmbedProcessor => Arc::new(OpenAIEmbedProcessor::new(
                 name,
                 self.to_string().as_str(),
@@ -773,9 +773,9 @@ impl AvailableProcessors {
             Self::MessageAggregatorProcessor => builder.build_arc::<MessageAggregatorProcessor>(),
             Self::MessageParserProcessor => builder.build_arc::<MessageParserProcessor>(),
             Self::CandleEmbedProcessor => builder.build_arc::<CandleEmbedProcessor>(),
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => builder.build_arc::<OpenAIChatProcessor>(),
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             Self::OpenAIEmbedProcessor => builder.build_arc::<OpenAIEmbedProcessor>(),
         }
     }
@@ -808,9 +808,9 @@ impl AvailableProcessors {
             }
             Self::CandleChatProcessor | Self::MessageParserProcessor => "CandleChatConfig",
             Self::CandleEmbedProcessor => "CandleEmbedConfig",
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => "CandleChatConfig",
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             Self::OpenAIEmbedProcessor => "CandleEmbedConfig",
         }
     }

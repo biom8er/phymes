@@ -32,9 +32,9 @@ std = [
     ]
 wsl = ["std", "phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-data/wsl", "phymes-agents/wsl", "dep:tempfile"]
 hf_hub = ["phymes-agents/hf_hub"]
-openai_api = ["phymes-agents/openai_api"]
+api = ["phymes-agents/api"]
 gpu = ["phymes-agents/gpu", "phymes-data/gpu"]
-candle = ["phymes-agents/candle"] # force use of candle models when openai_api is available
+candle = ["phymes-agents/candle"] # force use of candle models when api is available
 
 [dependencies]
 tokio = { version = "1.47.0", default-features = false, optional = true }

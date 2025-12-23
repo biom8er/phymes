@@ -123,20 +123,20 @@ jobs:
         run: cargo check -p phymes-ml --all-targets --no-default-features --features wsl
       - name: Check compilation -p phymes-ml --all-targets --no-default-features --features wsl,hf_hub,candle
         run: cargo check -p phymes-ml --all-targets --no-default-features --features wsl,hf_hub,candle
-      - name: Check compilation -p phymes-ml --all-targets --no-default-features --features wsl,openai_api
-        run: cargo check -p phymes-ml --all-targets --no-default-features --features wsl,openai_api
+      - name: Check compilation -p phymes-ml --all-targets --no-default-features --features wsl,api
+        run: cargo check -p phymes-ml --all-targets --no-default-features --features wsl,api
       - name: Check compilation -p phymes-agents --no-default-features --all-targets --features wsl
         run: cargo check -p phymes-agents --all-targets --no-default-features --features wsl
       - name: Check compilation -p phymes-agents --all-targets --no-default-features --features wsl,hf_hub,candle
         run: cargo check -p phymes-agents --all-targets --no-default-features --features wsl,hf_hub,candle
-      - name: Check compilation -p phymes-agents --all-targets --no-default-features --features wsl,openai_api
-        run: cargo check -p phymes-agents --all-targets --no-default-features --features wsl,openai_api
+      - name: Check compilation -p phymes-agents --all-targets --no-default-features --features wsl,api
+        run: cargo check -p phymes-agents --all-targets --no-default-features --features wsl,api
       - name: Check compilation -p phymes-server --all-targets --no-default-features --features wsl
         run: cargo check -p phymes-server --all-targets --no-default-features --features wsl
       - name: Check compilation -p phymes-server --all-targets --no-default-features --features wsl,hf_hub,candle
         run: cargo check -p phymes-server --all-targets --no-default-features --features wsl,hf_hub,candle
-      - name: Check compilation -p phymes-server --all-targets --no-default-features --features wsl,openai_api
-        run: cargo check -p phymes-server --all-targets --no-default-features --features wsl,openai_api
+      - name: Check compilation -p phymes-server --all-targets --no-default-features --features wsl,api
+        run: cargo check -p phymes-server --all-targets --no-default-features --features wsl,api
       - name: Clippy phymes
         run: cargo clippy --all-targets -- -D warnings
       - name: Rustfmt phymes

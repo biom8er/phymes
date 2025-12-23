@@ -1,6 +1,6 @@
 mod candle_data;
 mod candle_operators;
-#[cfg(feature = "openai_api")]
+#[cfg(feature = "api")]
 mod external_operators;
 mod jinja2_templates;
 
@@ -18,7 +18,7 @@ pub use candle_operators::{
     convert_destinations_to_tools, extract_xml, filter, group_by, make_pdf_document, sort,
     test_extract_tabular_data,
 };
-#[cfg(feature = "openai_api")]
+#[cfg(feature = "api")]
 pub use external_operators::{
     CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxProcessor,
     CommandSandboxRunners, DataIOMethod, HTTPClientConfig, HTTPClientRequestProcessor,

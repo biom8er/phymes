@@ -49,7 +49,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
     let candle = if cfg!(feature = "candle") {
         "candle"
     } else {
-        "openai_api"
+        "api"
     };
 
     // Benchmark each user content and configuration sequentially

@@ -84,7 +84,7 @@ jobs:
           target: x86_64-unknown-linux-gnu
       - name: Build the server
         run: |
-          cargo build -p phymes-server --features wsl,openai_api --release
+          cargo build -p phymes-server --features wsl,api --release
       - name: Install Dioxus
         shell: bash
         run: |

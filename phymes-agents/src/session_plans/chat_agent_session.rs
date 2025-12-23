@@ -6,7 +6,7 @@ use phymes_core::{
     TablePublication, TableSubscription, TaskPlan,
 };
 use phymes_data::{AvailableCandleOperators, DataConfig};
-#[cfg(feature = "openai_api")]
+#[cfg(feature = "api")]
 use phymes_ml::AvailableOpenAIAssets;
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 
@@ -125,7 +125,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         ));
         if cfg!(not(feature = "candle")) {
-            #[cfg(feature = "openai_api")]
+            #[cfg(feature = "api")]
             processors.push(AvailableProcessors::OpenAIChatProcessor.build_arc(
                 self.chat_processor_name,
                 &[TablePublication::ExtendChunks {
@@ -216,7 +216,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         }
 
         // Add openAI_api if available
-        #[cfg(all(feature = "openai_api", not(feature = "candle")))]
+        #[cfg(all(feature = "api", not(feature = "candle")))]
         {
             candle_chat_config.candle_asset = None;
             candle_chat_config.openai_asset = Some(AvailableOpenAIAssets::MetaLlamaV3p2_1B);

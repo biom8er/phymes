@@ -18,11 +18,11 @@ cudnn = ["candle-core/cudnn"]
 flash-attn = ["cuda", "candle-transformers/flash-attn"]
 nccl = ["cuda", "cudarc/nccl"]
 hf_hub = ["dep:candle-hf-hub"]
-openai_api = ["dep:reqwest", "phymes-data/openai_api"]
+api = ["dep:reqwest", "phymes-data/api"]
 wasip2 = ["phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-data/wasip2", "tokenizers/unstable_wasm", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt"]
 wsl = ["phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-data/wsl", "tokenizers/onig", "tokio/full"]
 gpu = ["phymes-data/gpu", "cuda", "cudnn", "nccl"]
-candle = [] # force use of candle models when openai_api is available
+candle = [] # force use of candle models when api is available
 
 [dependencies]
 phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }

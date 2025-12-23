@@ -692,7 +692,7 @@ pub fn process_prompt_chat(
 }
 
 pub mod bench_chat_processor {
-    #[cfg(feature = "openai_api")]
+    #[cfg(feature = "api")]
     use crate::openai_chat::OpenAIChatProcessor;
     use phymes_core::{ChatBuilderTraitExt, RuntimeEnvTrait};
 
@@ -763,7 +763,7 @@ pub mod bench_chat_processor {
             ],
             AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
         );
-        #[cfg(all(not(feature = "candle"), feature = "openai_api"))]
+        #[cfg(all(not(feature = "candle"), feature = "api"))]
         let chat_processor = OpenAIChatProcessor::new(
             name,
             OpenAIChatProcessor::get_static_name(),
