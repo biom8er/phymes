@@ -6,7 +6,12 @@ use parking_lot::{Mutex, RwLock};
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
 use tracing::{Level, event};
 
-use crate::{BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RunnableTrait, RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscription, TaskBuilder};
+use crate::{
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
+    PublishAndSubscribeTrait, RunnableTrait, RuntimeEnv, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscription,
+    TaskBuilder,
+};
 
 /// Trait to implement the actual task which could involve one or
 ///   more operators over [`RecordBatch`]s often originating from
@@ -206,7 +211,14 @@ impl PublishAndSubscribeTrait for Task {
 /// Mock objects and functions for task testing
 pub mod test_task {
     use super::*;
-    use crate::{AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, ProcessorBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, TaskBuilderTrait, test_processor::ProcessorMock, test_table::{make_test_table, make_test_table_chat}};
+    use crate::{
+        AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, IPCMessage,
+        IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, ProcessorBuilder,
+        RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication,
+        TableTrait, TaskBuilderTrait,
+        test_processor::ProcessorMock,
+        test_table::{make_test_table, make_test_table_chat},
+    };
 
     use arrow::array::{ArrayRef, StringArray, UInt16Array, UInt32Array};
     use phymes_diagnostics::HashMap;
@@ -425,8 +437,11 @@ pub mod test_task {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{remove_message_by_subject, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, test_table::make_test_table};
     use crate::MessageTrait;
+    use crate::{
+        TableBuilder, TableBuilderTrait, TablePublication, TableTrait, remove_message_by_subject,
+        test_table::make_test_table,
+    };
     use phymes_diagnostics::{Diagnostics, HashMap, SpanBuilder};
 
     /// A compilation test to ensure that the `Task::get_name()` method can

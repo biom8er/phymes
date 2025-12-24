@@ -5,7 +5,10 @@ use parking_lot::{Mutex, RwLock};
 use phymes_diagnostics::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 
-use crate::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, SessionContext, StateMap, TaskMap, Table, TablePublication, TableSubscription, ProcessorTrait, Task, TaskBuilderTrait};
+use crate::{
+    BuildableTrait, BuilderTrait, MappableTrait, ProcessorTrait, RuntimeEnv, SessionContext,
+    StateMap, Table, TablePublication, TableSubscription, Task, TaskBuilderTrait, TaskMap,
+};
 
 /// The plan for the tasks
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
@@ -425,7 +428,11 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 
 /// Mock objects and functions for session context builer testing
 pub mod test_session_context_builder {
-    use crate::{AvailableTableSubscribePolicies, ProcessorEcho, test_processor::ProcessorMock, test_task::{make_runtime_env, make_state_tables, make_state_tables_empty}};
+    use crate::{
+        AvailableTableSubscribePolicies, ProcessorEcho,
+        test_processor::ProcessorMock,
+        test_task::{make_runtime_env, make_state_tables, make_state_tables_empty},
+    };
 
     use super::*;
 
@@ -718,7 +725,11 @@ pub mod test_session_context_builder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{AvailableTableSubscribePolicies, TableSubscription, ProcessorTrait, test_processor::ProcessorMock, test_task::{make_runtime_env, make_state_tables}};
+    use crate::{
+        AvailableTableSubscribePolicies, ProcessorTrait, TableSubscription,
+        test_processor::ProcessorMock,
+        test_task::{make_runtime_env, make_state_tables},
+    };
 
     #[test]
     fn test_get_task_sub_pub_with_input() {

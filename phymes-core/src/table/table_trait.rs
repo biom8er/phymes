@@ -1,10 +1,29 @@
-use std::{io::{Cursor, Seek}, sync::Arc, fmt::Debug, io::Write};
+use std::{
+    fmt::Debug,
+    io::Write,
+    io::{Cursor, Seek},
+    sync::Arc,
+};
 
-use crate::{BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStreamAdapter, SendableRecordBatchStream, TableBuilder};
+use crate::{
+    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStreamAdapter,
+    SendableRecordBatchStream, TableBuilder,
+};
 
 use anyhow::{Result, anyhow};
-use arrow::{array::{Array, ArrayRef, FixedSizeListArray, Float32Array, Float64Array, Int8Array, Int16Array, Int32Array, Int64Array, LargeStringArray, ListArray, StringArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array
-    }, compute::{cast, concat_batches, kernels::concat}, csv::WriterBuilder, datatypes::{DataType, Schema, SchemaRef}, ipc::writer::{FileWriter, StreamWriter}, json::{ArrayWriter, LineDelimitedWriter}, record_batch::RecordBatch};
+use arrow::{
+    array::{
+        Array, ArrayRef, FixedSizeListArray, Float32Array, Float64Array, Int8Array, Int16Array,
+        Int32Array, Int64Array, LargeStringArray, ListArray, StringArray, UInt8Array, UInt16Array,
+        UInt32Array, UInt64Array,
+    },
+    compute::{cast, concat_batches, kernels::concat},
+    csv::WriterBuilder,
+    datatypes::{DataType, Schema, SchemaRef},
+    ipc::writer::{FileWriter, StreamWriter},
+    json::{ArrayWriter, LineDelimitedWriter},
+    record_batch::RecordBatch,
+};
 use bytes::Bytes;
 use num_traits::{Bounded, Num, NumCast};
 use serde::{Deserialize, Serialize};
@@ -1044,7 +1063,10 @@ pub mod test_table {
 
 #[cfg(test)]
 mod tests {
-    use crate::{TableBuilderTrait, table::test_table::{TestTable, make_test_table, make_test_table_schema}};
+    use crate::{
+        TableBuilderTrait,
+        table::test_table::{TestTable, make_test_table, make_test_table_schema},
+    };
 
     use super::*;
 

@@ -4,18 +4,20 @@ mod schemas;
 mod session;
 mod table;
 mod task;
-pub use message::{SessionInterfaceMessage,
-    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-    SessionInterfaceMessageTrait, IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, remove_message_by_subject};
+pub use message::{
+    IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
+    SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
+    SessionInterfaceMessageTrait, remove_message_by_subject,
+};
 pub use processor::{ProcessorBuilder, ProcessorEcho, ProcessorTrait, test_processor};
 pub use schemas::{
     AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BlobSubject,
     ChatBuilderTraitExt, ChatCompletionRequest, ChatCompletionResponse, ChatTraitExt,
     DiagnosticsVisualizations, EmbeddingRequest, EmbeddingResponse, EncodingFormat, FinishReason,
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
-    JoinUserInboxSessionContextsMermaidDiagrams, SessionMermaidSubject,
-    Tool, ToolCall, ToolChoiceType, ToolType, UserSubject, create_blob_batch, create_blob_fields,
+    JoinUserInboxSessionContextsMermaidDiagrams, SessionMermaidSubject, Tool, ToolCall,
+    ToolChoiceType, ToolType, UserSubject, create_blob_batch, create_blob_fields,
     create_chat_fields, create_chat_record_batch, create_documents_batch, create_error_message_map,
     create_error_message_map_stream, create_mermaid_content_template_batch,
     create_mermaid_sequence_diagram_participants_template_batch,
@@ -30,19 +32,19 @@ pub use schemas::{
 pub use session::{
     BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, ProcessorMap, RunnableTrait,
     RuntimeEnv, RuntimeEnvMap, RuntimeEnvTrait, SendableRecordBatchStreamMessageMap,
-    SessionContext, SessionContextBuilder, SessionContextBuilderTrait, SessionStream, SessionStreamState, SessionStreamStep, StateMap,
-    TaskMap, TaskPlan, TaskPlanBuilder, TensorProcessorTrait, TokenProcessorTrait, TokenWrapper,
-    TokenizerConfig, device, test_session_context_builder,
+    SessionContext, SessionContextBuilder, SessionContextBuilderTrait, SessionStream,
+    SessionStreamState, SessionStreamStep, StateMap, TaskMap, TaskPlan, TaskPlanBuilder,
+    TensorProcessorTrait, TokenProcessorTrait, TokenWrapper, TokenizerConfig, device,
+    test_session_context_builder,
 };
 pub use table::{
-    AvailableTableSubscribePolicies, CsvFormat, DataFormat, JsonFormat, OwlFormat,
-    RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder, RecordBatchStream,
-    RecordBatchStreamAdapter, SendableRecordBatchStream, IPCRecordBatchStream, SendableIPCRecordBatchStream, Table, TableBuilder, TableBuilderTrait,
-    TablePublication, TablePublicationTrait, TableScript, TableSubscribePolicyTrait,
-    TableSubscription, TableSubscriptionTrait, TableTrait, from_data_type_to_str,
-    from_str_to_data_type, parse_str_to_data_type, test_table,
+    AvailableTableSubscribePolicies, CsvFormat, DataFormat, IPCRecordBatchStream, JsonFormat,
+    OwlFormat, RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder, RecordBatchStream,
+    RecordBatchStreamAdapter, SendableIPCRecordBatchStream, SendableRecordBatchStream, Table,
+    TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableScript,
+    TableSubscribePolicyTrait, TableSubscription, TableSubscriptionTrait, TableTrait,
+    from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type, test_table,
 };
 pub use task::{
-    PublishAndSubscribeTrait, Task, TaskBuilder, TaskBuilderTrait, TaskTrait,
-    test_task,
+    PublishAndSubscribeTrait, Task, TaskBuilder, TaskBuilderTrait, TaskTrait, test_task,
 };

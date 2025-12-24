@@ -10,7 +10,12 @@ use std::sync::Arc;
 use tokio::task::JoinSet;
 use tracing::{Level, event, instrument};
 
-use crate::{BuilderTrait, IPCMessageMap, MappableTrait, RunnableTrait, SendableRecordBatchStreamMessageMap, create_error_message_map, create_error_message_map_stream, SessionStreamState, TableBuilder, TableBuilderTrait, TableTrait, PublishAndSubscribeTrait, IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage};
+use crate::{
+    BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait,
+    MessageTrait, PublishAndSubscribeTrait, RunnableTrait, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, SessionStreamState, TableBuilder, TableBuilderTrait,
+    TableTrait, create_error_message_map, create_error_message_map_stream,
+};
 
 /// A single step of a [`SessionStream`]
 ///
@@ -300,8 +305,16 @@ impl SessionStreamStep {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{AvailableSubjects, AvailableSubjectsTrait, test_session_context_builder::{make_test_session_context_parallel_task, make_test_session_context_sequential_task},
-        SessionContextBuilder, SessionContextBuilderTrait, TaskPlan, TablePublication, TableSubscription, test_processor::{ProcessorError, ProcessorMock}, test_task::{make_runtime_env, make_state_tables, make_test_input_message}, AvailableTableSubscribePolicies, ProcessorBuilder};
+    use crate::{
+        AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies,
+        ProcessorBuilder, SessionContextBuilder, SessionContextBuilderTrait, TablePublication,
+        TableSubscription, TaskPlan,
+        test_processor::{ProcessorError, ProcessorMock},
+        test_session_context_builder::{
+            make_test_session_context_parallel_task, make_test_session_context_sequential_task,
+        },
+        test_task::{make_runtime_env, make_state_tables, make_test_input_message},
+    };
 
     #[tokio::test]
     async fn test_session_run_superstep_no_state_update() -> Result<()> {

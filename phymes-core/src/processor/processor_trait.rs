@@ -1,5 +1,8 @@
-use crate::{MappableTrait, RuntimeEnv, SendableRecordBatchStreamMessageMap, RecordBatchStream, SendableRecordBatchStream, TablePublication, TableSubscribePolicyTrait,
-    TableSubscription, PublishAndSubscribeTrait};
+use crate::{
+    MappableTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv,
+    SendableRecordBatchStream, SendableRecordBatchStreamMessageMap, TablePublication,
+    TableSubscribePolicyTrait, TableSubscription,
+};
 use anyhow::{Result, anyhow};
 use parking_lot::Mutex;
 use phymes_diagnostics::DiagnosticBuilder;
@@ -8,9 +11,7 @@ use std::sync::Arc;
 use tracing::{Level, event};
 
 /// Trait that performs the actual processing
-///
-/// # Notes
-/// - designed to allow for chaining multiple processors into streaming computational trees
+///   and designed to allow for chaining multiple processors into streaming computational trees
 pub trait ProcessorTrait: MappableTrait + PublishAndSubscribeTrait + Send + Sync + Debug {
     /// New processor
     fn new(
@@ -30,7 +31,7 @@ pub trait ProcessorTrait: MappableTrait + PublishAndSubscribeTrait + Send + Sync
     /// often just an alias for `get_static_name`
     fn get_type(&self) -> &str;
 
-    /// Begin execution of `Process`, returning a [`Stream`] of [`RecordBatch`]es.
+    /// Run the `Process`, returning a [`Stream`] of [`RecordBatch`]es.
     ///
     /// [`RecordBatch`]: arrow::record_batch::RecordBatch
     ///
@@ -59,7 +60,7 @@ pub trait ProcessorTrait: MappableTrait + PublishAndSubscribeTrait + Send + Sync
     /// Any error that occurs during execution is sent as an `Err` in the output stream.
     ///
     /// `Task` implementations cancel additional work immediately once an error occurs.
-    /// The rationale is that if the overall query will return an error, any additional work such as continued
+    /// The rationale is that if the overall task will return an error, any additional work such as continued
     /// polling of inputs will be wasted as it will be thrown away.
     ///
     /// # Cancellation / Aborting Execution
@@ -195,7 +196,9 @@ pub trait ProcessorTrait: MappableTrait + PublishAndSubscribeTrait + Send + Sync
 /// Mock objects and functions for processor testing
 pub mod test_processor {
     use super::*;
-    use crate::{BuildableTrait, BuilderTrait, StateMap, test_table::make_test_record_batch, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage
+    use crate::{
+        BuildableTrait, BuilderTrait, MessageBuilderTrait, MessageTrait,
+        SendableRecordBatchStreamMessage, StateMap, test_table::make_test_record_batch,
     };
 
     use arrow::{array::RecordBatch, compute::concat_batches, datatypes::SchemaRef};
@@ -463,8 +466,11 @@ mod tests {
     use super::*;
     use std::sync::Arc;
 
-    use crate::{AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, RuntimeEnv, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
-        test_table::make_test_table, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage};
+    use crate::{
+        AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MessageBuilderTrait,
+        MessageTrait, RuntimeEnv, SendableRecordBatchStreamMessage, TableBuilder,
+        TableBuilderTrait, TablePublication, TableTrait, test_table::make_test_table,
+    };
     use anyhow::Result;
     use parking_lot::lock_api::Mutex;
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder};

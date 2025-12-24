@@ -11,10 +11,10 @@ use super::{
     common_traits::{BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait},
     session_context::SessionContext,
 };
+use crate::message::MessageTrait;
 use crate::table::{
     Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableTrait,
 };
-use crate::message::MessageTrait;
 
 /// State tracked during the course of running a [SessionStream]
 ///

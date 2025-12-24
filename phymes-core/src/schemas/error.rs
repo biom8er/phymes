@@ -1,7 +1,11 @@
 use anyhow::{Error, Result};
 use phymes_diagnostics::{HashMap, create_timestamp_micros};
 
-use crate::{create_chat_record_batch, AvailableSubjects, BuilderTrait, MappableTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, IPCMessage, IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder};
+use crate::{
+    AvailableSubjects, BuilderTrait, IPCMessage, IPCMessageBuilder, MappableTrait,
+    MessageBuilderTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
+    Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, create_chat_record_batch,
+};
 
 /// Create the error table
 ///

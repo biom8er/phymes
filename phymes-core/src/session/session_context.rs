@@ -5,7 +5,12 @@ use phymes_diagnostics::{Diagnostics, HashMap};
 use std::sync::Arc;
 use tracing::{Level, event};
 
-use crate::{BuildableTrait, BuilderTrait, MappableTrait, StateMap, TaskMap, RuntimeEnv, SessionContextBuilder, AvailableSubjects, create_session_subjects_num_rows_batch, from_diagnostics_to_tables, Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableTrait, PublishAndSubscribeTrait};
+use crate::{
+    AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, PublishAndSubscribeTrait,
+    RuntimeEnv, SessionContextBuilder, StateMap, Table, TableBuilder, TableBuilderTrait,
+    TablePublication, TablePublicationTrait, TableTrait, TaskMap,
+    create_session_subjects_num_rows_batch, from_diagnostics_to_tables,
+};
 
 /// The `SessionContext` creates an execution graph based on a
 /// `SessionPlan` and manages the running of individual tasks

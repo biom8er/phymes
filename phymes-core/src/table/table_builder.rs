@@ -1,24 +1,43 @@
+use std::{
+    fmt::Debug,
+    fs::File,
+    io::Read,
+    io::{Cursor, Seek},
+    sync::Arc,
+};
 
-use std::{fs::File, io::{Cursor, Seek}, sync::Arc, fmt::Debug, io::Read};
-
-use crate::{Table, BuilderTrait, SendableIPCRecordBatchStream, SendableRecordBatchStream};
+use crate::{BuilderTrait, SendableIPCRecordBatchStream, SendableRecordBatchStream, Table};
 use anyhow::{Result, anyhow};
-use arrow::{json::{reader::infer_json_schema, ReaderBuilder}, ipc::reader::{FileReader, StreamReader}, array::{StringBuilder, ArrayData, Float32Builder, ListBuilder, FixedSizeListArray, Int8Array, Int16Array, Int32Array, Int64Array,
+use arrow::{
+    array::{
+        ArrayData,
         ArrayRef,
         BooleanArray, //Float16Array,
+        FixedSizeListArray,
         Float32Array,
+        Float32Builder,
         Float64Array,
+        Int8Array,
+        Int16Array,
+        Int32Array,
+        Int64Array,
+        ListBuilder,
         StringArray,
+        StringBuilder,
         UInt8Array,
         UInt16Array,
         UInt32Array,
         UInt64Array,
     },
-    csv::reader::Format,
     buffer::Buffer,
-    datatypes::{Field, Schema, DataType, SchemaRef}, record_batch::RecordBatch};
-use serde::Serialize;
+    csv::reader::Format,
+    datatypes::{DataType, Field, Schema, SchemaRef},
+    ipc::reader::{FileReader, StreamReader},
+    json::{ReaderBuilder, reader::infer_json_schema},
+    record_batch::RecordBatch,
+};
 use futures::TryStreamExt;
+use serde::Serialize;
 use serde_json::Value;
 use tracing::{Level, event, instrument};
 

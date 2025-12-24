@@ -1,4 +1,8 @@
-use crate::{MappableTrait, ProcessorTrait, PublishAndSubscribeTrait, RuntimeEnv, SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscribePolicyTrait, TableSubscription};
+use crate::{
+    MappableTrait, ProcessorTrait, PublishAndSubscribeTrait, RuntimeEnv,
+    SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscribePolicyTrait,
+    TableSubscription,
+};
 use anyhow::Result;
 use parking_lot::Mutex;
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};

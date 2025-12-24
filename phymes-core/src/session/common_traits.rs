@@ -1,4 +1,6 @@
-use crate::{RuntimeEnv, Table, ProcessorTrait, Task, IPCMessage, SendableRecordBatchStreamMessage};
+use crate::{
+    IPCMessage, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessage, Table, Task,
+};
 
 /// General imports
 use anyhow::Result;

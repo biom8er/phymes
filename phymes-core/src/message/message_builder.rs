@@ -1,8 +1,6 @@
-use crate::{IPCMessage, SendableRecordBatchStreamMessage};
 use crate::session::BuilderTrait;
-use crate::table::{
-    SendableRecordBatchStream, TablePublication,
-};
+use crate::table::{SendableRecordBatchStream, TablePublication};
+use crate::{IPCMessage, SendableRecordBatchStreamMessage};
 
 use anyhow::{Result, anyhow};
 

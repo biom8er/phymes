@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use crate::{IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessageBuilder};
 use crate::session::{BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait};
 use crate::table::{
     SendableRecordBatchStream, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
 };
+use crate::{IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessageBuilder};
 
 use anyhow::Result;
 use arrow::array::{ArrayRef, RecordBatch, StringArray};
@@ -251,8 +251,6 @@ where
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -260,7 +258,10 @@ mod tests {
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use phymes_diagnostics::HashMap;
 
-    use crate::{TableBuilder, TableTrait, test_table::{self, make_test_table, make_test_table_chat}};
+    use crate::{
+        TableBuilder, TableTrait,
+        test_table::{self, make_test_table, make_test_table_chat},
+    };
 
     use super::*;
 
