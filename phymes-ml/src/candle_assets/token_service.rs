@@ -1,3 +1,50 @@
+use std::fmt::Debug;
+use anyhow::Result;
+use candle_core::Tensor;
+use phymes_data::TensorProcessorTrait;
+use serde::{Deserialize, Serialize};
+use tokenizers::Tokenizer;
+
+/// Tokens representations in different dimensions
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TokenWrapper {
+    /// Text generation input
+    D1(Vec<u32>),
+    /// Embedding generation input
+    D2(Vec<Vec<u32>>),
+}
+
+/// Tokenizer configurations and templates
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TokenizerConfig {
+    pub model_max_length: Option<usize>,
+    pub chat_template: Option<String>, // Jinja2 template is provided in tokenizer_config.json
+    pub eos_token: Option<String>, // can be inferred from vocab.json and config.json and provided in tokenizer_config.json
+    pub eos_token_id: Option<u32>, // provided in config.json
+    pub bos_token: Option<String>,
+    pub bos_token_id: Option<u32>, // provided in config.json
+                                   // pub completion_template: Option<String>, // provided in tokenizer_config.json
+                                   // pub tokenizer_class: Option<String>, // provided in tokenizer_config.json
+}
+
+/// for services that process tokens
+pub trait TokenProcessorTrait: TensorProcessorTrait + Send + Sync + Debug {
+    /// Backward: propogation of the error signal for updating the tensor weights
+    //fn backward(&mut self) -> Result<Self::T>;
+    /// Forward: inference using the tensor weights on the specified device
+    fn forward(
+        &mut self,
+        input: &TokenWrapper,
+        index_position: usize,
+        attention_mask: Option<&TokenWrapper>,
+        include_lm_head: bool,
+    ) -> Result<Tensor>;
+
+    fn get_tokenizer(&self) -> &Tokenizer;
+
+    fn get_tokenizer_config(&self) -> &TokenizerConfig;
+}
+
 /// This is a wrapper around a tokenizer to ensure that tokens can be returned to the user in a
 /// streaming way rather than having to wait for the full decoding.
 /// From <https://github.com/huggingface/candle/blob/main/candle-examples/src/token_output_stream.rs>

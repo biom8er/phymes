@@ -1,5 +1,5 @@
 use clap::Parser;
-use phymes_core::device;
+use crate::device;
 use serde::{Deserialize, Serialize};
 
 use candle_core::DType;

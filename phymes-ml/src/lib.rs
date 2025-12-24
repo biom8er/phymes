@@ -10,7 +10,7 @@ mod openai_embed;
 
 pub use candle_assets::{
     AvailableCandleAssets, CandleAsset, CandleModelWeights, TokenOutputStream,
-    load_model_asset_path, load_tokenizer,
+    load_model_asset_path, load_tokenizer, TokenProcessorTrait, TokenWrapper, TokenizerConfig
 };
 pub use candle_chat::{
     CandleChatConfig, CandleChatProcessor, MessageAggregatorProcessor, MessageParserProcessor,

@@ -10,36 +10,6 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::sync::Arc;
 
-/// Imports from Candle
-use candle_core::{
-    utils::{cuda_is_available, metal_is_available},
-    {Device, Tensor},
-};
-use tokenizers::Tokenizer;
-
-/// From <https://github.com/huggingface/candle/blob/main/candle-examples/src/lib.rs>
-pub fn device(cpu: bool) -> candle_core::Result<Device> {
-    if cpu {
-        candle_core::Result::Ok(Device::Cpu)
-    } else if cuda_is_available() {
-        candle_core::Result::Ok(Device::new_cuda(0)?)
-    } else if metal_is_available() {
-        candle_core::Result::Ok(Device::new_metal(0)?)
-    } else {
-        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-        {
-            println!(
-                "Running on CPU, to run on GPU(metal), build this example with `--features metal`"
-            );
-        }
-        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
-        {
-            println!("Running on CPU, to run on GPU, build this example with `--features gpu`");
-        }
-        candle_core::Result::Ok(Device::Cpu)
-    }
-}
-
 /// Runtime environment HashMap with Arc/Mutex for thread-safe mutability
 pub type RuntimeEnvMap = HashMap<String, Arc<Mutex<RuntimeEnv>>>;
 
@@ -134,50 +104,4 @@ pub trait RunnableTrait {
         messages: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
     ) -> Result<SendableRecordBatchStreamMessageMap>;
-}
-
-/// For services that process Tensors
-pub trait TensorProcessorTrait: Send + Sync + Debug {
-    /// Device
-    fn get_device(&self) -> &Device;
-}
-
-/// Tokens representations in different dimensions
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum TokenWrapper {
-    /// Text generation input
-    D1(Vec<u32>),
-    /// Embedding generation input
-    D2(Vec<Vec<u32>>),
-}
-
-/// Tokenizer configurations and templates
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TokenizerConfig {
-    pub model_max_length: Option<usize>,
-    pub chat_template: Option<String>, // Jinja2 template is provided in tokenizer_config.json
-    pub eos_token: Option<String>, // can be inferred from vocab.json and config.json and provided in tokenizer_config.json
-    pub eos_token_id: Option<u32>, // provided in config.json
-    pub bos_token: Option<String>,
-    pub bos_token_id: Option<u32>, // provided in config.json
-                                   // pub completion_template: Option<String>, // provided in tokenizer_config.json
-                                   // pub tokenizer_class: Option<String>, // provided in tokenizer_config.json
-}
-
-/// for services that process tokens
-pub trait TokenProcessorTrait: TensorProcessorTrait + Send + Sync + Debug {
-    /// Backward: propogation of the error signal for updating the tensor weights
-    //fn backward(&mut self) -> Result<Self::T>;
-    /// Forward: inference using the tensor weights on the specified device
-    fn forward(
-        &mut self,
-        input: &TokenWrapper,
-        index_position: usize,
-        attention_mask: Option<&TokenWrapper>,
-        include_lm_head: bool,
-    ) -> Result<Tensor>;
-
-    fn get_tokenizer(&self) -> &Tokenizer;
-
-    fn get_tokenizer_config(&self) -> &TokenizerConfig;
 }

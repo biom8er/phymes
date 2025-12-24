@@ -133,10 +133,10 @@ impl ProcessorTrait for MessageAggregatorProcessor {
 #[cfg(test)]
 mod tests {
     use phymes_core::{
-        AvailableTableSubscribePolicies, TableBuilder, TableBuilderTrait, TableTrait, device,
+        AvailableTableSubscribePolicies, TableBuilder, TableBuilderTrait, TableTrait,
         test_table::{make_test_table, make_test_table_chat},
     };
-    use phymes_data::{AvailableCandleOperators, CandleTensorService, DataConfig};
+    use phymes_data::{AvailableCandleOperators, CandleTensorService, DataConfig, device};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;
@@ -204,11 +204,7 @@ mod tests {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make the runtime environment
-        let device = device(config.cpu)?;
-        let service = CandleTensorService::new(device);
         let runtime_env = RuntimeEnv {
-            token_service: None,
-            tensor_service: Some(Box::new(service)),
             name: "service".to_string(),
             memory_limit: None,
             time_limit: None,

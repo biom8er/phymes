@@ -1,11 +1,10 @@
-use super::{data_config::DataConfig, tensor_service::CandleTensorService};
-use crate::{DataConfigTrait, DataStreamManager, candle_operators::DataOperatorTrait};
+use crate::{CandleTensorService, DataConfig, DataConfigTrait, DataOperatorTrait, DataStreamManager, TensorProcessorTrait, device};
 use phymes_core::{
     BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
     PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TableBuilder,
     TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait,
-    device, remove_message_by_subject,
+    remove_message_by_subject,
 };
 
 use arrow::{
@@ -185,6 +184,8 @@ pub struct CandleDataStream {
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for tensor operations
     config: Option<DataConfig>,
+    /// The service for operating over tensors
+    tensor_service: Option<Box<dyn TensorProcessorTrait>>,
     /// The data operator to run
     data_operator: Option<Box<dyn DataOperatorTrait>>,
     /// The polled record batches from the input
@@ -210,6 +211,7 @@ impl CandleDataStream {
             diagnostic_builder,
             runtime_env,
             config: None,
+            tensor_service: None,
             data_operator: None,
             lhs_inbox: Vec::new(),
             rhs_inbox: Vec::new(),
@@ -218,16 +220,12 @@ impl CandleDataStream {
         })
     }
 
-    #[instrument(skip(self))]
     fn init_tensor_service(&mut self) -> Result<()> {
         if let Some(ref config) = self.config {
-            if self.runtime_env.lock().tensor_service.is_none() {
+            if self.tensor_service.is_none() {
                 let device = device(config.cpu)?;
                 let service = CandleTensorService::new(device);
-                let _ = self
-                    .runtime_env
-                    .lock()
-                    .tensor_service
+                let _ = self.tensor_service
                     .replace(Box::new(service));
             }
         } else {
@@ -519,9 +517,7 @@ impl Stream for CandleDataStream {
         let batch = match self.data_operator.as_ref().unwrap().forward(
             &self.lhs_inbox,
             Some(&self.rhs_inbox),
-            self.runtime_env
-                .lock()
-                .tensor_service
+            self.tensor_service
                 .as_ref()
                 .unwrap()
                 .get_device(),
@@ -774,11 +770,7 @@ mod tests {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make the runtime environment
-        let device = device(config.cpu)?;
-        let service = CandleTensorService::new(device);
         let runtime_env = RuntimeEnv {
-            token_service: None,
-            tensor_service: Some(Box::new(service)),
             name: "service".to_string(),
             memory_limit: None,
             time_limit: None,
@@ -1429,11 +1421,7 @@ mod tests {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make the runtime environment
-        let device = device(config.cpu)?;
-        let service = CandleTensorService::new(device);
         let runtime_env = RuntimeEnv {
-            token_service: None,
-            tensor_service: Some(Box::new(service)),
             name: "service".to_string(),
             memory_limit: None,
             time_limit: None,

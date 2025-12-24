@@ -6,11 +6,11 @@ use parking_lot::Mutex;
 use phymes_core::{
     AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MessageBuilderTrait,
     MessageTrait, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessage, Table,
-    TableBuilderTrait, TablePublication, TableSubscription, TableTrait, device,
+    TableBuilderTrait, TablePublication, TableSubscription, TableTrait,
     from_diagnostics_to_tables, test_table::TestTableSizes,
 };
 use phymes_data::{
-    AvailableCandleOperators, CandleDataProcessor, CandleTensorService, DataAggregatorOperator,
+    device, AvailableCandleOperators, CandleDataProcessor, CandleTensorService, DataAggregatorOperator,
     DataComparatorOperator, DataComparatorPredicate, DataConfig, DataStreamManager,
 };
 use phymes_diagnostics::{
@@ -133,11 +133,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
         for stream in stream_vec.iter() {
             for config in ops_configs_vec.iter() {
                 // Build the runtime environment
-                let device = device(false).unwrap();
-                let service = CandleTensorService::new(device);
                 let runtime_env = RuntimeEnv {
-                    token_service: None,
-                    tensor_service: Some(Box::new(service)),
                     name: "service".to_string(),
                     memory_limit: None,
                     time_limit: None,

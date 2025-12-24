@@ -34,7 +34,6 @@ pub use session::{
     RuntimeEnv, RuntimeEnvMap, RuntimeEnvTrait, SendableRecordBatchStreamMessageMap,
     SessionContext, SessionContextBuilder, SessionContextBuilderTrait, SessionStream,
     SessionStreamState, SessionStreamStep, StateMap, TaskMap, TaskPlan, TaskPlanBuilder,
-    TensorProcessorTrait, TokenProcessorTrait, TokenWrapper, TokenizerConfig, device,
     test_session_context_builder,
 };
 pub use table::{

@@ -430,7 +430,7 @@ pub fn join(
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray, UInt8Array, UInt32Array};
-    use phymes_core::device;
+    use crate::device;
 
     use super::*;
 

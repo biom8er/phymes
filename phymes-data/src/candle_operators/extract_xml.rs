@@ -601,9 +601,10 @@ pub fn extract_xml(
 mod tests {
     use phymes_core::{
         BuildableTrait, BuilderTrait, DataFormat, Table, TableBuilderTrait, TableTrait,
-        create_blob_batch, device,
+        create_blob_batch,
     };
     use phymes_diagnostics::create_timestamp_micros;
+    use crate::device;
 
     use super::*;
 

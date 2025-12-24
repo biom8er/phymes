@@ -648,7 +648,7 @@ pub fn melt(
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray, UInt32Array};
-    use phymes_core::device;
+    use crate::device;
 
     use super::*;
 

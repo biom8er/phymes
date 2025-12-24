@@ -9,15 +9,11 @@ use phymes_core::{
     MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream,
     RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait,
-    TablePublication, TableSubscribePolicyTrait, TableSubscription, create_blob_fields, device,
+    TablePublication, TableSubscribePolicyTrait, TableSubscription, create_blob_fields,
     remove_message_by_subject,
 };
 
-use crate::{
-    DataConfigTrait,
-    candle_data::{data_config::DataConfig, tensor_service::CandleTensorService},
-    candle_operators::DataOperatorTrait,
-};
+use crate::{CandleTensorService, DataConfig, DataConfigTrait, DataOperatorTrait, TensorProcessorTrait, device};
 use anyhow::{Result, anyhow};
 use arrow::{
     array::RecordBatch,
@@ -186,6 +182,8 @@ pub struct AggregatorStream {
     config_stream: SendableRecordBatchStream,
     /// Parameters for tensor operations
     config: Option<DataConfig>,
+    /// The service for operating over tensors
+    tensor_service: Option<Box<dyn TensorProcessorTrait>>,
     /// The data operator to run
     data_operator: Option<Box<dyn DataOperatorTrait>>,
     /// The Candle model assets needed for inference
@@ -207,6 +205,7 @@ impl AggregatorStream {
             input,
             config_stream,
             config: None,
+            tensor_service: None,
             data_operator: None,
             runtime_env,
             diagnostic_builder,
@@ -222,16 +221,12 @@ impl AggregatorStream {
         Ok(())
     }
 
-    #[instrument(skip(self))]
     fn init_tensor_service(&mut self) -> Result<()> {
         if let Some(ref config) = self.config {
-            if self.runtime_env.lock().tensor_service.is_none() {
+            if self.tensor_service.is_none() {
                 let device = device(config.cpu)?;
                 let service = CandleTensorService::new(device);
-                let _ = self
-                    .runtime_env
-                    .lock()
-                    .tensor_service
+                let _ = self.tensor_service
                     .replace(Box::new(service));
             }
         } else {
@@ -303,9 +298,7 @@ impl Stream for AggregatorStream {
             let batch = self.data_operator.as_ref().unwrap().forward(
                 &batches,
                 None,
-                self.runtime_env
-                    .lock()
-                    .tensor_service
+                self.tensor_service
                     .as_ref()
                     .unwrap()
                     .get_device(),

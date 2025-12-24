@@ -560,7 +560,7 @@ pub fn normalized_dot_product(lhs: &Tensor, rhs: &Tensor) -> Result<Tensor> {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::device;
+    use crate::device;
 
     use crate::candle_data::test_candle_ops_processor::{
         make_embeddings_record_batch_str_f32, make_embeddings_record_batch_u32_f32,

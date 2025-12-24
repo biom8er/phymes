@@ -379,7 +379,7 @@ mod tests {
         buffer::Buffer,
         datatypes::Field,
     };
-    use phymes_core::device;
+    use crate::device;
 
     use super::*;
 

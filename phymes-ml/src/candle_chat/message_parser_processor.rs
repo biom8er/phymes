@@ -479,8 +479,6 @@ mod tests {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
-            token_service: None,
-            tensor_service: None,
             name: "service".to_string(),
             memory_limit: None,
             time_limit: None,
@@ -593,8 +591,6 @@ mod tests {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
-            token_service: None,
-            tensor_service: None,
             name: "service".to_string(),
             memory_limit: None,
             time_limit: None,
@@ -707,8 +703,6 @@ mod tests {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
-            token_service: None,
-            tensor_service: None,
             name: "service".to_string(),
             memory_limit: None,
             time_limit: None,

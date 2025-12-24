@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::session::common_traits::{MappableTrait, TensorProcessorTrait, TokenProcessorTrait};
+use crate::MappableTrait;
 
 /// `BuidableTrait` + `BuilderTraint` - `get_builder` - `build`
 pub trait RuntimeEnvTrait: MappableTrait + Send + Sync {
@@ -10,10 +10,8 @@ pub trait RuntimeEnvTrait: MappableTrait + Send + Sync {
 
 #[derive(Default, Debug)]
 pub struct RuntimeEnv {
-    /// the service for generating and consuming tokens
-    pub token_service: Option<Box<dyn TokenProcessorTrait>>,
-    /// the service for operating over tensors
-    pub tensor_service: Option<Box<dyn TensorProcessorTrait>>,
+    // /// the service for generating and consuming tokens
+    // pub token_service: Option<Box<dyn TokenProcessorTrait>>,
     /// name for the runtime environment config
     pub name: String,
     /// the max allowable memory
@@ -31,8 +29,6 @@ impl MappableTrait for RuntimeEnv {
 impl RuntimeEnvTrait for RuntimeEnv {
     fn new() -> Self {
         Self {
-            token_service: None,
-            tensor_service: None,
             name: "".to_string(),
             memory_limit: None,
             time_limit: None,

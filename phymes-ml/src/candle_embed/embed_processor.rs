@@ -1,36 +1,33 @@
-use candle_core::{DType, Tensor};
-use phymes_data::DataConfigTrait;
-use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
-
-use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
-    MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream,
-    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait,
-    TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, TokenWrapper,
-    device, remove_message_by_subject,
-};
-use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
-};
-
-use arrow::{
-    array::{ArrayRef, Float32Builder, ListBuilder, StringArray},
-    datatypes::{DataType, Field, SchemaRef},
-    record_batch::RecordBatch,
-};
-
-use anyhow::{Error, Result, anyhow};
-use futures::{Stream, StreamExt};
-use parking_lot::Mutex;
 use std::{
     pin::Pin,
     sync::Arc,
     task::{Context, Poll, ready},
 };
+
+use anyhow::{Error, Result, anyhow};
+use arrow::{
+    array::{ArrayRef, Float32Builder, ListBuilder, StringArray},
+    datatypes::{DataType, Field, SchemaRef},
+    record_batch::RecordBatch,
+};
+use candle_core::{DType, Tensor};
+use futures::{Stream, StreamExt};
+use phymes_data::{DataConfigTrait, device};
+use phymes_core::{
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream,
+    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait,
+    TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, remove_message_by_subject,
+};
+use phymes_diagnostics::{
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
+};
+use parking_lot::Mutex;
+use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 use tracing::{Level, event, instrument};
 
-use super::embed_config::CandleEmbedConfig;
+use crate::{CandleEmbedConfig, TokenWrapper};
 
 #[derive(Debug)]
 pub struct CandleEmbedProcessor {

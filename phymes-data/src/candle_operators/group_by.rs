@@ -2578,7 +2578,7 @@ pub fn group_by(
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::device;
+    use crate::device;
 
     use super::*;
 

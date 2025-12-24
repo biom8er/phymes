@@ -10,14 +10,12 @@ documentation = "https://docs.rs/phymes-core"
 
 [features]
 default = ["wsl"]
-wasip2 = ["tokenizers/unstable_wasm",
-    "tokio/sync",
+wasip2 = ["tokio/sync",
     "tokio/macros",
     "tokio/io-util",
     "tokio/rt",
     "phymes-diagnostics/wasip2"]
 wsl = ["dep:tempfile",
-    "tokenizers/onig",
     "tokio/full",
     "phymes-diagnostics/wsl"]
 hf_hub = [] # for compatibility with agents
@@ -46,8 +44,6 @@ hashbrown = "0.15.4"
 chrono = { version = "0.4.41", features = ["wasmbind"] }
 minijinja = { version = "2.6.0", features = ["json"] }
 minijinja-contrib = { version = "2.6.0", features = ["pycompat"] }
-candle-core = { version = "0.9.1" }
-tokenizers = { version = "0.21.1", default-features = false, optional = true }
 bytes = "1.10.1"
 getrandom = { version = "0.3.1", features = ["wasm_js"] }
 num-traits = { version = "0.2", default-features = false }

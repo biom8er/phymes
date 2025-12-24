@@ -349,7 +349,7 @@ mod tests {
     use std::sync::Arc;
 
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::device;
+    use crate::device;
 
     use super::*;
 

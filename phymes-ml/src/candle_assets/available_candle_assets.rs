@@ -1,23 +1,15 @@
-use anyhow::Result;
-use clap::ValueEnum;
-use phymes_core::TokenizerConfig;
-use serde::{Deserialize, Serialize};
-/// General dependencies
 use std::fs::File;
 
-/// Candle dependencies
+use anyhow::Result;
+use clap::ValueEnum;
+use serde::{Deserialize, Serialize};
 use candle_core::{DType, Device, quantized::gguf_file};
 use candle_nn::{VarBuilder, var_builder::SimpleBackend};
 use candle_transformers::models::bert::{BertModel as Bert, Config as BertConfig};
 use candle_transformers::models::quantized_llama::ModelWeights as QuantizedLlama;
 use candle_transformers::quantized_var_builder::VarBuilder as QuantVarBuilder;
 use tokenizers::Tokenizer;
-
-/// All supported models
-use crate::candle_models::{QuantizedBert, QuantizedQwen2, QuantizerdBertConfig};
-
-/// Crates
-use super::candle_asset::CandleAsset;
+use crate::{QuantizedBert, QuantizedQwen2, QuantizerdBertConfig, TokenizerConfig, CandleAsset};
 
 /// The model weights objects that store
 /// the actual tensors needed for inference
@@ -647,7 +639,7 @@ mod tests {
     }
 
     use candle_core::DType;
-    use phymes_core::device;
+    use phymes_data::device;
 
     #[test]
     fn load_model_varbuilder_test() {

@@ -1,37 +1,33 @@
-use crate::candle_assets::TokenOutputStream;
+use std::{
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll, ready},
+};
 
+use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
+use anyhow::{Result, anyhow};
 use candle_core::DType;
 use candle_transformers::generation::{LogitsProcessor, Sampling};
-use phymes_data::DataConfigTrait;
-use tokenizers::Tokenizer;
-
+use crate::{CandleChatConfig, TokenWrapper, TokenOutputStream};
+use phymes_data::{DataConfigTrait, device};
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
     BuilderTrait, ChatTraitExt, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
     PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table,
     TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait,
-    TableSubscription, TableTrait, TokenWrapper, Tool, create_chat_record_batch, device,
+    TableSubscription, TableTrait, Tool, create_chat_record_batch,
     remove_message_by_subject,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
     create_timestamp_micros,
 };
-
-use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
-
-use anyhow::{Result, anyhow};
+use tokenizers::Tokenizer;
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
-use std::{
-    pin::Pin,
-    sync::Arc,
-    task::{Context, Poll, ready},
-};
 use tracing::{Level, event, instrument};
 
-use super::chat_config::CandleChatConfig;
 
 /// Processor for text generation inference (TGI) using Candle models
 #[derive(Debug)]
