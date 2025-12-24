@@ -17,7 +17,7 @@ mod chat;
 pub use chat::{ChatBuilderTraitExt, ChatTraitExt, create_chat_fields, create_chat_record_batch};
 
 mod queries;
-pub use queries::{QueriesBuilderTraitExt, create_queries_batch};
+pub use queries::create_queries_batch;
 
 mod user;
 pub use user::{

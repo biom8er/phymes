@@ -9,7 +9,7 @@ use phymes_agents::{
 };
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait,
-    ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, QueriesBuilderTraitExt,
+    ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait,
     SessionStream, SessionStreamState, Table, TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_data::make_pdf_document;
@@ -152,7 +152,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 let _messages = rt.block_on(async {
                     let blob = AvailableInterfaceSubjects::UserPdf
                         .to_table_builder(None)
-                        .with_blob(None, Some(".pdf"), bytes, None)?
+                        .with_blob(None, Some("pdf"), bytes, None)?
                         .build()?;
                     let blob_message = IPCMessage::get_builder()
                         .with_message(blob.to_ipc_stream()?)
@@ -184,20 +184,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                         .with_publisher(session_context_name.as_str())
                         .make_name()?
                         .build()?;
-                    let query = AvailableInterfaceSubjects::UserQueries
-                        .to_table_builder(None)
-                        .with_text(user_query)?
-                        .build()?;
-                    let query_message = IPCMessage::get_builder()
-                        .with_message(query.to_ipc_stream()?)
-                        .with_subject(query.get_name())
-                        .with_update(&TablePublication::Extend {
-                            table_name: query.get_name().to_string(),
-                        })
-                        .with_publisher(session_context_name.as_str())
-                        .make_name()?
-                        .build()?;
-                    let message_map = create_message_map(vec![chat_message, query_message]);
+                    let message_map = create_message_map(vec![chat_message]);
                     let session_stream =
                         SessionStream::new(message_map, Arc::clone(&session_stream_state));
                     session_stream

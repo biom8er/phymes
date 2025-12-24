@@ -7,7 +7,7 @@ pub use schemas::{
     ChatBuilderTraitExt, ChatCompletionRequest, ChatCompletionResponse, ChatTraitExt,
     DiagnosticsVisualizations, EmbeddingRequest, EmbeddingResponse, EncodingFormat, FinishReason,
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
-    JoinUserInboxSessionContextsMermaidDiagrams, QueriesBuilderTraitExt, SessionMermaidSubject,
+    JoinUserInboxSessionContextsMermaidDiagrams, SessionMermaidSubject,
     Tool, ToolCall, ToolChoiceType, ToolType, UserSubject, create_blob_batch, create_blob_fields,
     create_chat_fields, create_chat_record_batch, create_documents_batch, create_error_message_map,
     create_error_message_map_stream, create_mermaid_content_template_batch,

@@ -1,5 +1,3 @@
-//! Stream wrappers for physical operators
-
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -54,8 +52,7 @@ impl<O: Send + 'static + std::fmt::Debug> ReceiverStreamBuilder<O> {
         self.tx.clone()
     }
 
-    /// Spawn task that will be aborted if this builder (or the stream
-    /// built from it) are dropped
+    /// Spawn task that will be aborted if this builder (or the stream built from it) are dropped
     pub fn spawn<F>(&mut self, task: F)
     where
         F: Future<Output = Result<()>>,
@@ -248,7 +245,6 @@ impl RecordBatchReceiverStreamBuilder {
     ///
     /// If the input partition produces an error, the error will be
     /// sent to the output stream and no further results are sent.
-    #[instrument(level = "trace")]
     pub fn run_input(&mut self, input: Arc<dyn SendableRecordBatchExecTrait>) {
         let output = self.tx();
 

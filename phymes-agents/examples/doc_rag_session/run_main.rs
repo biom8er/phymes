@@ -62,7 +62,7 @@ pub async fn run_main() -> Result<()> {
         .build()?;
     let blob = AvailableInterfaceSubjects::UserPdf
         .to_table_builder(None)
-        .with_blob(None, Some(".pdf"), &bytes, None)?
+        .with_blob(None, Some("pdf"), &bytes, None)?
         .build()?;
     let blob_message = IPCMessage::get_builder()
         .with_message(blob.to_ipc_stream()?)

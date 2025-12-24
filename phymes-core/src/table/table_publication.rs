@@ -333,8 +333,7 @@ fn get_first_row(batch: &RecordBatch) -> Result<Vec<String>> {
     Ok(first_row)
 }
 
-/// Create a new record batch from the first row
-///   BUT replace the streamed chunks row
+/// Create a new record batch from the first row BUT replace the streamed chunks row
 fn create_record_batch_from_first_row(
     batch: &RecordBatch,
     name: &str,
