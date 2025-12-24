@@ -14,7 +14,7 @@ use super::{
 use crate::table::{
     Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableTrait,
 };
-use crate::task::MessageTrait;
+use crate::message::MessageTrait;
 
 /// State tracked during the course of running a [SessionStream]
 ///

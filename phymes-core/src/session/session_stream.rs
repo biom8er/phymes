@@ -8,10 +8,7 @@ use std::sync::Arc;
 use std::task::{Context, Poll, ready};
 use tracing::{Level, event};
 
-use super::common_traits::IPCMessageMap;
-use crate::session::session_stream_state::SessionStreamState;
-use crate::session::session_stream_step::SessionStreamStep;
-use crate::task::IPCMessage;
+use crate::{IPCMessageMap, SessionStreamState, SessionStreamStep, IPCMessage};
 
 pub struct SessionStream {
     /// The state
@@ -89,14 +86,8 @@ mod tests {
     use futures::TryStreamExt;
 
     use super::*;
-    use crate::{
-        schemas::AvailableSubjects,
-        session::{
-            common_traits::{BuilderTrait, MappableTrait},
-            session_context_builder::test_session_context_builder::make_test_session_context_sequential_task,
-        },
-        table::{TableBuilder, TableBuilderTrait, TablePublication, TableTrait},
-        task::{MessageTrait, test_task::make_test_input_message},
+    use crate::{AvailableSubjects, BuilderTrait, MappableTrait, test_session_context_builder::make_test_session_context_sequential_task,
+        TableBuilder, TableBuilderTrait, TablePublication, TableTrait, MessageTrait, test_task::make_test_input_message,
     };
 
     #[tokio::test]

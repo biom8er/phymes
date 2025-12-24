@@ -1,17 +1,11 @@
-mod message;
-mod processor;
 mod publish_subscribe;
+mod task_builder;
 mod task_trait;
 mod test_exec;
 
-pub use message::{
-    IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
-    remove_message_by_subject,
-};
-pub use processor::{ProcessorBuilder, ProcessorEcho, ProcessorTrait, test_processor};
 pub use publish_subscribe::PublishAndSubscribeTrait;
-pub use task_trait::{Task, TaskBuilder, TaskBuilderTrait, TaskTrait, test_task};
+pub use task_trait::{Task, TaskTrait, test_task};
+pub use task_builder::{TaskBuilder, TaskBuilderTrait};
 
 #[allow(unused_imports)]
 #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]

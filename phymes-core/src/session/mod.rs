@@ -1,5 +1,4 @@
 mod common_traits;
-mod message;
 mod runtime_env;
 mod session_context;
 mod session_context_builder;
@@ -11,10 +10,6 @@ pub use common_traits::{
     BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, ProcessorMap, RunnableTrait,
     RuntimeEnvMap, SendableRecordBatchStreamMessageMap, StateMap, TaskMap, TensorProcessorTrait,
     TokenProcessorTrait, TokenWrapper, TokenizerConfig, device,
-};
-pub use message::{
-    SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-    SessionInterfaceMessageTrait,
 };
 pub use runtime_env::{RuntimeEnv, RuntimeEnvTrait};
 pub use session_context::SessionContext;

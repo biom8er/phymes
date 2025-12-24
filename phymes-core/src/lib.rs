@@ -1,7 +1,14 @@
+mod message;
+mod processor;
 mod schemas;
 mod session;
 mod table;
 mod task;
+pub use message::{SessionInterfaceMessage,
+    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
+    SessionInterfaceMessageTrait, IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, remove_message_by_subject};
+pub use processor::{ProcessorBuilder, ProcessorEcho, ProcessorTrait, test_processor};
 pub use schemas::{
     AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BlobSubject,
     ChatBuilderTraitExt, ChatCompletionRequest, ChatCompletionResponse, ChatTraitExt,
@@ -23,9 +30,7 @@ pub use schemas::{
 pub use session::{
     BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, ProcessorMap, RunnableTrait,
     RuntimeEnv, RuntimeEnvMap, RuntimeEnvTrait, SendableRecordBatchStreamMessageMap,
-    SessionContext, SessionContextBuilder, SessionContextBuilderTrait, SessionInterfaceMessage,
-    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-    SessionInterfaceMessageTrait, SessionStream, SessionStreamState, SessionStreamStep, StateMap,
+    SessionContext, SessionContextBuilder, SessionContextBuilderTrait, SessionStream, SessionStreamState, SessionStreamStep, StateMap,
     TaskMap, TaskPlan, TaskPlanBuilder, TensorProcessorTrait, TokenProcessorTrait, TokenWrapper,
     TokenizerConfig, device, test_session_context_builder,
 };
@@ -38,8 +43,6 @@ pub use table::{
     from_str_to_data_type, parse_str_to_data_type, test_table,
 };
 pub use task::{
-    IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait, ProcessorBuilder,
-    ProcessorEcho, ProcessorTrait, PublishAndSubscribeTrait, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, Task, TaskBuilder, TaskBuilderTrait, TaskTrait,
-    remove_message_by_subject, test_processor, test_task,
+    PublishAndSubscribeTrait, Task, TaskBuilder, TaskBuilderTrait, TaskTrait,
+    test_task,
 };

@@ -311,19 +311,10 @@ impl ChatBuilderTraitExt for TableBuilder {
 
 mod test_messages {
     use super::*;
-    use crate::{
-        session::{
-            BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv,
-            SendableRecordBatchStreamMessageMap, StateMap,
-        },
-        table::{
-            RecordBatchStream, SendableRecordBatchStream, TablePublication,
-            TableSubscribePolicyTrait, TableSubscription,
-        },
-        task::{
-            MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait,
-            SendableRecordBatchStreamMessage,
-        },
+    use crate::{BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv,
+        SendableRecordBatchStreamMessageMap, StateMap, RecordBatchStream, SendableRecordBatchStream, TablePublication,
+        TableSubscribePolicyTrait, TableSubscription, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait,
+        SendableRecordBatchStreamMessage,
     };
     use anyhow::anyhow;
     use arrow::datatypes::SchemaRef;
@@ -545,15 +536,8 @@ mod tests {
 
     use super::chat_completion::Tool;
     use crate::{
-        AvailableTableSubscribePolicies,
-        session::{BuildableTrait, BuilderTrait, RuntimeEnv, RuntimeEnvTrait},
-        table::{
-            TablePublication,
-            test_table::{make_test_table_chat, make_test_table_tool},
-        },
-        task::{
-            MessageBuilderTrait, MessageTrait, ProcessorTrait, SendableRecordBatchStreamMessage,
-        },
+        AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, RuntimeEnv, RuntimeEnvTrait, TablePublication,
+        test_table::{make_test_table_chat, make_test_table_tool}, MessageBuilderTrait, MessageTrait, ProcessorTrait, SendableRecordBatchStreamMessage,
     };
     use futures::TryStreamExt;
     use parking_lot::Mutex;

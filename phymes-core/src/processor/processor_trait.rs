@@ -1,14 +1,8 @@
-use crate::{
-    session::{MappableTrait, RuntimeEnv, SendableRecordBatchStreamMessageMap, StateMap},
-    table::{
-        RecordBatchStream, SendableRecordBatchStream, TablePublication, TableSubscribePolicyTrait,
-        TableSubscription,
-    },
-    task::PublishAndSubscribeTrait,
-};
+use crate::{MappableTrait, RuntimeEnv, SendableRecordBatchStreamMessageMap, RecordBatchStream, SendableRecordBatchStream, TablePublication, TableSubscribePolicyTrait,
+    TableSubscription, PublishAndSubscribeTrait};
 use anyhow::{Result, anyhow};
 use parking_lot::Mutex;
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
+use phymes_diagnostics::DiagnosticBuilder;
 use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::{Level, event};
@@ -198,178 +192,10 @@ pub trait ProcessorTrait: MappableTrait + PublishAndSubscribeTrait + Send + Sync
     ) -> Result<SendableRecordBatchStreamMessageMap>;
 }
 
-/// Processor that returns the input
-#[derive(Debug)]
-pub struct ProcessorEcho {
-    name: String,
-    r#type: String,
-    publications: Vec<TablePublication>,
-    subscriptions: Vec<TableSubscription>,
-    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-}
-
-impl MappableTrait for ProcessorEcho {
-    fn get_name(&self) -> &str {
-        &self.name
-    }
-}
-
-impl PublishAndSubscribeTrait for ProcessorEcho {
-    fn get_publications(&self) -> Vec<&TablePublication> {
-        self.publications.iter().collect::<Vec<_>>()
-    }
-
-    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
-        self.subscriptions.iter().collect::<Vec<_>>()
-    }
-    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe_policy
-            .check_subscriptions(&self.subscriptions, updates, state)
-    }
-}
-
-impl ProcessorTrait for ProcessorEcho {
-    fn new(
-        name: &str,
-        r#type: &str,
-        publications: &[TablePublication],
-        subscriptions: &[TableSubscription],
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-    ) -> Self {
-        Self {
-            name: name.to_string(),
-            r#type: r#type.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            subscribe_policy,
-        }
-    }
-
-    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
-        self.subscribe_policy.as_ref()
-    }
-
-    fn get_type(&self) -> &str {
-        &self.r#type
-    }
-
-    fn process(
-        &self,
-        message: SendableRecordBatchStreamMessageMap,
-        diagnostic_builder: Option<&DiagnosticBuilder>,
-        _runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<SendableRecordBatchStreamMessageMap> {
-        event!(Level::INFO, "Starting processor {}", self.get_name());
-
-        // Trace the inbox
-        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
-            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder
-                .clone()
-                .messages(line!(), file!(), self.get_name());
-            trace.enter(&message.values().collect::<Vec<_>>());
-            Some((trace, trace_builder))
-        } else {
-            None
-        };
-
-        // Trace the outbox
-        if let Some(trace) = trace {
-            trace.0.exit(&message.values().collect::<Vec<_>>());
-        }
-
-        Ok(message)
-    }
-}
-
-/// Builder for structures implementing the [ProcessorTrait]
-#[derive(Default)]
-pub struct ProcessorBuilder {
-    pub publications: Option<Vec<TablePublication>>,
-    pub subscriptions: Option<Vec<TableSubscription>>,
-    pub subscribe_policy: Option<Box<dyn TableSubscribePolicyTrait>>,
-    pub name: Option<String>,
-    pub r#type: Option<String>,
-}
-
-impl ProcessorBuilder {
-    pub fn with_publications(mut self, publications: &[TablePublication]) -> Self {
-        self.publications = Some(publications.to_vec());
-        self
-    }
-    pub fn with_subscriptions(mut self, subscriptions: &[TableSubscription]) -> Self {
-        self.subscriptions = Some(subscriptions.to_vec());
-        self
-    }
-    pub fn with_subscribe_policy(
-        mut self,
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-    ) -> Self {
-        self.subscribe_policy = Some(subscribe_policy);
-        self
-    }
-    pub fn with_name(mut self, name: &str) -> Self {
-        self.name = Some(name.to_string());
-        self
-    }
-    pub fn with_type(mut self, r#type: &str) -> Self {
-        self.r#type = Some(r#type.to_string());
-        self
-    }
-    pub fn build<T>(mut self) -> Result<T>
-    where
-        T: ProcessorTrait,
-    {
-        if self.name.as_ref().is_none() {
-            return Err(anyhow!("Missing processor name"));
-        } else if self.r#type.as_ref().is_none() {
-            return Err(anyhow!(
-                "Missing type for processor {}",
-                self.name.as_ref().unwrap()
-            ));
-        } else if self.publications.as_ref().is_none() {
-            return Err(anyhow!(
-                "Missing publications for processor {}",
-                self.name.as_ref().unwrap()
-            ));
-        } else if self.subscriptions.as_ref().is_none() {
-            return Err(anyhow!(
-                "Missing subscriptions for processor {}",
-                self.name.as_ref().unwrap()
-            ));
-        } else if self.subscribe_policy.as_ref().is_none() {
-            return Err(anyhow!(
-                "Missing subscribe for processor {}",
-                self.name.as_ref().unwrap()
-            ));
-        }
-        Ok(T::new(
-            &self.name.take().unwrap(),
-            &self.r#type.take().unwrap(),
-            &self.publications.take().unwrap(),
-            &self.subscriptions.take().unwrap(),
-            self.subscribe_policy.take().unwrap(),
-        ))
-    }
-    /// convenience method to return an Arc reference instead
-    /// of the object itself
-    pub fn build_arc<T>(self) -> Result<Arc<dyn ProcessorTrait>>
-    where
-        Self: Sized,
-        T: ProcessorTrait + 'static,
-    {
-        self.build()
-            .map(|p: T| Arc::new(p) as Arc<dyn ProcessorTrait>)
-    }
-}
-
 /// Mock objects and functions for processor testing
 pub mod test_processor {
     use super::*;
-    use crate::{
-        session::{BuildableTrait, BuilderTrait, StateMap},
-        table::test_table::make_test_record_batch,
-        task::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
+    use crate::{BuildableTrait, BuilderTrait, StateMap, test_table::make_test_record_batch, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage
     };
 
     use arrow::{array::RecordBatch, compute::concat_batches, datatypes::SchemaRef};
@@ -637,18 +463,11 @@ mod tests {
     use super::*;
     use std::sync::Arc;
 
-    use crate::{
-        AvailableTableSubscribePolicies,
-        session::{BuildableTrait, BuilderTrait, RuntimeEnv},
-        table::{
-            TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
-            test_table::make_test_table,
-        },
-        task::{MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage},
-    };
+    use crate::{AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, RuntimeEnv, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
+        test_table::make_test_table, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage};
     use anyhow::Result;
     use parking_lot::lock_api::Mutex;
-    use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
+    use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder};
 
     #[tokio::test]
     async fn test_processor() -> Result<()> {
