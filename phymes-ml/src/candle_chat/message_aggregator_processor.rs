@@ -136,7 +136,7 @@ mod tests {
         AvailableTableSubscribePolicies, TableBuilder, TableBuilderTrait, TableTrait,
         test_table::{make_test_table, make_test_table_chat},
     };
-    use phymes_data::{AvailableCandleOperators, CandleTensorService, DataConfig, device};
+    use phymes_data::{AvailableCandleOperators, DataConfig};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;

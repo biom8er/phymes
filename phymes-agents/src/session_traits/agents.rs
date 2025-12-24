@@ -8,9 +8,9 @@ use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
     BuilderTrait, MappableTrait, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SessionContext,
     SessionContextBuilder, SessionContextBuilderTrait, StateMap, Table, TableBuilderTrait,
-    TablePublication, TableSubscription, TableTrait, TaskMap, TaskPlan, device,
+    TablePublication, TableSubscription, TableTrait, TaskMap, TaskPlan,
 };
-use phymes_data::{AvailableCandleOperators, DataConfig, DataConfigTrait, DataSummaryConfig};
+use phymes_data::{AvailableCandleOperators, DataConfig, DataConfigTrait, DataSummaryConfig, device};
 use phymes_diagnostics::{HashMap, HashSet};
 use phymes_ml::{CandleChatConfig, CandleEmbedConfig};
 

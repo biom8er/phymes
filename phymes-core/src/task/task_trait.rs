@@ -8,10 +8,20 @@ use tracing::{Level, event};
 
 use crate::{
     BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
-    PublishAndSubscribeTrait, RunnableTrait, RuntimeEnv, SendableRecordBatchStreamMessage,
+    PublishAndSubscribeTrait, RuntimeEnv, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscription,
     TaskBuilder,
 };
+
+/// For task objects that run computation and send/recieve streaming `RecordBatch`es as messages
+pub trait RunnableTrait {
+    /// Run the computation
+    fn run(
+        &self,
+        messages: SendableRecordBatchStreamMessageMap,
+        diagnostic_builder: Option<&DiagnosticBuilder>,
+    ) -> Result<SendableRecordBatchStreamMessageMap>;
+}
 
 /// Trait to implement the actual task which could involve one or
 ///   more operators over [`RecordBatch`]s often originating from

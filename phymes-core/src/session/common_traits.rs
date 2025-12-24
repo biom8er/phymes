@@ -5,9 +5,7 @@ use crate::{
 /// General imports
 use anyhow::Result;
 use parking_lot::{Mutex, RwLock};
-use phymes_diagnostics::{DiagnosticBuilder, HashMap};
-use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use phymes_diagnostics::HashMap;
 use std::sync::Arc;
 
 /// Runtime environment HashMap with Arc/Mutex for thread-safe mutability
@@ -93,15 +91,4 @@ pub trait BuilderTrait {
     {
         self.build().map(Arc::new)
     }
-}
-
-/// For task objects that run computation and send/recieve
-/// streaming `RecordBatch`es as messages
-pub trait RunnableTrait {
-    /// Run the computation
-    fn run(
-        &self,
-        messages: SendableRecordBatchStreamMessageMap,
-        diagnostic_builder: Option<&DiagnosticBuilder>,
-    ) -> Result<SendableRecordBatchStreamMessageMap>;
 }

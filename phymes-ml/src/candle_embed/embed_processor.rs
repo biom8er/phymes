@@ -27,7 +27,7 @@ use parking_lot::Mutex;
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 use tracing::{Level, event, instrument};
 
-use crate::{CandleEmbedConfig, TokenWrapper};
+use crate::{CandleEmbedConfig, TokenProcessorTrait, TokenProcessorTraitExt, TokenWrapper};
 
 #[derive(Debug)]
 pub struct CandleEmbedProcessor {
@@ -36,6 +36,7 @@ pub struct CandleEmbedProcessor {
     publications: Vec<TablePublication>,
     subscriptions: Vec<TableSubscription>,
     subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
+    token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
 }
 
 impl MappableTrait for CandleEmbedProcessor {
@@ -71,6 +72,7 @@ impl ProcessorTrait for CandleEmbedProcessor {
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             subscribe_policy,
+            token_service: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -122,6 +124,7 @@ impl ProcessorTrait for CandleEmbedProcessor {
             documents,
             config,
             Arc::clone(&runtime_env),
+            Arc::clone(self.token_service()),
             stream_diagnostic_builder,
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
@@ -141,6 +144,12 @@ impl ProcessorTrait for CandleEmbedProcessor {
     }
 }
 
+impl TokenProcessorTraitExt for CandleEmbedProcessor {
+    fn token_service(&self) -> &Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>> {
+        &self.token_service
+    }
+}
+
 pub struct CandleEmbedStream {
     /// Output schema (embeddings)
     schema: SchemaRef,
@@ -148,8 +157,12 @@ pub struct CandleEmbedStream {
     document_stream: SendableRecordBatchStream,
     /// Parameters for embed inference
     config_stream: SendableRecordBatchStream,
-    /// The Candle model assets needed for inference
-    runtime_env: Arc<Mutex<RuntimeEnv>>,
+    /// The runtime environment
+    _runtime_env: Arc<Mutex<RuntimeEnv>>,
+    /// The candle asset needed for inference
+    // DM: In a single thread environment, there is minimal to no penalty of using a mutex here
+    // DM: in a mult-thread environment, we prevent copying the model assets each time we use it
+    token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for embed inference
@@ -165,6 +178,7 @@ impl CandleEmbedStream {
         document_stream: SendableRecordBatchStream,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
+        token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
@@ -172,7 +186,8 @@ impl CandleEmbedStream {
             document_stream,
             config_stream,
             diagnostic_builder,
-            runtime_env,
+            _runtime_env: runtime_env,
+            token_service,
             config: None,
             sample: 0,
             index: 0,
@@ -182,7 +197,7 @@ impl CandleEmbedStream {
     #[instrument(skip(self))]
     fn init_token_service(&mut self) -> Result<()> {
         if let Some(ref config) = self.config {
-            if self.runtime_env.lock().token_service.is_none() {
+            if self.token_service.lock().is_none() {
                 let device = device(config.cpu)?;
                 let mut asset = config.candle_asset.unwrap().build(
                     config.weights_config_file.clone(),
@@ -202,10 +217,7 @@ impl CandleEmbedStream {
                 }
 
                 // Concurrent embeddings can hold onto the lock simultaneous
-                let _ = self
-                    .runtime_env
-                    .lock()
-                    .token_service
+                let _ = self.token_service.lock()
                     .replace(Box::new(asset));
             }
         } else {
@@ -227,10 +239,8 @@ impl CandleEmbedStream {
     #[instrument(skip(self, tokens, masks))]
     fn batch_embed(&mut self, tokens: &[Vec<u32>], masks: &[Vec<u32>]) -> Result<Tensor> {
         let logits = self
-            .runtime_env
-            .try_lock()
-            .unwrap()
             .token_service
+            .lock()
             .as_mut()
             .unwrap()
             .forward(
@@ -303,19 +313,15 @@ impl Stream for CandleEmbedStream {
             // Tokenize the queries
             self.init_token_service()?;
             let mut tokenizer = self
-                .runtime_env
-                .try_lock()
-                .unwrap()
                 .token_service
+                .lock()
                 .as_ref()
                 .unwrap()
                 .get_tokenizer()
                 .clone();
             let tokenizer_config = self
-                .runtime_env
-                .try_lock()
-                .unwrap()
                 .token_service
+                .lock()
                 .as_ref()
                 .unwrap()
                 .get_tokenizer_config()
@@ -385,19 +391,15 @@ impl Stream for CandleEmbedStream {
 
             // Tokenize the queries
             let mut tokenizer = self
-                .runtime_env
-                .try_lock()
-                .unwrap()
                 .token_service
+                .lock()
                 .as_ref()
                 .unwrap()
                 .get_tokenizer()
                 .clone();
             let tokenizer_config = self
-                .runtime_env
-                .try_lock()
-                .unwrap()
                 .token_service
+                .lock()
                 .as_ref()
                 .unwrap()
                 .get_tokenizer_config()
@@ -764,17 +766,7 @@ mod tests {
             .build()?;
 
         // Make the runtime
-        let asset = config.candle_asset.unwrap().build(
-            config.weights_config_file.clone(),
-            config.tokenizer_file.clone(),
-            config.weights_file.clone(),
-            config.tokenizer_config_file.clone(),
-            DType::F32,
-            device(config.cpu)?,
-        )?;
         let runtime_env = RuntimeEnv {
-            token_service: Some(Box::new(asset)),
-            tensor_service: None,
             name: "asset".to_string(),
             memory_limit: None,
             time_limit: None,
@@ -806,6 +798,7 @@ mod tests {
             document_table.to_record_batch_stream(),
             config_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
+            Arc::new(Mutex::new(None)),
             Some(diagnostic_builder.clone()),
         )?;
 
@@ -887,6 +880,7 @@ mod tests {
                 document_table.to_record_batch_stream(),
                 config_table.to_record_batch_stream(),
                 Arc::clone(&runtime_env),
+                Arc::new(Mutex::new(None)),
                 Some(diagnostic_builder.clone()),
             )?;
             let embeddings = embed_stream.try_collect::<Vec<_>>().await?;
@@ -984,17 +978,7 @@ mod tests {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make the runtime
-        let asset = config.candle_asset.unwrap().build(
-            config.weights_config_file.clone(),
-            config.tokenizer_file.clone(),
-            config.weights_file.clone(),
-            config.tokenizer_config_file.clone(),
-            DType::F32,
-            device(config.cpu)?,
-        )?;
         let runtime_env = RuntimeEnv {
-            token_service: Some(Box::new(asset)),
-            tensor_service: None,
             name: "asset".to_string(),
             memory_limit: None,
             time_limit: None,
@@ -1006,6 +990,7 @@ mod tests {
             document_table.to_record_batch_stream(),
             config_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
+            Arc::new(Mutex::new(None)),
             Some(diagnostic_builder.clone()),
         )?;
 

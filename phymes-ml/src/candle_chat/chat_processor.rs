@@ -8,7 +8,7 @@ use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 use anyhow::{Result, anyhow};
 use candle_core::DType;
 use candle_transformers::generation::{LogitsProcessor, Sampling};
-use crate::{CandleChatConfig, TokenWrapper, TokenOutputStream};
+use crate::{CandleChatConfig, TokenOutputStream, TokenProcessorTrait, TokenProcessorTraitExt, TokenWrapper};
 use phymes_data::{DataConfigTrait, device};
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
@@ -37,6 +37,7 @@ pub struct CandleChatProcessor {
     publications: Vec<TablePublication>,
     subscriptions: Vec<TableSubscription>,
     subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
+    token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
 }
 
 impl MappableTrait for CandleChatProcessor {
@@ -73,6 +74,7 @@ impl ProcessorTrait for CandleChatProcessor {
             publications: publications.to_owned(),
             subscriptions: subscriptions.to_owned(),
             subscribe_policy,
+            token_service: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -142,6 +144,7 @@ impl ProcessorTrait for CandleChatProcessor {
             tools,
             config,
             Arc::clone(&runtime_env),
+            Arc::clone(self.token_service()),
             stream_diagnostic_builder,
         )?);
         let out_m = SendableRecordBatchStreamMessage::get_builder()
@@ -161,6 +164,12 @@ impl ProcessorTrait for CandleChatProcessor {
     }
 }
 
+impl TokenProcessorTraitExt for CandleChatProcessor {
+    fn token_service(&self) -> &Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>> {
+        &self.token_service
+    }
+}
+
 pub struct CandleChatStream {
     /// Output schema (role and content)
     schema: SchemaRef,
@@ -170,10 +179,12 @@ pub struct CandleChatStream {
     tools_stream: Option<SendableRecordBatchStream>,
     /// Parameters for chat inference
     config_stream: SendableRecordBatchStream,
+    /// The runtime environment
+    _runtime_env: Arc<Mutex<RuntimeEnv>>,
     /// The candle asset needed for inference
     // DM: In a single thread environment, there is minimal to no penalty of using a mutex here
     // DM: in a mult-thread environment, we prevent copying the model assets each time we use it
-    runtime_env: Arc<Mutex<RuntimeEnv>>,
+    token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for chat inference
@@ -200,6 +211,7 @@ impl CandleChatStream {
         tools_stream: Option<SendableRecordBatchStream>,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<Mutex<RuntimeEnv>>,
+        token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
@@ -208,7 +220,8 @@ impl CandleChatStream {
             tools_stream,
             diagnostic_builder,
             config_stream,
-            runtime_env,
+            _runtime_env: runtime_env,
+            token_service,
             tos: None,
             logits_processor: None,
             config: None,
@@ -233,7 +246,7 @@ impl CandleChatStream {
     fn init_token_service(&mut self) -> Result<()> {
         if let Some(ref config) = self.config {
             // Update the runtime if needed
-            if self.runtime_env.lock().token_service.is_none() {
+            if self.token_service.lock().is_none() {
                 let device = device(config.cpu)?;
                 let mut asset = config.candle_asset.unwrap().build(
                     config.weights_config_file.clone(),
@@ -252,9 +265,8 @@ impl CandleChatStream {
                 }
 
                 let _ = self
-                    .runtime_env
-                    .lock()
                     .token_service
+                    .lock()
                     .replace(Box::new(asset));
             }
         } else {
@@ -294,11 +306,8 @@ impl CandleChatStream {
                 None => match self.tos.as_mut().unwrap().tokens().last() {
                     Some(t) => {
                         let logits = self
-                            .runtime_env
-                            .try_lock()
-                            .unwrap()
                             .token_service
-                            .as_mut()
+                            .lock().as_mut()
                             .unwrap()
                             .forward(&TokenWrapper::D1(vec![*t]), self.index, None, true)?;
                         let logits = logits.squeeze(0)?;
@@ -323,11 +332,8 @@ impl CandleChatStream {
                 Some(p) => {
                     if !self.config.as_ref().unwrap().split_prompt {
                         let logits = self
-                            .runtime_env
-                            .try_lock()
-                            .unwrap()
                             .token_service
-                            .as_mut()
+                            .lock().as_mut()
                             .unwrap()
                             .forward(&TokenWrapper::D1(p.to_vec()), 0, None, true)?;
                         let logits = logits.squeeze(0)?;
@@ -336,11 +342,8 @@ impl CandleChatStream {
                         let mut next_token = 0;
                         for (pos, token) in p.iter().enumerate() {
                             let logits = self
-                                .runtime_env
-                                .try_lock()
-                                .unwrap()
                                 .token_service
-                                .as_mut()
+                                .lock().as_mut()
                                 .unwrap()
                                 .forward(&TokenWrapper::D1(vec![*token]), pos, None, true)?;
                             let logits = logits.squeeze(0)?;
@@ -428,11 +431,8 @@ impl Stream for CandleChatStream {
 
             // Convert to a prompt
             let tokenizer_config = self
-                .runtime_env
-                .try_lock()
-                .unwrap()
                 .token_service
-                .as_ref()
+                .lock().as_ref()
                 .unwrap()
                 .get_tokenizer_config()
                 .clone();
@@ -451,11 +451,8 @@ impl Stream for CandleChatStream {
             let model_max_length = tokenizer_config.model_max_length;
             let (prompt_tokens, to_sample, tos) = process_prompt_chat(
                 prompt,
-                self.runtime_env
-                    .try_lock()
-                    .unwrap()
-                    .token_service
-                    .as_ref()
+                self.token_service
+                    .lock().as_ref()
                     .unwrap()
                     .get_tokenizer(),
                 self.config.as_ref().unwrap().max_tokens,
@@ -538,10 +535,8 @@ impl Stream for CandleChatStream {
                 .tokenizer()
                 .get_vocab(true)
                 .get(
-                    self.runtime_env
-                        .try_lock()
-                        .unwrap()
-                        .token_service
+                    self.token_service
+                        .lock()
                         .as_ref()
                         .unwrap()
                         .get_tokenizer_config()

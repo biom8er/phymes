@@ -3,6 +3,11 @@ use std::fmt::Debug;
 use crate::MappableTrait;
 
 /// `BuidableTrait` + `BuilderTraint` - `get_builder` - `build`
+/// 
+/// # Notes
+/// * A work in progress...
+/// * Missing methods for specifying the device or number of devices
+/// * Missing methods for disk usage and access
 pub trait RuntimeEnvTrait: MappableTrait + Send + Sync {
     fn new() -> Self;
     fn with_name(self, name: &str) -> Self;
@@ -10,8 +15,6 @@ pub trait RuntimeEnvTrait: MappableTrait + Send + Sync {
 
 #[derive(Default, Debug)]
 pub struct RuntimeEnv {
-    // /// the service for generating and consuming tokens
-    // pub token_service: Option<Box<dyn TokenProcessorTrait>>,
     /// name for the runtime environment config
     pub name: String,
     /// the max allowable memory

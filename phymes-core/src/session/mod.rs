@@ -7,7 +7,7 @@ mod session_stream_state;
 mod session_stream_step;
 
 pub use common_traits::{
-    BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, ProcessorMap, RunnableTrait,
+    BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, ProcessorMap,
     RuntimeEnvMap, SendableRecordBatchStreamMessageMap, StateMap, TaskMap,
 };
 pub use runtime_env::{RuntimeEnv, RuntimeEnvTrait};

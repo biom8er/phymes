@@ -5,7 +5,7 @@ mod test_exec;
 
 pub use publish_subscribe::PublishAndSubscribeTrait;
 pub use task_builder::{TaskBuilder, TaskBuilderTrait};
-pub use task_trait::{Task, TaskTrait, test_task};
+pub use task_trait::{RunnableTrait, Task, TaskTrait, test_task};
 
 #[allow(unused_imports)]
 #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]

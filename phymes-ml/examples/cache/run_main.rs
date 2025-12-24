@@ -1,8 +1,8 @@
 use clap::Parser;
-use crate::device;
 use serde::{Deserialize, Serialize};
 
 use candle_core::DType;
+use phymes_data::device;
 use phymes_ml::AvailableCandleAssets;
 
 #[derive(Parser, Debug, Serialize, Deserialize, Default, Clone)]

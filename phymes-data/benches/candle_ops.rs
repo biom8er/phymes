@@ -10,7 +10,7 @@ use phymes_core::{
     from_diagnostics_to_tables, test_table::TestTableSizes,
 };
 use phymes_data::{
-    device, AvailableCandleOperators, CandleDataProcessor, CandleTensorService, DataAggregatorOperator,
+    AvailableCandleOperators, CandleDataProcessor, DataAggregatorOperator,
     DataComparatorOperator, DataComparatorPredicate, DataConfig, DataStreamManager,
 };
 use phymes_diagnostics::{

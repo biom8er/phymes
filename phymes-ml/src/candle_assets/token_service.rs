@@ -1,6 +1,8 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 use anyhow::Result;
 use candle_core::Tensor;
+use parking_lot::Mutex;
+use phymes_core::ProcessorTrait;
 use phymes_data::TensorProcessorTrait;
 use serde::{Deserialize, Serialize};
 use tokenizers::Tokenizer;
@@ -27,7 +29,7 @@ pub struct TokenizerConfig {
                                    // pub tokenizer_class: Option<String>, // provided in tokenizer_config.json
 }
 
-/// for services that process tokens
+/// For services that process tokens
 pub trait TokenProcessorTrait: TensorProcessorTrait + Send + Sync + Debug {
     /// Backward: propogation of the error signal for updating the tensor weights
     //fn backward(&mut self) -> Result<Self::T>;
@@ -43,6 +45,12 @@ pub trait TokenProcessorTrait: TensorProcessorTrait + Send + Sync + Debug {
     fn get_tokenizer(&self) -> &Tokenizer;
 
     fn get_tokenizer_config(&self) -> &TokenizerConfig;
+}
+
+/// [ProcessorTrait] extension to running and caching of [TokenProcessorTrait] objects
+pub trait TokenProcessorTraitExt: ProcessorTrait {
+    /// Access the token service
+    fn token_service(&self) -> &Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>;
 }
 
 /// This is a wrapper around a tokenizer to ensure that tokens can be returned to the user in a

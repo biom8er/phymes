@@ -30,7 +30,7 @@ pub use schemas::{
     from_diagnostics_to_tables,
 };
 pub use session::{
-    BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, ProcessorMap, RunnableTrait,
+    BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, ProcessorMap,
     RuntimeEnv, RuntimeEnvMap, RuntimeEnvTrait, SendableRecordBatchStreamMessageMap,
     SessionContext, SessionContextBuilder, SessionContextBuilderTrait, SessionStream,
     SessionStreamState, SessionStreamStep, StateMap, TaskMap, TaskPlan, TaskPlanBuilder,
@@ -45,5 +45,5 @@ pub use table::{
     from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type, test_table,
 };
 pub use task::{
-    PublishAndSubscribeTrait, Task, TaskBuilder, TaskBuilderTrait, TaskTrait, test_task,
+    PublishAndSubscribeTrait, RunnableTrait, Task, TaskBuilder, TaskBuilderTrait, TaskTrait, test_task,
 };
