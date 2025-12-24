@@ -37,7 +37,7 @@ pub use session::{
 pub use table::{
     AvailableTableSubscribePolicies, CsvFormat, DataFormat, JsonFormat, OwlFormat,
     RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder, RecordBatchStream,
-    RecordBatchStreamAdapter, SendableRecordBatchStream, Table, TableBuilder, TableBuilderTrait,
+    RecordBatchStreamAdapter, SendableRecordBatchStream, IPCRecordBatchStream, SendableIPCRecordBatchStream, Table, TableBuilder, TableBuilderTrait,
     TablePublication, TablePublicationTrait, TableScript, TableSubscribePolicyTrait,
     TableSubscription, TableSubscriptionTrait, TableTrait, from_data_type_to_str,
     from_str_to_data_type, parse_str_to_data_type, test_table,

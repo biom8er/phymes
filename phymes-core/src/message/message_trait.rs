@@ -260,7 +260,7 @@ mod tests {
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use phymes_diagnostics::HashMap;
 
-    use crate::{TableBuilder, table::test_table::{self, make_test_table, make_test_table_chat}};
+    use crate::{TableBuilder, TableTrait, test_table::{self, make_test_table, make_test_table_chat}};
 
     use super::*;
 
