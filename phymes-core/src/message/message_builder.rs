@@ -97,7 +97,7 @@ impl MessageBuilderTrait for IPCMessageBuilder {
         Self: Sized,
     {
         let mut buf = [0u8; 16];
-        getrandom::fill(&mut buf).map_err(|e| <getrandom::Error as Into<anyhow::Error>>::into(e))?;
+        getrandom::fill(&mut buf).map_err(|e| anyhow!("{e:?}"))?;
         let hash = u128::from_ne_bytes(buf);
         let subject = match self.subject {
             Some(ref s) => s,
