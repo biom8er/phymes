@@ -110,7 +110,7 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
@@ -187,7 +187,7 @@ pub struct AggregatorStream {
     /// The data operator to run
     data_operator: Option<Box<dyn DataOperatorTrait>>,
     /// The Candle model assets needed for inference
-    runtime_env: Arc<Mutex<RuntimeEnv>>,
+    runtime_env: Arc<RuntimeEnv>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
 }
@@ -197,7 +197,7 @@ impl AggregatorStream {
         schema: SchemaRef,
         input: Vec<SendableRecordBatchStream>,
         config_stream: SendableRecordBatchStream,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {

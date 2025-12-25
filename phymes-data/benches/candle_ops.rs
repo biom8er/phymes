@@ -138,7 +138,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
                     memory_limit: None,
                     time_limit: None,
                 };
-                let runtime_env = Arc::new(Mutex::new(runtime_env));
+                let runtime_env = Arc::new(runtime_env);
 
                 // Update the config
                 let mut config = config.clone();

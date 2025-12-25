@@ -90,7 +90,7 @@ impl ProcessorTrait for CandleDataProcessor {
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
@@ -179,7 +179,7 @@ pub struct CandleDataStream {
     /// Parameters for tensor operations
     config_stream: SendableRecordBatchStream,
     /// The tensor services needed for inference
-    runtime_env: Arc<Mutex<RuntimeEnv>>,
+    runtime_env: Arc<RuntimeEnv>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for tensor operations
@@ -202,7 +202,7 @@ impl CandleDataStream {
     pub fn new(
         messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
@@ -775,7 +775,7 @@ mod tests {
             memory_limit: None,
             time_limit: None,
         };
-        let runtime_env = Arc::new(Mutex::new(runtime_env));
+        let runtime_env = Arc::new(runtime_env);
 
         // Make the stream and run
         let ops_stream = CandleDataStream::new(
@@ -1426,7 +1426,7 @@ mod tests {
             memory_limit: None,
             time_limit: None,
         };
-        let runtime_env = Arc::new(Mutex::new(runtime_env));
+        let runtime_env = Arc::new(runtime_env);
 
         // Make the stream and run
         let ops_processor = CandleDataProcessor::new(

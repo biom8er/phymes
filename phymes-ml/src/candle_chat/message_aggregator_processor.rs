@@ -79,7 +79,7 @@ impl ProcessorTrait for MessageAggregatorProcessor {
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
@@ -209,7 +209,7 @@ mod tests {
             memory_limit: None,
             time_limit: None,
         };
-        let runtime_env = Arc::new(Mutex::new(runtime_env));
+        let runtime_env = Arc::new(runtime_env);
 
         // Create the aggregator and run
         let agg_arc_1 = MessageAggregatorProcessor::new(

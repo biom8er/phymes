@@ -21,7 +21,7 @@ type SessionContextInput = (
     String,
     TaskMap,
     StateMap,
-    HashMap<String, Arc<Mutex<RuntimeEnv>>>,
+    HashMap<String, Arc<RuntimeEnv>>,
     usize,
     bool,
     Vec<Table>,
@@ -1044,8 +1044,7 @@ mod tests {
             .get_tasks()
             .get("session")
             .unwrap()
-            .get_runtime_env()
-            .lock();
+            .get_runtime_env();
         assert_eq!(test.get_name(), "session-runtime_env");
         let test = session
             .get_tasks()

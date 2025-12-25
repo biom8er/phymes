@@ -69,7 +69,7 @@ impl ProcessorTrait for ProcessorEcho {
         &self,
         message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
-        _runtime_env: Arc<Mutex<RuntimeEnv>>,
+        _runtime_env: Arc<RuntimeEnv>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 

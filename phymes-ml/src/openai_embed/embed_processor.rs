@@ -86,7 +86,7 @@ impl ProcessorTrait for OpenAIEmbedProcessor {
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
@@ -148,7 +148,7 @@ pub struct OpenAIEmbedStream {
     /// Parameters for embed inference
     config_stream: SendableRecordBatchStream,
     /// The Candle model assets needed for inference
-    _runtime_env: Arc<Mutex<RuntimeEnv>>,
+    _runtime_env: Arc<RuntimeEnv>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for embed inference
@@ -165,7 +165,7 @@ impl OpenAIEmbedStream {
     pub fn new(
         document_stream: SendableRecordBatchStream,
         config_stream: SendableRecordBatchStream,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {

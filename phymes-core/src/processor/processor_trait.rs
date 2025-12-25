@@ -189,7 +189,7 @@ pub trait ProcessorTrait: MappableTrait + PublishAndSubscribeTrait + Send + Sync
         &self,
         message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
     ) -> Result<SendableRecordBatchStreamMessageMap>;
 }
 
@@ -270,7 +270,7 @@ pub mod test_processor {
             &self,
             message: SendableRecordBatchStreamMessageMap,
             diagnostic_builder: Option<&DiagnosticBuilder>,
-            _runtime_env: Arc<Mutex<RuntimeEnv>>,
+            _runtime_env: Arc<RuntimeEnv>,
         ) -> Result<SendableRecordBatchStreamMessageMap> {
             event!(Level::INFO, "Starting processor {}", self.get_name());
 
@@ -454,7 +454,7 @@ pub mod test_processor {
             &self,
             _message: SendableRecordBatchStreamMessageMap,
             _diagnostic_builder: Option<&DiagnosticBuilder>,
-            _runtime_env: Arc<Mutex<RuntimeEnv>>,
+            _runtime_env: Arc<RuntimeEnv>,
         ) -> Result<SendableRecordBatchStreamMessageMap> {
             Err(anyhow!("This is an error!"))
         }
@@ -505,7 +505,7 @@ mod tests {
         let mut stream = processor_1.process(
             message,
             Some(&diagnostic_builder),
-            Arc::new(Mutex::new(runtime_env)),
+            Arc::new(runtime_env),
         )?;
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             stream.remove(&name).unwrap().get_message_own(),

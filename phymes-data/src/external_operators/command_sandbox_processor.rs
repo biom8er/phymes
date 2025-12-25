@@ -175,7 +175,7 @@ impl ProcessorTrait for CommandSandboxProcessor {
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         // Trace the inbox
         let trace = if let Some(diagnostic_builder) = diagnostic_builder {
@@ -253,7 +253,7 @@ pub struct CommandSandboxStream {
     /// Parameters for chat inference
     config_stream: SendableRecordBatchStream,
     /// The candle assets needed for inference
-    _runtime_env: Arc<Mutex<RuntimeEnv>>,
+    _runtime_env: Arc<RuntimeEnv>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for chat inference
@@ -270,7 +270,7 @@ impl CommandSandboxStream {
     pub fn new(
         message_stream: SendableRecordBatchStream,
         config_stream: SendableRecordBatchStream,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
@@ -1678,7 +1678,7 @@ mod tests {
         let messages = "messages";
 
         // Runtime env
-        let rt_env = Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt")));
+        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -1905,7 +1905,7 @@ mod tests {
         let messages = "messages";
 
         // Runtime env
-        let rt_env = Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt")));
+        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -2179,7 +2179,7 @@ mod tests {
         let messages = "messages";
 
         // Runtime env
-        let rt_env = Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt")));
+        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -2418,7 +2418,7 @@ if __name__ == '__main__':
     df.to_feather(args.output_file);"#;
 
         // Runtime env
-        let rt_env = Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt")));
+        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -2646,7 +2646,7 @@ fn main() -> Result<()> {
 }"#;
 
         // Runtime env
-        let rt_env = Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt")));
+        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;

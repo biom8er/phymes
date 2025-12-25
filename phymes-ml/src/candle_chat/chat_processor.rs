@@ -91,7 +91,7 @@ impl ProcessorTrait for CandleChatProcessor {
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
@@ -180,7 +180,7 @@ pub struct CandleChatStream {
     /// Parameters for chat inference
     config_stream: SendableRecordBatchStream,
     /// The runtime environment
-    _runtime_env: Arc<Mutex<RuntimeEnv>>,
+    _runtime_env: Arc<RuntimeEnv>,
     /// The candle asset needed for inference
     // DM: In a single thread environment, there is minimal to no penalty of using a mutex here
     // DM: in a mult-thread environment, we prevent copying the model assets each time we use it
@@ -210,7 +210,7 @@ impl CandleChatStream {
         message_stream: SendableRecordBatchStream,
         tools_stream: Option<SendableRecordBatchStream>,
         config_stream: SendableRecordBatchStream,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
         token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
@@ -776,7 +776,7 @@ pub mod bench_chat_processor {
         let mut stream = chat_processor.process(
             message,
             diagnostic_builder,
-            Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
+            Arc::new(RuntimeEnv::new().with_name("rt")),
         )?;
 
         // Update the chat history with the response
@@ -1003,7 +1003,7 @@ mod tests {
         let mut stream = chat_processor.process(
             message,
             Some(&diagnostic_builder),
-            Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
+            Arc::new(RuntimeEnv::new().with_name("rt")),
         )?;
 
         // DM: Skip actually running the tests as they take too long on the CPU

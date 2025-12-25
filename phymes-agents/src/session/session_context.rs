@@ -34,7 +34,7 @@ pub struct SessionContext {
     pub(crate) state: StateMap,
     /// Runtime environment configuration to use during task runs
     #[allow(dead_code)]
-    pub(crate) runtime_envs: HashMap<String, Arc<Mutex<RuntimeEnv>>>,
+    pub(crate) runtime_envs: HashMap<String, Arc<RuntimeEnv>>,
     /// The maximum number of iterations before stopping
     pub(crate) max_iter: usize,
     /// Whether to gather diagnostic information or not
@@ -46,7 +46,7 @@ impl SessionContext {
         name: String,
         tasks: TaskMap,
         state: StateMap,
-        runtime_envs: HashMap<String, Arc<Mutex<RuntimeEnv>>>,
+        runtime_envs: HashMap<String, Arc<RuntimeEnv>>,
         max_iter: usize,
         diagnostics: bool,
     ) -> SessionContext {

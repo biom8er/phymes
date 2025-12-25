@@ -388,7 +388,7 @@ mod test_messages {
             &self,
             mut message: SendableRecordBatchStreamMessageMap,
             _diagnostic_builder: Option<&DiagnosticBuilder>,
-            _runtime_env: Arc<Mutex<RuntimeEnv>>,
+            _runtime_env: Arc<RuntimeEnv>,
         ) -> Result<SendableRecordBatchStreamMessageMap> {
             // Create the stream response
             let input = match message.remove("messages") {
@@ -691,7 +691,7 @@ mod tests {
         let mut stream = chat_processor.process(
             message,
             Some(&DiagnosticBuilder::new(&Diagnostics::new())),
-            Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
+            Arc::new(RuntimeEnv::new().with_name("rt")),
         )?;
 
         // Update the chat history with the response
@@ -784,7 +784,7 @@ mod tests {
         let mut stream = chat_processor.process(
             message,
             Some(&DiagnosticBuilder::new(&Diagnostics::new())),
-            Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
+            Arc::new(RuntimeEnv::new().with_name("rt")),
         )?;
 
         // Update the chat history with the response

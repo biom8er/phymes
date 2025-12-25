@@ -1,7 +1,7 @@
 use phymes_diagnostics::HashMap;
 use std::fmt::Debug;
 
-use crate::{AvailableSubjects, TableSubscription, MappableTrait, StateMap, Table, TableTrait};
+use crate::{TableSubscription, MappableTrait, StateMap, Table, TableTrait};
 
 /// Determine when all subscriptions are ready
 pub trait TableSubscribePolicyTrait: MappableTrait + Debug + Send + Sync {
@@ -275,7 +275,7 @@ impl TableSubscribePolicyTrait for ChatContentSubscribe {
             // in `AvailableinterfaceSubjects` and `AvailableinterfaceSubjects`
             user_message_table_name: "UserMessages".to_string(),
             tool_message_table_name: "ToolMessages".to_string(),
-            error_message_table_name: AvailableSubjects::SessionErrors.to_string(),
+            error_message_table_name: "SessionErrors".to_string(),
         })
     }
     fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {

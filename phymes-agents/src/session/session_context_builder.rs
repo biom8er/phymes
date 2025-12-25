@@ -90,7 +90,7 @@ type SessionContextInput = (
     String,
     TaskMap,
     StateMap,
-    HashMap<String, Arc<Mutex<RuntimeEnv>>>,
+    HashMap<String, Arc<RuntimeEnv>>,
     usize,
     bool,
 );
@@ -213,8 +213,8 @@ impl SessionContextBuilder {
             .take()
             .unwrap()
             .into_iter()
-            .map(|r| (r.get_name().to_string(), Arc::new(Mutex::new(r))))
-            .collect::<HashMap<String, Arc<Mutex<RuntimeEnv>>>>();
+            .map(|r| (r.get_name().to_string(), Arc::new(r)))
+            .collect::<HashMap<String, Arc<RuntimeEnv>>>();
 
         let state_map = self
             .state

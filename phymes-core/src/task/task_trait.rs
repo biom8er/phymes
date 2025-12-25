@@ -116,7 +116,7 @@ pub trait TaskTrait:
     fn get_processors(&self) -> &Vec<Arc<dyn ProcessorTrait>>;
 
     /// Get an immutable reference to the runtime env
-    fn get_runtime_env(&self) -> &Arc<Mutex<RuntimeEnv>>;
+    fn get_runtime_env(&self) -> &Arc<RuntimeEnv>;
 }
 
 /// The actual task to execute
@@ -125,7 +125,7 @@ pub struct Task {
     /// Name of the task
     pub(crate) name: String,
     /// Runtime environment for the task and processors
-    pub(crate) runtime_env: Arc<Mutex<RuntimeEnv>>,
+    pub(crate) runtime_env: Arc<RuntimeEnv>,
     /// Entry processor
     pub(crate) processor: Vec<Arc<dyn ProcessorTrait>>,
 }
@@ -187,7 +187,7 @@ impl RunnableTrait for Task {
 }
 
 impl TaskTrait for Task {
-    fn get_runtime_env(&self) -> &Arc<Mutex<RuntimeEnv>> {
+    fn get_runtime_env(&self) -> &Arc<RuntimeEnv> {
         &self.runtime_env
     }
     fn get_processors(&self) -> &Vec<Arc<dyn ProcessorTrait>> {
@@ -299,7 +299,7 @@ pub mod test_task {
         let processor_name = format!("{name}_processor");
         Task::get_builder()
             .with_name(name)
-            .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
+            .with_runtime_env(Arc::new(make_runtime_env(runtime_env_name)?))
             .with_processor(vec![
                 ProcessorBuilder::default()
                     .with_name(processor_name.as_str())
@@ -333,7 +333,7 @@ pub mod test_task {
         let processor_name = format!("{name}_processor");
         Task::get_builder()
             .with_name(name)
-            .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
+            .with_runtime_env(Arc::new(make_runtime_env(runtime_env_name)?))
             .with_processor(vec![
                 ProcessorBuilder::default()
                     .with_name(processor_name.as_str())
@@ -371,7 +371,7 @@ pub mod test_task {
         let processor_name_3 = format!("{name}_processor_3");
         Task::get_builder()
             .with_name(name)
-            .with_runtime_env(Arc::new(Mutex::new(make_runtime_env(runtime_env_name)?)))
+            .with_runtime_env(Arc::new(make_runtime_env(runtime_env_name)?))
             .with_processor(vec![
                 ProcessorBuilder::default()
                     .with_name(processor_name_1.as_str())

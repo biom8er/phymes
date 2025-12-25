@@ -7,7 +7,7 @@ use parking_lot::Mutex;
 use crate::{BuilderTrait, ProcessorTrait, RuntimeEnv, Task};
 
 pub trait TaskBuilderTrait: BuilderTrait {
-    fn with_runtime_env(self, runtime_env: Arc<Mutex<RuntimeEnv>>) -> Self;
+    fn with_runtime_env(self, runtime_env: Arc<RuntimeEnv>) -> Self;
     fn with_processor(self, processor: Vec<Arc<dyn ProcessorTrait>>) -> Self;
 }
 
@@ -16,7 +16,7 @@ pub struct TaskBuilder {
     /// Task name
     pub name: Option<String>,
     /// Runtime environment for the task
-    pub runtime_env: Option<Arc<Mutex<RuntimeEnv>>>,
+    pub runtime_env: Option<Arc<RuntimeEnv>>,
     /// Function that implements the logic
     pub processor: Option<Vec<Arc<dyn ProcessorTrait>>>,
 }
@@ -47,7 +47,7 @@ impl BuilderTrait for TaskBuilder {
 }
 
 impl TaskBuilderTrait for TaskBuilder {
-    fn with_runtime_env(mut self, runtime_env: Arc<Mutex<RuntimeEnv>>) -> Self {
+    fn with_runtime_env(mut self, runtime_env: Arc<RuntimeEnv>) -> Self {
         self.runtime_env = Some(runtime_env);
         self
     }

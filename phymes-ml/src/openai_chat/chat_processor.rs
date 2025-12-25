@@ -85,7 +85,7 @@ impl ProcessorTrait for OpenAIChatProcessor {
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
@@ -167,7 +167,7 @@ pub struct OpenAIChatStream {
     /// Parameters for chat inference
     config_stream: SendableRecordBatchStream,
     /// The candle assets needed for inference
-    _runtime_env: Arc<Mutex<RuntimeEnv>>,
+    _runtime_env: Arc<RuntimeEnv>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for chat inference
@@ -181,7 +181,7 @@ impl OpenAIChatStream {
         message_stream: SendableRecordBatchStream,
         tools_stream: Option<SendableRecordBatchStream>,
         config_stream: SendableRecordBatchStream,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
@@ -502,7 +502,7 @@ mod tests {
         let mut stream = chat_processor.process(
             message,
             Some(&diagnostic_builder),
-            Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
+            Arc::new(RuntimeEnv::new().with_name("rt")),
         )?;
 
         // Update the chat history with the response

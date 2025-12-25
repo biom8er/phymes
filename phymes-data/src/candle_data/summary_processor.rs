@@ -94,7 +94,7 @@ impl ProcessorTrait for DataSummaryProcessor {
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
@@ -180,7 +180,7 @@ pub struct DataSummaryStream {
     /// Parameters for chat inference
     config_stream: SendableRecordBatchStream,
     /// The Candle model assets needed for inference
-    _runtime_env: Arc<Mutex<RuntimeEnv>>,
+    _runtime_env: Arc<RuntimeEnv>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for chat inference
@@ -192,7 +192,7 @@ impl DataSummaryStream {
         message_stream: SendableRecordBatchStream,
         table_name: String,
         config_stream: SendableRecordBatchStream,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
@@ -464,11 +464,11 @@ mod tests {
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
-        let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
+        let runtime_env = Arc::new(RuntimeEnv {
             name: "service".to_string(),
             memory_limit: None,
             time_limit: None,
-        }));
+        });
 
         // Create the processor and run
         let processor = DataSummaryProcessor::new(
@@ -558,11 +558,11 @@ mod tests {
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
-        let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
+        let runtime_env = Arc::new(RuntimeEnv {
             name: "service".to_string(),
             memory_limit: None,
             time_limit: None,
-        }));
+        });
 
         // Create the processor and run
         let processor = DataSummaryProcessor::new(

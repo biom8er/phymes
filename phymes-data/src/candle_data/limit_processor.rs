@@ -6,7 +6,6 @@ use anyhow::{Result, anyhow};
 use arrow::datatypes::SchemaRef;
 use arrow::record_batch::RecordBatch;
 use futures::stream::{Stream, StreamExt};
-use parking_lot::Mutex;
 use phymes_core::{
     BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
     PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
@@ -80,7 +79,7 @@ impl ProcessorTrait for LimitProcessor {
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         // Trace the inbox
         let trace = if let Some(diagnostic_builder) = diagnostic_builder {
@@ -166,7 +165,7 @@ pub struct LimitStream {
     /// Parameters for limit
     config_stream: SendableRecordBatchStream,
     /// Runtime parameters
-    _runtime_env: Arc<Mutex<RuntimeEnv>>,
+    _runtime_env: Arc<RuntimeEnv>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for limit
@@ -177,7 +176,7 @@ impl LimitStream {
     pub fn new(
         message_stream: SendableRecordBatchStream,
         config_stream: SendableRecordBatchStream,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Self {
         let schema = message_stream.schema();
@@ -395,10 +394,10 @@ mod tests {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make the Runtime Env
-        let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
+        let runtime_env = Arc::new(RuntimeEnv {
             name: "service".to_string(),
             ..Default::default()
-        }));
+        });
 
         // Limit of six
         let processor = LimitProcessor::new(
@@ -554,10 +553,10 @@ mod tests {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make the Runtime Env
-        let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
+        let runtime_env = Arc::new(RuntimeEnv {
             name: "service".to_string(),
             ..Default::default()
-        }));
+        });
 
         // Limit of six needs to consume the entire first record batch
         // (5 rows) and 1 row from the second (1 row)
@@ -606,10 +605,10 @@ mod tests {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make the Runtime Env
-        let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
+        let runtime_env = Arc::new(RuntimeEnv {
             name: "service".to_string(),
             ..Default::default()
-        }));
+        });
 
         // Limit of six needs to consume the entire first record batch
         // (6 rows) and stop immediately
@@ -662,10 +661,10 @@ mod tests {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make the Runtime Env
-        let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
+        let runtime_env = Arc::new(RuntimeEnv {
             name: "service".to_string(),
             ..Default::default()
-        }));
+        });
 
         // Limit of six needs to consume the entire first record batch
         // (6 rows) and stop immediately

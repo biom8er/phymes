@@ -89,7 +89,7 @@ impl ProcessorTrait for CandleEmbedProcessor {
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
@@ -158,7 +158,7 @@ pub struct CandleEmbedStream {
     /// Parameters for embed inference
     config_stream: SendableRecordBatchStream,
     /// The runtime environment
-    _runtime_env: Arc<Mutex<RuntimeEnv>>,
+    _runtime_env: Arc<RuntimeEnv>,
     /// The candle asset needed for inference
     // DM: In a single thread environment, there is minimal to no penalty of using a mutex here
     // DM: in a mult-thread environment, we prevent copying the model assets each time we use it
@@ -177,7 +177,7 @@ impl CandleEmbedStream {
     pub fn new(
         document_stream: SendableRecordBatchStream,
         config_stream: SendableRecordBatchStream,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
         token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
@@ -771,7 +771,7 @@ mod tests {
             memory_limit: None,
             time_limit: None,
         };
-        let runtime_env = Arc::new(Mutex::new(runtime_env));
+        let runtime_env = Arc::new(runtime_env);
 
         // Case 1: streaming query
         // Make the query input stream
@@ -983,7 +983,7 @@ mod tests {
             memory_limit: None,
             time_limit: None,
         };
-        let runtime_env = Arc::new(Mutex::new(runtime_env));
+        let runtime_env = Arc::new(runtime_env);
 
         // Make and run the embeddings stream
         let embed_stream = CandleEmbedStream::new(
