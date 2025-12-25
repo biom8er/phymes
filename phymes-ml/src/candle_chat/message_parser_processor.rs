@@ -21,7 +21,6 @@ use phymes_diagnostics::{
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{Stream, StreamExt};
-use parking_lot::Mutex;
 use serde_json::json;
 use tracing::{Level, event, instrument};
 

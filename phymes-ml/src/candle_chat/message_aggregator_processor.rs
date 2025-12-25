@@ -9,7 +9,6 @@ use phymes_core::{
 };
 
 use anyhow::{Result, anyhow};
-use parking_lot::Mutex;
 use phymes_data::{AggregatorStream, collect_messages_by_schema};
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
 use tracing::{Level, event, instrument};
