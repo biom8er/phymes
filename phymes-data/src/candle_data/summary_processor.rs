@@ -17,7 +17,6 @@ use phymes_core::{
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{Stream, StreamExt};
-use parking_lot::Mutex;
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
     TraceBuilderTrait, create_timestamp_micros,

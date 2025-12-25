@@ -20,7 +20,6 @@ use arrow::{
     datatypes::{Fields, SchemaRef},
 };
 use futures::{Stream, StreamExt};
-use parking_lot::Mutex;
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
     TraceBuilderTrait,
