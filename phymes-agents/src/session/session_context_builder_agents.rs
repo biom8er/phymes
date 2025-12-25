@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::Schema};
 use clap::ValueEnum;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
     BuilderTrait, MappableTrait, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, StateMap, Table, TableBuilderTrait,

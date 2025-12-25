@@ -1,6 +1,6 @@
 use anyhow::Result;
 use arrow::datatypes::SchemaRef;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use phymes_diagnostics::{Diagnostics, HashMap};
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, PublishAndSubscribeTrait,

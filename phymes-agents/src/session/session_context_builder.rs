@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use phymes_diagnostics::{HashMap, HashSet};
 use phymes_core::{
     BuildableTrait, BuilderTrait, MappableTrait, ProcessorTrait, RuntimeEnv,
