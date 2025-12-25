@@ -1,4 +1,4 @@
-use crate::session::BuilderTrait;
+use crate::runtime_env::BuilderTrait;
 use crate::table::{SendableRecordBatchStream, TablePublication};
 use crate::{IPCMessage, SendableRecordBatchStreamMessage};
 

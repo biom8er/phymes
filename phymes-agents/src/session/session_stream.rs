@@ -1,6 +1,7 @@
 use anyhow::Result;
 use futures::{FutureExt, Stream};
 use parking_lot::RwLock;
+use phymes_core::{IPCMessage, IPCMessageMap, };
 use phymes_diagnostics::HashMap;
 use std::future::Future;
 use std::pin::Pin;
@@ -8,7 +9,7 @@ use std::sync::Arc;
 use std::task::{Context, Poll, ready};
 use tracing::{Level, event};
 
-use crate::{IPCMessage, IPCMessageMap, SessionStreamState, SessionStreamStep};
+use crate::{SessionStreamState, SessionStreamStep};
 
 pub struct SessionStream {
     /// The state
@@ -84,14 +85,14 @@ impl Stream for SessionStream {
 #[cfg(test)]
 mod tests {
     use futures::TryStreamExt;
-
-    use super::*;
-    use crate::{
+    use phymes_core::{
         AvailableSubjects, BuilderTrait, MappableTrait, MessageTrait, TableBuilder,
         TableBuilderTrait, TablePublication, TableTrait,
-        test_session_context_builder::make_test_session_context_sequential_task,
         test_task::make_test_input_message,
     };
+
+    use super::*;
+    use crate::test_session_context_builder::make_test_session_context_sequential_task;
 
     #[tokio::test]
     async fn test_session_stream_replace_state_update_sequential_tasks() -> Result<()> {

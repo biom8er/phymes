@@ -27,9 +27,7 @@ use futures::StreamExt;
 #[cfg(feature = "mermaid_js")]
 use crate::state::MermaidJsObject;
 #[cfg(feature = "mermaid_js")]
-use phymes_agents::SessionContextBuilderMermaidTrait;
-#[cfg(feature = "mermaid_js")]
-use phymes_core::SessionContextBuilder;
+use phymes_agents::{SessionContextBuilderMermaidTrait, SessionContextBuilder};
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};

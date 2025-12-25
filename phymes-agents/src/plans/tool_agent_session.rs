@@ -5,7 +5,7 @@ use std::sync::Arc;
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
     BuilderTrait, DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder,
-    TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_schema_from_fields,
+    TableBuilderTrait, TablePublication, TableSubscription, create_schema_from_fields,
     create_tools_record_batch,
 };
 use phymes_data::{
@@ -18,10 +18,7 @@ use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 
 use arrow::datatypes::{DataType, Field, Fields};
 
-use crate::{
-    AvailableProcessors, session_plans::AvailableInterfaceSubjects,
-    session_traits::CustomAgentsBuilderTrait,
-};
+use crate::{TaskPlan, AvailableProcessors, AvailableInterfaceSubjects, CustomAgentsBuilderTrait};
 
 /// Tool agent node with human-in-the-loop
 pub struct ToolAgentSession<'a> {
@@ -749,14 +746,12 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         BlobBuilderTraitExt, ChatBuilderTraitExt, CsvFormat, IPCMessage, MappableTrait,
-        MessageBuilderTrait, MessageTrait, SessionStream, SessionStreamState, TableTrait,
+        MessageBuilderTrait, MessageTrait, TableTrait,
     };
     use phymes_data::test_extract_tabular_data::make_scores_table;
     use phymes_diagnostics::HashMap;
 
-    use crate::{
-        session_plans::create_message_map, session_traits::SessionContextBuilderAgentsTrait,
-    };
+    use crate::{SessionStream, SessionStreamState, create_message_map, SessionContextBuilderAgentsTrait};
 
     use super::*;
 

@@ -2,6 +2,10 @@ use anyhow::{Result, anyhow};
 use arrow::record_batch::RecordBatch;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
+use phymes_core::{BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait,
+    MessageTrait, PublishAndSubscribeTrait, RunnableTrait, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait,
+    TableTrait, create_error_message_map, create_error_message_map_stream,};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap,
     SpanBuilder, TraceBuilderTrait,
@@ -10,12 +14,7 @@ use std::sync::Arc;
 use tokio::task::JoinSet;
 use tracing::{Level, event, instrument};
 
-use crate::{
-    BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait,
-    MessageTrait, PublishAndSubscribeTrait, RunnableTrait, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageMap, SessionStreamState, TableBuilder, TableBuilderTrait,
-    TableTrait, create_error_message_map, create_error_message_map_stream,
-};
+use crate::SessionStreamState;
 
 /// A single step of a [`SessionStream`]
 ///
@@ -305,15 +304,15 @@ impl SessionStreamStep {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies,
-        ProcessorBuilder, SessionContextBuilder, SessionContextBuilderTrait, TablePublication,
-        TableSubscription, TaskPlan,
+    use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies,
+        ProcessorBuilder, TablePublication, TableSubscription, 
         test_processor::{ProcessorError, ProcessorMock},
+        test_task::{make_runtime_env, make_state_tables, make_test_input_message}};
+    use crate::{
+        SessionContextBuilder, SessionContextBuilderTrait, TaskPlan,
         test_session_context_builder::{
             make_test_session_context_parallel_task, make_test_session_context_sequential_task,
         },
-        test_task::{make_runtime_env, make_state_tables, make_test_input_message},
     };
 
     #[tokio::test]

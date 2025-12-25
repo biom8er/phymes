@@ -3,17 +3,14 @@ use std::sync::Arc;
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
     ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait,
-    TablePublication, TableSubscription, TaskPlan,
+    TablePublication, TableSubscription,
 };
 use phymes_data::{AvailableCandleOperators, DataConfig};
 #[cfg(feature = "api")]
 use phymes_ml::AvailableOpenAIAssets;
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 
-use crate::{
-    AvailableProcessors, session_plans::AvailableInterfaceSubjects,
-    session_traits::CustomAgentsBuilderTrait,
-};
+use crate::{AvailableProcessors, AvailableInterfaceSubjects, CustomAgentsBuilderTrait, TaskPlan};
 
 pub struct ChatAgentSession<'a> {
     /// Chat tasks
@@ -282,13 +279,11 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         BuildableTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait,
-        MessageTrait, SessionStream, SessionStreamState, TableTrait,
+        MessageTrait, TableTrait,
     };
     use phymes_diagnostics::HashMap;
 
-    use crate::{
-        session_plans::create_message_map, session_traits::SessionContextBuilderAgentsTrait,
-    };
+    use crate::{SessionStream, SessionStreamState, create_message_map, SessionContextBuilderAgentsTrait};
 
     use super::*;
 

@@ -1,30 +1,6 @@
-use crate::{
-    IPCMessage, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessage, Table, Task,
-};
-
-/// General imports
-use anyhow::Result;
-use parking_lot::{Mutex, RwLock};
-use phymes_diagnostics::HashMap;
 use std::sync::Arc;
-
-/// Runtime environment HashMap with Arc/Mutex for thread-safe mutability
-pub type RuntimeEnvMap = HashMap<String, Arc<Mutex<RuntimeEnv>>>;
-
-/// Processor HashMap with Arc-based abstraction
-pub type ProcessorMap = HashMap<String, Arc<dyn ProcessorTrait>>;
-
-/// Task HashMap
-pub type TaskMap = HashMap<String, Arc<Task>>;
-
-/// Table HashMap with Arc/RwLock for thread-safe multiple reads
-pub type StateMap = HashMap<String, Arc<RwLock<Table>>>;
-
-/// Incoming Message HashMap
-pub type IPCMessageMap = HashMap<String, IPCMessage>;
-
-/// Outgoing Message HashMap
-pub type SendableRecordBatchStreamMessageMap = HashMap<String, SendableRecordBatchStreamMessage>;
+use anyhow::Result;
+use phymes_diagnostics::HashMap;
 
 /// For all objects that can be inserted into a HashMap
 /// based on their `name` attribute

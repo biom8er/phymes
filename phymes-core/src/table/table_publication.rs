@@ -10,7 +10,7 @@ use arrow::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::session::MappableTrait;
+use crate::runtime_env::MappableTrait;
 
 use super::table_trait::{Table, TableTrait};
 

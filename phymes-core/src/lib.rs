@@ -1,16 +1,16 @@
 mod message;
 mod processor;
 mod schemas;
-mod session;
+mod runtime_env;
 mod table;
 mod task;
 pub use message::{
     IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
     SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-    SessionInterfaceMessageTrait, remove_message_by_subject,
+    SessionInterfaceMessageTrait, IPCMessageMap, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
 };
-pub use processor::{ProcessorBuilder, ProcessorEcho, ProcessorTrait, test_processor};
+pub use processor::{ProcessorBuilder, ProcessorEcho, ProcessorMap, ProcessorTrait, test_processor};
 pub use schemas::{
     AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BlobSubject,
     ChatBuilderTraitExt, ChatCompletionRequest, ChatCompletionResponse, ChatTraitExt,
@@ -29,21 +29,18 @@ pub use schemas::{
     create_user_inbox_batch, create_user_session_contexts_batch, create_values_record_batch,
     from_diagnostics_to_tables,
 };
-pub use session::{
-    BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, ProcessorMap,
-    RuntimeEnv, RuntimeEnvMap, RuntimeEnvTrait, SendableRecordBatchStreamMessageMap,
-    SessionContext, SessionContextBuilder, SessionContextBuilderTrait, SessionStream,
-    SessionStreamState, SessionStreamStep, StateMap, TaskMap, TaskPlan, TaskPlanBuilder,
-    test_session_context_builder,
+pub use runtime_env::{
+    BuildableTrait, BuilderTrait, MappableTrait,
+    RuntimeEnv, RuntimeEnvMap, RuntimeEnvTrait,
 };
 pub use table::{
     AvailableTableSubscribePolicies, CsvFormat, DataFormat, IPCRecordBatchStream, JsonFormat,
     OwlFormat, RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder, RecordBatchStream,
-    RecordBatchStreamAdapter, SendableIPCRecordBatchStream, SendableRecordBatchStream, Table,
+    RecordBatchStreamAdapter, SendableIPCRecordBatchStream, SendableRecordBatchStream, StateMap, Table,
     TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableScript,
     TableSubscribePolicyTrait, TableSubscription, TableSubscriptionTrait, TableTrait,
     from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type, test_table,
 };
 pub use task::{
-    PublishAndSubscribeTrait, RunnableTrait, Task, TaskBuilder, TaskBuilderTrait, TaskTrait, test_task,
+    PublishAndSubscribeTrait, RunnableTrait, Task, TaskBuilder, TaskBuilderTrait, TaskMap, TaskTrait, test_task,
 };

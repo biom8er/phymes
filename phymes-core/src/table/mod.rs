@@ -31,3 +31,10 @@ pub(crate) use table_subscribe_policy::{
 };
 pub use table_subscription::{TableSubscription, TableSubscriptionTrait};
 pub use table_trait::{Table, TableTrait, test_table};
+
+use std::sync::Arc;
+use parking_lot::RwLock;
+use phymes_diagnostics::HashMap;
+
+/// Table HashMap with Arc/RwLock for thread-safe multiple reads
+pub type StateMap = HashMap<String, Arc<RwLock<Table>>>;

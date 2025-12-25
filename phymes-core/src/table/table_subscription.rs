@@ -3,7 +3,7 @@ use arrow::datatypes::Schema;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, sync::Arc};
 
-use crate::{RecordBatchStreamAdapter, session::MappableTrait};
+use crate::{RecordBatchStreamAdapter, runtime_env::MappableTrait};
 
 use super::{
     stream::SendableRecordBatchStream,

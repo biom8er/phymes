@@ -2,26 +2,35 @@ use anyhow::Result;
 use arrow::datatypes::SchemaRef;
 use parking_lot::{Mutex, RwLock};
 use phymes_diagnostics::{Diagnostics, HashMap};
-use std::sync::Arc;
-use tracing::{Level, event};
-
-use crate::{
+use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, PublishAndSubscribeTrait,
-    RuntimeEnv, SessionContextBuilder, StateMap, Table, TableBuilder, TableBuilderTrait,
+    RuntimeEnv, StateMap, Table, TableBuilder, TableBuilderTrait,
     TablePublication, TablePublicationTrait, TableTrait, TaskMap,
     create_session_subjects_num_rows_batch, from_diagnostics_to_tables,
 };
+use std::sync::Arc;
+use tracing::{Level, event};
 
-/// The `SessionContext` creates an execution graph based on a
-/// `SessionPlan` and manages the running of individual tasks
-/// and the messages passed between tasks.
+use crate::SessionContextBuilder;
+
+/// The [SessionContext] creates a (dynamic) execution graph based on a [TaskPlan]
+///   and manages the running of individual [Task]s and the [Message]s passed between them.
+/// 
+/// [TaskPlan]: phymes_core::TaskPlan
+/// [Task]: phymes_core::TaskTrait
+/// [Message]: phymes_core::MessageTrait
 #[derive(Default, Debug, Clone)]
 pub struct SessionContext {
     /// A unique UUID that identifies the session
     pub(crate) name: String,
     /// The list of available tasks that can be run during the session
     pub(crate) tasks: TaskMap,
-    /// Data that should be persisted between queries
+    /// Session data (state) that should be persisted between queries including
+    ///   the session diagnostics (i.e., traces, events, metrics, and errors),
+    ///   and task plan (i.e., subjects, tasks, processors, and runtime_envs)
+    ///   
+    /// Message subjects data (subjects) along with metadata such as
+    ///   the row counts for all subjects, and subject changelog (todo)
     pub(crate) state: StateMap,
     /// Runtime environment configuration to use during task runs
     #[allow(dead_code)]
@@ -342,11 +351,11 @@ impl BuildableTrait for SessionContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::session::session_context_builder::test_session_context_builder::{
+    use crate::test_session_context_builder::{
         make_test_session_context_parallel_task, make_test_session_context_parallel_task_empty,
     };
-    use crate::table::test_table::make_test_table_schema;
     use arrow::array::UInt64Array;
+    use phymes_core::test_table::make_test_table_schema;
     use phymes_diagnostics::HashSet;
     #[cfg(not(target_family = "wasm"))]
     use tempfile::tempdir;

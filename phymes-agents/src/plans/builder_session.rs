@@ -1,16 +1,12 @@
-use crate::{
-    AvailableProcessors,
-    session_plans::AvailableSessionPlans,
-    session_traits::{CustomAgentsBuilderTrait, SessionContextBuilderMermaidTrait},
-};
+use std::sync::Arc;
+use crate::{AvailableProcessors, AvailableSessionPlans, CustomAgentsBuilderTrait, SessionContextBuilderMermaidTrait, TaskPlan};
 use anyhow::Result;
 use phymes_core::{
     AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait,
     ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication,
-    TableSubscription, TaskPlan, create_session_mermaid_batch,
+    TableSubscription, create_session_mermaid_batch,
 };
 use phymes_diagnostics::create_timestamp_micros;
-use std::sync::Arc;
 
 /// Example Mermaid diagrams for chat, doc, and tool agent sessions
 pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Table> {
@@ -117,9 +113,8 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
 mod tests {
     use anyhow::Result;
     use parking_lot::RwLock;
-    use phymes_core::SessionStreamState;
 
-    use crate::session_traits::SessionContextBuilderAgentsTrait;
+    use crate::{SessionContextBuilderAgentsTrait, SessionStreamState};
 
     use super::*;
 

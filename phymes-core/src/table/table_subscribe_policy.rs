@@ -1,12 +1,7 @@
 use phymes_diagnostics::HashMap;
 use std::fmt::Debug;
 
-use crate::{
-    AvailableSubjects, TableSubscription,
-    session::{MappableTrait, StateMap},
-};
-
-use super::table_trait::{Table, TableTrait};
+use crate::{AvailableSubjects, TableSubscription, MappableTrait, StateMap, Table, TableTrait};
 
 /// Determine when all subscriptions are ready
 pub trait TableSubscribePolicyTrait: MappableTrait + Debug + Send + Sync {

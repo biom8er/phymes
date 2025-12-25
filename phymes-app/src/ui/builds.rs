@@ -1,10 +1,10 @@
 use dioxus::prelude::*;
 use phymes_agents::{
-    AvailableSessionPlans, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+    AvailableSessionPlans, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilder,
 };
 use phymes_core::{
     create_session_mermaid_batch, AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat,
-    MessageBuilderTrait, SessionContextBuilder, SessionInterfaceMessage,
+    MessageBuilderTrait, SessionInterfaceMessage,
     SessionInterfaceMessageBuilderTrait, Table, TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_diagnostics::create_timestamp_micros;

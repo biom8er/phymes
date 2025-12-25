@@ -32,7 +32,7 @@ use crate::{
             create_user_inbox_fields, create_user_session_contexts_fields,
         },
     },
-    session::{BuildableTrait, BuilderTrait},
+    runtime_env::{BuildableTrait, BuilderTrait},
     table::{Table, TableBuilder, TableBuilderTrait},
 };
 

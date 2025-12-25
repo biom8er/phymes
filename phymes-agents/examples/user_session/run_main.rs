@@ -12,11 +12,11 @@ use std::sync::Arc;
 
 use phymes_agents::{
     AvailableInterfaceSubjects, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait,
-    UserSession, create_message_map,
+    UserSession, create_message_map, SessionStream, SessionStreamState
 };
 use phymes_core::{
     AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, IPCMessage,
-    MappableTrait, MessageBuilderTrait, MessageTrait, SessionStream, SessionStreamState, Table,
+    MappableTrait, MessageBuilderTrait, MessageTrait, Table,
     TableBuilder, TableBuilderTrait, TablePublication, TableTrait, create_user_inbox_batch,
 };
 

@@ -4,7 +4,7 @@ use arrow::datatypes::DataType;
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
     DataFormat, DiagnosticsVisualizations, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table,
-    TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan,
+    TableBuilder, TableBuilderTrait, TablePublication, TableSubscription,
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator,
@@ -12,10 +12,7 @@ use phymes_data::{
 };
 use serde_json::json;
 
-use crate::{
-    AvailableProcessors, session_plans::AvailableInterfaceSubjects,
-    session_traits::CustomAgentsBuilderTrait,
-};
+use crate::{AvailableProcessors, AvailableInterfaceSubjects, CustomAgentsBuilderTrait, TaskPlan};
 
 /// A session for gathering analytics based on the session metrics
 ///
@@ -1811,15 +1808,11 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, SessionContextBuilderTrait,
-        SessionStream, SessionStreamState, TableTrait,
+        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, TableTrait,
     };
     use phymes_diagnostics::HashMap;
 
-    use crate::{
-        session_plans::{create_message_map, user_session_inner},
-        session_traits::SessionContextBuilderAgentsTrait,
-    };
+    use crate::{create_message_map, plans::user_session_inner, SessionContextBuilderTrait, SessionStream, SessionStreamState, SessionContextBuilderAgentsTrait};
 
     use super::*;
 

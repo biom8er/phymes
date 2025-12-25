@@ -4,19 +4,13 @@ use std::sync::Arc;
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
     DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder,
-    TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_user_batch,
+    TableBuilderTrait, TablePublication, TableSubscription, create_user_batch,
     create_user_session_contexts_batch,
 };
 use phymes_data::{AvailableCandleOperators, DataConfig, DataSummaryConfig};
 use phymes_diagnostics::create_timestamp_micros;
 
-use crate::{
-    AvailableProcessors,
-    session_plans::{
-        AvailableInterfaceSubjects, AvailableSessionPlans, make_example_mermaid_table,
-    },
-    session_traits::CustomAgentsBuilderTrait,
-};
+use crate::{TaskPlan, AvailableProcessors, AvailableInterfaceSubjects, AvailableSessionPlans, make_example_mermaid_table, CustomAgentsBuilderTrait};
 
 /// A session for all user management tasks
 ///
@@ -437,15 +431,9 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 pub(crate) mod user_session_inner {
     use anyhow::Result;
     use parking_lot::RwLock;
-    use phymes_core::{
-        BlobBuilderTraitExt, BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait,
-        SessionContextBuilderTrait, SessionStream, SessionStreamState, TableTrait,
-        create_user_inbox_batch,
-    };
+    use phymes_core::{BlobBuilderTraitExt, BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait, TableTrait, create_user_inbox_batch};
 
-    use crate::{
-        session_plans::create_message_map, session_traits::SessionContextBuilderAgentsTrait,
-    };
+    use crate::{SessionContextBuilderTrait, SessionStream, SessionStreamState, create_message_map, SessionContextBuilderAgentsTrait,};
 
     use super::*;
 

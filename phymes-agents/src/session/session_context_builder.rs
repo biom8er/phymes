@@ -3,12 +3,13 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use parking_lot::{Mutex, RwLock};
 use phymes_diagnostics::{HashMap, HashSet};
-use serde::{Deserialize, Serialize};
-
-use crate::{
-    BuildableTrait, BuilderTrait, MappableTrait, ProcessorTrait, RuntimeEnv, SessionContext,
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, ProcessorTrait, RuntimeEnv,
     StateMap, Table, TablePublication, TableSubscription, Task, TaskBuilderTrait, TaskMap,
 };
+use serde::{Deserialize, Serialize};
+
+use crate::SessionContext;
 
 /// The plan for the tasks
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
@@ -428,7 +429,7 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 
 /// Mock objects and functions for session context builer testing
 pub mod test_session_context_builder {
-    use crate::{
+    use phymes_core::{
         AvailableTableSubscribePolicies, ProcessorEcho,
         test_processor::ProcessorMock,
         test_task::{make_runtime_env, make_state_tables, make_state_tables_empty},
@@ -725,7 +726,7 @@ pub mod test_session_context_builder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
+    use phymes_core::{
         AvailableTableSubscribePolicies, ProcessorTrait, TableSubscription,
         test_processor::ProcessorMock,
         test_task::{make_runtime_env, make_state_tables},

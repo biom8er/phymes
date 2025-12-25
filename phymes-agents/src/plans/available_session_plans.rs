@@ -3,17 +3,10 @@ use std::{fmt::Display, sync::Arc};
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
 use parking_lot::RwLock;
-use phymes_core::{
-    BuilderTrait, SessionContextBuilder, SessionContextBuilderTrait, SessionStreamState,
-};
+use phymes_core::BuilderTrait;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    session_plans::{
-        BuilderSession, ChatAgentSession, DocumentRAGSession, ToolAgentSession, UserSession,
-    },
-    session_traits::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait},
-};
+use crate::{BuilderSession, ChatAgentSession, DocumentRAGSession, ToolAgentSession, UserSession, CustomAgentsBuilderTrait, SessionContextBuilder, SessionContextBuilderTrait, SessionStreamState,SessionContextBuilderAgentsTrait};
 
 /// The available session plans
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]

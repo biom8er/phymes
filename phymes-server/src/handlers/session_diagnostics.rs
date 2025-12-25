@@ -13,14 +13,12 @@ use futures::prelude::*;
 use parking_lot::RwLock;
 use phymes_agents::{
     AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DiagnosticSession,
-    SessionContextBuilderAgentsTrait, create_message_map,
+    SessionContextBuilderAgentsTrait, create_message_map, SessionContextBuilderTrait, SessionStream, SessionStreamState,
 };
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, IPCMessage,
     JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait,
-    SessionContextBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait,
-    SessionStream, SessionStreamState, TableBuilder, TableBuilderTrait, TablePublication,
-    TableTrait,
+    SessionInterfaceMessage, SessionInterfaceMessageTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
 };
 
 // General imports
