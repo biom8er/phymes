@@ -15,19 +15,19 @@ use crate::{
     CustomAgentsBuilderTrait, TaskPlan, make_example_mermaid_table,
 };
 
-/// A session for all user management tasks
+/// A session for all subject associated tasks
 ///
 /// # Notes
 ///
 /// Supported tasks include the following:
 ///
-/// 1. Filtering the user information by email
-/// 2. Joining the user sessions with their mermaid diagrams
-/// 3. Registering new users
+/// 1. Counting the number of rows for each subject after updates have been made
+/// 2. Retrieving the subscriptions that have been updated per task and processor
+/// 3. Retrieving the publications per task and processor
 ///
 /// An inbox and outbox for each support task are provided
 ///   that trigger the task
-pub struct UserSession<'a> {
+pub struct SubjectsSession<'a> {
     /// Extract data from inbox subtask
     pub filter_and_join_session_contexts_by_email_inbox_task_name: &'a str,
     pub filter_and_join_session_contexts_by_email_inbox_processor_name: &'a str,
@@ -43,20 +43,50 @@ pub struct UserSession<'a> {
     pub join_session_contexts_with_mermaid_diagrams_task_name: &'a str,
     pub join_session_contexts_with_mermaid_diagrams_processor_name: &'a str,
 
-    /// Filter user info by email subtask
-    pub filter_user_info_by_email_runtime_env_name: &'a str,
-    pub filter_user_info_by_email_task_name: &'a str,
-    pub filter_user_info_by_email_processor_name: &'a str,
-    pub filter_user_info_by_email_table_name: &'a str,
+    /// 1, 2, and 3. Filter updated subjects by update and session_name
+    pub filter_updated_subjects_task_name: &'a str,
+    pub filter_updated_subjects_processor_name: &'a str,
+    pub filter_updated_subjects_table_name: &'a str,
+
+    /// 1. Count the number of rows per subject
+    /// 
+
+    /// 2 and 3. Join between incoming tasks and session tasks
+    pub join_tasks_session_tasks_task_name: &'a str,
+    pub join_tasks_session_tasks_processor_name: &'a str,
+
+    /// 2. Cache filtered subscriptions
+    pub filter_session_processors_subscriptions_task_name: &'a str,
+    pub filter_session_processors_subscriptions_processor_name: &'a str,
+    
+    /// 2. Retrieve updated subscriptions
+    pub join_tasks_filtered_processors_subscriptions_task_name: &'a str,
+    pub join_tasks_filtered_processors_subscriptions_processor_name: &'a str,
+    pub join_tasks_filtered_processors_subscriptions_filtered_updated_subjects_task_name: &'a str,
+    pub join_tasks_filtered_processors_subscriptions_filtered_updated_subjects_processor_name: &'a str,    
+    pub select_updated_subscriptions_task_name: &'a str,
+    pub select_updated_subscriptions_processor_name: &'a str,
+    
+    /// 3. Cache filtered publications
+    pub filter_session_processors_publications_task_name: &'a str,
+    pub filter_session_processors_publications_processor_name: &'a str,
+
+    /// 3. Retrieve the publications
+    pub join_tasks_filtered_processors_publications_task_name: &'a str,
+    pub join_tasks_filtered_processors_publications_processor_name: &'a str,
+    pub join_tasks_filtered_processors_publications_filtered_updated_subjects_task_name: &'a str,
+    pub join_tasks_filtered_processors_publications_filtered_updated_subjects_processor_name: &'a str,    
+    pub select_updated_publications_task_name: &'a str,
+    pub select_updated_publications_processor_name: &'a str,
 
     /// Session
     pub session_context_name: &'a str,
 }
 
-impl Default for UserSession<'_> {
+impl Default for SubjectsSession<'_> {
     fn default() -> Self {
-        UserSession {
-            session_context_name: "user_session",
+        SubjectsSession {
+            session_context_name: "subject_session",
             filter_and_join_session_contexts_by_email_inbox_task_name: "filter_and_join_session_contexts_by_email_inbox_task_name",
             filter_and_join_session_contexts_by_email_inbox_processor_name: "filter_and_join_session_contexts_by_email_inbox_processor_name",
             filter_and_join_session_contexts_by_email_outbox_task_name: "filter_and_join_session_contexts_by_email_outbox_task_name",
@@ -75,9 +105,9 @@ impl Default for UserSession<'_> {
     }
 }
 
-impl<'a> UserSession<'a> {
+impl<'a> SubjectsSession<'a> {
     pub fn new_with_session_name(session_context_name: &'a str) -> Self {
-        UserSession {
+        SubjectsSession {
             session_context_name,
             ..Default::default()
         }
@@ -112,7 +142,7 @@ impl<'a> UserSession<'a> {
     }
 }
 
-impl CustomAgentsBuilderTrait for UserSession<'_> {
+impl CustomAgentsBuilderTrait for SubjectsSession<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![
             TaskPlan {
@@ -448,7 +478,7 @@ pub(crate) mod user_session_inner {
 
     pub fn user_session() -> Result<(Arc<RwLock<SessionStreamState>>, SessionStream)> {
         // initialize the session
-        let user_agent_session = UserSession::default();
+        let user_agent_session = SubjectsSession::default();
         let session_ctx = user_agent_session
             .build()
             .with_name(user_agent_session.session_context_name)
