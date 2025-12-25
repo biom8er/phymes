@@ -1,10 +1,10 @@
-use std::{fmt::Debug, sync::Arc};
 use anyhow::Result;
 use candle_core::Tensor;
 use parking_lot::Mutex;
 use phymes_core::ProcessorTrait;
 use phymes_data::TensorProcessorTrait;
 use serde::{Deserialize, Serialize};
+use std::{fmt::Debug, sync::Arc};
 use tokenizers::Tokenizer;
 
 /// Tokens representations in different dimensions

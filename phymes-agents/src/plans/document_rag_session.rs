@@ -15,7 +15,7 @@ use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig};
 
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
 
-use crate::{AvailableProcessors, AvailableInterfaceSubjects, CustomAgentsBuilderTrait, TaskPlan};
+use crate::{AvailableInterfaceSubjects, AvailableProcessors, CustomAgentsBuilderTrait, TaskPlan};
 
 /// Document Retrieval Augmented Generation (RAG) session plan.
 ///
@@ -962,7 +962,9 @@ mod tests {
     use phymes_data::make_pdf_document;
     use phymes_diagnostics::HashMap;
 
-    use crate::{SessionStream, SessionStreamState, create_message_map, SessionContextBuilderAgentsTrait};
+    use crate::{
+        SessionContextBuilderAgentsTrait, SessionStream, SessionStreamState, create_message_map,
+    };
 
     use super::*;
 

@@ -1,13 +1,13 @@
 use anyhow::Result;
 use arrow::datatypes::SchemaRef;
 use parking_lot::RwLock;
-use phymes_diagnostics::{Diagnostics, HashMap};
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, PublishAndSubscribeTrait,
-    RuntimeEnv, StateMap, Table, TableBuilder, TableBuilderTrait,
-    TablePublication, TablePublicationTrait, TableTrait, TaskMap,
-    create_session_subjects_num_rows_batch, from_diagnostics_to_tables,
+    RuntimeEnv, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication,
+    TablePublicationTrait, TableTrait, TaskMap, create_subjects_num_rows_batch,
+    from_diagnostics_to_tables,
 };
+use phymes_diagnostics::{Diagnostics, HashMap};
 use std::sync::Arc;
 use tracing::{Level, event};
 
@@ -15,7 +15,7 @@ use crate::SessionContextBuilder;
 
 /// The [SessionContext] creates a (dynamic) execution graph based on a [TaskPlan]
 ///   and manages the running of individual [Task]s and the [Message]s passed between them.
-/// 
+///
 /// [TaskPlan]: phymes_core::TaskPlan
 /// [Task]: phymes_core::TaskTrait
 /// [Message]: phymes_core::MessageTrait
@@ -25,11 +25,12 @@ pub struct SessionContext {
     pub(crate) name: String,
     /// The list of available tasks that can be run during the session
     pub(crate) tasks: TaskMap,
-    /// Session data (state) that should be persisted between queries including
-    ///   the session diagnostics (i.e., traces, events, metrics, and errors),
+    /// Session data (state) that should be persisted between queries that is composed of local and shared state
+    ///
+    /// Local state: the session diagnostics (i.e., traces, events, metrics, and errors),
     ///   and task plan (i.e., subjects, tasks, processors, and runtime_envs)
-    ///   
-    /// Message subjects data (subjects) along with metadata such as
+    ///  
+    /// Shared state: Message subjects data along with metadata such as
     ///   the row counts for all subjects, and subject changelog (todo)
     pub(crate) state: StateMap,
     /// Runtime environment configuration to use during task runs
@@ -212,44 +213,35 @@ impl SessionContext {
         }
 
         // create the record batch
-        let batch = create_session_subjects_num_rows_batch(subject_names, num_rows).unwrap();
+        let batch = create_subjects_num_rows_batch(subject_names, num_rows).unwrap();
 
         // create the table
         let subject_num_rows_table = Table::get_builder()
-            .with_name(
-                AvailableSubjects::SessionSubjectsNumRows
-                    .to_string()
-                    .as_str(),
-            )
+            .with_name(AvailableSubjects::SubjectsNumRows.to_string().as_str())
             .with_record_batches(vec![batch])
             .unwrap()
             .build()
             .unwrap();
 
         // Add the metrics pivot table to the state or update
-        if self.state.contains_key(
-            AvailableSubjects::SessionSubjectsNumRows
-                .to_string()
-                .as_str(),
-        ) {
+        if self
+            .state
+            .contains_key(AvailableSubjects::SubjectsNumRows.to_string().as_str())
+        {
             self.state
-                .get_mut(
-                    AvailableSubjects::SessionSubjectsNumRows
-                        .to_string()
-                        .as_str(),
-                )
+                .get_mut(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .unwrap()
                 .write()
                 .publish_to_table(
                     subject_num_rows_table.get_record_batches_own(),
                     TablePublication::Replace {
-                        table_name: AvailableSubjects::SessionSubjectsNumRows.to_string(),
+                        table_name: AvailableSubjects::SubjectsNumRows.to_string(),
                     },
                 )
                 .unwrap();
         } else {
             self.state.insert(
-                AvailableSubjects::SessionSubjectsNumRows.to_string(),
+                AvailableSubjects::SubjectsNumRows.to_string(),
                 Arc::new(RwLock::new(subject_num_rows_table)),
             );
         }
@@ -382,11 +374,7 @@ mod tests {
         session_context.update_subject_num_rows_table();
         let info = session_context
             .get_states()
-            .get(
-                AvailableSubjects::SessionSubjectsNumRows
-                    .to_string()
-                    .as_str(),
-            )
+            .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
             .unwrap()
             .read();
 

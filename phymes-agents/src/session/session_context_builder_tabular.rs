@@ -8,15 +8,17 @@ use arrow::{
 use clap::ValueEnum;
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
-    BuilderTrait, MappableTrait, ProcessorBuilder, RuntimeEnv, RuntimeEnvTrait,
-    Table, TableBuilderTrait, TablePublication,TableSubscription, TableTrait, create_session_mermaid_batch,
-    create_session_processors_batch, create_session_runtime_envs_batch,
-    create_session_subjects_batch, create_session_tasks_batch, from_data_type_to_str,
-    from_str_to_data_type,
+    BuilderTrait, MappableTrait, ProcessorBuilder, RuntimeEnv, RuntimeEnvTrait, Table,
+    TableBuilderTrait, TablePublication, TableSubscription, TableTrait,
+    create_session_mermaid_batch, create_session_processors_batch,
+    create_session_runtime_envs_batch, create_session_subjects_batch, create_session_tasks_batch,
+    from_data_type_to_str, from_str_to_data_type,
 };
 use phymes_diagnostics::{HashSet, create_timestamp_micros};
 
-use crate::{AvailableProcessors, SessionContextBuilderMermaidTrait, SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder,
+use crate::{
+    AvailableProcessors, SessionContextBuilder, SessionContextBuilderMermaidTrait,
+    SessionContextBuilderTrait, TaskPlanBuilder,
 };
 
 /// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from tabular format
@@ -558,8 +560,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::test_task::{make_runtime_env, make_state_tables};
     use crate::test_session_context_builder::make_test_session_builder_parallel_task;
+    use phymes_core::test_task::{make_runtime_env, make_state_tables};
 
     use super::*;
 

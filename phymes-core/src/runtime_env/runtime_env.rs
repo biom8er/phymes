@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use crate::MappableTrait;
 
 /// `BuidableTrait` + `BuilderTraint` - `get_builder` - `build`
-/// 
+///
 /// # Notes
 /// * A work in progress...
 /// * Missing methods for specifying the device or number of devices

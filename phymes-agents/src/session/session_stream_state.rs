@@ -2,7 +2,10 @@ use anyhow::{Result, anyhow};
 use arrow::array::ArrayRef;
 use arrow::array::{BooleanArray, StringArray};
 use arrow::record_batch::RecordBatch;
-use phymes_core::{MessageTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableTrait, BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, MessageTrait, Table, TableBuilder,
+    TableBuilderTrait, TablePublication, TablePublicationTrait, TableTrait,
+};
 use phymes_diagnostics::HashMap;
 use std::fs::File;
 use std::sync::Arc;
@@ -281,9 +284,14 @@ impl SessionStreamState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_session_context_builder::{make_test_session_context_parallel_task, make_test_session_context_sequential_task};
-    use phymes_core::{IPCMessage, TablePublication, test_task::make_test_input_message, test_table::make_test_table};
+    use crate::test_session_context_builder::{
+        make_test_session_context_parallel_task, make_test_session_context_sequential_task,
+    };
     use parking_lot::RwLock;
+    use phymes_core::{
+        IPCMessage, TablePublication, test_table::make_test_table,
+        test_task::make_test_input_message,
+    };
     #[cfg(not(target_family = "wasm"))]
     use tempfile::tempfile;
 

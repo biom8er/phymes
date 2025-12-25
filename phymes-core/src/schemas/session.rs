@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use arrow::{
-    array::{ArrayRef, RecordBatch, StringArray, UInt8Array, UInt32Array, UInt64Array},
+    array::{ArrayRef, RecordBatch, StringArray, UInt8Array, UInt32Array},
     datatypes::{DataType, Field, Fields},
 };
 
@@ -27,35 +27,6 @@ pub fn create_session_subjects_batch(
         ("subject_name", subject_names),
         ("column_name", cols_names),
         ("type_name", type_names),
-    ])?;
-    Ok(batch)
-}
-
-pub(crate) fn create_session_subjects_num_rows_fields() -> Fields {
-    let field_names = ["subject_name"];
-    let mut fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    let field_names = ["num_rows"];
-    fields_vec.extend(
-        field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::UInt64, false))
-            .collect::<Vec<_>>(),
-    );
-    Fields::from(fields_vec)
-}
-
-pub fn create_session_subjects_num_rows_batch(
-    subject_names: Vec<String>,
-    num_rows: Vec<u64>,
-) -> Result<RecordBatch> {
-    let subject_names: ArrayRef = Arc::new(StringArray::from(subject_names));
-    let num_rows: ArrayRef = Arc::new(UInt64Array::from(num_rows));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("subject_name", subject_names),
-        ("num_rows", num_rows),
     ])?;
     Ok(batch)
 }

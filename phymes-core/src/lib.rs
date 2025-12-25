@@ -1,16 +1,21 @@
 mod message;
 mod processor;
-mod schemas;
 mod runtime_env;
+mod schemas;
 mod table;
 mod task;
 pub use message::{
-    IPCMessage, IPCMessageBuilder, MessageBuilderTrait, MessageTrait,
+    IPCMessage, IPCMessageBuilder, IPCMessageMap, MessageBuilderTrait, MessageTrait,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
-    SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-    SessionInterfaceMessageTrait, IPCMessageMap, SendableRecordBatchStreamMessageMap, remove_message_by_subject,
+    SendableRecordBatchStreamMessageMap, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
+    SessionInterfaceMessageBuilderTrait, SessionInterfaceMessageTrait, remove_message_by_subject,
 };
-pub use processor::{ProcessorBuilder, ProcessorEcho, ProcessorMap, ProcessorTrait, test_processor};
+pub use processor::{
+    ProcessorBuilder, ProcessorEcho, ProcessorMap, ProcessorTrait, test_processor,
+};
+pub use runtime_env::{
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvMap, RuntimeEnvTrait,
+};
 pub use schemas::{
     AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BlobSubject,
     ChatBuilderTraitExt, ChatCompletionRequest, ChatCompletionResponse, ChatTraitExt,
@@ -24,23 +29,20 @@ pub use schemas::{
     create_metrics_mermaid_gantt_batch, create_parse_owl_batch, create_parse_xml_batch,
     create_queries_batch, create_schema_from_fields, create_session_mermaid_batch,
     create_session_processors_batch, create_session_runtime_envs_batch,
-    create_session_subjects_batch, create_session_subjects_num_rows_batch,
-    create_session_tasks_batch, create_tools_record_batch, create_user_batch,
+    create_session_subjects_batch, create_session_tasks_batch, create_subjects_change_log_batch,
+    create_subjects_num_rows_batch, create_tools_record_batch, create_user_batch,
     create_user_inbox_batch, create_user_session_contexts_batch, create_values_record_batch,
     from_diagnostics_to_tables,
-};
-pub use runtime_env::{
-    BuildableTrait, BuilderTrait, MappableTrait,
-    RuntimeEnv, RuntimeEnvMap, RuntimeEnvTrait,
 };
 pub use table::{
     AvailableTableSubscribePolicies, CsvFormat, DataFormat, IPCRecordBatchStream, JsonFormat,
     OwlFormat, RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder, RecordBatchStream,
-    RecordBatchStreamAdapter, SendableIPCRecordBatchStream, SendableRecordBatchStream, StateMap, Table,
-    TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableScript,
+    RecordBatchStreamAdapter, SendableIPCRecordBatchStream, SendableRecordBatchStream, StateMap,
+    Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableScript,
     TableSubscribePolicyTrait, TableSubscription, TableSubscriptionTrait, TableTrait,
     from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type, test_table,
 };
 pub use task::{
-    PublishAndSubscribeTrait, RunnableTrait, Task, TaskBuilder, TaskBuilderTrait, TaskMap, TaskTrait, test_task,
+    PublishAndSubscribeTrait, RunnableTrait, Task, TaskBuilder, TaskBuilderTrait, TaskMap,
+    TaskTrait, test_task,
 };

@@ -140,8 +140,8 @@ pub fn from_tasks_to_participants(
 mod tests {
     use std::sync::Arc;
 
-    use arrow::array::{ArrayRef, StringArray};
     use crate::device;
+    use arrow::array::{ArrayRef, StringArray};
 
     use super::*;
 

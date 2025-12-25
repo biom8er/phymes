@@ -2,8 +2,8 @@ use candle_core::DType;
 use criterion::{Criterion, criterion_group, criterion_main};
 use phymes_data::device;
 use phymes_ml::{
-    TokenProcessorTrait, TokenWrapper, AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig, load_model_asset_path,
-    load_tokenizer, process_logits_sampler, process_prompt_chat,
+    AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig, TokenProcessorTrait, TokenWrapper,
+    load_model_asset_path, load_tokenizer, process_logits_sampler, process_prompt_chat,
 };
 
 fn benchmark_build_candle_chat_asset(c: &mut Criterion) {

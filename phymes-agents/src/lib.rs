@@ -7,10 +7,9 @@ pub use plans::{
     check_agent_subjects, create_message_map, make_example_mermaid_table,
 };
 pub use session::{
-    CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaid,
+    CustomAgentsBuilderTrait, SessionContext, SessionContextBuilder,
+    SessionContextBuilderAgentsTrait, SessionContextBuilderMermaid,
     SessionContextBuilderMermaidTrait, SessionContextBuilderTabularTrait,
-    
-    SessionContext, SessionContextBuilder, SessionContextBuilderTrait, SessionStream,
-    SessionStreamState, SessionStreamStep, TaskPlan, TaskPlanBuilder,
-    test_session_context_builder,
+    SessionContextBuilderTrait, SessionStream, SessionStreamState, SessionStreamStep, TaskPlan,
+    TaskPlanBuilder, test_session_context_builder,
 };

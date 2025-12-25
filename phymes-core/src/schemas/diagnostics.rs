@@ -9,8 +9,8 @@ use phymes_diagnostics::{Diagnostics, DiagnosticsType, JSONObjectTrait};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait},
     runtime_env::{BuildableTrait, BuilderTrait},
+    schemas::available_subjects::{AvailableSubjects, AvailableSubjectsTrait},
     table::{Table, TableBuilderTrait},
 };
 

@@ -2,16 +2,15 @@ use std::sync::Arc;
 
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
-use parking_lot::Mutex;
 use phymes_core::{
     AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MessageBuilderTrait,
     MessageTrait, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessage, Table,
-    TableBuilderTrait, TablePublication, TableSubscription, TableTrait,
-    from_diagnostics_to_tables, test_table::TestTableSizes,
+    TableBuilderTrait, TablePublication, TableSubscription, TableTrait, from_diagnostics_to_tables,
+    test_table::TestTableSizes,
 };
 use phymes_data::{
-    AvailableCandleOperators, CandleDataProcessor, DataAggregatorOperator,
-    DataComparatorOperator, DataComparatorPredicate, DataConfig, DataStreamManager,
+    AvailableCandleOperators, CandleDataProcessor, DataAggregatorOperator, DataComparatorOperator,
+    DataComparatorPredicate, DataConfig, DataStreamManager,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, MetricBuilderTrait,

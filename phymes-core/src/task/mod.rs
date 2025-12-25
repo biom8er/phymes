@@ -13,7 +13,7 @@ pub(crate) use test_exec::{BlockingExec, assert_strong_count_converges_to_zero};
 #[allow(unused_imports)]
 pub(crate) use test_exec::{MockExec, PanicExecWrapper, SendableRecordBatchExecTrait};
 
-use std::sync::Arc;
 use phymes_diagnostics::HashMap;
+use std::sync::Arc;
 /// Task HashMap
 pub type TaskMap = HashMap<String, Arc<Task>>;

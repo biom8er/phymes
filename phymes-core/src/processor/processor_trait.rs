@@ -471,7 +471,6 @@ mod tests {
         TableBuilderTrait, TablePublication, TableTrait, test_table::make_test_table,
     };
     use anyhow::Result;
-    use parking_lot::lock_api::Mutex;
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder};
 
     #[tokio::test]
@@ -501,11 +500,8 @@ mod tests {
             &[],
             AvailableTableSubscribePolicies::default().build(),
         );
-        let mut stream = processor_1.process(
-            message,
-            Some(&diagnostic_builder),
-            Arc::new(runtime_env),
-        )?;
+        let mut stream =
+            processor_1.process(message, Some(&diagnostic_builder), Arc::new(runtime_env))?;
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             stream.remove(&name).unwrap().get_message_own(),
         )

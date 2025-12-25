@@ -36,9 +36,11 @@ pub use diagnostics::{
 mod session;
 pub use session::{
     create_session_processors_batch, create_session_runtime_envs_batch,
-    create_session_subjects_batch, create_session_subjects_num_rows_batch,
-    create_session_tasks_batch,
+    create_session_subjects_batch, create_session_tasks_batch,
 };
+
+mod subjects;
+pub use subjects::{create_subjects_change_log_batch, create_subjects_num_rows_batch};
 
 mod set_data;
 pub use set_data::{create_parse_owl_batch, create_parse_xml_batch};
@@ -56,5 +58,5 @@ mod embedding;
 pub use embedding::{EmbeddingRequest, EmbeddingResponse, EncodingFormat};
 
 // Based on openai-api-rs and modified to accomodate Apache Arrow
-mod types;
-pub use types::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType};
+mod chat_types;
+pub use chat_types::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType};

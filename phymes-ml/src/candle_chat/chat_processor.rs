@@ -4,30 +4,30 @@ use std::{
     task::{Context, Poll, ready},
 };
 
-use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
+use crate::{
+    CandleChatConfig, TokenOutputStream, TokenProcessorTrait, TokenProcessorTraitExt, TokenWrapper,
+};
 use anyhow::{Result, anyhow};
+use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 use candle_core::DType;
 use candle_transformers::generation::{LogitsProcessor, Sampling};
-use crate::{CandleChatConfig, TokenOutputStream, TokenProcessorTrait, TokenProcessorTraitExt, TokenWrapper};
-use phymes_data::{DataConfigTrait, device};
+use futures::{Stream, StreamExt};
+use parking_lot::Mutex;
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
     BuilderTrait, ChatTraitExt, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
     PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table,
     TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait,
-    TableSubscription, TableTrait, Tool, create_chat_record_batch,
-    remove_message_by_subject,
+    TableSubscription, TableTrait, Tool, create_chat_record_batch, remove_message_by_subject,
 };
+use phymes_data::{DataConfigTrait, device};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
     create_timestamp_micros,
 };
 use tokenizers::Tokenizer;
-use futures::{Stream, StreamExt};
-use parking_lot::Mutex;
 use tracing::{Level, event, instrument};
-
 
 /// Processor for text generation inference (TGI) using Candle models
 #[derive(Debug)]
@@ -264,10 +264,7 @@ impl CandleChatStream {
                     asset.tokenizer_config.eos_token_id = Some(151643);
                 }
 
-                let _ = self
-                    .token_service
-                    .lock()
-                    .replace(Box::new(asset));
+                let _ = self.token_service.lock().replace(Box::new(asset));
             }
         } else {
             return Err(anyhow!(
@@ -305,11 +302,12 @@ impl CandleChatStream {
             match prompt_tokens {
                 None => match self.tos.as_mut().unwrap().tokens().last() {
                     Some(t) => {
-                        let logits = self
-                            .token_service
-                            .lock().as_mut()
-                            .unwrap()
-                            .forward(&TokenWrapper::D1(vec![*t]), self.index, None, true)?;
+                        let logits = self.token_service.lock().as_mut().unwrap().forward(
+                            &TokenWrapper::D1(vec![*t]),
+                            self.index,
+                            None,
+                            true,
+                        )?;
                         let logits = logits.squeeze(0)?;
                         let logits =
                             if self.config.as_ref().unwrap().repeat_penalty == 1. {
@@ -331,21 +329,23 @@ impl CandleChatStream {
                 },
                 Some(p) => {
                     if !self.config.as_ref().unwrap().split_prompt {
-                        let logits = self
-                            .token_service
-                            .lock().as_mut()
-                            .unwrap()
-                            .forward(&TokenWrapper::D1(p.to_vec()), 0, None, true)?;
+                        let logits = self.token_service.lock().as_mut().unwrap().forward(
+                            &TokenWrapper::D1(p.to_vec()),
+                            0,
+                            None,
+                            true,
+                        )?;
                         let logits = logits.squeeze(0)?;
                         self.logits_processor.as_mut().unwrap().sample(&logits)?
                     } else {
                         let mut next_token = 0;
                         for (pos, token) in p.iter().enumerate() {
-                            let logits = self
-                                .token_service
-                                .lock().as_mut()
-                                .unwrap()
-                                .forward(&TokenWrapper::D1(vec![*token]), pos, None, true)?;
+                            let logits = self.token_service.lock().as_mut().unwrap().forward(
+                                &TokenWrapper::D1(vec![*token]),
+                                pos,
+                                None,
+                                true,
+                            )?;
                             let logits = logits.squeeze(0)?;
                             next_token = self.logits_processor.as_mut().unwrap().sample(&logits)?
                         }
@@ -432,7 +432,8 @@ impl Stream for CandleChatStream {
             // Convert to a prompt
             let tokenizer_config = self
                 .token_service
-                .lock().as_ref()
+                .lock()
+                .as_ref()
                 .unwrap()
                 .get_tokenizer_config()
                 .clone();
@@ -451,10 +452,7 @@ impl Stream for CandleChatStream {
             let model_max_length = tokenizer_config.model_max_length;
             let (prompt_tokens, to_sample, tos) = process_prompt_chat(
                 prompt,
-                self.token_service
-                    .lock().as_ref()
-                    .unwrap()
-                    .get_tokenizer(),
+                self.token_service.lock().as_ref().unwrap().get_tokenizer(),
                 self.config.as_ref().unwrap().max_tokens,
                 model_max_length,
             )?;

@@ -647,8 +647,8 @@ pub fn melt(
 
 #[cfg(test)]
 mod tests {
-    use arrow::array::{ArrayRef, StringArray, UInt32Array};
     use crate::device;
+    use arrow::array::{ArrayRef, StringArray, UInt32Array};
 
     use super::*;
 

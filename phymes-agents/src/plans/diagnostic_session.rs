@@ -12,7 +12,7 @@ use phymes_data::{
 };
 use serde_json::json;
 
-use crate::{AvailableProcessors, AvailableInterfaceSubjects, CustomAgentsBuilderTrait, TaskPlan};
+use crate::{AvailableInterfaceSubjects, AvailableProcessors, CustomAgentsBuilderTrait, TaskPlan};
 
 /// A session for gathering analytics based on the session metrics
 ///
@@ -1807,12 +1807,13 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{
-        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, TableTrait,
-    };
+    use phymes_core::{BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, TableTrait};
     use phymes_diagnostics::HashMap;
 
-    use crate::{create_message_map, plans::user_session_inner, SessionContextBuilderTrait, SessionStream, SessionStreamState, SessionContextBuilderAgentsTrait};
+    use crate::{
+        SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream,
+        SessionStreamState, create_message_map, plans::user_session_inner,
+    };
 
     use super::*;
 

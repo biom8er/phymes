@@ -1,4 +1,7 @@
-use crate::{CandleTensorService, DataConfig, DataConfigTrait, DataOperatorTrait, DataStreamManager, TensorProcessorTrait, device};
+use crate::{
+    CandleTensorService, DataConfig, DataConfigTrait, DataOperatorTrait, DataStreamManager,
+    TensorProcessorTrait, device,
+};
 use phymes_core::{
     BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
     PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
@@ -224,8 +227,7 @@ impl CandleDataStream {
             if self.tensor_service.is_none() {
                 let device = device(config.cpu)?;
                 let service = CandleTensorService::new(device);
-                let _ = self.tensor_service
-                    .replace(Box::new(service));
+                let _ = self.tensor_service.replace(Box::new(service));
             }
         } else {
             return Err(anyhow!(
@@ -516,10 +518,7 @@ impl Stream for CandleDataStream {
         let batch = match self.data_operator.as_ref().unwrap().forward(
             &self.lhs_inbox,
             Some(&self.rhs_inbox),
-            self.tensor_service
-                .as_ref()
-                .unwrap()
-                .get_device(),
+            self.tensor_service.as_ref().unwrap().get_device(),
         ) {
             Ok(batch) => batch,
             Err(err) => {

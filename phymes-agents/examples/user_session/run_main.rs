@@ -12,12 +12,12 @@ use std::sync::Arc;
 
 use phymes_agents::{
     AvailableInterfaceSubjects, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait,
-    UserSession, create_message_map, SessionStream, SessionStreamState
+    SessionStream, SessionStreamState, UserSession, create_message_map,
 };
 use phymes_core::{
     AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, IPCMessage,
-    MappableTrait, MessageBuilderTrait, MessageTrait, Table,
-    TableBuilder, TableBuilderTrait, TablePublication, TableTrait, create_user_inbox_batch,
+    MappableTrait, MessageBuilderTrait, MessageTrait, Table, TableBuilder, TableBuilderTrait,
+    TablePublication, TableTrait, create_user_inbox_batch,
 };
 
 pub async fn run_main() -> Result<()> {

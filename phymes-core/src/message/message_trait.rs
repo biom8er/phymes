@@ -1,6 +1,10 @@
 use std::sync::Arc;
 
-use crate::{IPCMessageBuilder, MessageBuilderTrait, SendableRecordBatchStreamMessageBuilder, BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, SendableRecordBatchStream, TableBuilder, TableBuilderTrait, TablePublication, TableTrait};
+use crate::{
+    BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait,
+    MessageBuilderTrait, SendableRecordBatchStream, SendableRecordBatchStreamMessageBuilder,
+    TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
+};
 
 use anyhow::Result;
 use arrow::array::{ArrayRef, RecordBatch, StringArray};

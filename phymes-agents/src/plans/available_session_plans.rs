@@ -6,7 +6,11 @@ use parking_lot::RwLock;
 use phymes_core::BuilderTrait;
 use serde::{Deserialize, Serialize};
 
-use crate::{BuilderSession, ChatAgentSession, DocumentRAGSession, ToolAgentSession, UserSession, CustomAgentsBuilderTrait, SessionContextBuilder, SessionContextBuilderTrait, SessionStreamState,SessionContextBuilderAgentsTrait};
+use crate::{
+    BuilderSession, ChatAgentSession, CustomAgentsBuilderTrait, DocumentRAGSession,
+    SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait,
+    SessionStreamState, ToolAgentSession, UserSession,
+};
 
 /// The available session plans
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]

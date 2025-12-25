@@ -12,8 +12,12 @@ pub use session_context_builder::{
     SessionContextBuilder, SessionContextBuilderTrait, TaskPlan, TaskPlanBuilder,
     test_session_context_builder,
 };
-pub use session_context_builder_agents::{CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait};
-pub use session_context_builder_mermaid::{SessionContextBuilderMermaid, SessionContextBuilderMermaidTrait};
+pub use session_context_builder_agents::{
+    CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait,
+};
+pub use session_context_builder_mermaid::{
+    SessionContextBuilderMermaid, SessionContextBuilderMermaidTrait,
+};
 pub use session_context_builder_tabular::SessionContextBuilderTabularTrait;
 pub use session_stream::SessionStream;
 pub use session_stream_state::SessionStreamState;

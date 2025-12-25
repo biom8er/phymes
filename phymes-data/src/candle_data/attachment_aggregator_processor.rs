@@ -13,7 +13,10 @@ use phymes_core::{
     remove_message_by_subject,
 };
 
-use crate::{CandleTensorService, DataConfig, DataConfigTrait, DataOperatorTrait, TensorProcessorTrait, device};
+use crate::{
+    CandleTensorService, DataConfig, DataConfigTrait, DataOperatorTrait, TensorProcessorTrait,
+    device,
+};
 use anyhow::{Result, anyhow};
 use arrow::{
     array::RecordBatch,
@@ -225,8 +228,7 @@ impl AggregatorStream {
             if self.tensor_service.is_none() {
                 let device = device(config.cpu)?;
                 let service = CandleTensorService::new(device);
-                let _ = self.tensor_service
-                    .replace(Box::new(service));
+                let _ = self.tensor_service.replace(Box::new(service));
             }
         } else {
             return Err(anyhow!(
@@ -297,10 +299,7 @@ impl Stream for AggregatorStream {
             let batch = self.data_operator.as_ref().unwrap().forward(
                 &batches,
                 None,
-                self.tensor_service
-                    .as_ref()
-                    .unwrap()
-                    .get_device(),
+                self.tensor_service.as_ref().unwrap().get_device(),
             )?;
             if batch.num_rows() == 0
                 && let Some(diagnostic_builder) = &self.diagnostic_builder

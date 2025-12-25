@@ -1,4 +1,5 @@
 use crate::{
+    runtime_env::{BuildableTrait, BuilderTrait},
     schemas::{
         blob::create_blob_fields,
         chat::create_chat_fields,
@@ -22,17 +23,16 @@ use crate::{
         queries::create_queries_fields,
         session::{
             create_session_processors_fields, create_session_runtime_envs_fields,
-            create_session_subjects_fields, create_session_subjects_num_rows_fields,
-            create_session_tasks_fields,
+            create_session_subjects_fields, create_session_tasks_fields,
         },
         set_data::{create_parse_owl_fields, create_parse_xml_fields},
+        subjects::{create_subjects_change_log_fields, create_subjects_num_rows_fields},
         user::{
             create_join_user_inbox_session_contexts_fields,
             create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields,
             create_user_inbox_fields, create_user_session_contexts_fields,
         },
     },
-    runtime_env::{BuildableTrait, BuilderTrait},
     table::{Table, TableBuilder, TableBuilderTrait},
 };
 
@@ -227,8 +227,10 @@ pub enum AvailableSubjects {
     SessionProcessors,
     #[value(name = "SessionRuntimeEnvs")]
     SessionRuntimeEnvs,
-    #[value(name = "SessionSubjectsNumRows")]
-    SessionSubjectsNumRows,
+    #[value(name = "SubjectsNumRows")]
+    SubjectsNumRows,
+    #[value(name = "SubjectsChangeLog")]
+    SubjectsChangeLog,
     #[value(name = "MermaidContentTemplate")]
     MermaidContentTemplate,
     #[value(name = "MermaidXYChart")]
@@ -303,7 +305,8 @@ impl Display for AvailableSubjects {
             AvailableSubjects::SessionTasks => write!(f, "SessionTasks"),
             AvailableSubjects::SessionProcessors => write!(f, "SessionProcessors"),
             AvailableSubjects::SessionRuntimeEnvs => write!(f, "SessionRuntimeEnvs"),
-            AvailableSubjects::SessionSubjectsNumRows => write!(f, "SessionSubjectsNumRows"),
+            AvailableSubjects::SubjectsNumRows => write!(f, "SubjectsNumRows"),
+            AvailableSubjects::SubjectsChangeLog => write!(f, "SubjectsChangeLog"),
             AvailableSubjects::MermaidContentTemplate => write!(f, "MermaidContentTemplate"),
             AvailableSubjects::MermaidGanttTemplate => write!(f, "MermaidGanttTemplate"),
             AvailableSubjects::MermaidFlowchartNodesTemplate => {
@@ -416,8 +419,11 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             AvailableSubjects::SessionRuntimeEnvs => {
                 create_schema_from_fields(&create_session_runtime_envs_fields)
             }
-            AvailableSubjects::SessionSubjectsNumRows => {
-                create_schema_from_fields(&create_session_subjects_num_rows_fields)
+            AvailableSubjects::SubjectsNumRows => {
+                create_schema_from_fields(&create_subjects_num_rows_fields)
+            }
+            AvailableSubjects::SubjectsChangeLog => {
+                create_schema_from_fields(&create_subjects_change_log_fields)
             }
             AvailableSubjects::MermaidContentTemplate => {
                 create_schema_from_fields(&create_mermaid_content_template_fields)

@@ -6,15 +6,18 @@ use clap::ValueEnum;
 use parking_lot::RwLock;
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
-    BuilderTrait, MappableTrait, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, StateMap, Table, TableBuilderTrait,
-    TablePublication, TableSubscription, TableTrait, TaskMap,
+    BuilderTrait, MappableTrait, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, StateMap, Table,
+    TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap,
 };
-use phymes_data::{AvailableCandleOperators, DataConfig, DataConfigTrait, DataSummaryConfig, device};
+use phymes_data::{
+    AvailableCandleOperators, DataConfig, DataConfigTrait, DataSummaryConfig, device,
+};
 use phymes_diagnostics::{HashMap, HashSet};
 use phymes_ml::{CandleChatConfig, CandleEmbedConfig};
 
 use crate::{
-    AvailableInterfaceSubjects, AvailableProcessors, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, TaskPlan, SessionContextBuilderTabularTrait,
+    AvailableInterfaceSubjects, AvailableProcessors, SessionContext, SessionContextBuilder,
+    SessionContextBuilderTabularTrait, SessionContextBuilderTrait, TaskPlan,
 };
 
 type SessionContextInput = (
@@ -845,14 +848,13 @@ pub mod test_session_context_builder_agents {
 
     use std::vec;
 
+    use crate::test_session_context_builder::make_test_session_builder_tasks;
     use phymes_core::{
         AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, TableBuilderTrait,
-        TablePublication, TableSubscription,
-        test_table::make_test_table,
+        TablePublication, TableSubscription, test_table::make_test_table,
         test_task::make_runtime_env,
     };
     use phymes_data::{AvailableCandleOperators, DataConfig};
-    use crate::test_session_context_builder::make_test_session_builder_tasks;
 
     use super::*;
 
@@ -999,12 +1001,15 @@ pub mod test_session_context_builder_agents {
 #[cfg(test)]
 mod tests {
 
+    use crate::test_session_context_builder::{
+        make_test_session_builder_parallel_task, make_test_session_builder_tasks,
+    };
     use phymes_core::{
         BuildableTrait, BuilderTrait, DataFormat, PublishAndSubscribeTrait, TableBuilderTrait,
-        TaskTrait, test_task::{make_runtime_env, make_state_tables},
+        TaskTrait,
+        test_task::{make_runtime_env, make_state_tables},
     };
     use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager};
-    use crate::test_session_context_builder::{make_test_session_builder_parallel_task, make_test_session_builder_tasks};
 
     use super::*;
 

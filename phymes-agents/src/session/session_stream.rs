@@ -1,7 +1,7 @@
 use anyhow::Result;
 use futures::{FutureExt, Stream};
 use parking_lot::RwLock;
-use phymes_core::{IPCMessage, IPCMessageMap, };
+use phymes_core::{IPCMessage, IPCMessageMap};
 use phymes_diagnostics::HashMap;
 use std::future::Future;
 use std::pin::Pin;
@@ -87,8 +87,7 @@ mod tests {
     use futures::TryStreamExt;
     use phymes_core::{
         AvailableSubjects, BuilderTrait, MappableTrait, MessageTrait, TableBuilder,
-        TableBuilderTrait, TablePublication, TableTrait,
-        test_task::make_test_input_message,
+        TableBuilderTrait, TablePublication, TableTrait, test_task::make_test_input_message,
     };
 
     use super::*;

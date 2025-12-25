@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
 use candle_core::{
-    utils::{cuda_is_available, metal_is_available},
     Device,
+    utils::{cuda_is_available, metal_is_available},
 };
 
 /// From <https://github.com/huggingface/candle/blob/main/candle-examples/src/lib.rs>

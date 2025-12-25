@@ -1,5 +1,7 @@
-use std::sync::Arc;
-use crate::{AvailableProcessors, AvailableSessionPlans, CustomAgentsBuilderTrait, SessionContextBuilderMermaidTrait, TaskPlan};
+use crate::{
+    AvailableProcessors, AvailableSessionPlans, CustomAgentsBuilderTrait,
+    SessionContextBuilderMermaidTrait, TaskPlan,
+};
 use anyhow::Result;
 use phymes_core::{
     AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait,
@@ -7,6 +9,7 @@ use phymes_core::{
     TableSubscription, create_session_mermaid_batch,
 };
 use phymes_diagnostics::create_timestamp_micros;
+use std::sync::Arc;
 
 /// Example Mermaid diagrams for chat, doc, and tool agent sessions
 pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Table> {

@@ -321,7 +321,7 @@ mod test_messages {
     use anyhow::anyhow;
     use arrow::datatypes::SchemaRef;
     use futures::Stream;
-    
+
     use phymes_diagnostics::{DiagnosticBuilder, HashMap};
     use std::{
         pin::Pin,
@@ -544,7 +544,6 @@ mod tests {
         test_table::{make_test_table_chat, make_test_table_tool},
     };
     use futures::TryStreamExt;
-    use parking_lot::Mutex;
     use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap};
 
     use super::*;

@@ -599,12 +599,12 @@ pub fn extract_xml(
 
 #[cfg(test)]
 mod tests {
+    use crate::device;
     use phymes_core::{
         BuildableTrait, BuilderTrait, DataFormat, Table, TableBuilderTrait, TableTrait,
         create_blob_batch,
     };
     use phymes_diagnostics::create_timestamp_micros;
-    use crate::device;
 
     use super::*;
 

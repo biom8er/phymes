@@ -1,15 +1,15 @@
 use std::fs::File;
 
+use crate::{CandleAsset, QuantizedBert, QuantizedQwen2, QuantizerdBertConfig, TokenizerConfig};
 use anyhow::Result;
-use clap::ValueEnum;
-use serde::{Deserialize, Serialize};
 use candle_core::{DType, Device, quantized::gguf_file};
 use candle_nn::{VarBuilder, var_builder::SimpleBackend};
 use candle_transformers::models::bert::{BertModel as Bert, Config as BertConfig};
 use candle_transformers::models::quantized_llama::ModelWeights as QuantizedLlama;
 use candle_transformers::quantized_var_builder::VarBuilder as QuantVarBuilder;
+use clap::ValueEnum;
+use serde::{Deserialize, Serialize};
 use tokenizers::Tokenizer;
-use crate::{QuantizedBert, QuantizedQwen2, QuantizerdBertConfig, TokenizerConfig, CandleAsset};
 
 /// The model weights objects that store
 /// the actual tensors needed for inference

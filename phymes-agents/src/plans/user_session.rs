@@ -10,7 +10,10 @@ use phymes_core::{
 use phymes_data::{AvailableCandleOperators, DataConfig, DataSummaryConfig};
 use phymes_diagnostics::create_timestamp_micros;
 
-use crate::{TaskPlan, AvailableProcessors, AvailableInterfaceSubjects, AvailableSessionPlans, make_example_mermaid_table, CustomAgentsBuilderTrait};
+use crate::{
+    AvailableInterfaceSubjects, AvailableProcessors, AvailableSessionPlans,
+    CustomAgentsBuilderTrait, TaskPlan, make_example_mermaid_table,
+};
 
 /// A session for all user management tasks
 ///
@@ -431,9 +434,15 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 pub(crate) mod user_session_inner {
     use anyhow::Result;
     use parking_lot::RwLock;
-    use phymes_core::{BlobBuilderTraitExt, BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait, TableTrait, create_user_inbox_batch};
+    use phymes_core::{
+        BlobBuilderTraitExt, BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait,
+        TableTrait, create_user_inbox_batch,
+    };
 
-    use crate::{SessionContextBuilderTrait, SessionStream, SessionStreamState, create_message_map, SessionContextBuilderAgentsTrait,};
+    use crate::{
+        SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream,
+        SessionStreamState, create_message_map,
+    };
 
     use super::*;
 

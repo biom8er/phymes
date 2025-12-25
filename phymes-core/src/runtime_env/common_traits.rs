@@ -1,6 +1,6 @@
-use std::sync::Arc;
 use anyhow::Result;
 use phymes_diagnostics::HashMap;
+use std::sync::Arc;
 
 /// For all objects that can be inserted into a HashMap
 /// based on their `name` attribute

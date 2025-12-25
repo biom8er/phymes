@@ -21,4 +21,4 @@ pub(crate) use data_processor::test_candle_ops_processor;
 pub use limit_processor::LimitProcessor;
 pub use summary_config::DataSummaryConfig;
 pub use summary_processor::{DataSummaryProcessor, table_and_data_format_to_record_batch};
-pub use tensor_service::{TensorProcessorTrait, device, CandleTensorService};
+pub use tensor_service::{CandleTensorService, TensorProcessorTrait, device};

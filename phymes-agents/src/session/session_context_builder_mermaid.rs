@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    SessionContextBuilderAgentsTrait, SessionContext, SessionContextBuilder, SessionContextBuilderTrait, TaskPlanBuilder,
+    SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait,
+    SessionContextBuilderTrait, TaskPlanBuilder,
     plans::{AvailableProcessors, check_agent_subjects},
 };
 use anyhow::{Result, anyhow};
@@ -12,8 +13,9 @@ use arrow::{
 use clap::ValueEnum;
 use phymes_core::{
     AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder,
-    RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication, TableScript, TableSubscription, TableTrait,
-    from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type,
+    RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication, TableScript,
+    TableSubscription, TableTrait, from_data_type_to_str, from_str_to_data_type,
+    parse_str_to_data_type,
 };
 use phymes_data::{MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE};
 use phymes_diagnostics::{HashMap, HashSet};
@@ -1314,7 +1316,10 @@ mod tests {
     use crate::{
         SessionContextBuilderAgentsTrait,
         plans::{ChatAgentSession, DocumentRAGSession, ToolAgentSession},
-        session::{CustomAgentsBuilderTrait, session_context_builder_agents::test_session_context_builder_agents},
+        session::{
+            CustomAgentsBuilderTrait,
+            session_context_builder_agents::test_session_context_builder_agents,
+        },
     };
 
     use super::*;

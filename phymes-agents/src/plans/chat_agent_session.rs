@@ -10,7 +10,7 @@ use phymes_data::{AvailableCandleOperators, DataConfig};
 use phymes_ml::AvailableOpenAIAssets;
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 
-use crate::{AvailableProcessors, AvailableInterfaceSubjects, CustomAgentsBuilderTrait, TaskPlan};
+use crate::{AvailableInterfaceSubjects, AvailableProcessors, CustomAgentsBuilderTrait, TaskPlan};
 
 pub struct ChatAgentSession<'a> {
     /// Chat tasks
@@ -283,7 +283,9 @@ mod tests {
     };
     use phymes_diagnostics::HashMap;
 
-    use crate::{SessionStream, SessionStreamState, create_message_map, SessionContextBuilderAgentsTrait};
+    use crate::{
+        SessionContextBuilderAgentsTrait, SessionStream, SessionStreamState, create_message_map,
+    };
 
     use super::*;
 

@@ -12,18 +12,19 @@ use arrow::{
 };
 use candle_core::{DType, Tensor};
 use futures::{Stream, StreamExt};
-use phymes_data::{DataConfigTrait, device};
+use parking_lot::Mutex;
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
     MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream,
     RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait,
-    TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, remove_message_by_subject,
+    TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait,
+    remove_message_by_subject,
 };
+use phymes_data::{DataConfigTrait, device};
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
 };
-use parking_lot::Mutex;
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 use tracing::{Level, event, instrument};
 
@@ -217,8 +218,7 @@ impl CandleEmbedStream {
                 }
 
                 // Concurrent embeddings can hold onto the lock simultaneous
-                let _ = self.token_service.lock()
-                    .replace(Box::new(asset));
+                let _ = self.token_service.lock().replace(Box::new(asset));
             }
         } else {
             return Err(anyhow!(
@@ -238,17 +238,12 @@ impl CandleEmbedStream {
 
     #[instrument(skip(self, tokens, masks))]
     fn batch_embed(&mut self, tokens: &[Vec<u32>], masks: &[Vec<u32>]) -> Result<Tensor> {
-        let logits = self
-            .token_service
-            .lock()
-            .as_mut()
-            .unwrap()
-            .forward(
-                &TokenWrapper::D2(tokens.to_vec()),
-                0,
-                Some(&TokenWrapper::D2(masks.to_vec())),
-                false,
-            )?;
+        let logits = self.token_service.lock().as_mut().unwrap().forward(
+            &TokenWrapper::D2(tokens.to_vec()),
+            0,
+            Some(&TokenWrapper::D2(masks.to_vec())),
+            false,
+        )?;
 
         // Extract the last hidden states as embeddings since inputs are padded left.
         let (_, seq_len, _) = logits.dims3()?;

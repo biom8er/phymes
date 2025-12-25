@@ -5,11 +5,12 @@ use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::{
     AvailableInterfaceSubjects, ChatAgentSession, CustomAgentsBuilderTrait,
-    SessionContextBuilderAgentsTrait, create_message_map, SessionStream, SessionStreamState
+    SessionContextBuilderAgentsTrait, SessionStream, SessionStreamState, create_message_map,
 };
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt,
-    IPCMessage, MappableTrait, MessageBuilderTrait, Table, TableBuilderTrait, TablePublication, TableTrait,
+    IPCMessage, MappableTrait, MessageBuilderTrait, Table, TableBuilderTrait, TablePublication,
+    TableTrait,
 };
 use phymes_diagnostics::HashMap;
 

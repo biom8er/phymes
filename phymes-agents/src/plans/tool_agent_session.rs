@@ -18,7 +18,7 @@ use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 
 use arrow::datatypes::{DataType, Field, Fields};
 
-use crate::{TaskPlan, AvailableProcessors, AvailableInterfaceSubjects, CustomAgentsBuilderTrait};
+use crate::{AvailableInterfaceSubjects, AvailableProcessors, CustomAgentsBuilderTrait, TaskPlan};
 
 /// Tool agent node with human-in-the-loop
 pub struct ToolAgentSession<'a> {
@@ -751,7 +751,9 @@ mod tests {
     use phymes_data::test_extract_tabular_data::make_scores_table;
     use phymes_diagnostics::HashMap;
 
-    use crate::{SessionStream, SessionStreamState, create_message_map, SessionContextBuilderAgentsTrait};
+    use crate::{
+        SessionContextBuilderAgentsTrait, SessionStream, SessionStreamState, create_message_map,
+    };
 
     use super::*;
 
