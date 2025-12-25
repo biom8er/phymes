@@ -4,7 +4,6 @@ use crate::{
     TableSubscribePolicyTrait, TableSubscription,
 };
 use anyhow::{Result, anyhow};
-use parking_lot::Mutex;
 use phymes_diagnostics::DiagnosticBuilder;
 use std::fmt::Debug;
 use std::sync::Arc;

@@ -321,7 +321,7 @@ mod test_messages {
     use anyhow::anyhow;
     use arrow::datatypes::SchemaRef;
     use futures::Stream;
-    use parking_lot::Mutex;
+    
     use phymes_diagnostics::{DiagnosticBuilder, HashMap};
     use std::{
         pin::Pin,

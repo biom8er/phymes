@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use arrow::record_batch::RecordBatch;
-use parking_lot::Mutex;
 
 use crate::{BuilderTrait, ProcessorTrait, RuntimeEnv, Task};
 

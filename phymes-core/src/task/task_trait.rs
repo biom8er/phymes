@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use arrow::record_batch::RecordBatch;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
 use tracing::{Level, event};
 
