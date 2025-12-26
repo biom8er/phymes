@@ -29,33 +29,17 @@ use crate::{
 ///
 /// * Caching is implemented to minimize memory and compute
 pub struct SubjectsSession<'a> {
-    /// 1, 2, and 3. Publication update tasks
-    /// 1, 2, and 3. Subscription tasks
+    /// Inbox
     pub extract_tasks_task_name: &'a str,
     pub extract_tasks_processor_name: &'a str,
-
-    pub extract_subject_change_log_task_name: &'a str,
-    pub extract_subject_change_log_processor_name: &'a str,
-
-    pub extract_session_tasks_run_log_task_name: &'a str,
-    pub extract_session_task_runs_log_processor_name: &'a str,
-
-    /// 1, 2, and 3. Update subjects change log
-
-    /// 1, 3, and 3. Update session tasks run log
 
     /// 1, 2, and 3. Aggregate the latest subjects change log
     // DM: 
     // Sum aggreggation of delta, and set of session_name;task_name
-    pub group_by_updated_subjects_task_name: &'a str,
-    pub group_by_updated_subjects_processor_name: &'a str,
-    // index = session_name;task_name
-    pub index_updated_subjects_task_name: &'a str,
-    pub index_updated_subjects_processor_name: &'a str,
-
-    /// 1, 2, and 3. Aggregate the latest subjects change log
-    // DM: index session_name;task_name
-    // DM: Last aggregation of all fields
+    pub group_by_subject_change_log_delta_task_name: &'a str,
+    pub group_by_subject_change_log_delta_processor_name: &'a str,
+    pub select_subject_change_log_delta_task_name: &'a str,
+    pub select_subject_change_log_delta_processor_name: &'a str,
 
     /// 1. Count the number of rows per subject
     pub join_subjects_num_rows_delta_task_name: &'a str,
@@ -64,48 +48,55 @@ pub struct SubjectsSession<'a> {
     pub add_subjects_num_rows_delta_processor_name: &'a str,
     pub select_subjects_num_rows_delta_task_name: &'a str,
     pub select_subjects_num_rows_delta_processor_name: &'a str,
-    // Extend with the new batch
-    pub group_by_subjects_task_name: &'a str,
-    pub group_by_subjects_processor_name: &'a str,
+    // Extend with the new batch 
+    // Should be moved to before `join_subjects_num_rows_delta_task_name`
+    pub group_by_subjects_num_rows_task_name: &'a str,
+    pub group_by_subjects_num_rows_processor_name: &'a str,
     pub select_subjects_num_rows_task_name: &'a str,
     pub select_subjects_num_rows_processor_name: &'a str,
-    // Replace with the new batch    
+    // Replace with the new batch
 
-    /// 2 and 3. Cache updated tasks
-    pub group_by_ran_tasks_task_name: &'a str,
-    pub group_by_ran_tasks_processor_name: &'a str,
-    pub index_ran_tasks_task_name: &'a str,
-    pub index_ran_tasks_processor_name: &'a str,
-
-    /// 2 and 3. Join between incoming tasks and session tasks
-    pub join_tasks_inbox_ran_tasks_task_name: &'a str,
-    pub join_tasks_inbox_ran_tasks_processor_name: &'a str,
-    pub join_tasks_inbox_session_tasks_task_name: &'a str,
-    pub join_tasks_inbox_session_tasks_processor_name: &'a str,
+    /// 2 and 3. Aggregate the latest session tasks change log
+    pub group_by_tasks_run_log_timestamp_name: &'a str,
+    pub group_by_tasks_run_log_timestamp_processor_name: &'a str,
+    pub select_tasks_run_log_timestamp_task_name: &'a str,
+    pub select_tasks_run_log_timestamp_processor_name: &'a str,
 
     /// 2. Cache filtered subscriptions
-    pub filter_session_processors_subscriptions_task_name: &'a str,
-    pub filter_session_processors_subscriptions_processor_name: &'a str,
+    pub filter_processors_subscriptions_task_name: &'a str,
+    pub filter_processors_subscriptions_processor_name: &'a str,
     
     /// 2. Retrieve updated subscriptions
-    pub join_tasks_filtered_processors_subscriptions_task_name: &'a str,
-    pub join_tasks_filtered_processors_subscriptions_processor_name: &'a str,
-    pub join_tasks_filtered_processors_subscriptions_filtered_updated_subjects_task_name: &'a str,
-    pub join_tasks_filtered_processors_subscriptions_filtered_updated_subjects_processor_name: &'a str,    
-    pub select_updated_subscriptions_task_name: &'a str,
-    pub select_updated_subscriptions_processor_name: &'a str,
+    pub join_tasks_run_log_timestamp_task_name: &'a str,
+    pub join_tasks_run_log_timestamp_processor_name: &'a str,
+    pub join_tasks_processors_subscriptions_task_name: &'a str,
+    pub join_tasks_processors_subscriptions_processor_name: &'a str,
+    pub join_tasks_processors_subscriptions_subjects_task_name: &'a str,
+    pub join_tasks_processors_subscriptions_subjects_processor_name: &'a str,    
+    pub select_tasks_processors_subscriptions_subjects_task_name: &'a str,
+    pub select_tasks_processors_subscriptions_subjects_processor_name: &'a str,
+    // DM: filter for updates that are past the last task run date
+    //  and were not updated by the same task
+    pub filter_tasks_processors_subscriptions_subjects_task_name: &'a str,
+    pub filter_tasks_processors_subscriptions_subjects_processor_name: &'a str,
     
     /// 3. Cache filtered publications
-    pub filter_session_processors_publications_task_name: &'a str,
-    pub filter_session_processors_publications_processor_name: &'a str,
+    pub filter_processors_publications_task_name: &'a str,
+    pub filter_processors_publications_processor_name: &'a str,
 
     /// 3. Retrieve the publications
-    pub join_tasks_filtered_processors_publications_task_name: &'a str,
-    pub join_tasks_filtered_processors_publications_processor_name: &'a str,
-    pub join_tasks_filtered_processors_publications_filtered_updated_subjects_task_name: &'a str,
-    pub join_tasks_filtered_processors_publications_filtered_updated_subjects_processor_name: &'a str,    
-    pub select_updated_publications_task_name: &'a str,
-    pub select_updated_publications_processor_name: &'a str,
+    pub select_tasks_ready_to_run_task_name: &'a str,
+    pub select_tasks_ready_to_run_processor_name: &'a str,
+    pub join_tasks_processors_publications_task_name: &'a str,
+    pub join_tasks_processors_publications_processor_name: &'a str,
+    pub select_tasks_processors_publications_task_name: &'a str,
+    pub select_tasks_processors_publications_processor_name: &'a str,
+
+    /// Outbox
+    pub aggregate_tasks_processors_publications_task_name: &'a str,
+    pub aggregate_tasks_processors_publications_processor_name: &'a str,
+
+    // DM: all supersteps need to wait until the list of ready-to-run tasks is produced
 
     /// Session
     pub session_context_name: &'a str,
@@ -136,19 +127,18 @@ impl CustomAgentsBuilderTrait for SubjectsSession<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![
             TaskPlan {
-                task_name: self.extract_task_inbox_task_name.to_string(),
+                task_name: self.extract_tasks_task_name.to_string(),
                 runtime_env_name: self.default_runtime_env_name.to_string(),
                 processor_names: vec![
-                    self.extract_task_inbox_processor_name.to_string(),
-                    self.index_task_inbox_processor_name.to_string(),
+                    self.extract_tasks_processor_name.to_string(),
                 ],
             },
             TaskPlan {
-                task_name: self.group_by_updated_subjects_task_name.to_string(),
+                task_name: self.group_by_subject_change_log_delta_task_name.to_string(),
                 runtime_env_name: self.default_runtime_env_name.to_string(),
                 processor_names: vec![
-                    self.group_by_updated_subjects_processor_name.to_string(),
-                    self.index_updated_subjects_processor_name.to_string(),
+                    self.group_by_subject_change_log_delta_processor_name.to_string(),
+                    self.select_subject_change_log_delta_processor_name.to_string(),
                 ],
             },
             TaskPlan {
@@ -161,50 +151,61 @@ impl CustomAgentsBuilderTrait for SubjectsSession<'_> {
                 ],
             },
             TaskPlan {
-                task_name: self.group_by_subjects_task_name.to_string(),
+                task_name: self.group_by_subjects_num_rows_task_name.to_string(),
                 runtime_env_name: self.default_runtime_env_name.to_string(),
                 processor_names: vec![
-                    self.group_by_subjects_processor_name.to_string(),
+                    self.group_by_subjects_num_rows_processor_name.to_string(),
                     self.select_subjects_num_rows_processor_name.to_string(),
                 ],
             },
             TaskPlan {
-                task_name: self.join_tasks_inbox_session_tasks_task_name.to_string(),
+                task_name: self.group_by_tasks_run_log_timestamp_name.to_string(),
                 runtime_env_name: self.default_runtime_env_name.to_string(),
                 processor_names: vec![
-                    self.join_tasks_inbox_session_tasks_processor_name.to_string(),
+                    self.group_by_tasks_run_log_timestamp_processor_name.to_string(),
+                    self.select_tasks_run_log_timestamp_processor_name.to_string(),
                 ],
             },
             TaskPlan {
-                task_name: self.filter_session_processors_subscriptions_task_name.to_string(),
+                task_name: self.filter_processors_subscriptions_task_name.to_string(),
                 runtime_env_name: self.default_runtime_env_name.to_string(),
                 processor_names: vec![
-                    self.filter_session_processors_subscriptions_processor_name.to_string(),
+                    self.filter_processors_subscriptions_processor_name.to_string(),
+                ],
+            },
+
+            TaskPlan {
+                task_name: self.join_tasks_run_log_timestamp_task_name.to_string(),
+                runtime_env_name: self.default_runtime_env_name.to_string(),
+                processor_names: vec![
+                    self.join_tasks_run_log_timestamp_processor_name.to_string(),
+                    self.join_tasks_processors_subscriptions_processor_name.to_string(),
+                    self.join_tasks_processors_subscriptions_subjects_processor_name.to_string(),
+                    self.select_tasks_processors_subscriptions_subjects_processor_name.to_string(),
+                    self.filter_tasks_processors_subscriptions_subjects_processor_name.to_string(),
                 ],
             },
             TaskPlan {
-                task_name: self.join_tasks_filtered_processors_subscriptions_task_name.to_string(),
+                task_name: self.filter_processors_publications_task_name.to_string(),
                 runtime_env_name: self.default_runtime_env_name.to_string(),
                 processor_names: vec![
-                    self.join_tasks_filtered_processors_subscriptions_processor_name.to_string(),
-                    self.join_tasks_filtered_processors_subscriptions_filtered_updated_subjects_processor_name.to_string(),
-                    self.select_updated_subscriptions_processor_name.to_string(),
+                    self.filter_processors_publications_processor_name.to_string(),
                 ],
             },
             TaskPlan {
-                task_name: self.filter_session_processors_publications_task_name.to_string(),
+                task_name: self.select_tasks_ready_to_run_task_name.to_string(),
                 runtime_env_name: self.default_runtime_env_name.to_string(),
                 processor_names: vec![
-                    self.filter_session_processors_publications_processor_name.to_string(),
+                    self.select_tasks_ready_to_run_processor_name.to_string(),
+                    self.join_tasks_processors_publications_processor_name.to_string(),
+                    self.select_tasks_processors_publications_processor_name.to_string(),
                 ],
             },
             TaskPlan {
-                task_name: self.join_tasks_filtered_processors_publications_task_name.to_string(),
+                task_name: self.aggregate_tasks_processors_publications_task_name.to_string(),
                 runtime_env_name: self.default_runtime_env_name.to_string(),
                 processor_names: vec![
-                    self.join_tasks_filtered_processors_publications_processor_name.to_string(),
-                    self.join_tasks_filtered_processors_publications_filtered_updated_subjects_processor_name.to_string(),
-                    self.select_updated_publications_processor_name.to_string(),
+                    self.aggregate_tasks_processors_publications_processor_name.to_string(),
                 ],
             },
         ];
@@ -216,146 +217,126 @@ impl CustomAgentsBuilderTrait for SubjectsSession<'_> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
             AvailableProcessors::ExtractTabular.build_arc(
-                self.extract_task_inbox_processor_name,
+                self.extract_tasks_processor_name,
                 &[TablePublication::Replace {
-                    table_name: self.extract_task_inbox_task_name.to_string(),
+                    table_name: self.extract_tasks_task_name.to_string(),
                 }],
                 &[
                     TableSubscription::OnUpdateFullTable {
                         table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
-                        table_name: self.extract_task_inbox_processor_name.to_string(),
+                        table_name: self.extract_tasks_processor_name.to_string(),
                     },
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::Select.build_arc(
-                self.index_task_inbox_processor_name,
+            AvailableProcessors::GroupBy.build_arc(
+                self.group_by_subject_change_log_delta_processor_name,
                 &[TablePublication::Replace {
-                    table_name: self.index_task_inbox_task_name.to_string(),
+                    table_name: self.group_by_subject_change_log_delta_task_name.to_string(),
                 }],
                 &[
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self.extract_task_inbox_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.index_task_inbox_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Filter.build_arc(
-                self.group_by_updated_subjects_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.group_by_updated_subjects_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::OnUpdateFullTable {
+                    TableSubscription::OnUpdateLastRecordBatch {
                         table_name: AvailableSubjects::SubjectsChangeLog.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
-                        table_name: self.group_by_updated_subjects_processor_name.to_string(),
+                        table_name: self.group_by_subject_change_log_delta_processor_name.to_string(),
                     },
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
             AvailableProcessors::Select.build_arc(
-                self.index_updated_subjects_processor_name,
+                self.select_subject_change_log_delta_processor_name,
                 &[TablePublication::Replace {
-                    table_name: self.index_updated_subjects_task_name.to_string(),
+                    table_name: self.select_subject_change_log_delta_task_name.to_string(),
                 }],
                 &[
                     TableSubscription::AlwaysFullTable {
-                        table_name: self.filter_updated_subjects_task_name.to_string(),
+                        table_name: self.group_by_subject_change_log_delta_task_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
-                        table_name: self.index_updated_subjects_processor_name.to_string(),
+                        table_name: self.select_subject_change_log_delta_processor_name.to_string(),
                     },
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-
             AvailableProcessors::Join.build_arc(
                 self.join_subjects_num_rows_delta_processor_name,
                 &[TablePublication::Replace {
-                    table_name: self.join_subjects_num_rows_delta_task_name.to_string(),
+                    table_name: self.select_subject_change_log_delta_task_name.to_string(),
                 }],
                 &[
                     TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::SubjectsNumRows.to_string(),
+                        table_name: self.select_subject_change_log_delta_task_name.to_string(),
                     },
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableSubjects::SubjectsChangeLog.to_string(),
+                    TableSubscription::AlwaysFullTable {
+                        table_name: AvailableSubjects::SubjectsNumRows.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self.join_subjects_num_rows_delta_processor_name.to_string(),
                     },
                 ],
-                AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-
-            AvailableProcessors::Join.build_arc(
-                self.filter_user_info_by_email_processor_name,
+            AvailableProcessors::Select.build_arc(
+                self.add_subjects_num_rows_delta_processor_name,
                 &[TablePublication::Replace {
-                    table_name: self.filter_user_info_by_email_table_name.to_string(),
+                    table_name: self.add_subjects_num_rows_delta_task_name.to_string(),
                 }],
                 &[
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self.filter_user_info_by_email_processor_name.to_string(),
-                    },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::UserInbox.to_string(),
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self.select_subject_change_log_delta_task_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
-                        table_name: AvailableSubjects::User.to_string(),
+                        table_name: self.add_subjects_num_rows_delta_processor_name.to_string(),
                     },
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::DataSummaryProcessor.build_arc(
-                self.filter_and_join_session_contexts_by_email_outbox_processor_name,
+            AvailableProcessors::Select.build_arc(
+                self.select_subjects_num_rows_delta_processor_name,
                 &[TablePublication::Replace {
-                    table_name: AvailableInterfaceSubjects::AssistantJson.to_string(),
+                    table_name: self.select_subjects_num_rows_delta_task_name.to_string(),
                 }],
                 &[
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self
-                            .filter_and_join_session_contexts_by_email_outbox_processor_name
-                            .to_string(),
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self.add_subjects_num_rows_delta_task_name.to_string(),
                     },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.filter_user_info_by_email_table_name.to_string(),
-                    },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid
-                            .to_string(),
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self.select_subjects_num_rows_delta_processor_name.to_string(),
                     },
                 ],
-                AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::ProcessorEcho.build_arc(
-                self.session_context_name,
+            AvailableProcessors::GroupBy.build_arc(
+                self.group_by_subjects_num_rows_processor_name,
+                &[TablePublication::Replace {
+                    table_name: self.group_by_subjects_num_rows_task_name.to_string(),
+                }],
                 &[
-                    TablePublication::Extend {
-                        table_name: AvailableSubjects::BuilderMermaid.to_string(),
+                    TableSubscription::OnUpdateFullTable {
+                        table_name: self.select_subjects_num_rows_delta_task_name.to_string(),
                     },
-                    TablePublication::Extend {
-                        table_name: AvailableSubjects::User.to_string(),
-                    },
-                    TablePublication::Extend {
-                        table_name: AvailableSubjects::UserSessionContexts.to_string(),
-                    },
-                    TablePublication::Replace {
-                        table_name: AvailableInterfaceSubjects::UserJson.to_string(),
-                    },
-                    TablePublication::Replace {
-                        table_name: AvailableInterfaceSubjects::AssistantJson.to_string(),
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self.group_by_subjects_num_rows_processor_name.to_string(),
                     },
                 ],
-                &[TableSubscription::OnUpdateFullTable {
-                    table_name: AvailableInterfaceSubjects::AssistantJson.to_string(),
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+            ),
+            AvailableProcessors::Select.build_arc(
+                self.select_subjects_num_rows_processor_name,
+                &[TablePublication::Replace {
+                    table_name: self.select_subjects_num_rows_task_name.to_string(),
                 }],
+                &[
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self.group_by_subjects_num_rows_task_name.to_string(),
+                    },
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self.select_subjects_num_rows_processor_name.to_string(),
+                    },
+                ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
         ];
