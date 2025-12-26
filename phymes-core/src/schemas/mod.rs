@@ -36,7 +36,7 @@ pub use diagnostics::{
 mod session;
 pub use session::{
     create_session_processors_batch, create_session_runtime_envs_batch,
-    create_session_subjects_batch, create_session_tasks_batch,
+    create_session_subjects_batch, create_session_tasks_batch, create_session_tasks_run_log_batch
 };
 
 mod subjects;

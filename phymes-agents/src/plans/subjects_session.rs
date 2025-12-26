@@ -19,41 +19,69 @@ use crate::{
 ///
 /// # Notes
 ///
-/// Supported tasks include the following:
+/// * Supported tasks include the following:
 ///
-/// 1. Counting the number of rows for each subject after updates have been made
-/// 2. Retrieving the subscriptions that have been updated per task and processor
-/// 3. Retrieving the publications per task and processor
+/// 1. Counting the number of rows per subject (i.e., updating the `SubjectNumRows` table)
+///   after updates have been made to the `SubjectsChangeLog`
+/// 2. Determining what tasks are ready to run for the next super step
+/// 3. Retrieving the publications per task and processor that will run for the next super step
+/// 4. Updating the `SubjectsChangeLog` cache with the most recent updates and `TasksRunLog` cache with the most recent task runs
 ///
-/// An inbox and outbox for each support task are provided
-///   that trigger the task
+/// * Caching is implemented to minimize memory and compute
 pub struct SubjectsSession<'a> {
-    /// Extract data from inbox subtask
-    pub filter_and_join_session_contexts_by_email_inbox_task_name: &'a str,
-    pub filter_and_join_session_contexts_by_email_inbox_processor_name: &'a str,
-    /// Make outbox attachment subtask
-    pub filter_and_join_session_contexts_by_email_outbox_task_name: &'a str,
-    pub filter_and_join_session_contexts_by_email_outbox_processor_name: &'a str,
-    /// Filter session contexts by email subtask
-    pub filter_session_contexts_by_email_runtime_env_name: &'a str,
-    pub filter_session_contexts_by_email_task_name: &'a str,
-    pub filter_session_contexts_by_email_processor_name: &'a str,
-    /// Join session contexts by email subtask
-    pub join_session_contexts_with_mermaid_diagrams_runtime_env_name: &'a str,
-    pub join_session_contexts_with_mermaid_diagrams_task_name: &'a str,
-    pub join_session_contexts_with_mermaid_diagrams_processor_name: &'a str,
+    /// 1, 2, and 3. Publication update tasks
+    /// 1, 2, and 3. Subscription tasks
+    pub extract_tasks_task_name: &'a str,
+    pub extract_tasks_processor_name: &'a str,
 
-    /// 1, 2, and 3. Filter updated subjects by update and session_name
-    pub filter_updated_subjects_task_name: &'a str,
-    pub filter_updated_subjects_processor_name: &'a str,
-    pub filter_updated_subjects_table_name: &'a str,
+    pub extract_subject_change_log_task_name: &'a str,
+    pub extract_subject_change_log_processor_name: &'a str,
+
+    pub extract_session_tasks_run_log_task_name: &'a str,
+    pub extract_session_task_runs_log_processor_name: &'a str,
+
+    /// 1, 2, and 3. Update subjects change log
+
+    /// 1, 3, and 3. Update session tasks run log
+
+    /// 1, 2, and 3. Aggregate the latest subjects change log
+    // DM: 
+    // Sum aggreggation of delta, and set of session_name;task_name
+    pub group_by_updated_subjects_task_name: &'a str,
+    pub group_by_updated_subjects_processor_name: &'a str,
+    // index = session_name;task_name
+    pub index_updated_subjects_task_name: &'a str,
+    pub index_updated_subjects_processor_name: &'a str,
+
+    /// 1, 2, and 3. Aggregate the latest subjects change log
+    // DM: index session_name;task_name
+    // DM: Last aggregation of all fields
 
     /// 1. Count the number of rows per subject
-    /// 
+    pub join_subjects_num_rows_delta_task_name: &'a str,
+    pub join_subjects_num_rows_delta_processor_name: &'a str,
+    pub add_subjects_num_rows_delta_task_name: &'a str,
+    pub add_subjects_num_rows_delta_processor_name: &'a str,
+    pub select_subjects_num_rows_delta_task_name: &'a str,
+    pub select_subjects_num_rows_delta_processor_name: &'a str,
+    // Extend with the new batch
+    pub group_by_subjects_task_name: &'a str,
+    pub group_by_subjects_processor_name: &'a str,
+    pub select_subjects_num_rows_task_name: &'a str,
+    pub select_subjects_num_rows_processor_name: &'a str,
+    // Replace with the new batch    
+
+    /// 2 and 3. Cache updated tasks
+    pub group_by_ran_tasks_task_name: &'a str,
+    pub group_by_ran_tasks_processor_name: &'a str,
+    pub index_ran_tasks_task_name: &'a str,
+    pub index_ran_tasks_processor_name: &'a str,
 
     /// 2 and 3. Join between incoming tasks and session tasks
-    pub join_tasks_session_tasks_task_name: &'a str,
-    pub join_tasks_session_tasks_processor_name: &'a str,
+    pub join_tasks_inbox_ran_tasks_task_name: &'a str,
+    pub join_tasks_inbox_ran_tasks_processor_name: &'a str,
+    pub join_tasks_inbox_session_tasks_task_name: &'a str,
+    pub join_tasks_inbox_session_tasks_processor_name: &'a str,
 
     /// 2. Cache filtered subscriptions
     pub filter_session_processors_subscriptions_task_name: &'a str,
@@ -81,27 +109,17 @@ pub struct SubjectsSession<'a> {
 
     /// Session
     pub session_context_name: &'a str,
+
+    /// Runtime environment
+    pub default_runtime_env_name: &'a str,
 }
 
 impl Default for SubjectsSession<'_> {
     fn default() -> Self {
-        SubjectsSession {
-            session_context_name: "subject_session",
-            filter_and_join_session_contexts_by_email_inbox_task_name: "filter_and_join_session_contexts_by_email_inbox_task_name",
-            filter_and_join_session_contexts_by_email_inbox_processor_name: "filter_and_join_session_contexts_by_email_inbox_processor_name",
-            filter_and_join_session_contexts_by_email_outbox_task_name: "filter_and_join_session_contexts_by_email_outbox_task_name",
-            filter_and_join_session_contexts_by_email_outbox_processor_name: "filter_and_join_session_contexts_by_email_outbox_processor_name",
-            filter_session_contexts_by_email_runtime_env_name: "filter_session_contexts_by_email_runtime_env_name",
-            filter_session_contexts_by_email_task_name: "filter_session_contexts_by_email_task_name",
-            filter_session_contexts_by_email_processor_name: "filter_session_contexts_by_email_processor_name",
-            join_session_contexts_with_mermaid_diagrams_runtime_env_name: "join_session_contexts_with_mermaid_diagrams_runtime_env_name",
-            join_session_contexts_with_mermaid_diagrams_task_name: "join_session_contexts_with_mermaid_diagrams_task_name",
-            join_session_contexts_with_mermaid_diagrams_processor_name: "join_session_contexts_with_mermaid_diagrams_processor_name",
-            filter_user_info_by_email_runtime_env_name: "filter_user_info_by_email_runtime_env_name",
-            filter_user_info_by_email_task_name: "filter_user_info_by_email_task_name",
-            filter_user_info_by_email_processor_name: "filter_user_info_by_email_processor_name",
-            filter_user_info_by_email_table_name: "filter_user_info_by_email_table_name",
-        }
+        // SubjectsSession {
+        //     session_context_name: "subject_session",
+        // }
+        todo!()
     }
 }
 
@@ -112,90 +130,82 @@ impl<'a> SubjectsSession<'a> {
             ..Default::default()
         }
     }
-
-    pub fn make_user_table(&self) -> Result<Table> {
-        let batch = create_user_batch(
-            vec!["contact@biom8er.com".to_string()],
-            vec!["con".to_string()],
-            vec!["tact".to_string()],
-            vec!["$2b$12$qJGwWR2rSZ9oBFZff0o2w.RXViv.Mf.BwfsWZTfVm4DmjjVfsaHzi".to_string()],
-            vec![create_timestamp_micros()],
-        )?;
-        TableBuilder::new()
-            .with_name(AvailableSubjects::User.to_string().as_str())
-            .with_record_batches(vec![batch])?
-            .build()
-    }
-
-    pub fn make_user_session_context_table(&self) -> Result<Table> {
-        let mut email = Vec::new();
-        let mut session_context_name = Vec::new();
-        for name in AvailableSessionPlans::get_all_session_plan_names() {
-            email.push("contact@biom8er.com".to_string());
-            session_context_name.push(name);
-        }
-        let batch = create_user_session_contexts_batch(email, session_context_name)?;
-        TableBuilder::new()
-            .with_name(AvailableSubjects::UserSessionContexts.to_string().as_str())
-            .with_record_batches(vec![batch])?
-            .build()
-    }
 }
 
 impl CustomAgentsBuilderTrait for SubjectsSession<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![
             TaskPlan {
-                task_name: self
-                    .filter_and_join_session_contexts_by_email_inbox_task_name
-                    .to_string(),
-                runtime_env_name: "rt_default".to_string(),
+                task_name: self.extract_task_inbox_task_name.to_string(),
+                runtime_env_name: self.default_runtime_env_name.to_string(),
                 processor_names: vec![
-                    self.filter_and_join_session_contexts_by_email_inbox_processor_name
-                        .to_string(),
+                    self.extract_task_inbox_processor_name.to_string(),
+                    self.index_task_inbox_processor_name.to_string(),
                 ],
             },
             TaskPlan {
-                task_name: self.filter_session_contexts_by_email_task_name.to_string(),
-                runtime_env_name: self
-                    .filter_session_contexts_by_email_runtime_env_name
-                    .to_string(),
+                task_name: self.group_by_updated_subjects_task_name.to_string(),
+                runtime_env_name: self.default_runtime_env_name.to_string(),
                 processor_names: vec![
-                    self.filter_session_contexts_by_email_processor_name
-                        .to_string(),
+                    self.group_by_updated_subjects_processor_name.to_string(),
+                    self.index_updated_subjects_processor_name.to_string(),
                 ],
             },
             TaskPlan {
-                task_name: self
-                    .join_session_contexts_with_mermaid_diagrams_task_name
-                    .to_string(),
-                runtime_env_name: self
-                    .join_session_contexts_with_mermaid_diagrams_runtime_env_name
-                    .to_string(),
+                task_name: self.join_subjects_num_rows_delta_task_name.to_string(),
+                runtime_env_name: self.default_runtime_env_name.to_string(),
                 processor_names: vec![
-                    self.join_session_contexts_with_mermaid_diagrams_processor_name
-                        .to_string(),
+                    self.join_subjects_num_rows_delta_processor_name.to_string(),
+                    self.add_subjects_num_rows_delta_processor_name.to_string(),
+                    self.select_subjects_num_rows_delta_processor_name.to_string(),
                 ],
             },
             TaskPlan {
-                task_name: self
-                    .filter_and_join_session_contexts_by_email_outbox_task_name
-                    .to_string(),
-                runtime_env_name: "rt_default".to_string(),
+                task_name: self.group_by_subjects_task_name.to_string(),
+                runtime_env_name: self.default_runtime_env_name.to_string(),
                 processor_names: vec![
-                    self.filter_and_join_session_contexts_by_email_outbox_processor_name
-                        .to_string(),
+                    self.group_by_subjects_processor_name.to_string(),
+                    self.select_subjects_num_rows_processor_name.to_string(),
                 ],
             },
             TaskPlan {
-                task_name: self.session_context_name.to_string(),
-                runtime_env_name: "rt_default".to_string(),
-                processor_names: vec![self.session_context_name.to_string()],
+                task_name: self.join_tasks_inbox_session_tasks_task_name.to_string(),
+                runtime_env_name: self.default_runtime_env_name.to_string(),
+                processor_names: vec![
+                    self.join_tasks_inbox_session_tasks_processor_name.to_string(),
+                ],
             },
             TaskPlan {
-                task_name: self.filter_user_info_by_email_task_name.to_string(),
-                runtime_env_name: self.filter_user_info_by_email_runtime_env_name.to_string(),
-                processor_names: vec![self.filter_user_info_by_email_processor_name.to_string()],
+                task_name: self.filter_session_processors_subscriptions_task_name.to_string(),
+                runtime_env_name: self.default_runtime_env_name.to_string(),
+                processor_names: vec![
+                    self.filter_session_processors_subscriptions_processor_name.to_string(),
+                ],
+            },
+            TaskPlan {
+                task_name: self.join_tasks_filtered_processors_subscriptions_task_name.to_string(),
+                runtime_env_name: self.default_runtime_env_name.to_string(),
+                processor_names: vec![
+                    self.join_tasks_filtered_processors_subscriptions_processor_name.to_string(),
+                    self.join_tasks_filtered_processors_subscriptions_filtered_updated_subjects_processor_name.to_string(),
+                    self.select_updated_subscriptions_processor_name.to_string(),
+                ],
+            },
+            TaskPlan {
+                task_name: self.filter_session_processors_publications_task_name.to_string(),
+                runtime_env_name: self.default_runtime_env_name.to_string(),
+                processor_names: vec![
+                    self.filter_session_processors_publications_processor_name.to_string(),
+                ],
+            },
+            TaskPlan {
+                task_name: self.join_tasks_filtered_processors_publications_task_name.to_string(),
+                runtime_env_name: self.default_runtime_env_name.to_string(),
+                processor_names: vec![
+                    self.join_tasks_filtered_processors_publications_processor_name.to_string(),
+                    self.join_tasks_filtered_processors_publications_filtered_updated_subjects_processor_name.to_string(),
+                    self.select_updated_publications_processor_name.to_string(),
+                ],
             },
         ];
 
@@ -206,62 +216,85 @@ impl CustomAgentsBuilderTrait for SubjectsSession<'_> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
             AvailableProcessors::ExtractTabular.build_arc(
-                self.filter_and_join_session_contexts_by_email_inbox_processor_name,
+                self.extract_task_inbox_processor_name,
                 &[TablePublication::Replace {
-                    table_name: AvailableSubjects::UserInbox.to_string(),
+                    table_name: self.extract_task_inbox_task_name.to_string(),
                 }],
                 &[
                     TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableInterfaceSubjects::UserJson.to_string(),
+                        table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
-                        table_name: self
-                            .filter_and_join_session_contexts_by_email_inbox_processor_name
-                            .to_string(),
+                        table_name: self.extract_task_inbox_processor_name.to_string(),
                     },
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
-            AvailableProcessors::Join.build_arc(
-                self.filter_session_contexts_by_email_processor_name,
+            AvailableProcessors::Select.build_arc(
+                self.index_task_inbox_processor_name,
                 &[TablePublication::Replace {
-                    table_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string(),
-                }],
-                &[
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self
-                            .filter_session_contexts_by_email_processor_name
-                            .to_string(),
-                    },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::UserInbox.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: AvailableSubjects::UserSessionContexts.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Join.build_arc(
-                self.join_session_contexts_with_mermaid_diagrams_processor_name,
-                &[TablePublication::Replace {
-                    table_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string(),
+                    table_name: self.index_task_inbox_task_name.to_string(),
                 }],
                 &[
                     TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self
-                            .join_session_contexts_with_mermaid_diagrams_processor_name
-                            .to_string(),
-                    },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string(),
+                        table_name: self.extract_task_inbox_task_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
-                        table_name: AvailableSubjects::BuilderMermaid.to_string(),
+                        table_name: self.index_task_inbox_processor_name.to_string(),
                     },
                 ],
                 AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
             ),
+            AvailableProcessors::Filter.build_arc(
+                self.group_by_updated_subjects_processor_name,
+                &[TablePublication::Replace {
+                    table_name: self.group_by_updated_subjects_task_name.to_string(),
+                }],
+                &[
+                    TableSubscription::OnUpdateFullTable {
+                        table_name: AvailableSubjects::SubjectsChangeLog.to_string(),
+                    },
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self.group_by_updated_subjects_processor_name.to_string(),
+                    },
+                ],
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+            ),
+            AvailableProcessors::Select.build_arc(
+                self.index_updated_subjects_processor_name,
+                &[TablePublication::Replace {
+                    table_name: self.index_updated_subjects_task_name.to_string(),
+                }],
+                &[
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self.filter_updated_subjects_task_name.to_string(),
+                    },
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self.index_updated_subjects_processor_name.to_string(),
+                    },
+                ],
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+            ),
+
+            AvailableProcessors::Join.build_arc(
+                self.join_subjects_num_rows_delta_processor_name,
+                &[TablePublication::Replace {
+                    table_name: self.join_subjects_num_rows_delta_task_name.to_string(),
+                }],
+                &[
+                    TableSubscription::OnUpdateFullTable {
+                        table_name: AvailableSubjects::SubjectsNumRows.to_string(),
+                    },
+                    TableSubscription::OnUpdateLastRecordBatch {
+                        table_name: AvailableSubjects::SubjectsChangeLog.to_string(),
+                    },
+                    TableSubscription::AlwaysFullTable {
+                        table_name: self.join_subjects_num_rows_delta_processor_name.to_string(),
+                    },
+                ],
+                AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
+            ),
+
             AvailableProcessors::Join.build_arc(
                 self.filter_user_info_by_email_processor_name,
                 &[TablePublication::Replace {

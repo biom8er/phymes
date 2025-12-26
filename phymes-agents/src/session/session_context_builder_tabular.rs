@@ -191,7 +191,15 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 "Add state subjects before making the subject tables."
             ));
         }
+        let session_name = if let Some(session_name) = self.name.as_ref() {
+            session_name
+        } else {            
+            return Err(anyhow!(
+                "Add session name before making the subject tables."
+            ));
+        };
 
+        let mut session_names = Vec::<String>::new();
         let mut subject_names = Vec::<String>::new();
         let mut cols_names = Vec::<String>::new();
         let mut type_names = Vec::<String>::new();
@@ -210,6 +218,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 let fields = subject.get_schema().fields().clone();
                 for field in fields.iter() {
                     let type_name = from_data_type_to_str(field.data_type());
+                    session_names.push(session_name.to_string());
                     subject_names.push(subject.get_name().to_string());
                     cols_names.push(field.name().to_string());
                     type_names.push(type_name);
@@ -218,7 +227,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
 
         // create the record batch
-        let batch = create_session_subjects_batch(subject_names, cols_names, type_names)?;
+        let batch = create_session_subjects_batch(session_names, subject_names, cols_names, type_names)?;
 
         // create the table
         Table::get_builder()
@@ -232,7 +241,15 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         if self.tasks.is_none() {
             return Err(anyhow!("Add task plans before making the tasks table."));
         }
+        let session_name = if let Some(session_name) = self.name.as_ref() {
+            session_name
+        } else {            
+            return Err(anyhow!(
+                "Add session name before making the subject tables."
+            ));
+        };
 
+        let mut session_names = Vec::<String>::new();
         let mut task_names = Vec::new();
         let mut processor_names = Vec::new();
         let mut runtime_env_names = Vec::new();
@@ -240,6 +257,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // extract the tasks in order
         for task in self.tasks.as_ref().unwrap().iter() {
             for p in task.processor_names.iter() {
+                session_names.push(session_name.to_string());
                 task_names.push(task.task_name.to_owned());
                 processor_names.push(p.to_string());
                 runtime_env_names.push(task.runtime_env_name.to_owned());
@@ -247,7 +265,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
 
         // create the record batch
-        let batch = create_session_tasks_batch(task_names, processor_names, runtime_env_names)?;
+        let batch = create_session_tasks_batch(session_names, task_names, processor_names, runtime_env_names)?;
 
         // create the table
         Table::get_builder()
@@ -262,6 +280,14 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 "Add processors before making the Mermaid Flowchart."
             ));
         }
+        let session_name = if let Some(session_name) = self.name.as_ref() {
+            session_name
+        } else {            
+            return Err(anyhow!(
+                "Add session name before making the subject tables."
+            ));
+        };
+        let mut session_names = Vec::<String>::new();
         let mut processor_names = Vec::new();
         let mut processor_types = Vec::new();
         let mut pub_sub_name = Vec::new();
@@ -275,6 +301,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 pub_sub_name.push(sub.get_name().to_string());
                 pub_sub_table_names.push(sub.get_table_name().to_string());
                 is_sub.push(1);
+                session_names.push(session_name.to_string());
                 processor_names.push(processor.get_name().to_string());
                 processor_types.push(processor.get_type().to_string());
                 subscribe_types.push(processor.get_subscribe_policy().get_name().to_string());
@@ -283,6 +310,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 pub_sub_name.push(p.get_name().to_string());
                 pub_sub_table_names.push(p.get_table_name().to_string());
                 is_sub.push(0);
+                session_names.push(session_name.to_string());
                 processor_names.push(processor.get_name().to_string());
                 processor_types.push(processor.get_type().to_string());
                 subscribe_types.push(processor.get_subscribe_policy().get_name().to_string());
@@ -291,6 +319,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // create the record batch
         let batch = create_session_processors_batch(
+            session_names, 
             processor_names,
             processor_types,
             pub_sub_name,
@@ -312,6 +341,14 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 "Add runtime environments before making the Mermaid Flowchart."
             ));
         }
+        let session_name = if let Some(session_name) = self.name.as_ref() {
+            session_name
+        } else {            
+            return Err(anyhow!(
+                "Add session name before making the subject tables."
+            ));
+        };
+        let mut session_names = Vec::<String>::new();
         let mut runtime_env_names = Vec::new();
         let mut memory_limits = Vec::new();
         let mut time_limits = Vec::new();
@@ -325,6 +362,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .collect::<Vec<_>>();
         sorted_rts.sort_by(|a, b| a.name.cmp(&b.name));
         for rt in sorted_rts.iter() {
+            session_names.push(session_name.to_string());
             runtime_env_names.push(rt.get_name().to_string());
             let memory_limit = rt.memory_limit.unwrap_or_default();
             memory_limits.push(memory_limit as u32);
@@ -334,7 +372,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // create the record batch
         let batch =
-            create_session_runtime_envs_batch(runtime_env_names, memory_limits, time_limits)?;
+            create_session_runtime_envs_batch(session_names, runtime_env_names, memory_limits, time_limits)?;
 
         // create the table
         Table::get_builder()

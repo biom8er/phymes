@@ -2,12 +2,12 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use arrow::{
-    array::{ArrayRef, RecordBatch, StringArray, UInt8Array, UInt32Array},
+    array::{ArrayRef, Int64Array, RecordBatch, StringArray, UInt8Array, UInt32Array},
     datatypes::{DataType, Field, Fields},
 };
 
 pub(crate) fn create_session_subjects_fields() -> Fields {
-    let field_names = ["subject_name", "column_name", "type_name"];
+    let field_names = ["session_name", "subject_name", "column_name", "type_name"];
     let fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -16,14 +16,17 @@ pub(crate) fn create_session_subjects_fields() -> Fields {
 }
 
 pub fn create_session_subjects_batch(
+    session_names: Vec<String>,
     subject_names: Vec<String>,
     cols_names: Vec<String>,
     type_names: Vec<String>,
 ) -> Result<RecordBatch> {
+    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
     let subject_names: ArrayRef = Arc::new(StringArray::from(subject_names));
     let cols_names: ArrayRef = Arc::new(StringArray::from(cols_names));
     let type_names: ArrayRef = Arc::new(StringArray::from(type_names));
     let batch = RecordBatch::try_from_iter(vec![
+        ("session_name", session_names),
         ("subject_name", subject_names),
         ("column_name", cols_names),
         ("type_name", type_names),
@@ -32,7 +35,7 @@ pub fn create_session_subjects_batch(
 }
 
 pub(crate) fn create_session_tasks_fields() -> Fields {
-    let field_names = ["task_name", "processor_name", "runtime_env_name"];
+    let field_names = ["session_name", "task_name", "processor_name", "runtime_env_name"];
     let fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -41,14 +44,17 @@ pub(crate) fn create_session_tasks_fields() -> Fields {
 }
 
 pub fn create_session_tasks_batch(
+    session_names: Vec<String>,
     task_names: Vec<String>,
     processor_names: Vec<String>,
     runtime_env_names: Vec<String>,
 ) -> Result<RecordBatch> {
+    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
     let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
     let runtime_env_names: ArrayRef = Arc::new(StringArray::from(runtime_env_names));
     let batch = RecordBatch::try_from_iter(vec![
+        ("session_name", session_names),
         ("task_name", task_names),
         ("processor_name", processor_names),
         ("runtime_env_name", runtime_env_names),
@@ -57,7 +63,7 @@ pub fn create_session_tasks_batch(
 }
 
 pub(crate) fn create_session_processors_fields() -> Fields {
-    let field_names = [
+    let field_names = ["session_name",
         "processor_name",
         "processor_type",
         "publication_subscription_name",
@@ -79,6 +85,7 @@ pub(crate) fn create_session_processors_fields() -> Fields {
 }
 
 pub fn create_session_processors_batch(
+    session_names: Vec<String>,
     processor_names: Vec<String>,
     processor_types: Vec<String>,
     pub_sub_name: Vec<String>,
@@ -86,6 +93,7 @@ pub fn create_session_processors_batch(
     subscribe_types: Vec<String>,
     is_sub: Vec<u8>,
 ) -> Result<RecordBatch> {
+    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
     let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
     let processor_types: ArrayRef = Arc::new(StringArray::from(processor_types));
     let pub_sub_name: ArrayRef = Arc::new(StringArray::from(pub_sub_name));
@@ -93,6 +101,7 @@ pub fn create_session_processors_batch(
     let subscribe_types: ArrayRef = Arc::new(StringArray::from(subscribe_types));
     let is_sub: ArrayRef = Arc::new(UInt8Array::from(is_sub));
     let batch = RecordBatch::try_from_iter(vec![
+        ("session_name", session_names),
         ("processor_name", processor_names),
         ("processor_type", processor_types),
         ("publication_subscription_name", pub_sub_name),
@@ -104,7 +113,7 @@ pub fn create_session_processors_batch(
 }
 
 pub(crate) fn create_session_runtime_envs_fields() -> Fields {
-    let field_names = ["runtime_env_name"];
+    let field_names = ["session_name", "runtime_env_name"];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -120,17 +129,52 @@ pub(crate) fn create_session_runtime_envs_fields() -> Fields {
 }
 
 pub fn create_session_runtime_envs_batch(
+    session_names: Vec<String>,
     runtime_env_names: Vec<String>,
     memory_limits: Vec<u32>,
     time_limits: Vec<u32>,
 ) -> Result<RecordBatch> {
+    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
     let runtime_env_names: ArrayRef = Arc::new(StringArray::from(runtime_env_names));
     let memory_limits: ArrayRef = Arc::new(UInt32Array::from(memory_limits));
     let time_limits: ArrayRef = Arc::new(UInt32Array::from(time_limits));
     let batch = RecordBatch::try_from_iter(vec![
+        ("session_name", session_names),
         ("runtime_env_name", runtime_env_names),
         ("memory_limit", memory_limits),
         ("time_limit", time_limits),
+    ])?;
+    Ok(batch)
+}
+
+pub(crate) fn create_session_tasks_run_log_fields() -> Fields {
+    let field_names = ["session_name", "task_name"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let field_names = ["timestamp"];
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Int64, false))
+            .collect::<Vec<_>>(),
+    );
+    Fields::from(fields_vec)
+}
+
+pub fn create_session_tasks_run_log_batch(
+    session_names: Vec<String>,
+    task_names: Vec<String>,
+    timestamps: Vec<i64>,
+) -> Result<RecordBatch> {
+    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
+    let timestamps: ArrayRef = Arc::new(Int64Array::from(timestamps));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("session_name", session_names),
+        ("task_name", task_names),
+        ("timestamp", timestamps),
     ])?;
     Ok(batch)
 }

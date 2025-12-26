@@ -23,7 +23,7 @@ use crate::{
         queries::create_queries_fields,
         session::{
             create_session_processors_fields, create_session_runtime_envs_fields,
-            create_session_subjects_fields, create_session_tasks_fields,
+            create_session_subjects_fields, create_session_tasks_fields, create_session_tasks_run_log_fields,
         },
         set_data::{create_parse_owl_fields, create_parse_xml_fields},
         subjects::{create_subjects_change_log_fields, create_subjects_num_rows_fields},
@@ -227,6 +227,8 @@ pub enum AvailableSubjects {
     SessionProcessors,
     #[value(name = "SessionRuntimeEnvs")]
     SessionRuntimeEnvs,
+    #[value(name = "SessionTasksRunLog")]
+    SessionTasksRunLog,
     #[value(name = "SubjectsNumRows")]
     SubjectsNumRows,
     #[value(name = "SubjectsChangeLog")]
@@ -305,6 +307,7 @@ impl Display for AvailableSubjects {
             AvailableSubjects::SessionTasks => write!(f, "SessionTasks"),
             AvailableSubjects::SessionProcessors => write!(f, "SessionProcessors"),
             AvailableSubjects::SessionRuntimeEnvs => write!(f, "SessionRuntimeEnvs"),
+            AvailableSubjects::SessionTasksRunLog => write!(f, "SessionTasksRunLog"),
             AvailableSubjects::SubjectsNumRows => write!(f, "SubjectsNumRows"),
             AvailableSubjects::SubjectsChangeLog => write!(f, "SubjectsChangeLog"),
             AvailableSubjects::MermaidContentTemplate => write!(f, "MermaidContentTemplate"),
@@ -418,6 +421,9 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             }
             AvailableSubjects::SessionRuntimeEnvs => {
                 create_schema_from_fields(&create_session_runtime_envs_fields)
+            }
+            AvailableSubjects::SessionTasksRunLog => {
+                create_schema_from_fields(&create_session_tasks_run_log_fields)
             }
             AvailableSubjects::SubjectsNumRows => {
                 create_schema_from_fields(&create_subjects_num_rows_fields)
