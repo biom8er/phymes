@@ -30,7 +30,7 @@ phymes-data = { path = "../phymes-data", default-features = false, optional = tr
 clap = {version = "4.5.40", optional = true}
 tokio = { version = "1.47.0", default-features = false, optional = true }
 tracing = "0.1.41"
-tracing-subscriber = "0.3.7"
+tracing-subscriber = "0.3.22"
 
 [features]
 default = ["web"]

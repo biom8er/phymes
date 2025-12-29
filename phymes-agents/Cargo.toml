@@ -30,7 +30,7 @@ clap = { version = "4.2.4", features = ["derive"] }
 anyhow = { version = "1", default-features = false }
 tracing = "0.1.41"
 tracing-chrome = "0.7.1"
-tracing-subscriber = "0.3.7"
+tracing-subscriber = "0.3.22"
 serde_json = "1.0.133"
 serde = "1.0.215"
 parking_lot = "0.12.3"
