@@ -21,7 +21,7 @@ reqwest = { version = "0.12.22", features = ["json", "stream"], default-features
 serde = { version = "1.0.219", features = ["derive"] }
 chrono = "0.4.41"
 bytes = "1.10.0"
-serde_json = "1.0.140"
+serde_json = "1.0.148"
 phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
 phymes-core = { path = "../phymes-core", default-features = false, optional = true }
 phymes-server = { path = "../phymes-server", default-features = false, optional = true }

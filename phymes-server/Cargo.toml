@@ -49,7 +49,7 @@ tower-http = { version = "0.6.2", default-features = false, optional = true }
 tower-service = { version = "0.3.3", optional = true }
 clap = {version = "4.5.40", features = ["derive"] }
 serde = { version = "1.0.217", features = ["derive"] }
-serde_json = "1.0.138"
+serde_json = "1.0.148"
 serde_path_to_error = "0.1.17"
 jsonwebtoken = { version = "9.3.1" }
 reqwest = { version = "0.12.22", features = ["json", "stream"], default-features = false, optional = true }
