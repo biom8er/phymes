@@ -22,8 +22,7 @@ use crate::{
         },
         queries::create_queries_fields,
         session::{
-            create_session_processors_fields, create_session_runtime_envs_fields,
-            create_session_subjects_fields, create_session_tasks_fields, create_session_tasks_run_log_fields,
+            create_session_processors_fields, create_session_runtime_envs_fields, create_session_subjects_fields, create_session_tasks_fields, create_session_tasks_inbox_fields, create_session_tasks_run_log_fields
         },
         set_data::{create_parse_owl_fields, create_parse_xml_fields},
         subjects::{create_subjects_change_log_fields, create_subjects_num_rows_fields},
@@ -168,6 +167,8 @@ pub trait AvailableSubjectsTrait {
 /// The available subject schmeas
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableSubjects {
+    #[value(name = "Empty")]
+    Empty,
     #[value(name = "Messages")]
     Messages,
     #[default]
@@ -269,11 +270,14 @@ pub enum AvailableSubjects {
     ParseXml,
     #[value(name = "ParseOwl")]
     ParseOwl,
+    #[value(name = "SessionTasksInbox")]
+    SessionTasksInbox,
 }
 
 impl Display for AvailableSubjects {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            AvailableSubjects::Empty => write!(f, "Empty"),
             AvailableSubjects::Messages => write!(f, "Messages"),
             AvailableSubjects::Values => write!(f, "Values"),
             AvailableSubjects::Configs => write!(f, "Configs"),
@@ -340,6 +344,7 @@ impl Display for AvailableSubjects {
             }
             AvailableSubjects::ParseXml => write!(f, "ParseXml"),
             AvailableSubjects::ParseOwl => write!(f, "ParseOwl"),
+            AvailableSubjects::SessionTasksInbox => write!(f, "SessionTasksInbox"),
         }
     }
 }
@@ -361,6 +366,7 @@ impl AvailableSubjectsTrait for AvailableSubjects {
     }
     fn to_schema(&self) -> SchemaRef {
         match self {
+            AvailableSubjects::Empty => Arc::new(Schema::empty()),
             AvailableSubjects::Messages => create_schema_from_fields(&create_chat_fields),
             AvailableSubjects::Values => create_schema_from_fields(&create_values_fields),
             AvailableSubjects::Configs => create_schema_from_fields(&create_config_fields),
@@ -477,6 +483,7 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             }
             AvailableSubjects::ParseXml => create_schema_from_fields(&create_parse_xml_fields),
             AvailableSubjects::ParseOwl => create_schema_from_fields(&create_parse_owl_fields),
+            AvailableSubjects::SessionTasksInbox => create_schema_from_fields(&create_session_tasks_inbox_fields),
         }
     }
 }

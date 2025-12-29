@@ -178,3 +178,25 @@ pub fn create_session_tasks_run_log_batch(
     ])?;
     Ok(batch)
 }
+
+pub(crate) fn create_session_tasks_inbox_fields() -> Fields {
+    let field_names = ["session_name", "task_name"];
+    let fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    Fields::from(fields_vec)
+}
+
+pub fn create_session_tasks_inbox_batch(
+    session_names: Vec<String>,
+    task_names: Vec<String>,
+) -> Result<RecordBatch> {
+    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("session_name", session_names),
+        ("task_name", task_names),
+    ])?;
+    Ok(batch)
+}

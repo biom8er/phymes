@@ -207,7 +207,7 @@ impl SessionContext {
         sorted_map.sort_by(|a, b| a.0.cmp(b.0));
         for (_name, state) in sorted_map.iter() {
             let name = state.read().get_name().to_string();
-            let num_row = state.read().count_rows() as u64;
+            let num_row = state.read().count_rows() as i64;
             subject_names.push(name.clone());
             num_rows.push(num_row);
         }
