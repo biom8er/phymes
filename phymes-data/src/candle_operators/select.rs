@@ -56,13 +56,11 @@ pub struct Select {
     lhs_values: Vec<String>,
     rhs_values: Vec<String>,
     as_columns: Vec<String>,
-    // reorder_columns: Vec<String>,
+    reorder_columns: Vec<String>,
     column_operators: Vec<DataColumnOperator>,
     cast_operators: Vec<DataCastOperator>,
     cast_datatypes: Vec<DataType>,
     cast_templates: Vec<String>,
-    // new_column: Vec<String>,
-    // new_operators: Vec<>,
 }
 
 impl MappableTrait for Select {
@@ -149,11 +147,11 @@ impl DataOperatorTrait for Select {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
-        // let reorder_columns = self
-        //     .reorder_columns
-        //     .iter()
-        //     .map(|s| s.as_str())
-        //     .collect::<Vec<_>>();
+        let reorder_columns = self
+            .reorder_columns
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
         let cast_templates = self
             .cast_templates
             .iter()
@@ -164,7 +162,7 @@ impl DataOperatorTrait for Select {
             lhs_args,
             &rhs_values,
             &as_columns,
-            // &reorder_columns,
+            &reorder_columns,
             &self.column_operators,
             &self.cast_operators,
             &self.cast_datatypes,
@@ -177,40 +175,18 @@ impl DataOperatorTrait for Select {
             "Missing `lhs_values` for `{}`.",
             Self::get_static_name()
         ))?;
-        let rhs_values = config.rhs_values.as_ref().cloned().ok_or(anyhow!(
-            "Missing `rhs_values` for `{}`.",
-            Self::get_static_name()
-        ))?;
-        let as_columns = config.as_columns.clone().ok_or(anyhow!(
-            "Missing `as_columns` for `{}`.",
-            Self::get_static_name()
-        ))?;
-        // let reorder_columns = config.reorder_columns.clone().ok_or(anyhow!(
-        //     "Missing `reorder_columns` for `{}`.",
-        //     Self::get_static_name()
-        // ))?;
-        let column_operators = config.column_operators.clone().ok_or(anyhow!(
-            "Missing `column_operators` for `{}`.",
-            Self::get_static_name()
-        ))?;
-        let cast_operators = config.cast_operators.clone().ok_or(anyhow!(
-            "Missing `cast_operators` for `{}`.",
-            Self::get_static_name()
-        ))?;
+        let rhs_values = config.rhs_values.as_ref().cloned().unwrap_or(lhs_values.iter().map(|_| String::new()).collect::<Vec<_>>());
+        let as_columns = config.as_columns.as_ref().cloned().unwrap_or(lhs_values.iter().map(|_| String::new()).collect::<Vec<_>>());
+        let reorder_columns = config.reorder_columns.as_ref().cloned().unwrap_or(lhs_values.iter().map(|_| String::new()).collect::<Vec<_>>());
+        let column_operators = config.column_operators.as_ref().cloned().unwrap_or(lhs_values.iter().map(|_| DataColumnOperator::default()).collect::<Vec<_>>());
+        let cast_operators = config.cast_operators.as_ref().cloned().unwrap_or(lhs_values.iter().map(|_| DataCastOperator::default()).collect::<Vec<_>>());
         let cast_datatypes = config
-            .cast_datatypes
-            .clone()
-            .ok_or(anyhow!(
-                "Missing `cast_datatypes` for `{}`.",
-                Self::get_static_name()
-            ))?
+            .cast_datatypes.as_ref().cloned()
+            .unwrap_or(lhs_values.iter().map(|_| "None".to_string()).collect::<Vec<_>>())
             .iter()
             .map(|s| from_str_to_data_type(s).unwrap())
             .collect::<Vec<_>>();
-        let cast_templates = config.cast_templates.clone().ok_or(anyhow!(
-            "Missing `cast_templates` for `{}`.",
-            Self::get_static_name()
-        ))?;
+        let cast_templates = config.cast_templates.as_ref().cloned().unwrap_or(lhs_values.iter().map(|_| String::new()).collect::<Vec<_>>());
 
         // Ensure that the array lengths match
         if lhs_values.len() != as_columns.len() {
@@ -249,21 +225,29 @@ impl DataOperatorTrait for Select {
                 lhs_values.len(),
                 cast_templates.len()
             ));
-        // } else if lhs_values.len() != reorder_columns.len() {
-        //     return Err(anyhow!(
-        //         "lhs_values length {} is not equal to the reorder_columns length {}",
-        //         lhs_values.len(),
-        //         cast_templates.len()
-        //     ));
+        } else if lhs_values.len() != reorder_columns.len() {
+            return Err(anyhow!(
+                "lhs_values length {} is not equal to the reorder_columns length {}",
+                lhs_values.len(),
+                cast_templates.len()
+            ));
         }
 
-        // Check that the reorder_columns are in the as_columns
+        { // Check that the reorder_columns are in the as_columns
+            let as_columns_set = as_columns.iter().map(|v| v.as_str()).collect::<HashSet<&str>>();
+            let reorder_columns_set = reorder_columns.iter().map(|v| v.as_str()).collect::<HashSet<&str>>();
+            if !reorder_columns_set.is_subset(&as_columns_set) {        
+                return Err(anyhow!(
+                    "reorder_columns {as_columns_set:?} is not a subset of as_columns {reorder_columns_set:?}",                
+                ));
+            }
+        }
 
         Ok(Select {
             lhs_values,
             rhs_values,
             as_columns,
-            // reorder_columns,
+            reorder_columns,
             column_operators,
             cast_operators,
             cast_datatypes,
@@ -531,7 +515,7 @@ where
     lhs_args,
     rhs_values,
     as_columns,
-    // reorder_columns,
+    reorder_columns,
     column_operators,
     cast_operators,
     cast_datatypes,
@@ -543,7 +527,7 @@ pub fn select(
     lhs_args: &[RecordBatch],
     rhs_values: &[&str],
     as_columns: &[&str],
-    // reorder_columns: &[&str],
+    reorder_columns: &[&str],
     column_operators: &[DataColumnOperator],
     cast_operators: &[DataCastOperator],
     cast_datatypes: &[DataType],
@@ -3308,6 +3292,19 @@ pub fn select(
             batch_vec.push((column_name, column_cast));
         }
     }
+
+    // Reorder the columns
+    let mut batch_vec_index = Vec::with_capacity(reorder_columns.len());
+    for (column, arr) in batch_vec.into_iter() {
+        for (iter, reorder) in reorder_columns.iter().enumerate() {
+            if column == reorder {
+                batch_vec_index.push((iter, column, arr));
+                break;
+            }
+        }
+    }
+    batch_vec_index.sort_by_key(|k| k.0);
+    let batch_vec = batch_vec_index.into_iter().map(|(_iter, col, arr)| (col, arr)).collect::<Vec<_>>();
 
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Ok(batch)
