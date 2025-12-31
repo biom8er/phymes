@@ -1,20 +1,3 @@
-use anyhow::Result;
-use std::sync::Arc;
-
-use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
-    DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder,
-    TableBuilderTrait, TablePublication, TableSubscription, create_user_batch,
-    create_user_session_contexts_batch,
-};
-use phymes_data::{AvailableCandleOperators, DataConfig, DataSummaryConfig};
-use phymes_diagnostics::create_timestamp_micros;
-
-use crate::{
-    AvailableInterfaceSubjects, AvailableProcessors, AvailableSessionPlans,
-    CustomAgentsBuilderTrait, TaskPlan, make_example_mermaid_table,
-};
-
 /// A session for all subject associated tasks
 ///
 /// # Notes
@@ -29,127 +12,14 @@ use crate::{
 ///
 /// * Caching is implemented to minimize memory and compute
 pub struct SubjectsSession<'a> {
-    /// Inbox
-    pub extract_tasks_task_name: &'a str,
-    pub extract_tasks_processor_name: &'a str,
-
-    /// 1, 2, and 3. Aggregate the latest subjects change log
-    // Sum aggreggation of delta, and set of session_name;task_name
-    pub group_by_subject_change_log_delta_task_name: &'a str,
-    pub group_by_subject_change_log_delta_processor_name: &'a str,
-    pub select_subject_change_log_delta_task_name: &'a str,
-    pub select_subject_change_log_delta_processor_name: &'a str,
-
-    /// 1. Count the number of rows per subject
-    pub group_by_subjects_num_rows_task_name: &'a str,
-    pub group_by_subjects_num_rows_processor_name: &'a str,
-    pub select_subjects_num_rows_task_name: &'a str,
-    pub select_subjects_num_rows_processor_name: &'a str,
-    pub join_subjects_num_rows_delta_task_name: &'a str,
-    pub join_subjects_num_rows_delta_processor_name: &'a str,
-    pub add_subjects_num_rows_delta_task_name: &'a str,
-    pub add_subjects_num_rows_delta_processor_name: &'a str,
-    pub select_subjects_num_rows_delta_task_name: &'a str,
-    pub select_subjects_num_rows_delta_processor_name: &'a str,
-    // Extend with the new batch
-
-    /// 2 and 3. Aggregate the latest session tasks change log
-    pub group_by_tasks_run_log_timestamp_task_name: &'a str,
-    pub group_by_tasks_run_log_timestamp_processor_name: &'a str,
-    pub select_tasks_run_log_timestamp_task_name: &'a str,
-    pub select_tasks_run_log_timestamp_processor_name: &'a str,
-
-    /// 2. Cache filtered subscriptions
-    pub filter_processors_subscriptions_task_name: &'a str,
-    pub filter_processors_subscriptions_processor_name: &'a str,
-    
-    /// 2. Retrieve updated subscriptions
-    pub join_tasks_run_log_timestamp_task_name: &'a str,
-    pub join_tasks_run_log_timestamp_processor_name: &'a str,
-    pub join_tasks_processors_subscriptions_task_name: &'a str,
-    pub join_tasks_processors_subscriptions_processor_name: &'a str,
-    pub join_tasks_processors_subscriptions_subjects_task_name: &'a str,
-    pub join_tasks_processors_subscriptions_subjects_processor_name: &'a str,    
-    pub select_tasks_processors_subscriptions_subjects_task_name: &'a str,
-    pub select_tasks_processors_subscriptions_subjects_processor_name: &'a str,
-    // DM: filter for updates that are past the last task run date
-    //  and were not updated by the same task
-    pub filter_tasks_processors_subscriptions_subjects_task_name: &'a str,
-    pub filter_tasks_processors_subscriptions_subjects_processor_name: &'a str,
-    
-    /// 3. Cache filtered publications
-    pub filter_processors_publications_task_name: &'a str,
-    pub filter_processors_publications_processor_name: &'a str,
-
-    /// 3. Retrieve the publications
-    pub select_tasks_ready_to_run_task_name: &'a str,
-    pub select_tasks_ready_to_run_processor_name: &'a str,
-    pub join_tasks_processors_publications_task_name: &'a str,
-    pub join_tasks_processors_publications_processor_name: &'a str,
-    pub select_tasks_processors_publications_task_name: &'a str,
-    pub select_tasks_processors_publications_processor_name: &'a str,
-
-    /// Outbox
-    pub aggregate_tasks_processors_publications_task_name: &'a str,
-    pub aggregate_tasks_processors_publications_processor_name: &'a str,
-
-    // DM: all supersteps need to wait until the list of ready-to-run tasks is produced
-
     /// Session
     pub session_context_name: &'a str,
-
-    /// Runtime environment
-    pub default_runtime_env_name: &'a str,
 }
 
 impl Default for SubjectsSession<'_> {
     fn default() -> Self {
         SubjectsSession {
-            extract_tasks_task_name: "extract_tasks_task_name",
-            extract_tasks_processor_name: "extract_tasks_processor_name",
-            group_by_subject_change_log_delta_task_name: "group_by_subject_change_log_delta_task_name",
-            group_by_subject_change_log_delta_processor_name: "group_by_subject_change_log_delta_processor_name",
-            select_subject_change_log_delta_task_name: "select_subject_change_log_delta_task_name",
-            select_subject_change_log_delta_processor_name: "select_subject_change_log_delta_processor_name",
-            group_by_subjects_num_rows_task_name: "group_by_subjects_num_rows_task_name",
-            group_by_subjects_num_rows_processor_name: "group_by_subjects_num_rows_processor_name",
-            select_subjects_num_rows_task_name: "select_subjects_num_rows_task_name",
-            select_subjects_num_rows_processor_name: "select_subjects_num_rows_processor_name",
-            join_subjects_num_rows_delta_task_name: "join_subjects_num_rows_delta_task_name",
-            join_subjects_num_rows_delta_processor_name: "join_subjects_num_rows_delta_processor_name",
-            add_subjects_num_rows_delta_task_name: "add_subjects_num_rows_delta_task_name",
-            add_subjects_num_rows_delta_processor_name: "add_subjects_num_rows_delta_processor_name",
-            select_subjects_num_rows_delta_task_name: "select_subjects_num_rows_delta_task_name",
-            select_subjects_num_rows_delta_processor_name: "select_subjects_num_rows_delta_processor_name",
-            group_by_tasks_run_log_timestamp_task_name: "group_by_tasks_run_log_timestamp_task_name",
-            group_by_tasks_run_log_timestamp_processor_name: "group_by_tasks_run_log_timestamp_processor_name",
-            select_tasks_run_log_timestamp_task_name: "select_tasks_run_log_timestamp_task_name",
-            select_tasks_run_log_timestamp_processor_name: "select_tasks_run_log_timestamp_processor_name",
-            filter_processors_subscriptions_task_name: "filter_processors_subscriptions_task_name",
-            filter_processors_subscriptions_processor_name: "filter_processors_subscriptions_processor_name",
-            join_tasks_run_log_timestamp_task_name: "join_tasks_run_log_timestamp_task_name",
-            join_tasks_run_log_timestamp_processor_name: "join_tasks_run_log_timestamp_processor_name",
-            join_tasks_processors_subscriptions_task_name: "join_tasks_processors_subscriptions_task_name",
-            join_tasks_processors_subscriptions_processor_name: "join_tasks_processors_subscriptions_processor_name",
-            join_tasks_processors_subscriptions_subjects_task_name: "join_tasks_processors_subscriptions_subjects_task_name",
-            join_tasks_processors_subscriptions_subjects_processor_name:     "join_tasks_processors_subscriptions_subjects_processor_name", 
-            select_tasks_processors_subscriptions_subjects_task_name: "select_tasks_processors_subscriptions_subjects_task_name",
-            select_tasks_processors_subscriptions_subjects_processor_name: "select_tasks_processors_subscriptions_subjects_processor_name",
-            filter_tasks_processors_subscriptions_subjects_task_name: "filter_tasks_processors_subscriptions_subjects_task_name",
-            filter_tasks_processors_subscriptions_subjects_processor_name: "filter_tasks_processors_subscriptions_subjects_processor_name",
-            filter_processors_publications_task_name: "filter_processors_publications_task_name",
-            filter_processors_publications_processor_name: "filter_processors_publications_processor_name",
-            select_tasks_ready_to_run_task_name: "select_tasks_ready_to_run_task_name",
-            select_tasks_ready_to_run_processor_name: "select_tasks_ready_to_run_processor_name",
-            join_tasks_processors_publications_task_name: "join_tasks_processors_publications_task_name",
-            join_tasks_processors_publications_processor_name: "join_tasks_processors_publications_processor_name",
-            select_tasks_processors_publications_task_name: "select_tasks_processors_publications_task_name",
-            select_tasks_processors_publications_processor_name: "select_tasks_processors_publications_processor_name",
-            aggregate_tasks_processors_publications_task_name: "aggregate_tasks_processors_publications_task_name",
-            aggregate_tasks_processors_publications_processor_name: "aggregate_tasks_processors_publications_processor_name",
             session_context_name: "subject_session",
-            default_runtime_env_name: "default_runtime_env_name",
-
         }
     }
 }
@@ -161,847 +31,653 @@ impl<'a> SubjectsSession<'a> {
             ..Default::default()
         }
     }
-}
+    pub fn as_mermaid_flowchart(&self) -> &str {
+        r#"flowchart TD
+    default_runtime_env_name-rt@{shape: subproc, label: default_runtime_env_name}
 
-impl CustomAgentsBuilderTrait for SubjectsSession<'_> {
-    fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
-        let tasks = vec![
-            TaskPlan {
-                task_name: self.extract_tasks_task_name.to_string(),
-                runtime_env_name: self.default_runtime_env_name.to_string(),
-                processor_names: vec![
-                    self.extract_tasks_processor_name.to_string(),
-                ],
-            },
-            TaskPlan {
-                task_name: self.group_by_subject_change_log_delta_task_name.to_string(),
-                runtime_env_name: self.default_runtime_env_name.to_string(),
-                processor_names: vec![
-                    self.group_by_subject_change_log_delta_processor_name.to_string(),
-                    self.select_subject_change_log_delta_processor_name.to_string(),
-                ],
-            },
-            TaskPlan {
-                task_name: self.group_by_subjects_num_rows_task_name.to_string(),
-                runtime_env_name: self.default_runtime_env_name.to_string(),
-                processor_names: vec![
-                    self.group_by_subjects_num_rows_processor_name.to_string(),
-                    self.select_subjects_num_rows_processor_name.to_string(),
-                    self.join_subjects_num_rows_delta_processor_name.to_string(),
-                    self.add_subjects_num_rows_delta_processor_name.to_string(),
-                    self.select_subjects_num_rows_delta_processor_name.to_string(),
-                ],
-            },
-            TaskPlan {
-                task_name: self.group_by_tasks_run_log_timestamp_task_name.to_string(),
-                runtime_env_name: self.default_runtime_env_name.to_string(),
-                processor_names: vec![
-                    self.group_by_tasks_run_log_timestamp_processor_name.to_string(),
-                    self.select_tasks_run_log_timestamp_processor_name.to_string(),
-                ],
-            },
-            TaskPlan {
-                task_name: self.filter_processors_subscriptions_task_name.to_string(),
-                runtime_env_name: self.default_runtime_env_name.to_string(),
-                processor_names: vec![
-                    self.filter_processors_subscriptions_processor_name.to_string(),
-                ],
-            },
-            TaskPlan {
-                task_name: self.join_tasks_run_log_timestamp_task_name.to_string(),
-                runtime_env_name: self.default_runtime_env_name.to_string(),
-                processor_names: vec![
-                    self.join_tasks_run_log_timestamp_processor_name.to_string(),
-                    self.join_tasks_processors_subscriptions_processor_name.to_string(),
-                    self.join_tasks_processors_subscriptions_subjects_processor_name.to_string(),
-                    self.select_tasks_processors_subscriptions_subjects_processor_name.to_string(),
-                    self.filter_tasks_processors_subscriptions_subjects_processor_name.to_string(),
-                ],
-            },
-            TaskPlan {
-                task_name: self.filter_processors_publications_task_name.to_string(),
-                runtime_env_name: self.default_runtime_env_name.to_string(),
-                processor_names: vec![
-                    self.filter_processors_publications_processor_name.to_string(),
-                ],
-            },
-            TaskPlan {
-                task_name: self.select_tasks_ready_to_run_task_name.to_string(),
-                runtime_env_name: self.default_runtime_env_name.to_string(),
-                processor_names: vec![
-                    self.select_tasks_ready_to_run_processor_name.to_string(),
-                    self.join_tasks_processors_publications_processor_name.to_string(),
-                    self.select_tasks_processors_publications_processor_name.to_string(),
-                ],
-            },
-            TaskPlan {
-                task_name: self.aggregate_tasks_processors_publications_task_name.to_string(),
-                runtime_env_name: self.default_runtime_env_name.to_string(),
-                processor_names: vec![
-                    self.aggregate_tasks_processors_publications_processor_name.to_string(),
-                ],
-            },
-        ];
+	subgraph extract_tasks_t
+		UserCsv-subject-.->|FullTable|extract_tasks_p-subscribe
+		extract_tasks_p-subscribe-->extract_tasks_p-processor
+		extract_tasks_p-processor-->extract_tasks_p-publish
+		extract_tasks_p-publish-->|Replace|SessionTasksInbox-subject
+	end
+	UserCsv-subject@{shape: doc, label: UserCsv}
+	default_runtime_env_name-rt-->extract_tasks_t
+	extract_tasks_p-subscribe@{shape: diamond, label: All}
+	extract_tasks_p-processor@{shape: rect, label: ExtractTabular}
+	extract_tasks_p-publish@{shape: fork}
+	SessionTasksInbox-subject@{shape: doc, label: SessionTasksInbox}
 
-        Some(tasks)
+	subgraph group_by_tasks_run_log_timestamp_t
+		SessionTasksRunLog-subject-.->|LastRecordBatch|group_by_tasks_run_log_timestamp_p-subscribe
+		group_by_tasks_run_log_timestamp_p-subscribe-->group_by_tasks_run_log_timestamp_p-processor
+		group_by_tasks_run_log_timestamp_p-processor-->group_by_tasks_run_log_timestamp_p-publish
+		group_by_tasks_run_log_timestamp_p-publish-->|Replace|group_by_tasks_run_log_timestamp_t-subject
+		group_by_tasks_run_log_timestamp_t-subject-->|FullTable|select_tasks_run_log_timestamp_p-subscribe
+		select_tasks_run_log_timestamp_p-subscribe-->select_tasks_run_log_timestamp_p-processor
+		select_tasks_run_log_timestamp_p-processor-->select_tasks_run_log_timestamp_p-publish
+		select_tasks_run_log_timestamp_p-publish-->|Replace|select_tasks_run_log_timestamp_t-subject
+	end
+	default_runtime_env_name-rt-->group_by_tasks_run_log_timestamp_t
+	SessionTasksRunLog-subject@{shape: doc, label: SessionTasksRunLog}
+	group_by_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}
+	group_by_tasks_run_log_timestamp_p-processor@{shape: rect, label: GroupBy}
+	group_by_tasks_run_log_timestamp_p-publish@{shape: fork}
+	group_by_tasks_run_log_timestamp_t-subject@{shape: doc, label: group_by_tasks_run_log_timestamp_t}
+	select_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}
+	select_tasks_run_log_timestamp_p-processor@{shape: rect, label: Select}
+	select_tasks_run_log_timestamp_p-publish@{shape: fork}
+	select_tasks_run_log_timestamp_t-subject@{shape: doc, label: select_tasks_run_log_timestamp_t}
+
+	subgraph group_by_subject_change_log_delta_t
+		SubjectsChangeLog-subject-.->|LastRecordBatch|group_by_subject_change_log_delta_p-subscribe
+		group_by_subject_change_log_delta_p-subscribe-->group_by_subject_change_log_delta_p-processor
+		group_by_subject_change_log_delta_p-processor-->group_by_subject_change_log_delta_p-publish
+		group_by_subject_change_log_delta_p-publish-->|Replace|group_by_subject_change_log_delta_t-subject
+		group_by_subject_change_log_delta_t-subject-->|FullTable|select_subject_change_log_delta_p-subscribe
+		select_subject_change_log_delta_p-subscribe-->select_subject_change_log_delta_p-processor
+		select_subject_change_log_delta_p-processor-->select_subject_change_log_delta_p-publish
+		select_subject_change_log_delta_p-publish-->|Extend|SubjectsNumRows-subject
+	end
+	default_runtime_env_name-rt-->group_by_subject_change_log_delta_t
+	SubjectsChangeLog-subject@{shape: doc, label: SubjectsChangeLog}
+	group_by_subject_change_log_delta_p-subscribe@{shape: diamond, label: All}
+	group_by_subject_change_log_delta_p-processor@{shape: rect, label: GroupBy}
+	group_by_subject_change_log_delta_p-publish@{shape: fork}
+	group_by_subject_change_log_delta_t-subject@{shape: doc, label: group_by_subject_change_log_delta_t}
+	select_subject_change_log_delta_p-subscribe@{shape: diamond, label: All}
+	select_subject_change_log_delta_p-processor@{shape: rect, label: Select}
+	select_subject_change_log_delta_p-publish@{shape: fork}
+	SubjectsNumRows-subject@{shape: doc, label: SubjectsNumRows}
+
+	subgraph group_by_subjects_num_rows_t
+		SubjectsNumRows-subject-.->|FullTable|group_by_subjects_num_rows_p-subscribe
+		group_by_subjects_num_rows_p-subscribe-->group_by_subjects_num_rows_p-processor
+		group_by_subjects_num_rows_p-processor-->group_by_subjects_num_rows_p-publish
+		group_by_subjects_num_rows_p-publish-->|Replace|group_by_subjects_num_rows_t-subject
+		group_by_subjects_num_rows_t-subject-->|FullTable|select_subjects_num_rows_delta_p-subscribe
+		select_subjects_num_rows_delta_p-subscribe-->select_subjects_num_rows_delta_p-processor
+		select_subjects_num_rows_delta_p-processor-->select_subjects_num_rows_delta_p-publish
+		select_subjects_num_rows_delta_p-publish-->|Extend|SubjectsNumRows-subject
+	end
+	default_runtime_env_name-rt-->group_by_subjects_num_rows_t
+	group_by_subjects_num_rows_p-subscribe@{shape: diamond, label: All}
+	group_by_subjects_num_rows_p-processor@{shape: rect, label: GroupBy}
+	group_by_subjects_num_rows_p-publish@{shape: fork}
+	group_by_subjects_num_rows_t-subject@{shape: doc, label: group_by_subjects_num_rows_t}
+	select_subjects_num_rows_delta_p-subscribe@{shape: diamond, label: All}
+	select_subjects_num_rows_delta_p-processor@{shape: rect, label: Select}
+	select_subjects_num_rows_delta_p-publish@{shape: fork}
+
+	subgraph filter_processors_subscriptions_t
+		SessionProcessors-subject-.->|FullTable|cmp_processors_subscriptions_p-subscribe
+		cmp_processors_subscriptions_p-subscribe-->cmp_processors_subscriptions_p-processor
+		cmp_processors_subscriptions_p-processor-->cmp_processors_subscriptions_p-publish
+		cmp_processors_subscriptions_p-publish-->|Replace|cmp_processors_subscriptions_t-subject
+		cmp_processors_subscriptions_t-subject-->|FullTable|filter_processors_subscriptions_p-subscribe
+		filter_processors_subscriptions_p-subscribe-->filter_processors_subscriptions_p-processor
+		filter_processors_subscriptions_p-processor-->filter_processors_subscriptions_p-publish
+		filter_processors_subscriptions_p-publish-->|Replace|filter_processors_subscriptions_t-subject
+		filter_processors_subscriptions_t-subject-->|FullTable|select_processors_subscriptions_p-subscribe
+		select_processors_subscriptions_p-subscribe-->select_processors_subscriptions_p-processor
+		select_processors_subscriptions_p-processor-->select_processors_subscriptions_p-publish
+		select_processors_subscriptions_p-publish-->|Replace|select_processors_subscriptions_t-subject
+	end
+	default_runtime_env_name-rt-->filter_processors_subscriptions_t
+	SessionProcessors-subject@{shape: doc, label: SessionProcessors}
+	cmp_processors_subscriptions_p-subscribe@{shape: diamond, label: All}
+	cmp_processors_subscriptions_p-processor@{shape: rect, label: Select}
+	cmp_processors_subscriptions_p-publish@{shape: fork}
+	cmp_processors_subscriptions_t-subject@{shape: doc, label: cmp_processors_subscriptions_t}
+	filter_processors_subscriptions_p-subscribe@{shape: diamond, label: All}
+	filter_processors_subscriptions_p-processor@{shape: rect, label: Filter}
+	filter_processors_subscriptions_p-publish@{shape: fork}
+	filter_processors_subscriptions_t-subject@{shape: doc, label: filter_processors_subscriptions_t}
+	select_processors_subscriptions_p-subscribe@{shape: diamond, label: All}
+	select_processors_subscriptions_p-processor@{shape: rect, label: Select}
+	select_processors_subscriptions_p-publish@{shape: fork}
+	select_processors_subscriptions_t-subject@{shape: doc, label: select_processors_subscriptions_t}
+
+    %% `filter_tasks_processors_subscriptions_subjects_p` requires a custom operator...
+	subgraph join_tasks_run_log_timestamp_t
+		SubjectsChangeLog-subject-->|FullTable|group_by_subject_change_log_timestamp_p-subscribe
+		group_by_subject_change_log_timestamp_p-subscribe-->group_by_subject_change_log_timestamp_p-processor
+		group_by_subject_change_log_timestamp_p-processor-->group_by_subject_change_log_timestamp_p-publish
+		group_by_subject_change_log_timestamp_p-publish-->|Replace|group_by_subject_change_log_timestamp_t-subject
+		select_tasks_run_log_timestamp_t-subject-->|FullTable|join_tasks_run_log_timestamp_p-subscribe
+		SessionTasksInbox-subject-.->|FullTable|join_tasks_run_log_timestamp_p-subscribe
+		join_tasks_run_log_timestamp_p-subscribe-->join_tasks_run_log_timestamp_p-processor
+		join_tasks_run_log_timestamp_p-processor-->join_tasks_run_log_timestamp_p-publish
+		join_tasks_run_log_timestamp_p-publish-->|Replace|join_tasks_run_log_timestamp_t-subject
+		join_tasks_run_log_timestamp_t-subject-->|FullTable|join_tasks_processors_p-subscribe
+		SessionTasks-subject-->|FullTable|join_tasks_processors_p-subscribe
+		join_tasks_processors_p-subscribe-->join_tasks_processors_p-processor
+		join_tasks_processors_p-processor-->join_tasks_processors_p-publish
+		join_tasks_processors_p-publish-->|Replace|join_tasks_processors_t-subject
+		join_tasks_processors_t-subject-->|FullTable|join_tasks_processors_subscriptions_p-subscribe
+		select_processors_subscriptions_t-subject-->|FullTable|join_tasks_processors_subscriptions_p-subscribe
+		join_tasks_processors_subscriptions_p-subscribe-->join_tasks_processors_subscriptions_p-processor
+		join_tasks_processors_subscriptions_p-processor-->join_tasks_processors_subscriptions_p-publish
+		join_tasks_processors_subscriptions_p-publish-->|Replace|join_tasks_processors_subscriptions_t-subject
+		join_tasks_processors_subscriptions_t-subject-->|FullTable|join_tasks_processors_subscriptions_subjects_p-subscribe
+		group_by_subject_change_log_timestamp_t-subject-->|FullTable|join_tasks_processors_subscriptions_subjects_p-subscribe
+		join_tasks_processors_subscriptions_subjects_p-subscribe-->join_tasks_processors_subscriptions_subjects_p-processor
+		join_tasks_processors_subscriptions_subjects_p-processor-->join_tasks_processors_subscriptions_subjects_p-publish
+		join_tasks_processors_subscriptions_subjects_p-publish-->|Replace|join_tasks_processors_subscriptions_subjects_t-subject
+		join_tasks_processors_subscriptions_subjects_t-subject-->|FullTable|select_tasks_processors_subscriptions_subjects_p-subscribe
+		select_tasks_processors_subscriptions_subjects_p-subscribe-->select_tasks_processors_subscriptions_subjects_p-processor
+		select_tasks_processors_subscriptions_subjects_p-processor-->select_tasks_processors_subscriptions_subjects_p-publish
+		select_tasks_processors_subscriptions_subjects_p-publish-->|Replace|select_tasks_processors_subscriptions_subjects_t-subject
+		select_tasks_processors_subscriptions_subjects_t-subject-->|FullTable|filter_tasks_processors_subscriptions_subjects_p-subscribe
+		filter_tasks_processors_subscriptions_subjects_p-subscribe-->filter_tasks_processors_subscriptions_subjects_p-processor
+		filter_tasks_processors_subscriptions_subjects_p-processor-->filter_tasks_processors_subscriptions_subjects_p-publish
+		filter_tasks_processors_subscriptions_subjects_p-publish-->|Replace|filter_tasks_processors_subscriptions_subjects_t-subject
+	end
+	default_runtime_env_name-rt-->join_tasks_run_log_timestamp_t
+	group_by_subject_change_log_timestamp_p-subscribe@{shape: diamond, label: All}
+	group_by_subject_change_log_timestamp_p-processor@{shape: rect, label: GroupBy}
+	group_by_subject_change_log_timestamp_p-publish@{shape: fork}
+	group_by_subject_change_log_timestamp_t-subject@{shape: doc, label: group_by_subject_change_log_timestamp_t}
+	join_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}
+	join_tasks_run_log_timestamp_p-processor@{shape: rect, label: Join}
+	join_tasks_run_log_timestamp_p-publish@{shape: fork}
+	join_tasks_run_log_timestamp_t-subject@{shape: doc, label: join_tasks_run_log_timestamp_t}
+	SessionTasks-subject@{shape: doc, label: SessionTasks}
+	join_tasks_processors_p-subscribe@{shape: diamond, label: All}
+	join_tasks_processors_p-processor@{shape: rect, label: Join}
+	join_tasks_processors_p-publish@{shape: fork}
+	join_tasks_processors_t-subject@{shape: doc, label: join_tasks_processors_t}
+	join_tasks_processors_subscriptions_p-subscribe@{shape: diamond, label: All}
+	join_tasks_processors_subscriptions_p-processor@{shape: rect, label: Join}
+	join_tasks_processors_subscriptions_p-publish@{shape: fork}
+	join_tasks_processors_subscriptions_t-subject@{shape: doc, label: join_tasks_processors_subscriptions_t}
+	join_tasks_processors_subscriptions_subjects_p-subscribe@{shape: diamond, label: All}
+	join_tasks_processors_subscriptions_subjects_p-processor@{shape: rect, label: Join}
+	join_tasks_processors_subscriptions_subjects_p-publish@{shape: fork}
+	join_tasks_processors_subscriptions_subjects_t-subject@{shape: doc, label: join_tasks_processors_subscriptions_subjects_t}
+	select_tasks_processors_subscriptions_subjects_p-subscribe@{shape: diamond, label: All}
+	select_tasks_processors_subscriptions_subjects_p-processor@{shape: rect, label: Select}
+	select_tasks_processors_subscriptions_subjects_p-publish@{shape: fork}
+	select_tasks_processors_subscriptions_subjects_t-subject@{shape: doc, label: select_tasks_processors_subscriptions_subjects_t}
+	filter_tasks_processors_subscriptions_subjects_p-subscribe@{shape: diamond, label: All}
+	filter_tasks_processors_subscriptions_subjects_p-processor@{shape: rect, label: Filter}
+	filter_tasks_processors_subscriptions_subjects_p-publish@{shape: fork}
+	filter_tasks_processors_subscriptions_subjects_t-subject@{shape: doc, label: filter_tasks_processors_subscriptions_subjects_t}
+
+	subgraph filter_processors_publications_t
+		SessionProcessors-subject-.->|FullTable|cmp_processors_publications_p-subscribe
+		cmp_processors_publications_p-subscribe-->cmp_processors_publications_p-processor
+		cmp_processors_publications_p-processor-->cmp_processors_publications_p-publish
+		cmp_processors_publications_p-publish-->|Replace|cmp_processors_publications_t-subject
+		cmp_processors_publications_t-subject-->|FullTable|filter_processors_publications_p-subscribe
+		filter_processors_publications_p-subscribe-->filter_processors_publications_p-processor
+		filter_processors_publications_p-processor-->filter_processors_publications_p-publish
+		filter_processors_publications_p-publish-->|Replace|filter_processors_publications_t-subject
+		filter_processors_publications_t-subject-->|FullTable|select_processors_publications_p-subscribe
+		select_processors_publications_p-subscribe-->select_processors_publications_p-processor
+		select_processors_publications_p-processor-->select_processors_publications_p-publish
+		select_processors_publications_p-publish-->|Replace|select_processors_publications_t-subject
+	end
+	default_runtime_env_name-rt-->filter_processors_publications_t
+	cmp_processors_publications_p-subscribe@{shape: diamond, label: All}
+	cmp_processors_publications_p-processor@{shape: rect, label: Select}
+	cmp_processors_publications_p-publish@{shape: fork}
+	cmp_processors_publications_t-subject@{shape: doc, label: cmp_processors_publications_t}
+	filter_processors_publications_p-subscribe@{shape: diamond, label: All}
+	filter_processors_publications_p-processor@{shape: rect, label: Filter}
+	filter_processors_publications_p-publish@{shape: fork}
+	filter_processors_publications_t-subject@{shape: doc, label: filter_processors_publications_t}
+	select_processors_publications_p-subscribe@{shape: diamond, label: All}
+	select_processors_publications_p-processor@{shape: rect, label: Select}
+	select_processors_publications_p-publish@{shape: fork}
+	select_processors_publications_t-subject@{shape: doc, label: select_processors_publications_t}
+
+	subgraph select_tasks_processors_publications_t
+		filter_tasks_processors_subscriptions_subjects_t-subject-.->|FullTable|select_tasks_ready_to_run_p-subscribe
+		select_tasks_ready_to_run_p-subscribe-->select_tasks_ready_to_run_p-processor
+		select_tasks_ready_to_run_p-processor-->select_tasks_ready_to_run_p-publish
+		select_tasks_ready_to_run_p-publish-->|Replace|select_tasks_ready_to_run_t-subject
+		select_tasks_ready_to_run_t-subject-->|FullTable|join_tasks_ready_to_run_p-subscribe
+		SessionTasks-subject-->|FullTable|join_tasks_ready_to_run_p-subscribe
+		join_tasks_ready_to_run_p-subscribe-->join_tasks_ready_to_run_p-processor
+		join_tasks_ready_to_run_p-processor-->join_tasks_ready_to_run_p-publish
+		join_tasks_ready_to_run_p-publish-->|Replace|join_tasks_ready_to_run_t-subject
+		join_tasks_ready_to_run_t-subject-->|FullTable|join_tasks_processors_publications_p-subscribe
+		select_processors_publications_t-subject-->|FullTable|join_tasks_processors_publications_p-subscribe
+		join_tasks_processors_publications_p-subscribe-->join_tasks_processors_publications_p-processor
+		join_tasks_processors_publications_p-processor-->join_tasks_processors_publications_p-publish
+		join_tasks_processors_publications_p-publish-->|Replace|join_tasks_processors_publications_t-subject
+		join_tasks_processors_publications_t-subject-->|FullTable|select_tasks_processors_publications_p-subscribe
+		select_tasks_processors_publications_p-subscribe-->select_tasks_processors_publications_p-processor
+		select_tasks_processors_publications_p-processor-->select_tasks_processors_publications_p-publish
+		select_tasks_processors_publications_p-publish-->|Replace|select_tasks_processors_publications_t-subject
+	end
+	default_runtime_env_name-rt-->select_tasks_processors_publications_t
+	select_tasks_ready_to_run_p-subscribe@{shape: diamond, label: All}
+	select_tasks_ready_to_run_p-processor@{shape: rect, label: Select}
+	select_tasks_ready_to_run_p-publish@{shape: fork}
+	select_tasks_ready_to_run_t-subject@{shape: doc, label: select_tasks_ready_to_run_t}
+	join_tasks_ready_to_run_p-subscribe@{shape: diamond, label: All}
+	join_tasks_ready_to_run_p-processor@{shape: rect, label: Join}
+	join_tasks_ready_to_run_p-publish@{shape: fork}
+	join_tasks_ready_to_run_t-subject@{shape: doc, label: join_tasks_ready_to_run_t}
+	join_tasks_processors_publications_p-subscribe@{shape: diamond, label: All}
+	join_tasks_processors_publications_p-processor@{shape: rect, label: Join}
+	join_tasks_processors_publications_p-publish@{shape: fork}
+	join_tasks_processors_publications_t-subject@{shape: doc, label: join_tasks_processors_publications_t}
+	select_tasks_processors_publications_p-subscribe@{shape: diamond, label: All}
+	select_tasks_processors_publications_p-processor@{shape: rect, label: Select}
+	select_tasks_processors_publications_p-publish@{shape: fork}
+	select_tasks_processors_publications_t-subject@{shape: doc, label: select_tasks_processors_publications_t}
+
+	subgraph aggregate_tasks_processors_publications_t
+        UserMessages-subject-.->|FullTable|aggregate_tasks_processors_publications_p-subscribe
+        AssistantMessages-subject-.->|FullTable|aggregate_tasks_processors_publications_p-subscribe
+		filter_tasks_processors_subscriptions_subjects_t-subject-.->|FullTable|aggregate_tasks_processors_publications_p-subscribe
+		select_tasks_processors_publications_t-subject-.->|FullTable|aggregate_tasks_processors_publications_p-subscribe
+		aggregate_tasks_processors_publications_p-subscribe-->aggregate_tasks_processors_publications_p-processor
+		aggregate_tasks_processors_publications_p-processor-->aggregate_tasks_processors_publications_p-publish
+		aggregate_tasks_processors_publications_p-publish-->|Replace|AssistantCsv-subject
+	end
+	default_runtime_env_name-rt-->aggregate_tasks_processors_publications_t
+	UserMessages-subject@{shape: doc, label: UserMessages}
+	AssistantMessages-subject@{shape: doc, label: AssistantMessages}
+	aggregate_tasks_processors_publications_p-subscribe@{shape: diamond, label: Any}
+	aggregate_tasks_processors_publications_p-processor@{shape: rect, label: AttachmentAggregatorProcessor}
+	aggregate_tasks_processors_publications_p-publish@{shape: fork}
+	AssistantCsv-subject@{shape: doc, label: AssistantCsv}"#
     }
-
-    fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
-        // The order is the order in which the processors are called in the task
-        let processors = vec![
-            AvailableProcessors::ExtractTabular.build_arc(
-                self.extract_tasks_processor_name,
-                &[TablePublication::Replace {
-                    table_name: AvailableSubjects::SessionTasksInbox.to_string(),
-                }],
-                &[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.extract_tasks_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::GroupBy.build_arc(
-                self.group_by_subject_change_log_delta_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.group_by_subject_change_log_delta_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableSubjects::SubjectsChangeLog.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.group_by_subject_change_log_delta_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Select.build_arc(
-                self.select_subject_change_log_delta_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.select_subject_change_log_delta_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.group_by_subject_change_log_delta_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.select_subject_change_log_delta_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            
-            AvailableProcessors::GroupBy.build_arc(
-                self.group_by_subjects_num_rows_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.group_by_subjects_num_rows_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableSubjects::SubjectsChangeLog.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.group_by_subjects_num_rows_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Select.build_arc(
-                self.select_subjects_num_rows_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.select_subjects_num_rows_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.group_by_subjects_num_rows_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.select_subjects_num_rows_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Join.build_arc(
-                self.join_subjects_num_rows_delta_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.join_subjects_num_rows_delta_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.select_subject_change_log_delta_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.select_subjects_num_rows_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.join_subjects_num_rows_delta_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Select.build_arc(
-                self.add_subjects_num_rows_delta_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.add_subjects_num_rows_delta_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.select_subject_change_log_delta_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.add_subjects_num_rows_delta_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Select.build_arc(
-                self.select_subjects_num_rows_delta_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.select_subjects_num_rows_delta_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.add_subjects_num_rows_delta_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.select_subjects_num_rows_delta_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::GroupBy.build_arc(
-                self.group_by_subjects_num_rows_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.group_by_subjects_num_rows_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.select_subjects_num_rows_delta_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.group_by_subjects_num_rows_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Select.build_arc(
-                self.select_subjects_num_rows_processor_name,
-                &[TablePublication::Extend {
-                    table_name: AvailableSubjects::SubjectsChangeLog.to_string(),
-                }],
-                &[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.group_by_subjects_num_rows_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.select_subjects_num_rows_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::GroupBy.build_arc(
-                self.group_by_tasks_run_log_timestamp_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.group_by_tasks_run_log_timestamp_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableSubjects::SessionTasksRunLog.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.group_by_tasks_run_log_timestamp_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Select.build_arc(
-                self.select_tasks_run_log_timestamp_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.select_tasks_run_log_timestamp_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.group_by_tasks_run_log_timestamp_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.select_tasks_run_log_timestamp_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Filter.build_arc(
-                self.filter_processors_subscriptions_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.filter_processors_subscriptions_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::SessionProcessors.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.filter_processors_subscriptions_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Join.build_arc(
-                self.join_tasks_run_log_timestamp_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.join_tasks_run_log_timestamp_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.select_tasks_run_log_timestamp_task_name.to_string(),
-                    },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.extract_tasks_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.join_tasks_run_log_timestamp_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Join.build_arc(
-                self.join_tasks_processors_subscriptions_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.join_tasks_processors_subscriptions_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.join_tasks_run_log_timestamp_task_name.to_string(),
-                    },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.filter_processors_subscriptions_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.join_tasks_processors_subscriptions_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Join.build_arc(
-                self.join_tasks_processors_subscriptions_subjects_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.join_tasks_processors_subscriptions_subjects_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.join_tasks_processors_subscriptions_task_name.to_string(),
-                    },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.select_subject_change_log_delta_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.join_tasks_processors_subscriptions_subjects_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Select.build_arc(
-                self.select_tasks_processors_subscriptions_subjects_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.select_tasks_processors_subscriptions_subjects_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.join_tasks_processors_subscriptions_subjects_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.select_tasks_processors_subscriptions_subjects_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Filter.build_arc(
-                self.filter_tasks_processors_subscriptions_subjects_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.filter_tasks_processors_subscriptions_subjects_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.select_tasks_processors_subscriptions_subjects_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.filter_tasks_processors_subscriptions_subjects_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Filter.build_arc(
-                self.filter_processors_publications_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.filter_processors_publications_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::SessionProcessors.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.filter_processors_publications_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Select.build_arc(
-                self.select_tasks_ready_to_run_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.select_tasks_ready_to_run_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.filter_tasks_processors_subscriptions_subjects_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.select_tasks_ready_to_run_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Join.build_arc(
-                self.join_tasks_processors_publications_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.join_tasks_processors_publications_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.select_tasks_ready_to_run_task_name.to_string(),
-                    },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.filter_processors_publications_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.join_tasks_processors_publications_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Select.build_arc(
-                self.select_tasks_processors_publications_processor_name,
-                &[TablePublication::Replace {
-                    table_name: self.select_tasks_processors_publications_task_name.to_string(),
-                }],
-                &[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.join_tasks_processors_publications_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.select_tasks_processors_publications_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::AttachmentAggregatorProcessor.build_arc(
-                self.aggregate_tasks_processors_publications_processor_name,
-                &[TablePublication::Replace {
-                    table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
-                }],
-                &[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.select_subjects_num_rows_delta_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.filter_tasks_processors_subscriptions_subjects_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.select_tasks_processors_publications_task_name.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.aggregate_tasks_processors_publications_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-        ];
-
-        Some(processors)
+    pub fn as_mermaid_erdiagram(&self) -> &str {
+        r#"erDiagram
+    UserCsv["UserCsv"] {
+        Utf8 filename
+        Utf8 extension
+        List-UInt8 bytes
+        Utf8 metadata
+        Int64 timestamp
     }
-
-    fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
-        Some(vec![
-            RuntimeEnv::new().with_name(self.default_runtime_env_name),
-        ])
+    extract_tasks_p["extract_tasks_p"] {
+        Boolean cpu "false"
+        Utf8 format "CsvDefault"
+        Utf8 lhs_name "UserCsv"
+        List-Utf8 lhs_values "['bytes']"
+        Utf8 operator "ExtractTabular"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
     }
-
-    fn make_state_tables(&self) -> Option<Vec<Table>> {
-        let extract_tasks_config = DataConfig {
-            lhs_name: Some(AvailableInterfaceSubjects::UserCsv.to_string()),
-            lhs_values: Some(vec!["bytes".to_string()]),
-            format: Some(DataFormat::CsvDefault),
-            operator: AvailableCandleOperators::ExtractTabular,
-            ..Default::default()
-        };
-        let extract_tasks_config_json =
-            serde_json::to_vec(&extract_tasks_config).unwrap();
-        let extract_tasks_state = TableBuilder::new()
-            .with_name(self.extract_tasks_processor_name)
-            .with_json(&extract_tasks_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let group_by_subject_change_log_delta_config = DataConfig {
-            ..Default::default()
-        };
-        let group_by_subject_change_log_delta_config_json =
-            serde_json::to_vec(&group_by_subject_change_log_delta_config).unwrap();
-        let group_by_subject_change_log_delta_state = TableBuilder::new()
-            .with_name(self.group_by_subject_change_log_delta_processor_name)
-            .with_json(&group_by_subject_change_log_delta_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let select_subject_change_log_delta_config = DataConfig {
-            ..Default::default()
-        };
-        let select_subject_change_log_delta_config_json =
-            serde_json::to_vec(&select_subject_change_log_delta_config).unwrap();
-        let select_subject_change_log_delta_state = TableBuilder::new()
-            .with_name(self.select_subject_change_log_delta_processor_name)
-            .with_json(&select_subject_change_log_delta_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let group_by_subjects_num_rows_config = DataConfig {
-            ..Default::default()
-        };
-        let group_by_subjects_num_rows_config_json =
-            serde_json::to_vec(&group_by_subjects_num_rows_config).unwrap();
-        let group_by_subjects_num_rows_state = TableBuilder::new()
-            .with_name(self.group_by_subjects_num_rows_processor_name)
-            .with_json(&group_by_subjects_num_rows_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let select_subjects_num_rows_config = DataConfig {
-            ..Default::default()
-        };
-        let select_subjects_num_rows_config_json =
-            serde_json::to_vec(&select_subjects_num_rows_config).unwrap();
-        let select_subjects_num_rows_state = TableBuilder::new()
-            .with_name(self.select_subjects_num_rows_processor_name)
-            .with_json(&select_subjects_num_rows_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let join_subjects_num_rows_delta_config = DataConfig {
-            ..Default::default()
-        };
-        let join_subjects_num_rows_delta_config_json =
-            serde_json::to_vec(&join_subjects_num_rows_delta_config).unwrap();
-        let join_subjects_num_rows_delta_state = TableBuilder::new()
-            .with_name(self.join_subjects_num_rows_delta_processor_name)
-            .with_json(&join_subjects_num_rows_delta_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let add_subjects_num_rows_delta_config = DataConfig {
-            ..Default::default()
-        };
-        let add_subjects_num_rows_delta_config_json =
-            serde_json::to_vec(&add_subjects_num_rows_delta_config).unwrap();
-        let add_subjects_num_rows_delta_state = TableBuilder::new()
-            .with_name(self.add_subjects_num_rows_delta_processor_name)
-            .with_json(&add_subjects_num_rows_delta_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let select_subjects_num_rows_delta_config = DataConfig {
-            ..Default::default()
-        };
-        let select_subjects_num_rows_delta_config_json =
-            serde_json::to_vec(&select_subjects_num_rows_delta_config).unwrap();
-        let select_subjects_num_rows_delta_state = TableBuilder::new()
-            .with_name(self.select_subjects_num_rows_delta_processor_name)
-            .with_json(&select_subjects_num_rows_delta_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let group_by_tasks_run_log_timestamp_config = DataConfig {
-            ..Default::default()
-        };
-        let group_by_tasks_run_log_timestamp_config_json =
-            serde_json::to_vec(&group_by_tasks_run_log_timestamp_config).unwrap();
-        let group_by_tasks_run_log_timestamp_state = TableBuilder::new()
-            .with_name(self.group_by_tasks_run_log_timestamp_processor_name)
-            .with_json(&group_by_tasks_run_log_timestamp_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let select_tasks_run_log_timestamp_config = DataConfig {
-            ..Default::default()
-        };
-        let select_tasks_run_log_timestamp_config_json =
-            serde_json::to_vec(&select_tasks_run_log_timestamp_config).unwrap();
-        let select_tasks_run_log_timestamp_state = TableBuilder::new()
-            .with_name(self.select_tasks_run_log_timestamp_processor_name)
-            .with_json(&select_tasks_run_log_timestamp_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-        
-        let filter_processors_subscriptions_config = DataConfig {
-            ..Default::default()
-        };
-        let filter_processors_subscriptions_config_json =
-            serde_json::to_vec(&filter_processors_subscriptions_config).unwrap();
-        let filter_processors_subscriptions_state = TableBuilder::new()
-            .with_name(self.filter_processors_subscriptions_processor_name)
-            .with_json(&filter_processors_subscriptions_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let join_tasks_run_log_timestamp_config = DataConfig {
-            ..Default::default()
-        };
-        let join_tasks_run_log_timestamp_config_json =
-            serde_json::to_vec(&join_tasks_run_log_timestamp_config).unwrap();
-        let join_tasks_run_log_timestamp_state = TableBuilder::new()
-            .with_name(self.join_tasks_run_log_timestamp_processor_name)
-            .with_json(&join_tasks_run_log_timestamp_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let join_tasks_processors_subscriptions_config = DataConfig {
-            ..Default::default()
-        };
-        let join_tasks_processors_subscriptions_config_json =
-            serde_json::to_vec(&join_tasks_processors_subscriptions_config).unwrap();
-        let join_tasks_processors_subscriptions_state = TableBuilder::new()
-            .with_name(self.join_tasks_processors_subscriptions_processor_name)
-            .with_json(&join_tasks_processors_subscriptions_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let join_tasks_processors_subscriptions_subjects_config = DataConfig {
-            ..Default::default()
-        };
-        let join_tasks_processors_subscriptions_subjects_config_json =
-            serde_json::to_vec(&join_tasks_processors_subscriptions_subjects_config).unwrap();
-        let join_tasks_processors_subscriptions_subjects_state = TableBuilder::new()
-            .with_name(self.join_tasks_processors_subscriptions_subjects_processor_name)
-            .with_json(&join_tasks_processors_subscriptions_subjects_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let select_tasks_processors_subscriptions_subjects_config = DataConfig {
-            ..Default::default()
-        };
-        let select_tasks_processors_subscriptions_subjects_config_json =
-            serde_json::to_vec(&select_tasks_processors_subscriptions_subjects_config).unwrap();
-        let select_tasks_processors_subscriptions_subjects_state = TableBuilder::new()
-            .with_name(self.select_tasks_processors_subscriptions_subjects_processor_name)
-            .with_json(&select_tasks_processors_subscriptions_subjects_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let filter_tasks_processors_subscriptions_subjects_config = DataConfig {
-            ..Default::default()
-        };
-        let filter_tasks_processors_subscriptions_subjects_config_json =
-            serde_json::to_vec(&filter_tasks_processors_subscriptions_subjects_config).unwrap();
-        let filter_tasks_processors_subscriptions_subjects_state = TableBuilder::new()
-            .with_name(self.filter_tasks_processors_subscriptions_subjects_processor_name)
-            .with_json(&filter_tasks_processors_subscriptions_subjects_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-        
-        let filter_processors_publications_config = DataConfig {
-            ..Default::default()
-        };
-        let filter_processors_publications_config_json =
-            serde_json::to_vec(&filter_processors_publications_config).unwrap();
-        let filter_processors_publications_state = TableBuilder::new()
-            .with_name(self.filter_processors_publications_processor_name)
-            .with_json(&filter_processors_publications_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let select_tasks_ready_to_run_config = DataConfig {
-            ..Default::default()
-        };
-        let select_tasks_ready_to_run_config_json =
-            serde_json::to_vec(&select_tasks_ready_to_run_config).unwrap();
-        let select_tasks_ready_to_run_state = TableBuilder::new()
-            .with_name(self.select_tasks_ready_to_run_processor_name)
-            .with_json(&select_tasks_ready_to_run_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-        
-        let join_tasks_processors_publications_config = DataConfig {
-            ..Default::default()
-        };
-        let join_tasks_processors_publications_config_json =
-            serde_json::to_vec(&join_tasks_processors_publications_config).unwrap();
-        let join_tasks_processors_publications_state = TableBuilder::new()
-            .with_name(self.join_tasks_processors_publications_processor_name)
-            .with_json(&join_tasks_processors_publications_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        let select_tasks_processors_publications_config = DataConfig {
-            ..Default::default()
-        };
-        let select_tasks_processors_publications_config_json =
-            serde_json::to_vec(&select_tasks_processors_publications_config).unwrap();
-        let select_tasks_processors_publications_state = TableBuilder::new()
-            .with_name(self.select_tasks_processors_publications_processor_name)
-            .with_json(&select_tasks_processors_publications_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-        
-        let aggregate_tasks_processors_publications_config = DataConfig {
-            ..Default::default()
-        };
-        let aggregate_tasks_processors_publications_config_json =
-            serde_json::to_vec(&aggregate_tasks_processors_publications_config).unwrap();
-        let aggregate_tasks_processors_publications_state = TableBuilder::new()
-            .with_name(self.aggregate_tasks_processors_publications_processor_name)
-            .with_json(&aggregate_tasks_processors_publications_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        Some(vec![extract_tasks_state,
-            group_by_subject_change_log_delta_state,
-            select_subject_change_log_delta_state,
-            group_by_subjects_num_rows_state,
-            select_subjects_num_rows_state,
-            join_subjects_num_rows_delta_state,
-            add_subjects_num_rows_delta_state,
-            select_subjects_num_rows_delta_state,
-            group_by_tasks_run_log_timestamp_state,
-            select_tasks_run_log_timestamp_state,
-            filter_processors_subscriptions_state,
-            join_tasks_run_log_timestamp_state,
-            join_tasks_processors_subscriptions_state,
-            join_tasks_processors_subscriptions_subjects_state,
-            select_tasks_processors_subscriptions_subjects_state,
-            filter_tasks_processors_subscriptions_subjects_state,
-            filter_processors_publications_state,
-            select_tasks_ready_to_run_state,
-            join_tasks_processors_publications_state,
-            select_tasks_processors_publications_state,
-            aggregate_tasks_processors_publications_state,
-            AvailableInterfaceSubjects::UserCsv
-                .to_table(None, None)
-                .unwrap(),
-            AvailableSubjects::SessionTasksInbox.to_table(None, None).unwrap(),
-            AvailableSubjects::SubjectsChangeLog.to_table(None, None).unwrap(),
-            AvailableSubjects::Empty.to_table(Some(self.group_by_subject_change_log_delta_task_name), None).unwrap(),
-            AvailableSubjects::SubjectsChangeLog.to_table(Some(self.select_subject_change_log_delta_task_name), None).unwrap(),
-            AvailableSubjects::Empty.to_table(Some(self.group_by_subjects_num_rows_task_name), None).unwrap(),
-            AvailableSubjects::SubjectsNumRows.to_table(Some(self.select_subjects_num_rows_task_name), None).unwrap(),
-            AvailableSubjects::SessionTasksRunLog.to_table(None, None).unwrap(),
-            AvailableSubjects::Empty.to_table(Some(self.group_by_tasks_run_log_timestamp_task_name), None).unwrap(),
-            AvailableSubjects::SessionTasksRunLog.to_table(Some(self.select_tasks_run_log_timestamp_task_name), None).unwrap(),
-            AvailableSubjects::SessionProcessors.to_table(None, None).unwrap(),
-            AvailableSubjects::SessionProcessors.to_table(Some(self.filter_processors_subscriptions_task_name), None).unwrap(),
-            AvailableSubjects::Empty.to_table(Some(self.join_tasks_run_log_timestamp_task_name), None).unwrap(),
-            AvailableSubjects::Empty.to_table(Some(self.join_tasks_processors_subscriptions_task_name), None).unwrap(),
-            AvailableSubjects::Empty.to_table(Some(self.join_tasks_processors_subscriptions_subjects_task_name), None).unwrap(),
-			// DM: could define the schema
-            AvailableSubjects::Empty.to_table(Some(self.select_tasks_processors_subscriptions_subjects_task_name), None).unwrap(),
-            AvailableSubjects::Empty.to_table(Some(self.filter_tasks_processors_subscriptions_subjects_task_name), None).unwrap(),
-            AvailableSubjects::SessionProcessors.to_table(Some(self.filter_processors_publications_task_name), None).unwrap(),
-            AvailableSubjects::SessionTasksInbox.to_table(Some(self.select_tasks_ready_to_run_task_name), None).unwrap(),
-            AvailableSubjects::Empty.to_table(Some(self.join_tasks_processors_publications_task_name), None).unwrap(),
-			// DM: could define the schema
-            AvailableSubjects::Empty.to_table(Some(self.select_tasks_processors_publications_task_name), None).unwrap(),
-            AvailableInterfaceSubjects::AssistantCsv
-                .to_table(None, None)
-                .unwrap(),
-        ])
+    SessionTasksInbox["SessionTasksInbox"] {
+        Utf8 session_name
+        Utf8 task_name
     }
-}
-
-#[allow(dead_code)]
-pub(crate) mod user_session_inner {
-    use anyhow::Result;
-    use parking_lot::RwLock;
-    use phymes_core::{
-        BlobBuilderTraitExt, BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait,
-        TableTrait, create_user_inbox_batch,
-    };
-
-    use crate::{
-        SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream,
-        SessionStreamState, create_message_map,
-    };
-
-    use super::*;
-
-    pub fn user_session() -> Result<(Arc<RwLock<SessionStreamState>>, SessionStream)> {
-        // initialize the session
-        let user_agent_session = SubjectsSession::default();
-        let session_ctx = user_agent_session
-            .build()
-            .with_name(user_agent_session.session_context_name)
-            .with_diagnostics(true)
-            .build_with_tables()?;
-        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
-
-        // Make the tabular data
-        let batch = create_user_inbox_batch(vec!["contact@biom8er.com".to_string()])?;
-        let bytes = Table::get_builder()
-            .with_record_batches(vec![batch])?
-            .with_name(AvailableInterfaceSubjects::UserJson.to_string().as_str())
-            .build()?
-            .to_json()?;
-
-        // Wrap into the message
-        let blob = AvailableInterfaceSubjects::UserJson
-            .to_table_builder(None)
-            .with_blob(None, Some("json"), &bytes, None)?
-            .build()?;
-        let blob_message = IPCMessage::get_builder()
-            .with_message(blob.to_ipc_stream()?)
-            .with_subject(blob.get_name())
-            .with_update(&TablePublication::Replace {
-                table_name: blob.get_name().to_string(),
-            })
-            .with_publisher(user_agent_session.session_context_name)
-            .make_name()?
-            .build()?;
-        let message_map = create_message_map(vec![blob_message]);
-
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
-
-        Ok((session_stream_state, session_stream))
+    SessionTasksRunLog["SessionTasksRunLog"] {
+        Utf8 session_name
+        Utf8 task_name
+        Int64 timestamp
+    }
+    group_by_tasks_run_log_timestamp_p["group_by_tasks_run_log_timestamp_p"] {
+        List-Utf8 agg_columns "['timestamp']"
+        List-Utf8 agg_operators "['Last']"
+        Boolean cpu "false"
+        Utf8 lhs_name "SessionTasksRunLog"
+        List-Utf8 lhs_values "['task_name']"
+        Utf8 operator "GroupBy"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_tasks_run_log_timestamp_p["select_tasks_run_log_timestamp_p"] {
+        List-Utf8 as_columns "['','timestamp']"
+        List-Utf8 cast_datatypes "['Utf8','Int64 ']"
+        List-Utf8 cast_operators "['None','None']"
+        List-Utf8 cast_templates "['','']"
+        List-Utf8 column_operators "['None','None']"
+        Boolean cpu "false"
+        Utf8 lhs_name "group_by_tasks_run_log_timestamp_t"
+        List-Utf8 lhs_values "['task_name','timestamp-Last']"
+        Utf8 operator "Select"
+        List-Utf8 rhs_values "['','']"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_tasks_run_log_timestamp_t["select_tasks_run_log_timestamp_t"] {
+        Utf8 task_name
+        Int64 timestamp
+    }
+    SessionProcessors["SessionProcessors"] {
+        Utf8 session_name
+        Utf8 processor_name
+        Utf8 processor_type
+        Utf8 publication_subscription_name
+        Utf8 publication_subscription_table_names
+        Utf8 subscribe_type
+        UInt8 is_subscription
+    }
+    cmp_processors_subscriptions_p["cmp_processors_subscriptions_p"] {
+        List-Utf8 as_columns "['','','','','','','','']"
+        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','UInt8','UInt8']"
+        List-Utf8 cast_operators "['None','None','None','None','None','None','None','None']"
+        List-Utf8 cast_templates "['','','','','','','','1']"
+        List-Utf8 column_operators "['None','None','None','None','None','None','None','None']"
+        Boolean cpu "false"
+        Utf8 lhs_name "SessionProcessors"
+        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_names','subscribe_type','is_subscription','subscription']"
+        Utf8 operator "Select"
+        List-Utf8 rhs_values "['','','','','','','','']"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    filter_processors_subscriptions_p["filter_processors_subscriptions_p"] {
+        List-Utf8 cmp_columns "['subscription']"
+        List-Utf8 cmp_operators "['Equals']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "cmp_processors_subscriptions_t"
+        List-Utf8 lhs_values "['is_subscription']"
+        Utf8 operator "Filter"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_processors_subscriptions_p["select_processors_subscriptions_p"] {
+        List-Utf8 as_columns "['','','','','','','']"
+        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','UInt8']"
+        List-Utf8 cast_operators "['None','None','None','None','None','None','None']"
+        List-Utf8 cast_templates "['','','','','','','']"
+        List-Utf8 column_operators "['None','None','None','None','None','None','None']"
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_processors_subscriptions_t"
+        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_names','subscribe_type','is_subscription']"
+        Utf8 operator "Select"
+        List-Utf8 rhs_values "['','','','','','','']"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_processors_subscriptions_t["select_processors_subscriptions_t"] {
+        Utf8 session_name
+        Utf8 processor_name
+        Utf8 processor_type
+        Utf8 publication_subscription_name
+        Utf8 publication_subscription_table_names
+        Utf8 subscribe_type
+        UInt8 is_subscription
+    }
+    cmp_processors_publications_p["cmp_processors_publications_p"] {
+        List-Utf8 as_columns "['','','','','','','','']"
+        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','UInt8','UInt8']"
+        List-Utf8 cast_operators "['None','None','None','None','None','None','None','None']"
+        List-Utf8 cast_templates "['','','','','','','','0']"
+        List-Utf8 column_operators "['None','None','None','None','None','None','None','None']"
+        Boolean cpu "false"
+        Utf8 lhs_name "SessionProcessors"
+        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_names','subscribe_type','is_subscription','publication']"
+        Utf8 operator "Select"
+        List-Utf8 rhs_values "['','','','','','','','']"
+    }
+    filter_processors_publications_p["filter_processors_publications_p"] {
+        List-Utf8 cmp_columns "['publication']"
+        List-Utf8 cmp_operators "['Equals']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "cmp_processors_publications_t"
+        List-Utf8 lhs_values "['is_subscription']"
+        Utf8 operator "Filter"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_processors_publications_p["select_processors_publications_p"] {
+        List-Utf8 as_columns "['','','','','','','']"
+        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','UInt8']"
+        List-Utf8 cast_operators "['None','None','None','None','None','None','None']"
+        List-Utf8 cast_templates "['','','','','','','']"
+        List-Utf8 column_operators "['None','None','None','None','None','None','None']"
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_processors_publications_t"
+        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_names','subscribe_type','is_subscription']"
+        Utf8 operator "Select"
+        List-Utf8 rhs_values "['','','','','','','']"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_processors_publications_t["select_processors_publications_t"] {
+        Utf8 session_name
+        Utf8 processor_name
+        Utf8 processor_type
+        Utf8 publication_subscription_name
+        Utf8 publication_subscription_table_names
+        Utf8 subscribe_type
+        UInt8 is_subscription
+    }
+    SubjectsChangeLog["SubjectsChangeLog"] {
+        Utf8 subject_name
+        Utf8 task_name
+        Utf8 session_name
+        Int64 num_rows_delta
+        Int64 timestamp
+    }
+    group_by_subject_change_log_delta_p["group_by_subject_change_log_delta_p"] {
+        List-Utf8 agg_columns "['num_rows_delta']"
+        List-Utf8 agg_operators "['Sum']"
+        Boolean cpu "false"
+        Utf8 lhs_name "SubjectsChangeLog"
+        List-Utf8 lhs_values "['subject_name']"
+        Utf8 operator "GroupBy"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_subject_change_log_delta_p["select_subject_change_log_delta_p"] {
+        List-Utf8 as_columns "['','num_rows']"
+        List-Utf8 cast_datatypes "['Utf8','Int64']"
+        List-Utf8 cast_operators "['None','None']"
+        List-Utf8 cast_templates "['','']"
+        List-Utf8 column_operators "['None','None']"
+        Boolean cpu "false"
+        Utf8 lhs_name "group_by_subject_change_log_delta_t"
+        List-Utf8 lhs_values "['subject_name','num_rows_delta-Sum']"
+        Utf8 operator "Select"
+        List-Utf8 rhs_values "['','']"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    SubjectsNumRows["SubjectsNumRows"] {
+        Utf8 subject_name
+        Int64 num_rows
+    }
+    group_by_subjects_num_rows_p["group_by_subjects_num_rows_p"] {
+        List-Utf8 agg_columns "['num_rows']"
+        List-Utf8 agg_operators "['Sum']"
+        Boolean cpu "false"
+        Utf8 lhs_name "SubjectsNumRows"
+        List-Utf8 lhs_values "['subject_name']"
+        Utf8 operator "GroupBy"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_subjects_num_rows_delta_p["select_subjects_num_rows_delta_p"] {
+        List-Utf8 as_columns "['','num_rows']"
+        List-Utf8 cast_datatypes "['Utf8','Int64 ']"
+        List-Utf8 cast_operators "['None','None']"
+        List-Utf8 cast_templates "['','']"
+        List-Utf8 column_operators "['','']"
+        Boolean cpu "false"
+        Utf8 lhs_name "group_by_subjects_num_rows_t"
+        List-Utf8 lhs_values "['subject_name','num_rows-Sum']"
+        Utf8 operator "Select"
+        List-Utf8 rhs_values "['','num_rows_delta-Sum']"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    group_by_subject_change_log_timestamp_p["group_by_subject_change_log_timestamp_p"] {
+        List-Utf8 agg_columns "['timestamp']"
+        List-Utf8 agg_operators "['Last']"
+        Boolean cpu "false"
+        Utf8 lhs_name "SubjectsChangeLog"
+        List-Utf8 lhs_values "['subject_name','task_name','session_name']"
+        Utf8 operator "GroupBy"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    join_tasks_run_log_timestamp_p["join_tasks_run_log_timestamp_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_fk "task_name"
+        Utf8 lhs_name "select_tasks_run_log_timestamp_t"
+        Utf8 lhs_pk "task_name"
+        Utf8 operator "Join"
+        Utf8 rhs_fk "task_name"
+        Utf8 rhs_name "SessionTasksInbox"
+        Utf8 rhs_pk "task_name"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    SessionTasks["SessionTasks"] {
+        Utf8 session_name
+        Utf8 task_name
+        Utf8 processor_name
+        Utf8 runtime_env_name
+    }
+    join_tasks_processors_p["join_tasks_processors_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_fk "task_name"
+        Utf8 lhs_name "join_tasks_run_log_timestamp_t"
+        Utf8 lhs_pk "task_name"
+        Utf8 operator "Join"
+        Utf8 rhs_fk "task_name"
+        Utf8 rhs_name "SessionTasks"
+        Utf8 rhs_pk "task_name"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    join_tasks_processors_subscriptions_p["join_tasks_processors_subscriptions_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_fk "processor_name"
+        Utf8 lhs_name "join_tasks_processors_t"
+        Utf8 lhs_pk "processor_name"
+        Utf8 operator "Join"
+        Utf8 rhs_fk "processor_name"
+        Utf8 rhs_name "select_processors_subscriptions_t"
+        Utf8 rhs_pk "processor_name"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    join_tasks_processors_subscriptions_subjects_p["join_tasks_processors_subscriptions_subjects_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_fk "subject_name"
+        Utf8 lhs_name "join_tasks_processors_subscriptions_t"
+        Utf8 lhs_pk "subject_name"
+        Utf8 operator "Join"
+        Utf8 rhs_fk "subject_name"
+        Utf8 rhs_name "group_by_subject_change_log_timestamp_t"
+        Utf8 rhs_pk "subject_name"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_tasks_processors_subscriptions_subjects_p["select_tasks_processors_subscriptions_subjects_p"] {
+        List-Utf8 as_columns "['','','','','','','','','']"
+        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Int64','Int64']"
+        List-Utf8 cast_operators "['None','None','None','None','None','None','None','None','None']"
+        List-Utf8 cast_templates "['','','','','','','','','']"
+        List-Utf8 column_operators "['None','None','None','None','None','None','None','None','None']"
+        Boolean cpu "false"
+        Utf8 lhs_name "join_tasks_processors_subscriptions_subjects_t"
+        List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','timestamp','timestamp-Last']"
+        Utf8 operator "Select"
+        List-Utf8 rhs_values "['','','','','','','','','']"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    filter_tasks_processors_subscriptions_subjects_p["filter_tasks_processors_subscriptions_subjects_p"] {
+        List-Utf8 cmp_columns "['timestamp-Last']"
+        List-Utf8 cmp_operators "['GreaterThanOrEqualTo']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "lhs_name"
+        List-Utf8 lhs_values "['timestamp']"
+        Utf8 operator "Filter"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    filter_tasks_processors_subscriptions_subjects_t["filter_tasks_processors_subscriptions_subjects_t"] {
+        Utf8 session_name
+        Utf8 task_name
+        Utf8 processor_name
+        Utf8 processor_type
+        Utf8 publication_subscription_name
+        Utf8 publication_subscription_table_name
+        Utf8 subscribe_type
+    }
+    select_tasks_ready_to_run_p["select_tasks_ready_to_run_p"] {
+        List-Utf8 as_columns "['as_columns']"
+        List-Utf8 cast_datatypes "['Utf8']"
+        List-Utf8 cast_operators "['None']"
+        List-Utf8 cast_templates "['cast_template']"
+        List-Utf8 column_operators "['None']"
+        Boolean cpu "false"
+        Utf8 lhs_name "lhs_name"
+        List-Utf8 lhs_values "['lhs_values']"
+        Utf8 operator "Select"
+        List-Utf8 rhs_values "['rhs_values']"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    join_tasks_ready_to_run_p["join_tasks_ready_to_run_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_fk "task_name"
+        Utf8 lhs_name "select_tasks_ready_to_run_t"
+        Utf8 lhs_pk "task_name"
+        Utf8 operator "Join"
+        Utf8 rhs_fk "task_name"
+        Utf8 rhs_name "SessionTasks"
+        Utf8 rhs_pk "task_name"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    join_tasks_processors_publications_p["join_tasks_processors_publications_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_fk "processor_name"
+        Utf8 lhs_name "join_tasks_ready_to_run_t"
+        Utf8 lhs_pk "processor_name"
+        Utf8 operator "Join"
+        Utf8 rhs_fk "processor_name"
+        Utf8 rhs_name "select_processors_publications_t"
+        Utf8 rhs_pk "processor_name"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_tasks_processors_publications_p["select_tasks_processors_publications_p"] {
+        List-Utf8 as_columns "['','','','','','','']"
+        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+        List-Utf8 cast_operators "['None','None','None','None','None','None','None']"
+        List-Utf8 cast_templates "['','','','','','','']"
+        List-Utf8 column_operators "['None','None','None','None','None','None','None']"
+        Boolean cpu "false"
+        Utf8 lhs_name "join_tasks_processors_publications_t"
+        List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type']"
+        Utf8 operator "Select"
+        List-Utf8 rhs_values "['','','','','','','']"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_tasks_processors_publications_t["select_tasks_processors_publications_t"] {
+        Utf8 session_name
+        Utf8 task_name
+        Utf8 processor_name
+        Utf8 processor_type
+        Utf8 publication_subscription_name
+        Utf8 publication_subscription_table_name
+        Utf8 subscribe_type
+    }
+    AssistantMessages["AssistantMessages"] {
+        Utf8 role
+        Utf8 content
+        Int64 timestamp
+    }
+    UserMessages["UserMessages"] {
+        Utf8 role
+        Utf8 content
+        Int64 timestamp
+    }
+    aggregate_tasks_processors_publications_p["aggregate_tasks_processors_publications_p"] {
+        Boolean asc "true"
+        Boolean cpu "false"
+        List-Utf8 lhs_values "['timestamp']"
+        Utf8 operator "Sort"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    AssistantCsv["AssistantCsv"] {
+        Utf8 filename
+        Utf8 extension
+        List-UInt8 bytes
+        Utf8 metadata
+        Int64 timestamp
+    }"#
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{IPCMessage, MappableTrait, MessageTrait, TableTrait};
+    use phymes_core::{BuilderTrait, IPCMessage, MappableTrait, MessageTrait, TableTrait};
     use phymes_diagnostics::HashMap;
 
-    use crate::{SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionStream, SessionStreamState, create_message_map};
+    use crate::{SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamState, create_message_map};
 
     use super::*;
 
@@ -1009,22 +685,22 @@ mod tests {
     async fn test_subjects_session() -> Result<()> {
         // Initialize the session
         let subjects_session = SubjectsSession::default();
-        let session_ctx = subjects_session
-            .build()
-            .with_name(subjects_session.session_context_name)
-            .to_mermaid_flowchart(false, false)?;
-        dbg!(&session_ctx);
-        //     .add_session_interface(None)?
-        //     .build_with_tables()?;
-        // let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
+        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(subjects_session.as_mermaid_flowchart(), true)?
+            .with_state_from_mermaid_erdiagram(subjects_session.as_mermaid_erdiagram(), true, true)?
+            .with_name(subjects_session.session_context_name)            
+            .with_diagnostics(true)
+            .add_processor_subjects().unwrap()
+            .add_session_interface(None).unwrap()
+            .build_with_tables()?;
+        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
         
-        // // Create the messages
-        // let message_map = create_message_map(vec![chat_message, blob_message]);
+        // Create the messages
+        let message_map = create_message_map(vec![]);
 
-        // // Run the session
-        // let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
-        // let mut response: Vec<HashMap<String, IPCMessage>> =
-        //     session_stream.try_collect().await?;
+        // Run the session
+        let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+        let mut response: Vec<HashMap<String, IPCMessage>> =
+            session_stream.try_collect().await?;
 
 
         Ok(())

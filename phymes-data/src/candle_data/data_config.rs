@@ -51,7 +51,7 @@ impl Display for DataStreamManager {
 /// - `First` and `Last` can be applied to all [DataType]s.
 ///
 /// [DataType]: arrow::datatypes::DataType
-#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
 pub enum DataAggregatorOperator {
     #[value(name = "Max")]
     Max,
@@ -63,6 +63,7 @@ pub enum DataAggregatorOperator {
     Mean,
     #[value(name = "Var")]
     Var,
+    #[default]
     #[value(name = "Count")]
     Count,
     #[value(name = "Concat")]
@@ -217,7 +218,7 @@ impl Display for DataDistanceOperator {
 /// Casting allows for converting between DateTime strings and numeric Timestamps
 ///
 /// [arrow_cast]: <https://arrow.apache.org/rust/arrow_cast/index.html>
-#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
 pub enum DataCastOperator {
     // #[value(name = "Base64Encode")]
     // Base64Encode,
@@ -229,6 +230,7 @@ pub enum DataCastOperator {
     BytesToString,
     #[value(name = "Hash")]
     Hash,
+    #[default]
     #[value(name = "None")]
     None,
 }
@@ -259,7 +261,7 @@ impl Display for DataCastOperator {
 /// - `First` and `Last` can be applied to all [DataType]s.
 ///
 /// [DataType]: arrow::datatypes::DataType
-#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
 pub enum DataColumnOperator {
     #[value(name = "And")]
     And,
@@ -297,6 +299,7 @@ pub enum DataColumnOperator {
     Concat,
     #[value(name = "Len")]
     Len,
+    #[default]
     #[value(name = "None")]
     None,
 }
