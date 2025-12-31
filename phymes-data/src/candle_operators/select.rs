@@ -2347,18 +2347,9 @@ pub fn select(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<u32>(
-                        &find_column(
-                            &lhs_table,
-                            &batch_missing_vec,
-                            rhs_values.get(index).unwrap(),
-                        )?,
-                        column_name,
-                    )?;
                     let agg_values = lhs_vec
-                        .into_iter()
-                        .zip(rhs_vec.into_iter())
-                        .map(|(l, r)| vec![l, r])
+                        .iter()
+                        .map(|_| lhs_vec.clone())
                         .collect::<Vec<_>>();
                     build_aggregator_column_list_primitive::<u32, UInt32Type>(
                         agg_values,
@@ -2370,18 +2361,9 @@ pub fn select(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<i64>(
-                        &find_column(
-                            &lhs_table,
-                            &batch_missing_vec,
-                            rhs_values.get(index).unwrap(),
-                        )?,
-                        column_name,
-                    )?;
                     let agg_values = lhs_vec
-                        .into_iter()
-                        .zip(rhs_vec.into_iter())
-                        .map(|(l, r)| vec![l, r])
+                        .iter()
+                        .map(|_| lhs_vec.clone())
                         .collect::<Vec<_>>();
                     build_aggregator_column_list_primitive::<i64, Int64Type>(
                         agg_values,
@@ -2393,18 +2375,9 @@ pub fn select(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<f32>(
-                        &find_column(
-                            &lhs_table,
-                            &batch_missing_vec,
-                            rhs_values.get(index).unwrap(),
-                        )?,
-                        column_name,
-                    )?;
                     let agg_values = lhs_vec
-                        .into_iter()
-                        .zip(rhs_vec.into_iter())
-                        .map(|(l, r)| vec![l, r])
+                        .iter()
+                        .map(|_| lhs_vec.clone())
                         .collect::<Vec<_>>();
                     build_aggregator_column_list_primitive::<f32, Float32Type>(
                         agg_values,
@@ -2416,18 +2389,9 @@ pub fn select(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<f64>(
-                        &find_column(
-                            &lhs_table,
-                            &batch_missing_vec,
-                            rhs_values.get(index).unwrap(),
-                        )?,
-                        column_name,
-                    )?;
                     let agg_values = lhs_vec
-                        .into_iter()
-                        .zip(rhs_vec.into_iter())
-                        .map(|(l, r)| vec![l, r])
+                        .iter()
+                        .map(|_| lhs_vec.clone())
                         .collect::<Vec<_>>();
                     build_aggregator_column_list_primitive::<f64, Float64Type>(
                         agg_values,
@@ -2439,18 +2403,9 @@ pub fn select(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let rhs_vec = Table::get_array_as_vec_nonprimitive::<String>(
-                        &find_column(
-                            &lhs_table,
-                            &batch_missing_vec,
-                            rhs_values.get(index).unwrap(),
-                        )?,
-                        column_name,
-                    )?;
                     let agg_values = lhs_vec
-                        .into_iter()
-                        .zip(rhs_vec.into_iter())
-                        .map(|(l, r)| vec![l, r])
+                        .iter()
+                        .map(|_| lhs_vec.clone())
                         .collect::<Vec<_>>();
                     build_aggregator_column_list_nonprimitive::<String>(
                         agg_values,
@@ -2470,33 +2425,11 @@ pub fn select(
                                         .unwrap_or_default()
                                 })
                             })
+                            .flatten()
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(
-                            &lhs_table,
-                            &batch_missing_vec,
-                            rhs_values.get(index).unwrap(),
-                        )?
-                        .as_any()
-                        .downcast_ref::<FixedSizeListArray>()
-                        .unwrap()
-                        .iter()
-                        .filter_map(|s| {
-                            s.map(|s| {
-                                Table::get_array_as_vec_primitive::<u8>(
-                                    &s,
-                                    rhs_values.get(index).unwrap(),
-                                )
-                                .unwrap_or_default()
-                            })
-                        })
-                        .collect::<Vec<_>>();
                         let agg_values = lhs_vec
-                            .into_iter()
-                            .zip(rhs_vec.into_iter())
-                            .map(|(mut l, r)| {
-                                l.extend(r);
-                                l
-                            })
+                            .iter()
+                            .map(|_| lhs_vec.clone())
                             .collect::<Vec<_>>();
                         build_aggregator_column_fixed_size_list::<u8>(
                             agg_values,
@@ -2515,33 +2448,11 @@ pub fn select(
                                         .unwrap_or_default()
                                 })
                             })
+                            .flatten()
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(
-                            &lhs_table,
-                            &batch_missing_vec,
-                            rhs_values.get(index).unwrap(),
-                        )?
-                        .as_any()
-                        .downcast_ref::<FixedSizeListArray>()
-                        .unwrap()
-                        .iter()
-                        .filter_map(|s| {
-                            s.map(|s| {
-                                Table::get_array_as_vec_primitive::<u32>(
-                                    &s,
-                                    rhs_values.get(index).unwrap(),
-                                )
-                                .unwrap_or_default()
-                            })
-                        })
-                        .collect::<Vec<_>>();
                         let agg_values = lhs_vec
-                            .into_iter()
-                            .zip(rhs_vec.into_iter())
-                            .map(|(mut l, r)| {
-                                l.extend(r);
-                                l
-                            })
+                            .iter()
+                            .map(|_| lhs_vec.clone())
                             .collect::<Vec<_>>();
                         build_aggregator_column_fixed_size_list::<u32>(
                             agg_values,
@@ -2560,33 +2471,11 @@ pub fn select(
                                         .unwrap_or_default()
                                 })
                             })
+                            .flatten()
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(
-                            &lhs_table,
-                            &batch_missing_vec,
-                            rhs_values.get(index).unwrap(),
-                        )?
-                        .as_any()
-                        .downcast_ref::<FixedSizeListArray>()
-                        .unwrap()
-                        .iter()
-                        .filter_map(|s| {
-                            s.map(|s| {
-                                Table::get_array_as_vec_primitive::<i64>(
-                                    &s,
-                                    rhs_values.get(index).unwrap(),
-                                )
-                                .unwrap_or_default()
-                            })
-                        })
-                        .collect::<Vec<_>>();
                         let agg_values = lhs_vec
-                            .into_iter()
-                            .zip(rhs_vec.into_iter())
-                            .map(|(mut l, r)| {
-                                l.extend(r);
-                                l
-                            })
+                            .iter()
+                            .map(|_| lhs_vec.clone())
                             .collect::<Vec<_>>();
                         build_aggregator_column_fixed_size_list::<i64>(
                             agg_values,
@@ -2605,33 +2494,11 @@ pub fn select(
                                         .unwrap_or_default()
                                 })
                             })
+                            .flatten()
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(
-                            &lhs_table,
-                            &batch_missing_vec,
-                            rhs_values.get(index).unwrap(),
-                        )?
-                        .as_any()
-                        .downcast_ref::<FixedSizeListArray>()
-                        .unwrap()
-                        .iter()
-                        .filter_map(|s| {
-                            s.map(|s| {
-                                Table::get_array_as_vec_primitive::<f32>(
-                                    &s,
-                                    rhs_values.get(index).unwrap(),
-                                )
-                                .unwrap_or_default()
-                            })
-                        })
-                        .collect::<Vec<_>>();
                         let agg_values = lhs_vec
-                            .into_iter()
-                            .zip(rhs_vec.into_iter())
-                            .map(|(mut l, r)| {
-                                l.extend(r);
-                                l
-                            })
+                            .iter()
+                            .map(|_| lhs_vec.clone())
                             .collect::<Vec<_>>();
                         build_aggregator_column_fixed_size_list::<f32>(
                             agg_values,
@@ -2650,33 +2517,11 @@ pub fn select(
                                         .unwrap_or_default()
                                 })
                             })
+                            .flatten()
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(
-                            &lhs_table,
-                            &batch_missing_vec,
-                            rhs_values.get(index).unwrap(),
-                        )?
-                        .as_any()
-                        .downcast_ref::<FixedSizeListArray>()
-                        .unwrap()
-                        .iter()
-                        .filter_map(|s| {
-                            s.map(|s| {
-                                Table::get_array_as_vec_primitive::<f64>(
-                                    &s,
-                                    rhs_values.get(index).unwrap(),
-                                )
-                                .unwrap_or_default()
-                            })
-                        })
-                        .collect::<Vec<_>>();
                         let agg_values = lhs_vec
-                            .into_iter()
-                            .zip(rhs_vec.into_iter())
-                            .map(|(mut l, r)| {
-                                l.extend(r);
-                                l
-                            })
+                            .iter()
+                            .map(|_| lhs_vec.clone())
                             .collect::<Vec<_>>();
                         build_aggregator_column_fixed_size_list::<f64>(
                             agg_values,
@@ -2695,33 +2540,11 @@ pub fn select(
                                         .unwrap_or_default()
                                 })
                             })
+                            .flatten()
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(
-                            &lhs_table,
-                            &batch_missing_vec,
-                            rhs_values.get(index).unwrap(),
-                        )?
-                        .as_any()
-                        .downcast_ref::<FixedSizeListArray>()
-                        .unwrap()
-                        .iter()
-                        .filter_map(|s| {
-                            s.map(|s| {
-                                Table::get_array_as_vec_nonprimitive::<String>(
-                                    &s,
-                                    rhs_values.get(index).unwrap(),
-                                )
-                                .unwrap_or_default()
-                            })
-                        })
-                        .collect::<Vec<_>>();
                         let agg_values = lhs_vec
-                            .into_iter()
-                            .zip(rhs_vec.into_iter())
-                            .map(|(mut l, r)| {
-                                l.extend(r);
-                                l
-                            })
+                            .iter()
+                            .map(|_| lhs_vec.clone())
                             .collect::<Vec<_>>();
                         build_aggregator_column_list_nonprimitive::<String>(
                             agg_values,
@@ -2748,33 +2571,11 @@ pub fn select(
                                         .unwrap_or_default()
                                 })
                             })
+                            .flatten()
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(
-                            &lhs_table,
-                            &batch_missing_vec,
-                            rhs_values.get(index).unwrap(),
-                        )?
-                        .as_any()
-                        .downcast_ref::<ListArray>()
-                        .unwrap()
-                        .iter()
-                        .filter_map(|s| {
-                            s.map(|s| {
-                                Table::get_array_as_vec_primitive::<u8>(
-                                    &s,
-                                    rhs_values.get(index).unwrap(),
-                                )
-                                .unwrap_or_default()
-                            })
-                        })
-                        .collect::<Vec<_>>();
                         let agg_values = lhs_vec
-                            .into_iter()
-                            .zip(rhs_vec.into_iter())
-                            .map(|(mut l, r)| {
-                                l.extend(r);
-                                l
-                            })
+                            .iter()
+                            .map(|_| lhs_vec.clone())
                             .collect::<Vec<_>>();
                         build_aggregator_column_list_primitive::<u8, UInt8Type>(
                             agg_values,
@@ -2793,33 +2594,11 @@ pub fn select(
                                         .unwrap_or_default()
                                 })
                             })
+                            .flatten()
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(
-                            &lhs_table,
-                            &batch_missing_vec,
-                            rhs_values.get(index).unwrap(),
-                        )?
-                        .as_any()
-                        .downcast_ref::<ListArray>()
-                        .unwrap()
-                        .iter()
-                        .filter_map(|s| {
-                            s.map(|s| {
-                                Table::get_array_as_vec_primitive::<u32>(
-                                    &s,
-                                    rhs_values.get(index).unwrap(),
-                                )
-                                .unwrap_or_default()
-                            })
-                        })
-                        .collect::<Vec<_>>();
                         let agg_values = lhs_vec
-                            .into_iter()
-                            .zip(rhs_vec.into_iter())
-                            .map(|(mut l, r)| {
-                                l.extend(r);
-                                l
-                            })
+                            .iter()
+                            .map(|_| lhs_vec.clone())
                             .collect::<Vec<_>>();
                         build_aggregator_column_list_primitive::<u32, UInt32Type>(
                             agg_values,
@@ -2838,33 +2617,11 @@ pub fn select(
                                         .unwrap_or_default()
                                 })
                             })
+                            .flatten()
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(
-                            &lhs_table,
-                            &batch_missing_vec,
-                            rhs_values.get(index).unwrap(),
-                        )?
-                        .as_any()
-                        .downcast_ref::<ListArray>()
-                        .unwrap()
-                        .iter()
-                        .filter_map(|s| {
-                            s.map(|s| {
-                                Table::get_array_as_vec_primitive::<i64>(
-                                    &s,
-                                    rhs_values.get(index).unwrap(),
-                                )
-                                .unwrap_or_default()
-                            })
-                        })
-                        .collect::<Vec<_>>();
                         let agg_values = lhs_vec
-                            .into_iter()
-                            .zip(rhs_vec.into_iter())
-                            .map(|(mut l, r)| {
-                                l.extend(r);
-                                l
-                            })
+                            .iter()
+                            .map(|_| lhs_vec.clone())
                             .collect::<Vec<_>>();
                         build_aggregator_column_list_primitive::<i64, Int64Type>(
                             agg_values,
@@ -2883,33 +2640,11 @@ pub fn select(
                                         .unwrap_or_default()
                                 })
                             })
+                            .flatten()
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(
-                            &lhs_table,
-                            &batch_missing_vec,
-                            rhs_values.get(index).unwrap(),
-                        )?
-                        .as_any()
-                        .downcast_ref::<ListArray>()
-                        .unwrap()
-                        .iter()
-                        .filter_map(|s| {
-                            s.map(|s| {
-                                Table::get_array_as_vec_primitive::<f32>(
-                                    &s,
-                                    rhs_values.get(index).unwrap(),
-                                )
-                                .unwrap_or_default()
-                            })
-                        })
-                        .collect::<Vec<_>>();
                         let agg_values = lhs_vec
-                            .into_iter()
-                            .zip(rhs_vec.into_iter())
-                            .map(|(mut l, r)| {
-                                l.extend(r);
-                                l
-                            })
+                            .iter()
+                            .map(|_| lhs_vec.clone())
                             .collect::<Vec<_>>();
                         build_aggregator_column_list_primitive::<f32, Float32Type>(
                             agg_values,
@@ -2928,33 +2663,11 @@ pub fn select(
                                         .unwrap_or_default()
                                 })
                             })
+                            .flatten()
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(
-                            &lhs_table,
-                            &batch_missing_vec,
-                            rhs_values.get(index).unwrap(),
-                        )?
-                        .as_any()
-                        .downcast_ref::<ListArray>()
-                        .unwrap()
-                        .iter()
-                        .filter_map(|s| {
-                            s.map(|s| {
-                                Table::get_array_as_vec_primitive::<f64>(
-                                    &s,
-                                    rhs_values.get(index).unwrap(),
-                                )
-                                .unwrap_or_default()
-                            })
-                        })
-                        .collect::<Vec<_>>();
                         let agg_values = lhs_vec
-                            .into_iter()
-                            .zip(rhs_vec.into_iter())
-                            .map(|(mut l, r)| {
-                                l.extend(r);
-                                l
-                            })
+                            .iter()
+                            .map(|_| lhs_vec.clone())
                             .collect::<Vec<_>>();
                         build_aggregator_column_list_primitive::<f64, Float64Type>(
                             agg_values,
@@ -2973,33 +2686,11 @@ pub fn select(
                                         .unwrap_or_default()
                                 })
                             })
+                            .flatten()
                             .collect::<Vec<_>>();
-                        let rhs_vec = find_column(
-                            &lhs_table,
-                            &batch_missing_vec,
-                            rhs_values.get(index).unwrap(),
-                        )?
-                        .as_any()
-                        .downcast_ref::<ListArray>()
-                        .unwrap()
-                        .iter()
-                        .filter_map(|s| {
-                            s.map(|s| {
-                                Table::get_array_as_vec_nonprimitive::<String>(
-                                    &s,
-                                    rhs_values.get(index).unwrap(),
-                                )
-                                .unwrap_or_default()
-                            })
-                        })
-                        .collect::<Vec<_>>();
                         let agg_values = lhs_vec
-                            .into_iter()
-                            .zip(rhs_vec.into_iter())
-                            .map(|(mut l, r)| {
-                                l.extend(r);
-                                l
-                            })
+                            .iter()
+                            .map(|_| lhs_vec.clone())
                             .collect::<Vec<_>>();
                         build_aggregator_column_list_nonprimitive::<String>(
                             agg_values,
@@ -3020,12 +2711,274 @@ pub fn select(
                     ));
                 }
             },
-            DataColumnOperator::BroadcastSet => {
-                todo!()
-            }
+            DataColumnOperator::BroadcastSet => match column_data_type {
+                DataType::UInt8 => {
+                    let lhs_vec = Table::get_array_as_vec_primitive::<u8>(
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                        column_name,
+                    )?.into_iter().collect::<HashSet<_>>();
+                    let agg_values = lhs_vec
+                        .iter()
+                        .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_list_primitive::<u8, UInt8Type>(
+                        agg_values,
+                        column_data_type.clone(),
+                    )
+                }
+                DataType::UInt32 => {
+                    let lhs_vec = Table::get_array_as_vec_primitive::<u32>(
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                        column_name,
+                    )?.into_iter().collect::<HashSet<_>>();
+                    let agg_values = lhs_vec
+                        .iter()
+                        .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_list_primitive::<u32, UInt32Type>(
+                        agg_values,
+                        column_data_type.clone(),
+                    )
+                }
+                DataType::Int64 => {
+                    let lhs_vec = Table::get_array_as_vec_primitive::<i64>(
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                        column_name,
+                    )?.into_iter().collect::<HashSet<_>>();
+                    let agg_values = lhs_vec
+                        .iter()
+                        .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_list_primitive::<i64, Int64Type>(
+                        agg_values,
+                        column_data_type.clone(),
+                    )
+                }
+                DataType::Utf8 => {
+                    let lhs_vec = Table::get_array_as_vec_nonprimitive::<String>(
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                        column_name,
+                    )?.into_iter().collect::<HashSet<_>>();
+                    let agg_values = lhs_vec
+                        .iter()
+                        .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_list_nonprimitive::<String>(
+                        agg_values,
+                        column_data_type.clone(),
+                    )
+                }
+                DataType::FixedSizeList(f, _) => match f.data_type() {
+                    DataType::UInt8 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<FixedSizeListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<HashSet<_>>();
+                        let agg_values = lhs_vec
+                            .iter()
+                            .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<u8, UInt8Type>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::UInt32 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<FixedSizeListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<HashSet<_>>();
+                        let agg_values = lhs_vec
+                            .iter()
+                            .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<u32, UInt32Type>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::Int64 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<FixedSizeListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<HashSet<_>>();
+                        let agg_values = lhs_vec
+                            .iter()
+                            .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<i64, Int64Type>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::Utf8 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<FixedSizeListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_nonprimitive::<String>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<HashSet<_>>();
+                        let agg_values = lhs_vec
+                            .iter()
+                            .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_nonprimitive::<String>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    _ => {
+                        return Err(anyhow!(
+                            "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
+                            column_operators.get(index).unwrap()
+                        ));
+                    }
+                },
+                DataType::List(f) => match f.data_type() {
+                    DataType::UInt8 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<ListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<HashSet<_>>();
+                        let agg_values = lhs_vec
+                            .iter()
+                            .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<u8, UInt8Type>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::UInt32 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<ListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<HashSet<_>>();
+                        let agg_values = lhs_vec
+                            .iter()
+                            .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<u32, UInt32Type>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::Int64 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<ListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<HashSet<_>>();
+                        let agg_values = lhs_vec
+                            .iter()
+                            .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<i64, Int64Type>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::Utf8 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<ListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_nonprimitive::<String>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<HashSet<_>>();
+                        let agg_values = lhs_vec
+                            .iter()
+                            .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_nonprimitive::<String>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    _ => {
+                        return Err(anyhow!(
+                            "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
+                            column_operators.get(index).unwrap()
+                        ));
+                    }
+                },
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
+                        column_operators.get(index).unwrap()
+                    ));
+                }
+            },
             DataColumnOperator::None
             | DataColumnOperator::Zeros
             | DataColumnOperator::Ones
+            | DataColumnOperator::String
             | DataColumnOperator::Value => find_column(&lhs_table, &batch_missing_vec, column_name)?,
         };
 
