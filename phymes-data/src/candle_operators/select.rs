@@ -177,7 +177,17 @@ impl DataOperatorTrait for Select {
         ))?;
         let rhs_values = config.rhs_values.as_ref().cloned().unwrap_or(lhs_values.iter().map(|_| String::new()).collect::<Vec<_>>());
         let as_columns = config.as_columns.as_ref().cloned().unwrap_or(lhs_values.iter().map(|_| String::new()).collect::<Vec<_>>());
-        let reorder_columns = config.reorder_columns.as_ref().cloned().unwrap_or(lhs_values.iter().map(|_| String::new()).collect::<Vec<_>>());
+        let reorder_columns_default = lhs_values.iter()
+            .zip(as_columns.iter())
+            .map(|(v, a)| if a.is_empty() {
+                v.to_string()
+            } else {
+                a.to_string()
+            }).collect::<Vec<_>>();
+        let reorder_columns = config.reorder_columns
+            .as_ref()
+            .cloned()
+            .unwrap_or(reorder_columns_default.clone());
         let column_operators = config.column_operators.as_ref().cloned().unwrap_or(lhs_values.iter().map(|_| DataColumnOperator::default()).collect::<Vec<_>>());
         let cast_operators = config.cast_operators.as_ref().cloned().unwrap_or(lhs_values.iter().map(|_| DataCastOperator::default()).collect::<Vec<_>>());
         let cast_datatypes = config
@@ -225,20 +235,20 @@ impl DataOperatorTrait for Select {
                 lhs_values.len(),
                 cast_templates.len()
             ));
-        } else if lhs_values.len() != reorder_columns.len() {
+        } else if lhs_values.len() >= reorder_columns.len() {
             return Err(anyhow!(
-                "lhs_values length {} is not equal to the reorder_columns length {}",
+                "lhs_values length {} is not greater than or equal to the reorder_columns length {}",
                 lhs_values.len(),
                 cast_templates.len()
             ));
         }
 
-        { // Check that the reorder_columns are in the as_columns
-            let as_columns_set = as_columns.iter().map(|v| v.as_str()).collect::<HashSet<&str>>();
+        { // Check that the reorder_columns are in the as_columns and lhs_values
+            let as_columns_set = reorder_columns_default.iter().map(|v| v.as_str()).collect::<HashSet<&str>>();
             let reorder_columns_set = reorder_columns.iter().map(|v| v.as_str()).collect::<HashSet<&str>>();
             if !reorder_columns_set.is_subset(&as_columns_set) {        
                 return Err(anyhow!(
-                    "reorder_columns {as_columns_set:?} is not a subset of as_columns {reorder_columns_set:?}",                
+                    "reorder_columns {reorder_columns_set:?} is not a subset of as_columns and lhs_values {as_columns_set:?}",                
                 ));
             }
         }
@@ -3351,6 +3361,7 @@ mod tests {
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
             &["", "", ""],
             &["new_pk", "", "new_metadata"],
+            &["new_pk", "lhs_text", "new_metadata"],
             &[
                 DataColumnOperator::None,
                 DataColumnOperator::None,
@@ -3385,29 +3396,33 @@ mod tests {
         let metadata = result_table.get_column_as_vec_primitive::<f32>("new_metadata")?;
         assert_eq!(metadata, [1., 2., 3., 4.]);
 
-        // ------ String, UInt32, Cast, Operator ------
+        // ------ String, UInt32, Cast, Operator, reorder ------
         let result = select(
-            &["lhs_pk", "lhs_text", "lhs_metadata", "new_text"],
+            &["lhs_pk", "lhs_text", "lhs_metadata", "new_text", "lhs_metadata"],
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
-            &["", "lhs_text", "new_pk", "lhs_text"],
-            &["new_pk", "new_text", "new_metadata", "newer_text"],
+            &["", "lhs_text", "new_pk", "lhs_text", "new_pk"],
+            &["new_pk", "new_text", "new_metadata", "newer_text", "new_metadata2"],
+            &["new_pk", "new_text", "newer_text", "new_metadata"],
             &[
                 DataColumnOperator::None,
                 DataColumnOperator::Concat,
                 DataColumnOperator::Add,
                 DataColumnOperator::List,
+                DataColumnOperator::Add,
             ],
             &[
                 DataCastOperator::Cast,
                 DataCastOperator::None,
                 DataCastOperator::None,
                 DataCastOperator::None,
+                DataCastOperator::None,
             ],
             &[
                 DataType::UInt32,
                 DataType::Utf8,
                 DataType::UInt32,
                 DataType::Utf8,
+                DataType::UInt32,
             ],
             &["", "Into template {{ lhs_text }}", "", ""],
             &device,
@@ -3439,35 +3454,44 @@ mod tests {
             ]
         );
         let lhs_id = result_table.get_column_as_vec_primitive::<u32>("new_pk")?;
-        assert_eq!(lhs_id, vec![0, 1, 2, 3]);
+        assert_eq!(lhs_id, [0, 1, 2, 3]);
         let metadata = result_table.get_column_as_vec_primitive::<u32>("new_metadata")?;
-        assert_eq!(metadata, vec![1, 3, 5, 7]);
+        assert_eq!(metadata, [1, 3, 5, 7]);
+        let fields = result_table.get_schema().fields().iter().map(|f| f.name().to_string()).collect::<Vec<_>>();
+        assert_eq!(fields, ["new_pk", "new_text", "newer_text", "new_metadata"]);
 
         // ------ String, UInt32, Float32, Missing column ------
         let result = select(
-            &["new_pk", "default_metadata", "broadcast_metadata", "lhs_pk"],
+            &["new_pk", "default_metadata", "broadcast_metadata", "lhs_pk", "lhs_metadata", "lhs_metadata"],
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
-            &["", "", "", ""],
-            &["new_pk1", "", "", "hash_pk"],
+            &["", "", "", "", "", ""],
+            &["new_pk1", "", "", "hash_pk", "min_metadata", "list_metadata"],
+            &["new_pk1", "default_metadata", "broadcast_metadata", "hash_pk", "min_metadata", "list_metadata"],
             &[
+                DataColumnOperator::String,
+                DataColumnOperator::Zeros,
+                DataColumnOperator::Value,
                 DataColumnOperator::None,
-                DataColumnOperator::None,
-                DataColumnOperator::None,
-                DataColumnOperator::None,
+                DataColumnOperator::BroadcastMin,
+                DataColumnOperator::BroadcastList,
             ],
             &[
                 DataCastOperator::None,
                 DataCastOperator::None,
                 DataCastOperator::None,
                 DataCastOperator::Hash,
+                DataCastOperator::None,
+                DataCastOperator::None,
             ],
             &[
                 DataType::Utf8,
                 DataType::UInt32,
                 DataType::Float32,
                 DataType::UInt32,
+                DataType::UInt32,
+                DataType::UInt32,
             ],
-            &["", "", "0.75", ""],
+            &["", "", "0.75", "", "", ""],
             &device,
         )?;
         let result_table = Table::get_builder()
@@ -3490,6 +3514,10 @@ mod tests {
             .map(|f| f.name().to_string())
             .collect::<Vec<_>>();
         assert!(!column_names.contains(&"new_pk".to_string()));
+        let lhs_id = result_table.get_column_as_vec_primitive::<u32>("min_metadata")?;
+        assert_eq!(lhs_id, [1, 1, 1, 1]);
+        let lhs_id = result_table.get_column_as_vec_nested_primitive::<u32>("list_metadata")?;
+        assert_eq!(lhs_id, [[1, 2, 3, 4],[1, 2, 3, 4],[1, 2, 3, 4],[1, 2, 3, 4]]);
 
         Ok(())
     }
