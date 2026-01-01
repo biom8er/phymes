@@ -324,15 +324,10 @@ impl<'a> SubjectsSession<'a> {
     }
     select_tasks_run_log_timestamp_p["select_tasks_run_log_timestamp_p"] {
         List-Utf8 as_columns "['','timestamp']"
-        List-Utf8 cast_datatypes "['Utf8','Int64 ']"
-        List-Utf8 cast_operators "['None','None']"
-        List-Utf8 cast_templates "['','']"
-        List-Utf8 column_operators "['None','None']"
         Boolean cpu "false"
         Utf8 lhs_name "group_by_tasks_run_log_timestamp_t"
         List-Utf8 lhs_values "['task_name','timestamp-Last']"
         Utf8 operator "Select"
-        List-Utf8 rhs_values "['','']"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     select_tasks_run_log_timestamp_t["select_tasks_run_log_timestamp_t"] {
@@ -349,11 +344,11 @@ impl<'a> SubjectsSession<'a> {
         UInt8 is_subscription
     }
     cmp_processors_subscriptions_p["cmp_processors_subscriptions_p"] {
-        List-Utf8 as_columns "['','','','','','','','']"
+        List-Utf8 as_columns "['','','','','','','','subscription']"
         List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','UInt8','UInt8']"
         List-Utf8 cast_operators "['None','None','None','None','None','None','None','None']"
-        List-Utf8 cast_templates "['','','','','','','','1']"
-        List-Utf8 column_operators "['None','None','None','None','None','None','None','None']"
+        List-Utf8 cast_templates "['','','','','','','','']"
+        List-Utf8 column_operators "['None','None','None','None','None','None','None','Ones']"
         Boolean cpu "false"
         Utf8 lhs_name "SessionProcessors"
         List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_names','subscribe_type','is_subscription','subscription']"
@@ -394,11 +389,11 @@ impl<'a> SubjectsSession<'a> {
         UInt8 is_subscription
     }
     cmp_processors_publications_p["cmp_processors_publications_p"] {
-        List-Utf8 as_columns "['','','','','','','','']"
+        List-Utf8 as_columns "['','','','','','','','publication']"
         List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','UInt8','UInt8']"
         List-Utf8 cast_operators "['None','None','None','None','None','None','None','None']"
-        List-Utf8 cast_templates "['','','','','','','','0']"
-        List-Utf8 column_operators "['None','None','None','None','None','None','None','None']"
+        List-Utf8 cast_templates "['','','','','','','','']"
+        List-Utf8 column_operators "['None','None','None','None','None','None','None','Zeros']"
         Boolean cpu "false"
         Utf8 lhs_name "SessionProcessors"
         List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_names','subscribe_type','is_subscription','publication']"
@@ -481,15 +476,10 @@ impl<'a> SubjectsSession<'a> {
     }
     select_subjects_num_rows_delta_p["select_subjects_num_rows_delta_p"] {
         List-Utf8 as_columns "['','num_rows']"
-        List-Utf8 cast_datatypes "['Utf8','Int64 ']"
-        List-Utf8 cast_operators "['None','None']"
-        List-Utf8 cast_templates "['','']"
-        List-Utf8 column_operators "['','']"
         Boolean cpu "false"
         Utf8 lhs_name "group_by_subjects_num_rows_t"
         List-Utf8 lhs_values "['subject_name','num_rows-Sum']"
         Utf8 operator "Select"
-        List-Utf8 rhs_values "['','num_rows_delta-Sum']"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     group_by_subject_change_log_timestamp_p["group_by_subject_change_log_timestamp_p"] {
@@ -569,7 +559,7 @@ impl<'a> SubjectsSession<'a> {
         List-Utf8 cmp_operators "['GreaterThanOrEqualTo']"
         Utf8 cmp_predicate "All"
         Boolean cpu "false"
-        Utf8 lhs_name "lhs_name"
+        Utf8 lhs_name "select_tasks_processors_subscriptions_subjects_t"
         List-Utf8 lhs_values "['timestamp']"
         Utf8 operator "Filter"
         Utf8 stream "AccumulateLHSAccumulateRHS"
@@ -584,16 +574,10 @@ impl<'a> SubjectsSession<'a> {
         Utf8 subscribe_type
     }
     select_tasks_ready_to_run_p["select_tasks_ready_to_run_p"] {
-        List-Utf8 as_columns "['as_columns']"
-        List-Utf8 cast_datatypes "['Utf8']"
-        List-Utf8 cast_operators "['None']"
-        List-Utf8 cast_templates "['cast_template']"
-        List-Utf8 column_operators "['None']"
         Boolean cpu "false"
-        Utf8 lhs_name "lhs_name"
-        List-Utf8 lhs_values "['lhs_values']"
+        Utf8 lhs_name "filter_tasks_processors_subscriptions_subjects_t"
+        List-Utf8 lhs_values "['session_name','task_name']"
         Utf8 operator "Select"
-        List-Utf8 rhs_values "['rhs_values']"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     join_tasks_ready_to_run_p["join_tasks_ready_to_run_p"] {
@@ -681,7 +665,6 @@ mod tests {
 
     use super::*;
 
-    #[ignore = "In progress..."]
     #[tokio::test(flavor = "current_thread")]
     async fn test_subjects_session() -> Result<()> {
         // Initialize the session
@@ -695,13 +678,13 @@ mod tests {
             .build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
         
-        // Create the messages
-        let message_map = create_message_map(vec![]);
+        // // Create the messages
+        // let message_map = create_message_map(vec![]);
 
-        // Run the session
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
-        let mut response: Vec<HashMap<String, IPCMessage>> =
-            session_stream.try_collect().await?;
+        // // Run the session
+        // let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+        // let mut response: Vec<HashMap<String, IPCMessage>> =
+        //     session_stream.try_collect().await?;
 
 
         Ok(())

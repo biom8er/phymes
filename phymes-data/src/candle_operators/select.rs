@@ -190,12 +190,13 @@ impl DataOperatorTrait for Select {
             .unwrap_or(reorder_columns_default.clone());
         let column_operators = config.column_operators.as_ref().cloned().unwrap_or(lhs_values.iter().map(|_| DataColumnOperator::default()).collect::<Vec<_>>());
         let cast_operators = config.cast_operators.as_ref().cloned().unwrap_or(lhs_values.iter().map(|_| DataCastOperator::default()).collect::<Vec<_>>());
-        let cast_datatypes = config
+        let cast_datatypes_str = config
             .cast_datatypes.as_ref().cloned()
-            .unwrap_or(lhs_values.iter().map(|_| "None".to_string()).collect::<Vec<_>>())
-            .iter()
-            .map(|s| from_str_to_data_type(s).unwrap())
-            .collect::<Vec<_>>();
+            .unwrap_or(lhs_values.iter().map(|_| "Utf8".to_string()).collect::<Vec<_>>());
+        let mut cast_datatypes = Vec::new();
+        for s in cast_datatypes_str.into_iter() {
+            cast_datatypes.push(from_str_to_data_type(&s)?);
+        }
         let cast_templates = config.cast_templates.as_ref().cloned().unwrap_or(lhs_values.iter().map(|_| String::new()).collect::<Vec<_>>());
 
         // Ensure that the array lengths match
