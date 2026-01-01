@@ -212,9 +212,12 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     }
                     if column_names.contains("lhs_values") {
                         let vec_str =
-                            table.get_column_as_vec_nested_nonprimitive::<String>("lhs_values")?;
-                        let values = vec_str.last().unwrap();
-                        let mut missing = values
+                            table.get_column_as_vec_nested_nonprimitive::<String>("lhs_values")?
+                            .into_iter().flatten()
+                            // Check for any renamed or initiated columns
+                            .chain(table.get_column_as_vec_nested_nonprimitive::<String>("as_columns").unwrap_or(Vec::new()).into_iter().flatten())
+                            .collect::<Vec<_>>();
+                        let mut missing = vec_str
                             .iter()
                             .filter(|v| !subscription_col_names.contains(v.as_str()))
                             .collect::<Vec<_>>();
@@ -285,9 +288,12 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     }
                     if column_names.contains("rhs_values") {
                         let vec_str =
-                            table.get_column_as_vec_nested_nonprimitive::<String>("rhs_values")?;
-                        let values = vec_str.last().unwrap();
-                        let mut missing = values
+                            table.get_column_as_vec_nested_nonprimitive::<String>("rhs_values")?
+                            .into_iter().flatten()
+                            // Check for any renamed or initiated columns
+                            .chain(table.get_column_as_vec_nested_nonprimitive::<String>("as_columns").unwrap_or(Vec::new()).into_iter().flatten())
+                            .collect::<Vec<_>>();
+                        let mut missing = vec_str
                             .iter()
                             .filter(|v| !subscription_col_names.contains(v.as_str()))
                             .collect::<Vec<_>>();

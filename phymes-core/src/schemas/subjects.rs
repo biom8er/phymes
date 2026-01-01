@@ -73,18 +73,18 @@ pub fn create_subjects_change_log_batch(
     Ok(batch)
 }
 
-pub(crate) fn create_group_by_subject_change_log_delta_fields() -> Fields {
-    let field_names = ["subject_name", "task_name", "session_name"];
-    let mut fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    let field_names = ["num_rows_delta-Sum", "timestamp-Last"];
-    fields_vec.extend(
-        field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::Int64, false))
-            .collect::<Vec<_>>(),
-    );
-    Fields::from(fields_vec)
-}
+// pub(crate) fn create_group_by_subject_change_log_delta_fields() -> Fields {
+//     let field_names = ["subject_name", "task_name", "session_name"];
+//     let mut fields_vec = field_names
+//         .iter()
+//         .map(|f| Field::new(*f, DataType::Utf8, false))
+//         .collect::<Vec<_>>();
+//     let field_names = ["num_rows_delta-Sum", "timestamp-Last"];
+//     fields_vec.extend(
+//         field_names
+//             .iter()
+//             .map(|f| Field::new(*f, DataType::Int64, false))
+//             .collect::<Vec<_>>(),
+//     );
+//     Fields::from(fields_vec)
+// }
