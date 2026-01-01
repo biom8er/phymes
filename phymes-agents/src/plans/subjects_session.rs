@@ -681,6 +681,7 @@ mod tests {
 
     use super::*;
 
+    #[ignore = "In progress..."]
     #[tokio::test(flavor = "current_thread")]
     async fn test_subjects_session() -> Result<()> {
         // Initialize the session

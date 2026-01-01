@@ -212,14 +212,29 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     }
                     if column_names.contains("lhs_values") {
                         let vec_str =
-                            table.get_column_as_vec_nested_nonprimitive::<String>("lhs_values")?
-                            .into_iter().flatten()
-                            // Check for any renamed or initiated columns
-                            .chain(table.get_column_as_vec_nested_nonprimitive::<String>("as_columns").unwrap_or(Vec::new()).into_iter().flatten())
-                            .collect::<Vec<_>>();
-                        let mut missing = vec_str
+                            table.get_column_as_vec_nested_nonprimitive::<String>("lhs_values")?;
+                        let values = vec_str.last().unwrap();
+
+                        // Check for any renamed or initiated columns
+                        let init_col_names = if let Ok(as_columns) = table.get_column_as_vec_nested_nonprimitive::<String>("as_columns") {
+                            if let Some(as_columns) = as_columns.last() {
+                                as_columns.iter()
+                                    .filter_map(|c| if c.is_empty() {
+                                        None
+                                    } else {
+                                        Some(c.to_string())
+                                    })
+                                    .collect::<HashSet<_>>()
+                            } else {
+                                HashSet::new()
+                            }                                
+                        } else {
+                            HashSet::new()
+                        };
+
+                        let mut missing = values
                             .iter()
-                            .filter(|v| !subscription_col_names.contains(v.as_str()))
+                            .filter(|v| !(subscription_col_names.contains(v.as_str()) || init_col_names.contains(v.as_str())))
                             .collect::<Vec<_>>();
                         missing.sort();
                         if !missing.is_empty() {
@@ -288,14 +303,29 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     }
                     if column_names.contains("rhs_values") {
                         let vec_str =
-                            table.get_column_as_vec_nested_nonprimitive::<String>("rhs_values")?
-                            .into_iter().flatten()
-                            // Check for any renamed or initiated columns
-                            .chain(table.get_column_as_vec_nested_nonprimitive::<String>("as_columns").unwrap_or(Vec::new()).into_iter().flatten())
-                            .collect::<Vec<_>>();
-                        let mut missing = vec_str
+                            table.get_column_as_vec_nested_nonprimitive::<String>("rhs_values")?;
+                        let values = vec_str.last().unwrap();
+
+                        // Check for any renamed or initiated columns
+                        let init_col_names = if let Ok(as_columns) = table.get_column_as_vec_nested_nonprimitive::<String>("as_columns") {
+                            if let Some(as_columns) = as_columns.last() {
+                                as_columns.iter()
+                                    .filter_map(|c| if c.is_empty() {
+                                        None
+                                    } else {
+                                        Some(c.to_string())
+                                    })
+                                    .collect::<HashSet<_>>()
+                            } else {
+                                HashSet::new()
+                            }                                
+                        } else {
+                            HashSet::new()
+                        };
+
+                        let mut missing = values
                             .iter()
-                            .filter(|v| !subscription_col_names.contains(v.as_str()))
+                            .filter(|v| !(subscription_col_names.contains(v.as_str()) || init_col_names.contains(v.as_str())))
                             .collect::<Vec<_>>();
                         missing.sort();
                         if !missing.is_empty() {

@@ -346,7 +346,7 @@ mod tests {
     use crate::test_session_context_builder::{
         make_test_session_context_parallel_task, make_test_session_context_parallel_task_empty,
     };
-    use arrow::array::UInt64Array;
+    use arrow::array::Int64Array;
     use phymes_core::test_table::make_test_table_schema;
     use phymes_diagnostics::HashSet;
     #[cfg(not(target_family = "wasm"))]
@@ -392,7 +392,7 @@ mod tests {
                     .column_by_name("num_rows")
                     .unwrap()
                     .as_any()
-                    .downcast_ref::<UInt64Array>()
+                    .downcast_ref::<Int64Array>()
                     .unwrap()
                     .iter()
                     .map(|s| s.unwrap_or_default() as usize)

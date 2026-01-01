@@ -235,9 +235,9 @@ impl DataOperatorTrait for Select {
                 lhs_values.len(),
                 cast_templates.len()
             ));
-        } else if lhs_values.len() >= reorder_columns.len() {
+        } else if lhs_values.len() < reorder_columns.len() {
             return Err(anyhow!(
-                "lhs_values length {} is not greater than or equal to the reorder_columns length {}",
+                "lhs_values length {} is less than the reorder_columns length {}",
                 lhs_values.len(),
                 cast_templates.len()
             ));
