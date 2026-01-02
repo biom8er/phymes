@@ -9,7 +9,6 @@ use std::{
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
-use parking_lot::Mutex;
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
     MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream,
@@ -31,9 +30,9 @@ use tracing::{Level, event};
 
 use crate::{
     DataConfigTrait,
-    external_operators::http_client_config::{
-        HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType, e_utils_schemas,
-        open_alex_schemas, semantic_scholar_schemas,
+    external_operators::{
+        http_client_config::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType},
+        schemas_e_utils, schemas_open_alex, schemas_semantic_scholar
     },
 };
 
@@ -391,7 +390,7 @@ impl Stream for HTTPClientRequestStream {
                         )?,
                         HTTPClientRequestSchemas::OpenAlex => {
                             let parsed = match serde_json::from_str::<
-                                open_alex_schemas::OpenAlexResponse,
+                                schemas_open_alex::OpenAlexResponse,
                             >(&text)
                             {
                                 Ok(parsed) => parsed,
@@ -420,7 +419,7 @@ impl Stream for HTTPClientRequestStream {
                         }
                         HTTPClientRequestSchemas::ESearch => {
                             let parsed = match serde_json::from_str::<
-                                e_utils_schemas::ESearchResponse,
+                                schemas_e_utils::ESearchResponse,
                             >(&text)
                             {
                                 Ok(parsed) => parsed,
@@ -450,7 +449,7 @@ impl Stream for HTTPClientRequestStream {
                                 .replace("<sub>", "")
                                 .replace("</sub>", "");
                             let parsed = match quick_xml::de::from_str::<
-                                e_utils_schemas::PubmedArticleSet,
+                                schemas_e_utils::PubmedArticleSet,
                             >(&cleaned_text)
                             {
                                 Ok(parsed) => parsed,
@@ -479,7 +478,7 @@ impl Stream for HTTPClientRequestStream {
                         }
                         HTTPClientRequestSchemas::SemanticScholarRecomendations => {
                             let parsed = match serde_json::from_str::<
-                                semantic_scholar_schemas::RecommendationsResponse,
+                                schemas_semantic_scholar::RecommendationsResponse,
                             >(&text)
                             {
                                 Ok(parsed) => parsed,
@@ -548,8 +547,6 @@ impl RecordBatchStream for HTTPClientRequestStream {
 
 #[cfg(test)]
 mod tests {
-    use crate::external_operators::http_client_config::semantic_scholar_schemas;
-
     use super::*;
     use futures::TryStreamExt;
     use phymes_core::{
@@ -891,7 +888,7 @@ mod tests {
             .build()?;
 
         // Make the request body
-        let req_body = semantic_scholar_schemas::RecommendationsRequest {
+        let req_body = schemas_semantic_scholar::RecommendationsRequest {
             positive_papers: Some(vec!["649def34f8be52c8b66281af98ae884c09aef38b".to_string()]),
             negative_papers: Some(vec!["ArXiv:1805.02262".to_string()]),
         };
