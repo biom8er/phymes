@@ -39,14 +39,14 @@ impl<'a> SubjectsSession<'a> {
 		UserCsv-subject-.->|FullTable|extract_tasks_p-subscribe
 		extract_tasks_p-subscribe-->extract_tasks_p-processor
 		extract_tasks_p-processor-->extract_tasks_p-publish
-		extract_tasks_p-publish-->|Replace|SessionTasksInbox-subject
+		extract_tasks_p-publish-->|Replace|SessionTasksCheck-subject
 	end
 	UserCsv-subject@{shape: doc, label: UserCsv}
 	default_runtime_env_name-rt-->extract_tasks_t
 	extract_tasks_p-subscribe@{shape: diamond, label: All}
 	extract_tasks_p-processor@{shape: rect, label: ExtractTabular}
 	extract_tasks_p-publish@{shape: fork}
-	SessionTasksInbox-subject@{shape: doc, label: SessionTasksInbox}
+	SessionTasksCheck-subject@{shape: doc, label: SessionTasksCheck}
 
 	subgraph group_by_tasks_run_log_timestamp_t
 		SessionTasksRunLog-subject-.->|LastRecordBatch|group_by_tasks_run_log_timestamp_p-subscribe
@@ -145,7 +145,7 @@ impl<'a> SubjectsSession<'a> {
 		group_by_subject_change_log_timestamp_p-processor-->group_by_subject_change_log_timestamp_p-publish
 		group_by_subject_change_log_timestamp_p-publish-->|Replace|group_by_subject_change_log_timestamp_t-subject
 		select_tasks_run_log_timestamp_t-subject-->|FullTable|join_tasks_run_log_timestamp_p-subscribe
-		SessionTasksInbox-subject-.->|FullTable|join_tasks_run_log_timestamp_p-subscribe
+		SessionTasksCheck-subject-.->|FullTable|join_tasks_run_log_timestamp_p-subscribe
 		join_tasks_run_log_timestamp_p-subscribe-->join_tasks_run_log_timestamp_p-processor
 		join_tasks_run_log_timestamp_p-processor-->join_tasks_run_log_timestamp_p-publish
 		join_tasks_run_log_timestamp_p-publish-->|Replace|join_tasks_run_log_timestamp_t-subject
@@ -171,7 +171,7 @@ impl<'a> SubjectsSession<'a> {
 		select_tasks_processors_subscriptions_subjects_t-subject-->|FullTable|filter_tasks_processors_subscriptions_subjects_p-subscribe
 		filter_tasks_processors_subscriptions_subjects_p-subscribe-->filter_tasks_processors_subscriptions_subjects_p-processor
 		filter_tasks_processors_subscriptions_subjects_p-processor-->filter_tasks_processors_subscriptions_subjects_p-publish
-		filter_tasks_processors_subscriptions_subjects_p-publish-->|Replace|filter_tasks_processors_subscriptions_subjects_t-subject
+		filter_tasks_processors_subscriptions_subjects_p-publish-->|Replace|SessionTasksSubscribe-subject
 	end
 	default_runtime_env_name-rt-->join_tasks_run_log_timestamp_t
 	group_by_subject_change_log_timestamp_p-subscribe@{shape: diamond, label: All}
@@ -202,7 +202,7 @@ impl<'a> SubjectsSession<'a> {
 	filter_tasks_processors_subscriptions_subjects_p-subscribe@{shape: diamond, label: All}
 	filter_tasks_processors_subscriptions_subjects_p-processor@{shape: rect, label: Filter}
 	filter_tasks_processors_subscriptions_subjects_p-publish@{shape: fork}
-	filter_tasks_processors_subscriptions_subjects_t-subject@{shape: doc, label: filter_tasks_processors_subscriptions_subjects_t}
+	SessionTasksSubscribe-subject@{shape: doc, label: SessionTasksSubscribe}
 
 	subgraph filter_processors_publications_t
 		SessionProcessors-subject-.->|FullTable|cmp_processors_publications_p-subscribe
@@ -233,7 +233,7 @@ impl<'a> SubjectsSession<'a> {
 	select_processors_publications_t-subject@{shape: doc, label: select_processors_publications_t}
 
 	subgraph select_tasks_processors_publications_t
-		filter_tasks_processors_subscriptions_subjects_t-subject-.->|FullTable|select_tasks_ready_to_run_p-subscribe
+		SessionTasksSubscribe-subject-.->|FullTable|select_tasks_ready_to_run_p-subscribe
 		select_tasks_ready_to_run_p-subscribe-->select_tasks_ready_to_run_p-processor
 		select_tasks_ready_to_run_p-processor-->select_tasks_ready_to_run_p-publish
 		select_tasks_ready_to_run_p-publish-->|Replace|select_tasks_ready_to_run_t-subject
@@ -273,7 +273,7 @@ impl<'a> SubjectsSession<'a> {
 	subgraph aggregate_tasks_processors_publications_t
         UserMessages-subject-.->|FullTable|aggregate_tasks_processors_publications_p-subscribe
         AssistantMessages-subject-.->|FullTable|aggregate_tasks_processors_publications_p-subscribe
-		filter_tasks_processors_subscriptions_subjects_t-subject-.->|FullTable|aggregate_tasks_processors_publications_p-subscribe
+		SessionTasksSubscribe-subject-.->|FullTable|aggregate_tasks_processors_publications_p-subscribe
 		select_tasks_processors_publications_t-subject-.->|FullTable|aggregate_tasks_processors_publications_p-subscribe
 		aggregate_tasks_processors_publications_p-subscribe-->aggregate_tasks_processors_publications_p-processor
 		aggregate_tasks_processors_publications_p-processor-->aggregate_tasks_processors_publications_p-publish
@@ -304,7 +304,7 @@ impl<'a> SubjectsSession<'a> {
         Utf8 operator "ExtractTabular"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
-    SessionTasksInbox["SessionTasksInbox"] {
+    SessionTasksCheck["SessionTasksCheck"] {
         Utf8 session_name
         Utf8 task_name
     }
@@ -346,14 +346,11 @@ impl<'a> SubjectsSession<'a> {
     cmp_processors_subscriptions_p["cmp_processors_subscriptions_p"] {
         List-Utf8 as_columns "['','','','','','','','subscription']"
         List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','UInt8','UInt8']"
-        List-Utf8 cast_operators "['None','None','None','None','None','None','None','None']"
-        List-Utf8 cast_templates "['','','','','','','','']"
         List-Utf8 column_operators "['None','None','None','None','None','None','None','Ones']"
         Boolean cpu "false"
         Utf8 lhs_name "SessionProcessors"
         List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_names','subscribe_type','is_subscription','subscription']"
         Utf8 operator "Select"
-        List-Utf8 rhs_values "['','','','','','','','']"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     filter_processors_subscriptions_p["filter_processors_subscriptions_p"] {
@@ -367,16 +364,10 @@ impl<'a> SubjectsSession<'a> {
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     select_processors_subscriptions_p["select_processors_subscriptions_p"] {
-        List-Utf8 as_columns "['','','','','','','']"
-        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','UInt8']"
-        List-Utf8 cast_operators "['None','None','None','None','None','None','None']"
-        List-Utf8 cast_templates "['','','','','','','']"
-        List-Utf8 column_operators "['None','None','None','None','None','None','None']"
         Boolean cpu "false"
         Utf8 lhs_name "filter_processors_subscriptions_t"
         List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_names','subscribe_type','is_subscription']"
         Utf8 operator "Select"
-        List-Utf8 rhs_values "['','','','','','','']"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     select_processors_subscriptions_t["select_processors_subscriptions_t"] {
@@ -391,14 +382,11 @@ impl<'a> SubjectsSession<'a> {
     cmp_processors_publications_p["cmp_processors_publications_p"] {
         List-Utf8 as_columns "['','','','','','','','publication']"
         List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','UInt8','UInt8']"
-        List-Utf8 cast_operators "['None','None','None','None','None','None','None','None']"
-        List-Utf8 cast_templates "['','','','','','','','']"
         List-Utf8 column_operators "['None','None','None','None','None','None','None','Zeros']"
         Boolean cpu "false"
         Utf8 lhs_name "SessionProcessors"
         List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_names','subscribe_type','is_subscription','publication']"
         Utf8 operator "Select"
-        List-Utf8 rhs_values "['','','','','','','','']"
     }
     filter_processors_publications_p["filter_processors_publications_p"] {
         List-Utf8 cmp_columns "['publication']"
@@ -411,16 +399,10 @@ impl<'a> SubjectsSession<'a> {
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     select_processors_publications_p["select_processors_publications_p"] {
-        List-Utf8 as_columns "['','','','','','','']"
-        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','UInt8']"
-        List-Utf8 cast_operators "['None','None','None','None','None','None','None']"
-        List-Utf8 cast_templates "['','','','','','','']"
-        List-Utf8 column_operators "['None','None','None','None','None','None','None']"
         Boolean cpu "false"
         Utf8 lhs_name "filter_processors_publications_t"
         List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_names','subscribe_type','is_subscription']"
         Utf8 operator "Select"
-        List-Utf8 rhs_values "['','','','','','','']"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     select_processors_publications_t["select_processors_publications_t"] {
@@ -450,15 +432,10 @@ impl<'a> SubjectsSession<'a> {
     }
     select_subject_change_log_delta_p["select_subject_change_log_delta_p"] {
         List-Utf8 as_columns "['','num_rows']"
-        List-Utf8 cast_datatypes "['Utf8','Int64']"
-        List-Utf8 cast_operators "['None','None']"
-        List-Utf8 cast_templates "['','']"
-        List-Utf8 column_operators "['None','None']"
         Boolean cpu "false"
         Utf8 lhs_name "group_by_subject_change_log_delta_t"
         List-Utf8 lhs_values "['subject_name','num_rows_delta-Sum']"
         Utf8 operator "Select"
-        List-Utf8 rhs_values "['','']"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     SubjectsNumRows["SubjectsNumRows"] {
@@ -498,7 +475,7 @@ impl<'a> SubjectsSession<'a> {
         Utf8 lhs_pk "task_name"
         Utf8 operator "Join"
         Utf8 rhs_fk "task_name"
-        Utf8 rhs_name "SessionTasksInbox"
+        Utf8 rhs_name "SessionTasksCheck"
         Utf8 rhs_pk "task_name"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
@@ -542,16 +519,10 @@ impl<'a> SubjectsSession<'a> {
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     select_tasks_processors_subscriptions_subjects_p["select_tasks_processors_subscriptions_subjects_p"] {
-        List-Utf8 as_columns "['','','','','','','','','']"
-        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Int64','Int64']"
-        List-Utf8 cast_operators "['None','None','None','None','None','None','None','None','None']"
-        List-Utf8 cast_templates "['','','','','','','','','']"
-        List-Utf8 column_operators "['None','None','None','None','None','None','None','None','None']"
         Boolean cpu "false"
         Utf8 lhs_name "join_tasks_processors_subscriptions_subjects_t"
         List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','timestamp','timestamp-Last']"
         Utf8 operator "Select"
-        List-Utf8 rhs_values "['','','','','','','','','']"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     filter_tasks_processors_subscriptions_subjects_p["filter_tasks_processors_subscriptions_subjects_p"] {
@@ -564,18 +535,18 @@ impl<'a> SubjectsSession<'a> {
         Utf8 operator "Filter"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
-    filter_tasks_processors_subscriptions_subjects_t["filter_tasks_processors_subscriptions_subjects_t"] {
+    SessionTasksSubscribe["SessionTasksSubscribe"] {
         Utf8 session_name
         Utf8 task_name
         Utf8 processor_name
         Utf8 processor_type
-        Utf8 publication_subscription_name
-        Utf8 publication_subscription_table_name
+        Utf8 subscription_name
+        Utf8 subscription_table_name
         Utf8 subscribe_type
     }
     select_tasks_ready_to_run_p["select_tasks_ready_to_run_p"] {
         Boolean cpu "false"
-        Utf8 lhs_name "filter_tasks_processors_subscriptions_subjects_t"
+        Utf8 lhs_name "SessionTasksSubscribe"
         List-Utf8 lhs_values "['session_name','task_name']"
         Utf8 operator "Select"
         Utf8 stream "AccumulateLHSAccumulateRHS"
@@ -603,16 +574,10 @@ impl<'a> SubjectsSession<'a> {
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     select_tasks_processors_publications_p["select_tasks_processors_publications_p"] {
-        List-Utf8 as_columns "['','','','','','','']"
-        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
-        List-Utf8 cast_operators "['None','None','None','None','None','None','None']"
-        List-Utf8 cast_templates "['','','','','','','']"
-        List-Utf8 column_operators "['None','None','None','None','None','None','None']"
         Boolean cpu "false"
         Utf8 lhs_name "join_tasks_processors_publications_t"
         List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type']"
         Utf8 operator "Select"
-        List-Utf8 rhs_values "['','','','','','','']"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     select_tasks_processors_publications_t["select_tasks_processors_publications_t"] {

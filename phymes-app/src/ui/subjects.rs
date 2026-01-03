@@ -214,7 +214,7 @@ pub fn subjects_interface_view() -> Element {
                         );
                         subject_num_rows.set(
                             table
-                                .get_column_as_vec_primitive::<u64>("num_rows")
+                                .get_column_as_vec_primitive::<i64>("num_rows")
                                 .unwrap()
                                 .into_iter()
                                 .map(|n| n as usize)
@@ -257,7 +257,7 @@ pub fn subjects_interface_view() -> Element {
                         );
                         subject_num_rows.set(
                             table
-                                .get_column_as_vec_primitive::<u64>("num_rows")
+                                .get_column_as_vec_primitive::<i64>("num_rows")
                                 .unwrap()
                                 .into_iter()
                                 .map(|n| n as usize)

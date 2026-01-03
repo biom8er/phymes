@@ -37,7 +37,7 @@ mod session;
 pub use session::{
     create_session_processors_batch, create_session_runtime_envs_batch,
     create_session_subjects_batch, create_session_tasks_batch, create_session_tasks_run_log_batch,
-    create_session_tasks_inbox_batch
+    create_session_tasks_check_batch, create_session_tasks_subscribe_batch, create_session_tasks_publish_batch
 };
 
 mod subjects;

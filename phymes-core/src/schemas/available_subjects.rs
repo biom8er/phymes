@@ -22,7 +22,7 @@ use crate::{
         },
         queries::create_queries_fields,
         session::{
-            create_session_processors_fields, create_session_runtime_envs_fields, create_session_subjects_fields, create_session_tasks_fields, create_session_tasks_inbox_fields, create_session_tasks_run_log_fields
+            create_session_processors_fields, create_session_runtime_envs_fields, create_session_subjects_fields, create_session_tasks_check_fields, create_session_tasks_fields, create_session_tasks_publish_fields, create_session_tasks_run_log_fields, create_session_tasks_subscribe_fields
         },
         set_data::{create_parse_owl_fields, create_parse_xml_fields},
         subjects::{create_subjects_change_log_fields, create_subjects_num_rows_fields},
@@ -270,8 +270,12 @@ pub enum AvailableSubjects {
     ParseXml,
     #[value(name = "ParseOwl")]
     ParseOwl,
-    #[value(name = "SessionTasksInbox")]
-    SessionTasksInbox,
+    #[value(name = "SessionTasksCheck")]
+    SessionTasksCheck,
+    #[value(name = "SessionTasksSubscribe")]
+    SessionTasksSubscribe,
+    #[value(name = "SessionTasksPublish")]
+    SessionTasksPublish,
 }
 
 impl Display for AvailableSubjects {
@@ -344,7 +348,9 @@ impl Display for AvailableSubjects {
             }
             AvailableSubjects::ParseXml => write!(f, "ParseXml"),
             AvailableSubjects::ParseOwl => write!(f, "ParseOwl"),
-            AvailableSubjects::SessionTasksInbox => write!(f, "SessionTasksInbox"),
+            AvailableSubjects::SessionTasksCheck => write!(f, "SessionTasksCheck"),
+            AvailableSubjects::SessionTasksSubscribe => write!(f, "SessionTasksSubscribe"),
+            AvailableSubjects::SessionTasksPublish => write!(f, "SessionTasksPublish"),
         }
     }
 }
@@ -483,7 +489,9 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             }
             AvailableSubjects::ParseXml => create_schema_from_fields(&create_parse_xml_fields),
             AvailableSubjects::ParseOwl => create_schema_from_fields(&create_parse_owl_fields),
-            AvailableSubjects::SessionTasksInbox => create_schema_from_fields(&create_session_tasks_inbox_fields),
+            AvailableSubjects::SessionTasksCheck => create_schema_from_fields(&create_session_tasks_check_fields),
+            AvailableSubjects::SessionTasksSubscribe => create_schema_from_fields(&create_session_tasks_subscribe_fields),
+            AvailableSubjects::SessionTasksPublish => create_schema_from_fields(&create_session_tasks_publish_fields),
         }
     }
 }

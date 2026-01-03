@@ -179,7 +179,7 @@ pub fn create_session_tasks_run_log_batch(
     Ok(batch)
 }
 
-pub(crate) fn create_session_tasks_inbox_fields() -> Fields {
+pub(crate) fn create_session_tasks_check_fields() -> Fields {
     let field_names = ["session_name", "task_name"];
     let fields_vec = field_names
         .iter()
@@ -188,7 +188,7 @@ pub(crate) fn create_session_tasks_inbox_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_session_tasks_inbox_batch(
+pub fn create_session_tasks_check_batch(
     session_names: Vec<String>,
     task_names: Vec<String>,
 ) -> Result<RecordBatch> {
@@ -197,6 +197,104 @@ pub fn create_session_tasks_inbox_batch(
     let batch = RecordBatch::try_from_iter(vec![
         ("session_name", session_names),
         ("task_name", task_names),
+    ])?;
+    Ok(batch)
+}
+
+pub(crate) fn create_session_tasks_subscribe_fields() -> Fields {
+    let field_names = ["session_name", 
+        "task_name",
+        "processor_name",
+        "processor_type",
+        "subscription_name",
+        "subscription_table_names",
+        "subscribe_type",
+    ];
+    let fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    Fields::from(fields_vec)
+}
+
+pub fn create_session_tasks_subscribe_batch(
+    session_names: Vec<String>,
+    task_names: Vec<String>,
+    processor_names: Vec<String>,
+    processor_types: Vec<String>,
+    pub_sub_name: Vec<String>,
+    pub_sub_table_names: Vec<String>,
+    subscribe_types: Vec<String>,
+) -> Result<RecordBatch> {
+    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
+    let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
+    let processor_types: ArrayRef = Arc::new(StringArray::from(processor_types));
+    let pub_sub_name: ArrayRef = Arc::new(StringArray::from(pub_sub_name));
+    let pub_sub_table_names: ArrayRef = Arc::new(StringArray::from(pub_sub_table_names));
+    let subscribe_types: ArrayRef = Arc::new(StringArray::from(subscribe_types));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("session_name", session_names),
+        ("task_name", task_names),
+        ("processor_name", processor_names),
+        ("processor_type", processor_types),
+        ("subscription_name", pub_sub_name),
+        ("subscription_table_names", pub_sub_table_names),
+        ("subscribe_type", subscribe_types),
+    ])?;
+    Ok(batch)
+}
+
+pub(crate) fn create_session_tasks_publish_fields() -> Fields {
+    let field_names = ["session_name",
+        "task_name",
+        "processor_name",
+        "processor_type",
+        "publication_subscription_name",
+        "publication_subscription_table_names",
+        "subscribe_type",
+    ];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let field_names = ["is_subscription"];
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::UInt8, false))
+            .collect::<Vec<_>>(),
+    );
+    Fields::from(fields_vec)
+}
+
+pub fn create_session_tasks_publish_batch(
+    session_names: Vec<String>,
+    task_names: Vec<String>,
+    processor_names: Vec<String>,
+    processor_types: Vec<String>,
+    pub_sub_name: Vec<String>,
+    pub_sub_table_names: Vec<String>,
+    subscribe_types: Vec<String>,
+    is_sub: Vec<u8>,
+) -> Result<RecordBatch> {
+    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
+    let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
+    let processor_types: ArrayRef = Arc::new(StringArray::from(processor_types));
+    let pub_sub_name: ArrayRef = Arc::new(StringArray::from(pub_sub_name));
+    let pub_sub_table_names: ArrayRef = Arc::new(StringArray::from(pub_sub_table_names));
+    let subscribe_types: ArrayRef = Arc::new(StringArray::from(subscribe_types));
+    let is_sub: ArrayRef = Arc::new(UInt8Array::from(is_sub));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("session_name", session_names),
+        ("task_name", task_names),
+        ("processor_name", processor_names),
+        ("processor_type", processor_types),
+        ("publication_subscription_name", pub_sub_name),
+        ("publication_subscription_table_names", pub_sub_table_names),
+        ("subscribe_type", subscribe_types),
+        ("is_subscription", is_sub),
     ])?;
     Ok(batch)
 }
