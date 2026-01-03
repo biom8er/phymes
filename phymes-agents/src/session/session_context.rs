@@ -2,7 +2,7 @@ use anyhow::Result;
 use arrow::datatypes::SchemaRef;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, PublishAndSubscribeTrait,
+    AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait,
     RuntimeEnv, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication,
     TablePublicationTrait, TableTrait, TaskMap, create_subjects_num_rows_batch,
     from_diagnostics_to_tables,
@@ -276,19 +276,6 @@ impl SessionContext {
         Ok(csv_str)
     }
 
-    /// Initialize the superstep_update with all tasks and their update subscriptions
-    pub fn init_superstep_updates(&self) -> HashMap<String, HashMap<String, bool>> {
-        let mut init = HashMap::<String, HashMap<String, bool>>::new();
-        for (task_name, task) in self.tasks.iter() {
-            let mut subscriptions = HashMap::<String, bool>::new();
-            for subscription in task.get_subscriptions() {
-                subscriptions.insert(subscription.get_table_name().to_string(), false);
-            }
-            init.insert(task_name.to_string(), subscriptions);
-        }
-        init
-    }
-
     /// Save the current state to disk
     pub fn write_state(&self, path: &str, tag: &str) -> Result<()> {
         for (name, subject) in self.state.iter() {
@@ -348,7 +335,6 @@ mod tests {
     };
     use arrow::array::Int64Array;
     use phymes_core::test_table::make_test_table_schema;
-    use phymes_diagnostics::HashSet;
     #[cfg(not(target_family = "wasm"))]
     use tempfile::tempdir;
 
@@ -400,67 +386,6 @@ mod tests {
             })
             .collect::<Vec<_>>();
         assert_eq!(num_rows, [1, 1, 1, 12, 12, 12]);
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_session_init_superstep_updates() -> Result<()> {
-        let session_context = make_test_session_context_parallel_task("session_1", 25)?;
-        let init = session_context.init_superstep_updates();
-        assert_eq!(init.len(), 4);
-        assert_eq!(
-            init.keys().map(|k| k.as_str()).collect::<HashSet<_>>(),
-            ["task_1", "task_2", "task_3", "session_1"]
-                .into_iter()
-                .collect::<HashSet<_>>()
-        );
-        let mut subscriptions = init
-            .get("task_1")
-            .unwrap()
-            .keys()
-            .map(|k| k.as_str())
-            .collect::<Vec<_>>();
-        subscriptions.sort();
-        assert_eq!(subscriptions, &["config_1", "state_1"]);
-        for (_k, v) in init.get("task_1").unwrap() {
-            assert!(!v);
-        }
-        let mut subscriptions = init
-            .get("task_2")
-            .unwrap()
-            .keys()
-            .map(|k| k.as_str())
-            .collect::<Vec<_>>();
-        subscriptions.sort();
-        assert_eq!(subscriptions, &["config_2", "state_2"]);
-        for (_k, v) in init.get("task_2").unwrap() {
-            assert!(!v);
-        }
-        let mut subscriptions = init
-            .get("task_3")
-            .unwrap()
-            .keys()
-            .map(|k| k.as_str())
-            .collect::<Vec<_>>();
-        subscriptions.sort();
-        assert_eq!(subscriptions, &["config_3", "state_3"]);
-        for (_k, v) in init.get("task_3").unwrap() {
-            assert!(!v);
-        }
-        assert_eq!(
-            init.get("session_1")
-                .unwrap()
-                .keys()
-                .map(|k| k.as_str())
-                .collect::<HashSet<_>>(),
-            ["state_1", "state_2", "state_3"]
-                .into_iter()
-                .collect::<HashSet<_>>()
-        );
-        for (_k, v) in init.get("session_1").unwrap() {
-            assert!(!v);
-        }
 
         Ok(())
     }

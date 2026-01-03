@@ -3,20 +3,17 @@ use arrow::record_batch::RecordBatch;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_core::{
-    BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait,
-    MessageTrait, PublishAndSubscribeTrait, RunnableTrait, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait,
-    create_error_message_map, create_error_message_map_stream,
+    AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, PublishAndSubscribeTrait, RunnableTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait, create_error_message_map, create_error_message_map_stream, create_session_tasks_run_log_batch, create_subjects_change_log_batch
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap,
-    SpanBuilder, TraceBuilderTrait,
+    SpanBuilder, TraceBuilderTrait, create_timestamp_micros,
 };
 use std::sync::Arc;
 use tokio::task::JoinSet;
 use tracing::{Level, event, instrument};
 
-use crate::SessionStreamState;
+use crate::{SessionStreamState, create_message_map};
 
 /// A single step of a [`SessionStream`]
 ///
@@ -182,32 +179,89 @@ impl SessionStreamStep {
             None
         };
 
-        // Update the state and handle any errors (without locking the state)
         let mut response_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let update = match state.write().update_state_from_messages(messages) {
-            Ok(update) => update,
-            Err(err) => {
-                let message_map = create_error_message_map_stream(&err, span.span().0, true)?;
-                response_streams.extend(message_map);
-                HashMap::<String, Vec<String>>::new()
-            }
+        {  // Update the state and handle any errors (without locking the state)
+            let update = match state.write().update_state_from_messages(messages) {
+                Ok(update) => update,
+                Err(err) => {
+                    let message_map = create_error_message_map_stream(&err, span.span().0, true)?;
+                    response_streams.extend(message_map);
+                    AvailableSubjects::SubjectsChangeLog.to_table(None, None)?
+                }
+            };
+
+            // Update the subjects change log
+            let messages = create_message_map(vec![IPCMessageBuilder::new()
+                .with_subject(update.get_name())
+                .with_publisher("")
+                .with_update(&phymes_core::TablePublication::Extend { table_name: update.get_name().to_string() })
+                .with_message(update.to_ipc_stream()?)
+                .make_random_name()?
+                .build()?]);
+            let _ = state.write().update_state_from_messages(messages)?;
+        }
+
+        // Retrieve the task ready to subscribe
+        // DM: run the task session...
+        let task_subscriptions = {
+            let state_reading = state.read();
+            let table_reading = state_reading
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SessionTasksSubscribe.to_string().as_str())
+                .expect(format!("Missing table for `{}` in session `{}` state.", AvailableSubjects::SessionTasksSubscribe.to_string(), state.read().get_session_context().get_name()).as_str())
+                .read();
+            let task_names = table_reading.get_column_as_vec_nonprimitive::<String>("task_name")?;
+            let subscription_names = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
+            let subscription_table_names = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
+            let is_updated = table_reading.get_column_as_vec_nested_primitive::<u8>("is_updated")?;
+            let session_names = table_reading.get_column_as_vec_nonprimitive::<String>("session_names")?;
+            task_names.into_iter()
+                .zip(subscription_names.into_iter())
+                .zip(subscription_table_names.into_iter())
+                .zip(is_updated.into_iter())
+                .zip(session_names.into_iter())
+                .map(|((((a, b), c), d), e)| (a, b, c, d, e))
+                .collect::<Vec<_>>()
         };
-        state.write().extend_superstep_updates(update);
+
+        // Retrieve the publications for the tasks that are ready to subscribe
+        let task_publications = {
+            let state_reading = state.read();
+            let table_reading = state_reading
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SessionTasksPublish.to_string().as_str())
+                .expect(format!("Missing table for `{}` in session `{}` state.", AvailableSubjects::SessionTasksPublish.to_string(), state.read().get_session_context().get_name()).as_str())
+                .read();
+            let task_names = table_reading.get_column_as_vec_nonprimitive::<String>("task_name")?;
+            let publication_names = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
+            let publication_table_names = table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
+            task_names.into_iter()
+                .zip(publication_names.into_iter())
+                .zip(publication_table_names.into_iter())
+                .map(|((a, b), c)| (a, b, c))
+                .collect::<Vec<_>>()
+        };
 
         // Iterate through each task and collect the resulting stream responses
         let mut session_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let mut tasks = Vec::new();
-        for (task_name, task) in state.read().get_session_context().get_tasks().iter() {
-            // Continue to the next task if all subscribed subjects are not updated
-            let state_rwlock = state.read();
-            let updates = state_rwlock.get_superstep_updates().get(task_name).unwrap();
-            let states = state_rwlock.get_session_context().get_states();
-            if !task.check_subscriptions(updates, states) {
-                continue;
-            } else {
-                tasks.push(task_name.to_owned());
-            }
+        for (task_name, subscription_names, subscription_table_names, is_updated, _) in task_subscriptions.iter() {
             event!(Level::INFO, "Superstep for task {}", &task_name);
+
+            // Subscribe to the task subjects
+            // DM: alternatively, can let the tasks/processors handle getting the subscriptions from the state...
+            let task = state.read()
+                .get_session_context()
+                .get_tasks()
+                .get(task_name)
+                .expect(format!("Missing task `{task_name}` in session `{}` state.", state.read().get_session_context().get_name()).as_str())
+                .clone();
+            let messages = task.get_subscriptions_from_state(
+                &subscription_names.iter().map(|s| s.as_str()).collect::<Vec<_>>(), 
+                &subscription_table_names.iter().map(|s| s.as_str()).collect::<Vec<_>>(), 
+                &is_updated.iter().map(|s| s != &0).collect::<Vec<_>>(), 
+                state.read().get_session_context().get_states())?;
 
             // Create the diagnostics for the task
             let diagnostic_builder = if collect_diagnostics {
@@ -220,7 +274,8 @@ impl SessionStreamStep {
             };
 
             // Run the task and collect the stream responses
-            let messages = task.get_subscriptions_from_state(updates, states);
+            // DM: need to add the publications as an additional parameter
+            // DM: alternatively, let the tasks/processors handle the publications from the state
             match task.run(messages, diagnostic_builder.as_ref()) {
                 Ok(result) => {
                     for (resp_name, resp) in result.into_iter() {
@@ -240,6 +295,34 @@ impl SessionStreamStep {
             }
         }
 
+        {  // Update the tasks run log
+            let (session_names, (task_names, timestamps)): (Vec<_>, (Vec<_>, Vec<_>)) = task_subscriptions.into_iter()
+                .map(|(task_name, _, _, _, session_name)| (session_name, (task_name, create_timestamp_micros())))
+                .unzip();
+            let tasks_run_log_batch = create_session_tasks_run_log_batch(session_names, task_names, timestamps)?;
+            let tasks_run_log_table = AvailableSubjects::SessionTasksRunLog.to_table(None, Some(vec![tasks_run_log_batch]))?;
+            let messages = create_message_map(vec![
+                IPCMessageBuilder::new()
+                    .with_subject(tasks_run_log_table.get_name())
+                    .with_publisher("")
+                    .with_update(&phymes_core::TablePublication::Extend { table_name: tasks_run_log_table.get_name().to_string() })
+                    .with_message(tasks_run_log_table.to_ipc_stream()?)
+                    .make_random_name()?
+                    .build()?]);
+            let state_update = state.write().update_state_from_messages(messages)?;
+
+            // Update the subjects change log
+            let messages = create_message_map(vec![
+                IPCMessageBuilder::new()
+                    .with_subject(state_update.get_name())
+                    .with_publisher("")
+                    .with_update(&phymes_core::TablePublication::Extend { table_name: state_update.get_name().to_string() })
+                    .with_message(state_update.to_ipc_stream()?)
+                    .make_random_name()?
+                    .build()?]);
+            let _ = state.write().update_state_from_messages(messages)?;
+        }
+
         // Break if there is nothing to update
         if session_streams.is_empty() && response_streams.is_empty() {
             // Collect metrics, logs, and traces and update their corresponding subjects
@@ -250,13 +333,6 @@ impl SessionStreamStep {
 
             Ok(None)
         } else {
-            // Remove the ran tasks from the update
-            for task_name in tasks.iter() {
-                state
-                    .write()
-                    .clear_subjects_from_task_for_superstep_updates(task_name.as_str());
-            }
-
             // Join each of the response futures
             let response_batches =
                 match SessionStreamStep::join_message_streams(response_streams).await {
@@ -264,23 +340,38 @@ impl SessionStreamStep {
                     Err(err) => create_error_message_map(&err, span.span().0, true)?,
                 };
 
-            // Update the state and handle any errors (without locking the state)
-            let mut error_messages = HashMap::<String, IPCMessage>::new();
-            let mut update = match state.write().update_state_from_messages(response_batches) {
-                Ok(update) => update,
-                Err(err) => {
-                    let message_map = create_error_message_map(&err, span.span().0, true)?;
-                    error_messages.extend(message_map);
-                    HashMap::<String, Vec<String>>::new()
-                }
-            };
-            update.extend(state.write().update_state_from_messages(error_messages)?);
-            // DM: uncommenting below and commenting above will silence any errors when writing to the Error message table
-            // match state.write().update_state_from_messages(error_messages) {
-            //     Ok(u) => update.extend(u),
-            //     Err(err) => event!(Level::ERROR, "{err:?}"),
-            // }
-            state.write().extend_superstep_updates(update);
+            {  // Update the state and handle any errors (without locking the state)
+                let mut error_messages = HashMap::<String, IPCMessage>::new();
+                let state_update = match state.write().update_state_from_messages(response_batches) {
+                    Ok(update) => update,
+                    Err(err) => {
+                        let message_map = create_error_message_map(&err, span.span().0, true)?;
+                        error_messages.extend(message_map);
+                        AvailableSubjects::SubjectsChangeLog.to_table(None, None)?
+                    }
+                };
+                let errors_update = state.write().update_state_from_messages(error_messages)?;
+
+                // Update the subjects change log
+                let messages = create_message_map(vec![
+                    IPCMessageBuilder::new()
+                        .with_subject(state_update.get_name())
+                        .with_publisher("")
+                        .with_update(&phymes_core::TablePublication::Extend { table_name: state_update.get_name().to_string() })
+                        .with_message(state_update.to_ipc_stream()?)
+                        .make_random_name()?
+                        .build()?,
+                    IPCMessageBuilder::new()
+                        .with_subject(errors_update.get_name())
+                        .with_publisher("")
+                        .with_update(&phymes_core::TablePublication::Extend { table_name: errors_update.get_name().to_string() })
+                        .with_message(errors_update.to_ipc_stream()?)
+                        .make_random_name()?
+                        .build()?,
+                    
+                    ]);
+                let _ = state.write().update_state_from_messages(messages)?;
+            }
 
             // Join each of the response futures
             let session_batches = SessionStreamStep::join_message_streams(session_streams).await?;

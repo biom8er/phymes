@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use arrow::{
-    array::{ArrayRef, Int64Array, RecordBatch, StringArray, UInt8Array, UInt32Array},
+    array::{ArrayRef, Int64Array, ListBuilder, RecordBatch, StringArray, StringBuilder, UInt8Array, UInt8Builder, UInt32Array},
     datatypes::{DataType, Field, Fields},
 };
 
@@ -201,68 +201,161 @@ pub fn create_session_tasks_check_batch(
     Ok(batch)
 }
 
+// pub(crate) fn create_session_tasks_subscribe_fields() -> Fields {
+//     let field_names = ["session_name", 
+//         "task_name",
+//         "processor_name",
+//         "processor_type",
+//         "subscription_name",
+//         "subscription_table_names",
+//         "subscribe_type",
+//     ];
+//     let fields_vec = field_names
+//         .iter()
+//         .map(|f| Field::new(*f, DataType::Utf8, false))
+//         .collect::<Vec<_>>();
+//     Fields::from(fields_vec)
+// }
 pub(crate) fn create_session_tasks_subscribe_fields() -> Fields {
     let field_names = ["session_name", 
         "task_name",
-        "processor_name",
-        "processor_type",
-        "subscription_name",
-        "subscription_table_names",
-        "subscribe_type",
-    ];
-    let fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    Fields::from(fields_vec)
-}
-
-pub fn create_session_tasks_subscribe_batch(
-    session_names: Vec<String>,
-    task_names: Vec<String>,
-    processor_names: Vec<String>,
-    processor_types: Vec<String>,
-    pub_sub_name: Vec<String>,
-    pub_sub_table_names: Vec<String>,
-    subscribe_types: Vec<String>,
-) -> Result<RecordBatch> {
-    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
-    let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
-    let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
-    let processor_types: ArrayRef = Arc::new(StringArray::from(processor_types));
-    let pub_sub_name: ArrayRef = Arc::new(StringArray::from(pub_sub_name));
-    let pub_sub_table_names: ArrayRef = Arc::new(StringArray::from(pub_sub_table_names));
-    let subscribe_types: ArrayRef = Arc::new(StringArray::from(subscribe_types));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("session_name", session_names),
-        ("task_name", task_names),
-        ("processor_name", processor_names),
-        ("processor_type", processor_types),
-        ("subscription_name", pub_sub_name),
-        ("subscription_table_names", pub_sub_table_names),
-        ("subscribe_type", subscribe_types),
-    ])?;
-    Ok(batch)
-}
-
-pub(crate) fn create_session_tasks_publish_fields() -> Fields {
-    let field_names = ["session_name",
-        "task_name",
-        "processor_name",
-        "processor_type",
-        "publication_subscription_name",
-        "publication_subscription_table_names",
-        "subscribe_type",
     ];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let field_names = ["is_subscription"];
+    let list_data_type = DataType::List(
+        Arc::new(Field::new_list_field(DataType::Utf8, false))
+    );
+    let field_names = ["subscription_names", "subscription_table_names"];
     fields_vec.extend(
         field_names
             .iter()
-            .map(|f| Field::new(*f, DataType::UInt8, false))
+            .map(|f| Field::new(*f, list_data_type.clone(), false))
+            .collect::<Vec<_>>(),
+    );
+    let list_data_type = DataType::List(
+        Arc::new(Field::new_list_field(DataType::UInt8, false))
+    );
+    let field_names = ["is_updated"];
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, list_data_type.clone(), false))
+            .collect::<Vec<_>>(),
+    );
+    Fields::from(fields_vec)
+}
+
+// pub fn create_session_tasks_subscribe_batch(
+//     session_names: Vec<String>,
+//     task_names: Vec<String>,
+//     processor_names: Vec<String>,
+//     processor_types: Vec<String>,
+//     pub_sub_name: Vec<String>,
+//     pub_sub_table_names: Vec<String>,
+//     subscribe_types: Vec<String>,
+// ) -> Result<RecordBatch> {
+//     let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+//     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
+//     let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
+//     let processor_types: ArrayRef = Arc::new(StringArray::from(processor_types));
+//     let pub_sub_name: ArrayRef = Arc::new(StringArray::from(pub_sub_name));
+//     let pub_sub_table_names: ArrayRef = Arc::new(StringArray::from(pub_sub_table_names));
+//     let subscribe_types: ArrayRef = Arc::new(StringArray::from(subscribe_types));
+//     let batch = RecordBatch::try_from_iter(vec![
+//         ("session_name", session_names),
+//         ("task_name", task_names),
+//         ("processor_name", processor_names),
+//         ("processor_type", processor_types),
+//         ("subscription_name", pub_sub_name),
+//         ("subscription_table_names", pub_sub_table_names),
+//         ("subscribe_type", subscribe_types),
+//     ])?;
+//     Ok(batch)
+// }
+pub fn create_session_tasks_subscribe_batch(
+    session_names: Vec<String>,
+    task_names: Vec<String>,
+    subscription_names: Vec<Vec<String>>,
+    subscription_table_names: Vec<Vec<String>>,
+    is_updated: Vec<Vec<u8>>,
+) -> Result<RecordBatch> {
+    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
+    let value_builder = StringBuilder::new();
+    let mut list_builder = ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Utf8, false));
+    for values in subscription_names.into_iter() {
+        for value in values.into_iter() {
+            list_builder.values().append_value(&value);
+        }
+        list_builder.append(true);
+    }
+    let subscription_names: ArrayRef = Arc::new(list_builder.finish());
+    let value_builder = StringBuilder::new();
+    let mut list_builder = ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Utf8, false));
+    for values in subscription_table_names.into_iter() {
+        for value in values.into_iter() {
+            list_builder.values().append_value(&value);
+        }
+        list_builder.append(true);
+    }
+    let subscription_table_names: ArrayRef = Arc::new(list_builder.finish());
+    let value_builder = UInt8Builder::new();
+    let mut list_builder = ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Utf8, false));
+    for values in is_updated {
+        list_builder.values().append_slice(values.as_slice());
+        list_builder.append(true);
+    }
+    let is_updated: ArrayRef = Arc::new(list_builder.finish());
+    let batch = RecordBatch::try_from_iter(vec![
+        ("session_name", session_names),
+        ("task_name", task_names),
+        ("subscription_names", subscription_names),
+        ("subscription_table_names", subscription_table_names),
+        ("is_updated", is_updated),
+    ])?;
+    Ok(batch)
+}
+
+// pub(crate) fn create_session_tasks_publish_fields() -> Fields {
+//     let field_names = ["session_name",
+//         "task_name",
+//         "processor_name",
+//         "processor_type",
+//         "publication_subscription_name",
+//         "publication_subscription_table_names",
+//         "subscribe_type",
+//     ];
+//     let mut fields_vec = field_names
+//         .iter()
+//         .map(|f| Field::new(*f, DataType::Utf8, false))
+//         .collect::<Vec<_>>();
+//     let field_names = ["is_subscription"];
+//     fields_vec.extend(
+//         field_names
+//             .iter()
+//             .map(|f| Field::new(*f, DataType::UInt8, false))
+//             .collect::<Vec<_>>(),
+//     );
+//     Fields::from(fields_vec)
+// }
+pub(crate) fn create_session_tasks_publish_fields() -> Fields {
+    let field_names = ["session_name",
+        "task_name",
+    ];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let list_data_type = DataType::List(
+        Arc::new(Field::new_list_field(DataType::Utf8, false))
+    );
+    let field_names = ["publication_names", "publication_table_names"];
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, list_data_type.clone(), false))
             .collect::<Vec<_>>(),
     );
     Fields::from(fields_vec)
