@@ -305,14 +305,14 @@ pub mod test_task {
         let _ = processor_subjects_map.insert(processor_name_1, processor_subjects);
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name(&processor_name_2)
-            .with_subscriptions(&[])
-            .with_publications(&[])
+            .with_subscriptions(&[TableSubscription::OnUpdateFullTable { table_name: table_name.to_string() }, TableSubscription::AlwaysFullTable { table_name: config_name.to_string()}])
+            .with_publications(&[TablePublication::Extend {table_name: table_name.to_string()}])
             .build()?;
         let _ = processor_subjects_map.insert(processor_name_2, processor_subjects);
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name(&processor_name_3)
-            .with_subscriptions(&[])
-            .with_publications(&[])
+            .with_subscriptions(&[TableSubscription::OnUpdateFullTable { table_name: table_name.to_string() }, TableSubscription::AlwaysFullTable { table_name: config_name.to_string()}])
+            .with_publications(&[TablePublication::Extend {table_name: table_name.to_string()}])
             .build()?;
         let _ = processor_subjects_map.insert(processor_name_3, processor_subjects);
         Ok((task, processor_subjects_map))
