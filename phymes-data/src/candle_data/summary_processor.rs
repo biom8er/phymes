@@ -64,24 +64,11 @@ impl PublishAndSubscribeTrait for DataSummaryProcessor {
 }
 
 impl ProcessorTrait for DataSummaryProcessor {
-    fn new(
-        name: &str,
-        r#type: &str,
-        publications: &[TablePublication],
-        subscriptions: &[TableSubscription],
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-    ) -> Self {
+    fn new(name: &str, r#type: &str) -> Self {
         Self {
             name: name.to_string(),
             r#type: r#type.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            subscribe_policy,
         }
-    }
-
-    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
-        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {

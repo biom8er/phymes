@@ -313,7 +313,7 @@ mod test_messages {
     use super::*;
     use crate::{
         BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait,
-        ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv,
+        ProcessorTrait, RecordBatchStream, RuntimeEnv,
         SendableRecordBatchStream, SendableRecordBatchStreamMessage,
         SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscribePolicyTrait,
         TableSubscription,
@@ -334,9 +334,6 @@ mod test_messages {
     pub struct CandleChatMockProcessor {
         name: String,
         r#type: String,
-        publications: Vec<TablePublication>,
-        subscriptions: Vec<TableSubscription>,
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
     }
 
     impl MappableTrait for CandleChatMockProcessor {
@@ -345,39 +342,12 @@ mod test_messages {
         }
     }
 
-    impl PublishAndSubscribeTrait for CandleChatMockProcessor {
-        fn get_publications(&self) -> Vec<&TablePublication> {
-            self.publications.iter().collect::<Vec<_>>()
-        }
-
-        fn get_subscriptions(&self) -> Vec<&TableSubscription> {
-            self.subscriptions.iter().collect::<Vec<_>>()
-        }
-        fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-            self.subscribe_policy
-                .check_subscriptions(&self.subscriptions, updates, state)
-        }
-    }
-
     impl ProcessorTrait for CandleChatMockProcessor {
-        fn new(
-            name: &str,
-            r#type: &str,
-            publications: &[TablePublication],
-            subscriptions: &[TableSubscription],
-            subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-        ) -> Self {
+        fn new(name: &str, r#type: &str) -> Self {
             Self {
                 name: name.to_string(),
                 r#type: r#type.to_string(),
-                publications: publications.to_owned(),
-                subscriptions: subscriptions.to_owned(),
-                subscribe_policy,
             }
-        }
-
-        fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
-            self.subscribe_policy.as_ref()
         }
 
         fn get_type(&self) -> &str {
@@ -683,9 +653,6 @@ mod tests {
         let chat_processor = test_messages::CandleChatMockProcessor::new(
             "ChatBot",
             "",
-            &[],
-            &[],
-            AvailableTableSubscribePolicies::default().build(),
         );
         let mut stream = chat_processor.process(
             message,
@@ -776,9 +743,6 @@ mod tests {
         let chat_processor = test_messages::CandleChatMockProcessor::new(
             "ChatBot",
             "",
-            &[],
-            &[],
-            AvailableTableSubscribePolicies::default().build(),
         );
         let mut stream = chat_processor.process(
             message,

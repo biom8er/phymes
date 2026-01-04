@@ -34,9 +34,6 @@ use tracing::{Level, event, instrument};
 pub struct CandleChatProcessor {
     name: String,
     r#type: String,
-    publications: Vec<TablePublication>,
-    subscriptions: Vec<TableSubscription>,
-    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
     token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
 }
 
@@ -46,40 +43,16 @@ impl MappableTrait for CandleChatProcessor {
     }
 }
 
-impl PublishAndSubscribeTrait for CandleChatProcessor {
-    fn get_publications(&self) -> Vec<&TablePublication> {
-        self.publications.iter().collect()
-    }
-
-    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
-        self.subscriptions.iter().collect()
-    }
-    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe_policy
-            .check_subscriptions(&self.subscriptions, updates, state)
-    }
-}
-
 impl ProcessorTrait for CandleChatProcessor {
     fn new(
         name: &str,
         r#type: &str,
-        publications: &[TablePublication],
-        subscriptions: &[TableSubscription],
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
     ) -> Self {
         Self {
             name: name.to_string(),
             r#type: r#type.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            subscribe_policy,
             token_service: Arc::new(Mutex::new(None)),
         }
-    }
-
-    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
-        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {

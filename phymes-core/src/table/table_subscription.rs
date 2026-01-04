@@ -1,5 +1,6 @@
 use anyhow::{Result, anyhow};
 use arrow::datatypes::Schema;
+use phymes_diagnostics::{TraceableTrait, Tracer};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, sync::Arc};
 
@@ -164,6 +165,12 @@ impl MappableTrait for TableSubscription {
     }
 }
 
+impl TraceableTrait for TableSubscription {
+    fn to_trace(&self) -> Tracer {
+        Tracer::new(&self.get_short_name(), &self.get_table_name())
+    }
+}
+
 /// Subscribe to an arrow table
 pub trait TableSubscriptionTrait: TableTrait {
     /// Implement the subscription
@@ -172,19 +179,11 @@ pub trait TableSubscriptionTrait: TableTrait {
     ///
     /// * `updated` - whether the table has been updated or not
     /// * `subscribe` - `ArrowTableSubscribe` the subscription enum
-    fn subscribe_to_table(
-        &self,
-        subscribe: &TableSubscription,
-        updated: bool,
-    ) -> Option<SendableRecordBatchStream>;
+    fn subscribe_to_table(&self, subscribe: &TableSubscription) -> Option<SendableRecordBatchStream>;
 }
 
 impl TableSubscriptionTrait for Table {
-    fn subscribe_to_table(
-        &self,
-        subscribe: &TableSubscription,
-        updated: bool,
-    ) -> Option<SendableRecordBatchStream> {
+    fn subscribe_to_table(&self, subscribe: &TableSubscription) -> Option<SendableRecordBatchStream> {
         // Skip tables for which there are no rows
         if self.count_rows() == 0 {
             return None;
@@ -192,37 +191,17 @@ impl TableSubscriptionTrait for Table {
 
         // Match on the subscribe policy
         match subscribe {
-            TableSubscription::AlwaysFullTable { table_name: _ } => {
-                Some(self.to_record_batch_stream())
-            }
-            TableSubscription::AlwaysLastRecordBatch { table_name: _ } => {
-                Some(self.to_record_batch_stream_last_record_batch())
-            }
-            TableSubscription::OnUpdateFullTable { table_name: _ } => {
-                if updated {
-                    Some(self.to_record_batch_stream())
-                } else {
-                    None
-                }
-            }
-            TableSubscription::OnUpdateLastRecordBatch { table_name: _ } => {
-                if updated {
-                    Some(self.to_record_batch_stream_last_record_batch())
-                } else {
-                    None
-                }
-            }
+            TableSubscription::AlwaysFullTable { table_name: _ } => Some(self.to_record_batch_stream()),
+            TableSubscription::AlwaysLastRecordBatch { table_name: _ } => Some(self.to_record_batch_stream_last_record_batch()),
+            TableSubscription::OnUpdateFullTable { table_name: _ } => Some(self.to_record_batch_stream()),
+            TableSubscription::OnUpdateLastRecordBatch { table_name: _ } => Some(self.to_record_batch_stream_last_record_batch()),
             TableSubscription::OnUpdateEmpty { table_name: _ } => {
-                if updated {
-                    let schema = Schema::empty();
-                    let stream = futures::stream::iter(Vec::new().into_iter().map(Ok));
-                    Some(Box::pin(RecordBatchStreamAdapter::new(
-                        Arc::new(schema),
-                        stream,
-                    )))
-                } else {
-                    None
-                }
+                let schema = Schema::empty();
+                let stream = futures::stream::iter(Vec::new().into_iter().map(Ok));
+                Some(Box::pin(RecordBatchStreamAdapter::new(
+                    Arc::new(schema),
+                    stream,
+                )))
             }
             TableSubscription::None => None,
             TableSubscription::Custom(_) => None,

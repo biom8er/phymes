@@ -1,7 +1,5 @@
 use crate::{
-    MappableTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, SendableRecordBatchStreamMessageMap, TablePublication,
-    TableSubscribePolicyTrait, TableSubscription,
+    MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessageMap
 };
 use anyhow::{Result, anyhow};
 use phymes_diagnostics::DiagnosticBuilder;
@@ -11,20 +9,11 @@ use tracing::{Level, event};
 
 /// Trait that performs the actual processing
 ///   and designed to allow for chaining multiple processors into streaming computational trees
-pub trait ProcessorTrait: MappableTrait + PublishAndSubscribeTrait + Send + Sync + Debug {
+pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     /// New processor
-    fn new(
-        name: &str,
-        r#type: &str,
-        publications: &[TablePublication],
-        subscriptions: &[TableSubscription],
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-    ) -> Self
+    fn new(name: &str, r#type: &str) -> Self
     where
         Self: Sized;
-
-    /// Get the subscription policy
-    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait;
 
     /// The type used to identify the processor after dynamic dispatching
     /// often just an alias for `get_static_name`
@@ -197,7 +186,7 @@ pub mod test_processor {
     use super::*;
     use crate::{
         BuildableTrait, BuilderTrait, MessageBuilderTrait, MessageTrait,
-        SendableRecordBatchStreamMessage, StateMap, test_table::make_test_record_batch,
+        SendableRecordBatchStreamMessage, test_table::make_test_record_batch,
     };
 
     use arrow::{array::RecordBatch, compute::concat_batches, datatypes::SchemaRef};
@@ -215,9 +204,6 @@ pub mod test_processor {
     pub struct ProcessorMock {
         name: String,
         r#type: String,
-        publications: Vec<TablePublication>,
-        subscriptions: Vec<TableSubscription>,
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
     }
 
     impl MappableTrait for ProcessorMock {
@@ -226,39 +212,12 @@ pub mod test_processor {
         }
     }
 
-    impl PublishAndSubscribeTrait for ProcessorMock {
-        fn get_publications(&self) -> Vec<&TablePublication> {
-            self.publications.iter().collect::<Vec<_>>()
-        }
-
-        fn get_subscriptions(&self) -> Vec<&TableSubscription> {
-            self.subscriptions.iter().collect::<Vec<_>>()
-        }
-        fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-            self.subscribe_policy
-                .check_subscriptions(&self.subscriptions, updates, state)
-        }
-    }
-
     impl ProcessorTrait for ProcessorMock {
-        fn new(
-            name: &str,
-            r#type: &str,
-            publications: &[TablePublication],
-            subscriptions: &[TableSubscription],
-            subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-        ) -> Self {
+        fn new(name: &str, r#type: &str) -> Self {
             Self {
                 name: name.to_string(),
                 r#type: r#type.to_string(),
-                publications: publications.to_owned(),
-                subscriptions: subscriptions.to_owned(),
-                subscribe_policy,
             }
-        }
-
-        fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
-            self.subscribe_policy.as_ref()
         }
 
         fn get_type(&self) -> &str {
@@ -399,9 +358,6 @@ pub mod test_processor {
     pub struct ProcessorError {
         name: String,
         r#type: String,
-        publications: Vec<TablePublication>,
-        subscriptions: Vec<TableSubscription>,
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
     }
 
     impl MappableTrait for ProcessorError {
@@ -410,39 +366,12 @@ pub mod test_processor {
         }
     }
 
-    impl PublishAndSubscribeTrait for ProcessorError {
-        fn get_publications(&self) -> Vec<&TablePublication> {
-            self.publications.iter().collect::<Vec<_>>()
-        }
-
-        fn get_subscriptions(&self) -> Vec<&TableSubscription> {
-            self.subscriptions.iter().collect::<Vec<_>>()
-        }
-        fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-            self.subscribe_policy
-                .check_subscriptions(&self.subscriptions, updates, state)
-        }
-    }
-
     impl ProcessorTrait for ProcessorError {
-        fn new(
-            name: &str,
-            r#type: &str,
-            publications: &[TablePublication],
-            subscriptions: &[TableSubscription],
-            subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-        ) -> Self {
+        fn new(name: &str, r#type: &str) -> Self {
             Self {
                 name: name.to_string(),
                 r#type: r#type.to_string(),
-                publications: publications.to_owned(),
-                subscriptions: subscriptions.to_owned(),
-                subscribe_policy,
             }
-        }
-
-        fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
-            self.subscribe_policy.as_ref()
         }
 
         fn get_type(&self) -> &str {
@@ -496,9 +425,6 @@ mod tests {
         let processor_1 = test_processor::ProcessorMock::new(
             "processor_1",
             test_processor::ProcessorMock::get_static_name(),
-            &[],
-            &[],
-            AvailableTableSubscribePolicies::default().build(),
         );
         let mut stream =
             processor_1.process(message, Some(&diagnostic_builder), Arc::new(runtime_env))?;

@@ -77,10 +77,6 @@ impl ProcessorTrait for CandleEmbedProcessor {
         }
     }
 
-    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
-        self.subscribe_policy.as_ref()
-    }
-
     fn get_type(&self) -> &str {
         &self.r#type
     }

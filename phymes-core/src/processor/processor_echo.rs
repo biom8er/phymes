@@ -1,10 +1,8 @@
 use crate::{
-    MappableTrait, ProcessorTrait, PublishAndSubscribeTrait, RuntimeEnv,
-    SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscribePolicyTrait,
-    TableSubscription,
+    MappableTrait, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessageMap
 };
 use anyhow::Result;
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, TraceBuilderTrait};
 use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::{Level, event};
@@ -14,9 +12,6 @@ use tracing::{Level, event};
 pub struct ProcessorEcho {
     name: String,
     r#type: String,
-    publications: Vec<TablePublication>,
-    subscriptions: Vec<TableSubscription>,
-    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for ProcessorEcho {
@@ -25,39 +20,12 @@ impl MappableTrait for ProcessorEcho {
     }
 }
 
-impl PublishAndSubscribeTrait for ProcessorEcho {
-    fn get_publications(&self) -> Vec<&TablePublication> {
-        self.publications.iter().collect::<Vec<_>>()
-    }
-
-    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
-        self.subscriptions.iter().collect::<Vec<_>>()
-    }
-    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe_policy
-            .check_subscriptions(&self.subscriptions, updates, state)
-    }
-}
-
 impl ProcessorTrait for ProcessorEcho {
-    fn new(
-        name: &str,
-        r#type: &str,
-        publications: &[TablePublication],
-        subscriptions: &[TableSubscription],
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-    ) -> Self {
+    fn new(name: &str, r#type: &str) -> Self {
         Self {
             name: name.to_string(),
             r#type: r#type.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            subscribe_policy,
         }
-    }
-
-    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
-        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {

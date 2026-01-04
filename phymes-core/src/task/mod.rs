@@ -5,9 +5,9 @@ mod test_exec;
 mod task_plan;
 mod task_plan_builder;
 
-pub use publish_subscribe::PublishAndSubscribeTrait;
+pub use publish_subscribe::{subscribe_to_subject, publish_to_subject};
 pub use task_builder::{TaskBuilder, TaskBuilderTrait};
-pub use task_trait::{RunnableTrait, Task, TaskTrait, test_task};
+pub use task_trait::{Task, TaskTrait, test_task};
 pub use task_plan::TaskPlan;
 pub use task_plan_builder::TaskPlanBuilder;
 

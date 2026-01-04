@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use crate::{ProcessorTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, ProcessorPlan};
+use crate::{ProcessorPlan, ProcessorSubjects, ProcessorTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription};
 
 /// The builder for the [ProcessorPlan]
 #[derive(Debug, Default)]
@@ -56,6 +56,49 @@ impl ProcessorPlanBuilder {
             publications: self.publications.take().unwrap(),
             subscriptions: self.subscriptions.take().unwrap(),
             subscribe_policy: self.subscribe_policy.take().unwrap(),
+        })
+    }
+}
+
+/// The builder for the [ProcessorSubjects]
+#[derive(Debug, Default)]
+pub struct ProcessorSubjectsBuilder {
+    pub name: Option<String>,
+    pub publications: Option<Vec<TablePublication>>,
+    pub subscriptions: Option<Vec<TableSubscription>>,
+}
+
+impl ProcessorSubjectsBuilder {
+    pub fn with_publications(mut self, publications: &[TablePublication]) -> Self {
+        self.publications = Some(publications.to_vec());
+        self
+    }
+    pub fn with_subscriptions(mut self, subscriptions: &[TableSubscription]) -> Self {
+        self.subscriptions = Some(subscriptions.to_vec());
+        self
+    }
+    pub fn with_name(mut self, name: &str) -> Self {
+        self.name = Some(name.to_string());
+        self
+    }
+    pub fn build(mut self) -> Result<ProcessorSubjects> {
+        if self.name.as_ref().is_none() {
+            return Err(anyhow!("Missing processor name"));
+        } else if self.publications.as_ref().is_none() {
+            return Err(anyhow!(
+                "Missing publications for processor {}",
+                self.name.as_ref().unwrap()
+            ));
+        } else if self.subscriptions.as_ref().is_none() {
+            return Err(anyhow!(
+                "Missing subscriptions for processor {}",
+                self.name.as_ref().unwrap()
+            ));
+        }
+        Ok(ProcessorSubjects {
+            name: self.name.take().unwrap(),
+            publications: self.publications.take().unwrap(),
+            subscriptions: self.subscriptions.take().unwrap(),
         })
     }
 }

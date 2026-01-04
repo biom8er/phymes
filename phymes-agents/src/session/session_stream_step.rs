@@ -207,26 +207,16 @@ impl SessionStreamStep {
 
         // Iterate through each task and collect the resulting stream responses
         let mut session_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        for (task_name, subscriptions, is_subscription_updated, publications, _) in tasks.iter() {
+        for ((task_name, session_name), processor_subjects_map) in tasks.iter() {
             event!(Level::INFO, "Superstep for task {}", &task_name);
 
             // Subscribe to the task subjects
-            // DM: alternatively, can let the tasks/processors handle getting the subscriptions from the state...
             let task = state.read()
                 .get_session_context()
                 .get_tasks()
                 .get(task_name)
                 .expect(format!("Missing task `{task_name}` in session `{}` state.", state.read().get_session_context().get_name()).as_str())
-                .clone();            
-            let subscriptions = subscription_names.iter()
-                .zip(subscription_table_names.iter())
-                .map(|(subscription_name, subscription_table_name)| TableSubscription::from_str_fuzzy(subscription_name, subscription_table_name).unwrap())
-                .collect::<Vec<_>>();
-            let messages = task.get_subscriptions_from_state(
-                &subscription_names.iter().map(|s| s.as_str()).collect::<Vec<_>>(), 
-                &subscription_table_names.iter().map(|s| s.as_str()).collect::<Vec<_>>(), 
-                &is_subscription_updated.iter().map(|s| s != &0).collect::<Vec<_>>(), 
-                state.read().get_session_context().get_states())?;
+                .clone();
 
             // Create the diagnostics for the task
             let diagnostic_builder = if collect_diagnostics {
@@ -262,7 +252,7 @@ impl SessionStreamStep {
 
         {  // Update the tasks run log
             let (session_names, (task_names, timestamps)): (Vec<_>, (Vec<_>, Vec<_>)) = tasks.into_iter()
-                .map(|(task_name, _, _, _, session_name)| (session_name, (task_name, create_timestamp_micros())))
+                .map(|((task_name, session_name), _ )| (session_name, (task_name, create_timestamp_micros())))
                 .unzip();
             let tasks_run_log_batch = create_session_tasks_run_log_batch(session_names, task_names, timestamps)?;
             let tasks_run_log_table = AvailableSubjects::SessionTasksRunLog.to_table(None, Some(vec![tasks_run_log_batch]))?;

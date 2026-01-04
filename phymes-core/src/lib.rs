@@ -11,7 +11,7 @@ pub use message::{
     SessionInterfaceMessageBuilderTrait, SessionInterfaceMessageTrait, remove_message_by_subject,
 };
 pub use processor::{
-    ProcessorBuilder, ProcessorEcho, ProcessorMap, ProcessorTrait, test_processor, ProcessorPlan, ProcessorPlanBuilder
+    ProcessorBuilder, ProcessorEcho, ProcessorMap, ProcessorTrait, test_processor, ProcessorPlan, ProcessorPlanBuilder, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap
 };
 pub use runtime_env::{
     BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvMap, RuntimeEnvTrait,
@@ -43,6 +43,6 @@ pub use table::{
     from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type, test_table,
 };
 pub use task::{
-    PublishAndSubscribeTrait, RunnableTrait, Task, TaskBuilder, TaskBuilderTrait, TaskMap,
+    subscribe_to_subject, publish_to_subject, Task, TaskBuilder, TaskBuilderTrait, TaskMap,
     TaskTrait, test_task, TaskPlan, TaskPlanBuilder
 };

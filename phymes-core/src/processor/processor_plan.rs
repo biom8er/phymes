@@ -16,3 +16,14 @@ pub struct ProcessorPlan {
     /// The policy for subscribing to subjects
     pub subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
+
+/// The publications and subscriptions to run the processor with
+#[derive(Debug)]
+pub struct ProcessorSubjects {
+    /// Name of the processor
+    pub name: String,
+    /// The subjects the processor publishes on
+    pub publications: Vec<TablePublication>,
+    /// The subjects the processor subscribes to
+    pub subscriptions: Vec<TableSubscription>,
+}

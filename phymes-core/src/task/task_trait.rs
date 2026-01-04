@@ -1,27 +1,14 @@
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use arrow::record_batch::RecordBatch;
 use parking_lot::RwLock;
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
 use tracing::{Level, event};
 
 use crate::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
-    PublishAndSubscribeTrait, RuntimeEnv, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscription,
-    TaskBuilder,
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, ProcessorSubjectsMap, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscription, TaskBuilder, publish_to_subject, subscribe_to_subject
 };
-
-/// For task objects that run computation and send/recieve streaming `RecordBatch`es as messages
-pub trait RunnableTrait {
-    /// Run the computation
-    fn run(
-        &self,
-        messages: SendableRecordBatchStreamMessageMap,
-        diagnostic_builder: Option<&DiagnosticBuilder>,
-    ) -> Result<SendableRecordBatchStreamMessageMap>;
-}
 
 /// Trait to implement the actual task which could involve one or
 ///   more operators over [`RecordBatch`]s often originating from
@@ -63,54 +50,15 @@ pub trait RunnableTrait {
 ///
 /// Parallel execution could be integrated into any uses case to improve execution speed
 pub trait TaskTrait:
-    MappableTrait + BuildableTrait + RunnableTrait + PublishAndSubscribeTrait + Sync + Send
+    MappableTrait + BuildableTrait + Sync + Send
 {
-    /// Make the outbox
-    ///
-    /// # Note
-    ///
-    /// A unique name to protect against collisions when building
-    ///   the final message map
-    fn make_outbox(
+    /// Run the computation
+    fn run(
         &self,
-        outbox: SendableRecordBatchStreamMessageMap,
-    ) -> SendableRecordBatchStreamMessageMap {
-        let mut map = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        for (name, message) in outbox.into_iter() {
-            let publications = self.get_publications();
-            let update = publications
-                .iter()
-                .filter(|p| p.get_table_name() == message.get_subject())
-                .collect::<Vec<_>>();
-
-            // Skip messages that are not in the publications
-            if update.is_empty() {
-                event!(
-                    Level::ERROR,
-                    "No publications found for message {} on {} from {} during {}",
-                    &name,
-                    message.get_subject(),
-                    message.get_publisher(),
-                    self.get_name()
-                );
-                continue;
-            }
-
-            // Build the output message
-            let out = SendableRecordBatchStreamMessage::get_builder()
-                // .with_name(name.as_str())
-                .with_publisher(self.get_name())
-                .with_subject(message.get_subject())
-                .with_update(update.first().unwrap())
-                .with_message(message.get_message_own())
-                .make_name()
-                .unwrap()
-                .build()
-                .unwrap();
-            let _ = map.insert(out.get_name().to_string(), out);
-        }
-        map
-    }
+        diagnostic_builder: Option<&DiagnosticBuilder>,
+        processor_subjects: &ProcessorSubjectsMap,
+        subjects: &StateMap, // DM: update to channels when ready
+    ) -> Result<SendableRecordBatchStreamMessageMap>;
 
     /// Get an immutable reference to the processors
     fn get_processors(&self) -> &Vec<Arc<dyn ProcessorTrait>>;
@@ -126,7 +74,7 @@ pub struct Task {
     pub(crate) name: String,
     /// Runtime environment for the task and processors
     pub(crate) runtime_env: Arc<RuntimeEnv>,
-    /// Entry processor
+    /// Processor sequence
     pub(crate) processor: Vec<Arc<dyn ProcessorTrait>>,
 }
 
@@ -146,47 +94,53 @@ impl BuildableTrait for Task {
     }
 }
 
-impl RunnableTrait for Task {
+impl TaskTrait for Task {
     fn run(
         &self,
-        mut messages: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
+        processor_subjects: &ProcessorSubjectsMap,
+        subjects: &StateMap, // DM: update to channels when ready
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Running task {}", self.get_name());
-        // Trace the inbox
-        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
+
+        // Build the tracer for the task and processors, and trace the subscriptions
+        let (trace, trace_builder) = if let Some(diagnostic_builder) = diagnostic_builder {
             let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
             let trace = trace_builder
                 .clone()
                 .messages(line!(), file!(), self.get_name());
-            trace.enter(&messages.values().collect::<Vec<_>>());
-            Some((trace, trace_builder))
+            trace.enter(&processor_subjects.values().flat_map(|p| &p.subscriptions).collect::<Vec<_>>());
+            (Some(trace), Some(trace_builder))
         } else {
-            None
+            (None, None)
         };
 
-        // Process the incoming message resulting in a `SendableRecordBatchStream`
+        // Run the processing sequence and collect the messages
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         for processor in self.processor.iter() {
-            let processor_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
+
+            // Subscribe to the processor subjects
+            let processor_subject = processor_subjects.get(processor.get_name())
+                .ok_or(anyhow!("Processor `{}` not found in processor subscriptions and publications `{:?}`.", processor.get_name(), processor_subjects.keys()))?;
+            let m: hashbrown::HashMap<String, SendableRecordBatchStreamMessage> = subscribe_to_subject(&processor_subject.subscriptions, &processor_subject.publications, subjects, &mut messages)?;
+
+            // Run the processor
             messages = processor.process(
-                messages,
-                processor_diagnostic_builder.as_ref(),
+                m,
+                trace_builder.as_ref().clone(),
                 self.runtime_env.clone(),
             )?;
         }
 
-        // make the output message
-        let outbox = self.make_outbox(messages);
+        // Prepare the messages to publish
+        let messages = publish_to_subject(self.get_name(), &processor_subjects.values().flat_map(|p| &p.publications).collect::<Vec<_>>(), messages);
 
-        // Trace the outbox
+        // Trace the messages to publish
         if let Some(trace) = trace {
-            trace.0.exit(&outbox.values().collect::<Vec<_>>());
+            trace.exit(&messages.values().collect::<Vec<_>>());
         }
-        Ok(outbox)
+        Ok(messages)
     }
-}
-
-impl TaskTrait for Task {
     fn get_runtime_env(&self) -> &Arc<RuntimeEnv> {
         &self.runtime_env
     }
@@ -195,39 +149,11 @@ impl TaskTrait for Task {
     }
 }
 
-impl PublishAndSubscribeTrait for Task {
-    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
-        self.get_processors()
-            .iter()
-            .flat_map(|p| p.get_subscriptions())
-            .collect::<Vec<&TableSubscription>>()
-    }
-    fn get_publications(&self) -> Vec<&TablePublication> {
-        self.get_processors()
-            .iter()
-            .flat_map(|p| p.get_publications())
-            .collect::<Vec<&TablePublication>>()
-    }
-    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        for processor in self.get_processors() {
-            if !processor.check_subscriptions(updates, state) {
-                return false;
-            }
-        }
-        true
-    }
-}
-
 /// Mock objects and functions for task testing
 pub mod test_task {
     use super::*;
     use crate::{
-        AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, IPCMessage,
-        IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, ProcessorBuilder,
-        RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication,
-        TableTrait, TaskBuilderTrait,
-        test_processor::ProcessorMock,
-        test_table::{make_test_table, make_test_table_chat},
+        BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, ProcessorBuilder, ProcessorSubjects, ProcessorSubjectsBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, TaskBuilderTrait, test_processor::ProcessorMock, test_table::{make_test_table, make_test_table_chat}
     };
 
     use arrow::array::{ArrayRef, StringArray, UInt16Array, UInt32Array};
@@ -295,32 +221,27 @@ pub mod test_task {
         runtime_env_name: &str,
         table_name: &str,
         config_name: &str,
-    ) -> Result<Task> {
+    ) -> Result<(Task, HashMap<String, ProcessorSubjectsMap>)> {
         let processor_name = format!("{name}_processor");
-        Task::get_builder()
+        let processor = ProcessorBuilder::default()
+            .with_name(processor_name.as_str())
+            .with_type(ProcessorMock::get_static_name())
+            .build_arc::<ProcessorMock>()?;
+        let task = Task::get_builder()
             .with_name(name)
             .with_runtime_env(Arc::new(make_runtime_env(runtime_env_name)?))
-            .with_processor(vec![
-                ProcessorBuilder::default()
-                    .with_name(processor_name.as_str())
-                    .with_type(ProcessorMock::get_static_name())
-                    .with_publications(&[TablePublication::Extend {
-                        table_name: table_name.to_string(),
-                    }])
-                    .with_subscriptions(&[
-                        TableSubscription::OnUpdateFullTable {
-                            table_name: table_name.to_string(),
-                        },
-                        TableSubscription::AlwaysFullTable {
-                            table_name: config_name.to_string(),
-                        },
-                    ])
-                    .with_subscribe_policy(
-                        AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                    )
-                    .build_arc::<ProcessorMock>()?,
-            ])
-            .build()
+            .with_processor(vec![processor])
+            .build()?;
+        let processor_subjects = ProcessorSubjectsBuilder::default()
+            .with_name(&processor_name)
+            .with_subscriptions(&[TableSubscription::OnUpdateFullTable { table_name: table_name.to_string() }, TableSubscription::AlwaysFullTable { table_name: config_name.to_string()}])
+            .with_publications(&[TablePublication::Extend {table_name: table_name.to_string()}])
+            .build()?;
+        let mut processor_subjects_map = HashMap::<String, ProcessorSubjects>::new();
+        let _ = processor_subjects_map.insert(processor_name, processor_subjects);
+        let mut tasks_subjects_map = HashMap::<String, ProcessorSubjectsMap>::new();
+        let _ = tasks_subjects_map.insert(name.to_string(), processor_subjects_map);
+        Ok((task, tasks_subjects_map))
     }
 
     pub fn make_test_task_multiple_subscriptions(
@@ -329,35 +250,27 @@ pub mod test_task {
         table_name_1: &str,
         table_name_2: &str,
         config_name: &str,
-    ) -> Result<Task> {
+    ) -> Result<(Task, HashMap<String, ProcessorSubjectsMap>)> {
         let processor_name = format!("{name}_processor");
-        Task::get_builder()
+        let processor = ProcessorBuilder::default()
+            .with_name(processor_name.as_str())
+            .with_type(ProcessorMock::get_static_name())
+            .build_arc::<ProcessorMock>()?;
+        let task = Task::get_builder()
             .with_name(name)
             .with_runtime_env(Arc::new(make_runtime_env(runtime_env_name)?))
-            .with_processor(vec![
-                ProcessorBuilder::default()
-                    .with_name(processor_name.as_str())
-                    .with_type(ProcessorMock::get_static_name())
-                    .with_publications(&[TablePublication::Extend {
-                        table_name: table_name_1.to_string(),
-                    }])
-                    .with_subscriptions(&[
-                        TableSubscription::OnUpdateFullTable {
-                            table_name: table_name_1.to_string(),
-                        },
-                        TableSubscription::OnUpdateFullTable {
-                            table_name: table_name_2.to_string(),
-                        },
-                        TableSubscription::AlwaysFullTable {
-                            table_name: config_name.to_string(),
-                        },
-                    ])
-                    .with_subscribe_policy(
-                        AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                    )
-                    .build_arc::<ProcessorMock>()?,
-            ])
-            .build()
+            .with_processor(vec![processor])
+            .build()?;
+        let processor_subjects = ProcessorSubjectsBuilder::default()
+            .with_name(&processor_name)
+            .with_subscriptions(&[TableSubscription::OnUpdateFullTable { table_name: table_name_1.to_string() }, TableSubscription::OnUpdateFullTable { table_name: table_name_2.to_string() }, TableSubscription::AlwaysFullTable { table_name: config_name.to_string()}])
+            .with_publications(&[TablePublication::Extend {table_name: table_name_1.to_string()}])
+            .build()?;
+        let mut processor_subjects_map = HashMap::<String, ProcessorSubjects>::new();
+        let _ = processor_subjects_map.insert(processor_name, processor_subjects);
+        let mut tasks_subjects_map = HashMap::<String, ProcessorSubjectsMap>::new();
+        let _ = tasks_subjects_map.insert(name.to_string(), processor_subjects_map);
+        Ok((task, tasks_subjects_map))
     }
 
     pub fn make_test_task_chained_processor(
@@ -365,52 +278,50 @@ pub mod test_task {
         runtime_env_name: &str,
         table_name: &str,
         config_name: &str,
-    ) -> Result<Task> {
+    ) -> Result<(Task, HashMap<String, ProcessorSubjectsMap>)> {
         let processor_name_1 = format!("{name}_processor_1");
         let processor_name_2 = format!("{name}_processor_2");
         let processor_name_3 = format!("{name}_processor_3");
-        Task::get_builder()
+        let task = Task::get_builder()
             .with_name(name)
             .with_runtime_env(Arc::new(make_runtime_env(runtime_env_name)?))
             .with_processor(vec![
                 ProcessorBuilder::default()
                     .with_name(processor_name_1.as_str())
                     .with_type(ProcessorMock::get_static_name())
-                    .with_publications(&[TablePublication::Extend {
-                        table_name: table_name.to_string(),
-                    }])
-                    .with_subscriptions(&[
-                        TableSubscription::OnUpdateFullTable {
-                            table_name: table_name.to_string(),
-                        },
-                        TableSubscription::AlwaysFullTable {
-                            table_name: config_name.to_string(),
-                        },
-                    ])
-                    .with_subscribe_policy(
-                        AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                    )
                     .build_arc::<ProcessorMock>()?,
                 ProcessorBuilder::default()
                     .with_name(processor_name_2.as_str())
                     .with_type(ProcessorMock::get_static_name())
-                    .with_publications(&[])
-                    .with_subscriptions(&[])
-                    .with_subscribe_policy(
-                        AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                    )
                     .build_arc::<ProcessorMock>()?,
                 ProcessorBuilder::default()
                     .with_name(processor_name_3.as_str())
                     .with_type(ProcessorMock::get_static_name())
-                    .with_publications(&[])
-                    .with_subscriptions(&[])
-                    .with_subscribe_policy(
-                        AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                    )
                     .build_arc::<ProcessorMock>()?,
             ])
-            .build()
+            .build()?;
+        let mut processor_subjects_map = HashMap::<String, ProcessorSubjects>::new();
+        let processor_subjects = ProcessorSubjectsBuilder::default()
+            .with_name(&processor_name_1)
+            .with_subscriptions(&[TableSubscription::OnUpdateFullTable { table_name: table_name.to_string() }, TableSubscription::AlwaysFullTable { table_name: config_name.to_string()}])
+            .with_publications(&[TablePublication::Extend {table_name: table_name.to_string()}])
+            .build()?;
+        let _ = processor_subjects_map.insert(processor_name_1, processor_subjects);
+        let processor_subjects = ProcessorSubjectsBuilder::default()
+            .with_name(&processor_name_2)
+            .with_subscriptions(&[])
+            .with_publications(&[])
+            .build()?;
+        let _ = processor_subjects_map.insert(processor_name_2, processor_subjects);
+        let processor_subjects = ProcessorSubjectsBuilder::default()
+            .with_name(&processor_name_3)
+            .with_subscriptions(&[])
+            .with_publications(&[])
+            .build()?;
+        let _ = processor_subjects_map.insert(processor_name_3, processor_subjects);
+        let mut tasks_subjects_map = HashMap::<String, ProcessorSubjectsMap>::new();
+        let _ = tasks_subjects_map.insert(name.to_string(), processor_subjects_map);
+        Ok((task, tasks_subjects_map))
     }
 
     pub fn make_test_input_message(
@@ -459,152 +370,6 @@ mod tests {
     #[allow(dead_code)]
     fn use_task_name_as_trait_object(plan: &dyn TaskTrait<T = TaskBuilder>) {
         let _ = plan.get_name();
-    }
-
-    #[test]
-    fn test_get_subscriptions_from_state() -> Result<()> {
-        // Single processor with All logic
-        let test_task = test_task::make_test_task_single_processor(
-            "test_task",
-            "test_rt",
-            "test_table",
-            "test_config",
-        )?;
-        let mut messages = test_task.get_subscriptions_from_state(
-            &test_task::make_state_updates(&["test_table"], &[true]),
-            &test_task::make_state("test_table", "test_config")?,
-        );
-        assert_eq!(messages.len(), 2);
-        assert_eq!(
-            remove_message_by_subject("test_table", &mut messages)
-                .unwrap()
-                .get_subject(),
-            "test_table"
-        );
-        assert_eq!(
-            remove_message_by_subject("test_config", &mut messages)
-                .unwrap()
-                .get_subject(),
-            "test_config"
-        );
-
-        // Multiple processors with no OnUpdates
-        let test_task = test_task::make_test_task_multiple_subscriptions(
-            "test_task",
-            "test_rt",
-            "test_table",
-            "test_table_2",
-            "test_config",
-        )?;
-        let mut messages = test_task.get_subscriptions_from_state(
-            &test_task::make_state_updates(&["test_table"], &[false]),
-            &test_task::make_state("test_table", "test_config")?,
-        );
-        assert_eq!(messages.len(), 1);
-        assert_eq!(
-            remove_message_by_subject("test_config", &mut messages)
-                .unwrap()
-                .get_subject(),
-            "test_config"
-        );
-
-        // Multiple processors with one OnUpdates
-        let test_task = test_task::make_test_task_multiple_subscriptions(
-            "test_task",
-            "test_rt",
-            "test_table",
-            "test_table_2",
-            "test_config",
-        )?;
-        let mut messages = test_task.get_subscriptions_from_state(
-            &test_task::make_state_updates(&["test_table"], &[true]),
-            &test_task::make_state("test_table", "test_config")?,
-        );
-        assert_eq!(messages.len(), 2);
-        assert_eq!(
-            remove_message_by_subject("test_table", &mut messages)
-                .unwrap()
-                .get_subject(),
-            "test_table"
-        );
-        assert_eq!(
-            remove_message_by_subject("test_config", &mut messages)
-                .unwrap()
-                .get_subject(),
-            "test_config"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn test_run_task_make_outbox() -> Result<()> {
-        let test_task = test_task::make_test_task_single_processor(
-            "test_task",
-            "test_rt",
-            "test_table",
-            "test_config",
-        )?;
-
-        // Case 1: Message has subject that the task does not publish on
-        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let message = SendableRecordBatchStreamMessage::get_builder()
-            .with_name("test_message")
-            .with_publisher("s1")
-            .with_subject("d1")
-            .with_update(&TablePublication::Extend {
-                table_name: "d1".to_string(),
-            })
-            .with_message(make_test_table("d1", 1, 8, 2)?.to_record_batch_stream())
-            .build()?;
-        let _ = messages.insert(message.get_name().to_string(), message);
-        let inbox = test_task.make_outbox(messages);
-        assert_eq!(inbox.len(), 0);
-
-        // Case 2: Message has subject that the task does not publish on
-        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let message = SendableRecordBatchStreamMessage::get_builder()
-            .with_name("test_message")
-            .with_publisher("s1")
-            .with_subject("test_table")
-            .with_update(&TablePublication::Extend {
-                table_name: "test_table".to_string(),
-            })
-            .with_message(make_test_table("test_table", 1, 8, 2)?.to_record_batch_stream())
-            .build()?;
-        let _ = messages.insert(message.get_name().to_string(), message);
-        let inbox = test_task.make_outbox(messages);
-        assert_eq!(inbox.len(), 1);
-        assert_eq!(
-            inbox
-                .get("from_test_task_on_test_table")
-                .unwrap()
-                .get_name(),
-            "from_test_task_on_test_table"
-        );
-        assert_eq!(
-            inbox
-                .get("from_test_task_on_test_table")
-                .unwrap()
-                .get_publisher(),
-            "test_task"
-        );
-        assert_eq!(
-            inbox
-                .get("from_test_task_on_test_table")
-                .unwrap()
-                .get_subject(),
-            "test_table"
-        );
-        assert_eq!(
-            *inbox
-                .get("from_test_task_on_test_table")
-                .unwrap()
-                .get_update(),
-            TablePublication::Extend {
-                table_name: "test_table".to_string()
-            }
-        );
-        Ok(())
     }
 
     #[tokio::test]
