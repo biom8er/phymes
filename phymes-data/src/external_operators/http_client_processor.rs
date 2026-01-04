@@ -11,7 +11,7 @@ use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
-    MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream,
     RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication,
     TableSubscribePolicyTrait, TableSubscription, TableTrait, create_chat_record_batch,
@@ -62,9 +62,6 @@ pub(crate) fn error_report(mut err: &(dyn std::error::Error + 'static)) -> Strin
 pub struct HTTPClientRequestProcessor {
     name: String,
     r#type: String,
-    publications: Vec<TablePublication>,
-    subscriptions: Vec<TableSubscription>,
-    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for HTTPClientRequestProcessor {

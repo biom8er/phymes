@@ -15,7 +15,7 @@ use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
-    MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream,
     RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait,
     TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait,
@@ -34,9 +34,6 @@ use crate::{CandleEmbedConfig, TokenProcessorTrait, TokenProcessorTraitExt, Toke
 pub struct CandleEmbedProcessor {
     name: String,
     r#type: String,
-    publications: Vec<TablePublication>,
-    subscriptions: Vec<TableSubscription>,
-    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
     token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
 }
 

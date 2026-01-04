@@ -11,7 +11,7 @@ use arrow::datatypes::SchemaRef;
 use futures::stream::{Stream, StreamExt};
 use phymes_core::{
     BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
-    PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table,
     TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription,
     remove_message_by_subject,
@@ -28,28 +28,11 @@ use crate::{DataConfigTrait, DataSummaryConfig};
 pub struct CoalesceProcessor {
     name: String,
     r#type: String,
-    publications: Vec<TablePublication>,
-    subscriptions: Vec<TableSubscription>,
-    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for CoalesceProcessor {
     fn get_name(&self) -> &str {
         &self.name
-    }
-}
-
-impl PublishAndSubscribeTrait for CoalesceProcessor {
-    fn get_publications(&self) -> Vec<&TablePublication> {
-        self.publications.iter().collect()
-    }
-
-    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
-        self.subscriptions.iter().collect()
-    }
-    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe_policy
-            .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
 

@@ -7,7 +7,7 @@ use std::{
 use bytes::Bytes;
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, CsvFormat, DataFormat,
-    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait,
+    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
     RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication,
     TableSubscribePolicyTrait, TableSubscription, TableTrait, create_blob_batch,
@@ -38,28 +38,11 @@ use super::summary_config::DataSummaryConfig;
 pub struct DataSummaryProcessor {
     name: String,
     r#type: String,
-    publications: Vec<TablePublication>,
-    subscriptions: Vec<TableSubscription>,
-    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for DataSummaryProcessor {
     fn get_name(&self) -> &str {
         &self.name
-    }
-}
-
-impl PublishAndSubscribeTrait for DataSummaryProcessor {
-    fn get_publications(&self) -> Vec<&TablePublication> {
-        self.publications.iter().collect()
-    }
-
-    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
-        self.subscriptions.iter().collect()
-    }
-    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe_policy
-            .check_subscriptions(&self.subscriptions, updates, state)
     }
 }
 

@@ -6,7 +6,7 @@ use reqwest::{Client, header::CONTENT_TYPE};
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, EmbeddingRequest,
     EmbeddingResponse, EncodingFormat, MappableTrait, MessageBuilderTrait, MessageTrait,
-    ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv,
+    ProcessorTrait, RecordBatchStream, RuntimeEnv,
     SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait,
     TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait,
@@ -32,9 +32,6 @@ use tracing::{Level, event};
 pub struct OpenAIEmbedProcessor {
     name: String,
     r#type: String,
-    publications: Vec<TablePublication>,
-    subscriptions: Vec<TableSubscription>,
-    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for OpenAIEmbedProcessor {

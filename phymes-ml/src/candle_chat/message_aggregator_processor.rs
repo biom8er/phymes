@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
-    MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RuntimeEnv,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, RuntimeEnv,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap,
     TablePublication, TableSubscribePolicyTrait, TableSubscription, create_chat_fields,
     remove_message_by_subject,
@@ -24,9 +24,6 @@ use tracing::{Level, event, instrument};
 pub struct MessageAggregatorProcessor {
     name: String,
     r#type: String,
-    publications: Vec<TablePublication>,
-    subscriptions: Vec<TableSubscription>,
-    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for MessageAggregatorProcessor {

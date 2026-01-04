@@ -1041,7 +1041,7 @@ mod tests {
         make_test_session_builder_parallel_task, make_test_session_builder_tasks,
     };
     use phymes_core::{
-        BuildableTrait, BuilderTrait, DataFormat, PublishAndSubscribeTrait, TableBuilderTrait,
+        BuildableTrait, BuilderTrait, DataFormat, TableBuilderTrait,
         TaskTrait,
         test_task::{make_runtime_env, make_state_tables},
     };

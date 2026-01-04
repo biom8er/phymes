@@ -221,7 +221,7 @@ pub mod test_task {
         runtime_env_name: &str,
         table_name: &str,
         config_name: &str,
-    ) -> Result<(Task, HashMap<String, ProcessorSubjectsMap>)> {
+    ) -> Result<(Task, ProcessorSubjectsMap)> {
         let processor_name = format!("{name}_processor");
         let processor = ProcessorBuilder::default()
             .with_name(processor_name.as_str())
@@ -239,9 +239,7 @@ pub mod test_task {
             .build()?;
         let mut processor_subjects_map = HashMap::<String, ProcessorSubjects>::new();
         let _ = processor_subjects_map.insert(processor_name, processor_subjects);
-        let mut tasks_subjects_map = HashMap::<String, ProcessorSubjectsMap>::new();
-        let _ = tasks_subjects_map.insert(name.to_string(), processor_subjects_map);
-        Ok((task, tasks_subjects_map))
+        Ok((task, processor_subjects_map))
     }
 
     pub fn make_test_task_multiple_subscriptions(
@@ -250,7 +248,7 @@ pub mod test_task {
         table_name_1: &str,
         table_name_2: &str,
         config_name: &str,
-    ) -> Result<(Task, HashMap<String, ProcessorSubjectsMap>)> {
+    ) -> Result<(Task, ProcessorSubjectsMap)> {
         let processor_name = format!("{name}_processor");
         let processor = ProcessorBuilder::default()
             .with_name(processor_name.as_str())
@@ -268,9 +266,7 @@ pub mod test_task {
             .build()?;
         let mut processor_subjects_map = HashMap::<String, ProcessorSubjects>::new();
         let _ = processor_subjects_map.insert(processor_name, processor_subjects);
-        let mut tasks_subjects_map = HashMap::<String, ProcessorSubjectsMap>::new();
-        let _ = tasks_subjects_map.insert(name.to_string(), processor_subjects_map);
-        Ok((task, tasks_subjects_map))
+        Ok((task, processor_subjects_map))
     }
 
     pub fn make_test_task_chained_processor(
@@ -278,7 +274,7 @@ pub mod test_task {
         runtime_env_name: &str,
         table_name: &str,
         config_name: &str,
-    ) -> Result<(Task, HashMap<String, ProcessorSubjectsMap>)> {
+    ) -> Result<(Task, ProcessorSubjectsMap)> {
         let processor_name_1 = format!("{name}_processor_1");
         let processor_name_2 = format!("{name}_processor_2");
         let processor_name_3 = format!("{name}_processor_3");
@@ -319,9 +315,7 @@ pub mod test_task {
             .with_publications(&[])
             .build()?;
         let _ = processor_subjects_map.insert(processor_name_3, processor_subjects);
-        let mut tasks_subjects_map = HashMap::<String, ProcessorSubjectsMap>::new();
-        let _ = tasks_subjects_map.insert(name.to_string(), processor_subjects_map);
-        Ok((task, tasks_subjects_map))
+        Ok((task, processor_subjects_map))
     }
 
     pub fn make_test_input_message(
@@ -359,11 +353,8 @@ pub mod test_task {
 mod tests {
     use super::*;
     use crate::MessageTrait;
-    use crate::{
-        TableBuilder, TableBuilderTrait, TablePublication, TableTrait, remove_message_by_subject,
-        test_table::make_test_table,
-    };
-    use phymes_diagnostics::{Diagnostics, HashMap, SpanBuilder};
+    use crate::{TableBuilder, TableBuilderTrait, TableTrait};
+    use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     /// A compilation test to ensure that the `Task::get_name()` method can
     /// be called from a trait object.
@@ -379,17 +370,13 @@ mod tests {
             .build()?;
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
-        let test_task = test_task::make_test_task_single_processor(
+        let (test_task, test_procesor_subjects) = test_task::make_test_task_single_processor(
             "test_task",
             "test_rt",
             "test_table",
             "test_config",
         )?;
-        let input = test_task.get_subscriptions_from_state(
-            &test_task::make_state_updates(&["test_table"], &[true]),
-            &test_task::make_state("test_table", "test_config")?,
-        );
-        let mut response = test_task.run(input, Some(&diagnostic_builder))?;
+        let mut response = test_task.run(Some(&diagnostic_builder), &test_procesor_subjects, &test_task::make_state("test_table", "test_config")?)?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table").is_some());
         assert_eq!(
@@ -431,17 +418,13 @@ mod tests {
             .build()?;
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
-        let test_task = test_task::make_test_task_chained_processor(
+        let (test_task, test_procesor_subjects) = test_task::make_test_task_chained_processor(
             "test_task",
             "test_rt",
             "test_table",
             "test_config",
         )?;
-        let input = test_task.get_subscriptions_from_state(
-            &test_task::make_state_updates(&["test_table"], &[true]),
-            &test_task::make_state("test_table", "test_config")?,
-        );
-        let mut response = test_task.run(input, Some(&diagnostic_builder))?;
+        let mut response = test_task.run(Some(&diagnostic_builder), &test_procesor_subjects, &test_task::make_state("test_table", "test_config")?)?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table").is_some());
         assert_eq!(
