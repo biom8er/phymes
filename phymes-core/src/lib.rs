@@ -11,7 +11,7 @@ pub use message::{
     SessionInterfaceMessageBuilderTrait, SessionInterfaceMessageTrait, remove_message_by_subject,
 };
 pub use processor::{
-    ProcessorBuilder, ProcessorEcho, ProcessorMap, ProcessorTrait, test_processor,
+    ProcessorBuilder, ProcessorEcho, ProcessorMap, ProcessorTrait, test_processor, ProcessorPlan, ProcessorPlanBuilder
 };
 pub use runtime_env::{
     BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvMap, RuntimeEnvTrait,
@@ -32,7 +32,7 @@ pub use schemas::{
     create_session_subjects_batch, create_session_tasks_batch, create_subjects_change_log_batch,
     create_subjects_num_rows_batch, create_tools_record_batch, create_user_batch,
     create_user_inbox_batch, create_user_session_contexts_batch, create_values_record_batch,
-    from_diagnostics_to_tables, create_session_tasks_run_log_batch, create_session_tasks_check_batch, create_session_tasks_subscribe_batch, create_session_tasks_publish_batch
+    from_diagnostics_to_tables, create_session_tasks_run_log_batch, create_session_tasks_check_batch, create_session_tasks_subscribe_aggregate_batch, create_session_tasks_publish_batch
 };
 pub use table::{
     AvailableTableSubscribePolicies, CsvFormat, DataFormat, IPCRecordBatchStream, JsonFormat,
@@ -44,5 +44,5 @@ pub use table::{
 };
 pub use task::{
     PublishAndSubscribeTrait, RunnableTrait, Task, TaskBuilder, TaskBuilderTrait, TaskMap,
-    TaskTrait, test_task,
+    TaskTrait, test_task, TaskPlan, TaskPlanBuilder
 };

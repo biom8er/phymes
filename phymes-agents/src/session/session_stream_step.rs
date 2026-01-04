@@ -201,52 +201,13 @@ impl SessionStreamStep {
             let _ = state.write().update_state_from_messages(messages)?;
         }
 
-        // Retrieve the task ready to subscribe
+        // Retrieve the task ready to subscribe and their corresponding publications
         // DM: run the task session...
-        let task_subscriptions = {
-            let state_reading = state.read();
-            let table_reading = state_reading
-                .get_session_context()
-                .get_states()
-                .get(AvailableSubjects::SessionTasksSubscribe.to_string().as_str())
-                .expect(format!("Missing table for `{}` in session `{}` state.", AvailableSubjects::SessionTasksSubscribe.to_string(), state.read().get_session_context().get_name()).as_str())
-                .read();
-            let task_names = table_reading.get_column_as_vec_nonprimitive::<String>("task_name")?;
-            let subscription_names = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
-            let subscription_table_names = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
-            let is_updated = table_reading.get_column_as_vec_nested_primitive::<u8>("is_updated")?;
-            let session_names = table_reading.get_column_as_vec_nonprimitive::<String>("session_names")?;
-            task_names.into_iter()
-                .zip(subscription_names.into_iter())
-                .zip(subscription_table_names.into_iter())
-                .zip(is_updated.into_iter())
-                .zip(session_names.into_iter())
-                .map(|((((a, b), c), d), e)| (a, b, c, d, e))
-                .collect::<Vec<_>>()
-        };
-
-        // Retrieve the publications for the tasks that are ready to subscribe
-        let task_publications = {
-            let state_reading = state.read();
-            let table_reading = state_reading
-                .get_session_context()
-                .get_states()
-                .get(AvailableSubjects::SessionTasksPublish.to_string().as_str())
-                .expect(format!("Missing table for `{}` in session `{}` state.", AvailableSubjects::SessionTasksPublish.to_string(), state.read().get_session_context().get_name()).as_str())
-                .read();
-            let task_names = table_reading.get_column_as_vec_nonprimitive::<String>("task_name")?;
-            let publication_names = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
-            let publication_table_names = table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
-            task_names.into_iter()
-                .zip(publication_names.into_iter())
-                .zip(publication_table_names.into_iter())
-                .map(|((a, b), c)| (a, b, c))
-                .collect::<Vec<_>>()
-        };
+        let tasks = state.read().tasks_to_run()?;
 
         // Iterate through each task and collect the resulting stream responses
         let mut session_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        for (task_name, subscription_names, subscription_table_names, is_updated, _) in task_subscriptions.iter() {
+        for (task_name, subscriptions, is_subscription_updated, publications, _) in tasks.iter() {
             event!(Level::INFO, "Superstep for task {}", &task_name);
 
             // Subscribe to the task subjects
@@ -256,11 +217,15 @@ impl SessionStreamStep {
                 .get_tasks()
                 .get(task_name)
                 .expect(format!("Missing task `{task_name}` in session `{}` state.", state.read().get_session_context().get_name()).as_str())
-                .clone();
+                .clone();            
+            let subscriptions = subscription_names.iter()
+                .zip(subscription_table_names.iter())
+                .map(|(subscription_name, subscription_table_name)| TableSubscription::from_str_fuzzy(subscription_name, subscription_table_name).unwrap())
+                .collect::<Vec<_>>();
             let messages = task.get_subscriptions_from_state(
                 &subscription_names.iter().map(|s| s.as_str()).collect::<Vec<_>>(), 
                 &subscription_table_names.iter().map(|s| s.as_str()).collect::<Vec<_>>(), 
-                &is_updated.iter().map(|s| s != &0).collect::<Vec<_>>(), 
+                &is_subscription_updated.iter().map(|s| s != &0).collect::<Vec<_>>(), 
                 state.read().get_session_context().get_states())?;
 
             // Create the diagnostics for the task
@@ -296,7 +261,7 @@ impl SessionStreamStep {
         }
 
         {  // Update the tasks run log
-            let (session_names, (task_names, timestamps)): (Vec<_>, (Vec<_>, Vec<_>)) = task_subscriptions.into_iter()
+            let (session_names, (task_names, timestamps)): (Vec<_>, (Vec<_>, Vec<_>)) = tasks.into_iter()
                 .map(|(task_name, _, _, _, session_name)| (session_name, (task_name, create_timestamp_micros())))
                 .unzip();
             let tasks_run_log_batch = create_session_tasks_run_log_batch(session_names, task_names, timestamps)?;

@@ -2,10 +2,7 @@ use anyhow::Result;
 use arrow::datatypes::SchemaRef;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait,
-    RuntimeEnv, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication,
-    TablePublicationTrait, TableTrait, TaskMap, create_subjects_num_rows_batch,
-    from_diagnostics_to_tables,
+    AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableSubscription, TableTrait, TaskMap, create_subjects_num_rows_batch, from_diagnostics_to_tables
 };
 use phymes_diagnostics::{Diagnostics, HashMap};
 use std::sync::Arc;
@@ -74,6 +71,41 @@ impl SessionContext {
     /// Get state
     pub fn get_states_own(self) -> StateMap {
         self.state
+    }
+
+    /// Get the task subscriptions and publications that are ready to run
+    pub fn tasks_to_run(&self) -> Result<(Vec<String>, Vec<TableSubscription>, Vec<bool>, Vec<TablePublication>, Vec<String>)> {
+        self.get_states()
+            .get(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
+            .expect(format!("Missing table for `{}` in session `{}` state.", AvailableSubjects::SessionTasksSubscribePublish.to_string(), self.get_name()).as_str())
+            .read();
+        let task_names = table_reading.get_column_as_vec_nonprimitive::<String>("task_name")?;
+        let subscription_names = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
+        let subscription_table_names = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
+        let is_subscription_updated = table_reading.get_column_as_vec_nested_primitive::<u8>("is_subscription_updated")?;
+        let publication_names = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
+        let publication_table_names = table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
+        let session_names = table_reading.get_column_as_vec_nonprimitive::<String>("session_names")?;
+        task_names.into_iter()
+            .zip(subscription_names.into_iter())
+            .zip(subscription_table_names.into_iter())
+            .zip(is_subscription_updated.into_iter())
+            .zip(publication_names.into_iter())
+            .zip(publication_table_names.into_iter())
+            .zip(session_names.into_iter())
+            .map(|((((((task_name, subscription_names), subscription_table_names), is_subscription_updated), publication_names), publication_table_names), session_name)| {
+                let subscriptions = subscription_names.iter()
+                    .zip(subscription_table_names.iter())
+                    .map(|(subscription_name, subscription_table_name)| TableSubscription::from_str_fuzzy(subscription_name, subscription_table_name).unwrap())
+                    .collect::<Vec<_>>();
+                let updated = is_subscription_updated.iter().map(|s| s != &0).collect::<Vec<_>>();
+                let publications = publication_names.iter()
+                    .zip(publication_table_names.iter())
+                    .map(|(publication_name, publication_table_name)| TablePublish::from_str_fuzzy(publication_name, publication_table_name).unwrap())
+                    .collect::<Vec<_>>();
+                (task_name, subscriptions, updated, publications)
+            })
+            .collect::<Vec<_>>()
     }
 
     /// Create the metrics table if it does not exist or update with the new metrics
@@ -223,7 +255,7 @@ impl SessionContext {
             .build()
             .unwrap();
 
-        // Add the metrics pivot table to the state or update
+        // Add the subjects num rows table to the state or update
         if self
             .state
             .contains_key(AvailableSubjects::SubjectsNumRows.to_string().as_str())

@@ -22,7 +22,7 @@ use crate::{
         },
         queries::create_queries_fields,
         session::{
-            create_session_processors_fields, create_session_runtime_envs_fields, create_session_subjects_fields, create_session_tasks_check_fields, create_session_tasks_fields, create_session_tasks_publish_fields, create_session_tasks_run_log_fields, create_session_tasks_subscribe_fields
+            create_session_processors_fields, create_session_runtime_envs_fields, create_session_subjects_fields, create_session_tasks_check_fields, create_session_tasks_fields, create_session_tasks_publish_aggregate_fields, create_session_tasks_publish_fields, create_session_tasks_run_log_fields, create_session_tasks_subscribe_aggregate_fields, create_session_tasks_subscribe_fields, create_session_tasks_subscribe_publish_fields
         },
         set_data::{create_parse_owl_fields, create_parse_xml_fields},
         subjects::{create_subjects_change_log_fields, create_subjects_num_rows_fields},
@@ -276,6 +276,12 @@ pub enum AvailableSubjects {
     SessionTasksSubscribe,
     #[value(name = "SessionTasksPublish")]
     SessionTasksPublish,
+    #[value(name = "SessionTasksSubscribeAggregate")]
+    SessionTasksSubscribeAggregate,
+    #[value(name = "SessionTasksPublishAggregate")]
+    SessionTasksPublishAggregate,
+    #[value(name = "SessionTasksSubscribePublish")]
+    SessionTasksSubscribePublish,
 }
 
 impl Display for AvailableSubjects {
@@ -351,6 +357,9 @@ impl Display for AvailableSubjects {
             AvailableSubjects::SessionTasksCheck => write!(f, "SessionTasksCheck"),
             AvailableSubjects::SessionTasksSubscribe => write!(f, "SessionTasksSubscribe"),
             AvailableSubjects::SessionTasksPublish => write!(f, "SessionTasksPublish"),
+            AvailableSubjects::SessionTasksSubscribeAggregate => write!(f, "SessionTasksSubscribeAggregate"),
+            AvailableSubjects::SessionTasksPublishAggregate => write!(f, "SessionTasksPublishAggregate"),
+            AvailableSubjects::SessionTasksSubscribePublish => write!(f, "SessionTasksSubscribePublish"),
         }
     }
 }
@@ -492,6 +501,9 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             AvailableSubjects::SessionTasksCheck => create_schema_from_fields(&create_session_tasks_check_fields),
             AvailableSubjects::SessionTasksSubscribe => create_schema_from_fields(&create_session_tasks_subscribe_fields),
             AvailableSubjects::SessionTasksPublish => create_schema_from_fields(&create_session_tasks_publish_fields),
+            AvailableSubjects::SessionTasksSubscribeAggregate => create_schema_from_fields(&create_session_tasks_subscribe_aggregate_fields),
+            AvailableSubjects::SessionTasksPublishAggregate => create_schema_from_fields(&create_session_tasks_publish_aggregate_fields),
+            AvailableSubjects::SessionTasksSubscribePublish => create_schema_from_fields(&create_session_tasks_subscribe_publish_fields),
         }
     }
 }

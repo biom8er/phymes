@@ -10,54 +10,6 @@ use phymes_diagnostics::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 
 use crate::SessionContext;
-
-/// The plan for the tasks
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub struct TaskPlan {
-    /// The name of the task
-    pub task_name: String,
-    /// The entry processor name
-    pub runtime_env_name: String,
-    /// The name of processors to pre/post-process the messages stream
-    pub processor_names: Vec<String>,
-    // DM: to enable queue groups and automatic scaling
-    //   The name of the queue group the task belongs to
-    //   subscriptions are randomly assigned to a task in the queue group
-    //   pub queue_gorup_name
-}
-
-/// The builder for the `TaskPlan`
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub struct TaskPlanBuilder {
-    pub task_name: Option<String>,
-    pub runtime_env_name: Option<String>,
-    pub processor_names: Option<Vec<String>>,
-}
-
-impl TaskPlanBuilder {
-    pub fn build(mut self) -> Result<TaskPlan> {
-        if self.task_name.is_none() {
-            return Err(anyhow!("Missing task name"));
-        } else if self.runtime_env_name.as_ref().is_none() {
-            return Err(anyhow!(
-                "Missing runtime_env_name for task {}",
-                self.task_name.as_ref().unwrap()
-            ));
-        } else if self.processor_names.as_ref().is_none() {
-            return Err(anyhow!(
-                "Missing processor_names for task {}",
-                self.task_name.as_ref().unwrap()
-            ));
-        }
-
-        let task_plan = TaskPlan {
-            task_name: self.task_name.take().unwrap(),
-            runtime_env_name: self.runtime_env_name.take().unwrap(),
-            processor_names: self.processor_names.take().unwrap(),
-        };
-        Ok(task_plan)
-    }
-}
 pub trait SessionContextBuilderTrait: BuilderTrait {
     fn with_processors(self, processors: Vec<Arc<dyn ProcessorTrait>>) -> Self;
     fn with_state(self, state: Vec<Table>) -> Self;

@@ -172,7 +172,7 @@ pub trait TableSubscriptionTrait: TableTrait {
     ///
     /// * `updated` - whether the table has been updated or not
     /// * `subscribe` - `ArrowTableSubscribe` the subscription enum
-    fn subscribe_table(
+    fn subscribe_to_table(
         &self,
         subscribe: &TableSubscription,
         updated: bool,
@@ -180,7 +180,7 @@ pub trait TableSubscriptionTrait: TableTrait {
 }
 
 impl TableSubscriptionTrait for Table {
-    fn subscribe_table(
+    fn subscribe_to_table(
         &self,
         subscribe: &TableSubscription,
         updated: bool,

@@ -10,6 +10,7 @@ pub trait TaskBuilderTrait: BuilderTrait {
     fn with_processor(self, processor: Vec<Arc<dyn ProcessorTrait>>) -> Self;
 }
 
+/// Builder for [Task]s
 #[derive(Default)]
 pub struct TaskBuilder {
     /// Task name

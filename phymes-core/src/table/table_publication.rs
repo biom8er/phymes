@@ -87,6 +87,11 @@ impl TablePublication {
             TablePublication::Extend {
                 table_name: subject.to_string(),
             }
+        } else if name.contains("ExtendChunks") {
+            TablePublication::ExtendChunks {
+                table_name: subject.to_string(),
+                col_name: "content".to_string(),
+            }
         } else if name.contains("Replace") {
             TablePublication::Replace {
                 table_name: subject.to_string(),
