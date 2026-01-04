@@ -315,8 +315,7 @@ mod test_messages {
         BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait,
         ProcessorTrait, RecordBatchStream, RuntimeEnv,
         SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-        SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscribePolicyTrait,
-        TableSubscription,
+        SendableRecordBatchStreamMessageMap, TablePublication,
     };
     use anyhow::anyhow;
     use arrow::datatypes::SchemaRef;
@@ -508,7 +507,7 @@ mod tests {
 
     use super::chat_completion::Tool;
     use crate::{
-        AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MessageBuilderTrait,
+        BuildableTrait, BuilderTrait, MessageBuilderTrait,
         MessageTrait, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait,
         SendableRecordBatchStreamMessage, TablePublication,
         test_table::{make_test_table_chat, make_test_table_tool},

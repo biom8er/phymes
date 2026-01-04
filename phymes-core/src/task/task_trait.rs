@@ -7,7 +7,7 @@ use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, Tra
 use tracing::{Level, event};
 
 use crate::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, ProcessorSubjectsMap, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscription, TaskBuilder, publish_to_subject, subscribe_to_subject
+    BuildableTrait, MappableTrait, ProcessorSubjectsMap, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TableSubscription, TaskBuilder, publish_to_subject, subscribe_to_subject
 };
 
 /// Trait to implement the actual task which could involve one or
@@ -352,8 +352,7 @@ pub mod test_task {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::MessageTrait;
-    use crate::{TableBuilder, TableBuilderTrait, TableTrait};
+    use crate::{BuilderTrait, MessageTrait, TableBuilder, TableBuilderTrait, TableTrait};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     /// A compilation test to ensure that the `Task::get_name()` method can

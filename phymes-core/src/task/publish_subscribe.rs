@@ -31,8 +31,11 @@ pub fn subscribe_to_subject(
 ) -> Result<SendableRecordBatchStreamMessageMap> {
     let mut map = HashMap::<String, SendableRecordBatchStreamMessage>::new();
     for subscription in subscriptions.iter() {
-        // Check for subscriptions in the subjects
-        if let Some(table) = subjects.get(subscription.get_table_name()) {
+        // 1. Check for subscriptions in the message stream
+        if let Some(message) = remove_message_by_subject(subscription.get_table_name(), messages) {
+            let _ = map.insert(message.get_name().to_string(), message);
+        // 2. Check for subscriptions in the subjects
+        } else if let Some(table) = subjects.get(subscription.get_table_name()) {
             if let Some(stream) = table.read().subscribe_to_table(subscription) {
                 let update = publications
                     .iter()
@@ -51,9 +54,6 @@ pub fn subscribe_to_subject(
                     .build()?;
                 let _ = map.insert(message.get_name().to_string(), message);
             }
-        // Check for subscriptions in the message stream
-        } else if let Some(message) = remove_message_by_subject(subscription.get_table_name(), messages) {
-            let _ = map.insert(message.get_name().to_string(), message);
         }
     }
     Ok(map)

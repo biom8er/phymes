@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use arrow::{
-    array::{ArrayRef, Int64Array, ListBuilder, RecordBatch, StringArray, StringBuilder, UInt8Array, UInt8Builder, UInt32Array},
+    array::{ArrayRef, Int64Array, ListBuilder, RecordBatch, StringArray, StringBuilder, UInt8Array, UInt32Array},
     datatypes::{DataType, Field, Fields},
 };
 
@@ -217,6 +217,7 @@ pub(crate) fn create_session_tasks_subscribe_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
+#[allow(dead_code)]
 pub fn create_session_tasks_subscribe_batch(
     session_names: Vec<String>,
     task_names: Vec<String>,
@@ -337,7 +338,7 @@ pub(crate) fn create_session_tasks_publish_fields() -> Fields {
         "publication_names",
         "publication_table_names",
     ];
-    let mut fields_vec = field_names
+    let fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
@@ -410,9 +411,9 @@ pub(crate) fn create_session_tasks_subscribe_publish_fields() -> Fields {
             .map(|f| Field::new(*f, list_data_type.clone(), false))
             .collect::<Vec<_>>(),
     );
-    let list_data_type = DataType::List(
-        Arc::new(Field::new_list_field(DataType::UInt8, false))
-    );
+    // let list_data_type = DataType::List(
+    //     Arc::new(Field::new_list_field(DataType::UInt8, false))
+    // );
     // let field_names = ["is_subscription_updated"];
     // fields_vec.extend(
     //     field_names

@@ -395,7 +395,7 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{
-        AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MessageBuilderTrait,
+        BuildableTrait, BuilderTrait, MessageBuilderTrait,
         MessageTrait, RuntimeEnv, SendableRecordBatchStreamMessage, TableBuilder,
         TableBuilderTrait, TablePublication, TableTrait, test_table::make_test_table,
     };
