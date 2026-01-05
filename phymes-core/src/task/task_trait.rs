@@ -122,14 +122,19 @@ impl TaskTrait for Task {
             // Subscribe to the processor subjects
             let processor_subject = processor_subjects.get(processor.get_name())
                 .ok_or(anyhow!("Processor `{}` not found in processor subscriptions and publications `{:?}`.", processor.get_name(), processor_subjects.keys()))?;
-            let m: hashbrown::HashMap<String, SendableRecordBatchStreamMessage> = subscribe_to_subject(&processor_subject.subscriptions, &processor_subject.publications, subjects, &mut messages)?;
+            let m_i: hashbrown::HashMap<String, SendableRecordBatchStreamMessage> = subscribe_to_subject(&processor_subject.subscriptions, &processor_subject.publications, subjects, &mut messages)?;
 
             // Run the processor
-            messages = processor.process(
-                m,
+            dbg!(&m_i.keys());
+            let m_o = processor.process(
+                m_i,
                 trace_builder.as_ref().clone(),
                 self.runtime_env.clone(),
             )?;
+
+            // Update the message stream
+            dbg!(&m_o.keys());
+            messages.extend(m_o);
         }
 
         // Prepare the messages to publish
@@ -242,33 +247,6 @@ pub mod test_task {
         Ok((task, processor_subjects_map))
     }
 
-    pub fn make_test_task_multiple_subscriptions(
-        name: &str,
-        runtime_env_name: &str,
-        table_name_1: &str,
-        table_name_2: &str,
-        config_name: &str,
-    ) -> Result<(Task, ProcessorSubjectsMap)> {
-        let processor_name = format!("{name}_processor");
-        let processor = ProcessorBuilder::default()
-            .with_name(processor_name.as_str())
-            .with_type(ProcessorMock::get_static_name())
-            .build_arc::<ProcessorMock>()?;
-        let task = Task::get_builder()
-            .with_name(name)
-            .with_runtime_env(Arc::new(make_runtime_env(runtime_env_name)?))
-            .with_processor(vec![processor])
-            .build()?;
-        let processor_subjects = ProcessorSubjectsBuilder::default()
-            .with_name(&processor_name)
-            .with_subscriptions(&[TableSubscription::OnUpdateFullTable { table_name: table_name_1.to_string() }, TableSubscription::OnUpdateFullTable { table_name: table_name_2.to_string() }, TableSubscription::AlwaysFullTable { table_name: config_name.to_string()}])
-            .with_publications(&[TablePublication::Extend {table_name: table_name_1.to_string()}])
-            .build()?;
-        let mut processor_subjects_map = HashMap::<String, ProcessorSubjects>::new();
-        let _ = processor_subjects_map.insert(processor_name, processor_subjects);
-        Ok((task, processor_subjects_map))
-    }
-
     pub fn make_test_task_chained_processor(
         name: &str,
         runtime_env_name: &str,
@@ -313,6 +291,58 @@ pub mod test_task {
             .with_name(&processor_name_3)
             .with_subscriptions(&[TableSubscription::OnUpdateFullTable { table_name: table_name.to_string() }, TableSubscription::AlwaysFullTable { table_name: config_name.to_string()}])
             .with_publications(&[TablePublication::Extend {table_name: table_name.to_string()}])
+            .build()?;
+        let _ = processor_subjects_map.insert(processor_name_3, processor_subjects);
+        Ok((task, processor_subjects_map))
+    }
+
+    pub fn make_test_task_multiple_subscriptions(
+        name: &str,
+        runtime_env_name: &str,
+        table_name: &str,
+        config_name: &str,
+    ) -> Result<(Task, ProcessorSubjectsMap)> {
+        let processor_name_1 = format!("{name}_processor_1");
+        let processor_name_2 = format!("{name}_processor_2");
+        let processor_name_3 = format!("{name}_processor_3");
+        let table_name_1 = format!("{table_name}_1");
+        let table_name_2 = format!("{table_name}_2");
+        let table_name_3 = format!("{table_name}_3");
+        let task = Task::get_builder()
+            .with_name(name)
+            .with_runtime_env(Arc::new(make_runtime_env(runtime_env_name)?))
+            .with_processor(vec![
+                ProcessorBuilder::default()
+                    .with_name(processor_name_1.as_str())
+                    .with_type(ProcessorMock::get_static_name())
+                    .build_arc::<ProcessorMock>()?,
+                ProcessorBuilder::default()
+                    .with_name(processor_name_2.as_str())
+                    .with_type(ProcessorMock::get_static_name())
+                    .build_arc::<ProcessorMock>()?,
+                ProcessorBuilder::default()
+                    .with_name(processor_name_3.as_str())
+                    .with_type(ProcessorMock::get_static_name())
+                    .build_arc::<ProcessorMock>()?,
+            ])
+            .build()?;
+        let mut processor_subjects_map = HashMap::<String, ProcessorSubjects>::new();
+        let processor_subjects = ProcessorSubjectsBuilder::default()
+            .with_name(&processor_name_1)
+            .with_subscriptions(&[TableSubscription::OnUpdateFullTable { table_name: table_name_1.to_string() }, TableSubscription::AlwaysFullTable { table_name: config_name.to_string()}])
+            .with_publications(&[TablePublication::Extend {table_name: table_name_2.to_string()}])
+            .build()?;
+        let _ = processor_subjects_map.insert(processor_name_1, processor_subjects);
+        let processor_subjects = ProcessorSubjectsBuilder::default()
+            .with_name(&processor_name_2)
+            .with_subscriptions(&[TableSubscription::AlwaysFullTable { table_name: table_name_2.to_string() }, TableSubscription::AlwaysFullTable { table_name: config_name.to_string()}])
+            .with_publications(&[TablePublication::Extend {table_name: table_name_3.to_string()}])
+            .build()?;
+        let _ = processor_subjects_map.insert(processor_name_2, processor_subjects);
+        let processor_subjects = ProcessorSubjectsBuilder::default()
+            .with_name(&processor_name_3)
+            .with_subscriptions(&[TableSubscription::OnUpdateFullTable { table_name: table_name_1.to_string() }, TableSubscription::AlwaysFullTable { table_name: config_name.to_string()}])
+            .with_publications(&[TablePublication::Extend {table_name: table_name_2.to_string()}])
             .build()?;
         let _ = processor_subjects_map.insert(processor_name_3, processor_subjects);
         Ok((task, processor_subjects_map))
@@ -455,6 +485,84 @@ mod tests {
                 .build()?;
         let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 21);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_run_task_multiple_subscriptions() -> Result<()> {
+        let span = SpanBuilder::default()
+            .with_span("test_run_task_multiple_subscriptions")
+            .build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+        let (test_task, test_procesor_subjects) = test_task::make_test_task_multiple_subscriptions(
+            "test_task",
+            "test_rt",
+            "test_table",
+            "test_config",
+        )?;
+        let mut response = test_task.run(Some(&diagnostic_builder), &test_procesor_subjects, &test_task::make_state("test_table_1", "test_config")?)?;
+        assert_eq!(response.len(), 2);
+        assert!(response.get("from_test_task_on_test_table_2").is_some());
+        assert_eq!(
+            response
+                .get("from_test_task_on_test_table_2")
+                .unwrap()
+                .get_name(),
+            "from_test_task_on_test_table_2"
+        );
+        assert_eq!(
+            response
+                .get("from_test_task_on_test_table_2")
+                .unwrap()
+                .get_publisher(),
+            "test_task"
+        );
+        assert_eq!(
+            response
+                .get("from_test_task_on_test_table_2")
+                .unwrap()
+                .get_subject(),
+            "test_table_2"
+        );
+        let stream = response.remove("from_test_task_on_test_table_2").unwrap();
+        let partitions =
+            TableBuilder::new_from_sendable_record_batch_stream(stream.get_message_own())
+                .await?
+                .with_name("")
+                .build()?;
+        let n_rows: usize = partitions.count_rows();
+        assert_eq!(n_rows, 15);
+        assert!(response.get("from_test_task_on_test_table_3").is_some());
+        assert_eq!(
+            response
+                .get("from_test_task_on_test_table_3")
+                .unwrap()
+                .get_name(),
+            "from_test_task_on_test_table_3"
+        );
+        assert_eq!(
+            response
+                .get("from_test_task_on_test_table_3")
+                .unwrap()
+                .get_publisher(),
+            "test_task"
+        );
+        assert_eq!(
+            response
+                .get("from_test_task_on_test_table_3")
+                .unwrap()
+                .get_subject(),
+            "test_table_3"
+        );
+        let stream = response.remove("from_test_task_on_test_table_3").unwrap();
+        let partitions =
+            TableBuilder::new_from_sendable_record_batch_stream(stream.get_message_own())
+                .await?
+                .with_name("")
+                .build()?;
+        let n_rows: usize = partitions.count_rows();
+        assert_eq!(n_rows, 15);
         Ok(())
     }
 }

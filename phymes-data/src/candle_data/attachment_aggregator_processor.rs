@@ -66,19 +66,6 @@ impl MappableTrait for AttachmentAggregatorProcessor {
     }
 }
 
-impl PublishAndSubscribeTrait for AttachmentAggregatorProcessor {
-    fn get_publications(&self) -> Vec<&TablePublication> {
-        self.publications.iter().collect()
-    }
-    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
-        self.subscriptions.iter().collect()
-    }
-    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe_policy
-            .check_subscriptions(&self.subscriptions, updates, state)
-    }
-}
-
 impl ProcessorTrait for AttachmentAggregatorProcessor {
     fn new(name: &str, r#type: &str) -> Self {
         Self {

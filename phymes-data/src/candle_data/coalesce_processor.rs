@@ -12,12 +12,10 @@ use futures::stream::{Stream, StreamExt};
 use phymes_core::{
     BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
     RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table,
-    TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription,
-    remove_message_by_subject,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, remove_message_by_subject,
 };
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
+    DiagnosticBuilder, DiagnosticBuilderTrait, MetricBuilderTrait, TraceBuilderTrait,
 };
 use tracing::{Level, event};
 
@@ -527,17 +525,7 @@ mod tests {
         });
 
         // Coalesce into batches of six
-        let processor = CoalesceProcessor::new(
-            "CoalesceProcessor",
-            "",
-            &[TablePublication::Extend {
-                table_name: "output".to_string(),
-            }],
-            &[TableSubscription::AlwaysFullTable {
-                table_name: "input".to_string(),
-            }],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let processor = CoalesceProcessor::new("CoalesceProcessor", "");
         let mut stream =
             processor.process(message, Some(&diagnostic_builder), runtime_env.clone())?;
 
