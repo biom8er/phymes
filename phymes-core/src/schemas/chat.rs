@@ -312,7 +312,7 @@ impl ChatBuilderTraitExt for TableBuilder {
 mod test_messages {
     use super::*;
     use crate::{
-        BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, TablePublication
+        BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap
     };
     use anyhow::anyhow;
     use arrow::datatypes::SchemaRef;

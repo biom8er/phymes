@@ -202,7 +202,7 @@ pub mod test_processor {
     use arrow::{array::RecordBatch, compute::concat_batches, datatypes::SchemaRef};
     use futures::{Stream, StreamExt};
     use hashbrown::HashMap;
-    use phymes_diagnostics::{DiagnosticBuilderTrait, MetricBuilderTrait, TraceBuilderTrait};
+    use phymes_diagnostics::{DiagnosticBuilderTrait, MetricBuilderTrait};
     use std::{
         pin::Pin,
         sync::Arc,
