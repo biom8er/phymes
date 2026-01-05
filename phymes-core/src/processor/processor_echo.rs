@@ -1,8 +1,8 @@
 use crate::{
-    MappableTrait, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessageMap, TablePublication
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, TablePublication
 };
 use anyhow::Result;
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, TraceBuilderTrait};
+use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::{Level, event};
@@ -32,31 +32,26 @@ impl ProcessorTrait for ProcessorEcho {
         &self.r#type
     }
 
+    fn line_and_file(&self) -> (u32, String) {
+        (line!(), file!().to_string())
+    }
+
     fn process(
         &self,
         message: SendableRecordBatchStreamMessageMap,
-        diagnostic_builder: Option<&DiagnosticBuilder>,
+        _diagnostic_builder: Option<&DiagnosticBuilder>,
         _runtime_env: Arc<RuntimeEnv>,
-    ) -> Result<SendableRecordBatchStreamMessageMap> {
+    ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
-        // Trace the inbox
-        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
-            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder
-                .clone()
-                .messages(line!(), file!(), self.get_name());
-            trace.enter(&message.values().collect::<Vec<_>>());
-            Some((trace, trace_builder))
-        } else {
-            None
-        };
-
-        // Trace the outbox
-        if let Some(trace) = trace {
-            trace.0.exit(&message.values().collect::<Vec<_>>());
+        let mut builder_map = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
+        for (k, v) in message {
+            let builder = SendableRecordBatchStreamMessage::get_builder()
+                .with_name(v.get_name())
+                .with_message(v.get_message_own());
+            let _ = builder_map.insert(k, builder);
         }
 
-        Ok(message)
+        Ok(builder_map)
     }
 }

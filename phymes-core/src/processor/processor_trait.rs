@@ -1,5 +1,5 @@
 use crate::{
-    MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessageMap
+    MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessageMap, message::SendableRecordBatchStreamMessageBuilderMap
 };
 use anyhow::{Result, anyhow};
 use phymes_diagnostics::DiagnosticBuilder;
@@ -18,6 +18,9 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     /// The type used to identify the processor after dynamic dispatching
     /// often just an alias for `get_static_name`
     fn get_type(&self) -> &str;
+
+    /// Trace information `(line!(), file!().to_string())`
+    fn line_and_file(&self) -> (u32, String);
 
     /// Run the `Process`, returning a [`Stream`] of [`RecordBatch`]es.
     ///
@@ -186,15 +189,14 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
         message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<RuntimeEnv>,
-    ) -> Result<SendableRecordBatchStreamMessageMap>;
+    ) -> Result<SendableRecordBatchStreamMessageBuilderMap>;
 }
 
 /// Mock objects and functions for processor testing
 pub mod test_processor {
     use super::*;
     use crate::{
-        BuildableTrait, BuilderTrait, MessageBuilderTrait, MessageTrait,
-        SendableRecordBatchStreamMessage, test_table::make_test_record_batch,
+        BuildableTrait, BuilderTrait, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, test_table::make_test_record_batch
     };
 
     use arrow::{array::RecordBatch, compute::concat_batches, datatypes::SchemaRef};
@@ -232,56 +234,33 @@ pub mod test_processor {
             &self.r#type
         }
 
+        fn line_and_file(&self) -> (u32, String) {
+            (line!(), file!().to_string())
+        }
+
         fn process(
             &self,
             message: SendableRecordBatchStreamMessageMap,
             diagnostic_builder: Option<&DiagnosticBuilder>,
             _runtime_env: Arc<RuntimeEnv>,
-        ) -> Result<SendableRecordBatchStreamMessageMap> {
+        ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
             event!(Level::INFO, "Starting processor {}", self.get_name());
 
-            // Trace the inbox
-            let trace = if let Some(diagnostic_builder) = diagnostic_builder {
-                let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-                let trace = trace_builder
-                    .clone()
-                    .messages(line!(), file!(), self.get_name());
-                trace.enter(&message.values().collect::<Vec<_>>());
-                Some((trace, trace_builder))
-            } else {
-                None
-            };
-
             // Add another record batch to the input
-            let mut outbox = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+            let mut builder_map = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
             for (s_name, s) in message.into_iter() {
-                let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
-
-                let name = s_name.clone();
-                let source = s.get_publisher().to_string();
-                let subject = s.get_subject().to_string();
-                let update = s.get_update().clone();
                 let out = Box::pin(ProcessorMockStream {
                     schema: s.get_message().schema(),
                     input: s.get_message_own(),
-                    diagnostic_builder: stream_diagnostic_builder,
+                    diagnostic_builder: diagnostic_builder.cloned(),
                 });
                 let out_m = SendableRecordBatchStreamMessage::get_builder()
-                    .with_name(name.as_str())
-                    .with_publisher(source.as_str())
-                    .with_subject(subject.as_str())
-                    .with_update(&update)
-                    .with_message(out)
-                    .build()?;
-                let _ = outbox.insert(s_name, out_m);
+                    .with_name(s_name.as_str())
+                    .with_message(out);
+                let _ = builder_map.insert(s_name, out_m);
             }
 
-            // Trace the outbox
-            if let Some(trace) = trace {
-                trace.0.exit(&outbox.values().collect::<Vec<_>>());
-            }
-
-            Ok(outbox)
+            Ok(builder_map)
         }
     }
 
@@ -386,12 +365,16 @@ pub mod test_processor {
             &self.r#type
         }
 
+        fn line_and_file(&self) -> (u32, String) {
+            (line!(), file!().to_string())
+        }
+
         fn process(
             &self,
             _message: SendableRecordBatchStreamMessageMap,
             _diagnostic_builder: Option<&DiagnosticBuilder>,
             _runtime_env: Arc<RuntimeEnv>,
-        ) -> Result<SendableRecordBatchStreamMessageMap> {
+        ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
             Err(anyhow!("This is an error!"))
         }
     }
@@ -437,7 +420,7 @@ mod tests {
         let mut stream =
             processor_1.process(message, Some(&diagnostic_builder), Arc::new(runtime_env))?;
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
-            stream.remove(&name).unwrap().get_message_own(),
+            stream.remove(&name).unwrap().message.take().unwrap(),
         )
         .await?
         .with_name("test_message_table")

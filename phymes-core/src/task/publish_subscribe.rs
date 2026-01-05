@@ -3,7 +3,7 @@ use phymes_diagnostics::HashMap;
 use tracing::{Level, event};
 
 use crate::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscription, TableSubscriptionTrait, remove_message_by_subject
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscription, TableSubscriptionTrait, message::SendableRecordBatchStreamMessageBuilderMap, remove_message_by_subject
 };
 
 /// Subscribe to the subject
@@ -73,11 +73,51 @@ pub fn subscribe_to_subject(
 /// * The publisher is updated to the publishing task/processor
 /// * A unique name to protect against collisions when building the final message map is added
 /// * The update for messages matched to the first publication with the same subject name
+pub fn build_and_publish_to_stream(
+    publisher_name: &str,
+    publications: &[&TablePublication],
+    messages: SendableRecordBatchStreamMessageBuilderMap,
+) -> Result<SendableRecordBatchStreamMessageMap> {
+    let mut map = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+    for (_name, message) in messages.into_iter() {
+        // Try to find a matching publication based on the subject
+        let updates = if let Some(subject) = message.subject.as_ref() {
+            publications.iter()
+                .filter(|p| p.get_table_name() == subject)
+                .collect::<Vec<_>>()
+        } else {
+            publications.iter().collect::<Vec<_>>()
+        };
+
+        // Build the messages with publications
+        let builds = if let Some(publication) = updates.first() {
+            message.with_subject(publication.get_table_name())
+                .with_publisher(publisher_name)
+                .with_update(publication)
+                .make_name()?
+                .build()?
+        // Skip messages that are not in the publications
+        } else {
+            continue;
+        };
+
+        let _ = map.insert(builds.get_name().to_string(), builds);
+    }
+    Ok(map)
+}
+
+/// Publish messages to the subject
+///
+/// # Note
+///
+/// * The publisher is updated to the publishing task/processor
+/// * A unique name to protect against collisions when building the final message map is added
+/// * The update for messages matched to the first publication with the same subject name
 pub fn publish_to_subject(
     publisher_name: &str,
     publications: &[&TablePublication],
     messages: SendableRecordBatchStreamMessageMap,
-) -> SendableRecordBatchStreamMessageMap {
+) -> Result<SendableRecordBatchStreamMessageMap> {
     let mut map = HashMap::<String, SendableRecordBatchStreamMessage>::new();
     for (name, message) in messages.into_iter() {
         let update = publications.iter()
@@ -101,13 +141,11 @@ pub fn publish_to_subject(
             .with_subject(message.get_subject())
             .with_update(update.first().unwrap())
             .with_message(message.get_message_own())
-            .make_name()
-            .unwrap()
-            .build()
-            .unwrap();
+            .make_name()?
+            .build()?;
         let _ = map.insert(out.get_name().to_string(), out);
     }
-    map
+    Ok(map)
 }
 
 #[cfg(test)]
@@ -235,7 +273,7 @@ mod tests {
             .with_message(test_table::make_test_table("d1", 1, 8, 2)?.to_record_batch_stream())
             .build()?;
         let _ = messages.insert(message.get_name().to_string(), message);
-        let inbox = publish_to_subject(task_name, &publications.iter().collect::<Vec<_>>(), messages);
+        let inbox = publish_to_subject(task_name, &publications.iter().collect::<Vec<_>>(), messages)?;
         assert_eq!(inbox.len(), 0);
 
         // Case 2: Message has subject that the task does not publish on
@@ -250,7 +288,7 @@ mod tests {
             .with_message(test_table::make_test_table(table_name, 1, 8, 2)?.to_record_batch_stream())
             .build()?;
         let _ = messages.insert(message.get_name().to_string(), message);
-        let inbox = publish_to_subject(task_name, &publications.iter().collect::<Vec<_>>(), messages);
+        let inbox = publish_to_subject(task_name, &publications.iter().collect::<Vec<_>>(), messages)?;
         assert_eq!(inbox.len(), 1);
         assert_eq!(
             inbox
@@ -283,5 +321,10 @@ mod tests {
             }
         );
         Ok(())
+    }
+
+    #[test]
+    fn test_build_and_publish_to_stream() -> Result<()> {
+        todo!()
     }
 }

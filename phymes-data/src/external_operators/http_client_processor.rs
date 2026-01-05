@@ -96,6 +96,10 @@ impl ProcessorTrait for HTTPClientRequestProcessor {
         &self.r#type
     }
 
+    fn line_and_file(&self) -> (u32, String) {
+        (line!(), file!().to_string())
+    }
+
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,

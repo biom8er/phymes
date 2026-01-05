@@ -8,7 +8,7 @@ pub use message::{
     IPCMessage, IPCMessageBuilder, IPCMessageMap, MessageBuilderTrait, MessageTrait,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
     SendableRecordBatchStreamMessageMap, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
-    SessionInterfaceMessageBuilderTrait, SessionInterfaceMessageTrait, remove_message_by_subject, SendableRecordBatchStreamMessageBuilder
+    SessionInterfaceMessageBuilderTrait, SessionInterfaceMessageTrait, remove_message_by_subject, SendableRecordBatchStreamMessageBuilderMap
 };
 pub use processor::{
     ProcessorBuilder, ProcessorEcho, ProcessorMap, ProcessorTrait, test_processor, ProcessorPlan, ProcessorPlanBuilder, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap

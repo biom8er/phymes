@@ -59,13 +59,17 @@ impl ProcessorTrait for CandleChatProcessor {
         &self.r#type
     }
 
+    fn line_and_file(&self) -> (u32, String) {
+        (line!(), file!().to_string())
+    }
+
     #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<RuntimeEnv>,
-    ) -> Result<SendableRecordBatchStreamMessageMap> {
+    ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
         // Trace the inbox

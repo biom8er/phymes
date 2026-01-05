@@ -312,10 +312,7 @@ impl ChatBuilderTraitExt for TableBuilder {
 mod test_messages {
     use super::*;
     use crate::{
-        BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait,
-        ProcessorTrait, RecordBatchStream, RuntimeEnv,
-        SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-        SendableRecordBatchStreamMessageMap, TablePublication,
+        BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, TablePublication
     };
     use anyhow::anyhow;
     use arrow::datatypes::SchemaRef;
@@ -353,12 +350,16 @@ mod test_messages {
             &self.r#type
         }
 
+        fn line_and_file(&self) -> (u32, String) {
+            (line!(), file!().to_string())
+        }
+
         fn process(
             &self,
             mut message: SendableRecordBatchStreamMessageMap,
             _diagnostic_builder: Option<&DiagnosticBuilder>,
             _runtime_env: Arc<RuntimeEnv>,
-        ) -> Result<SendableRecordBatchStreamMessageMap> {
+        ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
             // Create the stream response
             let input = match message.remove("messages") {
                 Some(i) => i,
@@ -379,15 +380,11 @@ mod test_messages {
             });
 
             // Prepare the outbox
-            let mut outbox = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+            let mut outbox = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
             let out_m = SendableRecordBatchStreamMessage::get_builder()
                 .with_name("messages")
-                .with_publisher(self.get_name())
-                .with_subject("messages")
-                .with_update(&TablePublication::None)
-                .with_message(out)
-                .build()?;
-            let _ = outbox.insert(out_m.get_name().to_string(), out_m);
+                .with_message(out);
+            let _ = outbox.insert("messages".to_string(), out_m);
             Ok(outbox)
         }
     }
@@ -662,7 +659,7 @@ mod tests {
         // Update the chat history with the response
         let (message_builder, stream) = message_builder
             .append_chat_response_sendable_record_batch_stream(
-                &mut stream.remove("messages").unwrap().get_message_own(),
+                &mut stream.remove("messages").unwrap().message.take().unwrap(),
                 10,
             )
             .await?;
@@ -752,7 +749,7 @@ mod tests {
         // Update the chat history with the response
         let (message_builder, stream) = message_builder
             .append_chat_response_sendable_record_batch_stream(
-                &mut stream.remove("messages").unwrap().get_message_own(),
+                &mut stream.remove("messages").unwrap().message.take().unwrap(),
                 10,
             )
             .await?;

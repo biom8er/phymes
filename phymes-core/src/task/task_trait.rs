@@ -7,7 +7,7 @@ use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, Tra
 use tracing::{Level, event};
 
 use crate::{
-    BuildableTrait, MappableTrait, ProcessorSubjectsMap, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TableSubscription, TaskBuilder, publish_to_subject, subscribe_to_subject
+    BuildableTrait, MappableTrait, ProcessorSubjectsMap, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TableSubscription, TaskBuilder, publish_to_subject, subscribe_to_subject, task::publish_subscribe::build_and_publish_to_stream
 };
 
 /// Trait to implement the actual task which could involve one or
@@ -126,10 +126,11 @@ impl TaskTrait for Task {
 
             // Trace the processor subscribed messages
             let (trace, trace_builder) = if let Some(diagnostic_builder) = trace_builder.as_ref() {
-                let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+                let trace_builder = diagnostic_builder.clone().to_child(processor.get_name())?;
+                let (line, file) = processor.line_and_file();
                 let trace = trace_builder
                     .clone()
-                    .messages(line!(), file!(), self.get_name());
+                    .messages(line, &file, processor.get_name());
                 trace.enter(&message_sub.values().collect::<Vec<_>>());
                 (Some(trace), Some(trace_builder))
             } else {
@@ -144,7 +145,7 @@ impl TaskTrait for Task {
             )?;
 
             // Build and trace the processor published messages
-            let message_pub = publish_to_subject(processor.get_name(), &processor_subject.publications.iter().collect::<Vec<_>>(), message_builder);
+            let message_pub = build_and_publish_to_stream(processor.get_name(), &processor_subject.publications.iter().collect::<Vec<_>>(), message_builder)?;
             if let Some(trace) = trace {
                 trace.exit(&message_pub.values().collect::<Vec<_>>());
             }
@@ -154,7 +155,7 @@ impl TaskTrait for Task {
         }
 
         // Prepare the messages to publish
-        let messages = publish_to_subject(self.get_name(), &processor_subjects.values().flat_map(|p| &p.publications).collect::<Vec<_>>(), messages);
+        let messages = publish_to_subject(self.get_name(), &processor_subjects.values().flat_map(|p| &p.publications).collect::<Vec<_>>(), messages)?;
 
         // Trace the messages to publish
         if let Some(trace) = trace {

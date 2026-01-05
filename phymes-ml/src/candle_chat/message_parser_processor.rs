@@ -80,6 +80,10 @@ impl ProcessorTrait for MessageParserProcessor {
         &self.r#type
     }
 
+    fn line_and_file(&self) -> (u32, String) {
+        (line!(), file!().to_string())
+    }
+
     #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
     fn process(
         &self,
