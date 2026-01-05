@@ -23,7 +23,7 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     ///
     /// [`RecordBatch`]: arrow::record_batch::RecordBatch
     ///
-    /// # Notes
+    /// # Process execution
     ///
     /// The `process` method itself is not `async` but it returns an `async`
     /// [`futures::stream::Stream`]. This `Stream` should incrementally compute
@@ -68,8 +68,16 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     /// [`JoinSet`]: tokio::task::JoinSet
     /// [`SessionStreamStep`]: crate::session::SessionStreamStep
     /// [`RecordBatchReceiverStreamBuilder`]: crate::table::RecordBatchReceiverStreamBuilder
+    /// 
+    /// # Messages handling
+    /// 
+    /// Each object that implements a [`ProcessorTrait`] is responsible for the logic used to extract, transform, and publish messages.
+    /// 
+    /// Each processor should subscribe to a message of the same name (i.e., a `config`) that provides the parameters of the processor execution.
+    /// DM: todo!() better description of how to implement custom processors
     ///
     /// # Implementation Examples
+    /// DM: todo!() update according to the new interface
     ///
     /// While `async` `Stream`s have a non trivial learning curve, the
     /// [`futures`] crate provides [`StreamExt`] and [`TryStreamExt`]

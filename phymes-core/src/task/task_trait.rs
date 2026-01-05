@@ -122,19 +122,35 @@ impl TaskTrait for Task {
             // Subscribe to the processor subjects
             let processor_subject = processor_subjects.get(processor.get_name())
                 .ok_or(anyhow!("Processor `{}` not found in processor subscriptions and publications `{:?}`.", processor.get_name(), processor_subjects.keys()))?;
-            let m_i: hashbrown::HashMap<String, SendableRecordBatchStreamMessage> = subscribe_to_subject(&processor_subject.subscriptions, &processor_subject.publications, subjects, &mut messages)?;
+            let message_sub: hashbrown::HashMap<String, SendableRecordBatchStreamMessage> = subscribe_to_subject(&processor_subject.subscriptions, &processor_subject.publications, subjects, &mut messages)?;
+
+            // Trace the processor subscribed messages
+            let (trace, trace_builder) = if let Some(diagnostic_builder) = trace_builder.as_ref() {
+                let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
+                let trace = trace_builder
+                    .clone()
+                    .messages(line!(), file!(), self.get_name());
+                trace.enter(&message_sub.values().collect::<Vec<_>>());
+                (Some(trace), Some(trace_builder))
+            } else {
+                (None, None)
+            };
 
             // Run the processor
-            dbg!(&m_i.keys());
-            let m_o = processor.process(
-                m_i,
-                trace_builder.as_ref().clone(),
+            let message_builder = processor.process(
+                message_sub,
+                trace_builder.as_ref(),
                 self.runtime_env.clone(),
             )?;
 
+            // Build and trace the processor published messages
+            let message_pub = publish_to_subject(processor.get_name(), &processor_subject.publications.iter().collect::<Vec<_>>(), message_builder);
+            if let Some(trace) = trace {
+                trace.exit(&message_pub.values().collect::<Vec<_>>());
+            }
+            
             // Update the message stream
-            dbg!(&m_o.keys());
-            messages.extend(m_o);
+            messages.extend(message_pub);
         }
 
         // Prepare the messages to publish

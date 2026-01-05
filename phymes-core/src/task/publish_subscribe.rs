@@ -10,14 +10,14 @@ use crate::{
 ///
 /// # Notes
 ///
-/// * The update is taken from the first matching publication that is found as default,
-///   but each processor should add the update when called.
+/// * The update for messages is heuristically determined by first trying to match on the subject name,
+///   then by taking the first provided publication, and defaulting to None when no publications are provided
 /// * Each message is given a unique name to prevent collisions when multiple processors
 ///   subscribe to the same table.
 ///
 /// # Arguments
 ///
-/// * `updates` - `HashMap<String, bool>` where the key is the subscription table name
+/// * `subscriptions` - `HashMap<String, bool>` where the key is the subscription table name
 ///   and the value is whether the table has been updated or not
 /// * `state` - [StateMap] with the subjects
 ///
@@ -37,13 +37,20 @@ pub fn subscribe_to_subject(
         // 2. Check for subscriptions in the subjects
         } else if let Some(table) = subjects.get(subscription.get_table_name()) {
             if let Some(stream) = table.read().subscribe_to_table(subscription) {
+                // a. check for a matching subject in the publications
                 let update = publications
                     .iter()
                     .filter(|p| p.get_table_name() == subscription.get_table_name())
                     .collect::<Vec<_>>();
-                let update = match update.first() {
-                    Some(u) => u,
-                    None => &TablePublication::None,
+                let update = if let Some(u) = update.first() {
+                    u
+                // // b. use the first publication provided
+                // // DM: fails message check for consistency between subject and publish subject
+                // } else if let Some(u) = publications.first() {
+                //     u
+                // c. default to None
+                } else {
+                    &TablePublication::None
                 };
                 let message = SendableRecordBatchStreamMessage::get_builder()
                     .with_publisher("State")
@@ -65,6 +72,7 @@ pub fn subscribe_to_subject(
 ///
 /// * The publisher is updated to the publishing task/processor
 /// * A unique name to protect against collisions when building the final message map is added
+/// * The update for messages matched to the first publication with the same subject name
 pub fn publish_to_subject(
     publisher_name: &str,
     publications: &[&TablePublication],

@@ -1,5 +1,5 @@
 use crate::{
-    MappableTrait, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessageMap
+    MappableTrait, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessageMap, TablePublication
 };
 use anyhow::Result;
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, TraceBuilderTrait};
