@@ -504,8 +504,7 @@ mod tests {
 
     use super::chat_completion::Tool;
     use crate::{
-        BuildableTrait, BuilderTrait, MessageBuilderTrait,
-        MessageTrait, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait,
+        BuildableTrait, BuilderTrait, MessageBuilderTrait, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait,
         SendableRecordBatchStreamMessage, TablePublication,
         test_table::{make_test_table_chat, make_test_table_tool},
     };

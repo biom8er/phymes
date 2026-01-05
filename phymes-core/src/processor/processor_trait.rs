@@ -386,8 +386,7 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{
-        BuildableTrait, BuilderTrait, MessageBuilderTrait,
-        MessageTrait, RuntimeEnv, SendableRecordBatchStreamMessage, TableBuilder,
+        BuildableTrait, BuilderTrait, MessageBuilderTrait, RuntimeEnv, SendableRecordBatchStreamMessage, TableBuilder,
         TableBuilderTrait, TablePublication, TableTrait, test_table::make_test_table,
     };
     use anyhow::Result;
