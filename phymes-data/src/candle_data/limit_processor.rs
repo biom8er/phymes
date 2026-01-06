@@ -339,7 +339,7 @@ mod tests {
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             stream
-                .remove("from_LimitProcessor_on_output")
+                .remove("LimitProcessor")
                 .unwrap()
                 .message
                 .take()

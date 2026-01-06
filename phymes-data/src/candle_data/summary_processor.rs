@@ -406,7 +406,7 @@ mod tests {
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             stream
-                .remove("from_summary_processor_on_messages")
+                .remove("summary_processor")
                 .unwrap()
                 .message
                 .take()
@@ -492,7 +492,7 @@ mod tests {
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             stream
-                .remove("from_summary_processor_on_messages")
+                .remove("summary_processor")
                 .unwrap()
                 .message
                 .take()

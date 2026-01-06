@@ -1679,7 +1679,7 @@ mod tests {
 
         // Check the response
         let result = stream
-            .remove(&format!("from_{name}_on_{messages}"))
+            .remove(name)
             .unwrap()
             .message
             .take()
@@ -1776,7 +1776,7 @@ mod tests {
 
         // Check the response
         let result = stream
-            .remove(&format!("from_{name}_on_{messages}"))
+            .remove(name)
             .unwrap()
             .message
             .take()
@@ -1869,7 +1869,7 @@ mod tests {
 
         // Check the response
         let result = stream
-            .remove(&format!("from_{name}_on_{messages}"))
+            .remove(name)
             .unwrap()
             .message
             .take()
@@ -1934,7 +1934,7 @@ mod tests {
 
         // Check the response
         let result = stream
-            .remove(&format!("from_{name}_on_{messages}"))
+            .remove(name)
             .unwrap()
             .message
             .take()
@@ -2009,7 +2009,7 @@ mod tests {
 
         // Check the response
         let result = stream
-            .remove(&format!("from_{name}_on_{messages}"))
+            .remove(name)
             .unwrap()
             .message
             .take()
@@ -2112,7 +2112,7 @@ mod tests {
 
         // Check the response
         let result = stream
-            .remove(&format!("from_{name}_on_{messages}"))
+            .remove(name)
             .unwrap()
             .message
             .take()
@@ -2183,7 +2183,7 @@ mod tests {
 
         // Check the response
         let result = stream
-            .remove(&format!("from_{name}_on_{messages}"))
+            .remove(name)
             .unwrap()
             .message
             .take()
@@ -2327,7 +2327,7 @@ if __name__ == '__main__':
 
         // Check the response
         let result = stream
-            .remove(&format!("from_{name}_on_{messages}"))
+            .remove(name)
             .unwrap()
             .message
             .take()
@@ -2542,7 +2542,7 @@ fn main() -> Result<()> {
 
         // Check the response
         let result = stream
-            .remove(&format!("from_{name}_on_{messages}"))
+            .remove(name)
             .unwrap()
             .message
             .take()

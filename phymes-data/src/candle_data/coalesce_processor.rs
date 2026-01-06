@@ -493,7 +493,7 @@ mod tests {
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             stream
-                .remove("from_CoalesceProcessor_on_output")
+                .remove("CoalesceProcessor")
                 .unwrap()
                 .message
                 .take()

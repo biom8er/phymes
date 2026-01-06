@@ -1349,7 +1349,7 @@ mod tests {
         let mut ops_stream =
             ops_processor.process(messages, Some(&diagnostic_builder), runtime_env)?;
         let result = ops_stream
-            .remove("from_candle_ops_processor_on_results")
+            .remove("candle_ops_processor")
             .unwrap()
             .message
             .take()

@@ -184,7 +184,8 @@ pub struct Concept {
     pub id: Option<String>,
     pub wikidata: Option<String>,
     pub display_name: Option<String>,
-    pub level: Option<ConceptLevel>,
+    // pub level: Option<ConceptLevel>,
+    pub level: Option<u32>,
     pub score: Option<f64>,
 }
 
@@ -409,7 +410,7 @@ pub struct SdgTag {
 pub struct WorkIds {
     pub openalex: Option<String>,
     pub doi: Option<String>,
-    pub mag: Option<u64>,
+    pub mag: Option<String>,
     pub pmid: Option<String>,
     pub pmcid: Option<String>,
 }
@@ -532,7 +533,7 @@ pub struct SourceIds {
     pub fatcat: Option<String>,
     pub issn: Option<Vec<String>>,
     pub issn_l: Option<String>,
-    pub mag: Option<u64>,
+    pub mag: Option<String>,
     pub openalex: Option<String>,
     pub wikidata: Option<String>,
 }
@@ -608,7 +609,7 @@ pub struct InstitutionIds {
     pub openalex: Option<String>,
     pub ror: Option<String>,
     pub grid: Option<String>,
-    pub mag: Option<u64>,
+    pub mag: Option<String>,
     pub wikipedia: Option<String>,
     pub wikidata: Option<String>,
 }
