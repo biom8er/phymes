@@ -43,6 +43,6 @@ pub use table::{
     from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type, test_table,
 };
 pub use task::{
-    subscribe_to_subject, publish_to_subject, Task, TaskBuilder, TaskBuilderTrait, TaskMap,
+    build_and_publish_to_stream, subscribe_to_subject, update_publisher, Task, TaskBuilder, TaskBuilderTrait, TaskMap,
     TaskTrait, test_task, TaskPlan, TaskPlanBuilder
 };

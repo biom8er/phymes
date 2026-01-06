@@ -249,6 +249,9 @@ pub mod test_processor {
             // Add another record batch to the input
             let mut builder_map = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
             for (s_name, s) in message.into_iter() {
+                if s.get_subject() == self.get_name() {
+                    continue;
+                }
                 let out = Box::pin(ProcessorMockStream {
                     schema: s.get_message().schema(),
                     input: s.get_message_own(),

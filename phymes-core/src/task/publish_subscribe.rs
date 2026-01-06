@@ -1,6 +1,5 @@
 use anyhow::Result;
 use phymes_diagnostics::HashMap;
-use tracing::{Level, event};
 
 use crate::{
     BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscription, TableSubscriptionTrait, message::SendableRecordBatchStreamMessageBuilderMap, remove_message_by_subject
@@ -106,40 +105,17 @@ pub fn build_and_publish_to_stream(
     Ok(map)
 }
 
-/// Publish messages to the subject
-///
-/// # Note
-///
-/// * The publisher is updated to the publishing task/processor
-/// * A unique name to protect against collisions when building the final message map is added
-/// * The update for messages matched to the first publication with the same subject name
-pub fn publish_to_subject(
+/// Update the name of the publisher
+pub fn update_publisher(
     publisher_name: &str,
-    publications: &[&TablePublication],
     messages: SendableRecordBatchStreamMessageMap,
 ) -> Result<SendableRecordBatchStreamMessageMap> {
     let mut map = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-    for (name, message) in messages.into_iter() {
-        let update = publications.iter()
-            .filter(|p| p.get_table_name() == message.get_subject())
-            .collect::<Vec<_>>();
-
-        // Skip messages that are not in the publications
-        if update.is_empty() {
-            event!(
-                Level::ERROR,
-                "No publications found for message {name} on {} from {} during {publisher_name}",
-                message.get_subject(),
-                message.get_publisher(),
-            );
-            continue;
-        }
-
-        // Build the output message
+    for (_name, message) in messages.into_iter() {
         let out = SendableRecordBatchStreamMessage::get_builder()
             .with_publisher(publisher_name)
             .with_subject(message.get_subject())
-            .with_update(update.first().unwrap())
+            .with_update(message.get_update())
             .with_message(message.get_message_own())
             .make_name()?
             .build()?;
@@ -256,25 +232,9 @@ mod tests {
     }
 
     #[test]
-    fn test_publish_to_subject() -> Result<()> {
+    fn test_update_publisher() -> Result<()> {
         let table_name = "test_table";
         let task_name = "test_task";
-        let publications = vec![TablePublication::Extend {table_name: table_name.to_string()}];
-
-        // Case 1: Message has subject that the task does not publish on
-        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let message = SendableRecordBatchStreamMessage::get_builder()
-            .with_name("test_message")
-            .with_publisher("s1")
-            .with_subject("d1")
-            .with_update(&TablePublication::Extend {
-                table_name: "d1".to_string(),
-            })
-            .with_message(test_table::make_test_table("d1", 1, 8, 2)?.to_record_batch_stream())
-            .build()?;
-        let _ = messages.insert(message.get_name().to_string(), message);
-        let inbox = publish_to_subject(task_name, &publications.iter().collect::<Vec<_>>(), messages)?;
-        assert_eq!(inbox.len(), 0);
 
         // Case 2: Message has subject that the task does not publish on
         let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -288,7 +248,7 @@ mod tests {
             .with_message(test_table::make_test_table(table_name, 1, 8, 2)?.to_record_batch_stream())
             .build()?;
         let _ = messages.insert(message.get_name().to_string(), message);
-        let inbox = publish_to_subject(task_name, &publications.iter().collect::<Vec<_>>(), messages)?;
+        let inbox = update_publisher(task_name, messages)?;
         assert_eq!(inbox.len(), 1);
         assert_eq!(
             inbox
@@ -325,6 +285,98 @@ mod tests {
 
     #[test]
     fn test_build_and_publish_to_stream() -> Result<()> {
-        todo!()
+        let table_name = "test_table";
+        let task_name = "test_task";
+        let publications = vec![TablePublication::Extend {table_name: table_name.to_string()}];
+
+        // Case 1: Message does not have a subject
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("test_message")
+            .with_message(test_table::make_test_table("d1", 1, 8, 2)?.to_record_batch_stream());
+        let _ = messages.insert("test_message".to_string(), message);
+        let inbox = build_and_publish_to_stream(task_name, &publications.iter().collect::<Vec<_>>(), messages)?;
+        assert_eq!(inbox.len(), 1);
+        assert_eq!(
+            inbox
+                .get("from_test_task_on_test_table")
+                .unwrap()
+                .get_name(),
+            "from_test_task_on_test_table"
+        );
+        assert_eq!(
+            inbox
+                .get("from_test_task_on_test_table")
+                .unwrap()
+                .get_publisher(),
+            task_name
+        );
+        assert_eq!(
+            inbox
+                .get("from_test_task_on_test_table")
+                .unwrap()
+                .get_subject(),
+            table_name
+        );
+        assert_eq!(
+            *inbox
+                .get("from_test_task_on_test_table")
+                .unwrap()
+                .get_update(),
+            TablePublication::Extend {
+                table_name: table_name.to_string()
+            }
+        );
+
+        // Case 2: Message has subject that the task does not publish on
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("test_message")
+            .with_subject("d1")
+            .with_message(test_table::make_test_table("d1", 1, 8, 2)?.to_record_batch_stream());
+        let _ = messages.insert("test_message".to_string(), message);
+        let inbox = build_and_publish_to_stream(task_name, &publications.iter().collect::<Vec<_>>(), messages)?;
+        assert_eq!(inbox.len(), 0);
+
+        // Case 3: Message has subject that the task does not publish on
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
+        let message = SendableRecordBatchStreamMessage::get_builder()
+            .with_name("test_message")
+            .with_message(test_table::make_test_table(table_name, 1, 8, 2)?.to_record_batch_stream());
+        let _ = messages.insert("test_message".to_string(), message);
+        let inbox = build_and_publish_to_stream(task_name, &publications.iter().collect::<Vec<_>>(), messages)?;
+        assert_eq!(inbox.len(), 1);
+        assert_eq!(
+            inbox
+                .get("from_test_task_on_test_table")
+                .unwrap()
+                .get_name(),
+            "from_test_task_on_test_table"
+        );
+        assert_eq!(
+            inbox
+                .get("from_test_task_on_test_table")
+                .unwrap()
+                .get_publisher(),
+            task_name
+        );
+        assert_eq!(
+            inbox
+                .get("from_test_task_on_test_table")
+                .unwrap()
+                .get_subject(),
+            table_name
+        );
+        assert_eq!(
+            *inbox
+                .get("from_test_task_on_test_table")
+                .unwrap()
+                .get_update(),
+            TablePublication::Extend {
+                table_name: table_name.to_string()
+            }
+        );
+        
+        Ok(())
     }
 }
