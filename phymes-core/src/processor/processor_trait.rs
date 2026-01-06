@@ -1,5 +1,6 @@
 use crate::{
-    MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessageMap, message::SendableRecordBatchStreamMessageBuilderMap
+    MappableTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    SendableRecordBatchStreamMessageMap, message::SendableRecordBatchStreamMessageBuilderMap,
 };
 use anyhow::{Result, anyhow};
 use phymes_diagnostics::DiagnosticBuilder;
@@ -71,11 +72,11 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     /// [`JoinSet`]: tokio::task::JoinSet
     /// [`SessionStreamStep`]: crate::session::SessionStreamStep
     /// [`RecordBatchReceiverStreamBuilder`]: crate::table::RecordBatchReceiverStreamBuilder
-    /// 
+    ///
     /// # Messages handling
-    /// 
+    ///
     /// Each object that implements a [`ProcessorTrait`] is responsible for the logic used to extract, transform, and publish messages.
-    /// 
+    ///
     /// Each processor should subscribe to a message of the same name (i.e., a `config`) that provides the parameters of the processor execution.
     /// DM: todo!() better description of how to implement custom processors
     ///
@@ -196,7 +197,9 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
 pub mod test_processor {
     use super::*;
     use crate::{
-        BuildableTrait, BuilderTrait, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, test_table::make_test_record_batch
+        BuildableTrait, BuilderTrait, MessageBuilderTrait, MessageTrait,
+        SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
+        test_table::make_test_record_batch,
     };
 
     use arrow::{array::RecordBatch, compute::concat_batches, datatypes::SchemaRef};
@@ -389,8 +392,9 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{
-        BuildableTrait, BuilderTrait, MessageBuilderTrait, RuntimeEnv, SendableRecordBatchStreamMessage, TableBuilder,
-        TableBuilderTrait, TablePublication, TableTrait, test_table::make_test_table,
+        BuildableTrait, BuilderTrait, MessageBuilderTrait, RuntimeEnv,
+        SendableRecordBatchStreamMessage, TableBuilder, TableBuilderTrait, TablePublication,
+        TableTrait, test_table::make_test_table,
     };
     use anyhow::Result;
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder};

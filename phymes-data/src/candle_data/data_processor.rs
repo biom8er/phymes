@@ -3,7 +3,11 @@ use crate::{
     TensorProcessorTrait, device,
 };
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait, remove_message_by_subject
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
+    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait,
+    remove_message_by_subject,
 };
 
 use arrow::{
@@ -15,7 +19,7 @@ use arrow::{
 use anyhow::{Result, anyhow};
 use futures::{Stream, StreamExt};
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait
+    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
 };
 use std::{
     pin::Pin,
@@ -85,7 +89,7 @@ impl ProcessorTrait for CandleDataProcessor {
             .with_name(self.get_name())
             .with_message(out);
         let _ = builder_map.insert(self.get_name().to_string(), builder);
-        
+
         Ok(builder_map)
     }
 }

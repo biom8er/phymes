@@ -5,9 +5,9 @@ mod builder_session;
 mod chat_agent_session;
 mod diagnostic_session;
 mod document_rag_session;
+mod subjects_session;
 mod tool_agent_session;
 mod user_session;
-mod subjects_session;
 
 pub use available_interface_subjects::{
     AvailableInterfaceSubjects, check_agent_subjects, create_message_map,

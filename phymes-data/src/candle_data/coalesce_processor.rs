@@ -10,11 +10,12 @@ use arrow::compute::concat_batches;
 use arrow::datatypes::SchemaRef;
 use futures::stream::{Stream, StreamExt};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, remove_message_by_subject
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
+    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, remove_message_by_subject,
 };
-use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait
-};
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
 
 use crate::{DataConfigTrait, DataSummaryConfig};
 
@@ -62,9 +63,15 @@ impl ProcessorTrait for CoalesceProcessor {
         // Extract out the message
         let mut subscriptions = message.into_values().collect::<Vec<_>>();
         if subscriptions.len() > 1 {
-            return Err(anyhow!("More than one subscription was found for {}.", self.get_name()));
+            return Err(anyhow!(
+                "More than one subscription was found for {}.",
+                self.get_name()
+            ));
         } else if subscriptions.is_empty() {
-            return Err(anyhow!("No subscriptions were found for {}.", self.get_name()));
+            return Err(anyhow!(
+                "No subscriptions were found for {}.",
+                self.get_name()
+            ));
         }
 
         // Run the coalesce stream
@@ -81,7 +88,7 @@ impl ProcessorTrait for CoalesceProcessor {
             .with_name(self.get_name())
             .with_message(out);
         let _ = builder_map.insert(self.get_name().to_string(), builder);
-        
+
         Ok(builder_map)
     }
 }
@@ -438,7 +445,9 @@ mod tests {
     use arrow::array::{StringViewArray, UInt32Array};
     use arrow::datatypes::{DataType, Field, Schema};
     use futures::TryStreamExt;
-    use phymes_core::{RecordBatchStreamAdapter, TableBuilder, TableTrait, test_table, TablePublication};
+    use phymes_core::{
+        RecordBatchStreamAdapter, TableBuilder, TablePublication, TableTrait, test_table,
+    };
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     #[tokio::test]

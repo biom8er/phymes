@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use crate::{
-    ProcessorTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription
-};
+use crate::{ProcessorTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription};
 
 /// The plan for the processors
 #[derive(Debug)]

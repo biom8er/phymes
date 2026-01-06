@@ -179,11 +179,17 @@ pub trait TableSubscriptionTrait: TableTrait {
     ///
     /// * `updated` - whether the table has been updated or not
     /// * `subscribe` - `ArrowTableSubscribe` the subscription enum
-    fn subscribe_to_table(&self, subscribe: &TableSubscription) -> Option<SendableRecordBatchStream>;
+    fn subscribe_to_table(
+        &self,
+        subscribe: &TableSubscription,
+    ) -> Option<SendableRecordBatchStream>;
 }
 
 impl TableSubscriptionTrait for Table {
-    fn subscribe_to_table(&self, subscribe: &TableSubscription) -> Option<SendableRecordBatchStream> {
+    fn subscribe_to_table(
+        &self,
+        subscribe: &TableSubscription,
+    ) -> Option<SendableRecordBatchStream> {
         // Skip tables for which there are no rows
         if self.count_rows() == 0 {
             return None;
@@ -191,10 +197,18 @@ impl TableSubscriptionTrait for Table {
 
         // Match on the subscribe policy
         match subscribe {
-            TableSubscription::AlwaysFullTable { table_name: _ } => Some(self.to_record_batch_stream()),
-            TableSubscription::AlwaysLastRecordBatch { table_name: _ } => Some(self.to_record_batch_stream_last_record_batch()),
-            TableSubscription::OnUpdateFullTable { table_name: _ } => Some(self.to_record_batch_stream()),
-            TableSubscription::OnUpdateLastRecordBatch { table_name: _ } => Some(self.to_record_batch_stream_last_record_batch()),
+            TableSubscription::AlwaysFullTable { table_name: _ } => {
+                Some(self.to_record_batch_stream())
+            }
+            TableSubscription::AlwaysLastRecordBatch { table_name: _ } => {
+                Some(self.to_record_batch_stream_last_record_batch())
+            }
+            TableSubscription::OnUpdateFullTable { table_name: _ } => {
+                Some(self.to_record_batch_stream())
+            }
+            TableSubscription::OnUpdateLastRecordBatch { table_name: _ } => {
+                Some(self.to_record_batch_stream_last_record_batch())
+            }
             TableSubscription::OnUpdateEmpty { table_name: _ } => {
                 let schema = Schema::empty();
                 let stream = futures::stream::iter(Vec::new().into_iter().map(Ok));

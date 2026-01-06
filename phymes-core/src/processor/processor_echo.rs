@@ -1,5 +1,7 @@
 use crate::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
+    RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
+    SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
 };
 use anyhow::Result;
 use phymes_diagnostics::{DiagnosticBuilder, HashMap};

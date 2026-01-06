@@ -15,16 +15,14 @@ use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
-    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream,
-    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait,
-    TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
+    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait,
     remove_message_by_subject,
 };
 use phymes_data::{DataConfigTrait, device};
-use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
-};
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, Tokenizer};
 use tracing::{Level, event, instrument};
 
@@ -43,33 +41,11 @@ impl MappableTrait for CandleEmbedProcessor {
     }
 }
 
-impl PublishAndSubscribeTrait for CandleEmbedProcessor {
-    fn get_publications(&self) -> Vec<&TablePublication> {
-        self.publications.iter().collect()
-    }
-    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
-        self.subscriptions.iter().collect()
-    }
-    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe_policy
-            .check_subscriptions(&self.subscriptions, updates, state)
-    }
-}
-
 impl ProcessorTrait for CandleEmbedProcessor {
-    fn new(
-        name: &str,
-        r#type: &str,
-        publications: &[TablePublication],
-        subscriptions: &[TableSubscription],
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-    ) -> Self {
+    fn new(name: &str, r#type: &str) -> Self {
         Self {
             name: name.to_string(),
             r#type: r#type.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            subscribe_policy,
             token_service: Arc::new(Mutex::new(None)),
         }
     }
@@ -91,54 +67,29 @@ impl ProcessorTrait for CandleEmbedProcessor {
     ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
-        // Trace the inbox
-        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
-            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder
-                .clone()
-                .messages(line!(), file!(), self.get_name());
-            trace.enter(&message.values().collect::<Vec<_>>());
-            Some((trace, trace_builder))
-        } else {
-            None
-        };
-
-        // Extract out the documents and config
-        let documents = match remove_message_by_subject(
-            self.subscriptions.first().unwrap().get_table_name(),
-            &mut message,
-        ) {
-            Some(i) => i.get_message_own(),
-            None => return Err(anyhow!("Documents not provided for {}.", self.get_name())),
-        };
+        // Extract out the config
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
 
         // Make the outbox and send
-        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(CandleEmbedStream::new(
-            documents,
+            message,
             config,
             Arc::clone(&runtime_env),
             Arc::clone(self.token_service()),
-            stream_diagnostic_builder,
+            diagnostic_builder.cloned(),
         )?);
-        let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_publisher(self.get_name())
-            .with_subject(self.publications.first().unwrap().get_table_name())
-            .with_message(out)
-            .with_update(self.publications.first().unwrap())
-            .make_name()?
-            .build()?;
-        let _ = message.insert(out_m.get_name().to_string(), out_m);
 
-        // Trace the outbox
-        if let Some(trace) = trace {
-            trace.0.exit(&message.values().collect::<Vec<_>>());
-        }
-        Ok(message)
+        // Prepare the message builder
+        let mut builder_map = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
+        let builder = SendableRecordBatchStreamMessage::get_builder()
+            .with_name(self.get_name())
+            .with_message(out);
+        let _ = builder_map.insert(self.get_name().to_string(), builder);
+
+        Ok(builder_map)
     }
 }
 
@@ -151,8 +102,10 @@ impl TokenProcessorTraitExt for CandleEmbedProcessor {
 pub struct CandleEmbedStream {
     /// Output schema (embeddings)
     schema: SchemaRef,
-    /// The input task to process.
-    document_stream: SendableRecordBatchStream,
+    /// The documents (or queries) to parse
+    messages: SendableRecordBatchStreamMessageMap,
+    /// Parameters for embed inference
+    documents_stream: Option<SendableRecordBatchStream>,
     /// Parameters for embed inference
     config_stream: SendableRecordBatchStream,
     /// The runtime environment
@@ -173,7 +126,7 @@ pub struct CandleEmbedStream {
 
 impl CandleEmbedStream {
     pub fn new(
-        document_stream: SendableRecordBatchStream,
+        messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<RuntimeEnv>,
         token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
@@ -181,7 +134,8 @@ impl CandleEmbedStream {
     ) -> Result<Self> {
         Ok(Self {
             schema: AvailableSubjects::DocumentEmbeddings.to_schema(),
-            document_stream,
+            messages,
+            documents_stream: None,
             config_stream,
             diagnostic_builder,
             _runtime_env: runtime_env,
@@ -286,7 +240,18 @@ impl Stream for CandleEmbedStream {
             self.init_config(config_table)?;
 
             // Collect the next batch of queries
-            let batch = match ready!(self.document_stream.poll_next_unpin(cx)) {
+            if self.documents_stream.is_none() {
+                let docs_table = self.config.as_ref().unwrap().documents.clone();
+                if let Some(s) = remove_message_by_subject(&docs_table, &mut self.messages) {
+                    self.documents_stream.replace(s.get_message_own())
+                } else {
+                    return Poll::Ready(Some(Err(anyhow!(
+                        "Documents and queries subject was not found in the message stream. Available messages are {:?}",
+                        self.messages.keys()
+                    ))));
+                };
+            }
+            let batch = match ready!(self.documents_stream.as_mut().unwrap().poll_next_unpin(cx)) {
                 Some(Ok(batch)) => batch,
                 _ => return Poll::Ready(None),
             };
@@ -365,7 +330,7 @@ impl Stream for CandleEmbedStream {
                 .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
             // Collect the next batch of queries
-            let batch = match ready!(self.document_stream.poll_next_unpin(cx)) {
+            let batch = match ready!(self.documents_stream.as_mut().unwrap().poll_next_unpin(cx)) {
                 Some(Ok(batch)) => batch,
                 _ => return Poll::Ready(None),
             };
@@ -425,7 +390,7 @@ impl Stream for CandleEmbedStream {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.document_stream.size_hint()
+        (1, None)
     }
 }
 
@@ -587,6 +552,7 @@ mod tests {
     use arrow::array::{Float32Array, ListArray, StringArray};
     use candle_core::Device;
     use futures::TryStreamExt;
+    use phymes_core::TablePublication;
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use crate::{
@@ -633,6 +599,7 @@ mod tests {
     fn test_build_candle_embed_asset() {
         // Setup the candle embed config
         let config = CandleEmbedConfig {
+            documents: "text".to_string(),
             weights_config_file: Some(format!(
                 "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
@@ -730,6 +697,7 @@ mod tests {
     #[tokio::test]
     async fn test_candle_embed_stream_nowasm() -> Result<()> {
         let config = CandleEmbedConfig {
+            documents: "text".to_string(),
             // WASM testing
             weights_config_file: Some(format!(
                 "{}/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/config.json",
@@ -779,6 +747,15 @@ mod tests {
             .with_name("text")
             .with_record_batches(vec![batch])?
             .build()?;
+        let document_message = SendableRecordBatchStreamMessage::get_builder()
+            .with_publisher("")
+            .with_subject("text")
+            .with_update(&TablePublication::None)
+            .with_message(document_table.to_record_batch_stream())
+            .make_name()?
+            .build()?;
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = messages.insert(document_message.get_name().to_string(), document_message);
 
         // Make the metrics
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -787,7 +764,7 @@ mod tests {
 
         // Make and run the embeddings stream
         let embed_stream = CandleEmbedStream::new(
-            document_table.to_record_batch_stream(),
+            messages,
             config_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
             Arc::new(Mutex::new(None)),
@@ -866,10 +843,19 @@ mod tests {
                 .with_name("text")
                 .with_record_batches(vec![batch1, batch2])?
                 .build()?;
+            let document_message = SendableRecordBatchStreamMessage::get_builder()
+                .with_publisher("")
+                .with_subject("text")
+                .with_update(&TablePublication::None)
+                .with_message(document_table.to_record_batch_stream())
+                .make_name()?
+                .build()?;
+            let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+            let _ = messages.insert(document_message.get_name().to_string(), document_message);
 
             // Make and run the embeddings stream
             let embed_stream = CandleEmbedStream::new(
-                document_table.to_record_batch_stream(),
+                messages,
                 config_table.to_record_batch_stream(),
                 Arc::clone(&runtime_env),
                 Arc::new(Mutex::new(None)),
@@ -933,9 +919,19 @@ mod tests {
             .with_name("text")
             .with_record_batches(vec![batch])?
             .build()?;
+        let document_message = SendableRecordBatchStreamMessage::get_builder()
+            .with_publisher("")
+            .with_subject("text")
+            .with_update(&TablePublication::None)
+            .with_message(document_table.to_record_batch_stream())
+            .make_name()?
+            .build()?;
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = messages.insert(document_message.get_name().to_string(), document_message);
 
         // Make the config
         let config = CandleEmbedConfig {
+            documents: "text".to_string(),
             weights_config_file: Some(format!(
                 "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",
                 std::env::var("HOME").unwrap_or("".to_string())
@@ -979,7 +975,7 @@ mod tests {
 
         // Make and run the embeddings stream
         let embed_stream = CandleEmbedStream::new(
-            document_table.to_record_batch_stream(),
+            messages,
             config_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
             Arc::new(Mutex::new(None)),

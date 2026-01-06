@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
+use crate::{
+    ProcessorPlan, ProcessorSubjects, ProcessorTrait, TablePublication, TableSubscribePolicyTrait,
+    TableSubscription,
+};
 use anyhow::{Result, anyhow};
-use crate::{ProcessorPlan, ProcessorSubjects, ProcessorTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription};
 
 /// The builder for the [ProcessorPlan]
 #[derive(Debug, Default)]
@@ -29,7 +32,7 @@ impl ProcessorPlanBuilder {
         self
     }
     pub fn with_processor(mut self, processor: Arc<dyn ProcessorTrait>) -> Self {
-        self.processor= Some(processor);
+        self.processor = Some(processor);
         self
     }
     pub fn build(mut self) -> Result<ProcessorPlan> {

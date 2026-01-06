@@ -9,7 +9,7 @@ repository = "https://github.com/biom8er/phymes"
 documentation = "https://docs.rs/phymes-ml"
 
 [features]
-default = ["wsl", "candle"]
+default = ["wsl", "api"]
 accelerate = ["dep:accelerate-src", "candle-core/accelerate", "candle-nn/accelerate", "candle-transformers/accelerate"]
 mkl = ["dep:intel-mkl-src", "intel-mkl-src/mkl-static-lp64-iomp", "candle-core/mkl", "candle-nn/mkl", "candle-transformers/mkl"]
 mkl-dynamic = ["dep:intel-mkl-src", "intel-mkl-src/mkl-dynamic-lp64-iomp", "candle-core/mkl", "candle-nn/mkl", "candle-transformers/mkl"]

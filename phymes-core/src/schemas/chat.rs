@@ -312,7 +312,10 @@ impl ChatBuilderTraitExt for TableBuilder {
 mod test_messages {
     use super::*;
     use crate::{
-        BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap
+        BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait,
+        ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+        SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
+        SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
     };
     use anyhow::anyhow;
     use arrow::datatypes::SchemaRef;
@@ -504,8 +507,8 @@ mod tests {
 
     use super::chat_completion::Tool;
     use crate::{
-        BuildableTrait, BuilderTrait, MessageBuilderTrait, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait,
-        SendableRecordBatchStreamMessage, TablePublication,
+        BuildableTrait, BuilderTrait, MessageBuilderTrait, ProcessorTrait, RuntimeEnv,
+        RuntimeEnvTrait, SendableRecordBatchStreamMessage, TablePublication,
         test_table::{make_test_table_chat, make_test_table_tool},
     };
     use futures::TryStreamExt;
@@ -645,10 +648,7 @@ mod tests {
         );
 
         // Build the chat task
-        let chat_processor = test_messages::CandleChatMockProcessor::new(
-            "ChatBot",
-            "",
-        );
+        let chat_processor = test_messages::CandleChatMockProcessor::new("ChatBot", "");
         let mut stream = chat_processor.process(
             message,
             Some(&DiagnosticBuilder::new(&Diagnostics::new())),
@@ -735,10 +735,7 @@ mod tests {
         );
 
         // Build the chat task
-        let chat_processor = test_messages::CandleChatMockProcessor::new(
-            "ChatBot",
-            "",
-        );
+        let chat_processor = test_messages::CandleChatMockProcessor::new("ChatBot", "");
         let mut stream = chat_processor.process(
             message,
             Some(&DiagnosticBuilder::new(&Diagnostics::new())),

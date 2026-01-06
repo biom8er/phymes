@@ -17,4 +17,5 @@ pub use session_interface_message::{
 use phymes_diagnostics::HashMap;
 pub type IPCMessageMap = HashMap<String, IPCMessage>;
 pub type SendableRecordBatchStreamMessageMap = HashMap<String, SendableRecordBatchStreamMessage>;
-pub type SendableRecordBatchStreamMessageBuilderMap = HashMap<String, SendableRecordBatchStreamMessageBuilder>;
+pub type SendableRecordBatchStreamMessageBuilderMap =
+    HashMap<String, SendableRecordBatchStreamMessageBuilder>;

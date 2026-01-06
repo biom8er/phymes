@@ -216,25 +216,33 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         let values = vec_str.last().unwrap();
 
                         // Check for any renamed or initiated columns
-                        let init_col_names = if let Ok(as_columns) = table.get_column_as_vec_nested_nonprimitive::<String>("as_columns") {
+                        let init_col_names = if let Ok(as_columns) =
+                            table.get_column_as_vec_nested_nonprimitive::<String>("as_columns")
+                        {
                             if let Some(as_columns) = as_columns.last() {
-                                as_columns.iter()
-                                    .filter_map(|c| if c.is_empty() {
-                                        None
-                                    } else {
-                                        Some(c.to_string())
+                                as_columns
+                                    .iter()
+                                    .filter_map(|c| {
+                                        if c.is_empty() {
+                                            None
+                                        } else {
+                                            Some(c.to_string())
+                                        }
                                     })
                                     .collect::<HashSet<_>>()
                             } else {
                                 HashSet::new()
-                            }                                
+                            }
                         } else {
                             HashSet::new()
                         };
 
                         let mut missing = values
                             .iter()
-                            .filter(|v| !(subscription_col_names.contains(v.as_str()) || init_col_names.contains(v.as_str())))
+                            .filter(|v| {
+                                !(subscription_col_names.contains(v.as_str())
+                                    || init_col_names.contains(v.as_str()))
+                            })
                             .collect::<Vec<_>>();
                         missing.sort();
                         if !missing.is_empty() {
@@ -307,25 +315,33 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         let values = vec_str.last().unwrap();
 
                         // Check for any renamed or initiated columns
-                        let init_col_names = if let Ok(as_columns) = table.get_column_as_vec_nested_nonprimitive::<String>("as_columns") {
+                        let init_col_names = if let Ok(as_columns) =
+                            table.get_column_as_vec_nested_nonprimitive::<String>("as_columns")
+                        {
                             if let Some(as_columns) = as_columns.last() {
-                                as_columns.iter()
-                                    .filter_map(|c| if c.is_empty() {
-                                        None
-                                    } else {
-                                        Some(c.to_string())
+                                as_columns
+                                    .iter()
+                                    .filter_map(|c| {
+                                        if c.is_empty() {
+                                            None
+                                        } else {
+                                            Some(c.to_string())
+                                        }
                                     })
                                     .collect::<HashSet<_>>()
                             } else {
                                 HashSet::new()
-                            }                                
+                            }
                         } else {
                             HashSet::new()
                         };
 
                         let mut missing = values
                             .iter()
-                            .filter(|v| !(subscription_col_names.contains(v.as_str()) || init_col_names.contains(v.as_str())))
+                            .filter(|v| {
+                                !(subscription_col_names.contains(v.as_str())
+                                    || init_col_names.contains(v.as_str()))
+                            })
                             .collect::<Vec<_>>();
                         missing.sort();
                         if !missing.is_empty() {
@@ -1041,8 +1057,7 @@ mod tests {
         make_test_session_builder_parallel_task, make_test_session_builder_tasks,
     };
     use phymes_core::{
-        BuildableTrait, BuilderTrait, DataFormat, TableBuilderTrait,
-        TaskTrait,
+        BuildableTrait, BuilderTrait, DataFormat, TableBuilderTrait, TaskTrait,
         test_task::{make_runtime_env, make_state_tables},
     };
     use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager};

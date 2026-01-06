@@ -44,8 +44,12 @@ pub struct CandleChatConfig {
 
     /// A list of messages comprising the conversation so far
     #[arg(long)]
+    pub messages: String,
+
+    /// A list of tools in JSON schema format
+    #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub messages: Option<String>,
+    pub tools: Option<String>,
 
     /// The length of the sample to generate (in tokens).
     #[arg(short = 'n', long, default_value_t = 1000)]
@@ -123,10 +127,11 @@ impl DataConfigTrait for CandleChatConfig {
             && column_names.contains("seed")
             && column_names.contains("repeat_penalty")
             && column_names.contains("repeat_last_n")
-            && column_names.contains("frequency_penalty"))
+            && column_names.contains("frequency_penalty")
+            && column_names.contains("messages"))
         {
             return Err(anyhow!(
-                "Table {} is missing required Field for `candle_asset`, `openai_asset`, `max_tokens`, `temperature`, `seed`, `repeat_penalty`, `repeat_last_n`, or `frequency_penalty` in CandleChatConfig.",
+                "Table {} is missing required Field for `candle_asset`, `openai_asset`, `max_tokens`, `temperature`, `seed`, `repeat_penalty`, `repeat_last_n`, `messages`, or `frequency_penalty` in CandleChatConfig.",
                 table.get_name()
             ));
         }

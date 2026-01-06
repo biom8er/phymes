@@ -193,7 +193,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
         let session_name = if let Some(session_name) = self.name.as_ref() {
             session_name
-        } else {            
+        } else {
             return Err(anyhow!(
                 "Add session name before making the subject tables."
             ));
@@ -227,7 +227,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
 
         // create the record batch
-        let batch = create_session_subjects_batch(session_names, subject_names, cols_names, type_names)?;
+        let batch =
+            create_session_subjects_batch(session_names, subject_names, cols_names, type_names)?;
 
         // create the table
         Table::get_builder()
@@ -243,7 +244,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
         let session_name = if let Some(session_name) = self.name.as_ref() {
             session_name
-        } else {            
+        } else {
             return Err(anyhow!(
                 "Add session name before making the subject tables."
             ));
@@ -265,7 +266,12 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
 
         // create the record batch
-        let batch = create_session_tasks_batch(session_names, task_names, processor_names, runtime_env_names)?;
+        let batch = create_session_tasks_batch(
+            session_names,
+            task_names,
+            processor_names,
+            runtime_env_names,
+        )?;
 
         // create the table
         Table::get_builder()
@@ -282,7 +288,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
         let session_name = if let Some(session_name) = self.name.as_ref() {
             session_name
-        } else {            
+        } else {
             return Err(anyhow!(
                 "Add session name before making the subject tables."
             ));
@@ -319,7 +325,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // create the record batch
         let batch = create_session_processors_batch(
-            session_names, 
+            session_names,
             processor_names,
             processor_types,
             pub_sub_name,
@@ -343,7 +349,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
         let session_name = if let Some(session_name) = self.name.as_ref() {
             session_name
-        } else {            
+        } else {
             return Err(anyhow!(
                 "Add session name before making the subject tables."
             ));
@@ -371,8 +377,12 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
 
         // create the record batch
-        let batch =
-            create_session_runtime_envs_batch(session_names, runtime_env_names, memory_limits, time_limits)?;
+        let batch = create_session_runtime_envs_batch(
+            session_names,
+            runtime_env_names,
+            memory_limits,
+            time_limits,
+        )?;
 
         // create the table
         Table::get_builder()

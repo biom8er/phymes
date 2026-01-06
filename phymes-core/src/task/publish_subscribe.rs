@@ -2,7 +2,10 @@ use anyhow::Result;
 use phymes_diagnostics::HashMap;
 
 use crate::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TablePublication, TableSubscription, TableSubscriptionTrait, message::SendableRecordBatchStreamMessageBuilderMap, remove_message_by_subject
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap,
+    TablePublication, TableSubscription, TableSubscriptionTrait,
+    message::SendableRecordBatchStreamMessageBuilderMap, remove_message_by_subject,
 };
 
 /// Subscribe to the subject
@@ -81,7 +84,8 @@ pub fn build_and_publish_to_stream(
     for (_name, message) in messages.into_iter() {
         // Try to find a matching publication based on the subject
         let updates = if let Some(subject) = message.subject.as_ref() {
-            publications.iter()
+            publications
+                .iter()
                 .filter(|p| p.get_table_name() == subject)
                 .collect::<Vec<_>>()
         } else {
@@ -90,7 +94,8 @@ pub fn build_and_publish_to_stream(
 
         // Build the messages with publications
         let builds = if let Some(publication) = updates.first() {
-            message.with_subject(publication.get_table_name())
+            message
+                .with_subject(publication.get_table_name())
                 .with_publisher(publisher_name)
                 .with_update(publication)
                 .make_name()?
@@ -135,16 +140,21 @@ mod tests {
         // Case 1: from subjects
         let table_name = "test_table";
         let config_name = "test_config";
-        let subscriptions = vec![TableSubscription::OnUpdateFullTable { table_name: table_name.to_string() }, TableSubscription::AlwaysFullTable { table_name: config_name.to_string()}];
-        let publications = vec![TablePublication::Extend {table_name: table_name.to_string()}];
+        let subscriptions = vec![
+            TableSubscription::OnUpdateFullTable {
+                table_name: table_name.to_string(),
+            },
+            TableSubscription::AlwaysFullTable {
+                table_name: config_name.to_string(),
+            },
+        ];
+        let publications = vec![TablePublication::Extend {
+            table_name: table_name.to_string(),
+        }];
         let subjects = test_task::make_state(table_name, config_name)?;
         let mut stream = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let mut messages = subscribe_to_subject(
-            &subscriptions,
-            &publications,
-            &subjects,
-            &mut stream
-        )?;
+        let mut messages =
+            subscribe_to_subject(&subscriptions, &publications, &subjects, &mut stream)?;
         assert_eq!(messages.len(), 2);
         assert_eq!(
             remove_message_by_subject(table_name, &mut messages)
@@ -161,22 +171,30 @@ mod tests {
 
         // Case 2: from subjects and messages
         let table_name_2 = "test_table_2";
-        let subscriptions = vec![TableSubscription::OnUpdateFullTable { table_name: table_name.to_string() }, TableSubscription::OnUpdateFullTable { table_name: table_name_2.to_string() }, TableSubscription::AlwaysFullTable { table_name: config_name.to_string()}];
+        let subscriptions = vec![
+            TableSubscription::OnUpdateFullTable {
+                table_name: table_name.to_string(),
+            },
+            TableSubscription::OnUpdateFullTable {
+                table_name: table_name_2.to_string(),
+            },
+            TableSubscription::AlwaysFullTable {
+                table_name: config_name.to_string(),
+            },
+        ];
         let mut stream = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let m = SendableRecordBatchStreamMessageBuilder::default()
             .with_subject(table_name_2)
             .with_publisher("")
             .with_update(&TablePublication::None)
-            .with_message(test_table::make_test_table(table_name_2, 1, 0, 1)?.to_record_batch_stream())
+            .with_message(
+                test_table::make_test_table(table_name_2, 1, 0, 1)?.to_record_batch_stream(),
+            )
             .make_random_name()?
             .build()?;
         let _ = stream.insert(m.get_name().to_string(), m);
-        let mut messages = subscribe_to_subject(
-            &subscriptions,
-            &publications,
-            &subjects,
-            &mut stream
-        )?;
+        let mut messages =
+            subscribe_to_subject(&subscriptions, &publications, &subjects, &mut stream)?;
         assert_eq!(messages.len(), 3);
         assert_eq!(
             remove_message_by_subject(table_name, &mut messages)
@@ -198,22 +216,27 @@ mod tests {
         );
 
         // Case 3: from subjects and messages but missing the messages table
-        let subscriptions = vec![TableSubscription::OnUpdateFullTable { table_name: table_name.to_string() }, TableSubscription::AlwaysFullTable { table_name: config_name.to_string()}];
+        let subscriptions = vec![
+            TableSubscription::OnUpdateFullTable {
+                table_name: table_name.to_string(),
+            },
+            TableSubscription::AlwaysFullTable {
+                table_name: config_name.to_string(),
+            },
+        ];
         let mut stream = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let m = SendableRecordBatchStreamMessageBuilder::default()
             .with_subject(table_name_2)
             .with_publisher("")
             .with_update(&TablePublication::None)
-            .with_message(test_table::make_test_table(table_name_2, 1, 0, 1)?.to_record_batch_stream())
+            .with_message(
+                test_table::make_test_table(table_name_2, 1, 0, 1)?.to_record_batch_stream(),
+            )
             .make_random_name()?
             .build()?;
         let _ = stream.insert(m.get_name().to_string(), m);
-        let mut messages = subscribe_to_subject(
-            &subscriptions,
-            &publications,
-            &subjects,
-            &mut stream
-        )?;
+        let mut messages =
+            subscribe_to_subject(&subscriptions, &publications, &subjects, &mut stream)?;
         assert_eq!(messages.len(), 2);
         assert_eq!(
             remove_message_by_subject(table_name, &mut messages)
@@ -245,7 +268,9 @@ mod tests {
             .with_update(&TablePublication::Extend {
                 table_name: table_name.to_string(),
             })
-            .with_message(test_table::make_test_table(table_name, 1, 8, 2)?.to_record_batch_stream())
+            .with_message(
+                test_table::make_test_table(table_name, 1, 8, 2)?.to_record_batch_stream(),
+            )
             .build()?;
         let _ = messages.insert(message.get_name().to_string(), message);
         let inbox = update_publisher(task_name, messages)?;
@@ -287,7 +312,9 @@ mod tests {
     fn test_build_and_publish_to_stream() -> Result<()> {
         let table_name = "test_table";
         let task_name = "test_task";
-        let publications = vec![TablePublication::Extend {table_name: table_name.to_string()}];
+        let publications = vec![TablePublication::Extend {
+            table_name: table_name.to_string(),
+        }];
 
         // Case 1: Message does not have a subject
         let mut messages = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
@@ -295,7 +322,11 @@ mod tests {
             .with_name("test_message")
             .with_message(test_table::make_test_table("d1", 1, 8, 2)?.to_record_batch_stream());
         let _ = messages.insert("test_message".to_string(), message);
-        let inbox = build_and_publish_to_stream(task_name, &publications.iter().collect::<Vec<_>>(), messages)?;
+        let inbox = build_and_publish_to_stream(
+            task_name,
+            &publications.iter().collect::<Vec<_>>(),
+            messages,
+        )?;
         assert_eq!(inbox.len(), 1);
         assert_eq!(
             inbox
@@ -335,16 +366,26 @@ mod tests {
             .with_subject("d1")
             .with_message(test_table::make_test_table("d1", 1, 8, 2)?.to_record_batch_stream());
         let _ = messages.insert("test_message".to_string(), message);
-        let inbox = build_and_publish_to_stream(task_name, &publications.iter().collect::<Vec<_>>(), messages)?;
+        let inbox = build_and_publish_to_stream(
+            task_name,
+            &publications.iter().collect::<Vec<_>>(),
+            messages,
+        )?;
         assert_eq!(inbox.len(), 0);
 
         // Case 3: Message has subject that the task does not publish on
         let mut messages = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
         let message = SendableRecordBatchStreamMessage::get_builder()
             .with_name("test_message")
-            .with_message(test_table::make_test_table(table_name, 1, 8, 2)?.to_record_batch_stream());
+            .with_message(
+                test_table::make_test_table(table_name, 1, 8, 2)?.to_record_batch_stream(),
+            );
         let _ = messages.insert("test_message".to_string(), message);
-        let inbox = build_and_publish_to_stream(task_name, &publications.iter().collect::<Vec<_>>(), messages)?;
+        let inbox = build_and_publish_to_stream(
+            task_name,
+            &publications.iter().collect::<Vec<_>>(),
+            messages,
+        )?;
         assert_eq!(inbox.len(), 1);
         assert_eq!(
             inbox
@@ -376,7 +417,7 @@ mod tests {
                 table_name: table_name.to_string()
             }
         );
-        
+
         Ok(())
     }
 }

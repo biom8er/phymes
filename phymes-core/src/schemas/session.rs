@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use arrow::{
-    array::{ArrayRef, Int64Array, ListBuilder, RecordBatch, StringArray, StringBuilder, UInt8Array, UInt32Array},
+    array::{
+        ArrayRef, Int64Array, ListBuilder, RecordBatch, StringArray, StringBuilder, UInt8Array,
+        UInt32Array,
+    },
     datatypes::{DataType, Field, Fields},
 };
 
@@ -35,7 +38,12 @@ pub fn create_session_subjects_batch(
 }
 
 pub(crate) fn create_session_tasks_fields() -> Fields {
-    let field_names = ["session_name", "task_name", "processor_name", "runtime_env_name"];
+    let field_names = [
+        "session_name",
+        "task_name",
+        "processor_name",
+        "runtime_env_name",
+    ];
     let fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -63,7 +71,8 @@ pub fn create_session_tasks_batch(
 }
 
 pub(crate) fn create_session_processors_fields() -> Fields {
-    let field_names = ["session_name",
+    let field_names = [
+        "session_name",
         "processor_name",
         "processor_type",
         "publication_subscription_name",
@@ -202,7 +211,8 @@ pub fn create_session_tasks_check_batch(
 }
 
 pub(crate) fn create_session_tasks_subscribe_fields() -> Fields {
-    let field_names = ["session_name", 
+    let field_names = [
+        "session_name",
         "task_name",
         "processor_name",
         "processor_type",
@@ -248,7 +258,8 @@ pub fn create_session_tasks_subscribe_batch(
 
 // DM: Only the subjects that are subscribed to should be here
 pub(crate) fn create_session_tasks_subscribe_aggregate_fields() -> Fields {
-    let field_names = ["session_name", 
+    let field_names = [
+        "session_name",
         "task_name",
         "processor_name",
         "processor_type",
@@ -257,9 +268,7 @@ pub(crate) fn create_session_tasks_subscribe_aggregate_fields() -> Fields {
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let list_data_type = DataType::List(
-        Arc::new(Field::new_list_field(DataType::Utf8, false))
-    );
+    let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Utf8, false)));
     let field_names = ["subscription_names", "subscription_table_names"];
     fields_vec.extend(
         field_names
@@ -294,7 +303,8 @@ pub fn create_session_tasks_subscribe_aggregate_batch(
     let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
     let processor_types: ArrayRef = Arc::new(StringArray::from(processor_types));
     let value_builder = StringBuilder::new();
-    let mut list_builder = ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Utf8, false));
+    let mut list_builder =
+        ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Utf8, false));
     for values in subscription_names.into_iter() {
         for value in values.into_iter() {
             list_builder.values().append_value(&value);
@@ -303,7 +313,8 @@ pub fn create_session_tasks_subscribe_aggregate_batch(
     }
     let subscription_names: ArrayRef = Arc::new(list_builder.finish());
     let value_builder = StringBuilder::new();
-    let mut list_builder = ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Utf8, false));
+    let mut list_builder =
+        ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Utf8, false));
     for values in subscription_table_names.into_iter() {
         for value in values.into_iter() {
             list_builder.values().append_value(&value);
@@ -331,7 +342,8 @@ pub fn create_session_tasks_subscribe_aggregate_batch(
 }
 
 pub(crate) fn create_session_tasks_publish_fields() -> Fields {
-    let field_names = ["session_name",
+    let field_names = [
+        "session_name",
         "task_name",
         "processor_name",
         "processor_type",
@@ -346,16 +358,12 @@ pub(crate) fn create_session_tasks_publish_fields() -> Fields {
 }
 
 pub(crate) fn create_session_tasks_publish_aggregate_fields() -> Fields {
-    let field_names = ["session_name",
-        "task_name",
-    ];
+    let field_names = ["session_name", "task_name"];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let list_data_type = DataType::List(
-        Arc::new(Field::new_list_field(DataType::Utf8, false))
-    );
+    let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Utf8, false)));
     let field_names = ["publication_names", "publication_table_names"];
     fields_vec.extend(
         field_names
@@ -392,7 +400,8 @@ pub fn create_session_tasks_publish_batch(
 }
 
 pub(crate) fn create_session_tasks_subscribe_publish_fields() -> Fields {
-    let field_names = ["session_name", 
+    let field_names = [
+        "session_name",
         "task_name",
         "processor_name",
         "processor_type",
@@ -401,10 +410,13 @@ pub(crate) fn create_session_tasks_subscribe_publish_fields() -> Fields {
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let list_data_type = DataType::List(
-        Arc::new(Field::new_list_field(DataType::Utf8, false))
-    );
-    let field_names = ["subscription_names", "subscription_table_names", "publication_names", "publication_table_names"];
+    let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Utf8, false)));
+    let field_names = [
+        "subscription_names",
+        "subscription_table_names",
+        "publication_names",
+        "publication_table_names",
+    ];
     fields_vec.extend(
         field_names
             .iter()

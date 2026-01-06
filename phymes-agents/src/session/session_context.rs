@@ -2,7 +2,10 @@ use anyhow::Result;
 use arrow::datatypes::SchemaRef;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, ProcessorSubjectsBuilder, RuntimeEnv, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableSubscription, TableTrait, TaskMap, create_subjects_num_rows_batch, from_diagnostics_to_tables
+    AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, ProcessorSubjectsBuilder,
+    RuntimeEnv, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication,
+    TablePublicationTrait, TableSubscription, TableTrait, TaskMap, create_subjects_num_rows_batch,
+    from_diagnostics_to_tables,
 };
 use phymes_diagnostics::{Diagnostics, HashMap};
 use std::sync::Arc;
@@ -76,21 +79,41 @@ impl SessionContext {
     /// Get the task subscriptions and publications that are ready to run
     pub fn tasks_to_run(&self) -> Result<HashMap<(String, String), ProcessorSubjectsMap>> {
         // Extract out the columns
-        let table_reading = self.get_states()
-            .get(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
-            .expect(format!("Missing table for `{}` in session `{}` state.", AvailableSubjects::SessionTasksSubscribePublish.to_string(), self.get_name()).as_str())
+        let table_reading = self
+            .get_states()
+            .get(
+                AvailableSubjects::SessionTasksSubscribePublish
+                    .to_string()
+                    .as_str(),
+            )
+            .expect(
+                format!(
+                    "Missing table for `{}` in session `{}` state.",
+                    AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+                    self.get_name()
+                )
+                .as_str(),
+            )
             .read();
         let task_names = table_reading.get_column_as_vec_nonprimitive::<String>("task_name")?;
-        let processor_names = table_reading.get_column_as_vec_nonprimitive::<String>("processor_name")?;
-        let processor_types = table_reading.get_column_as_vec_nonprimitive::<String>("processor_type")?;
-        let subscription_names = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
-        let subscription_table_names = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
-        let publication_names = table_reading.get_column_as_vec_nonprimitive::<String>("subscription_names")?;
-        let publication_table_names = table_reading.get_column_as_vec_nonprimitive::<String>("publication_table_names")?;
-        let session_names = table_reading.get_column_as_vec_nonprimitive::<String>("session_names")?;
+        let processor_names =
+            table_reading.get_column_as_vec_nonprimitive::<String>("processor_name")?;
+        let processor_types =
+            table_reading.get_column_as_vec_nonprimitive::<String>("processor_type")?;
+        let subscription_names =
+            table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
+        let subscription_table_names = table_reading
+            .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
+        let publication_names =
+            table_reading.get_column_as_vec_nonprimitive::<String>("subscription_names")?;
+        let publication_table_names =
+            table_reading.get_column_as_vec_nonprimitive::<String>("publication_table_names")?;
+        let session_names =
+            table_reading.get_column_as_vec_nonprimitive::<String>("session_names")?;
 
         // Map to objects
-        let combined = task_names.into_iter()
+        let combined = task_names
+            .into_iter()
             .zip(subscription_names.into_iter())
             .zip(subscription_table_names.into_iter())
             .zip(publication_names.into_iter())
@@ -98,28 +121,65 @@ impl SessionContext {
             .zip(processor_names.into_iter())
             .zip(processor_types.into_iter())
             .zip(session_names.into_iter())
-            .map(|(((((((task_name, subscription_names), subscription_table_names), publication_names), publication_table_names), processor_name), processor_type), session_name)| {
-                let subscriptions = subscription_names.iter()
-                    .zip(subscription_table_names.iter())
-                    .map(|(subscription_name, subscription_table_name)| TableSubscription::from_str_fuzzy(subscription_name, subscription_table_name).unwrap())
-                    .collect::<Vec<_>>();
-                let publications = publication_names.iter()
-                    .zip(publication_table_names.iter())
-                    .map(|(publication_name, publication_table_name)| TablePublish::from_str_fuzzy(publication_name, publication_table_name).unwrap())
-                    .collect::<Vec<_>>();
-                let processor_subjects = ProcessorSubjectsBuilder::default()
-                    .with_name(&processor_name)
-                    .with_subscriptions(&subscriptions)
-                    .with_publications(&publications)
-                    .build().unwrap();
-                (task_name, processor_subjects, processor_name, processor_type, session_name)
-            })
+            .map(
+                |(
+                    (
+                        (
+                            (
+                                (
+                                    ((task_name, subscription_names), subscription_table_names),
+                                    publication_names,
+                                ),
+                                publication_table_names,
+                            ),
+                            processor_name,
+                        ),
+                        processor_type,
+                    ),
+                    session_name,
+                )| {
+                    let subscriptions = subscription_names
+                        .iter()
+                        .zip(subscription_table_names.iter())
+                        .map(|(subscription_name, subscription_table_name)| {
+                            TableSubscription::from_str_fuzzy(
+                                subscription_name,
+                                subscription_table_name,
+                            )
+                            .unwrap()
+                        })
+                        .collect::<Vec<_>>();
+                    let publications = publication_names
+                        .iter()
+                        .zip(publication_table_names.iter())
+                        .map(|(publication_name, publication_table_name)| {
+                            TablePublish::from_str_fuzzy(publication_name, publication_table_name)
+                                .unwrap()
+                        })
+                        .collect::<Vec<_>>();
+                    let processor_subjects = ProcessorSubjectsBuilder::default()
+                        .with_name(&processor_name)
+                        .with_subscriptions(&subscriptions)
+                        .with_publications(&publications)
+                        .build()
+                        .unwrap();
+                    (
+                        task_name,
+                        processor_subjects,
+                        processor_name,
+                        processor_type,
+                        session_name,
+                    )
+                },
+            )
             .collect::<Vec<_>>();
 
         // Aggregate processors
         // DM: not possible to have two-levels of nesting with Arrow RecordBatches
         let mut tasks = HashMap::<(String, String), ProcessorSubjectsMap>::new();
-        for (task_name, processor_subjects, processor_name, processor_type, session_name) in combined {
+        for (task_name, processor_subjects, processor_name, processor_type, session_name) in
+            combined
+        {
             if let Some(task) = tasks.get_mut(&(task_name, session_name)) {
                 let _ = task.insert(processor_name, processor_subjects);
             } else {

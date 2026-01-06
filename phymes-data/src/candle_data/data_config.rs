@@ -257,11 +257,11 @@ impl Display for DataCastOperator {
 /// - `List` and `Set` can be applied to all primitive [DataType]s except floats.
 ///   Non-nested primitive and non-primitive [DataType]s will generate a nested primitive or non-primitive Array.
 ///   Nested primitive or non-primitive [DataType]s will maintain the nested primitive or non-primitive Array through extension of the list or set.
-/// 
+///
 /// # Notes on unary operators
 /// - `Not`can only be applied to non-nested primitive [DataType]s
 /// - `Len` can be applied to all [DataType]s and generates a UInt32Array
-/// 
+///
 /// # Notes on intialization operators
 /// - `Zeros` and `Ones` will create a new column filled with primitive zero's or one's
 /// - `String` will create a new column filled with an empty Utf8
@@ -395,20 +395,20 @@ impl DataColumnOperator {
             | Self::Zeros
             | Self::Ones
             | Self::String
-            | Self::Value => false,            
+            | Self::Value => false,
             Self::BroadcastMax
             | Self::BroadcastMin
             | Self::BroadcastMean
             | Self::BroadcastVar
             | Self::BroadcastCount
             | Self::BroadcastList
-            | Self::BroadcastSet 
+            | Self::BroadcastSet
             | Self::Not
-            | Self::Len 
+            | Self::Len
             | Self::None => true,
         }
     }
-    
+
     /// Can the operator initialize a new column
     pub fn is_init(&self) -> bool {
         match self {
@@ -429,19 +429,16 @@ impl DataColumnOperator {
             | Self::List
             | Self::Set
             | Self::Concat
-            | Self::Len 
+            | Self::Len
             | Self::BroadcastMax
             | Self::BroadcastMin
             | Self::BroadcastMean
             | Self::BroadcastVar
             | Self::BroadcastCount
             | Self::BroadcastList
-            | Self::BroadcastSet 
+            | Self::BroadcastSet
             | Self::None => false,
-            Self::Zeros
-            | Self::Ones
-            | Self::String
-            | Self::Value => true,
+            Self::Zeros | Self::Ones | Self::String | Self::Value => true,
         }
     }
 }

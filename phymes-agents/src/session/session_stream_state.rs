@@ -1,7 +1,8 @@
 use anyhow::{Result, anyhow};
-use phymes_core::{create_subjects_change_log_batch, AvailableSubjects, AvailableSubjectsTrait,
-    BuilderTrait, IPCMessageMap, MappableTrait, MessageTrait, Table, TableBuilder,
-    TableBuilderTrait, TablePublication, TablePublicationTrait, TableTrait,
+use phymes_core::{
+    AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessageMap, MappableTrait,
+    MessageTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait,
+    TableTrait, create_subjects_change_log_batch,
 };
 use phymes_diagnostics::create_timestamp_micros;
 
@@ -53,10 +54,7 @@ impl SessionStreamState {
 
     /// Update the state from the published messages
     /// and return a map of changed subscriptions along with their publishers
-    pub fn update_state_from_messages(
-        &self,
-        messages: IPCMessageMap,
-    ) -> Result<Table> {
+    pub fn update_state_from_messages(&self, messages: IPCMessageMap) -> Result<Table> {
         let mut subject_names = Vec::new();
         let mut task_names = Vec::new();
         let mut session_names = Vec::new();
@@ -101,7 +99,13 @@ impl SessionStreamState {
                 ));
             }
         }
-        let batches = create_subjects_change_log_batch(subject_names, task_names, session_names, num_rows_deltas, timestamps)?;
+        let batches = create_subjects_change_log_batch(
+            subject_names,
+            task_names,
+            session_names,
+            num_rows_deltas,
+            timestamps,
+        )?;
         AvailableSubjects::SubjectsChangeLog.to_table(None, Some(vec![batches]))
     }
 }

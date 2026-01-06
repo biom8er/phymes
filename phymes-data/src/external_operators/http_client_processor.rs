@@ -10,11 +10,15 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, create_chat_record_batch, remove_message_by_subject
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
+    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait,
+    create_chat_record_batch, remove_message_by_subject,
 };
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait,
-    create_timestamp_micros,
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
 };
 use reqwest::{
     Client, Response,
@@ -26,7 +30,7 @@ use crate::{
     DataConfigTrait,
     external_operators::{
         http_client_config::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType},
-        schemas_e_utils, schemas_open_alex, schemas_semantic_scholar
+        schemas_e_utils, schemas_open_alex, schemas_semantic_scholar,
     },
 };
 
@@ -95,9 +99,15 @@ impl ProcessorTrait for HTTPClientRequestProcessor {
         // Extract out the message
         let mut subscriptions = message.into_values().collect::<Vec<_>>();
         if subscriptions.len() > 1 {
-            return Err(anyhow!("More than one subscription was found for {}.", self.get_name()));
+            return Err(anyhow!(
+                "More than one subscription was found for {}.",
+                self.get_name()
+            ));
         } else if subscriptions.is_empty() {
-            return Err(anyhow!("No subscriptions were found for {}.", self.get_name()));
+            return Err(anyhow!(
+                "No subscriptions were found for {}.",
+                self.get_name()
+            ));
         }
 
         // Run the stream
@@ -114,7 +124,7 @@ impl ProcessorTrait for HTTPClientRequestProcessor {
             .with_name(self.get_name())
             .with_message(out);
         let _ = builder_map.insert(self.get_name().to_string(), builder);
-        
+
         Ok(builder_map)
     }
 }
@@ -552,7 +562,8 @@ mod tests {
         );
 
         // Build the http client processor
-        let processor = HTTPClientRequestProcessor::new(name, HTTPClientRequestProcessor::get_static_name());
+        let processor =
+            HTTPClientRequestProcessor::new(name, HTTPClientRequestProcessor::get_static_name());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
 
         // Check the response
@@ -655,7 +666,8 @@ mod tests {
         );
 
         // Build the http client processor
-        let processor = HTTPClientRequestProcessor::new(name, HTTPClientRequestProcessor::get_static_name());
+        let processor =
+            HTTPClientRequestProcessor::new(name, HTTPClientRequestProcessor::get_static_name());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
         // Check the response
@@ -728,7 +740,8 @@ mod tests {
         );
 
         // Build the http client processor
-        let processor = HTTPClientRequestProcessor::new(name, HTTPClientRequestProcessor::get_static_name());
+        let processor =
+            HTTPClientRequestProcessor::new(name, HTTPClientRequestProcessor::get_static_name());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
 
         // Check the response
@@ -821,7 +834,8 @@ mod tests {
         );
 
         // Build the http client processor
-        let processor = HTTPClientRequestProcessor::new(name, HTTPClientRequestProcessor::get_static_name());
+        let processor =
+            HTTPClientRequestProcessor::new(name, HTTPClientRequestProcessor::get_static_name());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
 
         // Check the response

@@ -1,15 +1,15 @@
 mod publish_subscribe;
 mod task_builder;
-mod task_trait;
-mod test_exec;
 mod task_plan;
 mod task_plan_builder;
+mod task_trait;
+mod test_exec;
 
-pub use publish_subscribe::{subscribe_to_subject, build_and_publish_to_stream, update_publisher};
+pub use publish_subscribe::{build_and_publish_to_stream, subscribe_to_subject, update_publisher};
 pub use task_builder::{TaskBuilder, TaskBuilderTrait};
-pub use task_trait::{Task, TaskTrait, test_task};
 pub use task_plan::TaskPlan;
 pub use task_plan_builder::TaskPlanBuilder;
+pub use task_trait::{Task, TaskTrait, test_task};
 
 #[allow(unused_imports)]
 #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]

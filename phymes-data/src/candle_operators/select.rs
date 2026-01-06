@@ -175,29 +175,59 @@ impl DataOperatorTrait for Select {
             "Missing `lhs_values` for `{}`.",
             Self::get_static_name()
         ))?;
-        let rhs_values = config.rhs_values.as_ref().cloned().unwrap_or(lhs_values.iter().map(|_| String::new()).collect::<Vec<_>>());
-        let as_columns = config.as_columns.as_ref().cloned().unwrap_or(lhs_values.iter().map(|_| String::new()).collect::<Vec<_>>());
-        let reorder_columns_default = lhs_values.iter()
+        let rhs_values = config
+            .rhs_values
+            .as_ref()
+            .cloned()
+            .unwrap_or(lhs_values.iter().map(|_| String::new()).collect::<Vec<_>>());
+        let as_columns = config
+            .as_columns
+            .as_ref()
+            .cloned()
+            .unwrap_or(lhs_values.iter().map(|_| String::new()).collect::<Vec<_>>());
+        let reorder_columns_default = lhs_values
+            .iter()
             .zip(as_columns.iter())
-            .map(|(v, a)| if a.is_empty() {
-                v.to_string()
-            } else {
-                a.to_string()
-            }).collect::<Vec<_>>();
-        let reorder_columns = config.reorder_columns
+            .map(|(v, a)| {
+                if a.is_empty() {
+                    v.to_string()
+                } else {
+                    a.to_string()
+                }
+            })
+            .collect::<Vec<_>>();
+        let reorder_columns = config
+            .reorder_columns
             .as_ref()
             .cloned()
             .unwrap_or(reorder_columns_default.clone());
-        let column_operators = config.column_operators.as_ref().cloned().unwrap_or(lhs_values.iter().map(|_| DataColumnOperator::default()).collect::<Vec<_>>());
-        let cast_operators = config.cast_operators.as_ref().cloned().unwrap_or(lhs_values.iter().map(|_| DataCastOperator::default()).collect::<Vec<_>>());
-        let cast_datatypes_str = config
-            .cast_datatypes.as_ref().cloned()
-            .unwrap_or(lhs_values.iter().map(|_| "Utf8".to_string()).collect::<Vec<_>>());
+        let column_operators = config.column_operators.as_ref().cloned().unwrap_or(
+            lhs_values
+                .iter()
+                .map(|_| DataColumnOperator::default())
+                .collect::<Vec<_>>(),
+        );
+        let cast_operators = config.cast_operators.as_ref().cloned().unwrap_or(
+            lhs_values
+                .iter()
+                .map(|_| DataCastOperator::default())
+                .collect::<Vec<_>>(),
+        );
+        let cast_datatypes_str = config.cast_datatypes.as_ref().cloned().unwrap_or(
+            lhs_values
+                .iter()
+                .map(|_| "Utf8".to_string())
+                .collect::<Vec<_>>(),
+        );
         let mut cast_datatypes = Vec::new();
         for s in cast_datatypes_str.into_iter() {
             cast_datatypes.push(from_str_to_data_type(&s)?);
         }
-        let cast_templates = config.cast_templates.as_ref().cloned().unwrap_or(lhs_values.iter().map(|_| String::new()).collect::<Vec<_>>());
+        let cast_templates = config
+            .cast_templates
+            .as_ref()
+            .cloned()
+            .unwrap_or(lhs_values.iter().map(|_| String::new()).collect::<Vec<_>>());
 
         // Ensure that the array lengths match
         if lhs_values.len() != as_columns.len() {
@@ -244,12 +274,19 @@ impl DataOperatorTrait for Select {
             ));
         }
 
-        { // Check that the reorder_columns are in the as_columns and lhs_values
-            let as_columns_set = reorder_columns_default.iter().map(|v| v.as_str()).collect::<HashSet<&str>>();
-            let reorder_columns_set = reorder_columns.iter().map(|v| v.as_str()).collect::<HashSet<&str>>();
-            if !reorder_columns_set.is_subset(&as_columns_set) {        
+        {
+            // Check that the reorder_columns are in the as_columns and lhs_values
+            let as_columns_set = reorder_columns_default
+                .iter()
+                .map(|v| v.as_str())
+                .collect::<HashSet<&str>>();
+            let reorder_columns_set = reorder_columns
+                .iter()
+                .map(|v| v.as_str())
+                .collect::<HashSet<&str>>();
+            if !reorder_columns_set.is_subset(&as_columns_set) {
                 return Err(anyhow!(
-                    "reorder_columns {reorder_columns_set:?} is not a subset of as_columns and lhs_values {as_columns_set:?}",                
+                    "reorder_columns {reorder_columns_set:?} is not a subset of as_columns and lhs_values {as_columns_set:?}",
                 ));
             }
         }
@@ -673,26 +710,23 @@ pub fn select(
                             cast_datatypes.get(index).unwrap()
                         ));
                     }
-                }
+                },
                 DataColumnOperator::Zeros => match cast_datatypes.get(index).unwrap() {
                     DataType::UInt8 => {
-                        let default_vec = (0..lhs_table.count_rows())
-                            .map(|_| 0)
-                            .collect::<Vec<u8>>();
+                        let default_vec =
+                            (0..lhs_table.count_rows()).map(|_| 0).collect::<Vec<u8>>();
                         let arr: ArrayRef = Arc::new(UInt8Array::from_iter_values(default_vec));
                         missing_vec.push((column_name, arr));
                     }
                     DataType::UInt32 => {
-                        let default_vec = (0..lhs_table.count_rows())
-                            .map(|_| 0)
-                            .collect::<Vec<u32>>();
+                        let default_vec =
+                            (0..lhs_table.count_rows()).map(|_| 0).collect::<Vec<u32>>();
                         let arr: ArrayRef = Arc::new(UInt32Array::from_iter_values(default_vec));
                         missing_vec.push((column_name, arr));
                     }
                     DataType::Int64 => {
-                        let default_vec = (0..lhs_table.count_rows())
-                            .map(|_| 0)
-                            .collect::<Vec<i64>>();
+                        let default_vec =
+                            (0..lhs_table.count_rows()).map(|_| 0).collect::<Vec<i64>>();
                         let arr: ArrayRef = Arc::new(Int64Array::from_iter_values(default_vec));
                         missing_vec.push((column_name, arr));
                     }
@@ -717,26 +751,23 @@ pub fn select(
                             cast_datatypes.get(index).unwrap()
                         ));
                     }
-                }
+                },
                 DataColumnOperator::Ones => match cast_datatypes.get(index).unwrap() {
                     DataType::UInt8 => {
-                        let default_vec = (0..lhs_table.count_rows())
-                            .map(|_| 1)
-                            .collect::<Vec<u8>>();
+                        let default_vec =
+                            (0..lhs_table.count_rows()).map(|_| 1).collect::<Vec<u8>>();
                         let arr: ArrayRef = Arc::new(UInt8Array::from_iter_values(default_vec));
                         missing_vec.push((column_name, arr));
                     }
                     DataType::UInt32 => {
-                        let default_vec = (0..lhs_table.count_rows())
-                            .map(|_| 1)
-                            .collect::<Vec<u32>>();
+                        let default_vec =
+                            (0..lhs_table.count_rows()).map(|_| 1).collect::<Vec<u32>>();
                         let arr: ArrayRef = Arc::new(UInt32Array::from_iter_values(default_vec));
                         missing_vec.push((column_name, arr));
                     }
                     DataType::Int64 => {
-                        let default_vec = (0..lhs_table.count_rows())
-                            .map(|_| 1)
-                            .collect::<Vec<i64>>();
+                        let default_vec =
+                            (0..lhs_table.count_rows()).map(|_| 1).collect::<Vec<i64>>();
                         let arr: ArrayRef = Arc::new(Int64Array::from_iter_values(default_vec));
                         missing_vec.push((column_name, arr));
                     }
@@ -761,7 +792,7 @@ pub fn select(
                             cast_datatypes.get(index).unwrap()
                         ));
                     }
-                }
+                },
                 DataColumnOperator::String => match cast_datatypes.get(index).unwrap() {
                     DataType::Utf8 => {
                         let default_vec = (0..lhs_table.count_rows())
@@ -777,7 +808,7 @@ pub fn select(
                             cast_datatypes.get(index).unwrap()
                         ));
                     }
-                }
+                },
                 _ => {
                     return Err(anyhow!(
                         "Unsupported column operator {} for missing column {column_name}",
@@ -2313,7 +2344,7 @@ pub fn select(
             },
             DataColumnOperator::Len => {
                 todo!()
-            },
+            }
             DataColumnOperator::BroadcastCount => {
                 let num_rows = lhs_table.count_rows();
                 let agg_vec = [0..num_rows]
@@ -2328,10 +2359,7 @@ pub fn select(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let agg_values = lhs_vec
-                        .iter()
-                        .map(|_| lhs_vec.clone())
-                        .collect::<Vec<_>>();
+                    let agg_values = lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
                     build_aggregator_column_list_primitive::<u8, UInt8Type>(
                         agg_values,
                         column_data_type.clone(),
@@ -2342,10 +2370,7 @@ pub fn select(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let agg_values = lhs_vec
-                        .iter()
-                        .map(|_| lhs_vec.clone())
-                        .collect::<Vec<_>>();
+                    let agg_values = lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
                     build_aggregator_column_list_primitive::<u32, UInt32Type>(
                         agg_values,
                         column_data_type.clone(),
@@ -2356,10 +2381,7 @@ pub fn select(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let agg_values = lhs_vec
-                        .iter()
-                        .map(|_| lhs_vec.clone())
-                        .collect::<Vec<_>>();
+                    let agg_values = lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
                     build_aggregator_column_list_primitive::<i64, Int64Type>(
                         agg_values,
                         column_data_type.clone(),
@@ -2370,10 +2392,7 @@ pub fn select(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let agg_values = lhs_vec
-                        .iter()
-                        .map(|_| lhs_vec.clone())
-                        .collect::<Vec<_>>();
+                    let agg_values = lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
                     build_aggregator_column_list_primitive::<f32, Float32Type>(
                         agg_values,
                         column_data_type.clone(),
@@ -2384,10 +2403,7 @@ pub fn select(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let agg_values = lhs_vec
-                        .iter()
-                        .map(|_| lhs_vec.clone())
-                        .collect::<Vec<_>>();
+                    let agg_values = lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
                     build_aggregator_column_list_primitive::<f64, Float64Type>(
                         agg_values,
                         column_data_type.clone(),
@@ -2398,10 +2414,7 @@ pub fn select(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let agg_values = lhs_vec
-                        .iter()
-                        .map(|_| lhs_vec.clone())
-                        .collect::<Vec<_>>();
+                    let agg_values = lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
                     build_aggregator_column_list_nonprimitive::<String>(
                         agg_values,
                         column_data_type.clone(),
@@ -2422,10 +2435,8 @@ pub fn select(
                             })
                             .flatten()
                             .collect::<Vec<_>>();
-                        let agg_values = lhs_vec
-                            .iter()
-                            .map(|_| lhs_vec.clone())
-                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
                         build_aggregator_column_fixed_size_list::<u8>(
                             agg_values,
                             column_data_type.clone(),
@@ -2445,10 +2456,8 @@ pub fn select(
                             })
                             .flatten()
                             .collect::<Vec<_>>();
-                        let agg_values = lhs_vec
-                            .iter()
-                            .map(|_| lhs_vec.clone())
-                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
                         build_aggregator_column_fixed_size_list::<u32>(
                             agg_values,
                             column_data_type.clone(),
@@ -2468,10 +2477,8 @@ pub fn select(
                             })
                             .flatten()
                             .collect::<Vec<_>>();
-                        let agg_values = lhs_vec
-                            .iter()
-                            .map(|_| lhs_vec.clone())
-                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
                         build_aggregator_column_fixed_size_list::<i64>(
                             agg_values,
                             column_data_type.clone(),
@@ -2491,10 +2498,8 @@ pub fn select(
                             })
                             .flatten()
                             .collect::<Vec<_>>();
-                        let agg_values = lhs_vec
-                            .iter()
-                            .map(|_| lhs_vec.clone())
-                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
                         build_aggregator_column_fixed_size_list::<f32>(
                             agg_values,
                             column_data_type.clone(),
@@ -2514,10 +2519,8 @@ pub fn select(
                             })
                             .flatten()
                             .collect::<Vec<_>>();
-                        let agg_values = lhs_vec
-                            .iter()
-                            .map(|_| lhs_vec.clone())
-                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
                         build_aggregator_column_fixed_size_list::<f64>(
                             agg_values,
                             column_data_type.clone(),
@@ -2537,10 +2540,8 @@ pub fn select(
                             })
                             .flatten()
                             .collect::<Vec<_>>();
-                        let agg_values = lhs_vec
-                            .iter()
-                            .map(|_| lhs_vec.clone())
-                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
                         build_aggregator_column_list_nonprimitive::<String>(
                             agg_values,
                             column_data_type.clone(),
@@ -2568,10 +2569,8 @@ pub fn select(
                             })
                             .flatten()
                             .collect::<Vec<_>>();
-                        let agg_values = lhs_vec
-                            .iter()
-                            .map(|_| lhs_vec.clone())
-                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
                         build_aggregator_column_list_primitive::<u8, UInt8Type>(
                             agg_values,
                             column_data_type.clone(),
@@ -2591,10 +2590,8 @@ pub fn select(
                             })
                             .flatten()
                             .collect::<Vec<_>>();
-                        let agg_values = lhs_vec
-                            .iter()
-                            .map(|_| lhs_vec.clone())
-                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
                         build_aggregator_column_list_primitive::<u32, UInt32Type>(
                             agg_values,
                             column_data_type.clone(),
@@ -2614,10 +2611,8 @@ pub fn select(
                             })
                             .flatten()
                             .collect::<Vec<_>>();
-                        let agg_values = lhs_vec
-                            .iter()
-                            .map(|_| lhs_vec.clone())
-                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
                         build_aggregator_column_list_primitive::<i64, Int64Type>(
                             agg_values,
                             column_data_type.clone(),
@@ -2637,10 +2632,8 @@ pub fn select(
                             })
                             .flatten()
                             .collect::<Vec<_>>();
-                        let agg_values = lhs_vec
-                            .iter()
-                            .map(|_| lhs_vec.clone())
-                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
                         build_aggregator_column_list_primitive::<f32, Float32Type>(
                             agg_values,
                             column_data_type.clone(),
@@ -2660,10 +2653,8 @@ pub fn select(
                             })
                             .flatten()
                             .collect::<Vec<_>>();
-                        let agg_values = lhs_vec
-                            .iter()
-                            .map(|_| lhs_vec.clone())
-                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
                         build_aggregator_column_list_primitive::<f64, Float64Type>(
                             agg_values,
                             column_data_type.clone(),
@@ -2683,10 +2674,8 @@ pub fn select(
                             })
                             .flatten()
                             .collect::<Vec<_>>();
-                        let agg_values = lhs_vec
-                            .iter()
-                            .map(|_| lhs_vec.clone())
-                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
                         build_aggregator_column_list_nonprimitive::<String>(
                             agg_values,
                             column_data_type.clone(),
@@ -2711,7 +2700,9 @@ pub fn select(
                     let lhs_vec = Table::get_array_as_vec_primitive::<u8>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
-                    )?.into_iter().collect::<HashSet<_>>();
+                    )?
+                    .into_iter()
+                    .collect::<HashSet<_>>();
                     let agg_values = lhs_vec
                         .iter()
                         .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
@@ -2725,7 +2716,9 @@ pub fn select(
                     let lhs_vec = Table::get_array_as_vec_primitive::<u32>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
-                    )?.into_iter().collect::<HashSet<_>>();
+                    )?
+                    .into_iter()
+                    .collect::<HashSet<_>>();
                     let agg_values = lhs_vec
                         .iter()
                         .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
@@ -2739,7 +2732,9 @@ pub fn select(
                     let lhs_vec = Table::get_array_as_vec_primitive::<i64>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
-                    )?.into_iter().collect::<HashSet<_>>();
+                    )?
+                    .into_iter()
+                    .collect::<HashSet<_>>();
                     let agg_values = lhs_vec
                         .iter()
                         .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
@@ -2753,7 +2748,9 @@ pub fn select(
                     let lhs_vec = Table::get_array_as_vec_nonprimitive::<String>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
-                    )?.into_iter().collect::<HashSet<_>>();
+                    )?
+                    .into_iter()
+                    .collect::<HashSet<_>>();
                     let agg_values = lhs_vec
                         .iter()
                         .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
@@ -2974,7 +2971,9 @@ pub fn select(
             | DataColumnOperator::Zeros
             | DataColumnOperator::Ones
             | DataColumnOperator::String
-            | DataColumnOperator::Value => find_column(&lhs_table, &batch_missing_vec, column_name)?,
+            | DataColumnOperator::Value => {
+                find_column(&lhs_table, &batch_missing_vec, column_name)?
+            }
         };
 
         // Try casting if possible
@@ -3315,7 +3314,10 @@ pub fn select(
         }
     }
     batch_vec_index.sort_by_key(|k| k.0);
-    let batch_vec = batch_vec_index.into_iter().map(|(_iter, col, arr)| (col, arr)).collect::<Vec<_>>();
+    let batch_vec = batch_vec_index
+        .into_iter()
+        .map(|(_iter, col, arr)| (col, arr))
+        .collect::<Vec<_>>();
 
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Ok(batch)
@@ -3399,10 +3401,22 @@ mod tests {
 
         // ------ String, UInt32, Cast, Operator, reorder ------
         let result = select(
-            &["lhs_pk", "lhs_text", "lhs_metadata", "new_text", "lhs_metadata"],
+            &[
+                "lhs_pk",
+                "lhs_text",
+                "lhs_metadata",
+                "new_text",
+                "lhs_metadata",
+            ],
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
             &["", "lhs_text", "new_pk", "lhs_text", "new_pk"],
-            &["new_pk", "new_text", "new_metadata", "newer_text", "new_metadata2"],
+            &[
+                "new_pk",
+                "new_text",
+                "new_metadata",
+                "newer_text",
+                "new_metadata2",
+            ],
             &["new_pk", "new_text", "newer_text", "new_metadata"],
             &[
                 DataColumnOperator::None,
@@ -3458,16 +3472,42 @@ mod tests {
         assert_eq!(lhs_id, [0, 1, 2, 3]);
         let metadata = result_table.get_column_as_vec_primitive::<u32>("new_metadata")?;
         assert_eq!(metadata, [1, 3, 5, 7]);
-        let fields = result_table.get_schema().fields().iter().map(|f| f.name().to_string()).collect::<Vec<_>>();
+        let fields = result_table
+            .get_schema()
+            .fields()
+            .iter()
+            .map(|f| f.name().to_string())
+            .collect::<Vec<_>>();
         assert_eq!(fields, ["new_pk", "new_text", "newer_text", "new_metadata"]);
 
         // ------ String, UInt32, Float32, Missing column ------
         let result = select(
-            &["new_pk", "default_metadata", "broadcast_metadata", "lhs_pk", "lhs_metadata", "lhs_metadata"],
+            &[
+                "new_pk",
+                "default_metadata",
+                "broadcast_metadata",
+                "lhs_pk",
+                "lhs_metadata",
+                "lhs_metadata",
+            ],
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
             &["", "", "", "", "", ""],
-            &["new_pk1", "", "", "hash_pk", "min_metadata", "list_metadata"],
-            &["new_pk1", "default_metadata", "broadcast_metadata", "hash_pk", "min_metadata", "list_metadata"],
+            &[
+                "new_pk1",
+                "",
+                "",
+                "hash_pk",
+                "min_metadata",
+                "list_metadata",
+            ],
+            &[
+                "new_pk1",
+                "default_metadata",
+                "broadcast_metadata",
+                "hash_pk",
+                "min_metadata",
+                "list_metadata",
+            ],
             &[
                 DataColumnOperator::String,
                 DataColumnOperator::Zeros,
@@ -3518,7 +3558,10 @@ mod tests {
         let lhs_id = result_table.get_column_as_vec_primitive::<u32>("min_metadata")?;
         assert_eq!(lhs_id, [1, 1, 1, 1]);
         let lhs_id = result_table.get_column_as_vec_nested_primitive::<u32>("list_metadata")?;
-        assert_eq!(lhs_id, [[1, 2, 3, 4],[1, 2, 3, 4],[1, 2, 3, 4],[1, 2, 3, 4]]);
+        assert_eq!(
+            lhs_id,
+            [[1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4]]
+        );
 
         Ok(())
     }

@@ -3,10 +3,9 @@ use std::sync::Arc;
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use phymes_core::{
-    AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MessageBuilderTrait,
-    MessageTrait, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessage, Table,
-    TableBuilderTrait, TablePublication, TableSubscription, TableTrait, from_diagnostics_to_tables,
-    test_table::TestTableSizes,
+    BuildableTrait, BuilderTrait, MessageBuilderTrait, ProcessorTrait, RuntimeEnv,
+    SendableRecordBatchStreamMessage, Table, TableBuilderTrait, TablePublication, TableTrait,
+    from_diagnostics_to_tables, test_table::TestTableSizes,
 };
 use phymes_data::{
     AvailableCandleOperators, CandleDataProcessor, DataAggregatorOperator, DataComparatorOperator,

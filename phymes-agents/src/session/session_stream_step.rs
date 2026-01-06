@@ -3,7 +3,11 @@ use arrow::record_batch::RecordBatch;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, RunnableTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait, create_error_message_map, create_error_message_map_stream, create_session_tasks_run_log_batch, create_subjects_change_log_batch
+    AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessage, IPCMessageBuilder,
+    IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, RunnableTrait,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, TableBuilder,
+    TableBuilderTrait, TableTrait, create_error_message_map, create_error_message_map_stream,
+    create_session_tasks_run_log_batch, create_subjects_change_log_batch,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap,
@@ -180,7 +184,8 @@ impl SessionStreamStep {
         };
 
         let mut response_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        {  // Update the state and handle any errors (without locking the state)
+        {
+            // Update the state and handle any errors (without locking the state)
             let update = match state.write().update_state_from_messages(messages) {
                 Ok(update) => update,
                 Err(err) => {
@@ -191,13 +196,17 @@ impl SessionStreamStep {
             };
 
             // Update the subjects change log
-            let messages = create_message_map(vec![IPCMessageBuilder::new()
-                .with_subject(update.get_name())
-                .with_publisher("")
-                .with_update(&phymes_core::TablePublication::Extend { table_name: update.get_name().to_string() })
-                .with_message(update.to_ipc_stream()?)
-                .make_random_name()?
-                .build()?]);
+            let messages = create_message_map(vec![
+                IPCMessageBuilder::new()
+                    .with_subject(update.get_name())
+                    .with_publisher("")
+                    .with_update(&phymes_core::TablePublication::Extend {
+                        table_name: update.get_name().to_string(),
+                    })
+                    .with_message(update.to_ipc_stream()?)
+                    .make_random_name()?
+                    .build()?,
+            ]);
             let _ = state.write().update_state_from_messages(messages)?;
         }
 
@@ -211,11 +220,18 @@ impl SessionStreamStep {
             event!(Level::INFO, "Superstep for task {}", &task_name);
 
             // Subscribe to the task subjects
-            let task = state.read()
+            let task = state
+                .read()
                 .get_session_context()
                 .get_tasks()
                 .get(task_name)
-                .expect(format!("Missing task `{task_name}` in session `{}` state.", state.read().get_session_context().get_name()).as_str())
+                .expect(
+                    format!(
+                        "Missing task `{task_name}` in session `{}` state.",
+                        state.read().get_session_context().get_name()
+                    )
+                    .as_str(),
+                )
                 .clone();
 
             // Create the diagnostics for the task
@@ -250,20 +266,29 @@ impl SessionStreamStep {
             }
         }
 
-        {  // Update the tasks run log
-            let (session_names, (task_names, timestamps)): (Vec<_>, (Vec<_>, Vec<_>)) = tasks.into_iter()
-                .map(|((task_name, session_name), _ )| (session_name, (task_name, create_timestamp_micros())))
+        {
+            // Update the tasks run log
+            let (session_names, (task_names, timestamps)): (Vec<_>, (Vec<_>, Vec<_>)) = tasks
+                .into_iter()
+                .map(|((task_name, session_name), _)| {
+                    (session_name, (task_name, create_timestamp_micros()))
+                })
                 .unzip();
-            let tasks_run_log_batch = create_session_tasks_run_log_batch(session_names, task_names, timestamps)?;
-            let tasks_run_log_table = AvailableSubjects::SessionTasksRunLog.to_table(None, Some(vec![tasks_run_log_batch]))?;
+            let tasks_run_log_batch =
+                create_session_tasks_run_log_batch(session_names, task_names, timestamps)?;
+            let tasks_run_log_table = AvailableSubjects::SessionTasksRunLog
+                .to_table(None, Some(vec![tasks_run_log_batch]))?;
             let messages = create_message_map(vec![
                 IPCMessageBuilder::new()
                     .with_subject(tasks_run_log_table.get_name())
                     .with_publisher("")
-                    .with_update(&phymes_core::TablePublication::Extend { table_name: tasks_run_log_table.get_name().to_string() })
+                    .with_update(&phymes_core::TablePublication::Extend {
+                        table_name: tasks_run_log_table.get_name().to_string(),
+                    })
                     .with_message(tasks_run_log_table.to_ipc_stream()?)
                     .make_random_name()?
-                    .build()?]);
+                    .build()?,
+            ]);
             let state_update = state.write().update_state_from_messages(messages)?;
 
             // Update the subjects change log
@@ -271,10 +296,13 @@ impl SessionStreamStep {
                 IPCMessageBuilder::new()
                     .with_subject(state_update.get_name())
                     .with_publisher("")
-                    .with_update(&phymes_core::TablePublication::Extend { table_name: state_update.get_name().to_string() })
+                    .with_update(&phymes_core::TablePublication::Extend {
+                        table_name: state_update.get_name().to_string(),
+                    })
                     .with_message(state_update.to_ipc_stream()?)
                     .make_random_name()?
-                    .build()?]);
+                    .build()?,
+            ]);
             let _ = state.write().update_state_from_messages(messages)?;
         }
 
@@ -295,9 +323,11 @@ impl SessionStreamStep {
                     Err(err) => create_error_message_map(&err, span.span().0, true)?,
                 };
 
-            {  // Update the state and handle any errors (without locking the state)
+            {
+                // Update the state and handle any errors (without locking the state)
                 let mut error_messages = HashMap::<String, IPCMessage>::new();
-                let state_update = match state.write().update_state_from_messages(response_batches) {
+                let state_update = match state.write().update_state_from_messages(response_batches)
+                {
                     Ok(update) => update,
                     Err(err) => {
                         let message_map = create_error_message_map(&err, span.span().0, true)?;
@@ -312,19 +342,22 @@ impl SessionStreamStep {
                     IPCMessageBuilder::new()
                         .with_subject(state_update.get_name())
                         .with_publisher("")
-                        .with_update(&phymes_core::TablePublication::Extend { table_name: state_update.get_name().to_string() })
+                        .with_update(&phymes_core::TablePublication::Extend {
+                            table_name: state_update.get_name().to_string(),
+                        })
                         .with_message(state_update.to_ipc_stream()?)
                         .make_random_name()?
                         .build()?,
                     IPCMessageBuilder::new()
                         .with_subject(errors_update.get_name())
                         .with_publisher("")
-                        .with_update(&phymes_core::TablePublication::Extend { table_name: errors_update.get_name().to_string() })
+                        .with_update(&phymes_core::TablePublication::Extend {
+                            table_name: errors_update.get_name().to_string(),
+                        })
                         .with_message(errors_update.to_ipc_stream()?)
                         .make_random_name()?
                         .build()?,
-                    
-                    ]);
+                ]);
                 let _ = state.write().update_state_from_messages(messages)?;
             }
 

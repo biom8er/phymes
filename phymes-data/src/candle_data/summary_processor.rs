@@ -6,14 +6,20 @@ use std::{
 
 use bytes::Bytes;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, CsvFormat, DataFormat, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, create_blob_batch, create_chat_record_batch, remove_message_by_subject
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, CsvFormat, DataFormat,
+    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream,
+    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, create_blob_batch,
+    create_chat_record_batch, remove_message_by_subject,
 };
 
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{Stream, StreamExt};
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
+    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
+    create_timestamp_micros,
 };
 use tracing::{Level, event, instrument};
 
@@ -74,9 +80,15 @@ impl ProcessorTrait for DataSummaryProcessor {
         // Extract out the message
         let mut subscriptions = message.into_values().collect::<Vec<_>>();
         if subscriptions.len() > 1 {
-            return Err(anyhow!("More than one subscription was found for {}.", self.get_name()));
+            return Err(anyhow!(
+                "More than one subscription was found for {}.",
+                self.get_name()
+            ));
         } else if subscriptions.is_empty() {
-            return Err(anyhow!("No subscriptions were found for {}.", self.get_name()));
+            return Err(anyhow!(
+                "No subscriptions were found for {}.",
+                self.get_name()
+            ));
         }
         let table_name = subscriptions.first().unwrap().get_subject().to_string();
 
@@ -95,7 +107,7 @@ impl ProcessorTrait for DataSummaryProcessor {
             .with_name(self.get_name())
             .with_message(out);
         let _ = builder_map.insert(self.get_name().to_string(), builder);
-        
+
         Ok(builder_map)
     }
 }

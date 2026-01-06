@@ -1,13 +1,13 @@
 mod processor_builder;
 mod processor_echo;
-mod processor_trait;
 mod processor_plan;
 mod processor_plan_builder;
+mod processor_trait;
 pub use processor_builder::ProcessorBuilder;
 pub use processor_echo::ProcessorEcho;
-pub use processor_trait::{ProcessorTrait, test_processor};
 pub use processor_plan::{ProcessorPlan, ProcessorSubjects};
 pub use processor_plan_builder::{ProcessorPlanBuilder, ProcessorSubjectsBuilder};
+pub use processor_trait::{ProcessorTrait, test_processor};
 
 use phymes_diagnostics::HashMap;
 use std::sync::Arc;

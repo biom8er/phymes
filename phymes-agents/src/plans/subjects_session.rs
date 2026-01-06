@@ -626,7 +626,10 @@ mod tests {
     use phymes_core::{BuilderTrait, IPCMessage, MappableTrait, MessageTrait, TableTrait};
     use phymes_diagnostics::HashMap;
 
-    use crate::{SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamState, create_message_map};
+    use crate::{
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream, SessionStreamState, create_message_map,
+    };
 
     use super::*;
 
@@ -634,15 +637,20 @@ mod tests {
     async fn test_subjects_session() -> Result<()> {
         // Initialize the session
         let subjects_session = SubjectsSession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(subjects_session.as_mermaid_flowchart(), true)?
-            .with_state_from_mermaid_erdiagram(subjects_session.as_mermaid_erdiagram(), true, true)?
-            .with_name(subjects_session.session_context_name)            
-            .with_diagnostics(true)
-            .add_processor_subjects().unwrap()
-            .add_session_interface(None).unwrap()
-            .build_with_tables()?;
+        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+            subjects_session.as_mermaid_flowchart(),
+            true,
+        )?
+        .with_state_from_mermaid_erdiagram(subjects_session.as_mermaid_erdiagram(), true, true)?
+        .with_name(subjects_session.session_context_name)
+        .with_diagnostics(true)
+        .add_processor_subjects()
+        .unwrap()
+        .add_session_interface(None)
+        .unwrap()
+        .build_with_tables()?;
         let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
-        
+
         // // Create the messages
         // let message_map = create_message_map(vec![]);
 
@@ -650,7 +658,6 @@ mod tests {
         // let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
         // let mut response: Vec<HashMap<String, IPCMessage>> =
         //     session_stream.try_collect().await?;
-
 
         Ok(())
     }

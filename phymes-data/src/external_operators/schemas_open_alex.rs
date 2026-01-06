@@ -208,7 +208,6 @@ pub struct Work {
 
     pub abstract_inverted_index: Option<serde_json::Value>, // Raw JSON for abstracts
     // pub abstract_inverted_index: Option<HashMap<String, Vec<u32>>>,
-
     pub authorships: Vec<Authorship>,
     pub awards: Option<Vec<Award>>,
     pub funders: Option<Vec<WorkFunder>>,
