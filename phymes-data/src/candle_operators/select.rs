@@ -2347,10 +2347,7 @@ pub fn select(
             }
             DataColumnOperator::BroadcastCount => {
                 let num_rows = lhs_table.count_rows();
-                let agg_vec = [0..num_rows]
-                    .iter()
-                    .map(|_| num_rows as u32)
-                    .collect::<Vec<_>>();
+                let agg_vec = (0..num_rows).map(|v| v as u32).collect::<Vec<_>>();
                 Arc::new(UInt32Array::from(agg_vec))
             }
             DataColumnOperator::BroadcastList => match column_data_type {
