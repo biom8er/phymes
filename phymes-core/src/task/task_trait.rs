@@ -271,7 +271,7 @@ pub mod test_task {
             .with_processor(vec![processor])
             .build()?;
         let processor_subjects = ProcessorSubjectsBuilder::default()
-            .with_name(&processor_name)
+            .with_name(processor_name)
             .with_subscriptions(&[
                 TableSubscription::OnUpdateFullTable {
                     table_name: table_name.to_string(),

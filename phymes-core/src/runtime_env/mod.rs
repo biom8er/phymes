@@ -1,8 +1,8 @@
 mod common_traits;
-mod runtime_env;
+mod runtime_env_trait;
 
 pub use common_traits::{BuildableTrait, BuilderTrait, MappableTrait};
-pub use runtime_env::{RuntimeEnv, RuntimeEnvTrait};
+pub use runtime_env_trait::{RuntimeEnv, RuntimeEnvTrait};
 
 use phymes_diagnostics::HashMap;
 use std::sync::Arc;

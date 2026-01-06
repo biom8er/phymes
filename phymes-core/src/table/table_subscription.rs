@@ -167,7 +167,7 @@ impl MappableTrait for TableSubscription {
 
 impl TraceableTrait for TableSubscription {
     fn to_trace(&self) -> Tracer {
-        Tracer::new(&self.get_short_name(), &self.get_table_name())
+        Tracer::new(self.get_short_name(), self.get_table_name())
     }
 }
 
