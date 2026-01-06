@@ -5,12 +5,7 @@ use std::{
 };
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
-    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream,
-    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait,
-    TablePublication, TableSubscribePolicyTrait, TableSubscription, create_blob_fields,
-    remove_message_by_subject,
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, create_blob_fields, remove_message_by_subject
 };
 
 use crate::{
@@ -24,8 +19,7 @@ use arrow::{
 };
 use futures::{Stream, StreamExt};
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
-    TraceBuilderTrait,
+    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait
 };
 use tracing::{Level, event, instrument};
 
@@ -88,20 +82,8 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<RuntimeEnv>,
-    ) -> Result<SendableRecordBatchStreamMessageMap> {
+    ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
-
-        // Trace the inbox
-        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
-            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder
-                .clone()
-                .messages(line!(), file!(), self.get_name());
-            trace.enter(&message.values().collect::<Vec<_>>());
-            Some((trace, trace_builder))
-        } else {
-            None
-        };
 
         // Collect the messages with the messages schema
         let input = collect_messages_by_schema(&mut message, &create_blob_fields());
@@ -112,40 +94,22 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
 
-        // Make the outbox and send
-        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
+        // Run the aggregator stream
         let out = Box::pin(AggregatorStream::new(
             AvailableSubjects::Blob.to_schema(),
             input,
             config,
             Arc::clone(&runtime_env),
-            stream_diagnostic_builder,
+            diagnostic_builder.cloned(),
         )?);
-        let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_publisher(self.get_name())
-            .with_subject(
-                self.get_publications()
-                    .first()
-                    .ok_or(anyhow!(
-                        "Missing publications for processor {}",
-                        self.get_name()
-                    ))?
-                    .get_table_name(),
-            )
-            .with_message(out)
-            .with_update(self.get_publications().first().ok_or(anyhow!(
-                "Missing publications for processor {}",
-                self.get_name()
-            ))?)
-            .make_name()?
-            .build()?;
-        let _ = message.insert(out_m.get_name().to_string(), out_m);
 
-        // Trace the outbox
-        if let Some(trace) = trace {
-            trace.0.exit(&message.values().collect::<Vec<_>>());
-        }
-        Ok(message)
+        // Prepare the message builder
+        let mut builder_map = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
+        let builder = SendableRecordBatchStreamMessage::get_builder()
+            .with_name(self.get_name())
+            .with_message(out);
+        let _ = builder_map.insert(self.get_name().to_string(), builder);
+        Ok(builder_map)
     }
 }
 

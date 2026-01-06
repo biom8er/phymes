@@ -3,11 +3,7 @@ use crate::{
     TensorProcessorTrait, device,
 };
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
-    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, TableBuilder,
-    TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait,
-    remove_message_by_subject,
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait, remove_message_by_subject
 };
 
 use arrow::{
@@ -19,8 +15,7 @@ use arrow::{
 use anyhow::{Result, anyhow};
 use futures::{Stream, StreamExt};
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
-    TraceBuilderTrait,
+    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait
 };
 use std::{
     pin::Pin,
@@ -67,82 +62,31 @@ impl ProcessorTrait for CandleDataProcessor {
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<RuntimeEnv>,
-    ) -> Result<SendableRecordBatchStreamMessageMap> {
+    ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
-        // Trace the inbox
-        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
-            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder
-                .clone()
-                .messages(line!(), file!(), self.get_name());
-            trace.enter(&message.values().collect::<Vec<_>>());
-            Some((trace, trace_builder))
-        } else {
-            None
-        };
-
         // Extract out the config
-        // let config = match message.remove(self.get_name()) {
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
 
-        // Remove subscriptions
-        let mut subscriptions = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        for subs in self.subscriptions.iter() {
-            if subs.get_table_name() != self.get_name() {
-                match remove_message_by_subject(subs.get_table_name(), &mut message) {
-                    // change from a random key to the subject name as the key to align with the [DataConfig]
-                    Some(m) => {
-                        subscriptions.insert(m.get_subject().to_string(), m);
-                    }
-                    None => {
-                        return Err(anyhow!(
-                            "Subscription {} not provided for {}.",
-                            subs.get_table_name(),
-                            self.get_name()
-                        ));
-                    }
-                }
-            }
-        }
-
         // Run the ops
-        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(CandleDataStream::new(
-            subscriptions,
+            message,
             config,
             Arc::clone(&runtime_env),
-            stream_diagnostic_builder,
+            diagnostic_builder.cloned(),
         )?);
-        let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_publisher(self.get_name())
-            .with_subject(
-                self.publications
-                    .first()
-                    .ok_or(anyhow!(
-                        "Missing publications for processor {}",
-                        self.get_name()
-                    ))?
-                    .get_table_name(),
-            )
-            .with_message(out)
-            .with_update(self.publications.first().ok_or(anyhow!(
-                "Missing publications for processor {}",
-                self.get_name()
-            ))?)
-            .make_name()?
-            .build()?;
-        let _ = message.insert(out_m.get_name().to_string(), out_m);
 
-        // Trace the outbox
-        if let Some(trace) = trace {
-            trace.0.exit(&message.values().collect::<Vec<_>>());
-        }
-
-        Ok(message)
+        // Prepare the message builder
+        let mut builder_map = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
+        let builder = SendableRecordBatchStreamMessage::get_builder()
+            .with_name(self.get_name())
+            .with_message(out);
+        let _ = builder_map.insert(self.get_name().to_string(), builder);
+        
+        Ok(builder_map)
     }
 }
 
@@ -654,7 +598,7 @@ mod tests {
     use crate::{DataDistanceOperator, candle_operators::AvailableCandleOperators};
     use arrow::array::Float32Array;
     use futures::TryStreamExt;
-    use phymes_core::{AvailableTableSubscribePolicies, Table, TablePublication};
+    use phymes_core::{Table, TablePublication};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;
@@ -1401,28 +1345,15 @@ mod tests {
         let runtime_env = Arc::new(runtime_env);
 
         // Make the stream and run
-        let ops_processor = CandleDataProcessor::new(
-            "candle_ops_processor",
-            "",
-            &[TablePublication::Replace {
-                table_name: "results".to_string(),
-            }],
-            &[
-                TableSubscription::AlwaysFullTable {
-                    table_name: "lhs_name".to_string(),
-                },
-                TableSubscription::AlwaysFullTable {
-                    table_name: "rhs_name".to_string(),
-                },
-            ],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let ops_processor = CandleDataProcessor::new("candle_ops_processor", "");
         let mut ops_stream =
             ops_processor.process(messages, Some(&diagnostic_builder), runtime_env)?;
         let result = ops_stream
             .remove("from_candle_ops_processor_on_results")
             .unwrap()
-            .get_message_own()
+            .message
+            .take()
+            .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
 

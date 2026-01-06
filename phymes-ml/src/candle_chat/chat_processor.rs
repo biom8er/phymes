@@ -14,12 +14,7 @@ use candle_transformers::generation::{LogitsProcessor, Sampling};
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
-    BuilderTrait, ChatTraitExt, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
-    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table,
-    TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait,
-    TableSubscription, TableTrait, Tool, create_chat_record_batch, remove_message_by_subject,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, ChatTraitExt, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait, Tool, create_chat_record_batch, remove_message_by_subject
 };
 use phymes_data::{DataConfigTrait, device};
 use phymes_diagnostics::{
@@ -72,37 +67,7 @@ impl ProcessorTrait for CandleChatProcessor {
     ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
-        // Trace the inbox
-        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
-            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder
-                .clone()
-                .messages(line!(), file!(), self.get_name());
-            trace.enter(&message.values().collect::<Vec<_>>());
-            Some((trace, trace_builder))
-        } else {
-            None
-        };
-
-        // Extract out the messages, tools, and config
-        let messages = match remove_message_by_subject(
-            self.subscriptions.first().unwrap().get_table_name(),
-            &mut message,
-        ) {
-            Some(i) => i.get_message_own(),
-            None => {
-                return Err(anyhow!(
-                    "Messages not provided for {}. Available messages are {:?}",
-                    self.get_name(),
-                    message.keys()
-                ));
-            }
-        };
-        let tools = remove_message_by_subject(
-            self.subscriptions.get(1).unwrap().get_table_name(),
-            &mut message,
-        )
-        .map(|i| i.get_message_own());
+        // Extract out the config
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => {
@@ -115,29 +80,22 @@ impl ProcessorTrait for CandleChatProcessor {
         };
 
         // Run the chat stream
-        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(CandleChatStream::new(
-            messages,
-            tools,
+            message,
             config,
             Arc::clone(&runtime_env),
             Arc::clone(self.token_service()),
-            stream_diagnostic_builder,
+            diagnostic_builder.cloned(),
         )?);
-        let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_publisher(self.get_name())
-            .with_subject(self.publications.first().unwrap().get_table_name())
-            .with_message(out)
-            .with_update(self.publications.first().unwrap())
-            .make_name()?
-            .build()?;
-        let _ = message.insert(out_m.get_name().to_string(), out_m);
 
-        // Trace the outbox
-        if let Some(trace) = trace {
-            trace.0.exit(&message.values().collect::<Vec<_>>());
-        }
-        Ok(message)
+        // Prepare the message builder
+        let mut builder_map = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
+        let builder = SendableRecordBatchStreamMessage::get_builder()
+            .with_name(self.get_name())
+            .with_message(out);
+        let _ = builder_map.insert(self.get_name().to_string(), builder);
+        
+        Ok(builder_map)
     }
 }
 
@@ -150,10 +108,8 @@ impl TokenProcessorTraitExt for CandleChatProcessor {
 pub struct CandleChatStream {
     /// Output schema (role and content)
     schema: SchemaRef,
-    /// The input message to process
-    message_stream: SendableRecordBatchStream,
-    /// Optional tools to add to the message
-    tools_stream: Option<SendableRecordBatchStream>,
+    /// The messages and optional tools
+    message_stream: HashMap<SendableRecordBatchStream>,
     /// Parameters for chat inference
     config_stream: SendableRecordBatchStream,
     /// The runtime environment
@@ -356,7 +312,19 @@ impl Stream for CandleChatStream {
                 .as_ref()
                 .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
+            // initialize the config
+            let mut batches = Vec::new();
+            while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
+                batches.push(batch);
+            }
+            let config_table = TableBuilder::new()
+                .with_name("config")
+                .with_record_batches(batches)?
+                .build()?;
+            self.init_config(config_table)?;
+
             // Collect the chat history
+            // DM: update the config with messages and tools
             let mut batches = Vec::new();
             while let Some(Ok(batch)) = ready!(self.message_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
@@ -389,17 +357,6 @@ impl Stream for CandleChatStream {
                 }
                 None => None,
             };
-
-            // initialize the config
-            let mut batches = Vec::new();
-            while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
-                batches.push(batch);
-            }
-            let config_table = TableBuilder::new()
-                .with_name("config")
-                .with_record_batches(batches)?
-                .build()?;
-            self.init_config(config_table)?;
 
             // initialize the logits processor and candle token service
             self.init_logits_processor()?;

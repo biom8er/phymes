@@ -12,20 +12,12 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
-    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table,
-    TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait,
-    TableSubscription, TableTrait, create_chat_record_batch, remove_message_by_subject,
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait, create_chat_record_batch, remove_message_by_subject
 };
-use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
-    create_timestamp_micros,
-};
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros};
 use serde_json::Value;
 use tempfile::NamedTempFile;
 use tokio::process::Command;
-use tracing::{Level, event};
 
 use crate::{
     DataConfigTrait,
@@ -128,20 +120,6 @@ impl MappableTrait for CommandSandboxProcessor {
     }
 }
 
-impl PublishAndSubscribeTrait for CommandSandboxProcessor {
-    fn get_publications(&self) -> Vec<&TablePublication> {
-        self.publications.iter().collect::<Vec<_>>()
-    }
-
-    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
-        self.subscriptions.iter().collect::<Vec<_>>()
-    }
-    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe_policy
-            .check_subscriptions(&self.subscriptions, updates, state)
-    }
-}
-
 impl ProcessorTrait for CommandSandboxProcessor {
     fn new(name: &str, r#type: &str) -> Self {
         Self {
@@ -163,72 +141,37 @@ impl ProcessorTrait for CommandSandboxProcessor {
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<RuntimeEnv>,
-    ) -> Result<SendableRecordBatchStreamMessageMap> {
-        // Trace the inbox
-        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
-            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder
-                .clone()
-                .messages(line!(), file!(), self.get_name());
-            trace.enter(&message.values().collect::<Vec<_>>());
-            Some((trace, trace_builder))
-        } else {
-            None
-        };
-
+    ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
         // Extract out the config
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
 
-        // Extract out the subscribed messages
-        let mut subscriptions = Vec::new();
-        for subs in self.subscriptions.iter() {
-            if subs.get_table_name() != self.get_name() {
-                match remove_message_by_subject(subs.get_table_name(), &mut message) {
-                    Some(m) => {
-                        subscriptions.push(m);
-                    }
-                    None => {
-                        event!(
-                            Level::WARN,
-                            "Subscription {} not provided for {}.",
-                            subs.get_table_name(),
-                            self.get_name()
-                        );
-                    }
-                }
-            }
-        }
+        // Extract out the message
+        let mut subscriptions = message.into_values().collect::<Vec<_>>();
         if subscriptions.len() > 1 {
-            return Err(anyhow!("More than one subscription was found."));
+            return Err(anyhow!("More than one subscription was found for {}.", self.get_name()));
         } else if subscriptions.is_empty() {
-            return Err(anyhow!("No subscriptions were found."));
+            return Err(anyhow!("No subscriptions were found for {}.", self.get_name()));
         }
 
         // Run the stream
-        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(CommandSandboxStream::new(
             subscriptions.swap_remove(0).get_message_own(),
             config,
             Arc::clone(&runtime_env),
-            stream_diagnostic_builder,
+            diagnostic_builder.cloned(),
         )?);
-        let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_publisher(self.get_name())
-            .with_subject(self.publications.first().unwrap().get_table_name())
-            .with_message(out)
-            .with_update(self.publications.first().unwrap())
-            .make_name()?
-            .build()?;
-        let _ = message.insert(out_m.get_name().to_string(), out_m);
 
-        // Trace the outbox
-        if let Some(trace) = trace {
-            trace.0.exit(&message.values().collect::<Vec<_>>());
-        }
-        Ok(message)
+        // Prepare the message builder
+        let mut builder_map = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
+        let builder = SendableRecordBatchStreamMessage::get_builder()
+            .with_name(self.get_name())
+            .with_message(out);
+        let _ = builder_map.insert(self.get_name().to_string(), builder);
+        
+        Ok(builder_map)
     }
 }
 
@@ -1648,9 +1591,7 @@ impl RecordBatchStream for CommandSandboxStream {
 mod tests {
     use arrow::array::{ArrayRef, StringArray, UInt32Array};
     use futures::TryStreamExt;
-    use phymes_core::{
-        AvailableTableSubscribePolicies, ChatBuilderTraitExt, RuntimeEnvTrait, TableBuilder,
-    };
+    use phymes_core::{ChatBuilderTraitExt, RuntimeEnvTrait, TableBuilder, TablePublication};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
     use std::{fs::File, io::Write};
 
@@ -1733,29 +1674,16 @@ mod tests {
         );
 
         // Build the command processor
-        let processor = CommandSandboxProcessor::new(
-            name,
-            CommandSandboxProcessor::get_static_name(),
-            &[TablePublication::Replace {
-                table_name: messages.to_string(),
-            }],
-            &[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: messages.to_string(),
-                },
-                TableSubscription::AlwaysFullTable {
-                    table_name: command_config_table.get_name().to_string(),
-                },
-            ],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let processor = CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
         // Check the response
         let result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()
-            .get_message_own()
+            .message
+            .take()
+            .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
         let table = TableBuilder::new()
@@ -1843,29 +1771,16 @@ mod tests {
         );
 
         // Build the command processor
-        let processor = CommandSandboxProcessor::new(
-            name,
-            CommandSandboxProcessor::get_static_name(),
-            &[TablePublication::Replace {
-                table_name: messages.to_string(),
-            }],
-            &[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: messages.to_string(),
-                },
-                TableSubscription::AlwaysFullTable {
-                    table_name: command_config_table.get_name().to_string(),
-                },
-            ],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let processor = CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
         // Check the response
         let result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()
-            .get_message_own()
+            .message
+            .take()
+            .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
         let table = TableBuilder::new()
@@ -1949,29 +1864,16 @@ mod tests {
         );
 
         // Build the command processor
-        let processor = CommandSandboxProcessor::new(
-            name,
-            CommandSandboxProcessor::get_static_name(),
-            &[TablePublication::Replace {
-                table_name: messages.to_string(),
-            }],
-            &[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: messages.to_string(),
-                },
-                TableSubscription::AlwaysFullTable {
-                    table_name: command_config_table.get_name().to_string(),
-                },
-            ],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let processor = CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
         // Check the response
         let result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()
-            .get_message_own()
+            .message
+            .take()
+            .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
         let table = TableBuilder::new()
@@ -2027,29 +1929,16 @@ mod tests {
         );
 
         // Build the command processor
-        let processor = CommandSandboxProcessor::new(
-            name,
-            CommandSandboxProcessor::get_static_name(),
-            &[TablePublication::Replace {
-                table_name: messages.to_string(),
-            }],
-            &[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: messages.to_string(),
-                },
-                TableSubscription::AlwaysFullTable {
-                    table_name: command_config_table.get_name().to_string(),
-                },
-            ],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let processor = CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
         // Check the response
         let result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()
-            .get_message_own()
+            .message
+            .take()
+            .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
         let table = TableBuilder::new()
@@ -2115,29 +2004,16 @@ mod tests {
         );
 
         // Build the command processor
-        let processor = CommandSandboxProcessor::new(
-            name,
-            CommandSandboxProcessor::get_static_name(),
-            &[TablePublication::Replace {
-                table_name: messages.to_string(),
-            }],
-            &[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: messages.to_string(),
-                },
-                TableSubscription::AlwaysFullTable {
-                    table_name: command_config_table.get_name().to_string(),
-                },
-            ],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let processor = CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
 
         // Check the response
         let result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()
-            .get_message_own()
+            .message
+            .take()
+            .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
         let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
@@ -2231,29 +2107,16 @@ mod tests {
         );
 
         // Build the command processor
-        let processor = CommandSandboxProcessor::new(
-            name,
-            CommandSandboxProcessor::get_static_name(),
-            &[TablePublication::Replace {
-                table_name: messages.to_string(),
-            }],
-            &[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: messages.to_string(),
-                },
-                TableSubscription::AlwaysFullTable {
-                    table_name: command_config_table.get_name().to_string(),
-                },
-            ],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let processor = CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
         // Check the response
         let result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()
-            .get_message_own()
+            .message
+            .take()
+            .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
         let table = TableBuilder::new()
@@ -2315,29 +2178,16 @@ mod tests {
         );
 
         // Build the command processor
-        let processor = CommandSandboxProcessor::new(
-            name,
-            CommandSandboxProcessor::get_static_name(),
-            &[TablePublication::Replace {
-                table_name: messages.to_string(),
-            }],
-            &[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: messages.to_string(),
-                },
-                TableSubscription::AlwaysFullTable {
-                    table_name: command_config_table.get_name().to_string(),
-                },
-            ],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let processor = CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
         // Check the response
         let result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()
-            .get_message_own()
+            .message
+            .take()
+            .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
         let table = TableBuilder::new()
@@ -2472,29 +2322,16 @@ if __name__ == '__main__':
         );
 
         // Build the command processor
-        let processor = CommandSandboxProcessor::new(
-            name,
-            CommandSandboxProcessor::get_static_name(),
-            &[TablePublication::Replace {
-                table_name: messages.to_string(),
-            }],
-            &[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: messages.to_string(),
-                },
-                TableSubscription::AlwaysFullTable {
-                    table_name: command_config_table.get_name().to_string(),
-                },
-            ],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let processor = CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
         // Check the response
         let result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()
-            .get_message_own()
+            .message
+            .take()
+            .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
         fs::remove_dir_all(project_dir)?;
@@ -2700,29 +2537,16 @@ fn main() -> Result<()> {
         );
 
         // Build the command processor
-        let processor = CommandSandboxProcessor::new(
-            name,
-            CommandSandboxProcessor::get_static_name(),
-            &[TablePublication::Replace {
-                table_name: messages.to_string(),
-            }],
-            &[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: messages.to_string(),
-                },
-                TableSubscription::AlwaysFullTable {
-                    table_name: command_config_table.get_name().to_string(),
-                },
-            ],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let processor = CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
         // Check the response
         let result = stream
             .remove(&format!("from_{name}_on_{messages}"))
             .unwrap()
-            .get_message_own()
+            .message
+            .take()
+            .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
         let _ = fs::remove_dir_all(project_dir);

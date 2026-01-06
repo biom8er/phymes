@@ -244,29 +244,16 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
 
                         // Make the stream and run
                         let _result = rt.block_on(async {
-                            let ops_processor = CandleDataProcessor::new(
-                                name.as_str(),
-                                "",
-                                &[TablePublication::Replace {
-                                    table_name: "results".to_string(),
-                                }],
-                                &[
-                                    TableSubscription::AlwaysFullTable {
-                                        table_name: lhs_name.clone(),
-                                    },
-                                    TableSubscription::AlwaysFullTable {
-                                        table_name: rhs_name.clone(),
-                                    },
-                                ],
-                                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                            );
+                            let ops_processor = CandleDataProcessor::new(name.as_str(), "");
                             let mut ops_stream = ops_processor
                                 .process(messages, Some(&diagnostic_builder), runtime_env.clone())
                                 .unwrap();
                             ops_stream
                                 .remove("results")
                                 .unwrap()
-                                .get_message_own()
+                                .message
+                                .take()
+                                .unwrap()
                                 .try_collect::<Vec<_>>()
                                 .await
                                 .unwrap()

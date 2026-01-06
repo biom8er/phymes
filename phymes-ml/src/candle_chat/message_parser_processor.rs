@@ -90,7 +90,7 @@ impl ProcessorTrait for MessageParserProcessor {
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<RuntimeEnv>,
-    ) -> Result<SendableRecordBatchStreamMessageMap> {
+    ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
         // Trace the inbox

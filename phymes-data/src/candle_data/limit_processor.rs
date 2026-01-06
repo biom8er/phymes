@@ -7,16 +7,11 @@ use arrow::datatypes::SchemaRef;
 use arrow::record_batch::RecordBatch;
 use futures::stream::{Stream, StreamExt};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
-    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table,
-    TableBuilderTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription,
-    remove_message_by_subject,
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, remove_message_by_subject
 };
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait
 };
-use tracing::{Level, event};
 
 use crate::{DataConfigTrait, DataSummaryConfig};
 
@@ -54,74 +49,37 @@ impl ProcessorTrait for LimitProcessor {
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<RuntimeEnv>,
-    ) -> Result<SendableRecordBatchStreamMessageMap> {
-        // Trace the inbox
-        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
-            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder
-                .clone()
-                .messages(line!(), file!(), self.get_name());
-            trace.enter(&message.values().collect::<Vec<_>>());
-            Some((trace, trace_builder))
-        } else {
-            None
-        };
-
+    ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
         // Extract out the config
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
 
-        // Extract out the message to be summarized
-        let mut subscriptions = Vec::new();
-        let mut table_names = Vec::new();
-        for subs in self.subscriptions.iter() {
-            if subs.get_table_name() != self.get_name() {
-                match remove_message_by_subject(subs.get_table_name(), &mut message) {
-                    Some(m) => {
-                        subscriptions.push(m);
-                        table_names.push(subs.get_table_name())
-                    }
-                    None => {
-                        event!(
-                            Level::WARN,
-                            "Subscription {} not provided for {}.",
-                            subs.get_table_name(),
-                            self.get_name()
-                        );
-                    }
-                }
-            }
-        }
+        // Extract out the message
+        let mut subscriptions = message.into_values().collect::<Vec<_>>();
         if subscriptions.len() > 1 {
-            return Err(anyhow!("More than one subscription was found for Limit."));
+            return Err(anyhow!("More than one subscription was found for {}.", self.get_name()));
         } else if subscriptions.is_empty() {
-            return Err(anyhow!("No subscriptions were found for Limit."));
+            return Err(anyhow!("No subscriptions were found for {}.", self.get_name()));
         }
 
-        // Make the outbox and send
-        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
+        // Run the limit stream
         let out = Box::pin(LimitStream::new(
             subscriptions.swap_remove(0).get_message_own(),
             config,
             Arc::clone(&runtime_env),
-            stream_diagnostic_builder,
+            diagnostic_builder.cloned(),
         ));
-        let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_publisher(self.get_name())
-            .with_subject(self.publications.first().unwrap().get_table_name())
-            .with_message(out)
-            .with_update(self.publications.first().unwrap())
-            .make_name()?
-            .build()?;
-        let _ = message.insert(out_m.get_name().to_string(), out_m);
 
-        // Trace the outbox
-        if let Some(trace) = trace {
-            trace.0.exit(&message.values().collect::<Vec<_>>());
-        }
-        Ok(message)
+        // Prepare the message builder
+        let mut builder_map = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
+        let builder = SendableRecordBatchStreamMessage::get_builder()
+            .with_name(self.get_name())
+            .with_message(out);
+        let _ = builder_map.insert(self.get_name().to_string(), builder);
+        
+        Ok(builder_map)
     }
 }
 
@@ -325,7 +283,7 @@ mod tests {
     use arrow::datatypes::{DataType, Field, Schema};
     use arrow::record_batch::RecordBatchOptions;
     use futures::{Stream, TryStreamExt};
-    use phymes_core::{AvailableTableSubscribePolicies, TableBuilder, TableTrait, test_table};
+    use phymes_core::{TableBuilder, TableTrait, test_table, TablePublication};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     #[tokio::test]
@@ -374,17 +332,7 @@ mod tests {
         });
 
         // Limit of six
-        let processor = LimitProcessor::new(
-            "LimitProcessor",
-            "",
-            &[TablePublication::Extend {
-                table_name: "output".to_string(),
-            }],
-            &[TableSubscription::AlwaysFullTable {
-                table_name: "input".to_string(),
-            }],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let processor = LimitProcessor::new("LimitProcessor", "");
         let mut stream =
             processor.process(message, Some(&diagnostic_builder), runtime_env.clone())?;
 
@@ -393,7 +341,9 @@ mod tests {
             stream
                 .remove("from_LimitProcessor_on_output")
                 .unwrap()
-                .get_message_own(),
+                .message
+                .take()
+                .unwrap(),
         )
         .await?
         .with_name("")

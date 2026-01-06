@@ -6,20 +6,14 @@ use std::{
 
 use bytes::Bytes;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, CsvFormat, DataFormat,
-    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
-    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication,
-    TableSubscribePolicyTrait, TableSubscription, TableTrait, create_blob_batch,
-    create_chat_record_batch, remove_message_by_subject,
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, CsvFormat, DataFormat, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, create_blob_batch, create_chat_record_batch, remove_message_by_subject
 };
 
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{Stream, StreamExt};
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
-    TraceBuilderTrait, create_timestamp_micros,
+    DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
 };
 use tracing::{Level, event, instrument};
 
@@ -68,20 +62,8 @@ impl ProcessorTrait for DataSummaryProcessor {
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<RuntimeEnv>,
-    ) -> Result<SendableRecordBatchStreamMessageMap> {
+    ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
-
-        // Trace the inbox
-        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
-            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder
-                .clone()
-                .messages(line!(), file!(), self.get_name());
-            trace.enter(&message.values().collect::<Vec<_>>());
-            Some((trace, trace_builder))
-        } else {
-            None
-        };
 
         // Extract out the config
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
@@ -89,57 +71,32 @@ impl ProcessorTrait for DataSummaryProcessor {
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
 
-        // Extract out the messages to be summarized
-        let mut subscriptions = Vec::new();
-        let mut table_names = Vec::new();
-        for subs in self.subscriptions.iter() {
-            if subs.get_table_name() != self.get_name() {
-                match remove_message_by_subject(subs.get_table_name(), &mut message) {
-                    Some(m) => {
-                        subscriptions.push(m);
-                        table_names.push(subs.get_table_name())
-                    }
-                    None => {
-                        event!(
-                            Level::WARN,
-                            "Subscription {} not provided for {}.",
-                            subs.get_table_name(),
-                            self.get_name()
-                        );
-                    }
-                }
-            }
-        }
+        // Extract out the message
+        let mut subscriptions = message.into_values().collect::<Vec<_>>();
         if subscriptions.len() > 1 {
-            return Err(anyhow!("More than one subscription was found."));
+            return Err(anyhow!("More than one subscription was found for {}.", self.get_name()));
         } else if subscriptions.is_empty() {
-            return Err(anyhow!("No subscriptions were found."));
+            return Err(anyhow!("No subscriptions were found for {}.", self.get_name()));
         }
+        let table_name = subscriptions.first().unwrap().get_subject().to_string();
 
-        // Make the outbox and send
-        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
+        // Run the summary stream
         let out = Box::pin(DataSummaryStream::new(
             subscriptions.swap_remove(0).get_message_own(),
-            table_names.swap_remove(0).to_string(),
+            table_name,
             config,
             Arc::clone(&runtime_env),
-            stream_diagnostic_builder,
+            diagnostic_builder.cloned(),
         )?);
-        let mut outbox = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_publisher(self.get_name())
-            .with_subject(self.publications.first().unwrap().get_table_name())
-            .with_message(out)
-            .with_update(self.publications.first().unwrap())
-            .make_name()?
-            .build()?;
-        let _ = outbox.insert(out_m.get_name().to_string(), out_m);
 
-        // Trace the outbox
-        if let Some(trace) = trace {
-            trace.0.exit(&outbox.values().collect::<Vec<_>>());
-        }
-        Ok(outbox)
+        // Prepare the message builder
+        let mut builder_map = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
+        let builder = SendableRecordBatchStreamMessage::get_builder()
+            .with_name(self.get_name())
+            .with_message(out);
+        let _ = builder_map.insert(self.get_name().to_string(), builder);
+        
+        Ok(builder_map)
     }
 }
 
@@ -378,9 +335,7 @@ impl RecordBatchStream for DataSummaryStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{
-        AvailableTableSubscribePolicies, MessageTrait, TableBuilder, TablePublication,
-    };
+    use phymes_core::{TableBuilder, TablePublication};
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
 
     use crate::candle_data::data_processor::test_candle_ops_processor::make_embeddings_record_batch_str_f32;
@@ -444,17 +399,7 @@ mod tests {
         });
 
         // Create the processor and run
-        let processor = DataSummaryProcessor::new(
-            "summary_processor",
-            "",
-            &[TablePublication::Extend {
-                table_name: "messages".to_string(),
-            }],
-            &[TableSubscription::AlwaysFullTable {
-                table_name: "lhs_name".to_string(),
-            }],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let processor = DataSummaryProcessor::new("summary_processor", "");
         let mut stream =
             processor.process(messages, Some(&diagnostic_builder), runtime_env.clone())?;
 
@@ -463,7 +408,9 @@ mod tests {
             stream
                 .remove("from_summary_processor_on_messages")
                 .unwrap()
-                .get_message_own(),
+                .message
+                .take()
+                .unwrap(),
         )
         .await?
         .with_name("")
@@ -538,17 +485,7 @@ mod tests {
         });
 
         // Create the processor and run
-        let processor = DataSummaryProcessor::new(
-            "summary_processor",
-            "",
-            &[TablePublication::Extend {
-                table_name: "messages".to_string(),
-            }],
-            &[TableSubscription::AlwaysFullTable {
-                table_name: "lhs_name".to_string(),
-            }],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let processor = DataSummaryProcessor::new("summary_processor", "");
         let mut stream =
             processor.process(messages, Some(&diagnostic_builder), runtime_env.clone())?;
 
@@ -557,7 +494,9 @@ mod tests {
             stream
                 .remove("from_summary_processor_on_messages")
                 .unwrap()
-                .get_message_own(),
+                .message
+                .take()
+                .unwrap(),
         )
         .await?
         .with_name("")
