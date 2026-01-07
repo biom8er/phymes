@@ -9,7 +9,7 @@ mod session_stream_step;
 
 pub use session_context::SessionContext;
 pub use session_context_builder::{
-    SessionContextBuilder, SessionContextBuilderTrait, TaskPlan, TaskPlanBuilder,
+    SessionContextBuilder, SessionContextBuilderTrait,
     test_session_context_builder,
 };
 pub use session_context_builder_agents::{

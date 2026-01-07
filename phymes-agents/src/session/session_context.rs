@@ -2,10 +2,7 @@ use anyhow::Result;
 use arrow::datatypes::SchemaRef;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, ProcessorSubjectsBuilder,
-    RuntimeEnv, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication,
-    TablePublicationTrait, TableSubscription, TableTrait, TaskMap, create_subjects_num_rows_batch,
-    from_diagnostics_to_tables,
+    AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, RuntimeEnv, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableSubscription, TableTrait, TaskMap, create_subjects_num_rows_batch, from_diagnostics_to_tables
 };
 use phymes_diagnostics::{Diagnostics, HashMap};
 use std::sync::Arc;
@@ -105,9 +102,9 @@ impl SessionContext {
         let subscription_table_names = table_reading
             .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
         let publication_names =
-            table_reading.get_column_as_vec_nonprimitive::<String>("subscription_names")?;
+            table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
         let publication_table_names =
-            table_reading.get_column_as_vec_nonprimitive::<String>("publication_table_names")?;
+            table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
         let session_names =
             table_reading.get_column_as_vec_nonprimitive::<String>("session_names")?;
 
@@ -153,7 +150,7 @@ impl SessionContext {
                         .iter()
                         .zip(publication_table_names.iter())
                         .map(|(publication_name, publication_table_name)| {
-                            TablePublish::from_str_fuzzy(publication_name, publication_table_name)
+                            TablePublication::from_str_fuzzy(publication_name, publication_table_name)
                                 .unwrap()
                         })
                         .collect::<Vec<_>>();
@@ -177,15 +174,15 @@ impl SessionContext {
         // Aggregate processors
         // DM: not possible to have two-levels of nesting with Arrow RecordBatches
         let mut tasks = HashMap::<(String, String), ProcessorSubjectsMap>::new();
-        for (task_name, processor_subjects, processor_name, processor_type, session_name) in
+        for (task_name, processor_subjects, processor_name, _processor_type, session_name) in
             combined
         {
-            if let Some(task) = tasks.get_mut(&(task_name, session_name)) {
+            if let Some(task) = tasks.get_mut(&(task_name.to_string(), session_name.to_string())) {
                 let _ = task.insert(processor_name, processor_subjects);
             } else {
                 let mut processor = HashMap::<String, ProcessorSubjects>::new();
                 let _ = processor.insert(processor_name, processor_subjects);
-                let _ = tasks.insert((task_name, session_name), processor);
+                let _ = tasks.insert((task_name.to_string(), session_name.to_string()), processor);
             }
         }
 

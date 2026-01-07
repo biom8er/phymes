@@ -17,7 +17,7 @@ use phymes_ml::{CandleChatConfig, CandleEmbedConfig};
 
 use crate::{
     AvailableInterfaceSubjects, AvailableProcessors, SessionContext, SessionContextBuilder,
-    SessionContextBuilderTabularTrait, SessionContextBuilderTrait, TaskPlan,
+    SessionContextBuilderTabularTrait, SessionContextBuilderTrait,
 };
 
 type SessionContextInput = (

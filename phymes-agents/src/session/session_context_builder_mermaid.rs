@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-    SessionContextBuilderTrait, TaskPlanBuilder,
+    SessionContextBuilderTrait,
     plans::{AvailableProcessors, check_agent_subjects},
 };
 use anyhow::{Result, anyhow};

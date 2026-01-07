@@ -18,7 +18,7 @@ use phymes_diagnostics::{HashSet, create_timestamp_micros};
 
 use crate::{
     AvailableProcessors, SessionContextBuilder, SessionContextBuilderMermaidTrait,
-    SessionContextBuilderTrait, TaskPlanBuilder,
+    SessionContextBuilderTrait,
 };
 
 /// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from tabular format

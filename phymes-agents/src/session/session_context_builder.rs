@@ -3,15 +3,13 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use parking_lot::RwLock;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, ProcessorTrait, RuntimeEnv, StateMap, Table,
-    TablePublication, TableSubscription, Task, TaskBuilderTrait, TaskMap,
+    BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, ProcessorTrait, RuntimeEnv, StateMap, Table, TablePublication, TableSubscription, Task, TaskBuilderTrait, TaskMap, TaskPlan
 };
 use phymes_diagnostics::{HashMap, HashSet};
-use serde::{Deserialize, Serialize};
 
 use crate::SessionContext;
 pub trait SessionContextBuilderTrait: BuilderTrait {
-    fn with_processors(self, processors: Vec<Arc<dyn ProcessorTrait>>) -> Self;
+    fn with_processors(self, processors: Vec<ProcessorPlan>) -> Self;
     fn with_state(self, state: Vec<Table>) -> Self;
     fn with_runtime_envs(self, runtime_envs: Vec<RuntimeEnv>) -> Self;
     fn with_tasks(self, tasks: Vec<TaskPlan>) -> Self;
@@ -30,7 +28,7 @@ pub trait SessionContextBuilderTrait: BuilderTrait {
 #[derive(Default)]
 pub struct SessionContextBuilder {
     pub name: Option<String>,
-    pub processors: Option<Vec<Arc<dyn ProcessorTrait>>>,
+    pub processors: Option<Vec<ProcessorPlan>>,
     pub state: Option<Vec<Table>>,
     pub runtime_envs: Option<Vec<RuntimeEnv>>,
     pub tasks: Option<Vec<TaskPlan>>,
@@ -258,7 +256,7 @@ impl BuilderTrait for SessionContextBuilder {
 }
 
 impl SessionContextBuilderTrait for SessionContextBuilder {
-    fn with_processors(mut self, processors: Vec<Arc<dyn ProcessorTrait>>) -> Self {
+    fn with_processors(mut self, processors: Vec<ProcessorPlan>) -> Self {
         self.processors = Some(processors);
         self
     }
