@@ -623,27 +623,15 @@ impl AvailableProcessors {
     }
 
     /// Build the [ProcessorTrait] object
-    pub fn build_arc(
-        self,
-        name: &str,
-        publications: &[TablePublication],
-        subscriptions: &[TableSubscription],
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-    ) -> Arc<dyn ProcessorTrait> {
+    pub fn build_arc(self, name: &str) -> Arc<dyn ProcessorTrait> {
         match self {
             Self::ProcessorMock => Arc::new(ProcessorMock::new(
                 name,
                 self.to_string().as_str(),
-                publications,
-                subscriptions,
-                subscribe_policy,
             )),
             Self::ProcessorEcho => Arc::new(ProcessorEcho::new(
                 name,
                 self.to_string().as_str(),
-                publications,
-                subscriptions,
-                subscribe_policy,
             )),
             Self::CandleDataProcessor
             | Self::ChunkDocuments
@@ -663,81 +651,48 @@ impl AvailableProcessors {
             | Self::ApplyTemplate => Arc::new(CandleDataProcessor::new(
                 name,
                 self.to_string().as_str(),
-                publications,
-                subscriptions,
-                subscribe_policy,
             )),
             Self::DataSummaryProcessor => Arc::new(DataSummaryProcessor::new(
                 name,
                 self.to_string().as_str(),
-                publications,
-                subscriptions,
-                subscribe_policy,
             )),
             Self::CoalesceProcessor => Arc::new(CoalesceProcessor::new(
                 name,
                 self.to_string().as_str(),
-                publications,
-                subscriptions,
-                subscribe_policy,
             )),
             Self::LimitProcessor => Arc::new(LimitProcessor::new(
                 name,
                 self.to_string().as_str(),
-                publications,
-                subscriptions,
-                subscribe_policy,
             )),
             Self::AttachmentAggregatorProcessor => Arc::new(AttachmentAggregatorProcessor::new(
                 name,
                 self.to_string().as_str(),
-                publications,
-                subscriptions,
-                subscribe_policy,
             )),
             Self::CandleChatProcessor => Arc::new(CandleChatProcessor::new(
                 name,
                 self.to_string().as_str(),
-                publications,
-                subscriptions,
-                subscribe_policy,
             )),
             Self::MessageAggregatorProcessor => Arc::new(MessageAggregatorProcessor::new(
                 name,
                 self.to_string().as_str(),
-                publications,
-                subscriptions,
-                subscribe_policy,
             )),
             Self::MessageParserProcessor => Arc::new(MessageParserProcessor::new(
                 name,
                 self.to_string().as_str(),
-                publications,
-                subscriptions,
-                subscribe_policy,
             )),
             Self::CandleEmbedProcessor => Arc::new(CandleEmbedProcessor::new(
                 name,
                 self.to_string().as_str(),
-                publications,
-                subscriptions,
-                subscribe_policy,
             )),
             #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => Arc::new(OpenAIChatProcessor::new(
                 name,
                 self.to_string().as_str(),
-                publications,
-                subscriptions,
-                subscribe_policy,
             )),
             #[cfg(feature = "api")]
             Self::OpenAIEmbedProcessor => Arc::new(OpenAIEmbedProcessor::new(
                 name,
                 self.to_string().as_str(),
-                publications,
-                subscriptions,
-                subscribe_policy,
             )),
         }
     }

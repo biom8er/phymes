@@ -5,9 +5,7 @@ use arrow::{array::RecordBatch, datatypes::Schema};
 use clap::ValueEnum;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
-    BuilderTrait, MappableTrait, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, StateMap, Table,
-    TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, ProcessorPlanBuilder, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap, TaskPlan
 };
 use phymes_data::{
     AvailableCandleOperators, DataConfig, DataConfigTrait, DataSummaryConfig, device,
@@ -631,16 +629,19 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .as_ref()
             .unwrap()
             .iter()
-            .filter(|p| {
-                self.name.as_ref().unwrap() != p.get_name()
+            .filter_map(|p| {
+                if self.name.as_ref().unwrap() != p.get_name()
                     && !p
                         .get_subscriptions()
                         .iter()
                         .map(|s| s.get_table_name())
                         .collect::<Vec<_>>()
-                        .contains(&p.get_name())
+                        .contains(&p.get_name()) {
+                    Some(p.get_processor().clone())
+                } else {
+                    None
+                }
             })
-            .cloned()
             .collect::<Vec<_>>();
 
         // Add the default configuration to the subjects if it does not exist
@@ -735,40 +736,29 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .map(|p| (p.get_name().to_string(), p))
             .collect::<HashMap<_, _>>();
         let mut processors = Vec::new();
-        for processor in self.processors.as_ref().unwrap().iter() {
+        for processor in self.processors.take().unwrap().into_iter() {
             if let Some(to_update) = processors_to_update.remove(processor.get_name()) {
-                // Rebuild the updated processor
-                let mut subscriptions = to_update
-                    .get_subscriptions()
-                    .into_iter()
-                    .map(|e| e.to_owned())
-                    .collect::<Vec<TableSubscription>>();
-                subscriptions.push(TableSubscription::AlwaysFullTable {
-                    table_name: to_update.get_name().to_string(),
-                });
-                let new_processor =
-                    AvailableProcessors::from_str(to_update.get_type(), false).unwrap();
-                let new_processor = new_processor.build_arc(
-                    to_update.get_name(),
-                    &to_update
-                        .get_publications()
-                        .into_iter()
-                        .map(|e| e.to_owned())
-                        .collect::<Vec<TablePublication>>(),
-                    &subscriptions,
-                    to_update.get_subscribe_policy().clone_boxed(),
-                );
+                let subscriptions = processor.get_subscriptions()
+                    .iter().chain([&TableSubscription::AlwaysFullTable {
+                        table_name: to_update.get_name().to_string(),
+                    }])
+                    .cloned()
+                    .collect::<Vec<_>>();
+                let new_processor = ProcessorPlanBuilder::default()
+                    .with_processor(processor.get_processor().clone())
+                    .with_publications(processor.get_publications())
+                    .with_subscriptions(&subscriptions)
+                    .with_subscribe_policy(processor.get_subscribe_policy_owned())
+                    .build()?;
                 processors.push(new_processor)
             } else {
-                // Move over the other processors an preserve order
-                processors.push(processor.clone())
+                // Move over the other processors and preserve order
+                // processors.push(processor)
             }
         }
 
         // Remake the processors
-        self.processors.replace(processors);
-
-        Ok(self)
+        Ok(self.with_processors(processors))
     }
     fn add_session_interface(mut self, subscriptions: Option<&[&str]>) -> Result<Self>
     where
@@ -839,12 +829,14 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             }
         }
         let mut processors = self.processors.take().unwrap_or_default();
-        processors.push(AvailableProcessors::ProcessorEcho.build_arc(
-            session_name.as_str(),
-            &publications,
-            &subscriptions,
-            AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
-        ));
+        let processor = AvailableProcessors::ProcessorEcho.build_arc(session_name.as_str());
+        let processor_plan = ProcessorPlanBuilder::default()
+            .with_processor(processor)
+            .with_subscriptions(&subscriptions)
+            .with_publications(&publications)
+            .with_subscribe_policy(AvailableTableSubscribePolicies::AnyTableNameSubscribe.build())
+            .build()?;
+        processors.push(processor_plan);
         self.processors.replace(processors);
 
         // Add the runtime environment
@@ -869,7 +861,7 @@ pub trait CustomAgentsBuilderTrait {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         None
     }
-    fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
+    fn make_processors(&self) -> Option<Vec<ProcessorPlan>> {
         None
     }
     fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {

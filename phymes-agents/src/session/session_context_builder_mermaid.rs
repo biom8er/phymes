@@ -12,10 +12,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder,
-    RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication, TableScript,
-    TableSubscription, TableTrait, from_data_type_to_str, from_str_to_data_type,
-    parse_str_to_data_type,
+    AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication, TableScript, TableSubscription, TableTrait, TaskPlanBuilder, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type
 };
 use phymes_data::{MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE};
 use phymes_diagnostics::{HashMap, HashSet};
@@ -336,6 +333,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         // The members that we will build
         let mut task_plan_builders = HashMap::<String, TaskPlanBuilder>::new();
         let mut processor_builders = HashMap::<String, ProcessorBuilder>::new();
+        let mut processor_plan_builders = HashMap::<String, ProcessorPlanBuilder>::new();
 
         // Track consistency of subjects and processors between subgraphs and labels
         let mut task_names = HashSet::new();
@@ -387,7 +385,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     .to_string();
                 if !task_plan_builders.contains_key(&task_name) {
                     let mut builder = TaskPlanBuilder::default();
-                    builder.task_name.replace(task_name.to_owned());
+                    builder.name.replace(task_name.to_owned());
                     task_plan_builders.insert(task_name.to_owned(), builder);
                 }
                 task_names_vec.push(task_name.to_owned());
@@ -441,24 +439,23 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                             .split("-subscribe")
                             .collect::<Vec<_>>();
                         let processor = split_line.first().unwrap().trim().to_string();
-                        if !processor_builders.contains_key(&processor) {
-                            let builder = ProcessorBuilder::default()
-                                .with_name(&processor)
+                        if !processor_plan_builders.contains_key(&processor) {
+                            let builder = ProcessorPlanBuilder::default()
                                 .with_subscriptions(&[subscription]);
-                            processor_builders.insert(processor.to_owned(), builder);
-                        } else if processor_builders
+                            processor_plan_builders.insert(processor.to_owned(), builder);
+                        } else if processor_plan_builders
                             .get(&processor)
                             .unwrap()
                             .subscriptions
                             .is_none()
                         {
-                            processor_builders
+                            processor_plan_builders
                                 .get_mut(&processor)
                                 .unwrap()
                                 .subscriptions
                                 .replace(vec![subscription]);
                         } else {
-                            processor_builders
+                            processor_plan_builders
                                 .get_mut(&processor)
                                 .unwrap()
                                 .subscriptions
@@ -645,24 +642,23 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                                 ));
                             }
                         };
-                        if !processor_builders.contains_key(&processor) {
-                            let builder = ProcessorBuilder::default()
-                                .with_name(&processor)
+                        if !processor_plan_builders.contains_key(&processor) {
+                            let builder = ProcessorPlanBuilder::default()
                                 .with_publications(&[publication]);
-                            processor_builders.insert(processor.to_owned(), builder);
-                        } else if processor_builders
+                            processor_plan_builders.insert(processor.to_owned(), builder);
+                        } else if processor_plan_builders
                             .get(&processor)
                             .unwrap()
                             .publications
                             .is_none()
                         {
-                            processor_builders
+                            processor_plan_builders
                                 .get_mut(&processor)
                                 .unwrap()
                                 .publications
                                 .replace(vec![publication]);
                         } else {
-                            processor_builders
+                            processor_plan_builders
                                 .get_mut(&processor)
                                 .unwrap()
                                 .publications
@@ -737,7 +733,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 let task_name = split_line.last().unwrap().trim().to_string();
                 if !task_plan_builders.contains_key(&task_name) {
                     let mut builder = TaskPlanBuilder::default();
-                    builder.task_name.replace(task_name.to_owned());
+                    builder.name.replace(task_name.to_owned());
                     task_plan_builders.insert(task_name.to_owned(), builder);
                 }
 
@@ -893,13 +889,13 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 }
 
                 // Update
-                if processor_builders
+                if processor_plan_builders
                     .get(&processor_name)
                     .unwrap()
                     .subscribe_policy
                     .as_ref()
                     .is_some()
-                    && processor_builders
+                    && processor_plan_builders
                         .get(&processor_name)
                         .unwrap()
                         .subscribe_policy
@@ -912,7 +908,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         "Parsing Error on line {iter}: {}. Subscribe {} does not match processor {} subscribe {}.",
                         subscribe.get_name(),
                         processor_name,
-                        processor_builders
+                        processor_plan_builders
                             .get(&processor_name)
                             .unwrap()
                             .subscribe_policy
@@ -921,14 +917,14 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                             .get_name(),
                         flowchart_lines.get(iter).unwrap()
                     ));
-                } else if processor_builders
+                } else if processor_plan_builders
                     .get(&processor_name)
                     .unwrap()
                     .subscribe_policy
                     .as_ref()
                     .is_none()
                 {
-                    processor_builders
+                    processor_plan_builders
                         .get_mut(&processor_name)
                         .unwrap()
                         .subscribe_policy
@@ -1018,12 +1014,14 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             ));
         }
         for name in processor_names_vec {
-            let builder = processor_builders.remove(&name).unwrap();
-            let available_processor =
-                AvailableProcessors::from_str(builder.r#type.as_ref().unwrap().as_str(), false)
-                    .unwrap();
-            let processor = available_processor.build_with_builder(builder)?;
-            processors.push(processor);
+            let processor_builder = processor_builders.remove(&name).unwrap();
+            let processor =
+                AvailableProcessors::from_str(processor_builder.r#type.as_ref().unwrap().as_str(), false)
+                    .map_err(|e| anyhow!("{e:?}", ))?
+                    .build_arc(processor_builder.name.as_ref().unwrap().as_str());
+            let processor_plan_builder = processor_plan_builders.remove(&name).unwrap();
+            let processor_plan = processor_plan_builder.with_processor(processor).build()?;
+            processors.push(processor_plan);
         }
 
         // Check the subjects

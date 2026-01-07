@@ -7,12 +7,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
-    BuilderTrait, MappableTrait, ProcessorBuilder, RuntimeEnv, RuntimeEnvTrait, Table,
-    TableBuilderTrait, TablePublication, TableSubscription, TableTrait,
-    create_session_mermaid_batch, create_session_processors_batch,
-    create_session_runtime_envs_batch, create_session_subjects_batch, create_session_tasks_batch,
-    from_data_type_to_str, from_str_to_data_type,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskPlanBuilder, create_session_mermaid_batch, create_session_processors_batch, create_session_runtime_envs_batch, create_session_subjects_batch, create_session_tasks_batch, from_data_type_to_str, from_str_to_data_type
 };
 use phymes_diagnostics::{HashSet, create_timestamp_micros};
 
@@ -478,20 +473,17 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // build the task plans
         let mut tasks = Vec::new();
         for task in sort_tasks {
-            let mut builder = TaskPlanBuilder::default();
-            builder.task_name.replace(task.to_string());
-            builder.processor_names.replace(Vec::new());
+            let mut builder = TaskPlanBuilder::default()
+                .with_name(task);
+            let mut processor_names = Vec::new();
             for (t, p, r) in combined.iter() {
                 if t == &task {
-                    builder
-                        .processor_names
-                        .as_mut()
-                        .unwrap()
-                        .push(p.to_string());
-                    builder.runtime_env_name.replace(r.to_string());
+                    processor_names.push(p);
+                    builder = builder.with_runtime_env_name(r);
                 }
             }
-            tasks.push(builder.build()?);
+            let task_plan = builder.with_processor_names(&processor_names.iter().map(|&&&s| s).collect::<Vec<_>>()).build()?;
+            tasks.push(task_plan);
         }
 
         Ok(self.with_tasks(tasks))
@@ -512,14 +504,9 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // get unique processors while preserving order
         let mut processors_unique = processor_vec_str.iter().collect::<HashSet<_>>();
-        let mut sort_processors = Vec::new();
-        for processor_name in processor_vec_str.iter() {
-            if processors_unique.contains(processor_name)
-                && processors_unique.remove(processor_name)
-            {
-                sort_processors.push(processor_name);
-            }
-        }
+        let sort_processors = processor_vec_str.iter()
+            .filter(|p| processors_unique.remove(p))
+            .collect::<Vec<_>>();
         let combined = processor_vec_str
             .iter()
             .zip(type_vec_str.iter())
@@ -533,28 +520,34 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // build the processors in order
         let mut processors = Vec::new();
         for processor_name in sort_processors {
-            let mut builder = ProcessorBuilder::default()
-                .with_name(processor_name)
-                .with_subscriptions(&[])
-                .with_publications(&[]);
+            let mut processor = None;
+            let mut subscriptions = Vec::new();
+            let mut publications = Vec::new();
+            let mut subscribe_policy = None;
             for (name, t, s_t, sub, sub_tab, is_sub) in combined.iter() {
                 if name == &processor_name {
                     if **is_sub == 1 {
                         let subscription = TableSubscription::from_str_fuzzy(sub, sub_tab)?;
-                        builder.subscriptions.as_mut().unwrap().push(subscription);
+                        subscriptions.push(subscription);
                     } else {
                         let publication = TablePublication::from_str_fuzzy(sub, sub_tab)?;
-                        builder.publications.as_mut().unwrap().push(publication);
+                        publications.push(publication);
                     }
                     let subscribe = AvailableTableSubscribePolicies::from_str_fuzzy(s_t)?.build();
-                    builder = builder.with_type(t).with_subscribe_policy(subscribe);
+                    subscribe_policy.replace(subscribe);
+                    let p = AvailableProcessors::from_str(t, false)
+                        .map_err(|e| anyhow!("{e:?}", ))?
+                        .build_arc(processor_name);
+                    processor.replace(p);
                 }
             }
-            let available_processor =
-                AvailableProcessors::from_str(builder.r#type.as_ref().unwrap().as_str(), false)
-                    .unwrap();
-            let processor = available_processor.build_with_builder(builder)?;
-            processors.push(processor);
+            let processor_plan = ProcessorPlanBuilder::default()
+                .with_processor(processor.take().unwrap_or(AvailableProcessors::default().build_arc(processor_name)))
+                .with_subscriptions(&subscriptions)
+                .with_publications(&publications)
+                .with_subscribe_policy(subscribe_policy.take().unwrap_or(AvailableTableSubscribePolicies::default().build()))
+                .build()?;
+            processors.push(processor_plan);
         }
 
         Ok(self.with_processors(processors))

@@ -3,11 +3,7 @@ use arrow::record_batch::RecordBatch;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessage, IPCMessageBuilder,
-    IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, RunnableTrait,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, TableBuilder,
-    TableBuilderTrait, TableTrait, create_error_message_map, create_error_message_map_stream,
-    create_session_tasks_run_log_batch, create_subjects_change_log_batch,
+    AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait, TaskTrait, create_error_message_map, create_error_message_map_stream, create_session_tasks_run_log_batch
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap,
@@ -212,11 +208,11 @@ impl SessionStreamStep {
 
         // Retrieve the task ready to subscribe and their corresponding publications
         // DM: run the task session...
-        let tasks = state.read().tasks_to_run()?;
+        let tasks = state.read().get_session_context().tasks_to_run()?;
 
         // Iterate through each task and collect the resulting stream responses
         let mut session_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        for ((task_name, session_name), processor_subjects_map) in tasks.iter() {
+        for ((task_name, _session_name), processor_subjects_map) in tasks.iter() {
             event!(Level::INFO, "Superstep for task {}", &task_name);
 
             // Subscribe to the task subjects
@@ -245,9 +241,7 @@ impl SessionStreamStep {
             };
 
             // Run the task and collect the stream responses
-            // DM: need to add the publications as an additional parameter
-            // DM: alternatively, let the tasks/processors handle the publications from the state
-            match task.run(messages, diagnostic_builder.as_ref()) {
+            match task.run(diagnostic_builder.as_ref(), processor_subjects_map, state.read().get_session_context().get_states()) {
                 Ok(result) => {
                     for (resp_name, resp) in result.into_iter() {
                         if task_name == state.read().get_session_context().get_name() {
@@ -386,16 +380,13 @@ impl SessionStreamStep {
 mod tests {
     use super::*;
     use crate::{
-        SessionContextBuilder, SessionContextBuilderTrait, TaskPlan,
+        SessionContextBuilder, SessionContextBuilderTrait,
         test_session_context_builder::{
             make_test_session_context_parallel_task, make_test_session_context_sequential_task,
         },
     };
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies,
-        ProcessorBuilder, TablePublication, TableSubscription,
-        test_processor::{ProcessorError, ProcessorMock},
-        test_task::{make_runtime_env, make_state_tables, make_test_input_message},
+        AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, ProcessorBuilder, TablePublication, TableSubscription, TaskPlan, test_processor::{ProcessorError, ProcessorMock}, test_task::{make_runtime_env, make_state_tables, make_test_input_message}
     };
 
     #[tokio::test]

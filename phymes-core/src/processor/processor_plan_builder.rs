@@ -54,12 +54,12 @@ impl ProcessorPlanBuilder {
                 self.processor.as_ref().unwrap().get_name()
             ));
         }
-        Ok(ProcessorPlan {
-            processor: self.processor.take().unwrap(),
-            publications: self.publications.take().unwrap(),
-            subscriptions: self.subscriptions.take().unwrap(),
-            subscribe_policy: self.subscribe_policy.take().unwrap(),
-        })
+        Ok(ProcessorPlan::new(
+            self.processor.take().unwrap(),
+            &self.publications.take().unwrap(),
+            &self.subscriptions.take().unwrap(),
+            self.subscribe_policy.take().unwrap(),
+        ))
     }
 }
 

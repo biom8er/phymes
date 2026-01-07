@@ -77,13 +77,13 @@ impl SessionContextBuilder {
             .filter(|p| processors.contains(&p.get_name()))
             .for_each(|p| {
                 p.get_subscriptions().iter().for_each(|s| {
-                    if **s != TableSubscription::None {
-                        subscriptons_set.insert(s.to_owned());
+                    if s != &TableSubscription::None {
+                        subscriptons_set.insert(s);
                     }
                 });
                 p.get_publications().iter().for_each(|s| {
-                    if **s != TablePublication::None {
-                        publications_set.insert(s.to_owned());
+                    if s != &TablePublication::None {
+                        publications_set.insert(s);
                     }
                 });
             });
@@ -186,8 +186,11 @@ impl SessionContextBuilder {
                     .as_ref()
                     .unwrap()
                     .iter()
-                    .filter(|p| processor_names.contains(&p.get_name().to_string()))
-                    .map(Arc::clone)
+                    .filter_map(|p| if processor_names.contains(&p.get_name().to_string()) {
+                        Some(p.get_processor().clone())
+                    } else {
+                        None
+                    })
                     .collect::<Vec<_>>();
                 let task = Task::get_builder()
                     .with_name(&t.task_name)
