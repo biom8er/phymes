@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use parking_lot::RwLock;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, ProcessorTrait, RuntimeEnv, StateMap, Table, TablePublication, TableSubscription, Task, TaskBuilderTrait, TaskMap, TaskPlan
+    BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, RuntimeEnv, StateMap, Table, TablePublication, TableSubscription, Task, TaskBuilderTrait, TaskMap, TaskPlan
 };
 use phymes_diagnostics::{HashMap, HashSet};
 
@@ -383,10 +383,10 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 /// Mock objects and functions for session context builer testing
 pub mod test_session_context_builder {
     use phymes_core::{
-        AvailableTableSubscribePolicies, ProcessorEcho,
-        test_processor::ProcessorMock,
-        test_task::{make_runtime_env, make_state_tables, make_state_tables_empty},
+        AvailableTableSubscribePolicies, ProcessorPlanBuilder, test_task::{make_runtime_env, make_state_tables, make_state_tables_empty}
     };
+
+    use crate::AvailableProcessors;
 
     use super::*;
 
@@ -418,58 +418,57 @@ pub mod test_session_context_builder {
     /// Tasks subscribe and publish to state_1, state_2, and state_3
     pub fn make_test_session_builder_parallel_task() -> SessionContextBuilder {
         let processor_plans = vec![
-            ProcessorMock::new(
-                "processor_1",
-                ProcessorMock::get_static_name(),
-                &[TablePublication::Extend {
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_1"))
+                .with_publications(&[TablePublication::Extend {
                     table_name: "state_1".to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: "config_1".to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            ProcessorMock::new(
-                "processor_2",
-                ProcessorMock::get_static_name(),
-                &[TablePublication::Extend {
+                ])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_2"))
+                .with_publications(&[TablePublication::Extend {
                     table_name: "state_2".to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: "state_2".to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: "config_2".to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            ProcessorMock::new(
-                "processor_3",
-                ProcessorMock::get_static_name(),
-                &[TablePublication::Extend {
+                ])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_3"))
+                .with_publications(&[TablePublication::Extend {
                     table_name: "state_3".to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: "state_3".to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: "config_3".to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            ProcessorMock::new(
-                "session_1",
-                ProcessorMock::get_static_name(),
-                &[
+                ])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorMock.build_arc("session_1"))
+                .with_publications(&[
                     TablePublication::Extend {
                         table_name: "state_1".to_string(),
                     },
@@ -479,8 +478,8 @@ pub mod test_session_context_builder {
                     TablePublication::Extend {
                         table_name: "state_3".to_string(),
                     },
-                ],
-                &[
+                ])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateLastRecordBatch {
                         table_name: "state_1".to_string(),
                     },
@@ -490,128 +489,90 @@ pub mod test_session_context_builder {
                     TableSubscription::OnUpdateLastRecordBatch {
                         table_name: "state_3".to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
+                ])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .build()
+                .unwrap(),
         ];
 
         // Build the session
         SessionContextBuilder::new()
             .with_tasks(make_test_session_builder_tasks())
-            .with_processors(
-                processor_plans
-                    .into_iter()
-                    .map(|p| Arc::new(p) as Arc<dyn ProcessorTrait>)
-                    .collect::<Vec<_>>(),
-            )
+            .with_processors(processor_plans)
     }
 
     /// Tasks subscribe and publish to state_1
     pub fn make_test_session_builder_sequential_task() -> SessionContextBuilder {
         let processor_plans = vec![
-            ProcessorMock::new(
-                "processor_1",
-                ProcessorMock::get_static_name(),
-                &[TablePublication::Extend {
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_1"))
+                .with_publications(&[TablePublication::Extend {
                     table_name: "state_1".to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: "config_1".to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            ProcessorMock::new(
-                "processor_2",
-                ProcessorMock::get_static_name(),
-                &[TablePublication::Extend {
+                ])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_2"))
+                .with_publications(&[TablePublication::Extend {
                     table_name: "state_1".to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: "config_1".to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            ProcessorMock::new(
-                "processor_3",
-                ProcessorMock::get_static_name(),
-                &[TablePublication::Extend {
+                ])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_3"))
+                .with_publications(&[TablePublication::Extend {
                     table_name: "state_1".to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: "config_1".to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            ProcessorMock::new(
-                "session_1",
-                ProcessorMock::get_static_name(),
-                &[TablePublication::Extend {
-                    table_name: "state_1".to_string(),
-                }],
-                &[TableSubscription::OnUpdateLastRecordBatch {
-                    table_name: "state_1".to_string(),
-                }],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
+                ])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorMock.build_arc("session_1"))
+                .with_publications(&[
+                    TablePublication::Extend {
+                        table_name: "state_1".to_string(),
+                    },
+                ])
+                .with_subscriptions(&[
+                    TableSubscription::OnUpdateLastRecordBatch {
+                        table_name: "state_1".to_string(),
+                    },
+                ])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .build()
+                .unwrap(),
         ];
 
         // Build the session
         SessionContextBuilder::new()
             .with_tasks(make_test_session_builder_tasks())
-            .with_processors(
-                processor_plans
-                    .into_iter()
-                    .map(|p| Arc::new(p) as Arc<dyn ProcessorTrait>)
-                    .collect::<Vec<_>>(),
-            )
-    }
-
-    pub fn make_test_processors() -> Vec<Arc<dyn ProcessorTrait>> {
-        vec![
-            Arc::new(ProcessorMock::new(
-                "processor_1",
-                ProcessorMock::get_static_name(),
-                &[],
-                &[],
-                AvailableTableSubscribePolicies::default().build(),
-            )),
-            Arc::new(ProcessorMock::new(
-                "processor_2",
-                ProcessorMock::get_static_name(),
-                &[],
-                &[],
-                AvailableTableSubscribePolicies::default().build(),
-            )),
-            Arc::new(ProcessorMock::new(
-                "processor_3",
-                ProcessorMock::get_static_name(),
-                &[],
-                &[],
-                AvailableTableSubscribePolicies::default().build(),
-            )),
-            Arc::new(ProcessorEcho::new(
-                "session_1",
-                ProcessorEcho::get_static_name(),
-                &[],
-                &[],
-                AvailableTableSubscribePolicies::default().build(),
-            )),
-        ]
+            .with_processors(processor_plans)
     }
 
     pub fn make_test_session_context_parallel_task(
@@ -678,11 +639,11 @@ pub mod test_session_context_builder {
 
 #[cfg(test)]
 mod tests {
+    use crate::AvailableProcessors;
+
     use super::*;
     use phymes_core::{
-        AvailableTableSubscribePolicies, ProcessorTrait, TableSubscription,
-        test_processor::ProcessorMock,
-        test_task::{make_runtime_env, make_state_tables},
+        AvailableTableSubscribePolicies, ProcessorPlanBuilder, TableSubscription, test_task::{make_runtime_env, make_state_tables}
     };
 
     #[test]
@@ -795,30 +756,23 @@ mod tests {
 
         // Missing tasks
         let processors = vec![
-            ProcessorMock::new(
-                "processor_1",
-                ProcessorMock::get_static_name(),
-                &[],
-                &[],
-                AvailableTableSubscribePolicies::default().build(),
-            ),
-            ProcessorMock::new(
-                "processor_2",
-                ProcessorMock::get_static_name(),
-                &[],
-                &[],
-                AvailableTableSubscribePolicies::default().build(),
-            ),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_1"))
+                .with_publications(&[])
+                .with_subscriptions(&[])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::default().build())
+                .build()?,
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_2"))
+                .with_publications(&[])
+                .with_subscriptions(&[])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::default().build())
+                .build()?,
         ];
         let result = SessionContextBuilder::new()
             .with_name("session_1")
             .with_tasks(test_session_context_builder::make_test_session_builder_tasks())
-            .with_processors(
-                processors
-                    .into_iter()
-                    .map(|p| Arc::new(p) as Arc<dyn ProcessorTrait>)
-                    .collect::<Vec<_>>(),
-            )
+            .with_processors(processors)
             .build();
         match result {
             Ok(_) => panic!("Should have failed"),
@@ -830,44 +784,35 @@ mod tests {
 
         // Task not found in plan
         let processors = vec![
-            ProcessorMock::new(
-                "processor_1",
-                ProcessorMock::get_static_name(),
-                &[],
-                &[],
-                AvailableTableSubscribePolicies::default().build(),
-            ),
-            ProcessorMock::new(
-                "processor_2",
-                ProcessorMock::get_static_name(),
-                &[],
-                &[],
-                AvailableTableSubscribePolicies::default().build(),
-            ),
-            ProcessorMock::new(
-                "processor_3",
-                ProcessorMock::get_static_name(),
-                &[],
-                &[],
-                AvailableTableSubscribePolicies::default().build(),
-            ),
-            ProcessorMock::new(
-                "not_found",
-                ProcessorMock::get_static_name(),
-                &[],
-                &[],
-                AvailableTableSubscribePolicies::default().build(),
-            ),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_1"))
+                .with_publications(&[])
+                .with_subscriptions(&[])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::default().build())
+                .build()?,
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_2"))
+                .with_publications(&[])
+                .with_subscriptions(&[])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::default().build())
+                .build()?,
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_3"))
+                .with_publications(&[])
+                .with_subscriptions(&[])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::default().build())
+                .build()?,
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorMock.build_arc("not_found"))
+                .with_publications(&[])
+                .with_subscriptions(&[])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::default().build())
+                .build()?,
         ];
         let result = SessionContextBuilder::new()
             .with_name("session_1")
             .with_tasks(test_session_context_builder::make_test_session_builder_tasks())
-            .with_processors(
-                processors
-                    .into_iter()
-                    .map(|p| Arc::new(p) as Arc<dyn ProcessorTrait>)
-                    .collect::<Vec<_>>(),
-            )
+            .with_processors(processors)
             .build();
         match result {
             Ok(_) => panic!("Should have failed"),

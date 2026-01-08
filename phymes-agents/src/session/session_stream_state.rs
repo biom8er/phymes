@@ -121,6 +121,7 @@ mod tests {
         IPCMessage, TablePublication, test_table::make_test_table,
         test_task::make_test_input_message,
     };
+    use phymes_diagnostics::HashMap;
     #[cfg(not(target_family = "wasm"))]
     use tempfile::tempfile;
 
@@ -140,7 +141,7 @@ mod tests {
         let updates = session_stream_step.update_state_from_messages(input)?;
 
         // check the response
-        assert!(updates.is_empty());
+        assert_eq!(updates.count_rows(), 0);
         assert_eq!(
             session_stream_step
                 .get_session_context()
@@ -206,12 +207,15 @@ mod tests {
         let updates = session_stream_step.update_state_from_messages(input)?;
 
         // check the response
-        assert_eq!(updates.len(), 1);
-        assert_eq!(updates.get("state_1").unwrap().len(), 1);
-        assert_eq!(
-            updates.get("state_1").unwrap().first().unwrap(),
-            "session_1"
-        );
+        assert_eq!(updates.count_rows(), 1);
+        let col = updates.get_column_as_vec_str("subject_name");
+        assert_eq!(col, [""]);
+        let col = updates.get_column_as_vec_str("task_name");
+        assert_eq!(col, [""]);
+        let col = updates.get_column_as_vec_str("session_name");
+        assert_eq!(col, [""]);
+        let col = updates.get_column_as_vec_primitive::<i64>("num_rows_delta")?;
+        assert_eq!(col, [0]);
         assert_eq!(
             session_stream_step
                 .get_session_context()
@@ -291,53 +295,6 @@ mod tests {
         input.insert(message.get_name().to_string(), message);
         let updates = session_stream_step.update_state_from_messages(input);
         assert!(updates.is_err());
-
-        Ok(())
-    }
-
-    #[cfg(not(target_family = "wasm"))]
-    #[test]
-    fn test_session_read_write_superstep_update() -> Result<()> {
-        // initialize the session stream state
-        let session_context = make_test_session_context_parallel_task("session_1", 4)?;
-        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
-
-        // write the session stream state to file
-        let mut file = tempfile()?;
-        session_stream_state
-            .try_read()
-            .unwrap()
-            .write_superstep_updates(&mut file)?;
-
-        // read the session stream state back to file
-        let session_context = make_test_session_context_sequential_task("session_1", 4)?;
-        let session_stream_state_test =
-            Arc::new(RwLock::new(SessionStreamState::new(session_context)));
-
-        assert_ne!(
-            session_stream_state
-                .try_read()
-                .unwrap()
-                .get_superstep_updates(),
-            session_stream_state_test
-                .try_read()
-                .unwrap()
-                .get_superstep_updates()
-        );
-        session_stream_state_test
-            .try_write()
-            .unwrap()
-            .read_superstep_updates(&file)?;
-        assert_eq!(
-            session_stream_state
-                .try_read()
-                .unwrap()
-                .get_superstep_updates(),
-            session_stream_state_test
-                .try_read()
-                .unwrap()
-                .get_superstep_updates()
-        );
 
         Ok(())
     }

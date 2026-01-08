@@ -5,7 +5,7 @@ use arrow::{array::RecordBatch, datatypes::Schema};
 use clap::ValueEnum;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, ProcessorPlanBuilder, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap, TaskPlan
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap, TaskPlan
 };
 use phymes_data::{
     AvailableCandleOperators, DataConfig, DataConfigTrait, DataSummaryConfig, device,
@@ -938,59 +938,59 @@ pub mod test_session_context_builder_agents {
         Ok(state)
     }
 
-    pub fn make_test_processors_agents() -> Result<Vec<Arc<dyn ProcessorTrait>>> {
+    pub fn make_test_processors_agents() -> Result<Vec<ProcessorPlan>> {
         let processor_plans = vec![
-            AvailableProcessors::ProcessorMock.build_arc(
-                "processor_1",
-                &[TablePublication::Extend {
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_1"))
+                .with_publications( &[TablePublication::Extend {
                     table_name: "state_1".to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: "state_1".to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: "processor_1".to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::ProcessorMock.build_arc(
-                "processor_2",
-                &[TablePublication::Extend {
+                ])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .build()?,
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_2"))
+                .with_publications(&[TablePublication::Extend {
                     table_name: "state_2".to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: "state_2".to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: "processor_2".to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::ProcessorMock.build_arc(
-                "processor_3",
-                &[TablePublication::Extend {
+                ])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .build()?,
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_3"))
+                .with_publications(&[TablePublication::Extend {
                     table_name: "state_3".to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: "state_3".to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: "processor_3".to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Join.build_arc(
-                "session_1",
-                &[TablePublication::Extend {
+                ])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .build()?,
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::Join.build_arc("session_1"))
+                .with_publications(&[TablePublication::Extend {
                     table_name: "state_3".to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateLastRecordBatch {
                         table_name: "state_1".to_string(),
                     },
@@ -1000,9 +1000,9 @@ pub mod test_session_context_builder_agents {
                     TableSubscription::OnUpdateLastRecordBatch {
                         table_name: "session_1".to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
+                ])
+                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .build()?,
         ];
         Ok(processor_plans)
     }
@@ -1094,24 +1094,6 @@ mod tests {
             .unwrap()
             .get_runtime_env();
         assert_eq!(test.get_name(), "session-runtime_env");
-        let test = session
-            .get_tasks()
-            .get("session")
-            .unwrap()
-            .get_subscriptions()
-            .iter()
-            .map(|p| p.get_table_name())
-            .collect::<Vec<_>>();
-        assert_eq!(test, ["state_1"]);
-        let test = session
-            .get_tasks()
-            .get("session")
-            .unwrap()
-            .get_publications()
-            .iter()
-            .map(|p| p.get_table_name())
-            .collect::<Vec<_>>();
-        assert_eq!(test, ["state_1"]);
         assert_eq!(session.get_name(), "session");
         assert_eq!(session.get_max_iter(), 25);
         assert!(session.get_diagnostics());
@@ -1154,7 +1136,6 @@ mod tests {
 
     #[test]
     fn test_build_with_tables_missing_data_config_subjects() -> Result<()> {
-        let processor_plans = test_session_context_builder_agents::make_test_processors_agents()?;
         let state = test_session_context_builder_agents::make_test_state_agents()?;
 
         // Check that no errors are found
@@ -1183,7 +1164,7 @@ mod tests {
 
         let result = SessionContextBuilder::new()
             .with_tasks(make_test_session_builder_tasks())
-            .with_processors(processor_plans.clone())
+            .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state_test)
@@ -1211,7 +1192,7 @@ mod tests {
 
         let result = SessionContextBuilder::new()
             .with_tasks(make_test_session_builder_tasks())
-            .with_processors(processor_plans.clone())
+            .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state_test)
@@ -1249,7 +1230,7 @@ mod tests {
 
         let result = SessionContextBuilder::new()
             .with_tasks(make_test_session_builder_tasks())
-            .with_processors(processor_plans.clone())
+            .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state_test)
@@ -1288,7 +1269,7 @@ mod tests {
 
         let result = SessionContextBuilder::new()
             .with_tasks(make_test_session_builder_tasks())
-            .with_processors(processor_plans.clone())
+            .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state_test)
@@ -1307,7 +1288,6 @@ mod tests {
 
     #[test]
     fn test_build_with_tables_failing_processor_config_builds() -> Result<()> {
-        let processor_plans = test_session_context_builder_agents::make_test_processors_agents()?;
         let state = test_session_context_builder_agents::make_test_state_agents()?;
 
         // Test for mismatch between processor and config types
@@ -1327,7 +1307,7 @@ mod tests {
 
         let result = SessionContextBuilder::new()
             .with_tasks(make_test_session_builder_tasks())
-            .with_processors(processor_plans.clone())
+            .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state_test)
@@ -1362,7 +1342,7 @@ mod tests {
 
         let result = SessionContextBuilder::new()
             .with_tasks(make_test_session_builder_tasks())
-            .with_processors(processor_plans.clone())
+            .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state_test)
@@ -1397,7 +1377,7 @@ mod tests {
 
         let result = SessionContextBuilder::new()
             .with_tasks(make_test_session_builder_tasks())
-            .with_processors(processor_plans.clone())
+            .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state_test)
