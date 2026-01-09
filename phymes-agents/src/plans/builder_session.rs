@@ -1,15 +1,12 @@
 use crate::{
     AvailableProcessors, AvailableSessionPlans, CustomAgentsBuilderTrait,
-    SessionContextBuilderMermaidTrait, TaskPlan,
+    SessionContextBuilderMermaidTrait,
 };
 use anyhow::Result;
 use phymes_core::{
-    AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait,
-    ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication,
-    TableSubscription, create_session_mermaid_batch,
+    AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_session_mermaid_batch
 };
 use phymes_diagnostics::create_timestamp_micros;
-use std::sync::Arc;
 
 /// Example Mermaid diagrams for chat, doc, and tool agent sessions
 pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Table> {
@@ -87,18 +84,25 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
         Some(tasks)
     }
 
-    fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
+    fn make_processors(&self) -> Option<Vec<ProcessorPlan>> {
         // The order is the order in which the processors are called in the task
-        let processors = vec![AvailableProcessors::ProcessorEcho.build_arc(
-            self.session_context_name,
-            &[TablePublication::Extend {
-                table_name: AvailableSubjects::BuilderMermaid.to_string(),
-            }],
-            &[TableSubscription::OnUpdateLastRecordBatch {
-                table_name: AvailableSubjects::BuilderMermaid.to_string(),
-            }],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        )];
+        let processors = vec![
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorEcho.build_arc(
+                    self.session_context_name,
+                ))
+                .with_publications(&[TablePublication::Extend {
+                    table_name: AvailableSubjects::BuilderMermaid.to_string(),
+                }])
+                .with_subscriptions(&[TableSubscription::OnUpdateLastRecordBatch {
+                    table_name: AvailableSubjects::BuilderMermaid.to_string(),
+                }])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+        ];
 
         Some(processors)
     }
@@ -114,6 +118,8 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use anyhow::Result;
     use parking_lot::RwLock;
 

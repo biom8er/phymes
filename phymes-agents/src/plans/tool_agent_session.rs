@@ -1,12 +1,8 @@
 use anyhow::Result;
 use serde_json::json;
-use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
-    BuilderTrait, DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder,
-    TableBuilderTrait, TablePublication, TableSubscription, create_schema_from_fields,
-    create_tools_record_batch,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_schema_from_fields, create_tools_record_batch
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
@@ -18,7 +14,7 @@ use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 
 use arrow::datatypes::{DataType, Field, Fields};
 
-use crate::{AvailableInterfaceSubjects, AvailableProcessors, CustomAgentsBuilderTrait, TaskPlan};
+use crate::{AvailableInterfaceSubjects, AvailableProcessors, CustomAgentsBuilderTrait};
 
 /// Tool agent node with human-in-the-loop
 pub struct ToolAgentSession<'a> {
@@ -204,16 +200,18 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             },
         ])
     }
-
-    fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
+    
+    fn make_processors(&self) -> Option<Vec<ProcessorPlan>> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
-            AvailableProcessors::MessageAggregatorProcessor.build_arc(
-                self.message_aggregator_processor_1_name,
-                &[TablePublication::Replace {
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::MessageAggregatorProcessor.build_arc(
+                    self.message_aggregator_processor_1_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: self.chat_task_name.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::AlwaysFullTable {
                         table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
@@ -229,15 +227,20 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     TableSubscription::AlwaysLastRecordBatch {
                         table_name: self.message_aggregator_processor_1_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::ChatContentSubscribe.build(),
-            ),
-            AvailableProcessors::MessageAggregatorProcessor.build_arc(
-                self.message_aggregator_processor_2_name,
-                &[TablePublication::Extend {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::ChatContentSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::MessageAggregatorProcessor.build_arc(
+                    self.message_aggregator_processor_2_name,
+                ))
+                .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
@@ -247,15 +250,20 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     TableSubscription::AlwaysLastRecordBatch {
                         table_name: self.message_aggregator_processor_2_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
-            ),
-            AvailableProcessors::AttachmentAggregatorProcessor.build_arc(
-                self.attachment_aggregator_processor_name,
-                &[TablePublication::Extend {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::AttachmentAggregatorProcessor.build_arc(
+                    self.attachment_aggregator_processor_name,
+                ))
+                .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
                     },
@@ -268,46 +276,61 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     TableSubscription::AlwaysLastRecordBatch {
                         table_name: self.attachment_aggregator_processor_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
-            ),
-            AvailableProcessors::Select.build_arc(
-                self.tool_vis_renamecols_processor_name,
-                &[TablePublication::Replace {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::Select.build_arc(
+                    self.tool_vis_renamecols_processor_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: AvailableSubjects::MermaidXYChart.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: self.tool_summary_task_name.to_string(),
                     },
                     TableSubscription::AlwaysLastRecordBatch {
                         table_name: self.tool_vis_renamecols_processor_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::ApplyTemplate.build_arc(
-                self.tool_vis_xychart_processor_name,
-                &[TablePublication::Replace {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ApplyTemplate.build_arc(
+                    self.tool_vis_xychart_processor_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: AvailableInterfaceSubjects::AssistantScript.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::AlwaysFullTable {
                         table_name: AvailableSubjects::MermaidXYChart.to_string(),
                     },
                     TableSubscription::AlwaysLastRecordBatch {
                         table_name: self.tool_vis_xychart_processor_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
             #[cfg(feature = "api")]
-            AvailableProcessors::OpenAIChatProcessor.build_arc(
-                self.chat_processor_name,
-                &[TablePublication::Replace {
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::OpenAIChatProcessor.build_arc(
+                    self.chat_processor_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: self.message_parser_task_name.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: self.chat_task_name.to_string(),
                     },
@@ -317,16 +340,21 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     TableSubscription::AlwaysFullTable {
                         table_name: self.chat_processor_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
             #[cfg(feature = "candle")]
-            AvailableProcessors::CandleChatProcessor.build_arc(
-                self.chat_processor_name,
-                &[TablePublication::Replace {
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::CandleChatProcessor.build_arc(
+                    self.chat_processor_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: self.message_parser_task_name.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: self.chat_task_name.to_string(),
                     },
@@ -336,12 +364,17 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     TableSubscription::AlwaysFullTable {
                         table_name: self.chat_processor_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::MessageParserProcessor.build_arc(
-                self.message_parser_processor_name,
-                &[
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::MessageParserProcessor.build_arc(
+                    self.message_parser_processor_name,
+                ))
+                .with_publications(&[
                     TablePublication::Extend {
                         // The first publication is the default publish target
                         // table_name: self.chat_task_name.to_string(),
@@ -353,102 +386,135 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     TablePublication::Extend {
                         table_name: self.hitl_task_name.to_string(),
                     },
-                ],
-                &[
+                ])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: self.message_parser_task_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self.message_parser_processor_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::ExtractTabular.build_arc(
-                self.extract_tabular_data_processor_name,
-                &[TablePublication::Replace {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ExtractTabular.build_arc(
+                    self.extract_tabular_data_processor_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: self.state_scores_table_name.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self.extract_tabular_data_processor_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
-                self.tool_processor_name,
-                &[TablePublication::Replace {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::CandleDataProcessor.build_arc(
+                    self.tool_processor_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: self.tool_summary_task_name.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateLastRecordBatch {
                         table_name: self.tool_task_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self.state_scores_table_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::CandleDataProcessor.build_arc(
-                self.hitl_processor_name,
-                &[TablePublication::Extend {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::CandleDataProcessor.build_arc(
+                    self.hitl_processor_name,
+                ))
+                .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                }],
-                &[TableSubscription::OnUpdateLastRecordBatch {
+                }])
+                .with_subscriptions(&[TableSubscription::OnUpdateLastRecordBatch {
                     table_name: self.hitl_task_name.to_string(),
-                }],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::DataSummaryProcessor.build_arc(
-                self.tool_attachment_processor_name,
-                &[TablePublication::Extend {
+                }])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::DataSummaryProcessor.build_arc(
+                    self.tool_attachment_processor_name,
+                ))
+                .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::AlwaysLastRecordBatch {
                         table_name: self.tool_attachment_processor_name.to_string(),
                     },
                     TableSubscription::OnUpdateFullTable {
                         table_name: self.tool_summary_task_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::DataSummaryProcessor.build_arc(
-                self.tool_summary_processor_name,
-                &[TablePublication::Extend {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::DataSummaryProcessor.build_arc(
+                    self.tool_summary_processor_name,
+                ))
+                .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::AlwaysLastRecordBatch {
                         table_name: self.tool_summary_processor_name.to_string(),
                     },
                     TableSubscription::OnUpdateFullTable {
                         table_name: self.tool_summary_task_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::DataSummaryProcessor.build_arc(
-                self.hitl_summary_processor_name,
-                &[TablePublication::Extend {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::DataSummaryProcessor.build_arc(
+                    self.hitl_summary_processor_name,
+                ))
+                .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::AlwaysLastRecordBatch {
                         table_name: self.hitl_summary_processor_name.to_string(),
                     },
                     TableSubscription::AlwaysLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
         ];
         Some(processors)
     }
@@ -742,6 +808,8 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{

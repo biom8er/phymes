@@ -1,9 +1,5 @@
-use std::{sync::Arc, vec};
-
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
-    BuilderTrait, DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder,
-    TableBuilderTrait, TablePublication, TableSubscription, create_schema_from_fields,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_schema_from_fields
 };
 use phymes_data::{
     AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
@@ -15,7 +11,7 @@ use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig};
 
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
 
-use crate::{AvailableInterfaceSubjects, AvailableProcessors, CustomAgentsBuilderTrait, TaskPlan};
+use crate::{AvailableInterfaceSubjects, AvailableProcessors, CustomAgentsBuilderTrait};
 
 /// Document Retrieval Augmented Generation (RAG) session plan.
 ///
@@ -201,15 +197,17 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         Some(tasks)
     }
 
-    fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
+    fn make_processors(&self) -> Option<Vec<ProcessorPlan>> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
-            AvailableProcessors::MessageAggregatorProcessor.build_arc(
-                self.message_aggregator_processor_1_name,
-                &[TablePublication::Replace {
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::MessageAggregatorProcessor.build_arc(
+                    self.message_aggregator_processor_1_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: self.chat_task_name.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
@@ -222,15 +220,20 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     TableSubscription::AlwaysLastRecordBatch {
                         table_name: self.message_aggregator_processor_1_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::MessageAggregatorProcessor.build_arc(
-                self.message_aggregator_processor_2_name,
-                &[TablePublication::Extend {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::MessageAggregatorProcessor.build_arc(
+                    self.message_aggregator_processor_2_name,
+                ))
+                .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
@@ -240,47 +243,62 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     TableSubscription::AlwaysLastRecordBatch {
                         table_name: self.message_aggregator_processor_2_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::AttachmentAggregatorProcessor.build_arc(
-                self.attachment_aggregator_processor_name,
-                &[TablePublication::Extend {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::AttachmentAggregatorProcessor.build_arc(
+                    self.attachment_aggregator_processor_name,
+                ))
+                .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::UserPdf.to_string(),
                     },
                     TableSubscription::AlwaysLastRecordBatch {
                         table_name: self.attachment_aggregator_processor_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
-            ),
-            AvailableProcessors::Select.build_arc(
-                self.message_to_query_processor_name,
-                &[TablePublication::Replace {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::Select.build_arc(
+                    self.message_to_query_processor_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
                     TableSubscription::AlwaysLastRecordBatch {
                         table_name: self.message_to_query_processor_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
             #[cfg(feature = "api")]
-            AvailableProcessors::OpenAIChatProcessor.build_arc(
-                self.chat_processor_name,
-                &[TablePublication::ExtendChunks {
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::OpenAIChatProcessor.build_arc(
+                    self.chat_processor_name,
+                ))
+                .with_publications(&[TablePublication::ExtendChunks {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     col_name: "content".to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: self.chat_task_name.to_string(),
                     },
@@ -288,17 +306,22 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     TableSubscription::AlwaysFullTable {
                         table_name: self.chat_processor_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
             #[cfg(feature = "candle")]
-            AvailableProcessors::CandleChatProcessor.build_arc(
-                self.chat_processor_name,
-                &[TablePublication::ExtendChunks {
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::CandleChatProcessor.build_arc(
+                    self.chat_processor_name,
+                ))
+                .with_publications(&[TablePublication::ExtendChunks {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     col_name: "content".to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: self.chat_task_name.to_string(),
                     },
@@ -306,109 +329,144 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     TableSubscription::AlwaysFullTable {
                         table_name: self.chat_processor_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::ExtractPDF.build_arc(
-                self.extract_pdf_processor_name,
-                &[TablePublication::Extend {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ExtractPDF.build_arc(
+                    self.extract_pdf_processor_name,
+                ))
+                .with_publications(&[TablePublication::Extend {
                     table_name: self.document_chunk_task_name.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::UserPdf.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self.extract_pdf_processor_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::ChunkDocuments.build_arc(
-                self.document_chunk_processor_name,
-                &[TablePublication::Extend {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ChunkDocuments.build_arc(
+                    self.document_chunk_processor_name,
+                ))
+                .with_publications(&[TablePublication::Extend {
                     table_name: self.state_documents_table_name.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::AlwaysFullTable {
                         table_name: self.document_chunk_task_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self.document_chunk_processor_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
             #[cfg(feature = "api")]
-            AvailableProcessors::OpenAIEmbedProcessor.build_arc(
-                self.embed_documents_processor_name,
-                &[TablePublication::Extend {
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::OpenAIEmbedProcessor.build_arc(
+                    self.embed_documents_processor_name,
+                ))
+                .with_publications(&[TablePublication::Extend {
                     table_name: self.state_doc_embed_table_name.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateLastRecordBatch {
                         table_name: self.state_documents_table_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self.embed_documents_processor_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
             #[cfg(feature = "api")]
-            AvailableProcessors::OpenAIEmbedProcessor.build_arc(
-                self.embed_query_processor_name,
-                &[TablePublication::Extend {
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::OpenAIEmbedProcessor.build_arc(
+                    self.embed_query_processor_name,
+                ))
+                .with_publications(&[TablePublication::Extend {
                     table_name: self.state_q_embed_table_name.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self.embed_query_processor_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
             #[cfg(feature = "candle")]
-            AvailableProcessors::CandleEmbedProcessor.build_arc(
-                self.embed_documents_processor_name,
-                &[TablePublication::Extend {
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::CandleEmbedProcessor.build_arc(
+                    self.embed_documents_processor_name,
+                ))
+                .with_publications(&[TablePublication::Extend {
                     table_name: self.state_doc_embed_table_name.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateLastRecordBatch {
                         table_name: self.state_documents_table_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self.embed_documents_processor_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
             #[cfg(feature = "candle")]
-            AvailableProcessors::CandleEmbedProcessor.build_arc(
-                self.embed_query_processor_name,
-                &[TablePublication::Extend {
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::CandleEmbedProcessor.build_arc(
+                    self.embed_query_processor_name,
+                ))
+                .with_publications(&[TablePublication::Extend {
                     table_name: self.state_q_embed_table_name.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateLastRecordBatch {
                         table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self.embed_query_processor_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::VectorDistance.build_arc(
-                self.relative_similarity_processor_name,
-                &[TablePublication::Replace {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::VectorDistance.build_arc(
+                    self.relative_similarity_processor_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: self.state_scores_table_name.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::AlwaysFullTable {
                         table_name: self.state_doc_embed_table_name.to_string(),
                     },
@@ -418,30 +476,40 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     TableSubscription::AlwaysFullTable {
                         table_name: self.relative_similarity_processor_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Sort.build_arc(
-                self.sort_scores_processor_name,
-                &[TablePublication::Replace {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::Sort.build_arc(
+                    self.sort_scores_processor_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: self.state_scores_table_name.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::AlwaysFullTable {
                         table_name: self.sort_scores_processor_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self.state_scores_table_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Join.build_arc(
-                self.join_chunks_processor_name,
-                &[TablePublication::Replace {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::Join.build_arc(
+                    self.join_chunks_processor_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: self.state_scores_chunks_join_table_name.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::AlwaysFullTable {
                         table_name: self.state_documents_table_name.to_string(),
                     },
@@ -451,54 +519,72 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     TableSubscription::AlwaysFullTable {
                         table_name: self.join_chunks_processor_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Select.build_arc(
-                self.top_k_select_processor_name,
-                &[TablePublication::Replace {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::Select.build_arc(
+                    self.top_k_select_processor_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: self.state_top_k_select_docs_table_name.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::AlwaysFullTable {
                         table_name: self.top_k_select_processor_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self.state_scores_chunks_join_table_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::LimitProcessor.build_arc(
-                self.top_k_limit_processor_name,
-                &[TablePublication::Replace {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::LimitProcessor.build_arc(
+                    self.top_k_limit_processor_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: self.state_top_k_limit_docs_table_name.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::AlwaysFullTable {
                         table_name: self.top_k_limit_processor_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self.state_top_k_select_docs_table_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::DataSummaryProcessor.build_arc(
-                self.top_k_summary_processor_name,
-                &[TablePublication::Replace {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::DataSummaryProcessor.build_arc(
+                    self.top_k_summary_processor_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: self.state_top_k_summary_docs_table_name.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::AlwaysFullTable {
                         table_name: self.top_k_summary_processor_name.to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: self.state_top_k_limit_docs_table_name.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
         ];
 
         Some(processors)
@@ -952,6 +1038,8 @@ pub fn fields_in_schemas(lhs_schema: SchemaRef, rhs_schema: SchemaRef) -> Vec<St
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;

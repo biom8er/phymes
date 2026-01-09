@@ -386,7 +386,7 @@ mod tests {
         },
     };
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, ProcessorBuilder, TablePublication, TableSubscription, TaskPlan, test_processor::{ProcessorError, ProcessorMock}, test_task::{make_runtime_env, make_state_tables, make_test_input_message}
+        AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, ProcessorBuilder, ProcessorPlanBuilder, TablePublication, TableSubscription, TaskPlan, test_processor::{ProcessorError, ProcessorMock}, test_task::{make_runtime_env, make_state_tables, make_test_input_message}
     };
 
     #[tokio::test]
@@ -508,14 +508,6 @@ mod tests {
             session_stream_state
                 .try_read()
                 .unwrap()
-                .get_superstep_updates()
-                .len(),
-            4
-        );
-        assert_eq!(
-            session_stream_state
-                .try_read()
-                .unwrap()
                 .get_session_context()
                 .get_states()
                 .get("state_1")
@@ -576,6 +568,48 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
+                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -611,14 +645,6 @@ mod tests {
 
         // check the session and state
         assert_eq!(session_stream_state.read().get_iter(), 1);
-        assert_eq!(
-            session_stream_state
-                .try_read()
-                .unwrap()
-                .get_superstep_updates()
-                .len(),
-            4
-        );
         assert_eq!(
             session_stream_state
                 .try_read()
@@ -676,6 +702,48 @@ mod tests {
                 .get_record_batches()
                 .len(),
             3
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
         );
         assert_eq!(
             session_stream_state
@@ -741,14 +809,6 @@ mod tests {
             session_stream_state
                 .try_read()
                 .unwrap()
-                .get_superstep_updates()
-                .len(),
-            4
-        );
-        assert_eq!(
-            session_stream_state
-                .try_read()
-                .unwrap()
                 .get_session_context()
                 .get_states()
                 .get("state_1")
@@ -834,6 +894,48 @@ mod tests {
                 .unwrap()
                 .num_rows(),
             5
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
         );
         assert_eq!(
             session_stream_state
@@ -989,14 +1091,6 @@ mod tests {
             session_stream_state
                 .try_read()
                 .unwrap()
-                .get_superstep_updates()
-                .len(),
-            4
-        );
-        assert_eq!(
-            session_stream_state
-                .try_read()
-                .unwrap()
                 .get_session_context()
                 .get_states()
                 .get("state_1")
@@ -1089,6 +1183,48 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
+                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1127,14 +1263,6 @@ mod tests {
             session_stream_state
                 .try_read()
                 .unwrap()
-                .get_superstep_updates()
-                .len(),
-            4
-        );
-        assert_eq!(
-            session_stream_state
-                .try_read()
-                .unwrap()
                 .get_session_context()
                 .get_states()
                 .get("state_1")
@@ -1167,6 +1295,48 @@ mod tests {
                 .unwrap()
                 .get_session_context()
                 .get_states()
+                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1187,9 +1357,43 @@ mod tests {
             session_stream_state
                 .try_read()
                 .unwrap()
-                .get_superstep_updates()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
                 .len(),
-            4
+            1
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
         );
         let _ = SessionStreamStep::run_superstep(
             Arc::clone(&session_stream_state),
@@ -1201,9 +1405,43 @@ mod tests {
             session_stream_state
                 .try_read()
                 .unwrap()
-                .get_superstep_updates()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
                 .len(),
-            4
+            1
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
         );
         let mut response = SessionStreamStep::run_superstep(
             Arc::clone(&session_stream_state),
@@ -1261,14 +1499,6 @@ mod tests {
             session_stream_state
                 .try_read()
                 .unwrap()
-                .get_superstep_updates()
-                .len(),
-            4
-        );
-        assert_eq!(
-            session_stream_state
-                .try_read()
-                .unwrap()
                 .get_session_context()
                 .get_states()
                 .get("state_1")
@@ -1294,6 +1524,48 @@ mod tests {
                 .unwrap()
                 .num_rows(),
             8
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        assert_eq!(
+            session_stream_state
+                .try_read()
+                .unwrap()
+                .get_session_context()
+                .get_states()
+                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
         );
         assert_eq!(
             session_stream_state
@@ -1350,9 +1622,13 @@ mod tests {
             },
         ];
         let processors = vec![
-            ProcessorBuilder::default()
-                .with_name("processor_1")
-                .with_type("")
+            ProcessorPlanBuilder::default()
+                .with_processor(
+                    ProcessorBuilder::default()
+                        .with_name("processor_1")
+                        .with_type("")
+                        .build_arc::<ProcessorMock>()?,
+                )
                 .with_publications(&[TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 }])
@@ -1367,10 +1643,15 @@ mod tests {
                 .with_subscribe_policy(
                     AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
                 )
-                .build_arc::<ProcessorMock>()?,
-            ProcessorBuilder::default()
-                .with_name("error_1")
-                .with_type("")
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(
+                    ProcessorBuilder::default()
+                        .with_name("error_1")
+                        .with_type("")
+                        .build_arc::<ProcessorError>()?,
+                )
                 .with_publications(&[TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 }])
@@ -1380,7 +1661,8 @@ mod tests {
                 .with_subscribe_policy(
                     AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
                 )
-                .build_arc::<ProcessorError>()?,
+                .build()
+                .unwrap(),
         ];
         let state = make_state_tables("state_1", "config_1")?;
         let mut session_context = SessionContextBuilder::new()

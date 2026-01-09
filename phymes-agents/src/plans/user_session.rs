@@ -2,17 +2,14 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
-    DataFormat, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder,
-    TableBuilderTrait, TablePublication, TableSubscription, create_user_batch,
-    create_user_session_contexts_batch,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_user_batch, create_user_session_contexts_batch
 };
 use phymes_data::{AvailableCandleOperators, DataConfig, DataSummaryConfig};
 use phymes_diagnostics::create_timestamp_micros;
 
 use crate::{
     AvailableInterfaceSubjects, AvailableProcessors, AvailableSessionPlans,
-    CustomAgentsBuilderTrait, TaskPlan, make_example_mermaid_table,
+    CustomAgentsBuilderTrait, make_example_mermaid_table,
 };
 
 /// A session for all user management tasks
@@ -172,15 +169,17 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
         Some(tasks)
     }
 
-    fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
+    fn make_processors(&self) -> Option<Vec<ProcessorPlan>> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
-            AvailableProcessors::ExtractTabular.build_arc(
-                self.filter_and_join_session_contexts_by_email_inbox_processor_name,
-                &[TablePublication::Replace {
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ExtractTabular.build_arc(
+                    self.filter_and_join_session_contexts_by_email_inbox_processor_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: AvailableSubjects::UserInbox.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
                         table_name: AvailableInterfaceSubjects::UserJson.to_string(),
                     },
@@ -189,15 +188,20 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                             .filter_and_join_session_contexts_by_email_inbox_processor_name
                             .to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Join.build_arc(
-                self.filter_session_contexts_by_email_processor_name,
-                &[TablePublication::Replace {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::Join.build_arc(
+                    self.filter_session_contexts_by_email_processor_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::AlwaysLastRecordBatch {
                         table_name: self
                             .filter_session_contexts_by_email_processor_name
@@ -209,15 +213,20 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                     TableSubscription::AlwaysFullTable {
                         table_name: AvailableSubjects::UserSessionContexts.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Join.build_arc(
-                self.join_session_contexts_with_mermaid_diagrams_processor_name,
-                &[TablePublication::Replace {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::Join.build_arc(
+                    self.join_session_contexts_with_mermaid_diagrams_processor_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::AlwaysLastRecordBatch {
                         table_name: self
                             .join_session_contexts_with_mermaid_diagrams_processor_name
@@ -229,15 +238,20 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                     TableSubscription::AlwaysFullTable {
                         table_name: AvailableSubjects::BuilderMermaid.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::Join.build_arc(
-                self.filter_user_info_by_email_processor_name,
-                &[TablePublication::Replace {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::Join.build_arc(
+                    self.filter_user_info_by_email_processor_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: self.filter_user_info_by_email_table_name.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::AlwaysLastRecordBatch {
                         table_name: self.filter_user_info_by_email_processor_name.to_string(),
                     },
@@ -247,15 +261,20 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                     TableSubscription::AlwaysFullTable {
                         table_name: AvailableSubjects::User.to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
-            AvailableProcessors::DataSummaryProcessor.build_arc(
-                self.filter_and_join_session_contexts_by_email_outbox_processor_name,
-                &[TablePublication::Replace {
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::DataSummaryProcessor.build_arc(
+                    self.filter_and_join_session_contexts_by_email_outbox_processor_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
                     table_name: AvailableInterfaceSubjects::AssistantJson.to_string(),
-                }],
-                &[
+                }])
+                .with_subscriptions(&[
                     TableSubscription::AlwaysLastRecordBatch {
                         table_name: self
                             .filter_and_join_session_contexts_by_email_outbox_processor_name
@@ -268,12 +287,15 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                         table_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid
                             .to_string(),
                     },
-                ],
-                AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
-            ),
-            AvailableProcessors::ProcessorEcho.build_arc(
-                self.session_context_name,
-                &[
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorEcho.build_arc(self.session_context_name))
+                .with_publications(&[
                     TablePublication::Extend {
                         table_name: AvailableSubjects::BuilderMermaid.to_string(),
                     },
@@ -289,12 +311,15 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                     TablePublication::Replace {
                         table_name: AvailableInterfaceSubjects::AssistantJson.to_string(),
                     },
-                ],
-                &[TableSubscription::OnUpdateFullTable {
+                ])
+                .with_subscriptions(&[TableSubscription::OnUpdateFullTable {
                     table_name: AvailableInterfaceSubjects::AssistantJson.to_string(),
-                }],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ),
+                }])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
         ];
 
         Some(processors)

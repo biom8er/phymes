@@ -1,16 +1,12 @@
-use std::sync::Arc;
-
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
-    ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait,
-    TablePublication, TableSubscription,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan
 };
 use phymes_data::{AvailableCandleOperators, DataConfig};
 #[cfg(feature = "api")]
 use phymes_ml::AvailableOpenAIAssets;
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 
-use crate::{AvailableInterfaceSubjects, AvailableProcessors, CustomAgentsBuilderTrait, TaskPlan};
+use crate::{AvailableInterfaceSubjects, AvailableProcessors, CustomAgentsBuilderTrait};
 
 pub struct ChatAgentSession<'a> {
     /// Chat tasks
@@ -81,83 +77,113 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         Some(tasks)
     }
 
-    fn make_processors(&self) -> Option<Vec<Arc<dyn ProcessorTrait>>> {
+    fn make_processors(&self) -> Option<Vec<ProcessorPlan>> {
         // The order is the order in which the processors are called in the task
         let mut processors = Vec::new();
 
-        processors.push(AvailableProcessors::MessageAggregatorProcessor.build_arc(
-            self.message_aggregator_processor_1_name,
-            &[TablePublication::Replace {
-                table_name: self.chat_task_name.to_string(),
-            }],
-            &[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
-                },
-                TableSubscription::AlwaysFullTable {
-                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                },
-                TableSubscription::AlwaysLastRecordBatch {
-                    table_name: self.message_aggregator_processor_1_name.to_string(),
-                },
-            ],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        ));
-        processors.push(AvailableProcessors::MessageAggregatorProcessor.build_arc(
-            self.message_aggregator_processor_2_name,
-            &[TablePublication::Extend {
-                table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
-            }],
-            &[
-                TableSubscription::OnUpdateLastRecordBatch {
-                    table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
-                },
-                TableSubscription::OnUpdateLastRecordBatch {
-                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                },
-                TableSubscription::AlwaysLastRecordBatch {
-                    table_name: self.message_aggregator_processor_2_name.to_string(),
-                },
-            ],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        ));
+        processors.push(
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::MessageAggregatorProcessor.build_arc(
+                    self.message_aggregator_processor_1_name,
+                ))
+                .with_publications(&[TablePublication::Replace {
+                    table_name: self.chat_task_name.to_string(),
+                }])
+                .with_subscriptions(&[
+                    TableSubscription::OnUpdateFullTable {
+                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                    },
+                    TableSubscription::AlwaysFullTable {
+                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    },
+                    TableSubscription::AlwaysLastRecordBatch {
+                        table_name: self.message_aggregator_processor_1_name.to_string(),
+                    },
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+        );
+
+        processors.push(
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::MessageAggregatorProcessor.build_arc(
+                    self.message_aggregator_processor_2_name,
+                ))
+                .with_publications(&[TablePublication::Extend {
+                    table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
+                }])
+                .with_subscriptions(&[
+                    TableSubscription::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                    },
+                    TableSubscription::OnUpdateLastRecordBatch {
+                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    },
+                    TableSubscription::AlwaysLastRecordBatch {
+                        table_name: self.message_aggregator_processor_2_name.to_string(),
+                    },
+                ])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()
+                .unwrap(),
+        );
+
         if cfg!(not(feature = "candle")) {
             #[cfg(feature = "api")]
-            processors.push(AvailableProcessors::OpenAIChatProcessor.build_arc(
-                self.chat_processor_name,
-                &[TablePublication::ExtendChunks {
-                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                    col_name: "content".to_string(),
-                }],
-                &[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.chat_task_name.to_string(),
-                    },
-                    TableSubscription::None,
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.chat_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ));
+            processors.push(
+                ProcessorPlanBuilder::default()
+                    .with_processor(AvailableProcessors::OpenAIChatProcessor.build_arc(
+                        self.chat_processor_name,
+                    ))
+                    .with_publications(&[TablePublication::ExtendChunks {
+                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                        col_name: "content".to_string(),
+                    }])
+                    .with_subscriptions(&[
+                        TableSubscription::OnUpdateFullTable {
+                            table_name: self.chat_task_name.to_string(),
+                        },
+                        TableSubscription::None,
+                        TableSubscription::AlwaysFullTable {
+                            table_name: self.chat_processor_name.to_string(),
+                        },
+                    ])
+                    .with_subscribe_policy(
+                        AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    )
+                    .build()
+                    .unwrap(),
+            );
         } else {
-            processors.push(AvailableProcessors::CandleChatProcessor.build_arc(
-                self.chat_processor_name,
-                &[TablePublication::ExtendChunks {
-                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
-                    col_name: "content".to_string(),
-                }],
-                &[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.chat_task_name.to_string(),
-                    },
-                    TableSubscription::None,
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.chat_processor_name.to_string(),
-                    },
-                ],
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            ));
+            processors.push(
+                ProcessorPlanBuilder::default()
+                    .with_processor(AvailableProcessors::CandleChatProcessor.build_arc(
+                        self.chat_processor_name,
+                    ))
+                    .with_publications(&[TablePublication::ExtendChunks {
+                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                        col_name: "content".to_string(),
+                    }])
+                    .with_subscriptions(&[
+                        TableSubscription::OnUpdateFullTable {
+                            table_name: self.chat_task_name.to_string(),
+                        },
+                        TableSubscription::None,
+                        TableSubscription::AlwaysFullTable {
+                            table_name: self.chat_processor_name.to_string(),
+                        },
+                    ])
+                    .with_subscribe_policy(
+                        AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    )
+                    .build()
+                    .unwrap(),
+            );
         }
 
         Some(processors)
@@ -274,6 +300,8 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
