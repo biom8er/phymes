@@ -4,8 +4,7 @@ use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
 use phymes_core::{
-    DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Table,
-    TablePublication, TableSubscribePolicyTrait, TableSubscription, test_processor::ProcessorMock,
+    DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Table, test_processor::ProcessorMock,
 };
 use phymes_data::{
     AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,

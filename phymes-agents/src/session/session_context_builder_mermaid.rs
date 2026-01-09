@@ -202,7 +202,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         ));
                         let subscriptions = processor
                             .get_subscriptions()
-                            .into_iter()
+                            .iter()
                             .filter(|p| {
                                 !processor_names.contains(p.get_table_name())
                                     || task_names.contains(&p.get_table_name())

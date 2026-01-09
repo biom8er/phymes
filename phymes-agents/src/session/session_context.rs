@@ -86,14 +86,9 @@ impl SessionContext {
                     .to_string()
                     .as_str(),
             )
-            .expect(
-                format!(
-                    "Missing table for `{}` in session `{}` state.",
-                    AvailableSubjects::SessionTasksSubscribePublish.to_string(),
-                    self.get_name()
-                )
-                .as_str(),
-            )
+            .unwrap_or_else(|| panic!("Missing table for `{}` in session `{}` state.",
+                    AvailableSubjects::SessionTasksSubscribePublish,
+                    self.get_name()))
             .read();
         let task_names = table_reading.get_column_as_vec_nonprimitive::<String>("task_name")?;
         let processor_names =
@@ -114,13 +109,13 @@ impl SessionContext {
         // Map to objects
         let combined = task_names
             .into_iter()
-            .zip(subscription_names.into_iter())
-            .zip(subscription_table_names.into_iter())
-            .zip(publication_names.into_iter())
-            .zip(publication_table_names.into_iter())
-            .zip(processor_names.into_iter())
-            .zip(processor_types.into_iter())
-            .zip(session_names.into_iter())
+            .zip(subscription_names)
+            .zip(subscription_table_names)
+            .zip(publication_names)
+            .zip(publication_table_names)
+            .zip(processor_names)
+            .zip(processor_types)
+            .zip(session_names)
             .map(
                 |(
                     (

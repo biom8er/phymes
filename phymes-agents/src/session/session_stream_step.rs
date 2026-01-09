@@ -225,13 +225,8 @@ impl SessionStreamStep {
                 .get_session_context()
                 .get_tasks()
                 .get(task_name)
-                .expect(
-                    format!(
-                        "Missing task `{task_name}` in session `{}` state.",
-                        state.read().get_session_context().get_name()
-                    )
-                    .as_str(),
-                )
+                .unwrap_or_else(|| panic!("Missing task `{task_name}` in session `{}` state.",
+                        state.read().get_session_context().get_name()))
                 .clone();
 
             // Create the diagnostics for the task
