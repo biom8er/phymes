@@ -1,5 +1,7 @@
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
+    ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder,
+    TableBuilderTrait, TablePublication, TableSubscription, TaskPlan,
 };
 use phymes_data::{AvailableCandleOperators, DataConfig};
 #[cfg(feature = "api")]
@@ -83,9 +85,10 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
 
         processors.push(
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::MessageAggregatorProcessor.build_arc(
-                    self.message_aggregator_processor_1_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::MessageAggregatorProcessor
+                        .build_arc(self.message_aggregator_processor_1_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.chat_task_name.to_string(),
                 }])
@@ -109,9 +112,10 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
 
         processors.push(
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::MessageAggregatorProcessor.build_arc(
-                    self.message_aggregator_processor_2_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::MessageAggregatorProcessor
+                        .build_arc(self.message_aggregator_processor_2_name),
+                )
                 .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
                 }])
@@ -137,9 +141,10 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             #[cfg(feature = "api")]
             processors.push(
                 ProcessorPlanBuilder::default()
-                    .with_processor(AvailableProcessors::OpenAIChatProcessor.build_arc(
-                        self.chat_processor_name,
-                    ))
+                    .with_processor(
+                        AvailableProcessors::OpenAIChatProcessor
+                            .build_arc(self.chat_processor_name),
+                    )
                     .with_publications(&[TablePublication::ExtendChunks {
                         table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                         col_name: "content".to_string(),
@@ -162,9 +167,10 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         } else {
             processors.push(
                 ProcessorPlanBuilder::default()
-                    .with_processor(AvailableProcessors::CandleChatProcessor.build_arc(
-                        self.chat_processor_name,
-                    ))
+                    .with_processor(
+                        AvailableProcessors::CandleChatProcessor
+                            .build_arc(self.chat_processor_name),
+                    )
                     .with_publications(&[TablePublication::ExtendChunks {
                         table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                         col_name: "content".to_string(),

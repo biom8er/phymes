@@ -3,7 +3,8 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use parking_lot::RwLock;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, RuntimeEnv, StateMap, Table, TablePublication, TableSubscription, Task, TaskBuilderTrait, TaskMap, TaskPlan
+    BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, RuntimeEnv, StateMap, Table,
+    TablePublication, TableSubscription, Task, TaskBuilderTrait, TaskMap, TaskPlan,
 };
 use phymes_diagnostics::{HashMap, HashSet};
 
@@ -186,10 +187,12 @@ impl SessionContextBuilder {
                     .as_ref()
                     .unwrap()
                     .iter()
-                    .filter_map(|p| if processor_names.contains(&p.get_name().to_string()) {
-                        Some(p.get_processor().clone())
-                    } else {
-                        None
+                    .filter_map(|p| {
+                        if processor_names.contains(&p.get_name().to_string()) {
+                            Some(p.get_processor().clone())
+                        } else {
+                            None
+                        }
                     })
                     .collect::<Vec<_>>();
                 let task = Task::get_builder()
@@ -383,7 +386,8 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 /// Mock objects and functions for session context builer testing
 pub mod test_session_context_builder {
     use phymes_core::{
-        AvailableTableSubscribePolicies, ProcessorPlanBuilder, test_task::{make_runtime_env, make_state_tables, make_state_tables_empty}
+        AvailableTableSubscribePolicies, ProcessorPlanBuilder,
+        test_task::{make_runtime_env, make_state_tables, make_state_tables_empty},
     };
 
     use crate::AvailableProcessors;
@@ -431,7 +435,9 @@ pub mod test_session_context_builder {
                         table_name: "config_1".to_string(),
                     },
                 ])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -447,7 +453,9 @@ pub mod test_session_context_builder {
                         table_name: "config_2".to_string(),
                     },
                 ])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -463,7 +471,9 @@ pub mod test_session_context_builder {
                         table_name: "config_3".to_string(),
                     },
                 ])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -490,7 +500,9 @@ pub mod test_session_context_builder {
                         table_name: "state_3".to_string(),
                     },
                 ])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
                 .build()
                 .unwrap(),
         ];
@@ -517,7 +529,9 @@ pub mod test_session_context_builder {
                         table_name: "config_1".to_string(),
                     },
                 ])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -533,7 +547,9 @@ pub mod test_session_context_builder {
                         table_name: "config_1".to_string(),
                     },
                 ])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -549,22 +565,22 @@ pub mod test_session_context_builder {
                         table_name: "config_1".to_string(),
                     },
                 ])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("session_1"))
-                .with_publications(&[
-                    TablePublication::Extend {
-                        table_name: "state_1".to_string(),
-                    },
-                ])
-                .with_subscriptions(&[
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: "state_1".to_string(),
-                    },
-                ])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .with_publications(&[TablePublication::Extend {
+                    table_name: "state_1".to_string(),
+                }])
+                .with_subscriptions(&[TableSubscription::OnUpdateLastRecordBatch {
+                    table_name: "state_1".to_string(),
+                }])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
                 .build()
                 .unwrap(),
         ];
@@ -643,7 +659,8 @@ mod tests {
 
     use super::*;
     use phymes_core::{
-        AvailableTableSubscribePolicies, ProcessorPlanBuilder, TableSubscription, test_task::{make_runtime_env, make_state_tables}
+        AvailableTableSubscribePolicies, ProcessorPlanBuilder, TableSubscription,
+        test_task::{make_runtime_env, make_state_tables},
     };
 
     #[test]

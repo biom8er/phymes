@@ -38,31 +38,32 @@ pub fn subscribe_to_subject(
             let _ = map.insert(message.get_name().to_string(), message);
         // 2. Check for subscriptions in the subjects
         } else if let Some(table) = subjects.get(subscription.get_table_name())
-            && let Some(stream) = table.read().subscribe_to_table(subscription) {
-                // a. check for a matching subject in the publications
-                let update = publications
-                    .iter()
-                    .filter(|p| p.get_table_name() == subscription.get_table_name())
-                    .collect::<Vec<_>>();
-                let update = if let Some(u) = update.first() {
-                    u
-                // // b. use the first publication provided
-                // // DM: fails message check for consistency between subject and publish subject
-                // } else if let Some(u) = publications.first() {
-                //     u
-                // c. default to None
-                } else {
-                    &TablePublication::None
-                };
-                let message = SendableRecordBatchStreamMessage::get_builder()
-                    .with_publisher("State")
-                    .with_subject(subscription.get_table_name())
-                    .with_update(update)
-                    .with_message(stream)
-                    .make_random_name()?
-                    .build()?;
-                let _ = map.insert(message.get_name().to_string(), message);
-            }
+            && let Some(stream) = table.read().subscribe_to_table(subscription)
+        {
+            // a. check for a matching subject in the publications
+            let update = publications
+                .iter()
+                .filter(|p| p.get_table_name() == subscription.get_table_name())
+                .collect::<Vec<_>>();
+            let update = if let Some(u) = update.first() {
+                u
+            // // b. use the first publication provided
+            // // DM: fails message check for consistency between subject and publish subject
+            // } else if let Some(u) = publications.first() {
+            //     u
+            // c. default to None
+            } else {
+                &TablePublication::None
+            };
+            let message = SendableRecordBatchStreamMessage::get_builder()
+                .with_publisher("State")
+                .with_subject(subscription.get_table_name())
+                .with_update(update)
+                .with_message(stream)
+                .make_random_name()?
+                .build()?;
+            let _ = map.insert(message.get_name().to_string(), message);
+        }
     }
     Ok(map)
 }

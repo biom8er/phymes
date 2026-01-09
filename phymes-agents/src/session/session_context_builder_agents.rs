@@ -5,7 +5,10 @@ use arrow::{array::RecordBatch, datatypes::Schema};
 use clap::ValueEnum;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, StateMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap, TaskPlan
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
+    BuilderTrait, MappableTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait,
+    StateMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap,
+    TaskPlan,
 };
 use phymes_data::{
     AvailableCandleOperators, DataConfig, DataConfigTrait, DataSummaryConfig, device,
@@ -636,7 +639,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         .iter()
                         .map(|s| s.get_table_name())
                         .collect::<Vec<_>>()
-                        .contains(&p.get_name()) {
+                        .contains(&p.get_name())
+                {
                     Some(p.get_processor().clone())
                 } else {
                     None
@@ -738,8 +742,10 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         let mut processors = Vec::new();
         for processor in self.processors.take().unwrap().into_iter() {
             if let Some(to_update) = processors_to_update.remove(processor.get_name()) {
-                let subscriptions = processor.get_subscriptions()
-                    .iter().chain([&TableSubscription::AlwaysFullTable {
+                let subscriptions = processor
+                    .get_subscriptions()
+                    .iter()
+                    .chain([&TableSubscription::AlwaysFullTable {
                         table_name: to_update.get_name().to_string(),
                     }])
                     .cloned()
@@ -942,7 +948,7 @@ pub mod test_session_context_builder_agents {
         let processor_plans = vec![
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_1"))
-                .with_publications( &[TablePublication::Extend {
+                .with_publications(&[TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 }])
                 .with_subscriptions(&[
@@ -953,7 +959,9 @@ pub mod test_session_context_builder_agents {
                         table_name: "processor_1".to_string(),
                     },
                 ])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
                 .build()?,
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_2"))
@@ -968,7 +976,9 @@ pub mod test_session_context_builder_agents {
                         table_name: "processor_2".to_string(),
                     },
                 ])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
                 .build()?,
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_3"))
@@ -983,7 +993,9 @@ pub mod test_session_context_builder_agents {
                         table_name: "processor_3".to_string(),
                     },
                 ])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
                 .build()?,
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::Join.build_arc("session_1"))
@@ -1001,7 +1013,9 @@ pub mod test_session_context_builder_agents {
                         table_name: "session_1".to_string(),
                     },
                 ])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::AllTableNamesSubscribe.build())
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
                 .build()?,
         ];
         Ok(processor_plans)

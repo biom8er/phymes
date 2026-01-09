@@ -1,5 +1,8 @@
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_schema_from_fields
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
+    BuilderTrait, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait,
+    Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan,
+    create_schema_from_fields,
 };
 use phymes_data::{
     AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
@@ -201,9 +204,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::MessageAggregatorProcessor.build_arc(
-                    self.message_aggregator_processor_1_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::MessageAggregatorProcessor
+                        .build_arc(self.message_aggregator_processor_1_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.chat_task_name.to_string(),
                 }])
@@ -227,9 +231,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::MessageAggregatorProcessor.build_arc(
-                    self.message_aggregator_processor_2_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::MessageAggregatorProcessor
+                        .build_arc(self.message_aggregator_processor_2_name),
+                )
                 .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
                 }])
@@ -250,9 +255,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::AttachmentAggregatorProcessor.build_arc(
-                    self.attachment_aggregator_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::AttachmentAggregatorProcessor
+                        .build_arc(self.attachment_aggregator_processor_name),
+                )
                 .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
                 }])
@@ -270,9 +276,9 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::Select.build_arc(
-                    self.message_to_query_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::Select.build_arc(self.message_to_query_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
                 }])
@@ -291,9 +297,9 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .unwrap(),
             #[cfg(feature = "api")]
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::OpenAIChatProcessor.build_arc(
-                    self.chat_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::OpenAIChatProcessor.build_arc(self.chat_processor_name),
+                )
                 .with_publications(&[TablePublication::ExtendChunks {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     col_name: "content".to_string(),
@@ -314,9 +320,9 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .unwrap(),
             #[cfg(feature = "candle")]
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::CandleChatProcessor.build_arc(
-                    self.chat_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::CandleChatProcessor.build_arc(self.chat_processor_name),
+                )
                 .with_publications(&[TablePublication::ExtendChunks {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     col_name: "content".to_string(),
@@ -336,9 +342,9 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::ExtractPDF.build_arc(
-                    self.extract_pdf_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::ExtractPDF.build_arc(self.extract_pdf_processor_name),
+                )
                 .with_publications(&[TablePublication::Extend {
                     table_name: self.document_chunk_task_name.to_string(),
                 }])
@@ -356,9 +362,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::ChunkDocuments.build_arc(
-                    self.document_chunk_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::ChunkDocuments
+                        .build_arc(self.document_chunk_processor_name),
+                )
                 .with_publications(&[TablePublication::Extend {
                     table_name: self.state_documents_table_name.to_string(),
                 }])
@@ -377,9 +384,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .unwrap(),
             #[cfg(feature = "api")]
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::OpenAIEmbedProcessor.build_arc(
-                    self.embed_documents_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::OpenAIEmbedProcessor
+                        .build_arc(self.embed_documents_processor_name),
+                )
                 .with_publications(&[TablePublication::Extend {
                     table_name: self.state_doc_embed_table_name.to_string(),
                 }])
@@ -398,9 +406,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .unwrap(),
             #[cfg(feature = "api")]
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::OpenAIEmbedProcessor.build_arc(
-                    self.embed_query_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::OpenAIEmbedProcessor
+                        .build_arc(self.embed_query_processor_name),
+                )
                 .with_publications(&[TablePublication::Extend {
                     table_name: self.state_q_embed_table_name.to_string(),
                 }])
@@ -419,9 +428,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .unwrap(),
             #[cfg(feature = "candle")]
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::CandleEmbedProcessor.build_arc(
-                    self.embed_documents_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::CandleEmbedProcessor
+                        .build_arc(self.embed_documents_processor_name),
+                )
                 .with_publications(&[TablePublication::Extend {
                     table_name: self.state_doc_embed_table_name.to_string(),
                 }])
@@ -440,9 +450,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .unwrap(),
             #[cfg(feature = "candle")]
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::CandleEmbedProcessor.build_arc(
-                    self.embed_query_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::CandleEmbedProcessor
+                        .build_arc(self.embed_query_processor_name),
+                )
                 .with_publications(&[TablePublication::Extend {
                     table_name: self.state_q_embed_table_name.to_string(),
                 }])
@@ -460,9 +471,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::VectorDistance.build_arc(
-                    self.relative_similarity_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::VectorDistance
+                        .build_arc(self.relative_similarity_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.state_scores_table_name.to_string(),
                 }])
@@ -483,9 +495,9 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::Sort.build_arc(
-                    self.sort_scores_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::Sort.build_arc(self.sort_scores_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.state_scores_table_name.to_string(),
                 }])
@@ -503,9 +515,9 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::Join.build_arc(
-                    self.join_chunks_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::Join.build_arc(self.join_chunks_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.state_scores_chunks_join_table_name.to_string(),
                 }])
@@ -526,9 +538,9 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::Select.build_arc(
-                    self.top_k_select_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::Select.build_arc(self.top_k_select_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.state_top_k_select_docs_table_name.to_string(),
                 }])
@@ -546,9 +558,9 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::LimitProcessor.build_arc(
-                    self.top_k_limit_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::LimitProcessor.build_arc(self.top_k_limit_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.state_top_k_limit_docs_table_name.to_string(),
                 }])
@@ -566,9 +578,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::DataSummaryProcessor.build_arc(
-                    self.top_k_summary_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::DataSummaryProcessor
+                        .build_arc(self.top_k_summary_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.state_top_k_summary_docs_table_name.to_string(),
                 }])

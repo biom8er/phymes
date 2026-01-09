@@ -21,7 +21,12 @@ impl TaskPlanBuilder {
         self
     }
     pub fn with_processor_names(mut self, processor_names: &[&str]) -> Self {
-        self.processor_names = Some(processor_names.into_iter().map(|s| s.to_string()).collect::<Vec<_>>());
+        self.processor_names = Some(
+            processor_names
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
+        );
         self
     }
     pub fn build(mut self) -> Result<TaskPlan> {

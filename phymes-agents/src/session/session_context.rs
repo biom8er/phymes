@@ -2,7 +2,10 @@ use anyhow::Result;
 use arrow::datatypes::SchemaRef;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, RuntimeEnv, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableSubscription, TableTrait, TaskMap, create_subjects_num_rows_batch, from_diagnostics_to_tables
+    AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, ProcessorSubjects,
+    ProcessorSubjectsBuilder, ProcessorSubjectsMap, RuntimeEnv, StateMap, Table, TableBuilder,
+    TableBuilderTrait, TablePublication, TablePublicationTrait, TableSubscription, TableTrait,
+    TaskMap, create_subjects_num_rows_batch, from_diagnostics_to_tables,
 };
 use phymes_diagnostics::{Diagnostics, HashMap};
 use std::sync::Arc;
@@ -103,8 +106,8 @@ impl SessionContext {
             .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
         let publication_names =
             table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
-        let publication_table_names =
-            table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
+        let publication_table_names = table_reading
+            .get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
         let session_names =
             table_reading.get_column_as_vec_nonprimitive::<String>("session_names")?;
 
@@ -150,8 +153,11 @@ impl SessionContext {
                         .iter()
                         .zip(publication_table_names.iter())
                         .map(|(publication_name, publication_table_name)| {
-                            TablePublication::from_str_fuzzy(publication_name, publication_table_name)
-                                .unwrap()
+                            TablePublication::from_str_fuzzy(
+                                publication_name,
+                                publication_table_name,
+                            )
+                            .unwrap()
                         })
                         .collect::<Vec<_>>();
                     let processor_subjects = ProcessorSubjectsBuilder::default()

@@ -3,7 +3,11 @@ use arrow::record_batch::RecordBatch;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait, TaskTrait, create_error_message_map, create_error_message_map_stream, create_session_tasks_run_log_batch
+    AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessage, IPCMessageBuilder,
+    IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, TableBuilder,
+    TableBuilderTrait, TableTrait, TaskTrait, create_error_message_map,
+    create_error_message_map_stream, create_session_tasks_run_log_batch,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap,
@@ -241,7 +245,11 @@ impl SessionStreamStep {
             };
 
             // Run the task and collect the stream responses
-            match task.run(diagnostic_builder.as_ref(), processor_subjects_map, state.read().get_session_context().get_states()) {
+            match task.run(
+                diagnostic_builder.as_ref(),
+                processor_subjects_map,
+                state.read().get_session_context().get_states(),
+            ) {
                 Ok(result) => {
                     for (resp_name, resp) in result.into_iter() {
                         if task_name == state.read().get_session_context().get_name() {
@@ -386,7 +394,10 @@ mod tests {
         },
     };
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, ProcessorBuilder, ProcessorPlanBuilder, TablePublication, TableSubscription, TaskPlan, test_processor::{ProcessorError, ProcessorMock}, test_task::{make_runtime_env, make_state_tables, make_test_input_message}
+        AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies,
+        ProcessorBuilder, ProcessorPlanBuilder, TablePublication, TableSubscription, TaskPlan,
+        test_processor::{ProcessorError, ProcessorMock},
+        test_task::{make_runtime_env, make_state_tables, make_test_input_message},
     };
 
     #[tokio::test]

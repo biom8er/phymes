@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use crate::{MappableTrait, ProcessorTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription};
+use crate::{
+    MappableTrait, ProcessorTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription,
+};
 
 /// The plan for the processors
 #[derive(Debug)]
@@ -16,8 +18,18 @@ pub struct ProcessorPlan {
 }
 
 impl ProcessorPlan {
-    pub fn new(processor: Arc<dyn ProcessorTrait>, publications: &[TablePublication], subscriptions: &[TableSubscription], subscribe_policy: Box<dyn TableSubscribePolicyTrait>) -> Self {
-        ProcessorPlan { processor, publications: publications.to_vec(), subscriptions: subscriptions.to_vec(), subscribe_policy }
+    pub fn new(
+        processor: Arc<dyn ProcessorTrait>,
+        publications: &[TablePublication],
+        subscriptions: &[TableSubscription],
+        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
+    ) -> Self {
+        ProcessorPlan {
+            processor,
+            publications: publications.to_vec(),
+            subscriptions: subscriptions.to_vec(),
+            subscribe_policy,
+        }
     }
     pub fn get_processor(&self) -> &Arc<dyn ProcessorTrait> {
         &self.processor

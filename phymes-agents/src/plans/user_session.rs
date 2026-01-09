@@ -2,7 +2,10 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_user_batch, create_user_session_contexts_batch
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
+    DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table,
+    TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan,
+    create_user_batch, create_user_session_contexts_batch,
 };
 use phymes_data::{AvailableCandleOperators, DataConfig, DataSummaryConfig};
 use phymes_diagnostics::create_timestamp_micros;
@@ -173,9 +176,11 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::ExtractTabular.build_arc(
-                    self.filter_and_join_session_contexts_by_email_inbox_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::ExtractTabular.build_arc(
+                        self.filter_and_join_session_contexts_by_email_inbox_processor_name,
+                    ),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: AvailableSubjects::UserInbox.to_string(),
                 }])
@@ -195,9 +200,10 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::Join.build_arc(
-                    self.filter_session_contexts_by_email_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::Join
+                        .build_arc(self.filter_session_contexts_by_email_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string(),
                 }])
@@ -220,9 +226,10 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::Join.build_arc(
-                    self.join_session_contexts_with_mermaid_diagrams_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::Join
+                        .build_arc(self.join_session_contexts_with_mermaid_diagrams_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string(),
                 }])
@@ -245,9 +252,10 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::Join.build_arc(
-                    self.filter_user_info_by_email_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::Join
+                        .build_arc(self.filter_user_info_by_email_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.filter_user_info_by_email_table_name.to_string(),
                 }])
@@ -294,7 +302,9 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::ProcessorEcho.build_arc(self.session_context_name))
+                .with_processor(
+                    AvailableProcessors::ProcessorEcho.build_arc(self.session_context_name),
+                )
                 .with_publications(&[
                     TablePublication::Extend {
                         table_name: AvailableSubjects::BuilderMermaid.to_string(),

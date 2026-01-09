@@ -625,14 +625,8 @@ impl AvailableProcessors {
     /// Build the [ProcessorTrait] object
     pub fn build_arc(self, name: &str) -> Arc<dyn ProcessorTrait> {
         match self {
-            Self::ProcessorMock => Arc::new(ProcessorMock::new(
-                name,
-                self.to_string().as_str(),
-            )),
-            Self::ProcessorEcho => Arc::new(ProcessorEcho::new(
-                name,
-                self.to_string().as_str(),
-            )),
+            Self::ProcessorMock => Arc::new(ProcessorMock::new(name, self.to_string().as_str())),
+            Self::ProcessorEcho => Arc::new(ProcessorEcho::new(name, self.to_string().as_str())),
             Self::CandleDataProcessor
             | Self::ChunkDocuments
             | Self::ExtractPDF
@@ -648,52 +642,41 @@ impl AvailableProcessors {
             | Self::Select
             | Self::Sort
             | Self::VectorDistance
-            | Self::ApplyTemplate => Arc::new(CandleDataProcessor::new(
-                name,
-                self.to_string().as_str(),
-            )),
-            Self::DataSummaryProcessor => Arc::new(DataSummaryProcessor::new(
-                name,
-                self.to_string().as_str(),
-            )),
-            Self::CoalesceProcessor => Arc::new(CoalesceProcessor::new(
-                name,
-                self.to_string().as_str(),
-            )),
-            Self::LimitProcessor => Arc::new(LimitProcessor::new(
-                name,
-                self.to_string().as_str(),
-            )),
+            | Self::ApplyTemplate => {
+                Arc::new(CandleDataProcessor::new(name, self.to_string().as_str()))
+            }
+            Self::DataSummaryProcessor => {
+                Arc::new(DataSummaryProcessor::new(name, self.to_string().as_str()))
+            }
+            Self::CoalesceProcessor => {
+                Arc::new(CoalesceProcessor::new(name, self.to_string().as_str()))
+            }
+            Self::LimitProcessor => Arc::new(LimitProcessor::new(name, self.to_string().as_str())),
             Self::AttachmentAggregatorProcessor => Arc::new(AttachmentAggregatorProcessor::new(
                 name,
                 self.to_string().as_str(),
             )),
-            Self::CandleChatProcessor => Arc::new(CandleChatProcessor::new(
-                name,
-                self.to_string().as_str(),
-            )),
+            Self::CandleChatProcessor => {
+                Arc::new(CandleChatProcessor::new(name, self.to_string().as_str()))
+            }
             Self::MessageAggregatorProcessor => Arc::new(MessageAggregatorProcessor::new(
                 name,
                 self.to_string().as_str(),
             )),
-            Self::MessageParserProcessor => Arc::new(MessageParserProcessor::new(
-                name,
-                self.to_string().as_str(),
-            )),
-            Self::CandleEmbedProcessor => Arc::new(CandleEmbedProcessor::new(
-                name,
-                self.to_string().as_str(),
-            )),
+            Self::MessageParserProcessor => {
+                Arc::new(MessageParserProcessor::new(name, self.to_string().as_str()))
+            }
+            Self::CandleEmbedProcessor => {
+                Arc::new(CandleEmbedProcessor::new(name, self.to_string().as_str()))
+            }
             #[cfg(feature = "api")]
-            Self::OpenAIChatProcessor => Arc::new(OpenAIChatProcessor::new(
-                name,
-                self.to_string().as_str(),
-            )),
+            Self::OpenAIChatProcessor => {
+                Arc::new(OpenAIChatProcessor::new(name, self.to_string().as_str()))
+            }
             #[cfg(feature = "api")]
-            Self::OpenAIEmbedProcessor => Arc::new(OpenAIEmbedProcessor::new(
-                name,
-                self.to_string().as_str(),
-            )),
+            Self::OpenAIEmbedProcessor => {
+                Arc::new(OpenAIEmbedProcessor::new(name, self.to_string().as_str()))
+            }
         }
     }
 

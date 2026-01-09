@@ -4,7 +4,9 @@ use crate::{
 };
 use anyhow::Result;
 use phymes_core::{
-    AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_session_mermaid_batch
+    AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait,
+    ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait,
+    TablePublication, TableSubscription, TaskPlan, create_session_mermaid_batch,
 };
 use phymes_diagnostics::create_timestamp_micros;
 
@@ -88,9 +90,9 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::ProcessorEcho.build_arc(
-                    self.session_context_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::ProcessorEcho.build_arc(self.session_context_name),
+                )
                 .with_publications(&[TablePublication::Extend {
                     table_name: AvailableSubjects::BuilderMermaid.to_string(),
                 }])

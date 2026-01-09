@@ -113,17 +113,12 @@ impl SessionStreamState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_session_context_builder::{
-        make_test_session_context_parallel_task, make_test_session_context_sequential_task,
-    };
-    use parking_lot::RwLock;
+    use crate::test_session_context_builder::make_test_session_context_parallel_task;
     use phymes_core::{
         IPCMessage, TablePublication, test_table::make_test_table,
         test_task::make_test_input_message,
     };
     use phymes_diagnostics::HashMap;
-    #[cfg(not(target_family = "wasm"))]
-    use tempfile::tempfile;
 
     #[test]
     fn test_session_update_state() -> Result<()> {

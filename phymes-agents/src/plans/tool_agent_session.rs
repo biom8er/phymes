@@ -2,7 +2,10 @@ use anyhow::Result;
 use serde_json::json;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_schema_from_fields, create_tools_record_batch
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
+    BuilderTrait, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait,
+    Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan,
+    create_schema_from_fields, create_tools_record_batch,
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
@@ -200,14 +203,15 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             },
         ])
     }
-    
+
     fn make_processors(&self) -> Option<Vec<ProcessorPlan>> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::MessageAggregatorProcessor.build_arc(
-                    self.message_aggregator_processor_1_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::MessageAggregatorProcessor
+                        .build_arc(self.message_aggregator_processor_1_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.chat_task_name.to_string(),
                 }])
@@ -234,9 +238,10 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::MessageAggregatorProcessor.build_arc(
-                    self.message_aggregator_processor_2_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::MessageAggregatorProcessor
+                        .build_arc(self.message_aggregator_processor_2_name),
+                )
                 .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
                 }])
@@ -257,9 +262,10 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::AttachmentAggregatorProcessor.build_arc(
-                    self.attachment_aggregator_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::AttachmentAggregatorProcessor
+                        .build_arc(self.attachment_aggregator_processor_name),
+                )
                 .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
                 }])
@@ -283,9 +289,9 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::Select.build_arc(
-                    self.tool_vis_renamecols_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::Select.build_arc(self.tool_vis_renamecols_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: AvailableSubjects::MermaidXYChart.to_string(),
                 }])
@@ -303,9 +309,10 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::ApplyTemplate.build_arc(
-                    self.tool_vis_xychart_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::ApplyTemplate
+                        .build_arc(self.tool_vis_xychart_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: AvailableInterfaceSubjects::AssistantScript.to_string(),
                 }])
@@ -324,9 +331,9 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .unwrap(),
             #[cfg(feature = "api")]
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::OpenAIChatProcessor.build_arc(
-                    self.chat_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::OpenAIChatProcessor.build_arc(self.chat_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.message_parser_task_name.to_string(),
                 }])
@@ -348,9 +355,9 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .unwrap(),
             #[cfg(feature = "candle")]
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::CandleChatProcessor.build_arc(
-                    self.chat_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::CandleChatProcessor.build_arc(self.chat_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.message_parser_task_name.to_string(),
                 }])
@@ -371,9 +378,10 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::MessageParserProcessor.build_arc(
-                    self.message_parser_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::MessageParserProcessor
+                        .build_arc(self.message_parser_processor_name),
+                )
                 .with_publications(&[
                     TablePublication::Extend {
                         // The first publication is the default publish target
@@ -401,9 +409,10 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::ExtractTabular.build_arc(
-                    self.extract_tabular_data_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::ExtractTabular
+                        .build_arc(self.extract_tabular_data_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.state_scores_table_name.to_string(),
                 }])
@@ -421,9 +430,9 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::CandleDataProcessor.build_arc(
-                    self.tool_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::CandleDataProcessor.build_arc(self.tool_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.tool_summary_task_name.to_string(),
                 }])
@@ -441,9 +450,9 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::CandleDataProcessor.build_arc(
-                    self.hitl_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::CandleDataProcessor.build_arc(self.hitl_processor_name),
+                )
                 .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 }])
@@ -456,9 +465,10 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::DataSummaryProcessor.build_arc(
-                    self.tool_attachment_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::DataSummaryProcessor
+                        .build_arc(self.tool_attachment_processor_name),
+                )
                 .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
                 }])
@@ -476,9 +486,10 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::DataSummaryProcessor.build_arc(
-                    self.tool_summary_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::DataSummaryProcessor
+                        .build_arc(self.tool_summary_processor_name),
+                )
                 .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
                 }])
@@ -496,9 +507,10 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::DataSummaryProcessor.build_arc(
-                    self.hitl_summary_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::DataSummaryProcessor
+                        .build_arc(self.hitl_summary_processor_name),
+                )
                 .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 }])

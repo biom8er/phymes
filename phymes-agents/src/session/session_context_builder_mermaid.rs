@@ -12,7 +12,10 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication, TableScript, TableSubscription, TableTrait, TaskPlanBuilder, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type
+    AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder,
+    ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication,
+    TableScript, TableSubscription, TableTrait, TaskPlanBuilder, from_data_type_to_str,
+    from_str_to_data_type, parse_str_to_data_type,
 };
 use phymes_data::{MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE};
 use phymes_diagnostics::{HashMap, HashSet};
@@ -440,8 +443,8 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                             .collect::<Vec<_>>();
                         let processor = split_line.first().unwrap().trim().to_string();
                         if !processor_plan_builders.contains_key(&processor) {
-                            let builder = ProcessorPlanBuilder::default()
-                                .with_subscriptions(&[subscription]);
+                            let builder =
+                                ProcessorPlanBuilder::default().with_subscriptions(&[subscription]);
                             processor_plan_builders.insert(processor.to_owned(), builder);
                         } else if processor_plan_builders
                             .get(&processor)
@@ -643,8 +646,8 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                             }
                         };
                         if !processor_plan_builders.contains_key(&processor) {
-                            let builder = ProcessorPlanBuilder::default()
-                                .with_publications(&[publication]);
+                            let builder =
+                                ProcessorPlanBuilder::default().with_publications(&[publication]);
                             processor_plan_builders.insert(processor.to_owned(), builder);
                         } else if processor_plan_builders
                             .get(&processor)
@@ -1015,10 +1018,12 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         }
         for name in processor_names_vec {
             let processor_builder = processor_builders.remove(&name).unwrap();
-            let processor =
-                AvailableProcessors::from_str(processor_builder.r#type.as_ref().unwrap().as_str(), false)
-                    .map_err(|e| anyhow!("{e:?}", ))?
-                    .build_arc(processor_builder.name.as_ref().unwrap().as_str());
+            let processor = AvailableProcessors::from_str(
+                processor_builder.r#type.as_ref().unwrap().as_str(),
+                false,
+            )
+            .map_err(|e| anyhow!("{e:?}",))?
+            .build_arc(processor_builder.name.as_ref().unwrap().as_str());
             let processor_plan_builder = processor_plan_builders.remove(&name).unwrap();
             let processor_plan = processor_plan_builder.with_processor(processor).build()?;
             processors.push(processor_plan);

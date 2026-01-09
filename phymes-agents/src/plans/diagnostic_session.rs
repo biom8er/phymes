@@ -1,6 +1,9 @@
 use arrow::datatypes::DataType;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait, DataFormat, DiagnosticsVisualizations, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
+    DataFormat, DiagnosticsVisualizations, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv,
+    RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription,
+    TaskPlan,
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator,
@@ -365,9 +368,9 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::Pivot.build_arc(
-                    self.metrics_pivot_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::Pivot.build_arc(self.metrics_pivot_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: AvailableSubjects::MetricPivot.to_string(),
                 }])
@@ -385,9 +388,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::NormalizeTime.build_arc(
-                    self.metrics_normalize_time_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::NormalizeTime
+                        .build_arc(self.metrics_normalize_time_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: AvailableSubjects::MetricPivotNormTime.to_string(),
                 }])
@@ -453,9 +457,11 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::Select.build_arc(
-                    self.metrics_output_rows_select_and_cast_to_gantt_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::Select.build_arc(
+                        self.metrics_output_rows_select_and_cast_to_gantt_processor_name,
+                    ),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self
                         .metrics_output_rows_select_and_cast_to_gantt_task_name
@@ -477,9 +483,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::ApplyTemplate.build_arc(
-                    self.metrics_processors_traces_apply_gantt_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::ApplyTemplate
+                        .build_arc(self.metrics_processors_traces_apply_gantt_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string(),
                 }])
@@ -501,9 +508,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::ApplyTemplate.build_arc(
-                    self.metrics_elapsed_compute_apply_gantt_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::ApplyTemplate
+                        .build_arc(self.metrics_elapsed_compute_apply_gantt_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string(),
                 }])
@@ -525,9 +533,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::ApplyTemplate.build_arc(
-                    self.metrics_output_rows_apply_gantt_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::ApplyTemplate
+                        .build_arc(self.metrics_output_rows_apply_gantt_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::MetricOutputRowsGantt.to_string(),
                 }])
@@ -549,9 +558,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::CandleDataProcessor.build_arc(
-                    self.traces_to_sequence_diagram_messages_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::CandleDataProcessor
+                        .build_arc(self.traces_to_sequence_diagram_messages_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self
                         .traces_to_sequence_diagram_messages_task_name
@@ -576,9 +586,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::ApplyTemplate.build_arc(
-                    self.apply_sequence_diagram_messages_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::ApplyTemplate
+                        .build_arc(self.apply_sequence_diagram_messages_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.apply_sequence_diagram_messages_task_name.to_string(),
                 }])
@@ -600,9 +611,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::Select.build_arc(
-                    self.select_sequence_diagram_messages_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::Select
+                        .build_arc(self.select_sequence_diagram_messages_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.select_sequence_diagram_messages_task_name.to_string(),
                 }])
@@ -622,9 +634,11 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::CandleDataProcessor.build_arc(
-                    self.session_tasks_to_sequence_diagram_participants_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::CandleDataProcessor.build_arc(
+                        self.session_tasks_to_sequence_diagram_participants_processor_name,
+                    ),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self
                         .session_tasks_to_sequence_diagram_participants_task_name
@@ -651,9 +665,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::ApplyTemplate.build_arc(
-                    self.apply_sequence_diagram_participants_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::ApplyTemplate
+                        .build_arc(self.apply_sequence_diagram_participants_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self
                         .apply_sequence_diagram_participants_task_name
@@ -677,9 +692,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::Select.build_arc(
-                    self.select_sequence_diagram_participants_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::Select
+                        .build_arc(self.select_sequence_diagram_participants_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self
                         .select_sequence_diagram_participants_task_name
@@ -703,9 +719,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::MessageAggregatorProcessor.build_arc(
-                    self.traces_aggregate_sequence_diagram_content_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::MessageAggregatorProcessor
+                        .build_arc(self.traces_aggregate_sequence_diagram_content_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self
                         .traces_aggregate_sequence_diagram_content_task_name
@@ -732,9 +749,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::ApplyTemplate.build_arc(
-                    self.apply_sequence_diagram_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::ApplyTemplate
+                        .build_arc(self.apply_sequence_diagram_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::TraceSequenceDiagram.to_string(),
                 }])
@@ -754,9 +772,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::Select.build_arc(
-                    self.errors_select_and_cast_to_kanban_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::Select
+                        .build_arc(self.errors_select_and_cast_to_kanban_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.errors_select_and_cast_to_kanban_task_name.to_string(),
                 }])
@@ -776,9 +795,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::ApplyTemplate.build_arc(
-                    self.errors_apply_kanban_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::ApplyTemplate
+                        .build_arc(self.errors_apply_kanban_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::ErrorKanban.to_string(),
                 }])
@@ -796,9 +816,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::Select.build_arc(
-                    self.events_select_and_cast_to_kanban_processor_1_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::Select
+                        .build_arc(self.events_select_and_cast_to_kanban_processor_1_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.events_select_and_cast_tmp.to_string(),
                 }])
@@ -818,9 +839,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::Select.build_arc(
-                    self.events_select_and_cast_to_kanban_processor_2_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::Select
+                        .build_arc(self.events_select_and_cast_to_kanban_processor_2_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
                 }])
@@ -840,9 +862,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::ApplyTemplate.build_arc(
-                    self.events_apply_kanban_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::ApplyTemplate
+                        .build_arc(self.events_apply_kanban_processor_name),
+                )
                 .with_publications(&[TablePublication::Replace {
                     table_name: DiagnosticsVisualizations::EventKanban.to_string(),
                 }])
@@ -860,9 +883,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::AttachmentAggregatorProcessor.build_arc(
-                    self.aggregate_visualizations_processor_name,
-                ))
+                .with_processor(
+                    AvailableProcessors::AttachmentAggregatorProcessor
+                        .build_arc(self.aggregate_visualizations_processor_name),
+                )
                 .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
                 }])

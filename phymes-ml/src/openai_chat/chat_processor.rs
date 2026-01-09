@@ -208,8 +208,13 @@ impl Stream for OpenAIChatStream {
                     .build()?;
 
                 // Collect the tools
-                let tools_table_name =
-                    self.config.as_ref().unwrap().tools.as_ref().map(|tools_table_name| tools_table_name.to_string());
+                let tools_table_name = self
+                    .config
+                    .as_ref()
+                    .unwrap()
+                    .tools
+                    .as_ref()
+                    .map(|tools_table_name| tools_table_name.to_string());
                 let tools = if let Some(tools_table_name) = tools_table_name {
                     if let Some(s) =
                         remove_message_by_subject(&tools_table_name, &mut self.messages)

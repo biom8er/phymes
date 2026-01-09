@@ -7,7 +7,12 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskPlanBuilder, create_session_mermaid_batch, create_session_processors_batch, create_session_runtime_envs_batch, create_session_subjects_batch, create_session_tasks_batch, from_data_type_to_str, from_str_to_data_type
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
+    BuilderTrait, MappableTrait, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table,
+    TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskPlanBuilder,
+    create_session_mermaid_batch, create_session_processors_batch,
+    create_session_runtime_envs_batch, create_session_subjects_batch, create_session_tasks_batch,
+    from_data_type_to_str, from_str_to_data_type,
 };
 use phymes_diagnostics::{HashSet, create_timestamp_micros};
 
@@ -473,8 +478,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // build the task plans
         let mut tasks = Vec::new();
         for task in sort_tasks {
-            let mut builder = TaskPlanBuilder::default()
-                .with_name(task);
+            let mut builder = TaskPlanBuilder::default().with_name(task);
             let mut processor_names = Vec::new();
             for (t, p, r) in combined.iter() {
                 if t == &task {
@@ -482,7 +486,9 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                     builder = builder.with_runtime_env_name(r);
                 }
             }
-            let task_plan = builder.with_processor_names(&processor_names.iter().map(|&&&s| s).collect::<Vec<_>>()).build()?;
+            let task_plan = builder
+                .with_processor_names(&processor_names.iter().map(|&&&s| s).collect::<Vec<_>>())
+                .build()?;
             tasks.push(task_plan);
         }
 
@@ -504,7 +510,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // get unique processors while preserving order
         let mut processors_unique = processor_vec_str.iter().collect::<HashSet<_>>();
-        let sort_processors = processor_vec_str.iter()
+        let sort_processors = processor_vec_str
+            .iter()
             .filter(|p| processors_unique.remove(p))
             .collect::<Vec<_>>();
         let combined = processor_vec_str
@@ -536,16 +543,24 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                     let subscribe = AvailableTableSubscribePolicies::from_str_fuzzy(s_t)?.build();
                     subscribe_policy.replace(subscribe);
                     let p = AvailableProcessors::from_str(t, false)
-                        .map_err(|e| anyhow!("{e:?}", ))?
+                        .map_err(|e| anyhow!("{e:?}",))?
                         .build_arc(processor_name);
                     processor.replace(p);
                 }
             }
             let processor_plan = ProcessorPlanBuilder::default()
-                .with_processor(processor.take().unwrap_or(AvailableProcessors::default().build_arc(processor_name)))
+                .with_processor(
+                    processor
+                        .take()
+                        .unwrap_or(AvailableProcessors::default().build_arc(processor_name)),
+                )
                 .with_subscriptions(&subscriptions)
                 .with_publications(&publications)
-                .with_subscribe_policy(subscribe_policy.take().unwrap_or(AvailableTableSubscribePolicies::default().build()))
+                .with_subscribe_policy(
+                    subscribe_policy
+                        .take()
+                        .unwrap_or(AvailableTableSubscribePolicies::default().build()),
+                )
                 .build()?;
             processors.push(processor_plan);
         }
