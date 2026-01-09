@@ -35,40 +35,6 @@ impl<'a> SubjectsSession<'a> {
         r#"flowchart TD
     default_runtime_env_name-rt@{shape: subproc, label: default_runtime_env_name}
 
-	subgraph extract_tasks_t
-		UserCsv-subject-.->|FullTable|extract_tasks_p-subscribe
-		extract_tasks_p-subscribe-->extract_tasks_p-processor
-		extract_tasks_p-processor-->extract_tasks_p-publish
-		extract_tasks_p-publish-->|Replace|SessionTasksCheck-subject
-	end
-	UserCsv-subject@{shape: doc, label: UserCsv}
-	default_runtime_env_name-rt-->extract_tasks_t
-	extract_tasks_p-subscribe@{shape: diamond, label: All}
-	extract_tasks_p-processor@{shape: rect, label: ExtractTabular}
-	extract_tasks_p-publish@{shape: fork}
-	SessionTasksCheck-subject@{shape: doc, label: SessionTasksCheck}
-
-	subgraph group_by_tasks_run_log_timestamp_t
-		SessionTasksRunLog-subject-.->|LastRecordBatch|group_by_tasks_run_log_timestamp_p-subscribe
-		group_by_tasks_run_log_timestamp_p-subscribe-->group_by_tasks_run_log_timestamp_p-processor
-		group_by_tasks_run_log_timestamp_p-processor-->group_by_tasks_run_log_timestamp_p-publish
-		group_by_tasks_run_log_timestamp_p-publish-->|Replace|group_by_tasks_run_log_timestamp_t-subject
-		group_by_tasks_run_log_timestamp_t-subject-->|FullTable|select_tasks_run_log_timestamp_p-subscribe
-		select_tasks_run_log_timestamp_p-subscribe-->select_tasks_run_log_timestamp_p-processor
-		select_tasks_run_log_timestamp_p-processor-->select_tasks_run_log_timestamp_p-publish
-		select_tasks_run_log_timestamp_p-publish-->|Replace|select_tasks_run_log_timestamp_t-subject
-	end
-	default_runtime_env_name-rt-->group_by_tasks_run_log_timestamp_t
-	SessionTasksRunLog-subject@{shape: doc, label: SessionTasksRunLog}
-	group_by_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}
-	group_by_tasks_run_log_timestamp_p-processor@{shape: rect, label: GroupBy}
-	group_by_tasks_run_log_timestamp_p-publish@{shape: fork}
-	group_by_tasks_run_log_timestamp_t-subject@{shape: doc, label: group_by_tasks_run_log_timestamp_t}
-	select_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}
-	select_tasks_run_log_timestamp_p-processor@{shape: rect, label: Select}
-	select_tasks_run_log_timestamp_p-publish@{shape: fork}
-	select_tasks_run_log_timestamp_t-subject@{shape: doc, label: select_tasks_run_log_timestamp_t}
-
 	subgraph group_by_subject_change_log_delta_t
 		SubjectsChangeLog-subject-.->|LastRecordBatch|group_by_subject_change_log_delta_p-subscribe
 		group_by_subject_change_log_delta_p-subscribe-->group_by_subject_change_log_delta_p-processor
@@ -107,7 +73,102 @@ impl<'a> SubjectsSession<'a> {
 	group_by_subjects_num_rows_t-subject@{shape: doc, label: group_by_subjects_num_rows_t}
 	select_subjects_num_rows_delta_p-subscribe@{shape: diamond, label: All}
 	select_subjects_num_rows_delta_p-processor@{shape: rect, label: Select}
-	select_subjects_num_rows_delta_p-publish@{shape: fork}
+	select_subjects_num_rows_delta_p-publish@{shape: fork}"#
+    }
+    pub fn as_mermaid_erdiagram(&self) -> &str {
+        r#"erDiagram
+    SubjectsChangeLog["SubjectsChangeLog"] {
+        Utf8 subject_name
+        Utf8 task_name
+        Utf8 session_name
+        Int64 num_rows_delta
+        Int64 timestamp
+    }
+    group_by_subject_change_log_delta_p["group_by_subject_change_log_delta_p"] {
+        List-Utf8 agg_columns "['num_rows_delta']"
+        List-Utf8 agg_operators "['Sum']"
+        Boolean cpu "false"
+        Utf8 lhs_name "SubjectsChangeLog"
+        List-Utf8 lhs_values "['subject_name']"
+        Utf8 operator "GroupBy"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_subject_change_log_delta_p["select_subject_change_log_delta_p"] {
+        List-Utf8 as_columns "['','num_rows']"
+        Boolean cpu "false"
+        Utf8 lhs_name "group_by_subject_change_log_delta_t"
+        List-Utf8 lhs_values "['subject_name','num_rows_delta-Sum']"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    SubjectsNumRows["SubjectsNumRows"] {
+        Utf8 subject_name
+        Int64 num_rows
+    }
+    group_by_subjects_num_rows_p["group_by_subjects_num_rows_p"] {
+        List-Utf8 agg_columns "['num_rows']"
+        List-Utf8 agg_operators "['Sum']"
+        Boolean cpu "false"
+        Utf8 lhs_name "SubjectsNumRows"
+        List-Utf8 lhs_values "['subject_name']"
+        Utf8 operator "GroupBy"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_subjects_num_rows_delta_p["select_subjects_num_rows_delta_p"] {
+        List-Utf8 as_columns "['','num_rows']"
+        Boolean cpu "false"
+        Utf8 lhs_name "group_by_subjects_num_rows_t"
+        List-Utf8 lhs_values "['subject_name','num_rows-Sum']"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }"#
+    }
+}
+
+pub struct TasksSession<'a> {
+    /// Session
+    pub session_context_name: &'a str,
+}
+
+impl Default for TasksSession<'_> {
+    fn default() -> Self {
+        TasksSession {
+            session_context_name: "tasks_session",
+        }
+    }
+}
+
+impl<'a> TasksSession<'a> {
+    pub fn new_with_session_name(session_context_name: &'a str) -> Self {
+        TasksSession {
+            session_context_name,
+            ..Default::default()
+        }
+    }
+    pub fn as_mermaid_flowchart(&self) -> &str {
+        r#"flowchart TD
+    default_runtime_env_name-rt@{shape: subproc, label: default_runtime_env_name}
+
+	subgraph group_by_tasks_run_log_timestamp_t
+		SessionTasksRunLog-subject-.->|LastRecordBatch|group_by_tasks_run_log_timestamp_p-subscribe
+		group_by_tasks_run_log_timestamp_p-subscribe-->group_by_tasks_run_log_timestamp_p-processor
+		group_by_tasks_run_log_timestamp_p-processor-->group_by_tasks_run_log_timestamp_p-publish
+		group_by_tasks_run_log_timestamp_p-publish-->|Replace|group_by_tasks_run_log_timestamp_t-subject
+		group_by_tasks_run_log_timestamp_t-subject-->|FullTable|select_tasks_run_log_timestamp_p-subscribe
+		select_tasks_run_log_timestamp_p-subscribe-->select_tasks_run_log_timestamp_p-processor
+		select_tasks_run_log_timestamp_p-processor-->select_tasks_run_log_timestamp_p-publish
+		select_tasks_run_log_timestamp_p-publish-->|Replace|select_tasks_run_log_timestamp_t-subject
+	end
+	default_runtime_env_name-rt-->group_by_tasks_run_log_timestamp_t
+	SessionTasksRunLog-subject@{shape: doc, label: SessionTasksRunLog}
+	group_by_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}
+	group_by_tasks_run_log_timestamp_p-processor@{shape: rect, label: GroupBy}
+	group_by_tasks_run_log_timestamp_p-publish@{shape: fork}
+	group_by_tasks_run_log_timestamp_t-subject@{shape: doc, label: group_by_tasks_run_log_timestamp_t}
+	select_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}
+	select_tasks_run_log_timestamp_p-processor@{shape: rect, label: Select}
+	select_tasks_run_log_timestamp_p-publish@{shape: fork}
+	select_tasks_run_log_timestamp_t-subject@{shape: doc, label: select_tasks_run_log_timestamp_t}
 
 	subgraph filter_processors_subscriptions_t
 		SessionProcessors-subject-.->|FullTable|cmp_processors_subscriptions_p-subscribe
@@ -174,10 +235,12 @@ impl<'a> SubjectsSession<'a> {
 		filter_tasks_processors_subscriptions_subjects_p-publish-->|Replace|SessionTasksSubscribe-subject
 	end
 	default_runtime_env_name-rt-->join_tasks_run_log_timestamp_t
+	SubjectsChangeLog-subject@{shape: doc, label: SubjectsChangeLog}
 	group_by_subject_change_log_timestamp_p-subscribe@{shape: diamond, label: All}
 	group_by_subject_change_log_timestamp_p-processor@{shape: rect, label: GroupBy}
 	group_by_subject_change_log_timestamp_p-publish@{shape: fork}
 	group_by_subject_change_log_timestamp_t-subject@{shape: doc, label: group_by_subject_change_log_timestamp_t}
+	SessionTasksCheck-subject@{shape: doc, label: SessionTasksCheck}
 	join_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}
 	join_tasks_run_log_timestamp_p-processor@{shape: rect, label: Join}
 	join_tasks_run_log_timestamp_p-publish@{shape: fork}
@@ -268,34 +331,10 @@ impl<'a> SubjectsSession<'a> {
 	select_tasks_processors_publications_p-subscribe@{shape: diamond, label: All}
 	select_tasks_processors_publications_p-processor@{shape: rect, label: Select}
 	select_tasks_processors_publications_p-publish@{shape: fork}
-	select_tasks_processors_publications_t-subject@{shape: doc, label: select_tasks_processors_publications_t}
-
-	subgraph aggregate_tasks_processors_publications_t
-        UserMessages-subject-.->|FullTable|aggregate_tasks_processors_publications_p-subscribe
-        AssistantMessages-subject-.->|FullTable|aggregate_tasks_processors_publications_p-subscribe
-		SessionTasksSubscribe-subject-.->|FullTable|aggregate_tasks_processors_publications_p-subscribe
-		select_tasks_processors_publications_t-subject-.->|FullTable|aggregate_tasks_processors_publications_p-subscribe
-		aggregate_tasks_processors_publications_p-subscribe-->aggregate_tasks_processors_publications_p-processor
-		aggregate_tasks_processors_publications_p-processor-->aggregate_tasks_processors_publications_p-publish
-		aggregate_tasks_processors_publications_p-publish-->|Replace|AssistantCsv-subject
-	end
-	default_runtime_env_name-rt-->aggregate_tasks_processors_publications_t
-	UserMessages-subject@{shape: doc, label: UserMessages}
-	AssistantMessages-subject@{shape: doc, label: AssistantMessages}
-	aggregate_tasks_processors_publications_p-subscribe@{shape: diamond, label: Any}
-	aggregate_tasks_processors_publications_p-processor@{shape: rect, label: AttachmentAggregatorProcessor}
-	aggregate_tasks_processors_publications_p-publish@{shape: fork}
-	AssistantCsv-subject@{shape: doc, label: AssistantCsv}"#
+	select_tasks_processors_publications_t-subject@{shape: doc, label: select_tasks_processors_publications_t}"#
     }
     pub fn as_mermaid_erdiagram(&self) -> &str {
         r#"erDiagram
-    UserCsv["UserCsv"] {
-        Utf8 filename
-        Utf8 extension
-        List-UInt8 bytes
-        Utf8 metadata
-        Int64 timestamp
-    }
     extract_tasks_p["extract_tasks_p"] {
         Boolean cpu "false"
         Utf8 format "CsvDefault"
@@ -420,44 +459,6 @@ impl<'a> SubjectsSession<'a> {
         Utf8 session_name
         Int64 num_rows_delta
         Int64 timestamp
-    }
-    group_by_subject_change_log_delta_p["group_by_subject_change_log_delta_p"] {
-        List-Utf8 agg_columns "['num_rows_delta']"
-        List-Utf8 agg_operators "['Sum']"
-        Boolean cpu "false"
-        Utf8 lhs_name "SubjectsChangeLog"
-        List-Utf8 lhs_values "['subject_name']"
-        Utf8 operator "GroupBy"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    select_subject_change_log_delta_p["select_subject_change_log_delta_p"] {
-        List-Utf8 as_columns "['','num_rows']"
-        Boolean cpu "false"
-        Utf8 lhs_name "group_by_subject_change_log_delta_t"
-        List-Utf8 lhs_values "['subject_name','num_rows_delta-Sum']"
-        Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    SubjectsNumRows["SubjectsNumRows"] {
-        Utf8 subject_name
-        Int64 num_rows
-    }
-    group_by_subjects_num_rows_p["group_by_subjects_num_rows_p"] {
-        List-Utf8 agg_columns "['num_rows']"
-        List-Utf8 agg_operators "['Sum']"
-        Boolean cpu "false"
-        Utf8 lhs_name "SubjectsNumRows"
-        List-Utf8 lhs_values "['subject_name']"
-        Utf8 operator "GroupBy"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    select_subjects_num_rows_delta_p["select_subjects_num_rows_delta_p"] {
-        List-Utf8 as_columns "['','num_rows']"
-        Boolean cpu "false"
-        Utf8 lhs_name "group_by_subjects_num_rows_t"
-        List-Utf8 lhs_values "['subject_name','num_rows-Sum']"
-        Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     group_by_subject_change_log_timestamp_p["group_by_subject_change_log_timestamp_p"] {
         List-Utf8 agg_columns "['timestamp']"
@@ -588,30 +589,6 @@ impl<'a> SubjectsSession<'a> {
         Utf8 publication_subscription_name
         Utf8 publication_subscription_table_name
         Utf8 subscribe_type
-    }
-    AssistantMessages["AssistantMessages"] {
-        Utf8 role
-        Utf8 content
-        Int64 timestamp
-    }
-    UserMessages["UserMessages"] {
-        Utf8 role
-        Utf8 content
-        Int64 timestamp
-    }
-    aggregate_tasks_processors_publications_p["aggregate_tasks_processors_publications_p"] {
-        Boolean asc "true"
-        Boolean cpu "false"
-        List-Utf8 lhs_values "['timestamp']"
-        Utf8 operator "Sort"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    AssistantCsv["AssistantCsv"] {
-        Utf8 filename
-        Utf8 extension
-        List-UInt8 bytes
-        Utf8 metadata
-        Int64 timestamp
     }"#
     }
 }
