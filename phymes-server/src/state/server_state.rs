@@ -205,11 +205,25 @@ impl UserState {
             .update_state_from_messages(message_map)
             .unwrap();
 
-        // Update the superstep
-        self.users
+
+        // Update the subjects change log
+        let messages = create_message_map(vec![
+            IPCMessageBuilder::new()
+                .with_name(update.get_name())
+                .with_subject(update.get_name())
+                .with_publisher("")
+                .with_update(&phymes_core::TablePublication::Extend {
+                    table_name: update.get_name().to_string(),
+                })
+                .with_message(update.to_ipc_stream().unwrap())
+                .build().unwrap(),
+        ]);
+        let _ = self
+            .users
             .try_write()
             .unwrap()
-            .extend_superstep_updates(update);
+            .update_state_from_messages(messages)
+            .unwrap();
 
         Ok(())
     }
@@ -384,6 +398,7 @@ impl ServerState {
                     .unwrap()
                     .try_write()
                     .unwrap()
+                    .get_session_context_mut()
                     .read_state(path, email)?;
             }
         } else {
@@ -410,6 +425,7 @@ impl ServerState {
                     .unwrap()
                     .try_read()
                     .unwrap()
+                    .get_session_context()
                     .write_state(path, email)?;
             }
         } else {

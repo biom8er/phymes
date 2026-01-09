@@ -312,7 +312,7 @@ mod tests {
     fn test_build_and_publish_to_stream() -> Result<()> {
         let table_name = "test_table";
         let task_name = "test_task";
-        let publications = vec![TablePublication::Extend {
+        let publications = [TablePublication::Extend {
             table_name: table_name.to_string(),
         }];
 

@@ -12,10 +12,7 @@ use anyhow::Result;
 use bytes::Bytes;
 use phymes_agents::create_message_map;
 use phymes_core::{
-    BuilderTrait, CsvFormat, DataFormat, IPCMessageBuilder,
-    JoinUserInboxSessionContextsMermaidDiagrams, MessageBuilderTrait, MessageTrait,
-    SessionInterfaceMessage, SessionInterfaceMessageTrait, TableBuilder, TableBuilderTrait,
-    TableTrait,
+    BuilderTrait, CsvFormat, DataFormat, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait, TableBuilder, TableBuilderTrait, TableTrait
 };
 
 // Library imports
@@ -169,11 +166,19 @@ pub async fn session_put_state(
                         .update_state_from_messages(message_map)
                         .unwrap();
 
-                    // Update the superstep
-                    session_stream_state
-                        .try_write()
-                        .unwrap()
-                        .extend_superstep_updates(update);
+                    // Update the subjects change log
+                    let messages = create_message_map(vec![
+                        IPCMessageBuilder::new()
+                            .with_name(update.get_name())
+                            .with_subject(update.get_name())
+                            .with_publisher("")
+                            .with_update(&phymes_core::TablePublication::Extend {
+                                table_name: update.get_name().to_string(),
+                            })
+                            .with_message(update.to_ipc_stream().unwrap())
+                            .build().unwrap(),
+                    ]);
+                    let _ = session_stream_state.write().update_state_from_messages(messages).unwrap();
                 }
                 None => {
                     return JsonError::new("Failed to get the session stream state".to_string())

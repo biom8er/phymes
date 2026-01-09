@@ -52,7 +52,8 @@ impl ProcessorPlan {
     pub fn get_publications_owned(self) -> Vec<TablePublication> {
         self.publications
     }
-    pub fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
+    #[allow(clippy::borrowed_box)]
+    pub fn get_subscribe_policy(&self) -> &Box<dyn TableSubscribePolicyTrait> {
         &self.subscribe_policy
     }
     pub fn get_subscribe_policy_owned(self) -> Box<dyn TableSubscribePolicyTrait> {
