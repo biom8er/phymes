@@ -23,7 +23,7 @@ impl TaskPlanBuilder {
     pub fn with_processor_names(mut self, processor_names: &[&str]) -> Self {
         self.processor_names = Some(
             processor_names
-                .into_iter()
+                .iter()
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>(),
         );
