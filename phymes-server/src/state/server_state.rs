@@ -205,7 +205,6 @@ impl UserState {
             .update_state_from_messages(message_map)
             .unwrap();
 
-
         // Update the subjects change log
         let messages = create_message_map(vec![
             IPCMessageBuilder::new()
@@ -216,7 +215,8 @@ impl UserState {
                     table_name: update.get_name().to_string(),
                 })
                 .with_message(update.to_ipc_stream().unwrap())
-                .build().unwrap(),
+                .build()
+                .unwrap(),
         ]);
         let _ = self
             .users

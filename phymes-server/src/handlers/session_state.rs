@@ -12,7 +12,10 @@ use anyhow::Result;
 use bytes::Bytes;
 use phymes_agents::create_message_map;
 use phymes_core::{
-    BuilderTrait, CsvFormat, DataFormat, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait, TableBuilder, TableBuilderTrait, TableTrait
+    BuilderTrait, CsvFormat, DataFormat, IPCMessageBuilder,
+    JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait,
+    SessionInterfaceMessage, SessionInterfaceMessageTrait, TableBuilder, TableBuilderTrait,
+    TableTrait,
 };
 
 // Library imports
@@ -176,9 +179,13 @@ pub async fn session_put_state(
                                 table_name: update.get_name().to_string(),
                             })
                             .with_message(update.to_ipc_stream().unwrap())
-                            .build().unwrap(),
+                            .build()
+                            .unwrap(),
                     ]);
-                    let _ = session_stream_state.write().update_state_from_messages(messages).unwrap();
+                    let _ = session_stream_state
+                        .write()
+                        .update_state_from_messages(messages)
+                        .unwrap();
                 }
                 None => {
                     return JsonError::new("Failed to get the session stream state".to_string())

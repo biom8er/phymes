@@ -86,9 +86,13 @@ impl SessionContext {
                     .to_string()
                     .as_str(),
             )
-            .unwrap_or_else(|| panic!("Missing table for `{}` in session `{}` state.",
+            .unwrap_or_else(|| {
+                panic!(
+                    "Missing table for `{}` in session `{}` state.",
                     AvailableSubjects::SessionTasksSubscribePublish,
-                    self.get_name()))
+                    self.get_name()
+                )
+            })
             .read();
         let task_names = table_reading.get_column_as_vec_nonprimitive::<String>("task_name")?;
         let processor_names =

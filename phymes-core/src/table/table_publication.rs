@@ -164,14 +164,10 @@ impl MappableTrait for TablePublication {
 
 /// Update an arrow table with record batches coming from a new table
 pub trait TablePublicationTrait: TableTrait {
-    fn get_record_batches_mut(&mut self) -> &mut Vec<RecordBatch>;
     fn publish_to_table(&mut self, new: Vec<RecordBatch>, update: TablePublication) -> Result<()>;
 }
 
 impl TablePublicationTrait for Table {
-    fn get_record_batches_mut(&mut self) -> &mut Vec<RecordBatch> {
-        &mut self.record_batches
-    }
     fn publish_to_table(&mut self, new: Vec<RecordBatch>, update: TablePublication) -> Result<()> {
         match update {
             TablePublication::Extend { table_name: tn } => {
