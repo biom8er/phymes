@@ -9,6 +9,7 @@ mod table_script;
 mod table_subscribe_policy;
 mod table_subscription;
 mod table_trait;
+mod table_update_policy;
 
 pub use available_table_subscribe_policies::AvailableTableSubscribePolicies;
 pub use data_format::{CsvFormat, DataFormat, JsonFormat, OwlFormat};
@@ -31,6 +32,7 @@ pub(crate) use table_subscribe_policy::{
 };
 pub use table_subscription::{TableSubscription, TableSubscriptionTrait};
 pub use table_trait::{Table, TableTrait, test_table};
+pub use table_update_policy::TableUpdatePolicy;
 
 use parking_lot::RwLock;
 use phymes_diagnostics::HashMap;
