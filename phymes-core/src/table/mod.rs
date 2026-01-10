@@ -1,4 +1,5 @@
 mod available_table_subscribe_policies;
+mod available_table_update_policies;
 mod data_format;
 mod data_types;
 mod stream;
@@ -12,6 +13,7 @@ mod table_trait;
 mod table_update_policy;
 
 pub use available_table_subscribe_policies::AvailableTableSubscribePolicies;
+pub use available_table_update_policies::AvailableTableUpdatePolicies;
 pub use data_format::{CsvFormat, DataFormat, JsonFormat, OwlFormat};
 pub use data_types::{from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type};
 pub use stream::{
@@ -32,7 +34,7 @@ pub(crate) use table_subscribe_policy::{
 };
 pub use table_subscription::{TableSubscription, TableSubscriptionTrait};
 pub use table_trait::{Table, TableTrait, test_table};
-pub use table_update_policy::TableUpdatePolicy;
+pub use table_update_policy::{TableUpdatePolicyTrait, TableChangedSinceLastRunUpdate, TableExistsUpdate, TableHasBatchesUpdate};
 
 use parking_lot::RwLock;
 use phymes_diagnostics::HashMap;

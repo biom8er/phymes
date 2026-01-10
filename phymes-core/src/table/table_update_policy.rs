@@ -4,18 +4,6 @@ use phymes_diagnostics::HashMap;
 
 use crate::{MappableTrait, StateMap, TableSubscription, TableTrait};
 
-
-
-/// Options for determining when a table has been updated
-pub enum TableUpdatePolicy {
-    
-    TableHasBatches,
-    
-    TableHasChangedSinceLastRun,
-    
-    TableExists,
-}
-
 /// Determine when a table has been updated
 pub trait TableUpdatePolicyTrait: MappableTrait + Debug + Send + Sync {
     /// Determine which tables have been updated with respect to the query processor

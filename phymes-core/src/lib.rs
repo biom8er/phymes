@@ -40,12 +40,12 @@ pub use schemas::{
     from_diagnostics_to_tables,
 };
 pub use table::{
-    AvailableTableSubscribePolicies, CsvFormat, DataFormat, IPCRecordBatchStream, JsonFormat,
+    AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, CsvFormat, DataFormat, IPCRecordBatchStream, JsonFormat,
     OwlFormat, RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder, RecordBatchStream,
     RecordBatchStreamAdapter, SendableIPCRecordBatchStream, SendableRecordBatchStream, StateMap,
     Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableScript,
     TableSubscribePolicyTrait, TableSubscription, TableSubscriptionTrait, TableTrait,
-    from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type, test_table, TableUpdatePolicy
+    from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type, test_table, TableUpdatePolicyTrait, TableChangedSinceLastRunUpdate, TableExistsUpdate, TableHasBatchesUpdate
 };
 pub use task::{
     Task, TaskBuilder, TaskBuilderTrait, TaskMap, TaskPlan, TaskPlanBuilder, TaskTrait,
