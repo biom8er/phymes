@@ -77,8 +77,12 @@ impl SessionContext {
         self.state
     }
 
+    /// Update the session tasks subscribe
+
+    /// Update the session subscribe and publish
+
     /// Get the task subscriptions and publications that are ready to run
-    pub fn tasks_to_run(&self) -> Result<HashMap<(String, String), ProcessorSubjectsMap>> {
+    pub fn tasks_subscribe_publish(&self) -> Result<HashMap<(String, String), ProcessorSubjectsMap>> {
         // Extract out the columns
         let table_reading = self
             .get_states()
@@ -89,7 +93,7 @@ impl SessionContext {
             )
             .unwrap_or_else(|| {
                 panic!(
-                    "Missing table for `{}` in session `{}` state.",
+                    "Missing table for `{}` in session `{}`.",
                     AvailableSubjects::SessionTasksSubscribePublish,
                     self.get_name()
                 )

@@ -3,15 +3,10 @@ use arrow::record_batch::RecordBatch;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessage, IPCMessageBuilder,
-    IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, TableBuilder,
-    TableBuilderTrait, TableTrait, TaskTrait, create_error_message_map,
-    create_error_message_map_stream, create_session_tasks_run_log_batch,
+    AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjectsMap, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, TaskTrait, create_error_message_map, create_error_message_map_stream, create_session_tasks_run_log_batch
 };
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap,
-    SpanBuilder, TraceBuilderTrait, create_timestamp_micros,
+    DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap, Span, SpanBuilder, TraceBuilderTrait, TraceRecord, create_timestamp_micros
 };
 use std::sync::Arc;
 use tokio::task::JoinSet;
@@ -25,6 +20,210 @@ use crate::{SessionContext, create_message_map};
 pub struct SessionStreamStep {}
 
 impl SessionStreamStep {
+    /// Start the diagnostics generating the session span and trace
+    fn start_diagnostics(messages: &IPCMessageMap, session_context: &Arc<RwLock<SessionContext>>, iter: usize) -> Result<(Option<Vec<Diagnostics>>, Option<Span>, Option<TraceRecord>)> {
+        // Create the diagnostics for the session step
+        let (diagnostics_vec, span, trace) = if session_context.read().get_diagnostics() {
+            // Create the span for the session
+            let span = SpanBuilder::default()
+                .with_span(session_context.read().get_name())
+                .build()?;
+
+            // Initialize the channels for collecting the metrics, events, and traces)
+            let mut diagnostics_vec = Vec::new();
+            let diagnostics = Diagnostics::new();
+            let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+            diagnostics_vec.push(diagnostics);
+
+            // Trace the session step
+            let trace = diagnostic_builder
+                .clone()
+                .messages(line!(), file!(), session_context.read().get_name());
+            trace.enter(&messages.values().collect::<Vec<_>>());
+            let event = diagnostic_builder
+                .clone()
+                .info(line!(), file!(), session_context.read().get_name());
+            event.insert("superstep", &serde_json::Value::Number(iter.into()));
+            (Some(diagnostics_vec), Some(span), Some(trace))
+        } else {
+            (None, None, None)
+        };
+
+        Ok((diagnostics_vec, span, trace))
+    }
+
+    /// End the diagnostics
+    fn end_diagnostics(session_context: &Arc<RwLock<SessionContext>>, messages: &IPCMessageMap, diagnostics_vec: Option<Vec<Diagnostics>>, trace: Option<TraceRecord>) -> Result<()> {
+        if let Some(trace) = trace {
+            trace.exit(&messages.values().collect::<Vec<_>>());
+        }
+        
+        if let Some(diagnostics_vec) = diagnostics_vec {
+            let (_metrics_updated, _traces_updated, _events_updated) = session_context.write().update_metrics_table(&diagnostics_vec)?;
+        }
+        
+        Ok(())
+    }
+
+    /// Update the session context subjects from messages including updating the subjects change log
+    fn update_subjects_and_changelog_from_messages(session_context: &Arc<RwLock<SessionContext>>, messages: IPCMessageMap) -> Result<()> {
+        // Update the session_context and handle any errors
+        let mut error_messages = HashMap::<String, IPCMessage>::new();
+        let update = match session_context.write().update_subjects_from_messages(messages) {
+            Ok(update) => update,
+            Err(err) => {
+                let message_map = create_error_message_map(&err, session_context.read().get_name(), true)?;
+                error_messages.extend(message_map);
+                AvailableSubjects::SubjectsChangeLog.to_table(None, None)?
+            }
+        };
+
+        // Update the errors
+        let errors_update = session_context
+            .write()
+            .update_subjects_from_messages(error_messages)?;
+
+        // Update the subjects change log
+        let messages = create_message_map(vec![
+            IPCMessageBuilder::new()
+                .with_subject(update.get_name())
+                .with_publisher("")
+                .with_update(&TablePublication::Extend {
+                    table_name: update.get_name().to_string(),
+                })
+                .with_message(update.to_ipc_stream()?)
+                .make_random_name()?
+                .build()?,
+            IPCMessageBuilder::new()
+                .with_subject(errors_update.get_name())
+                .with_publisher("")
+                .with_update(&TablePublication::Extend {
+                    table_name: errors_update.get_name().to_string(),
+                })
+                .with_message(errors_update.to_ipc_stream()?)
+                .make_random_name()?
+                .build()?,
+        ]);
+        let _ = session_context.write().update_subjects_from_messages(messages)?;
+
+        Ok(())
+    }
+
+    /// Update the session context subjects from the ran tasks including the subjects change log
+    fn update_subjects_and_changelog_from_tasks(session_context: &Arc<RwLock<SessionContext>>, tasks: HashMap<(String, String), ProcessorSubjectsMap>) -> Result<()> {
+        // Create the tasks run log message
+        let (session_names, (task_names, timestamps)): (Vec<_>, (Vec<_>, Vec<_>)) = tasks
+            .into_iter()
+            .map(|((task_name, session_name), _)| {
+                (session_name, (task_name, create_timestamp_micros()))
+            })
+            .unzip();
+        let tasks_run_log_batch =
+            create_session_tasks_run_log_batch(session_names, task_names, timestamps)?;
+        let tasks_run_log_table = AvailableSubjects::SessionTasksRunLog
+            .to_table(None, Some(vec![tasks_run_log_batch]))?;
+        let messages = create_message_map(vec![
+            IPCMessageBuilder::new()
+                .with_subject(tasks_run_log_table.get_name())
+                .with_publisher("")
+                .with_update(&TablePublication::Extend {
+                    table_name: tasks_run_log_table.get_name().to_string(),
+                })
+                .with_message(tasks_run_log_table.to_ipc_stream()?)
+                .make_random_name()?
+                .build()?,
+        ]);
+
+        // Update the tasks run log
+        let state_update = session_context.write().update_subjects_from_messages(messages)?;
+
+        // Update the subjects change log
+        let messages = create_message_map(vec![
+            IPCMessageBuilder::new()
+                .with_subject(state_update.get_name())
+                .with_publisher("")
+                .with_update(&TablePublication::Extend {
+                    table_name: state_update.get_name().to_string(),
+                })
+                .with_message(state_update.to_ipc_stream()?)
+                .make_random_name()?
+                .build()?,
+        ]);
+        let _ = session_context.write().update_subjects_from_messages(messages)?;
+
+        Ok(())
+    }
+
+    /// Run the tasks
+    /// 
+    /// # Arguments
+    /// 
+    /// * `session_context` - [SessionContext] to use while running the current session stream super step
+    /// * `tasks` - Tasks that are ready to run
+    /// * `diagnostics_vec` - Optional vector of [Diagnostics]
+    /// * `span` - [Span] for the current session stream super step 
+    /// 
+    /// # Returns
+    /// 
+    /// * [SendableRecordBatchStreamMessageMap] - Response streams from running the task
+    /// * [SendableRecordBatchStreamMessageMap] - Response streams intended for direct consumption by the user
+    fn run_tasks(session_context: &Arc<RwLock<SessionContext>>, tasks: &HashMap<(String, String), ProcessorSubjectsMap>, diagnostics_vec: &mut Option<Vec<Diagnostics>>, span: &Option<Span>) -> Result<(SendableRecordBatchStreamMessageMap, SendableRecordBatchStreamMessageMap)> {
+        // Iterate through each task and collect the resulting stream responses
+        let mut response_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let mut session_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        for ((task_name, _session_name), processor_subjects_map) in tasks.iter() {
+            event!(Level::INFO, "Superstep for task {}", &task_name);
+
+            // Subscribe to the task subjects
+            let task = session_context
+                .read()
+                .get_tasks()
+                .get(task_name)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "Missing task `{task_name}` in session `{}`.",
+                        session_context.read().get_name()
+                    )
+                })
+                .clone();
+
+            // Create the diagnostics for the task
+            let diagnostic_builder = if let (Some(diagnostics_vec), Some(span)) = (diagnostics_vec.as_mut(), span.as_ref()) {
+                let diagnostics = Diagnostics::new();
+                let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+                diagnostics_vec.push(diagnostics);
+                Some(diagnostic_builder)
+            } else {
+                None
+            };
+
+            // Run the task and collect the stream responses
+            match task.run(
+                diagnostic_builder.as_ref(),
+                processor_subjects_map,
+                session_context.read().get_states(),
+            ) {
+                Ok(result) => {
+                    for (resp_name, resp) in result.into_iter() {
+                        if task_name == session_context.read().get_name() {
+                            session_streams.insert(resp_name, resp);
+                        } else {
+                            response_streams.insert(resp_name, resp);
+                        }
+                    }
+                }
+                Err(err) => {
+                    // Intercept the error and wrap into a `SendableRecordBatch` for consumption
+                    event!(Level::ERROR, "{} for task {}", err.to_string(), &task_name);
+                    let message_map = create_error_message_map_stream(&err, task_name, true)?;
+                    response_streams.extend(message_map);
+                }
+            }
+        }
+
+        Ok((response_streams, session_streams))
+    }
+ 
     /// Join the message streams using JointSet
     async fn join_message_streams(
         messages: SendableRecordBatchStreamMessageMap,
@@ -110,7 +309,7 @@ impl SessionStreamStep {
     /// complexity is required than the original Pregel models provides for.
     /// The additional complexity that is added by the `SessionContext`
     /// includes dynamical computational graph where edges are conditionally executed
-    /// based on the outputs of nodes, state that can be shared between computational
+    /// based on the outputs of nodes, session_context that can be shared between computational
     /// nodes besides the messages that are passed between nodes, and more granular
     /// control over the runtime environment for each node so that computations can
     /// be optimized based on the available hardware
@@ -123,15 +322,15 @@ impl SessionStreamStep {
     ///
     /// - Tasks: Represent the entities in the graph that subscribe to subjects,
     ///   perform computations on the subjects messages, and publish the resulting messages
-    ///   to the state.
+    ///   to the session_context.
     ///
-    /// - Subjects: The tables (data) that compose the state of the application.
+    /// - Subjects: The tables (data) that compose the session_context of the application.
     ///
     /// - Computation: Each task performs a user-defined computation during each
     ///   super-step as defined by the processor network and based on its subscriptions
     ///   that have changed in the previous super-step.
     ///
-    /// - Messages: Subset of the state tables that are passed to tasks at each super-step.
+    /// - Messages: Subset of the session_context tables that are passed to tasks at each super-step.
     ///   Messages are used for communication and coordination between tasks.
     ///
     /// # Usage
@@ -140,172 +339,41 @@ impl SessionStreamStep {
     /// of subscription, computation, and publishing. Tasks perform their computations
     /// in parallel according to which subscriptions were updated.
     /// The computation continues in a series of super-steps until a termination condition is met.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `session_context` - [SessionContext] to use while running the current session stream super step
+    /// * `messages` - [IPCMessageMap] input messages for the superstep 
+    /// * `iter` - The current iteration of the session stream supersteps
     ///
     /// # Returns
     ///
-    /// [IPCMessageMap] if the the `Session` subsject was updated and None otherwise.
-    #[instrument(skip(state, messages))]
+    /// [IPCMessageMap] if any of the subscribing session sujects were updated and None otherwise.
+    #[instrument(skip(session_context, messages))]
     pub async fn run_superstep(
-        state: Arc<RwLock<SessionContext>>,
+        session_context: Arc<RwLock<SessionContext>>,
         messages: IPCMessageMap,
         iter: usize,
     ) -> Result<Option<IPCMessageMap>> {
-        // Initialize the channels for collecting the metrics, events, and traces)
-        let mut diagnostics_vec = Vec::new();
-        let span = SpanBuilder::default()
-            .with_span(state.read().get_name())
-            .build()?;
+        // Start the diagnostics
+        let (mut diagnostics_vec, span, trace) = Self::start_diagnostics(&messages, &session_context, iter)?;
 
-        // Create the diagnostics for the session step
-        let collect_diagnostics = state.read().get_diagnostics();
-        let trace = if collect_diagnostics {
-            let diagnostics = Diagnostics::new();
-            let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
-            diagnostics_vec.push(diagnostics);
-
-            // Trace the session step
-            let trace =
-                diagnostic_builder
-                    .clone()
-                    .messages(line!(), file!(), state.read().get_name());
-            trace.enter(&messages.values().collect::<Vec<_>>());
-            let event = diagnostic_builder
-                .clone()
-                .info(line!(), file!(), state.read().get_name());
-            event.insert("superstep", &serde_json::Value::Number(iter.into()));
-            Some(trace)
-        } else {
-            None
-        };
-
-        let mut response_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        {
-            // Update the state and handle any errors (without locking the state)
-            let update = match state.write().update_subjects_from_messages(messages) {
-                Ok(update) => update,
-                Err(err) => {
-                    let message_map = create_error_message_map_stream(&err, span.span().0, true)?;
-                    response_streams.extend(message_map);
-                    AvailableSubjects::SubjectsChangeLog.to_table(None, None)?
-                }
-            };
-
-            // Update the subjects change log
-            let messages = create_message_map(vec![
-                IPCMessageBuilder::new()
-                    .with_subject(update.get_name())
-                    .with_publisher("")
-                    .with_update(&phymes_core::TablePublication::Extend {
-                        table_name: update.get_name().to_string(),
-                    })
-                    .with_message(update.to_ipc_stream()?)
-                    .make_random_name()?
-                    .build()?,
-            ]);
-            let _ = state.write().update_subjects_from_messages(messages)?;
-        }
+        // Update the session context with the incoming messages
+        Self::update_subjects_and_changelog_from_messages(&session_context, messages)?;
 
         // Retrieve the task ready to subscribe and their corresponding publications
         // DM: run the task session...
-        let tasks = state.read().tasks_to_run()?;
+        let tasks = session_context.read().tasks_subscribe_publish()?;
 
         // Iterate through each task and collect the resulting stream responses
-        let mut session_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        for ((task_name, _session_name), processor_subjects_map) in tasks.iter() {
-            event!(Level::INFO, "Superstep for task {}", &task_name);
+        let (response_streams, session_streams) = Self::run_tasks(&session_context, &tasks, &mut diagnostics_vec, &span)?;
 
-            // Subscribe to the task subjects
-            let task = state
-                .read()
-                .get_tasks()
-                .get(task_name)
-                .unwrap_or_else(|| {
-                    panic!(
-                        "Missing task `{task_name}` in session `{}` state.",
-                        state.read().get_name()
-                    )
-                })
-                .clone();
-
-            // Create the diagnostics for the task
-            let diagnostic_builder = if collect_diagnostics {
-                let diagnostics = Diagnostics::new();
-                let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
-                diagnostics_vec.push(diagnostics);
-                Some(diagnostic_builder)
-            } else {
-                None
-            };
-
-            // Run the task and collect the stream responses
-            match task.run(
-                diagnostic_builder.as_ref(),
-                processor_subjects_map,
-                state.read().get_states(),
-            ) {
-                Ok(result) => {
-                    for (resp_name, resp) in result.into_iter() {
-                        if task_name == state.read().get_name() {
-                            session_streams.insert(resp_name, resp);
-                        } else {
-                            response_streams.insert(resp_name, resp);
-                        }
-                    }
-                }
-                Err(err) => {
-                    // Intercept the error and wrap into a `SendableRecordBatch` for consumption
-                    event!(Level::ERROR, "{} for task {}", err.to_string(), &task_name);
-                    let message_map = create_error_message_map_stream(&err, task_name, true)?;
-                    response_streams.extend(message_map);
-                }
-            }
-        }
-
-        {
-            // Update the tasks run log
-            let (session_names, (task_names, timestamps)): (Vec<_>, (Vec<_>, Vec<_>)) = tasks
-                .into_iter()
-                .map(|((task_name, session_name), _)| {
-                    (session_name, (task_name, create_timestamp_micros()))
-                })
-                .unzip();
-            let tasks_run_log_batch =
-                create_session_tasks_run_log_batch(session_names, task_names, timestamps)?;
-            let tasks_run_log_table = AvailableSubjects::SessionTasksRunLog
-                .to_table(None, Some(vec![tasks_run_log_batch]))?;
-            let messages = create_message_map(vec![
-                IPCMessageBuilder::new()
-                    .with_subject(tasks_run_log_table.get_name())
-                    .with_publisher("")
-                    .with_update(&phymes_core::TablePublication::Extend {
-                        table_name: tasks_run_log_table.get_name().to_string(),
-                    })
-                    .with_message(tasks_run_log_table.to_ipc_stream()?)
-                    .make_random_name()?
-                    .build()?,
-            ]);
-            let state_update = state.write().update_subjects_from_messages(messages)?;
-
-            // Update the subjects change log
-            let messages = create_message_map(vec![
-                IPCMessageBuilder::new()
-                    .with_subject(state_update.get_name())
-                    .with_publisher("")
-                    .with_update(&phymes_core::TablePublication::Extend {
-                        table_name: state_update.get_name().to_string(),
-                    })
-                    .with_message(state_update.to_ipc_stream()?)
-                    .make_random_name()?
-                    .build()?,
-            ]);
-            let _ = state.write().update_subjects_from_messages(messages)?;
-        }
+        // Update the tasks run log
+        Self::update_subjects_and_changelog_from_tasks(&session_context, tasks)?;
 
         // Break if there is nothing to update
         if session_streams.is_empty() && response_streams.is_empty() {
-            // Collect metrics, logs, and traces and update their corresponding subjects
-            let (_metrics_updated, _traces_updated, _events_updated) =
-                state.write().update_metrics_table(&diagnostics_vec)?;
+            Self::end_diagnostics(&session_context, &HashMap::<String, IPCMessage>::new(), diagnostics_vec, trace)?;
 
             Ok(None)
         } else {
@@ -313,60 +381,15 @@ impl SessionStreamStep {
             let response_batches =
                 match SessionStreamStep::join_message_streams(response_streams).await {
                     Ok(response_batches) => response_batches,
-                    Err(err) => create_error_message_map(&err, span.span().0, true)?,
+                    Err(err) => create_error_message_map(&err, session_context.read().get_name(), true)?,
                 };
 
-            {
-                // Update the state and handle any errors (without locking the state)
-                let mut error_messages = HashMap::<String, IPCMessage>::new();
-                let state_update = match state
-                    .write()
-                    .update_subjects_from_messages(response_batches)
-                {
-                    Ok(update) => update,
-                    Err(err) => {
-                        let message_map = create_error_message_map(&err, span.span().0, true)?;
-                        error_messages.extend(message_map);
-                        AvailableSubjects::SubjectsChangeLog.to_table(None, None)?
-                    }
-                };
-                let errors_update = state
-                    .write()
-                    .update_subjects_from_messages(error_messages)?;
-
-                // Update the subjects change log
-                let messages = create_message_map(vec![
-                    IPCMessageBuilder::new()
-                        .with_subject(state_update.get_name())
-                        .with_publisher("")
-                        .with_update(&phymes_core::TablePublication::Extend {
-                            table_name: state_update.get_name().to_string(),
-                        })
-                        .with_message(state_update.to_ipc_stream()?)
-                        .make_random_name()?
-                        .build()?,
-                    IPCMessageBuilder::new()
-                        .with_subject(errors_update.get_name())
-                        .with_publisher("")
-                        .with_update(&phymes_core::TablePublication::Extend {
-                            table_name: errors_update.get_name().to_string(),
-                        })
-                        .with_message(errors_update.to_ipc_stream()?)
-                        .make_random_name()?
-                        .build()?,
-                ]);
-                let _ = state.write().update_subjects_from_messages(messages)?;
-            }
+            // Update the session context with the incoming messages
+            Self::update_subjects_and_changelog_from_messages(&session_context, response_batches)?;
 
             // Join each of the response futures
             let session_batches = SessionStreamStep::join_message_streams(session_streams).await?;
-            if let Some(trace) = trace {
-                trace.exit(&session_batches.values().collect::<Vec<_>>());
-            }
-
-            // Collect metrics, logs, and traces and update their corresponding subjects
-            let (_metrics_updated, _traces_updated, _events_updated) =
-                state.write().update_metrics_table(&diagnostics_vec)?;
+            Self::end_diagnostics(&session_context, &session_batches, diagnostics_vec, trace)?;
 
             Ok(Some(session_batches))
         }
@@ -408,7 +431,7 @@ mod tests {
         .await?;
         assert!(response.is_none());
 
-        // check the session and state
+        // check the session and session_context
         assert_eq!(
             session_context_arc
                 .try_read()
@@ -497,7 +520,7 @@ mod tests {
         .unwrap();
         assert!(response.is_empty());
 
-        // check the session and state
+        // check the session and session_context
         assert_eq!(
             session_context_arc
                 .try_read()
@@ -630,7 +653,7 @@ mod tests {
         .unwrap();
         assert!(response.is_empty());
 
-        // check the session and state
+        // check the session and session_context
         assert_eq!(
             session_context_arc
                 .try_read()
@@ -781,7 +804,7 @@ mod tests {
             .unwrap();
         assert!(response.is_empty());
 
-        // check the session and state
+        // check the session and session_context
         assert_eq!(
             session_context_arc
                 .try_read()
@@ -1053,7 +1076,7 @@ mod tests {
         let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 6);
 
-        // check the session and state
+        // check the session and session_context
         assert_eq!(
             session_context_arc
                 .try_read()
@@ -1214,7 +1237,7 @@ mod tests {
             .unwrap();
         assert!(response.is_empty());
 
-        // check the session and state
+        // check the session and session_context
         assert_eq!(
             session_context_arc
                 .try_read()
@@ -1438,7 +1461,7 @@ mod tests {
         let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 8);
 
-        // check the session and state
+        // check the session and session_context
         assert_eq!(
             session_context_arc
                 .try_read()
@@ -1602,13 +1625,13 @@ mod tests {
                 .build()
                 .unwrap(),
         ];
-        let state = test_task::make_state_tables("state_1", "config_1")?;
+        let session_context = test_task::make_state_tables("state_1", "config_1")?;
         let mut session_context = SessionContextBuilder::new()
             .with_name("session_1")
             .with_tasks(task_plans)
             .with_processors(processors)
             .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
-            .with_state(state)
+            .with_state(session_context)
             .with_max_iter(1)
             .build()?;
 
