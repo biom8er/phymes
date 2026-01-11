@@ -9,26 +9,33 @@ use std::sync::Arc;
 use std::task::{Context, Poll, ready};
 use tracing::{Level, event};
 
-use crate::{SessionStreamState, SessionStreamStep};
+use crate::{SessionContext, SessionStreamStep};
 
 pub struct SessionStream {
-    /// The state
-    state: Arc<RwLock<SessionStreamState>>,
+    /// The session context
+    session_context: Arc<RwLock<SessionContext>>,
     /// The next result
     #[allow(clippy::type_complexity)]
     next: Option<Pin<Box<dyn Future<Output = Result<Option<IPCMessageMap>>> + Send>>>,
+    /// The current iteration
+    iter: usize,
 }
 
 impl SessionStream {
-    pub fn new(input: IPCMessageMap, state: Arc<RwLock<SessionStreamState>>) -> Self {
+    pub fn new(input: IPCMessageMap, state: Arc<RwLock<SessionContext>>) -> Self {
         #[allow(clippy::type_complexity)]
         let next: Option<
             Pin<Box<dyn Future<Output = Result<Option<IPCMessageMap>>> + Send>>,
         > = Some(Box::pin(SessionStreamStep::run_superstep(
             Arc::clone(&state),
             input,
+            0,
         )));
-        Self { state, next }
+        Self {
+            session_context: state,
+            next,
+            iter: 0,
+        }
     }
 }
 
@@ -37,9 +44,8 @@ impl Stream for SessionStream {
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // Get the current iter
-        let mut iter = self.state.read().get_iter();
-        let max_iter = self.state.read().get_session_context().get_max_iter();
-        while iter < max_iter {
+        let max_iter = self.session_context.read().get_max_iter();
+        while self.iter < max_iter {
             // Poll the next item
             let res = if let Some(fut) = self.next.as_mut() {
                 match ready!(fut.poll_unpin(cx)) {
@@ -55,12 +61,13 @@ impl Stream for SessionStream {
                 return Poll::Ready(None);
             };
 
-            // Prepare the next itme
+            // Prepare the next item
+            self.iter += 1;
             self.next = Some(Box::pin(SessionStreamStep::run_superstep(
-                Arc::clone(&self.state),
+                Arc::clone(&self.session_context),
                 HashMap::<String, IPCMessage>::new(),
+                self.iter,
             )));
-            iter = self.state.read().get_iter();
 
             // Return the poll
             if res.is_empty() {
@@ -75,10 +82,7 @@ impl Stream for SessionStream {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (
-            1,
-            Some(self.state.read().get_session_context().get_max_iter()),
-        )
+        (1, Some(self.session_context.read().get_max_iter()))
     }
 }
 
@@ -110,8 +114,8 @@ mod tests {
             },
             true,
         )?;
-        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
-        let session_stream = SessionStream::new(input, session_stream_state.clone());
+        let session_context_arc = Arc::new(RwLock::new(session_context));
+        let session_stream = SessionStream::new(input, session_context_arc.clone());
         let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         // check the response
@@ -169,10 +173,9 @@ mod tests {
 
         // Check the traces, events, and metrics tables
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
@@ -183,10 +186,9 @@ mod tests {
             4
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionTraces.to_string().as_str())
                 .unwrap()
@@ -197,10 +199,9 @@ mod tests {
             4
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionEvents.to_string().as_str())
                 .unwrap()

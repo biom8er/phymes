@@ -7,12 +7,13 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
-    BuilderTrait, MappableTrait, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table,
-    TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskPlanBuilder,
-    create_session_mermaid_batch, create_session_processors_batch,
-    create_session_runtime_envs_batch, create_session_subjects_batch, create_session_tasks_batch,
-    from_data_type_to_str, from_str_to_data_type,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies,
+    AvailableTableUpdatePolicies, BuildableTrait, BuilderTrait, MappableTrait,
+    ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication,
+    TableSubscription, TableTrait, TaskPlanBuilder, create_session_mermaid_batch,
+    create_session_processors_batch, create_session_runtime_envs_batch,
+    create_session_subjects_batch, create_session_tasks_batch, from_data_type_to_str,
+    from_str_to_data_type,
 };
 use phymes_diagnostics::{HashSet, create_timestamp_micros};
 
@@ -300,6 +301,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let mut pub_sub_table_names = Vec::new();
         let mut is_sub = Vec::new();
         let mut subscribe_types = Vec::new();
+        let mut update_types = Vec::new();
 
         // extract the processors in order
         for processor in self.processors.as_ref().unwrap().iter() {
@@ -311,6 +313,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 processor_names.push(processor.get_name().to_string());
                 processor_types.push(processor.get_type().to_string());
                 subscribe_types.push(processor.get_subscribe_policy().get_name().to_string());
+                update_types.push(processor.get_update_policy().get_name().to_string());
             }
             for p in processor.get_publications() {
                 pub_sub_name.push(p.get_name().to_string());
@@ -320,6 +323,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 processor_names.push(processor.get_name().to_string());
                 processor_types.push(processor.get_type().to_string());
                 subscribe_types.push(processor.get_subscribe_policy().get_name().to_string());
+                update_types.push(processor.get_update_policy().get_name().to_string());
             }
         }
 
@@ -331,6 +335,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             pub_sub_name,
             pub_sub_table_names,
             subscribe_types,
+            update_types,
             is_sub,
         )?;
 
@@ -503,6 +508,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let processor_vec_str = procesors.get_column_as_vec_str("processor_name");
         let type_vec_str = procesors.get_column_as_vec_str("processor_type");
         let subscribe_vec_str = procesors.get_column_as_vec_str("subscribe_type");
+        let update_vec_str = procesors.get_column_as_vec_str("update_type");
         let pub_sub_vec_str = procesors.get_column_as_vec_str("publication_subscription_name");
         let pub_sub_tab_name_vec_str =
             procesors.get_column_as_vec_str("publication_subscription_table_names");
@@ -518,10 +524,11 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .iter()
             .zip(type_vec_str.iter())
             .zip(subscribe_vec_str.iter())
+            .zip(update_vec_str.iter())
             .zip(pub_sub_vec_str.iter())
             .zip(pub_sub_tab_name_vec_str.iter())
             .zip(is_sub_vec.iter())
-            .map(|(((((a, b), c), d), e), f)| (a, b, c, d, e, f))
+            .map(|((((((a, b), c), d), e), f), g)| (a, b, c, d, e, f, g))
             .collect::<Vec<_>>();
 
         // build the processors in order
@@ -531,7 +538,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             let mut subscriptions = Vec::new();
             let mut publications = Vec::new();
             let mut subscribe_policy = None;
-            for (name, t, s_t, sub, sub_tab, is_sub) in combined.iter() {
+            let mut update_policy = None;
+            for (name, t, s_t, u_t, sub, sub_tab, is_sub) in combined.iter() {
                 if name == &processor_name {
                     if **is_sub == 1 {
                         let subscription = TableSubscription::from_str_fuzzy(sub, sub_tab)?;
@@ -540,8 +548,14 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                         let publication = TablePublication::from_str_fuzzy(sub, sub_tab)?;
                         publications.push(publication);
                     }
-                    let subscribe = AvailableTableSubscribePolicies::from_str_fuzzy(s_t)?.build();
+                    let subscribe = AvailableTableSubscribePolicies::from_str(s_t, false)
+                        .map_err(|e| anyhow!("{e:?}"))?
+                        .build();
                     subscribe_policy.replace(subscribe);
+                    let update = AvailableTableUpdatePolicies::from_str(u_t, false)
+                        .map_err(|e| anyhow!("{e:?}"))?
+                        .build();
+                    update_policy.replace(update);
                     let p = AvailableProcessors::from_str(t, false)
                         .map_err(|e| anyhow!("{e:?}",))?
                         .build_arc(processor_name);
@@ -560,6 +574,11 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                     subscribe_policy
                         .take()
                         .unwrap_or(AvailableTableSubscribePolicies::default().build()),
+                )
+                .with_update_policy(
+                    update_policy
+                        .take()
+                        .unwrap_or(AvailableTableUpdatePolicies::default().build()),
                 )
                 .build()?;
             processors.push(processor_plan);
@@ -1174,6 +1193,13 @@ mod tests {
                 .get(7)
                 .unwrap()
                 .get_column_as_vec_str("subscribe_type")
+        );
+        assert_eq!(
+            tables_test
+                .get(7)
+                .unwrap()
+                .get_column_as_vec_str("update_type"),
+            tables.get(7).unwrap().get_column_as_vec_str("update_type")
         );
         assert_eq!(
             tables_test.get(8).unwrap().get_name(),

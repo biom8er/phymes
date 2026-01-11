@@ -7,12 +7,12 @@ use crate::{MappableTrait, StateMap, TableSubscription, TableTrait};
 /// Determine when a table has been updated
 pub trait TableUpdatePolicyTrait: MappableTrait + Debug + Send + Sync {
     /// Determine which tables have been updated with respect to the query processor
-    /// 
+    ///
     /// # Notes
     /// * The output is the input to [TableUpdatePolicyTrait]
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `subscriptions` - Slice of `TableSubscription`s for the processor
     /// * `last_run` - timestamp of the last run
     /// * `subjects_change_long` - `HashMap` of the subjects and when they were changed last
@@ -43,17 +43,20 @@ impl TableUpdatePolicyTrait for TableHasBatchesUpdate {
         _subjects_change_long: &HashMap<String, i64>,
         state: &StateMap,
     ) -> HashMap<String, bool> {
-        subscriptions.iter()
-            .map(|s| if let Some(table) = state.get(s.get_table_name()) {
-                if table.read().get_record_batches().len() > 0 {
-                    (s.get_table_name().to_string(), true)
+        subscriptions
+            .iter()
+            .map(|s| {
+                if let Some(table) = state.get(s.get_table_name()) {
+                    if table.read().get_record_batches().len() > 0 {
+                        (s.get_table_name().to_string(), true)
+                    } else {
+                        (s.get_table_name().to_string(), false)
+                    }
                 } else {
                     (s.get_table_name().to_string(), false)
-                }                
-            } else {
-                (s.get_table_name().to_string(), false)
+                }
             })
-            .collect::< HashMap<_, _>>()
+            .collect::<HashMap<_, _>>()
     }
     fn new_box() -> Box<dyn TableUpdatePolicyTrait> {
         Box::new(Self {})
@@ -81,17 +84,20 @@ impl TableUpdatePolicyTrait for TableChangedSinceLastRunUpdate {
         subjects_change_long: &HashMap<String, i64>,
         _state: &StateMap,
     ) -> HashMap<String, bool> {
-        subscriptions.iter()
-            .map(|s| if let Some(timestamp) = subjects_change_long.get(s.get_table_name()) {
-                if timestamp > last_run {
-                    (s.get_table_name().to_string(), true)
+        subscriptions
+            .iter()
+            .map(|s| {
+                if let Some(timestamp) = subjects_change_long.get(s.get_table_name()) {
+                    if timestamp > last_run {
+                        (s.get_table_name().to_string(), true)
+                    } else {
+                        (s.get_table_name().to_string(), false)
+                    }
                 } else {
                     (s.get_table_name().to_string(), false)
-                }                
-            } else {
-                (s.get_table_name().to_string(), false)
+                }
             })
-            .collect::< HashMap<_, _>>()
+            .collect::<HashMap<_, _>>()
     }
     fn new_box() -> Box<dyn TableUpdatePolicyTrait> {
         Box::new(Self {})
@@ -119,13 +125,16 @@ impl TableUpdatePolicyTrait for TableExistsUpdate {
         _subjects_change_long: &HashMap<String, i64>,
         state: &StateMap,
     ) -> HashMap<String, bool> {
-        subscriptions.iter()
-            .map(|s| if state.contains_key(s.get_table_name()) {
-                (s.get_table_name().to_string(), true)
-            } else {
-                (s.get_table_name().to_string(), false)
+        subscriptions
+            .iter()
+            .map(|s| {
+                if state.contains_key(s.get_table_name()) {
+                    (s.get_table_name().to_string(), true)
+                } else {
+                    (s.get_table_name().to_string(), false)
+                }
             })
-            .collect::< HashMap<_, _>>()
+            .collect::<HashMap<_, _>>()
     }
     fn new_box() -> Box<dyn TableUpdatePolicyTrait> {
         Box::new(Self {})
@@ -198,7 +207,13 @@ mod tests {
         updates_test.insert("t3".to_string(), true);
         assert_eq!(updates, updates_test);
 
-        state.get_mut("t1").unwrap().try_write().unwrap().get_record_batches_mut().clear();
+        state
+            .get_mut("t1")
+            .unwrap()
+            .try_write()
+            .unwrap()
+            .get_record_batches_mut()
+            .clear();
 
         let updates = up.determine_updates(&subscriptions, &0, &changes, &state);
         let mut updates_test = HashMap::<String, bool>::new();

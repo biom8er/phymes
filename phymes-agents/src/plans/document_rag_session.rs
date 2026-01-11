@@ -1064,7 +1064,7 @@ mod tests {
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        SessionContextBuilderAgentsTrait, SessionStream, SessionStreamState, create_message_map,
+        SessionContextBuilderAgentsTrait, SessionStream, create_message_map,
     };
 
     use super::*;
@@ -1082,7 +1082,7 @@ mod tests {
             .with_name(doc_rag_session.session_context_name)
             .add_session_interface(None)?
             .build_with_tables()?;
-        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
+        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
         // Create the document message
         let document_texts = &[
@@ -1133,12 +1133,12 @@ mod tests {
             // ----- Query #1 -----
             // Embed the documents
             let message_map = create_message_map(vec![blob_message]);
-            let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+            let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
             // Embed the query and invoke a response
             let message_map = create_message_map(vec![chat_message]);
-            let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+            let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
 

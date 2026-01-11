@@ -1944,7 +1944,7 @@ mod tests {
 
     use crate::{
         SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream,
-        SessionStreamState, create_message_map, plans::user_session_inner,
+        create_message_map, plans::user_session_inner,
     };
 
     use super::*;
@@ -1961,7 +1961,7 @@ mod tests {
                 .to_string()
                 .as_str()]))?
             .build_with_tables()?;
-        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
+        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
         // Make diagnostic data and session tasks data
         let (user_session_stream_state, user_session_stream) = user_session_inner::user_session()?;
@@ -1971,7 +1971,6 @@ mod tests {
         let message_map = {
             let usss = user_session_stream_state.read();
             let table = usss
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
@@ -1986,7 +1985,6 @@ mod tests {
                 .make_name()?
                 .build()?;
             let table = usss
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionTraces.to_string().as_str())
                 .unwrap()
@@ -2001,7 +1999,6 @@ mod tests {
                 .make_name()?
                 .build()?;
             let table = usss
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionEvents.to_string().as_str())
                 .unwrap()
@@ -2016,7 +2013,6 @@ mod tests {
                 .make_name()?
                 .build()?;
             let table = usss
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionTasks.to_string().as_str())
                 .unwrap()
@@ -2031,7 +2027,6 @@ mod tests {
                 .make_name()?
                 .build()?;
             let table = usss
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
@@ -2065,10 +2060,10 @@ mod tests {
         };
 
         // Run
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-        // let sss = session_stream_state.read();
+        // let sss = session_ctx_arc.read();
         // let table = sss
         //     .get_session_context()
         //     .get_states()

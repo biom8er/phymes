@@ -77,11 +77,10 @@ pub async fn session_put_state(
                 .unwrap()
                 .get(payload.get_session_name())
             {
-                Some(session_stream_state) => {
-                    let schema = if let Some(subject) = session_stream_state
+                Some(session_ctx_arc) => {
+                    let schema = if let Some(subject) = session_ctx_arc
                         .try_read()
                         .unwrap()
-                        .get_session_context()
                         .get_states()
                         .get(payload.get_subject())
                     {
@@ -163,10 +162,10 @@ pub async fn session_put_state(
                     let message_map = create_message_map(vec![message]);
 
                     // Update the session state with the new message
-                    let update = session_stream_state
+                    let update = session_ctx_arc
                         .try_write()
                         .unwrap()
-                        .update_state_from_messages(message_map)
+                        .update_subjects_from_messages(message_map)
                         .unwrap();
 
                     // Update the subjects change log
@@ -182,9 +181,9 @@ pub async fn session_put_state(
                             .build()
                             .unwrap(),
                     ]);
-                    let _ = session_stream_state
+                    let _ = session_ctx_arc
                         .write()
-                        .update_state_from_messages(messages)
+                        .update_subjects_from_messages(messages)
                         .unwrap();
                 }
                 None => {
@@ -290,21 +289,19 @@ pub async fn session_get_state(
                 .write()
                 .get(payload.get_session_name())
             {
-                Some(session_stream_state) => {
+                Some(session_ctx_arc) => {
                     // Update the row counts just in case...
-                    session_stream_state
+                    session_ctx_arc
                         .try_write()
                         .unwrap()
-                        .get_session_context_mut()
                         .update_subject_num_rows_table();
 
                     match payload.get_format() {
                         DataFormat::Bytes => {
                             // Get the subject table as a json object
-                            let buf = session_stream_state
+                            let buf = session_ctx_arc
                                 .try_read()
                                 .unwrap()
-                                .get_session_context()
                                 .get_states()
                                 .get(payload.get_subject())
                                 .unwrap()
@@ -316,10 +313,9 @@ pub async fn session_get_state(
                         }
                         DataFormat::Csv(csv_format) => {
                             // Get the subject table as a csv string
-                            let out = session_stream_state
+                            let out = session_ctx_arc
                                 .try_read()
                                 .unwrap()
-                                .get_session_context()
                                 .get_states()
                                 .get(payload.get_subject())
                                 .unwrap()
@@ -333,10 +329,9 @@ pub async fn session_get_state(
                         DataFormat::CsvDefault => {
                             // Get the subject table as a csv string
                             let csv_format = CsvFormat::default();
-                            let out = session_stream_state
+                            let out = session_ctx_arc
                                 .try_read()
                                 .unwrap()
-                                .get_session_context()
                                 .get_states()
                                 .get(payload.get_subject())
                                 .unwrap()
@@ -349,10 +344,9 @@ pub async fn session_get_state(
                         }
                         DataFormat::Json(_) | DataFormat::JsonDefault => {
                             // Get the subject table as a json string
-                            let out = session_stream_state
+                            let out = session_ctx_arc
                                 .try_read()
                                 .unwrap()
-                                .get_session_context()
                                 .get_states()
                                 .get(payload.get_subject())
                                 .unwrap()
@@ -365,10 +359,9 @@ pub async fn session_get_state(
                         }
                         DataFormat::Ipc => {
                             // Get the subject table as a csv string
-                            let out = session_stream_state
+                            let out = session_ctx_arc
                                 .try_read()
                                 .unwrap()
-                                .get_session_context()
                                 .get_states()
                                 .get(payload.get_subject())
                                 .unwrap()

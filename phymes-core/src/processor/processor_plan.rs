@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     MappableTrait, ProcessorTrait, TablePublication, TableSubscribePolicyTrait, TableSubscription,
+    TableUpdatePolicyTrait,
 };
 
 /// The plan for the processors
@@ -15,6 +16,8 @@ pub struct ProcessorPlan {
     subscriptions: Vec<TableSubscription>,
     /// The policy for subscribing to subjects
     subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
+    /// The policy for determining when tables have been updated
+    update_policy: Box<dyn TableUpdatePolicyTrait>,
 }
 
 impl ProcessorPlan {
@@ -23,12 +26,14 @@ impl ProcessorPlan {
         publications: &[TablePublication],
         subscriptions: &[TableSubscription],
         subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
+        update_policy: Box<dyn TableUpdatePolicyTrait>,
     ) -> Self {
         ProcessorPlan {
             processor,
             publications: publications.to_vec(),
             subscriptions: subscriptions.to_vec(),
             subscribe_policy,
+            update_policy,
         }
     }
     pub fn get_processor(&self) -> &Arc<dyn ProcessorTrait> {
@@ -58,6 +63,13 @@ impl ProcessorPlan {
     }
     pub fn get_subscribe_policy_owned(self) -> Box<dyn TableSubscribePolicyTrait> {
         self.subscribe_policy
+    }
+    #[allow(clippy::borrowed_box)]
+    pub fn get_update_policy(&self) -> &Box<dyn TableUpdatePolicyTrait> {
+        &self.update_policy
+    }
+    pub fn get_update_policy_owned(self) -> Box<dyn TableUpdatePolicyTrait> {
+        self.update_policy
     }
 }
 

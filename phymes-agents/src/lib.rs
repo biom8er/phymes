@@ -10,6 +10,5 @@ pub use session::{
     CustomAgentsBuilderTrait, SessionContext, SessionContextBuilder,
     SessionContextBuilderAgentsTrait, SessionContextBuilderMermaid,
     SessionContextBuilderMermaidTrait, SessionContextBuilderTabularTrait,
-    SessionContextBuilderTrait, SessionStream, SessionStreamState, SessionStreamStep,
-    test_session_context_builder,
+    SessionContextBuilderTrait, SessionStream, SessionStreamStep, test_session_context_builder,
 };

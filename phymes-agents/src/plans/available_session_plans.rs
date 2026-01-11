@@ -7,9 +7,7 @@ use phymes_core::BuilderTrait;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BuilderSession, ChatAgentSession, CustomAgentsBuilderTrait, DocumentRAGSession,
-    SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait,
-    SessionStreamState, ToolAgentSession, UserSession,
+    BuilderSession, ChatAgentSession, CustomAgentsBuilderTrait, DocumentRAGSession, SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, ToolAgentSession, UserSession
 };
 
 /// The available session plans
@@ -93,7 +91,7 @@ impl AvailableSessionPlans {
     }
 
     /// Get the session stream state
-    pub fn get_session_stream_state(&self, session_name: &str) -> Arc<RwLock<SessionStreamState>> {
+    pub fn get_session_stream_state(&self, session_name: &str) -> Arc<RwLock<SessionContext>> {
         // Initialize the session
         let builder = self.get_session_context_builder(session_name);
         let session_ctx = builder
@@ -103,14 +101,14 @@ impl AvailableSessionPlans {
             .unwrap()
             .build_with_tables()
             .unwrap();
-        Arc::new(RwLock::new(SessionStreamState::new(session_ctx)))
+        Arc::new(RwLock::new(session_ctx))
     }
 
     /// Get the session stream state by name
     pub fn get_session_stream_state_by_name(
         session_plan_name: &str,
         session_name: &str,
-    ) -> Result<Arc<RwLock<SessionStreamState>>> {
+    ) -> Result<Arc<RwLock<SessionContext>>> {
         if session_plan_name == Self::Chat.to_string() {
             Ok(Self::Chat.get_session_stream_state(session_name))
         } else if session_plan_name == Self::DocChat.to_string() {

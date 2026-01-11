@@ -318,7 +318,7 @@ mod tests {
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        SessionContextBuilderAgentsTrait, SessionStream, SessionStreamState, create_message_map,
+        SessionContextBuilderAgentsTrait, SessionStream, create_message_map,
     };
 
     use super::*;
@@ -332,7 +332,7 @@ mod tests {
             .with_name(chat_agent_session.session_context_name)
             .add_session_interface(None)?
             .build_with_tables()?;
-        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
+        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
         // Skip actually running the session as it takes too long on the CPU
         if cfg!(any(
@@ -359,7 +359,7 @@ mod tests {
                 .build()?;
             let incoming_message_map = create_message_map(vec![message]);
             let session_stream =
-                SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+                SessionStream::new(incoming_message_map, Arc::clone(&session_ctx_arc));
             let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
 
@@ -403,7 +403,6 @@ mod tests {
             assert!(json_data.first().unwrap().get("content").is_some());
 
             // ----- Query #2 -----
-            session_stream_state.try_write().unwrap().set_iter(0);
             let chat = AvailableInterfaceSubjects::UserMessages
                 .to_table_builder(None)
                 .append_new_user_query_str(
@@ -422,7 +421,7 @@ mod tests {
                 .build()?;
             let incoming_message_map = create_message_map(vec![message]);
             let session_stream =
-                SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+                SessionStream::new(incoming_message_map, Arc::clone(&session_ctx_arc));
             let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
 

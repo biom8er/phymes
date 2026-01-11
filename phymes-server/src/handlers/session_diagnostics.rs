@@ -14,7 +14,7 @@ use parking_lot::RwLock;
 use phymes_agents::{
     AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DiagnosticSession,
     SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream,
-    SessionStreamState, create_message_map,
+    create_message_map,
 };
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, IPCMessage,
@@ -88,7 +88,7 @@ pub async fn session_diagnostics(
 
             // Get the diagnostic information from the session stream state
             let message_map = {
-                let session_stream_state = match state
+                let session_ctx_arc = match state
                     .session_contexts
                     .try_write()
                     .unwrap()
@@ -107,9 +107,8 @@ pub async fn session_diagnostics(
                         .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 };
-                let sss = session_stream_state.read();
+                let sss = session_ctx_arc.read();
                 let table = sss
-                    .get_session_context()
                     .get_states()
                     .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                     .unwrap()
@@ -126,7 +125,6 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let table = sss
-                    .get_session_context()
                     .get_states()
                     .get(AvailableSubjects::SessionTraces.to_string().as_str())
                     .unwrap()
@@ -143,7 +141,6 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let table = sss
-                    .get_session_context()
                     .get_states()
                     .get(AvailableSubjects::SessionEvents.to_string().as_str())
                     .unwrap()
@@ -160,7 +157,6 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let table = sss
-                    .get_session_context()
                     .get_states()
                     .get(AvailableSubjects::SessionTasks.to_string().as_str())
                     .unwrap()
@@ -177,7 +173,6 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let table = sss
-                    .get_session_context()
                     .get_states()
                     .get(AvailableSubjects::SessionErrors.to_string().as_str())
                     .unwrap()
@@ -223,8 +218,8 @@ pub async fn session_diagnostics(
                 .unwrap()
                 .build_with_tables()
                 .unwrap();
-            let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
-            let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+            let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+            let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
 
             // Run and update the session and convert the output to the user specified format
             match (&payload.get_format(), payload.get_stream()) {
@@ -331,7 +326,7 @@ pub async fn session_diagnostics(
                         .unwrap();
 
                     // // DM: debugging...
-                    // let sss = session_stream_state.read();
+                    // let sss = session_ctx_arc.read();
                     // let table = sss
                     //     .get_session_context()
                     //     .get_states()

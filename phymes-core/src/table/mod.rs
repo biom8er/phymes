@@ -34,7 +34,10 @@ pub(crate) use table_subscribe_policy::{
 };
 pub use table_subscription::{TableSubscription, TableSubscriptionTrait};
 pub use table_trait::{Table, TableTrait, test_table};
-pub use table_update_policy::{TableUpdatePolicyTrait, TableChangedSinceLastRunUpdate, TableExistsUpdate, TableHasBatchesUpdate};
+pub use table_update_policy::{
+    TableChangedSinceLastRunUpdate, TableExistsUpdate, TableHasBatchesUpdate,
+    TableUpdatePolicyTrait,
+};
 
 use parking_lot::RwLock;
 use phymes_diagnostics::HashMap;

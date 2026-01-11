@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use phymes_agents::{
     AvailableInterfaceSubjects, ChatAgentSession, CustomAgentsBuilderTrait,
-    SessionContextBuilderAgentsTrait, SessionStream, SessionStreamState, create_message_map,
+    SessionContextBuilderAgentsTrait, SessionStream, create_message_map,
 };
 use phymes_core::{
     AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage,
@@ -31,7 +31,7 @@ pub async fn run_main() -> Result<()> {
         .with_name(chat_agent_session.session_context_name)
         .add_session_interface(None)?
         .build_with_tables()?;
-    let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
+    let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
     // ----- Query #1 -----
     let chat = AvailableInterfaceSubjects::UserMessages
@@ -49,7 +49,7 @@ pub async fn run_main() -> Result<()> {
         .build()?;
     let incoming_message_map = create_message_map(vec![message]);
     let session_stream =
-        SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+        SessionStream::new(incoming_message_map, Arc::clone(&session_ctx_arc));
     let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
     // Update the chat history with the response
@@ -76,7 +76,6 @@ pub async fn run_main() -> Result<()> {
     }
 
     // ----- Query #2 -----
-    session_stream_state.try_write().unwrap().set_iter(0);
     let chat = AvailableInterfaceSubjects::UserMessages
         .to_table_builder(None)
         .append_new_user_query_str("Please provide an example using the functions.", "user")?
@@ -92,7 +91,7 @@ pub async fn run_main() -> Result<()> {
         .build()?;
     let incoming_message_map = create_message_map(vec![message]);
     let session_stream =
-        SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+        SessionStream::new(incoming_message_map, Arc::clone(&session_ctx_arc));
     let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
     // Update the chat history with the response

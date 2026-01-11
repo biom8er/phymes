@@ -17,7 +17,7 @@ use std::sync::Arc;
 use tokio::task::JoinSet;
 use tracing::{Level, event, instrument};
 
-use crate::{SessionStreamState, create_message_map};
+use crate::{SessionContext, create_message_map};
 
 /// A single step of a [`SessionStream`]
 ///
@@ -146,38 +146,33 @@ impl SessionStreamStep {
     /// [IPCMessageMap] if the the `Session` subsject was updated and None otherwise.
     #[instrument(skip(state, messages))]
     pub async fn run_superstep(
-        state: Arc<RwLock<SessionStreamState>>,
+        state: Arc<RwLock<SessionContext>>,
         messages: IPCMessageMap,
+        iter: usize,
     ) -> Result<Option<IPCMessageMap>> {
         // Initialize the channels for collecting the metrics, events, and traces)
         let mut diagnostics_vec = Vec::new();
         let span = SpanBuilder::default()
-            .with_span(state.read().get_session_context().get_name())
+            .with_span(state.read().get_name())
             .build()?;
 
         // Create the diagnostics for the session step
-        let collect_diagnostics = state.read().get_session_context().get_diagnostics();
+        let collect_diagnostics = state.read().get_diagnostics();
         let trace = if collect_diagnostics {
             let diagnostics = Diagnostics::new();
             let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
             diagnostics_vec.push(diagnostics);
 
             // Trace the session step
-            let trace = diagnostic_builder.clone().messages(
-                line!(),
-                file!(),
-                state.read().get_session_context().get_name(),
-            );
+            let trace =
+                diagnostic_builder
+                    .clone()
+                    .messages(line!(), file!(), state.read().get_name());
             trace.enter(&messages.values().collect::<Vec<_>>());
-            let event = diagnostic_builder.clone().info(
-                line!(),
-                file!(),
-                state.read().get_session_context().get_name(),
-            );
-            event.insert(
-                "superstep",
-                &serde_json::Value::Number(state.read().get_iter().into()),
-            );
+            let event = diagnostic_builder
+                .clone()
+                .info(line!(), file!(), state.read().get_name());
+            event.insert("superstep", &serde_json::Value::Number(iter.into()));
             Some(trace)
         } else {
             None
@@ -186,7 +181,7 @@ impl SessionStreamStep {
         let mut response_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         {
             // Update the state and handle any errors (without locking the state)
-            let update = match state.write().update_state_from_messages(messages) {
+            let update = match state.write().update_subjects_from_messages(messages) {
                 Ok(update) => update,
                 Err(err) => {
                     let message_map = create_error_message_map_stream(&err, span.span().0, true)?;
@@ -207,12 +202,12 @@ impl SessionStreamStep {
                     .make_random_name()?
                     .build()?,
             ]);
-            let _ = state.write().update_state_from_messages(messages)?;
+            let _ = state.write().update_subjects_from_messages(messages)?;
         }
 
         // Retrieve the task ready to subscribe and their corresponding publications
         // DM: run the task session...
-        let tasks = state.read().get_session_context().tasks_to_run()?;
+        let tasks = state.read().tasks_to_run()?;
 
         // Iterate through each task and collect the resulting stream responses
         let mut session_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -222,13 +217,12 @@ impl SessionStreamStep {
             // Subscribe to the task subjects
             let task = state
                 .read()
-                .get_session_context()
                 .get_tasks()
                 .get(task_name)
                 .unwrap_or_else(|| {
                     panic!(
                         "Missing task `{task_name}` in session `{}` state.",
-                        state.read().get_session_context().get_name()
+                        state.read().get_name()
                     )
                 })
                 .clone();
@@ -247,11 +241,11 @@ impl SessionStreamStep {
             match task.run(
                 diagnostic_builder.as_ref(),
                 processor_subjects_map,
-                state.read().get_session_context().get_states(),
+                state.read().get_states(),
             ) {
                 Ok(result) => {
                     for (resp_name, resp) in result.into_iter() {
-                        if task_name == state.read().get_session_context().get_name() {
+                        if task_name == state.read().get_name() {
                             session_streams.insert(resp_name, resp);
                         } else {
                             response_streams.insert(resp_name, resp);
@@ -290,7 +284,7 @@ impl SessionStreamStep {
                     .make_random_name()?
                     .build()?,
             ]);
-            let state_update = state.write().update_state_from_messages(messages)?;
+            let state_update = state.write().update_subjects_from_messages(messages)?;
 
             // Update the subjects change log
             let messages = create_message_map(vec![
@@ -304,16 +298,14 @@ impl SessionStreamStep {
                     .make_random_name()?
                     .build()?,
             ]);
-            let _ = state.write().update_state_from_messages(messages)?;
+            let _ = state.write().update_subjects_from_messages(messages)?;
         }
 
         // Break if there is nothing to update
         if session_streams.is_empty() && response_streams.is_empty() {
             // Collect metrics, logs, and traces and update their corresponding subjects
-            let (_metrics_updated, _traces_updated, _events_updated) = state
-                .write()
-                .get_session_context_mut()
-                .update_metrics_table(&diagnostics_vec)?;
+            let (_metrics_updated, _traces_updated, _events_updated) =
+                state.write().update_metrics_table(&diagnostics_vec)?;
 
             Ok(None)
         } else {
@@ -327,7 +319,9 @@ impl SessionStreamStep {
             {
                 // Update the state and handle any errors (without locking the state)
                 let mut error_messages = HashMap::<String, IPCMessage>::new();
-                let state_update = match state.write().update_state_from_messages(response_batches)
+                let state_update = match state
+                    .write()
+                    .update_subjects_from_messages(response_batches)
                 {
                     Ok(update) => update,
                     Err(err) => {
@@ -336,7 +330,9 @@ impl SessionStreamStep {
                         AvailableSubjects::SubjectsChangeLog.to_table(None, None)?
                     }
                 };
-                let errors_update = state.write().update_state_from_messages(error_messages)?;
+                let errors_update = state
+                    .write()
+                    .update_subjects_from_messages(error_messages)?;
 
                 // Update the subjects change log
                 let messages = create_message_map(vec![
@@ -359,7 +355,7 @@ impl SessionStreamStep {
                         .make_random_name()?
                         .build()?,
                 ]);
-                let _ = state.write().update_state_from_messages(messages)?;
+                let _ = state.write().update_subjects_from_messages(messages)?;
             }
 
             // Join each of the response futures
@@ -369,14 +365,8 @@ impl SessionStreamStep {
             }
 
             // Collect metrics, logs, and traces and update their corresponding subjects
-            let (_metrics_updated, _traces_updated, _events_updated) = state
-                .write()
-                .get_session_context_mut()
-                .update_metrics_table(&diagnostics_vec)?;
-
-            // Increment the step
-            let iter = state.read().get_iter() + 1;
-            state.write().set_iter(iter);
+            let (_metrics_updated, _traces_updated, _events_updated) =
+                state.write().update_metrics_table(&diagnostics_vec)?;
 
             Ok(Some(session_batches))
         }
@@ -396,35 +386,33 @@ mod tests {
         AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies,
         ProcessorBuilder, ProcessorPlanBuilder, TablePublication, TableSubscription, TaskPlan,
         test_processor::{ProcessorError, ProcessorMock},
-        test_task::{make_runtime_env, make_state_tables, make_test_input_message},
+        test_task,
     };
 
     #[tokio::test]
     async fn test_session_run_superstep_no_state_update() -> Result<()> {
         let session_context = make_test_session_context_parallel_task("session_1", 4)?;
-        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
+        let session_context_arc = Arc::new(RwLock::new(session_context));
         let response = SessionStreamStep::run_superstep(
-            Arc::clone(&session_stream_state),
-            make_test_input_message(
+            Arc::clone(&session_context_arc),
+            test_task::make_test_input_message(
                 "task_1",
                 "session_1",
                 "state_1",
                 "state_1",
                 &TablePublication::None,
-                true,
+                true
             )?,
+            0,
         )
         .await?;
         assert!(response.is_none());
 
         // check the session and state
-        assert_eq!(session_stream_state.read().get_iter(), 0);
-
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_1")
                 .unwrap()
@@ -435,10 +423,9 @@ mod tests {
             3
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_1")
                 .unwrap()
@@ -451,10 +438,9 @@ mod tests {
             4
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_2")
                 .unwrap()
@@ -465,10 +451,9 @@ mod tests {
             3
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_3")
                 .unwrap()
@@ -479,10 +464,9 @@ mod tests {
             3
         );
         assert!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .is_none()
@@ -494,10 +478,10 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_extend_state_update_single_task() -> Result<()> {
         let session_context = make_test_session_context_parallel_task("session_1", 4)?;
-        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
+        let session_context_arc = Arc::new(RwLock::new(session_context));
         let response = SessionStreamStep::run_superstep(
-            Arc::clone(&session_stream_state),
-            make_test_input_message(
+            Arc::clone(&session_context_arc),
+            test_task::make_test_input_message(
                 "task_1",
                 "session_1",
                 "state_1",
@@ -505,20 +489,19 @@ mod tests {
                 &TablePublication::Extend {
                     table_name: "state_1".to_string(),
                 },
-                true,
+                true
             )?,
+            0
         )
         .await?
         .unwrap();
         assert!(response.is_empty());
 
         // check the session and state
-        assert_eq!(session_stream_state.read().get_iter(), 1);
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_1")
                 .unwrap()
@@ -529,10 +512,9 @@ mod tests {
             12
         ); // Originally 3
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_1")
                 .unwrap()
@@ -545,10 +527,9 @@ mod tests {
             5
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_2")
                 .unwrap()
@@ -559,10 +540,9 @@ mod tests {
             3
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_3")
                 .unwrap()
@@ -573,10 +553,9 @@ mod tests {
             3
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
@@ -587,10 +566,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
@@ -601,10 +579,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .unwrap()
@@ -615,10 +592,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
@@ -635,10 +611,10 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_single_task() -> Result<()> {
         let session_context = make_test_session_context_parallel_task("session_1", 4)?;
-        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
+        let session_context_arc = Arc::new(RwLock::new(session_context));
         let response = SessionStreamStep::run_superstep(
-            Arc::clone(&session_stream_state),
-            make_test_input_message(
+            Arc::clone(&session_context_arc),
+            test_task::make_test_input_message(
                 "task_1",
                 "session_1",
                 "state_1",
@@ -646,20 +622,19 @@ mod tests {
                 &TablePublication::Replace {
                     table_name: "state_1".to_string(),
                 },
-                true,
+                true
             )?,
+            0
         )
         .await?
         .unwrap();
         assert!(response.is_empty());
 
         // check the session and state
-        assert_eq!(session_stream_state.read().get_iter(), 1);
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_1")
                 .unwrap()
@@ -670,10 +645,9 @@ mod tests {
             6
         ); // Originally 3
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_1")
                 .unwrap()
@@ -686,10 +660,9 @@ mod tests {
             5
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_2")
                 .unwrap()
@@ -700,10 +673,9 @@ mod tests {
             3
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_3")
                 .unwrap()
@@ -714,10 +686,9 @@ mod tests {
             3
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
@@ -728,10 +699,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
@@ -742,10 +712,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .unwrap()
@@ -756,10 +725,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
@@ -777,7 +745,7 @@ mod tests {
     async fn test_session_run_superstep_replace_state_update_parallel_tasks() -> Result<()> {
         // Superstep 1
         let session_context = make_test_session_context_parallel_task("session_1", 4)?;
-        let mut input = make_test_input_message(
+        let mut input = test_task::make_test_input_message(
             "task_1",
             "session_1",
             "state_1",
@@ -787,7 +755,7 @@ mod tests {
             },
             true,
         )?;
-        input.extend(make_test_input_message(
+        input.extend(test_task::make_test_input_message(
             "task_2",
             "session_1",
             "state_2",
@@ -797,7 +765,7 @@ mod tests {
             },
             true,
         )?);
-        input.extend(make_test_input_message(
+        input.extend(test_task::make_test_input_message(
             "task_3",
             "session_1",
             "state_3",
@@ -807,19 +775,17 @@ mod tests {
             },
             true,
         )?);
-        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_stream_state), input)
+        let session_context_arc = Arc::new(RwLock::new(session_context));
+        let response = SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input, 0)
             .await?
             .unwrap();
         assert!(response.is_empty());
 
         // check the session and state
-        assert_eq!(session_stream_state.read().get_iter(), 1);
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_1")
                 .unwrap()
@@ -830,10 +796,9 @@ mod tests {
             6
         ); // Originally 3
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_1")
                 .unwrap()
@@ -846,10 +811,9 @@ mod tests {
             5
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_2")
                 .unwrap()
@@ -860,10 +824,9 @@ mod tests {
             6
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_2")
                 .unwrap()
@@ -876,10 +839,9 @@ mod tests {
             5
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_3")
                 .unwrap()
@@ -890,10 +852,9 @@ mod tests {
             6
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_3")
                 .unwrap()
@@ -906,10 +867,9 @@ mod tests {
             5
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
@@ -920,10 +880,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
@@ -934,10 +893,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .unwrap()
@@ -948,10 +906,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
@@ -964,8 +921,9 @@ mod tests {
 
         // Superstep 2
         let mut response = SessionStreamStep::run_superstep(
-            Arc::clone(&session_stream_state),
+            Arc::clone(&session_context_arc),
             HashMap::<String, IPCMessage>::new(),
+            0
         )
         .await?
         .unwrap();
@@ -1096,12 +1054,10 @@ mod tests {
         assert_eq!(n_rows, 6);
 
         // check the session and state
-        assert_eq!(session_stream_state.read().get_iter(), 2);
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_1")
                 .unwrap()
@@ -1112,10 +1068,9 @@ mod tests {
             6
         ); // The same as superstep 1
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_1")
                 .unwrap()
@@ -1128,10 +1083,9 @@ mod tests {
             5
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_2")
                 .unwrap()
@@ -1142,10 +1096,9 @@ mod tests {
             6
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_2")
                 .unwrap()
@@ -1158,10 +1111,9 @@ mod tests {
             5
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_3")
                 .unwrap()
@@ -1172,10 +1124,9 @@ mod tests {
             6
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_3")
                 .unwrap()
@@ -1188,10 +1139,9 @@ mod tests {
             5
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
@@ -1202,10 +1152,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
@@ -1216,10 +1165,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .unwrap()
@@ -1230,10 +1178,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
@@ -1251,7 +1198,7 @@ mod tests {
     async fn test_session_run_superstep_replace_state_update_sequential_tasks() -> Result<()> {
         // Superstep 1
         let session_context = make_test_session_context_sequential_task("session_1", 4)?;
-        let input = make_test_input_message(
+        let input = test_task::make_test_input_message(
             "task_1",
             "session_1",
             "state_1",
@@ -1261,19 +1208,17 @@ mod tests {
             },
             true,
         )?;
-        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_stream_state), input)
+        let session_context_arc = Arc::new(RwLock::new(session_context));
+        let response = SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input, 0)
             .await?
             .unwrap();
         assert!(response.is_empty());
 
         // check the session and state
-        assert_eq!(session_stream_state.read().get_iter(), 1);
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_1")
                 .unwrap()
@@ -1284,10 +1229,9 @@ mod tests {
             12
         ); // Originally 3
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_1")
                 .unwrap()
@@ -1300,10 +1244,9 @@ mod tests {
             5
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
@@ -1314,10 +1257,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
@@ -1328,10 +1270,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .unwrap()
@@ -1342,10 +1283,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
@@ -1358,16 +1298,15 @@ mod tests {
 
         // Supersteps 2, 3, and 4
         let _ = SessionStreamStep::run_superstep(
-            Arc::clone(&session_stream_state),
+            Arc::clone(&session_context_arc),
             HashMap::<String, IPCMessage>::new(),
+            1
         )
         .await?;
-        assert_eq!(session_stream_state.read().get_iter(), 2);
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
@@ -1378,10 +1317,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
@@ -1392,10 +1330,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .unwrap()
@@ -1406,16 +1343,15 @@ mod tests {
             1
         );
         let _ = SessionStreamStep::run_superstep(
-            Arc::clone(&session_stream_state),
+            Arc::clone(&session_context_arc),
             HashMap::<String, IPCMessage>::new(),
+            2
         )
         .await?;
-        assert_eq!(session_stream_state.read().get_iter(), 3);
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
@@ -1426,10 +1362,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
@@ -1440,10 +1375,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .unwrap()
@@ -1454,8 +1388,9 @@ mod tests {
             1
         );
         let mut response = SessionStreamStep::run_superstep(
-            Arc::clone(&session_stream_state),
+            Arc::clone(&session_context_arc),
             HashMap::<String, IPCMessage>::new(),
+            3
         )
         .await?
         .unwrap();
@@ -1504,12 +1439,10 @@ mod tests {
         assert_eq!(n_rows, 8);
 
         // check the session and state
-        assert_eq!(session_stream_state.read().get_iter(), 4);
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_1")
                 .unwrap()
@@ -1520,10 +1453,9 @@ mod tests {
             768
         ); // Originally 3
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("state_1")
                 .unwrap()
@@ -1536,10 +1468,9 @@ mod tests {
             8
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
@@ -1550,10 +1481,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
@@ -1564,10 +1494,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .unwrap()
@@ -1578,10 +1507,9 @@ mod tests {
             1
         );
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
@@ -1598,7 +1526,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_schema_mismatch_error() -> Result<()> {
         let session_context = make_test_session_context_sequential_task("session_1", 4)?;
-        let input = make_test_input_message(
+        let input = test_task::make_test_input_message(
             "task_1",
             "session_1",
             "state_1",
@@ -1608,9 +1536,9 @@ mod tests {
             },
             false,
         )?;
-        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
+        let session_context_arc = Arc::new(RwLock::new(session_context));
         let response =
-            SessionStreamStep::run_superstep(Arc::clone(&session_stream_state), input).await;
+            SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input, 0).await;
         assert!(response.is_err());
 
         Ok(())
@@ -1674,18 +1602,18 @@ mod tests {
                 .build()
                 .unwrap(),
         ];
-        let state = make_state_tables("state_1", "config_1")?;
+        let state = test_task::make_state_tables("state_1", "config_1")?;
         let mut session_context = SessionContextBuilder::new()
             .with_name("session_1")
             .with_tasks(task_plans)
             .with_processors(processors)
-            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
             .with_state(state)
             .with_max_iter(1)
             .build()?;
 
         // Run the session context without adding the Error table
-        let input = make_test_input_message(
+        let input = test_task::make_test_input_message(
             "task_1",
             "session_1",
             "state_1",
@@ -1695,12 +1623,9 @@ mod tests {
             },
             true,
         )?;
-        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(
-            session_context.clone(),
-        )));
+        let session_context_arc = Arc::new(RwLock::new(session_context.clone()));
         let response =
-            SessionStreamStep::run_superstep(Arc::clone(&session_stream_state), input.clone())
-                .await;
+            SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input.clone(), 0).await;
         assert!(response.is_err());
 
         // Add the Error table and retry
@@ -1710,17 +1635,16 @@ mod tests {
                 AvailableSubjects::SessionErrors.to_table(None, None)?,
             )),
         );
-        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_context)));
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_stream_state), input)
+        let session_context_arc = Arc::new(RwLock::new(session_context));
+        let response = SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input, 0)
             .await?
             .unwrap();
 
         assert!(response.is_empty());
         assert_eq!(
-            session_stream_state
+            session_context_arc
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()

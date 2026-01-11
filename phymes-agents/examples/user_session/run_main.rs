@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use phymes_agents::{
     AvailableInterfaceSubjects, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait,
-    SessionStream, SessionStreamState, UserSession, create_message_map,
+    SessionStream, UserSession, create_message_map,
 };
 use phymes_core::{
     AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, IPCMessage,
@@ -27,7 +27,7 @@ pub async fn run_main() -> Result<()> {
         .build()
         .with_name(user_agent_session.session_context_name)
         .build_with_tables()?;
-    let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
+    let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
     // Make the tabular data
     let batch = create_user_inbox_batch(vec!["contact@biom8er.com".to_string()])?;
@@ -53,7 +53,7 @@ pub async fn run_main() -> Result<()> {
         .build()?;
     let message_map = create_message_map(vec![blob_message]);
 
-    let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+    let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
     let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
     let attachment_data = response

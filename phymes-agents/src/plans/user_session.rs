@@ -475,13 +475,12 @@ pub(crate) mod user_session_inner {
     };
 
     use crate::{
-        SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream,
-        SessionStreamState, create_message_map,
+        SessionContext, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream, create_message_map
     };
 
     use super::*;
 
-    pub fn user_session() -> Result<(Arc<RwLock<SessionStreamState>>, SessionStream)> {
+    pub fn user_session() -> Result<(Arc<RwLock<SessionContext>>, SessionStream)> {
         // initialize the session
         let user_agent_session = UserSession::default();
         let session_ctx = user_agent_session
@@ -489,7 +488,7 @@ pub(crate) mod user_session_inner {
             .with_name(user_agent_session.session_context_name)
             .with_diagnostics(true)
             .build_with_tables()?;
-        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
+        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
         // Make the tabular data
         let batch = create_user_inbox_batch(vec!["contact@biom8er.com".to_string()])?;
@@ -515,9 +514,9 @@ pub(crate) mod user_session_inner {
             .build()?;
         let message_map = create_message_map(vec![blob_message]);
 
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
 
-        Ok((session_stream_state, session_stream))
+        Ok((session_ctx_arc, session_stream))
     }
 }
 
@@ -532,7 +531,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_user_session() -> Result<()> {
-        let (session_stream_state, session_stream) = user_session_inner::user_session()?;
+        let (session_ctx_arc, session_stream) = user_session_inner::user_session()?;
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         let attachment_data = response
@@ -540,7 +539,7 @@ mod tests {
             .map(|mut r| {
                 r.remove(&format!(
                     "from_{}_on_{}",
-                    session_stream_state.read().get_session_context().get_name(),
+                    session_ctx_arc.read().get_name(),
                     AvailableInterfaceSubjects::AssistantJson
                 ))
             })

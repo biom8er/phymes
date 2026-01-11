@@ -206,16 +206,11 @@ impl<'a> TasksSession<'a> {
 		group_by_subject_change_log_timestamp_p-processor-->group_by_subject_change_log_timestamp_p-publish
 		group_by_subject_change_log_timestamp_p-publish-->|Replace|group_by_subject_change_log_timestamp_t-subject
 		select_tasks_run_log_timestamp_t-subject-->|FullTable|join_tasks_run_log_timestamp_p-subscribe
-		SessionTasksCheck-subject-.->|FullTable|join_tasks_run_log_timestamp_p-subscribe
+		SessionTasks-subject-->|FullTable|join_tasks_run_log_timestamp_p-subscribe
 		join_tasks_run_log_timestamp_p-subscribe-->join_tasks_run_log_timestamp_p-processor
 		join_tasks_run_log_timestamp_p-processor-->join_tasks_run_log_timestamp_p-publish
 		join_tasks_run_log_timestamp_p-publish-->|Replace|join_tasks_run_log_timestamp_t-subject
-		join_tasks_run_log_timestamp_t-subject-->|FullTable|join_tasks_processors_p-subscribe
-		SessionTasks-subject-->|FullTable|join_tasks_processors_p-subscribe
-		join_tasks_processors_p-subscribe-->join_tasks_processors_p-processor
-		join_tasks_processors_p-processor-->join_tasks_processors_p-publish
-		join_tasks_processors_p-publish-->|Replace|join_tasks_processors_t-subject
-		join_tasks_processors_t-subject-->|FullTable|join_tasks_processors_subscriptions_p-subscribe
+		join_tasks_run_log_timestamp_t-subject-->|FullTable|join_tasks_processors_subscriptions_p-subscribe
 		select_processors_subscriptions_t-subject-->|FullTable|join_tasks_processors_subscriptions_p-subscribe
 		join_tasks_processors_subscriptions_p-subscribe-->join_tasks_processors_subscriptions_p-processor
 		join_tasks_processors_subscriptions_p-processor-->join_tasks_processors_subscriptions_p-publish
@@ -240,15 +235,11 @@ impl<'a> TasksSession<'a> {
 	group_by_subject_change_log_timestamp_p-processor@{shape: rect, label: GroupBy}
 	group_by_subject_change_log_timestamp_p-publish@{shape: fork}
 	group_by_subject_change_log_timestamp_t-subject@{shape: doc, label: group_by_subject_change_log_timestamp_t}
-	SessionTasksCheck-subject@{shape: doc, label: SessionTasksCheck}
+	SessionTasks-subject@{shape: doc, label: SessionTasks}
 	join_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}
 	join_tasks_run_log_timestamp_p-processor@{shape: rect, label: Join}
 	join_tasks_run_log_timestamp_p-publish@{shape: fork}
 	join_tasks_run_log_timestamp_t-subject@{shape: doc, label: join_tasks_run_log_timestamp_t}
-	SessionTasks-subject@{shape: doc, label: SessionTasks}
-	join_tasks_processors_p-subscribe@{shape: diamond, label: All}
-	join_tasks_processors_p-processor@{shape: rect, label: Join}
-	join_tasks_processors_p-publish@{shape: fork}
 	join_tasks_processors_t-subject@{shape: doc, label: join_tasks_processors_t}
 	join_tasks_processors_subscriptions_p-subscribe@{shape: diamond, label: All}
 	join_tasks_processors_subscriptions_p-processor@{shape: rect, label: Join}
@@ -342,10 +333,6 @@ impl<'a> TasksSession<'a> {
         List-Utf8 lhs_values "['bytes']"
         Utf8 operator "ExtractTabular"
         Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    SessionTasksCheck["SessionTasksCheck"] {
-        Utf8 session_name
-        Utf8 task_name
     }
     SessionTasksRunLog["SessionTasksRunLog"] {
         Utf8 session_name
@@ -476,7 +463,7 @@ impl<'a> TasksSession<'a> {
         Utf8 lhs_pk "task_name"
         Utf8 operator "Join"
         Utf8 rhs_fk "task_name"
-        Utf8 rhs_name "SessionTasksCheck"
+        Utf8 rhs_name "SessionTasks"
         Utf8 rhs_pk "task_name"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
@@ -486,21 +473,10 @@ impl<'a> TasksSession<'a> {
         Utf8 processor_name
         Utf8 runtime_env_name
     }
-    join_tasks_processors_p["join_tasks_processors_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_fk "task_name"
-        Utf8 lhs_name "join_tasks_run_log_timestamp_t"
-        Utf8 lhs_pk "task_name"
-        Utf8 operator "Join"
-        Utf8 rhs_fk "task_name"
-        Utf8 rhs_name "SessionTasks"
-        Utf8 rhs_pk "task_name"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
     join_tasks_processors_subscriptions_p["join_tasks_processors_subscriptions_p"] {
         Boolean cpu "false"
         Utf8 lhs_fk "processor_name"
-        Utf8 lhs_name "join_tasks_processors_t"
+        Utf8 lhs_name "join_tasks_run_log_timestamp_t"
         Utf8 lhs_pk "processor_name"
         Utf8 operator "Join"
         Utf8 rhs_fk "processor_name"
@@ -605,7 +581,7 @@ mod tests {
 
     use crate::{
         SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream, SessionStreamState, create_message_map,
+        SessionContextBuilderTrait, SessionStream, create_message_map,
     };
 
     use super::*;
@@ -626,13 +602,13 @@ mod tests {
         .add_session_interface(None)
         .unwrap()
         .build_with_tables()?;
-        let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
+        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
         // // Create the messages
         // let message_map = create_message_map(vec![]);
 
         // // Run the session
-        // let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+        // let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         // let mut response: Vec<HashMap<String, IPCMessage>> =
         //     session_stream.try_collect().await?;
 

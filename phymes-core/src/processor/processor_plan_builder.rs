@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    ProcessorPlan, ProcessorSubjects, ProcessorTrait, TablePublication, TableSubscribePolicyTrait,
-    TableSubscription,
+    AvailableTableUpdatePolicies, ProcessorPlan, ProcessorSubjects, ProcessorTrait,
+    TablePublication, TableSubscribePolicyTrait, TableSubscription, TableUpdatePolicyTrait,
 };
 use anyhow::{Result, anyhow};
 
@@ -12,6 +12,7 @@ pub struct ProcessorPlanBuilder {
     pub publications: Option<Vec<TablePublication>>,
     pub subscriptions: Option<Vec<TableSubscription>>,
     pub subscribe_policy: Option<Box<dyn TableSubscribePolicyTrait>>,
+    pub update_policy: Option<Box<dyn TableUpdatePolicyTrait>>,
     pub processor: Option<Arc<dyn ProcessorTrait>>,
 }
 
@@ -29,6 +30,10 @@ impl ProcessorPlanBuilder {
         subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
     ) -> Self {
         self.subscribe_policy = Some(subscribe_policy);
+        self
+    }
+    pub fn with_update_policy(mut self, update_policy: Box<dyn TableUpdatePolicyTrait>) -> Self {
+        self.update_policy = Some(update_policy);
         self
     }
     pub fn with_processor(mut self, processor: Arc<dyn ProcessorTrait>) -> Self {
@@ -59,6 +64,9 @@ impl ProcessorPlanBuilder {
             &self.publications.take().unwrap(),
             &self.subscriptions.take().unwrap(),
             self.subscribe_policy.take().unwrap(),
+            self.update_policy
+                .take()
+                .unwrap_or(AvailableTableUpdatePolicies::default().build()),
         ))
     }
 }

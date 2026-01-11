@@ -6,7 +6,7 @@ use crate::{MappableTrait, StateMap, Table, TableSubscription, TableTrait};
 /// Determine when all subscriptions are ready
 pub trait TableSubscribePolicyTrait: MappableTrait + Debug + Send + Sync {
     /// Check if the subscriptions for a processor are ready to be subscribed to
-    /// 
+    ///
     /// # Arguments
     /// * `subscriptions` - Slice of `TableSubscription`s for the processors
     /// * `updates` - `HashMap` of subscription subject names and if they were updated

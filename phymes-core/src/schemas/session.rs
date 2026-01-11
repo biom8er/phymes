@@ -78,6 +78,7 @@ pub(crate) fn create_session_processors_fields() -> Fields {
         "publication_subscription_name",
         "publication_subscription_table_names",
         "subscribe_type",
+        "update_type",
     ];
     let mut fields_vec = field_names
         .iter()
@@ -100,6 +101,7 @@ pub fn create_session_processors_batch(
     pub_sub_name: Vec<String>,
     pub_sub_table_names: Vec<String>,
     subscribe_types: Vec<String>,
+    update_types: Vec<String>,
     is_sub: Vec<u8>,
 ) -> Result<RecordBatch> {
     let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
@@ -108,6 +110,7 @@ pub fn create_session_processors_batch(
     let pub_sub_name: ArrayRef = Arc::new(StringArray::from(pub_sub_name));
     let pub_sub_table_names: ArrayRef = Arc::new(StringArray::from(pub_sub_table_names));
     let subscribe_types: ArrayRef = Arc::new(StringArray::from(subscribe_types));
+    let update_types: ArrayRef = Arc::new(StringArray::from(update_types));
     let is_sub: ArrayRef = Arc::new(UInt8Array::from(is_sub));
     let batch = RecordBatch::try_from_iter(vec![
         ("session_name", session_names),
@@ -116,6 +119,7 @@ pub fn create_session_processors_batch(
         ("publication_subscription_name", pub_sub_name),
         ("publication_subscription_table_names", pub_sub_table_names),
         ("subscribe_type", subscribe_types),
+        ("update_type", update_types),
         ("is_subscription", is_sub),
     ])?;
     Ok(batch)
@@ -219,6 +223,7 @@ pub(crate) fn create_session_tasks_subscribe_fields() -> Fields {
         "subscription_name",
         "subscription_table_names",
         "subscribe_type",
+        "update_type",
     ];
     let fields_vec = field_names
         .iter()
@@ -236,6 +241,7 @@ pub fn create_session_tasks_subscribe_batch(
     pub_sub_name: Vec<String>,
     pub_sub_table_names: Vec<String>,
     subscribe_types: Vec<String>,
+    update_types: Vec<String>,
 ) -> Result<RecordBatch> {
     let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
@@ -244,6 +250,7 @@ pub fn create_session_tasks_subscribe_batch(
     let pub_sub_name: ArrayRef = Arc::new(StringArray::from(pub_sub_name));
     let pub_sub_table_names: ArrayRef = Arc::new(StringArray::from(pub_sub_table_names));
     let subscribe_types: ArrayRef = Arc::new(StringArray::from(subscribe_types));
+    let update_types: ArrayRef = Arc::new(StringArray::from(update_types));
     let batch = RecordBatch::try_from_iter(vec![
         ("session_name", session_names),
         ("task_name", task_names),
@@ -252,6 +259,7 @@ pub fn create_session_tasks_subscribe_batch(
         ("subscription_name", pub_sub_name),
         ("subscription_table_names", pub_sub_table_names),
         ("subscribe_type", subscribe_types),
+        ("update_type", update_types),
     ])?;
     Ok(batch)
 }
@@ -263,6 +271,8 @@ pub(crate) fn create_session_tasks_subscribe_aggregate_fields() -> Fields {
         "task_name",
         "processor_name",
         "processor_type",
+        "subscribe_type",
+        "update_type",
     ];
     let mut fields_vec = field_names
         .iter()

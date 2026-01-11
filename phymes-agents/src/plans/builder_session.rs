@@ -125,7 +125,7 @@ mod tests {
     use anyhow::Result;
     use parking_lot::RwLock;
 
-    use crate::{SessionContextBuilderAgentsTrait, SessionStreamState};
+    use crate::SessionContextBuilderAgentsTrait;
 
     use super::*;
 
@@ -137,7 +137,6 @@ mod tests {
             .build()
             .with_name(builder_agent_session.session_context_name)
             .build_with_tables()?;
-        let _session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
 
         Ok(())
     }

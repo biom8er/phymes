@@ -4,9 +4,7 @@ use anyhow::{Result, anyhow};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::{
-    AvailableInterfaceSubjects, AvailableSessionPlans, SessionContextBuilder,
-    SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-    SessionContextBuilderTrait, SessionStream, SessionStreamState, create_message_map,
+    AvailableInterfaceSubjects, AvailableSessionPlans, SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, create_message_map
 };
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait,
@@ -30,7 +28,7 @@ use crate::handlers::create_session_name;
 #[derive(Clone)]
 pub struct UserState {
     /// Users information
-    pub users: Arc<RwLock<SessionStreamState>>,
+    pub users: Arc<RwLock<SessionContext>>,
 }
 
 impl Default for UserState {
@@ -61,7 +59,6 @@ impl UserState {
         let session_context_name = self
             .users
             .read()
-            .get_session_context()
             .get_name()
             .to_string();
 
@@ -128,9 +125,6 @@ impl UserState {
             .swap_remove(0)
             .to_struct::<JoinUserInboxSessionContextsMermaidDiagrams>()?;
 
-        // Reset the iter
-        self.users.write().set_iter(0);
-
         Ok((user, join))
     }
 
@@ -148,7 +142,6 @@ impl UserState {
             .users
             .try_read()
             .unwrap()
-            .get_session_context()
             .get_name()
             .to_string();
 
@@ -202,7 +195,7 @@ impl UserState {
             .users
             .try_write()
             .unwrap()
-            .update_state_from_messages(message_map)
+            .update_subjects_from_messages(message_map)
             .unwrap();
 
         // Update the subjects change log
@@ -222,7 +215,7 @@ impl UserState {
             .users
             .try_write()
             .unwrap()
-            .update_state_from_messages(messages)
+            .update_subjects_from_messages(messages)
             .unwrap();
 
         Ok(())
@@ -243,7 +236,7 @@ pub struct ServerState {
     /// Session context
     /// HashMap of sessions indexed by session name
     ///   where the session name = session_name + user_name
-    pub session_contexts: Arc<RwLock<HashMap<String, Arc<RwLock<SessionStreamState>>>>>,
+    pub session_contexts: Arc<RwLock<HashMap<String, Arc<RwLock<SessionContext>>>>>,
     /// Cache of user session_names indexed by user_name
     pub user_session_names: Arc<RwLock<HashMap<String, Vec<String>>>>,
 }
@@ -260,7 +253,7 @@ impl ServerState {
         Self {
             session_contexts: Arc::new(RwLock::new(HashMap::<
                 String,
-                Arc<RwLock<SessionStreamState>>,
+                Arc<RwLock<SessionContext>>,
             >::new())),
             user_session_names: Arc::new(RwLock::new(HashMap::<String, Vec<String>>::new())),
         }
@@ -306,7 +299,7 @@ impl ServerState {
                     .contains(&user_session_context.session_context_name)
                 {
                     // Prioritize the available session plans with initialized configs and other state
-                    let session_stream_state =
+                    let session_ctx_arc =
                         AvailableSessionPlans::get_session_stream_state_by_name(
                             &user_session_context.session_context_name,
                             &session_name,
@@ -317,7 +310,7 @@ impl ServerState {
                         .session_contexts
                         .try_write()
                         .unwrap()
-                        .insert(session_name.to_string(), session_stream_state);
+                        .insert(session_name.to_string(), session_ctx_arc);
                     tracing::debug!(
                         "Creating session_context {} for session_name {} from AvailableSessionPlans",
                         &user_session_context.session_context_name,
@@ -341,15 +334,15 @@ impl ServerState {
                     .add_session_interface(None)?
                     .with_diagnostics(true)
                     .build_with_tables()?;
-                    let session_stream_state =
-                        Arc::new(RwLock::new(SessionStreamState::new(session_context)));
+                    let session_ctx_arc =
+                        Arc::new(RwLock::new(session_context));
 
                     // Add the session stream state to the state
                     let _ = self
                         .session_contexts
                         .try_write()
                         .unwrap()
-                        .insert(session_name.to_string(), session_stream_state);
+                        .insert(session_name.to_string(), session_ctx_arc);
                     tracing::debug!(
                         "Creating session_context {} for session_name {} from mermaid diagrams.",
                         &user_session_context.session_context_name,
@@ -398,7 +391,6 @@ impl ServerState {
                     .unwrap()
                     .try_write()
                     .unwrap()
-                    .get_session_context_mut()
                     .read_state(path, email)?;
             }
         } else {
@@ -425,7 +417,6 @@ impl ServerState {
                     .unwrap()
                     .try_read()
                     .unwrap()
-                    .get_session_context()
                     .write_state(path, email)?;
             }
         } else {
@@ -465,7 +456,6 @@ mod tests {
             user.users
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("UserSessionContexts")
                 .unwrap()
@@ -486,7 +476,6 @@ mod tests {
             user.users
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("UserSessionContexts")
                 .unwrap()
@@ -501,7 +490,6 @@ mod tests {
             user.users
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .get("BuilderMermaid")
                 .unwrap()
@@ -644,7 +632,6 @@ mod tests {
                 .unwrap()
                 .try_read()
                 .unwrap()
-                .get_session_context()
                 .get_states()
                 .keys()
                 .map(|s| s.to_owned())
@@ -659,7 +646,6 @@ mod tests {
                         .unwrap()
                         .try_read()
                         .unwrap()
-                        .get_session_context()
                         .get_states()
                         .get(subject)
                         .unwrap()
@@ -674,7 +660,6 @@ mod tests {
                         .unwrap()
                         .try_read()
                         .unwrap()
-                        .get_session_context()
                         .get_states()
                         .get(subject)
                         .unwrap()
@@ -691,7 +676,6 @@ mod tests {
                         .unwrap()
                         .try_read()
                         .unwrap()
-                        .get_session_context()
                         .get_states()
                         .get(subject)
                         .unwrap()
@@ -706,7 +690,6 @@ mod tests {
                         .unwrap()
                         .try_read()
                         .unwrap()
-                        .get_session_context()
                         .get_states()
                         .get(subject)
                         .unwrap()
@@ -723,7 +706,6 @@ mod tests {
                         .unwrap()
                         .try_read()
                         .unwrap()
-                        .get_session_context()
                         .get_states()
                         .get(subject)
                         .unwrap()
@@ -738,7 +720,6 @@ mod tests {
                         .unwrap()
                         .try_read()
                         .unwrap()
-                        .get_session_context()
                         .get_states()
                         .get(subject)
                         .unwrap()

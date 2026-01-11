@@ -79,20 +79,14 @@ pub async fn session_stream(
                 }
             }
 
-            let session_stream_state = match state
+            let session_ctx_arc = match state
                 .session_contexts
                 .try_write()
                 .unwrap()
                 .get(payload.get_session_name())
             {
                 // Continue an existing session
-                Some(session) => {
-                    // Reset the iter
-                    session.try_write().unwrap().set_iter(0);
-
-                    // Copy
-                    Arc::clone(session)
-                }
+                Some(session) => Arc::clone(session),
                 // Create new session
                 None => {
                     return JsonError::new("Failed to get the session stream state".to_string())
@@ -138,7 +132,7 @@ pub async fn session_stream(
             // Make the session stream
             // DM: we assume only a single message per request
             let message_map = create_message_map(vec![message]);
-            let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+            let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
 
             // Run and update the session and convert the output to the user specified format
             // Note: that we cannot write state updates to disk for
@@ -187,10 +181,9 @@ pub async fn session_stream(
                     let response = Bytes::from(serde_json::to_string(&response).unwrap());
 
                     // Update the row counts
-                    session_stream_state
+                    session_ctx_arc
                         .try_write()
                         .unwrap()
-                        .get_session_context_mut()
                         .update_subject_num_rows_table();
 
                     // Write the updates to disk
@@ -259,10 +252,9 @@ pub async fn session_stream(
                         .unwrap();
 
                     // Update the row counts
-                    session_stream_state
+                    session_ctx_arc
                         .try_write()
                         .unwrap()
-                        .get_session_context_mut()
                         .update_subject_num_rows_table();
 
                     // Write the updates to disk
