@@ -3,56 +3,41 @@ use std::{future::Future, pin::Pin, sync::Arc, task::{Context, Poll, ready}};
 use anyhow::Result;
 use futures::{FutureExt, Stream};
 use parking_lot::RwLock;
-use phymes_core::{IPCMessage, IPCMessageMap, ProcessorSubjectsMap};
-use phymes_diagnostics::{Diagnostics, HashMap, Span, TraceRecord};
+use phymes_core::{IPCMessage, IPCMessageMap};
+use phymes_diagnostics::HashMap;
 use tracing::{Level, event};
 
-use crate::{SessionContext, SessionStreamStep};
+use crate::{SessionContext, SessionStreamStep, create_message_map, session::session_stream_step::SessionStreamStepTrait};
 
+/// The state of the [SessionStream]
 pub enum SessionStreamState {
-    NotStarted,
-    EnterStreamStep,
-    GetStreamStepTasks,
-    RunStreamStepTasks,
-    ExitStreamStep,
+    Step(Pin<Box<dyn Future<Output = Result<Option<IPCMessageMap>>> + Send>>),
     Done,
 }
 
 pub struct SessionStream {
+    /// The current state of the stream
+    stream_state: SessionStreamState,
     /// The session context
     session_context: Arc<RwLock<SessionContext>>,
-    /// The next result
-    #[allow(clippy::type_complexity)]
-    super_step: Option<Pin<Box<dyn Future<Output = Result<Option<IPCMessageMap>>> + Send>>>,
-    /// The current step
+    /// The maximum number of supersteps
+    max_steps: usize,
+    /// The current dynamic step
     step: usize,
-    /// The collection of diagnostics for the current step
-    step_diagnostics: Option<Vec<Diagnostics>>,
-    /// The span for the current step
-    step_span: Option<Span>,
-    /// The trace for the current step
-    step_trace: Option<TraceRecord>,
-    /// The tasks to execute at each step
-    step_tasks: Option<Vec<HashMap<(String, String), ProcessorSubjectsMap>>>,
 }
 
 impl SessionStream {
-    pub fn new(input: IPCMessageMap, session_context: Arc<RwLock<SessionContext>>) -> Self {
-        // Initialize the superstep
-        let step = 0;
-        #[allow(clippy::type_complexity)]
-        let super_step: Option<
-            Pin<Box<dyn Future<Output = Result<Option<IPCMessageMap>>> + Send>>,
-        > = Some(Box::pin(SessionStreamStep::run_superstep(
-            Arc::clone(&session_context),
-            input,
-            step,
-        )));
+    /// New [SessionStream]
+    pub fn new(messages: IPCMessageMap, session_context: Arc<RwLock<SessionContext>>) -> Self {
+        let max_steps = session_context.read().get_max_iter();
+        let step = Box::pin(SessionStreamStep::run_superstep(Arc::clone(&session_context), messages, 0));
+        let stream_state = SessionStreamState::Step(step);
 
         Self {
+            stream_state,
             session_context,
-            super_step,
-            step,
+            max_steps,
+            step: 0,
         }
     }
 }
@@ -61,42 +46,40 @@ impl Stream for SessionStream {
     type Item = Result<IPCMessageMap>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        // Get the current iter
-        let max_iter = self.session_context.read().get_max_iter();
-        while self.step < max_iter {
-            // Poll the next item
-            let res = if let Some(fut) = self.super_step.as_mut() {
-                match ready!(fut.poll_unpin(cx)) {
-                    Ok(Some(res)) => res,
+        match &mut self.stream_state {
+            SessionStreamState::Step(step) => {
+                // Poll the step
+                let message = match ready!(step.poll_unpin(cx)) {
+                    Ok(Some(message)) => message,
                     Ok(None) => return Poll::Ready(None),
                     Err(err) => {
                         event!(Level::ERROR, "{err:?}");
-                        println!("unhandled session step error: {err:?}");
                         HashMap::<String, IPCMessage>::new()
                     }
+                };
+
+                // Prepare the next step
+                if self.step < self.max_steps {
+                    self.step += 1;
+                    let stream_state = SessionStreamState::Step(Box::pin(SessionStreamStep::run_superstep(
+                        Arc::clone(&self.session_context),
+                        HashMap::<String, IPCMessage>::new(),
+                        self.step,
+                    )));
+                    self.stream_state = stream_state;
+                } else {
+                    self.stream_state = SessionStreamState::Done;
                 }
-            } else {
-                return Poll::Ready(None);
-            };
 
-            // Prepare the next item
-            self.step += 1;
-            self.super_step = Some(Box::pin(SessionStreamStep::run_superstep(
-                Arc::clone(&self.session_context),
-                HashMap::<String, IPCMessage>::new(),
-                self.step,
-            )));
-
-            // Return the poll
-            if res.is_empty() {
-                // Skip empty results
-                continue;
-            } else {
-                return Poll::Ready(Some(Ok(res)));
-            }
+                // Return the poll
+                if message.is_empty() {
+                    self.poll_next(cx)
+                } else {
+                    Poll::Ready(Some(Ok(message)))
+                }
+            },
+            SessionStreamState::Done => Poll::Ready(None),
         }
-        event!(Level::DEBUG, "Maximum iterations {} exeeded.", max_iter);
-        Poll::Ready(None)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -133,7 +116,7 @@ mod tests {
             true,
         )?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
-        let session_stream = SessionStream::new(input, session_context_arc.clone());
+        let session_stream = SessionStream::new(input, Arc::clone(&session_context_arc));
         let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         // check the response

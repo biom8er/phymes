@@ -120,10 +120,7 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use anyhow::Result;
-    use parking_lot::RwLock;
 
     use crate::SessionContextBuilderAgentsTrait;
 
@@ -133,7 +130,7 @@ mod tests {
     async fn test_builder_agent_session() -> Result<()> {
         // initialize the session
         let builder_agent_session = BuilderSession::default();
-        let session_ctx = builder_agent_session
+        let _session_ctx = builder_agent_session
             .build()
             .with_name(builder_agent_session.session_context_name)
             .build_with_tables()?;

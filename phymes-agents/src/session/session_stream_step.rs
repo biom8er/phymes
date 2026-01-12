@@ -14,53 +14,101 @@ use tracing::{Level, event, instrument};
 
 use crate::{SessionContext, create_message_map};
 
-/// A single step of a [`SessionStream`]
-///
-/// [`SessionStream`]: crate::session::session_stream::SessionStream
-pub struct SessionStreamStep {}
+/// Traits for running a static or dynamic [SessionStream] step
+/// 
+/// [SessionStream]: crate::session::session_stream::SessionStream
+pub trait SessionStreamStepTrait {
 
-impl SessionStreamStep {
-    /// Start the diagnostics generating the session span and trace
-    fn start_diagnostics(messages: &IPCMessageMap, session_context: &Arc<RwLock<SessionContext>>, iter: usize) -> Result<(Option<Vec<Diagnostics>>, Option<Span>, Option<TraceRecord>)> {
-        // Create the diagnostics for the session step
-        let (diagnostics_vec, span, trace) = if session_context.read().get_diagnostics() {
-            // Create the span for the session
-            let span = SpanBuilder::default()
-                .with_span(session_context.read().get_name())
-                .build()?;
+    /// Run a super-step
+    ///
+    /// Inspired by the Pregel model for large-scale graph processing, introduced
+    /// by Google in a paper titled "Pregel: A System for Large-Scale Graph
+    /// Processing" in 2010.
+    ///
+    /// The Pregel model is a distributed computing model for processing graph data
+    /// in a distributed and parallel manner. It is designed for efficiently processing
+    /// large-scale graphs with billions or trillions of vertices and edges.
+    ///
+    /// For agentic AI, and more generally, simulation of dynamic networks, greater
+    /// complexity is required than the original Pregel models provides for.
+    /// The additional complexity that is added by the `SessionContext`
+    /// includes dynamical computational graph where edges are conditionally executed
+    /// based on the outputs of nodes, session_context that can be shared between computational
+    /// nodes besides the messages that are passed between nodes, and more granular
+    /// control over the runtime environment for each node so that computations can
+    /// be optimized based on the available hardware
+    ///
+    /// To account for the added complexity, the Pregal model is modified to align with a
+    /// subject-based messaging paradigm which allows for publish-subscribe, request-reply,
+    /// and queue group networking patterns found in production systems such as Kafka and NATS.io.
+    ///
+    /// # Components
+    ///
+    /// - Tasks: Represent the entities in the graph that subscribe to subjects,
+    ///   perform computations on the subjects messages, and publish the resulting messages
+    ///   to the session_context.
+    ///
+    /// - Subjects: The tables (data) that compose the session_context of the application.
+    ///
+    /// - Computation: Each task performs a user-defined computation during each
+    ///   super-step as defined by the processor network and based on its subscriptions
+    ///   that have changed in the previous super-step.
+    ///
+    /// - Messages: Subset of the session_context tables that are passed to tasks at each super-step.
+    ///   Messages are used for communication and coordination between tasks.
+    ///
+    /// # Usage
+    ///
+    /// The algorithm follows a sequence of super-step, where each super-step consists
+    /// of subscription, computation, and publishing. Tasks perform their computations
+    /// in parallel according to which subscriptions were updated.
+    /// The computation continues in a series of super-steps until a termination condition is met.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `session_context` - [SessionContext] to use while running the current session stream super step
+    /// * `messages` - [IPCMessageMap] input messages for the superstep
+    /// * `step` - The current step of the session stream supersteps
+    ///
+    /// # Returns
+    ///
+    /// [IPCMessageMap] if any of the subscribing session sujects were updated and None otherwise.
+    async fn run_superstep(
+        session_context: Arc<RwLock<SessionContext>>,
+        messages: IPCMessageMap,
+        step: usize,
+    ) -> Result<Option<IPCMessageMap>>;
 
-            // Initialize the channels for collecting the metrics, events, and traces)
-            let mut diagnostics_vec = Vec::new();
-            let diagnostics = Diagnostics::new();
-            let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
-            diagnostics_vec.push(diagnostics);
+    /// Enter the superstep span generating the [Span], [TraceRecord], and [Diagnostics]
+    fn enter_span(subject_messages: &IPCMessageMap, session_context: &Arc<RwLock<SessionContext>>, step: usize) -> Result<(Vec<Diagnostics>, Span, TraceRecord)> {
+        // Create the span for the session
+        let span = SpanBuilder::default()
+            .with_span(session_context.read().get_name())
+            .build()?;
 
-            // Trace the session step
-            let trace = diagnostic_builder
-                .clone()
-                .messages(line!(), file!(), session_context.read().get_name());
-            trace.enter(&messages.values().collect::<Vec<_>>());
-            let event = diagnostic_builder
-                .clone()
-                .info(line!(), file!(), session_context.read().get_name());
-            event.insert("superstep", &serde_json::Value::Number(iter.into()));
-            (Some(diagnostics_vec), Some(span), Some(trace))
-        } else {
-            (None, None, None)
-        };
+        // Initialize the channels for collecting the metrics, events, and traces)
+        let mut diagnostics_vec = Vec::new();
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+        diagnostics_vec.push(diagnostics);
+
+        // Trace the session step
+        let trace = diagnostic_builder
+            .clone()
+            .messages(line!(), file!(), session_context.read().get_name());
+        trace.enter(&subject_messages.values().collect::<Vec<_>>());
+        let event = diagnostic_builder
+            .clone()
+            .info(line!(), file!(), session_context.read().get_name());
+        event.insert("superstep", &serde_json::Value::Number(step.into()));
 
         Ok((diagnostics_vec, span, trace))
     }
 
-    /// End the diagnostics
-    fn end_diagnostics(session_context: &Arc<RwLock<SessionContext>>, messages: &IPCMessageMap, diagnostics_vec: Option<Vec<Diagnostics>>, trace: Option<TraceRecord>) -> Result<()> {
-        if let Some(trace) = trace {
-            trace.exit(&messages.values().collect::<Vec<_>>());
-        }
-        
-        if let Some(diagnostics_vec) = diagnostics_vec {
-            let (_metrics_updated, _traces_updated, _events_updated) = session_context.write().update_metrics_table(&diagnostics_vec)?;
-        }
+    /// Exit the span
+    fn exit_span(session_context: &Arc<RwLock<SessionContext>>, messages: &IPCMessageMap, diagnostics_vec: Vec<Diagnostics>, trace: TraceRecord) -> Result<()> {
+        trace.exit(&messages.values().collect::<Vec<_>>());
+        let (_metrics_updated, _traces_updated, _events_updated) = session_context.write().update_metrics_table(&diagnostics_vec)?;
         
         Ok(())
     }
@@ -156,6 +204,9 @@ impl SessionStreamStep {
 
     /// Run the tasks
     /// 
+    /// # Notes
+    /// * Any filtering or partitioning of tasks into subject and user should be done before calling this method
+    /// 
     /// # Arguments
     /// 
     /// * `session_context` - [SessionContext] to use while running the current session stream super step
@@ -165,16 +216,15 @@ impl SessionStreamStep {
     /// 
     /// # Returns
     /// 
-    /// * [SendableRecordBatchStreamMessageMap] - Response streams from running the task
-    /// * [SendableRecordBatchStreamMessageMap] - Response streams intended for direct consumption by the user
-    fn run_tasks(session_context: &Arc<RwLock<SessionContext>>, tasks: &HashMap<(String, String), ProcessorSubjectsMap>, diagnostics_vec: &mut Option<Vec<Diagnostics>>, span: &Option<Span>) -> Result<(SendableRecordBatchStreamMessageMap, SendableRecordBatchStreamMessageMap)> {
+    /// * [SendableRecordBatchStreamMessageMap] - Subject streams from running the task
+    /// * [SendableRecordBatchStreamMessageMap] - User streams from the running task
+    fn run_tasks(session_context: &Arc<RwLock<SessionContext>>, tasks: &HashMap<(String, String), ProcessorSubjectsMap>, diagnostics_vec: &mut Option<Vec<Diagnostics>>, span: &Option<Span>) -> Result<SendableRecordBatchStreamMessageMap> {
         // Iterate through each task and collect the resulting stream responses
-        let mut response_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let mut session_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let mut subject_streams = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         for ((task_name, _session_name), processor_subjects_map) in tasks.iter() {
             event!(Level::INFO, "Superstep for task {}", &task_name);
 
-            // Subscribe to the task subjects
+            // Clone the task
             let task = session_context
                 .read()
                 .get_tasks()
@@ -205,26 +255,25 @@ impl SessionStreamStep {
             ) {
                 Ok(result) => {
                     for (resp_name, resp) in result.into_iter() {
-                        if task_name == session_context.read().get_name() {
-                            session_streams.insert(resp_name, resp);
-                        } else {
-                            response_streams.insert(resp_name, resp);
-                        }
+                        subject_streams.insert(resp_name, resp);
                     }
                 }
                 Err(err) => {
                     // Intercept the error and wrap into a `SendableRecordBatch` for consumption
                     event!(Level::ERROR, "{} for task {}", err.to_string(), &task_name);
                     let message_map = create_error_message_map_stream(&err, task_name, true)?;
-                    response_streams.extend(message_map);
+                    subject_streams.extend(message_map);
                 }
             }
         }
 
-        Ok((response_streams, session_streams))
+        Ok(subject_streams)
     }
  
-    /// Join the message streams using JointSet
+    /// Join the message streams and intercept any errors
+    /// 
+    /// # Notes
+    /// * Handling of intermediate errors in the chains of futures is not implemented yet...
     async fn join_message_streams(
         messages: SendableRecordBatchStreamMessageMap,
     ) -> Result<IPCMessageMap> {
@@ -295,106 +344,71 @@ impl SessionStreamStep {
         Ok(response_batches)
     }
 
-    /// Run a super-step
-    ///
-    /// Inspired by the Pregel model for large-scale graph processing, introduced
-    /// by Google in a paper titled "Pregel: A System for Large-Scale Graph
-    /// Processing" in 2010.
-    ///
-    /// The Pregel model is a distributed computing model for processing graph data
-    /// in a distributed and parallel manner. It is designed for efficiently processing
-    /// large-scale graphs with billions or trillions of vertices and edges.
-    ///
-    /// For agentic AI, and more generally, simulation of dynamic networks, greater
-    /// complexity is required than the original Pregel models provides for.
-    /// The additional complexity that is added by the `SessionContext`
-    /// includes dynamical computational graph where edges are conditionally executed
-    /// based on the outputs of nodes, session_context that can be shared between computational
-    /// nodes besides the messages that are passed between nodes, and more granular
-    /// control over the runtime environment for each node so that computations can
-    /// be optimized based on the available hardware
-    ///
-    /// To account for the added complexity, the Pregal model is modified to align with a
-    /// subject-based messaging paradigm which allows for publish-subscribe, request-reply,
-    /// and queue group networking patterns found in production systems such as Kafka and NATS.io.
-    ///
-    /// # Components
-    ///
-    /// - Tasks: Represent the entities in the graph that subscribe to subjects,
-    ///   perform computations on the subjects messages, and publish the resulting messages
-    ///   to the session_context.
-    ///
-    /// - Subjects: The tables (data) that compose the session_context of the application.
-    ///
-    /// - Computation: Each task performs a user-defined computation during each
-    ///   super-step as defined by the processor network and based on its subscriptions
-    ///   that have changed in the previous super-step.
-    ///
-    /// - Messages: Subset of the session_context tables that are passed to tasks at each super-step.
-    ///   Messages are used for communication and coordination between tasks.
-    ///
-    /// # Usage
-    ///
-    /// The algorithm follows a sequence of super-step, where each super-step consists
-    /// of subscription, computation, and publishing. Tasks perform their computations
-    /// in parallel according to which subscriptions were updated.
-    /// The computation continues in a series of super-steps until a termination condition is met.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `session_context` - [SessionContext] to use while running the current session stream super step
-    /// * `messages` - [IPCMessageMap] input messages for the superstep 
-    /// * `iter` - The current iteration of the session stream supersteps
-    ///
-    /// # Returns
-    ///
-    /// [IPCMessageMap] if any of the subscribing session sujects were updated and None otherwise.
-    #[instrument(skip(session_context, messages))]
-    pub async fn run_superstep(
+}
+
+/// A single step of a dynamic [SessionStream]
+/// [SessionStream]: crate::session::session_stream::SessionStream
+pub struct SessionStreamStep {}
+
+impl SessionStreamStepTrait for SessionStreamStep {
+    async fn run_superstep(
         session_context: Arc<RwLock<SessionContext>>,
         messages: IPCMessageMap,
         iter: usize,
     ) -> Result<Option<IPCMessageMap>> {
         // Start the diagnostics
-        let (mut diagnostics_vec, span, trace) = Self::start_diagnostics(&messages, &session_context, iter)?;
+        let (mut diagnostics_vec, span, trace) = if session_context.read().get_diagnostics() {
+            let (diagnostics_vec, span, trace) = Self::enter_span(&messages, &session_context, iter)?;
+            (Some(diagnostics_vec), Some(span), Some(trace))
+        } else {
+            (None, None, None)
+        };
 
         // Update the session context with the incoming messages
         Self::update_subjects_and_changelog_from_messages(&session_context, messages)?;
 
         // Retrieve the task ready to subscribe and their corresponding publications
-        // DM: run the task session...
         let tasks = session_context.read().tasks_subscribe_publish()?;
+        let (subject_tasks, session_tasks) = tasks.into_iter().partition(|((t, s), _v)| t != s);
 
         // Iterate through each task and collect the resulting stream responses
-        let (response_streams, session_streams) = Self::run_tasks(&session_context, &tasks, &mut diagnostics_vec, &span)?;
+        let subject_streams = Self::run_tasks(&session_context, &subject_tasks, &mut diagnostics_vec, &span)?;
+        let user_streams = Self::run_tasks(&session_context, &session_tasks, &mut diagnostics_vec, &span)?;
 
         // Update the tasks run log
-        Self::update_subjects_and_changelog_from_tasks(&session_context, tasks)?;
+        Self::update_subjects_and_changelog_from_tasks(&session_context, subject_tasks)?;
+        Self::update_subjects_and_changelog_from_tasks(&session_context, session_tasks)?;
 
         // Break if there is nothing to update
-        if session_streams.is_empty() && response_streams.is_empty() {
-            Self::end_diagnostics(&session_context, &HashMap::<String, IPCMessage>::new(), diagnostics_vec, trace)?;
+        if subject_streams.is_empty() && user_streams.is_empty() {
+            if let (Some(diagnostics_vec), Some(trace)) = (diagnostics_vec, trace) {
+                Self::exit_span(&session_context, &HashMap::<String, IPCMessage>::new(), diagnostics_vec, trace)?;
+            }            
 
             Ok(None)
         } else {
             // Join each of the response futures
-            let response_batches =
-                match SessionStreamStep::join_message_streams(response_streams).await {
-                    Ok(response_batches) => response_batches,
+            let subject_batches =
+                match Self::join_message_streams(subject_streams).await {
+                    Ok(subject_batches) => subject_batches,
                     Err(err) => create_error_message_map(&err, session_context.read().get_name(), true)?,
                 };
 
             // Update the session context with the incoming messages
-            Self::update_subjects_and_changelog_from_messages(&session_context, response_batches)?;
+            Self::update_subjects_and_changelog_from_messages(&session_context, subject_batches)?;
 
             // Join each of the response futures
-            let session_batches = SessionStreamStep::join_message_streams(session_streams).await?;
-            Self::end_diagnostics(&session_context, &session_batches, diagnostics_vec, trace)?;
+            let user_batches = Self::join_message_streams(user_streams).await?;            
+            if let (Some(diagnostics_vec), Some(trace)) = (diagnostics_vec, trace) {
+                Self::exit_span(&session_context, &user_batches, diagnostics_vec, trace)?;
+            }
 
-            Ok(Some(session_batches))
+            Ok(Some(user_batches))
         }
     }
 }
+
+
 
 #[cfg(test)]
 mod tests {
@@ -514,7 +528,7 @@ mod tests {
                 },
                 true
             )?,
-            0
+            0,
         )
         .await?
         .unwrap();
@@ -647,7 +661,7 @@ mod tests {
                 },
                 true
             )?,
-            0
+            0,
         )
         .await?
         .unwrap();
@@ -946,7 +960,7 @@ mod tests {
         let mut response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
             HashMap::<String, IPCMessage>::new(),
-            0
+            0,
         )
         .await?
         .unwrap();
@@ -1323,7 +1337,7 @@ mod tests {
         let _ = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
             HashMap::<String, IPCMessage>::new(),
-            1
+            1,
         )
         .await?;
         assert_eq!(
@@ -1413,7 +1427,7 @@ mod tests {
         let mut response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
             HashMap::<String, IPCMessage>::new(),
-            3
+            3,
         )
         .await?
         .unwrap();

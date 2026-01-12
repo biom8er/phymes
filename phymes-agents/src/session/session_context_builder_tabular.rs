@@ -168,6 +168,9 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 || table.get_name() == AvailableSubjects::SessionEvents.to_string().as_str()
                 || table.get_name() == AvailableSubjects::MetricPivot.to_string().as_str()
             {
+                // These tables are created on the fly so we do not want to duplicate them.
+                // If the user wishes to continue already generated tables they can do so
+                // by passing them as optional state.
                 continue;
             } else {
                 return Err(anyhow!(
@@ -640,8 +643,6 @@ mod tests {
 
     use super::*;
 
-    // DM: need to check for table values in the first test section
-    // DM: need to test with state
     #[test]
     fn test_to_from_arrow_tables() -> Result<()> {
         // Init runtime env

@@ -642,6 +642,8 @@ mod tests {
         tmp_dir.close()?;
         Ok(())
     }
+    
+    #[test]
     fn test_session_update_state() -> Result<()> {
         // Case 1: no state update
         let session_context = make_test_session_context_parallel_task("session_1", 25)?;
