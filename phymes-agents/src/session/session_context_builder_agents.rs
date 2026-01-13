@@ -84,7 +84,7 @@ pub trait SessionContextBuilderAgentsTrait {
     /// 
     /// # Notes
     /// * See ... for stand alone session
-    fn add_subjects_num_rows_tasks(self) -> Result<Self>
+    fn add_subjects_num_rows(self) -> Result<Self>
     where
         Self: Sized;
 
@@ -92,7 +92,7 @@ pub trait SessionContextBuilderAgentsTrait {
     /// 
     /// # Notes
     /// * See ... for stand alone session
-    fn add_tasks_subscribe_publish_tasks(self) -> Result<Self>
+    fn add_tasks_subscribe_publish(self) -> Result<Self>
     where
         Self: Sized;
 }
@@ -867,6 +867,18 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         self.runtime_envs.replace(runtime_envs);
 
         Ok(self)
+    }
+
+    fn add_subjects_num_rows(self) -> Result<Self>
+        where
+            Self: Sized {
+        todo!()
+    }
+
+    fn add_tasks_subscribe_publish(self) -> Result<Self>
+        where
+            Self: Sized {
+        todo!()
     }
 }
 

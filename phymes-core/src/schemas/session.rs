@@ -445,3 +445,71 @@ pub(crate) fn create_session_tasks_subscribe_publish_fields() -> Fields {
     // );
     Fields::from(fields_vec)
 }
+
+pub fn create_session_tasks_subscribe_publish_batch(
+    session_names: Vec<String>,
+    task_names: Vec<String>,
+    processor_names: Vec<String>,
+    processor_types: Vec<String>,
+    subscription_names: Vec<Vec<String>>,
+    subscription_table_names: Vec<Vec<String>>,
+    publication_names: Vec<Vec<String>>,
+    publication_table_names: Vec<Vec<String>>,
+) -> Result<RecordBatch> {
+    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
+    let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
+    let processor_types: ArrayRef = Arc::new(StringArray::from(processor_types));
+    let value_builder = StringBuilder::new();
+    let mut list_builder =
+        ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Utf8, false));
+    for values in subscription_names.into_iter() {
+        for value in values.into_iter() {
+            list_builder.values().append_value(&value);
+        }
+        list_builder.append(true);
+    }
+    let subscription_names: ArrayRef = Arc::new(list_builder.finish());
+    let value_builder = StringBuilder::new();
+    let mut list_builder =
+        ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Utf8, false));
+    for values in subscription_table_names.into_iter() {
+        for value in values.into_iter() {
+            list_builder.values().append_value(&value);
+        }
+        list_builder.append(true);
+    }
+    let subscription_table_names: ArrayRef = Arc::new(list_builder.finish());
+    
+    let value_builder = StringBuilder::new();
+    let mut list_builder =
+        ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Utf8, false));
+    for values in publication_names.into_iter() {
+        for value in values.into_iter() {
+            list_builder.values().append_value(&value);
+        }
+        list_builder.append(true);
+    }
+    let publication_names: ArrayRef = Arc::new(list_builder.finish());
+    let value_builder = StringBuilder::new();
+    let mut list_builder =
+        ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Utf8, false));
+    for values in publication_table_names.into_iter() {
+        for value in values.into_iter() {
+            list_builder.values().append_value(&value);
+        }
+        list_builder.append(true);
+    }
+    let publication_table_names: ArrayRef = Arc::new(list_builder.finish());
+    let batch = RecordBatch::try_from_iter(vec![
+        ("session_name", session_names),
+        ("task_name", task_names),
+        ("processor_name", processor_names),
+        ("processor_type", processor_types),
+        ("subscription_names", subscription_names),
+        ("subscription_table_names", subscription_table_names),
+        ("publication_names", publication_names),
+        ("publication_table_names", publication_table_names),
+    ])?;
+    Ok(batch)
+}

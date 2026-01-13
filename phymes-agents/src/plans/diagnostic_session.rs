@@ -1964,12 +1964,12 @@ mod tests {
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
         // Make diagnostic data and session tasks data
-        let (user_session_stream_state, user_session_stream) = user_session_inner::user_session()?;
+        let (user_session_ctx, user_session_stream) = user_session_inner::user_session()?;
         let _user_response: Vec<HashMap<String, IPCMessage>> =
             user_session_stream.try_collect().await?;
 
         let message_map = {
-            let usss = user_session_stream_state.read();
+            let usss = user_session_ctx.read();
             let table = usss
                 .get_states()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
