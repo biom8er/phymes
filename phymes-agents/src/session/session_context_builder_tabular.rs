@@ -7,13 +7,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies,
-    AvailableTableUpdatePolicies, BuildableTrait, BuilderTrait, MappableTrait,
-    ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication,
-    TableSubscription, TableTrait, TaskPlanBuilder, create_session_mermaid_batch,
-    create_session_processors_batch, create_session_runtime_envs_batch,
-    create_session_subjects_batch, create_session_tasks_batch, from_data_type_to_str,
-    from_str_to_data_type,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskPlanBuilder, create_session_mermaid_batch, create_session_processors_batch, create_session_runtime_envs_batch, create_session_subjects_batch, create_session_tasks_batch, create_session_tasks_run_log_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_data_type_to_str, from_str_to_data_type
 };
 use phymes_diagnostics::{HashSet, create_timestamp_micros};
 
@@ -34,21 +28,23 @@ pub trait SessionContextBuilderTabularTrait {
     ///
     /// # Arguments
     ///
-    /// * `include_subjects` - whether to include the subject data or not
     /// * `include_mermaid` - whether to include the mermaid flowchart and erDiagrams or not
     /// * `include_errors` - whether to include the errors table or not
     /// * `include_diagnostics` - whether to include the diagnostics tables or not
+    /// * `include_tasks_run_log` - whether to include the initialized `TasksRunLog`
+    /// * `include_subjects_change_log` - whether to include the initialized `SubjectsNumRows` and `SubjectsChangeLog`
     ///
     /// # Returns
     ///
     /// * `Vec<ArrowTable>` with the SessionContext in tabular format and Optional `Vec<ArrowTable>` with the state
     fn to_arrow_tables(
         &self,
-        include_subjects: bool,
         include_mermaid: bool,
         include_errors: bool,
         include_diagnostics: bool,
-    ) -> Result<(Vec<Table>, Option<Vec<Table>>)>;
+        include_tasks_run_log: bool,
+        include_subjects_change_log: bool,
+    ) -> Result<Vec<Table>>;
 
     /// Get the subjects in tabular form
     ///
@@ -73,6 +69,15 @@ pub trait SessionContextBuilderTabularTrait {
     /// Get mermaid js chart strings
     fn get_mermaid_js_as_table(&self) -> Result<Table>;
 
+    /// Create the initial `TasksRunLog` table
+    fn get_tasks_run_log_as_table(&self) -> Result<Table>;
+
+    /// Create the initial `SubjectsNumRows` table
+    fn get_subjects_num_rows_as_table(&self) -> Result<Table>;
+
+    /// Create the `SubjectsNumRows` and `SubjectsChangeLog` tables
+    fn get_subjects_change_log_as_table(&self) -> Result<Table>;
+
     /// Create the session from tables
     ///
     /// # Notes
@@ -92,6 +97,7 @@ pub trait SessionContextBuilderTabularTrait {
     where
         Self: Sized;
 
+    /// Create empty subject tables from `SessionSubjects`
     fn with_subjects_as_tables(self, subjects: &Table) -> Result<Self>
     where
         Self: Sized;
@@ -109,11 +115,12 @@ pub trait SessionContextBuilderTabularTrait {
 impl SessionContextBuilderTabularTrait for SessionContextBuilder {
     fn to_arrow_tables(
         &self,
-        include_subjects: bool,
         include_mermaid: bool,
         include_errors: bool,
         include_diagnostics: bool,
-    ) -> Result<(Vec<Table>, Option<Vec<Table>>)> {
+        include_tasks_run_log: bool,
+        include_subjects_change_log: bool,
+    ) -> Result<Vec<Table>> {
         let mut tables = Vec::new();
         if include_mermaid {
             tables.push(self.get_mermaid_js_as_table()?);
@@ -126,18 +133,22 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             tables.push(AvailableSubjects::SessionTraces.to_table(None, None)?);
             tables.push(AvailableSubjects::SessionEvents.to_table(None, None)?);
         }
+        // include_tasks_run_log is before include_subjects_change_log
+        // so that the timestamp of all tasks is less than the timestamp of all subjects
+        if include_tasks_run_log {
+            tables.push(self.get_tasks_run_log_as_table()?);
+        }
+        if include_subjects_change_log {
+            tables.push(self.get_subjects_num_rows_as_table()?);
+            tables.push(self.get_subjects_change_log_as_table()?);
+        }
         tables.extend([
             self.get_subjects_as_table(&tables)?,
             self.get_tasks_as_table()?,
             self.get_processors_as_table()?,
             self.get_runtime_envs_as_table()?,
         ]);
-        let state = if include_subjects {
-            self.state.clone()
-        } else {
-            None
-        };
-        Ok((tables, state))
+        Ok(tables)
     }
 
     fn from_arrow_tables(tables: &[&Table], mut state: Option<Vec<Table>>) -> Result<Self>
@@ -162,11 +173,23 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             {
                 builder = builder.with_runtime_envs_as_tables(table)?;
             } else if table.get_name() == AvailableSubjects::SessionMermaid.to_string().as_str()
+                // Diagnostic tables
                 || table.get_name() == AvailableSubjects::SessionErrors.to_string().as_str()
                 || table.get_name() == AvailableSubjects::SessionTraces.to_string().as_str()
                 || table.get_name() == AvailableSubjects::SessionMetrics.to_string().as_str()
                 || table.get_name() == AvailableSubjects::SessionEvents.to_string().as_str()
                 || table.get_name() == AvailableSubjects::MetricPivot.to_string().as_str()
+                // Subjects change log tables
+                || table.get_name() == AvailableSubjects::SubjectsNumRows.to_string().as_str()
+                || table.get_name() == AvailableSubjects::SubjectsChangeLog.to_string().as_str()
+                // Tasks run log tables
+                || table.get_name() == AvailableSubjects::SessionTasksCheck.to_string().as_str()
+                || table.get_name() == AvailableSubjects::SessionTasksPublish.to_string().as_str()
+                || table.get_name() == AvailableSubjects::SessionTasksPublishAggregate.to_string().as_str()
+                || table.get_name() == AvailableSubjects::SessionTasksRunLog.to_string().as_str()
+                || table.get_name() == AvailableSubjects::SessionTasksSubscribe.to_string().as_str()
+                || table.get_name() == AvailableSubjects::SessionTasksSubscribeAggregate.to_string().as_str()
+                || table.get_name() == AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str()
             {
                 // These tables are created on the fly so we do not want to duplicate them.
                 // If the user wishes to continue already generated tables they can do so
@@ -420,6 +443,76 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .build()
     }
 
+    fn get_tasks_run_log_as_table(&self) -> Result<Table> {
+        if self.tasks.is_none() {
+            return Err(anyhow!("Add task plans before making the tasks run log table."));
+        }
+        let session_name = if let Some(session_name) = self.name.as_ref() {
+            session_name
+        } else {
+            return Err(anyhow!(
+                "Add session name before making the tasks run log table."
+            ));
+        };
+        let ((session_names, task_names), timestamps) = self.tasks.as_ref().unwrap().iter()
+            .map(|task| ((session_name.to_string(), task.task_name.to_string()), create_timestamp_micros()))
+            .unzip();
+        let batch = create_session_tasks_run_log_batch(session_names, task_names, timestamps)?;
+        Table::get_builder().with_name(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+            .with_record_batches(vec![batch])?
+            .build()
+    }
+
+    fn get_subjects_num_rows_as_table(&self) -> Result<Table> {
+        if self.state.is_none() {
+            return Err(anyhow!("Add subjects before making the subjects num rows table."));
+        }
+        let (subject_names, num_rows): (Vec<String>, Vec<i64>) = self.state.as_ref().unwrap().iter()
+            .map(|t| (t.get_name().to_string(), t.count_rows() as i64))
+            .unzip();
+        let batch = create_subjects_num_rows_batch(subject_names, num_rows)?;
+        Table::get_builder().with_name(AvailableSubjects::SubjectsNumRows.to_string().as_str())
+            .with_record_batches(vec![batch])?
+            .build()
+    }
+
+    fn get_subjects_change_log_as_table(&self) -> Result<Table> {
+        if self.state.is_none() {
+            return Err(anyhow!("Add subjects before making the subjects change log table."));
+        }
+        if self.tasks.is_none() {
+            return Err(anyhow!("Add task plans before making subjects change log table."));
+        }
+        if self.processors.is_none() {
+            return Err(anyhow!("Add processor plans before making subjects change log table."));
+        }
+        let session_name = if let Some(session_name) = self.name.as_ref() {
+            session_name
+        } else {
+            return Err(anyhow!(
+                "Add session name before making the subjects change log table."
+            ));
+        };
+        let ((((subject_names, task_names), session_names), num_rows_delta), timestamps) = self.tasks.as_ref().unwrap().iter()
+            .map(|task| self.state.as_ref().unwrap().iter()
+                .filter_map(|table| {
+                    let (_subscriptions, publications) = self.get_sub_pub_for_task(&task.task_name);
+                    let table_names = publications.into_iter().map(|p| p.get_table_name()).collect::<Vec<_>>();
+                    if table_names.contains(&table.get_name()) {
+                        Some(((((table.get_name().to_string(), task.task_name.to_string()), session_name.to_string()), 0 as i64), create_timestamp_micros()))
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>())
+            .flatten()
+            .unzip();
+        let batch = create_subjects_change_log_batch(subject_names, task_names, session_names, num_rows_delta, timestamps)?;
+        Table::get_builder().with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+            .with_record_batches(vec![batch])?
+            .build()
+    }
+
     fn with_subjects_as_tables(self, subjects: &Table) -> Result<Self>
     where
         Self: Sized,
@@ -660,7 +753,7 @@ mod tests {
             .with_state(state);
 
         // Test to tables
-        let (tables, state) = builder.to_arrow_tables(false, true, true, true)?;
+        let tables = builder.to_arrow_tables(true, true, true, true, true)?;
 
         // Check the tables
         assert_eq!(
@@ -699,12 +792,24 @@ mod tests {
             tables.get(8).unwrap().get_name(),
             AvailableSubjects::SessionRuntimeEnvs.to_string().as_str()
         );
+        assert_eq!(
+            tables.get(9).unwrap().get_name(),
+            AvailableSubjects::SessionTasksRunLog.to_string().as_str()
+        );
+        assert_eq!(
+            tables.get(10).unwrap().get_name(),
+            AvailableSubjects::SubjectsNumRows.to_string().as_str()
+        );
+        assert_eq!(
+            tables.get(11).unwrap().get_name(),
+            AvailableSubjects::SubjectsChangeLog.to_string().as_str()
+        );
 
         // Test from tables
-        let (tables_test, _state_test) =
-            SessionContextBuilder::from_arrow_tables(&tables.iter().collect::<Vec<_>>(), state)?
+        let tables_test =
+            SessionContextBuilder::from_arrow_tables(&tables.iter().collect::<Vec<_>>(), None)?
                 .with_name("")
-                .to_arrow_tables(false, true, true, true)?;
+                .to_arrow_tables(true, true, true, true, true)?;
 
         // Check the tables
         assert_eq!(

@@ -79,6 +79,22 @@ pub trait SessionContextBuilderAgentsTrait {
     fn add_session_interface(self, subscriptions: Option<&[&str]>) -> Result<Self>
     where
         Self: Sized;
+
+    /// Add tasks that automatically update the number of subject rows
+    /// 
+    /// # Notes
+    /// * See ... for stand alone session
+    fn add_subjects_num_rows_tasks(self) -> Result<Self>
+    where
+        Self: Sized;
+
+    /// Add tasks that dynamically compute the next set of tasks that are ready to subscribe to their subjects
+    /// 
+    /// # Notes
+    /// * See ... for stand alone session
+    fn add_tasks_subscribe_publish_tasks(self) -> Result<Self>
+    where
+        Self: Sized;
 }
 
 impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
@@ -112,7 +128,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         ))
     }
     fn build_inner_with_tables(self) -> Result<SessionContextInput> {
-        let (tables, _state) = self.to_arrow_tables(false, true, true, true)?;
+        let tables = self.to_arrow_tables(true, true, true, true, true)?;
         let (name, tasks, state, runtime_envs, max_iter, diagnostics) = self.build_inner()?;
         Ok((
             name,
