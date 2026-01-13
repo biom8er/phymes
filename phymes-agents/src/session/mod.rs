@@ -18,4 +18,4 @@ pub use session_context_builder_mermaid::{
 };
 pub use session_context_builder_tabular::SessionContextBuilderTabularTrait;
 pub use session_stream::SessionStream;
-pub use session_stream_step::SessionStreamStep;
+pub use session_stream_step::{SessionStreamStep, SessionStreamStepTrait};

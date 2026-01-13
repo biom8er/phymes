@@ -30,14 +30,15 @@ impl SessionStream {
     /// New [SessionStream]
     pub fn new(messages: IPCMessageMap, session_context: Arc<RwLock<SessionContext>>) -> Self {
         let max_steps = session_context.read().get_max_iter();
-        let step = Box::pin(SessionStreamStep::run_superstep(Arc::clone(&session_context), messages, 0));
-        let stream_state = SessionStreamState::Step(step);
+        let step = 0;
+        let next_step = Box::pin(SessionStreamStep::run_superstep(Arc::clone(&session_context), messages, step));
+        let stream_state = SessionStreamState::Step(next_step);
 
         Self {
             stream_state,
             session_context,
             max_steps,
-            step: 0,
+            step,
         }
     }
 }
@@ -51,7 +52,10 @@ impl Stream for SessionStream {
                 // Poll the step
                 let message = match ready!(step.poll_unpin(cx)) {
                     Ok(Some(message)) => message,
-                    Ok(None) => return Poll::Ready(None),
+                    Ok(None) => {
+                        self.stream_state = SessionStreamState::Done;
+                        return Poll::Ready(None);
+                    },
                     Err(err) => {
                         event!(Level::ERROR, "{err:?}");
                         HashMap::<String, IPCMessage>::new()
@@ -59,6 +63,7 @@ impl Stream for SessionStream {
                 };
 
                 // Prepare the next step
+                dbg!(&self.step);
                 if self.step < self.max_steps {
                     self.step += 1;
                     let stream_state = SessionStreamState::Step(Box::pin(SessionStreamStep::run_superstep(
@@ -83,7 +88,7 @@ impl Stream for SessionStream {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (1, Some(self.session_context.read().get_max_iter()))
+        (1, Some(self.max_steps))
     }
 }
 

@@ -81,10 +81,31 @@ impl SessionContext {
 
     /// Update the session subscribe and publish
 
-    /// Get the task subscriptions and publications that are ready to run
+    /// Take the task subscriptions and publications that are ready to run
+    /// 
+    /// # Notes
+    /// * the columns are taken to prevent infinite loops of the same tasks
     pub fn tasks_subscribe_publish(&self) -> Result<HashMap<(String, String), ProcessorSubjectsMap>> {
         // Extract out the columns
-        let table_reading = self
+        // let batches = self
+        //     .get_states()
+        //     .get(
+        //         AvailableSubjects::SessionTasksSubscribePublish
+        //             .to_string()
+        //             .as_str(),
+        //     )
+        //     .unwrap_or_else(|| {
+        //         panic!(
+        //             "Missing table for `{}` in session `{}`.",
+        //             AvailableSubjects::SessionTasksSubscribePublish,
+        //             self.get_name()
+        //         )
+        //     })
+        //     .write()
+        //     .get_record_batches_mut()
+        //     .drain(0..)
+        //     .collect::<Vec<_>>();
+        let table = self
             .get_states()
             .get(
                 AvailableSubjects::SessionTasksSubscribePublish
@@ -99,21 +120,27 @@ impl SessionContext {
                 )
             })
             .read();
-        let task_names = table_reading.get_column_as_vec_nonprimitive::<String>("task_name")?;
+        // let table = TableBuilder::default()
+        //     .with_name(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
+        //     .with_record_batches(batches)?
+        //     .build()?;
+
+        dbg!(&table);
+        let task_names = table.get_column_as_vec_nonprimitive::<String>("task_name")?;
         let processor_names =
-            table_reading.get_column_as_vec_nonprimitive::<String>("processor_name")?;
+            table.get_column_as_vec_nonprimitive::<String>("processor_name")?;
         let processor_types =
-            table_reading.get_column_as_vec_nonprimitive::<String>("processor_type")?;
+            table.get_column_as_vec_nonprimitive::<String>("processor_type")?;
         let subscription_names =
-            table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
-        let subscription_table_names = table_reading
+            table.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
+        let subscription_table_names = table
             .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
         let publication_names =
-            table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
-        let publication_table_names = table_reading
+            table.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
+        let publication_table_names = table
             .get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
         let session_names =
-            table_reading.get_column_as_vec_nonprimitive::<String>("session_names")?;
+            table.get_column_as_vec_nonprimitive::<String>("session_names")?;
 
         // Map to objects
         let combined = task_names
