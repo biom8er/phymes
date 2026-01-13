@@ -618,6 +618,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         // Default chat config
         #[allow(unused_mut)]
         let mut candle_chat_config = CandleChatConfig {
+            messages: self.chat_task_name.to_string(),
             max_tokens: 1000,
             temperature: 0.8,
             seed: 299792458,
@@ -678,6 +679,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         // Default embed config
         #[allow(unused_mut)]
         let mut candle_embed_config = CandleEmbedConfig {
+            documents: self.state_documents_table_name.to_string(),
             // All files need to be local for WASM testing
             weights_config_file: Some(format!(
                 "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",

@@ -174,6 +174,78 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 .map(|f| f.name().to_string())
                 .collect::<HashSet<_>>();
 
+            // Check the messages entries
+            if column_names.contains("messages") {
+                let vec_str = table.get_column_as_vec_str("messages");
+                let name = vec_str.last().unwrap();
+
+                let subscriptions = processor
+                    .get_subscriptions()
+                    .iter()
+                    .filter_map(|s| {
+                        if &s.get_table_name() == name {
+                            Some(name.to_string())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                if subscriptions.is_empty() {
+                    return Err(anyhow!(
+                        "A subscriptions with the same name as the `ChatConfig` messages was not found for processor {} with messages {name}.",
+                        processor.get_name()
+                    ));
+                }
+            }
+
+            // Check the tools entries
+            if column_names.contains("tools") {
+                let vec_str = table.get_column_as_vec_str("tools");
+                let name = vec_str.last().unwrap();
+
+                let subscriptions = processor
+                    .get_subscriptions()
+                    .iter()
+                    .filter_map(|s| {
+                        if &s.get_table_name() == name {
+                            Some(name.to_string())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                if subscriptions.is_empty() {
+                    return Err(anyhow!(
+                        "A subscriptions with the same name as the `ChatConfig` tools was not found for processor {} with tools {name}.",
+                        processor.get_name()
+                    ));
+                }
+            }
+
+            // Check the documents entries
+            if column_names.contains("documents") {
+                let vec_str = table.get_column_as_vec_str("documents");
+                let name = vec_str.last().unwrap();
+
+                let subscriptions = processor
+                    .get_subscriptions()
+                    .iter()
+                    .filter_map(|s| {
+                        if &s.get_table_name() == name {
+                            Some(name.to_string())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                if subscriptions.is_empty() {
+                    return Err(anyhow!(
+                        "A subscriptions with the same name as the `EmbedConfig` documents was not found for processor {} with documents {name}.",
+                        processor.get_name()
+                    ));
+                }
+            }
+
             // Check the LHS entries
             if column_names.contains("lhs_name") {
                 let vec_str = table.get_column_as_vec_str("lhs_name");
@@ -775,7 +847,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 processors.push(new_processor)
             } else {
                 // Move over the other processors and preserve order
-                // processors.push(processor)
+                processors.push(processor)
             }
         }
 

@@ -545,6 +545,8 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         // Default chat config
         #[allow(unused_mut)]
         let mut candle_chat_config = CandleChatConfig {
+            messages: self.chat_task_name.to_string(),
+            tools: Some(self.state_tools_table_name.to_string()),
             max_tokens: 1000,
             temperature: 0.8,
             seed: 299792458,

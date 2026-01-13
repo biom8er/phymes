@@ -442,6 +442,10 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                             .split("-subscribe")
                             .collect::<Vec<_>>();
                         let processor = split_line.first().unwrap().trim().to_string();
+                        if !processor_builders.contains_key(&processor) {
+                            let builder = ProcessorBuilder::default().with_name(&processor);
+                            processor_builders.insert(processor.to_owned(), builder);
+                        }
                         if !processor_plan_builders.contains_key(&processor) {
                             let builder =
                                 ProcessorPlanBuilder::default().with_subscriptions(&[subscription]);
@@ -517,6 +521,10 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                             let builder = ProcessorBuilder::default().with_name(&processor_1);
                             processor_builders.insert(processor_1.to_owned(), builder);
                         }
+                        if !processor_plan_builders.contains_key(&processor_1) {
+                            let builder = ProcessorPlanBuilder::default();
+                            processor_plan_builders.insert(processor_1.to_owned(), builder);
+                        }
 
                         // Check the processor name
                         let split_line = split_line
@@ -568,6 +576,10 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         if !processor_builders.contains_key(&processor_1) {
                             let builder = ProcessorBuilder::default().with_name(&processor_1);
                             processor_builders.insert(processor_1.to_owned(), builder);
+                        }
+                        if !processor_plan_builders.contains_key(&processor_1) {
+                            let builder = ProcessorPlanBuilder::default();
+                            processor_plan_builders.insert(processor_1.to_owned(), builder);
                         }
 
                         // Check the processor name
@@ -645,6 +657,10 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                                 ));
                             }
                         };
+                        if !processor_builders.contains_key(&processor) {
+                            let builder = ProcessorBuilder::default().with_name(&processor);
+                            processor_builders.insert(processor.to_owned(), builder);
+                        }
                         if !processor_plan_builders.contains_key(&processor) {
                             let builder =
                                 ProcessorPlanBuilder::default().with_publications(&[publication]);
@@ -843,6 +859,10 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         .r#type
                         .replace(processor_type);
                 }
+                if !processor_plan_builders.contains_key(&processor_name) {
+                    let builder = ProcessorPlanBuilder::default();
+                    processor_plan_builders.insert(processor_name.to_owned(), builder);
+                }
                 processor_names_vec.push(processor_name.to_owned());
 
             // Extract out the subjects
@@ -892,7 +912,10 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 }
 
                 // Update
-                if processor_plan_builders
+                if !processor_plan_builders.contains_key(&processor_name) {
+                    let builder = ProcessorPlanBuilder::default();
+                    processor_plan_builders.insert(processor_name.to_owned(), builder);
+                } else if processor_plan_builders
                     .get(&processor_name)
                     .unwrap()
                     .subscribe_policy
@@ -951,6 +974,10 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 if !processor_builders.contains_key(&processor_name) {
                     let builder = ProcessorBuilder::default().with_name(&processor_name);
                     processor_builders.insert(processor_name.to_owned(), builder);
+                }
+                if !processor_plan_builders.contains_key(&processor_name) {
+                    let builder = ProcessorPlanBuilder::default();
+                    processor_plan_builders.insert(processor_name.to_owned(), builder);
                 }
 
                 // Update
@@ -1028,6 +1055,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             let processor_plan = processor_plan_builder.with_processor(processor).build()?;
             processors.push(processor_plan);
         }
+        // dbg!(&processors);
 
         // Check the subjects
         let subject_names_set = subject_names_vec
@@ -1623,7 +1651,7 @@ mod tests {
             assert_eq!(table.count_rows(), 1)
         }
 
-        // Test that the processor configs were added to the subscriptions were added in
+        // Test that the processor configs were added to the subscriptions
         let builder_test = builder_test.with_name("session").add_processor_subjects()?;
         let mut test = builder_test
             .get_subject_names_from_processors()
