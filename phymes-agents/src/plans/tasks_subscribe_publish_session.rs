@@ -268,6 +268,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
         Utf8 publication_subscription_name
         Utf8 publication_subscription_table_names
         Utf8 subscribe_type
+        Utf8 update_type
         UInt8 is_subscription
     }
     cmp_processors_publications_p["cmp_processors_publications_p"] {
@@ -303,6 +304,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
         Utf8 publication_subscription_name
         Utf8 publication_subscription_table_names
         Utf8 subscribe_type
+        Utf8 update_type
         UInt8 is_subscription
     }
     SubjectsChangeLog["SubjectsChangeLog"] {
@@ -542,10 +544,8 @@ mod tests {
                 subjects_change_log_message,
             ])
         };
-        dbg!(&message_map.keys());
 
         // 1. Message to trigger the first superstep
-        let session_names = (0..8).map(|_| tasks_publish_subscribe_session.session_context_name.to_string()).collect::<Vec<_>>();
         let task_names = vec!["group_by_tasks_run_log_timestamp_t", "group_by_tasks_run_log_timestamp_t",
             "filter_processors_subscriptions_t", "filter_processors_subscriptions_t", "filter_processors_subscriptions_t",
             "filter_processors_publications_t", "filter_processors_publications_t", "filter_processors_publications_t",
@@ -564,7 +564,7 @@ mod tests {
         ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
         let subscription_table_names = vec![vec!["SessionTasksRunLog", "group_by_tasks_run_log_timestamp_p"], vec!["group_by_tasks_run_log_timestamp_t", "select_tasks_run_log_timestamp_p"],
             vec!["SessionProcessors", "cmp_processors_subscriptions_p"], vec!["cmp_processors_subscriptions_t", "filter_processors_subscriptions_p"], vec!["filter_processors_subscriptions_t", "select_processors_subscriptions_p"],
-            vec!["SessionProcessors", "cmp_processors_publications_p"], vec!["cmp_processors_publications_t", "filter_processors_publications_p"], vec!["select_processors_publications_t", "select_processors_publications_p"],
+            vec!["SessionProcessors", "cmp_processors_publications_p"], vec!["cmp_processors_publications_t", "filter_processors_publications_p"], vec!["filter_processors_publications_t", "select_processors_publications_p"],
         ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
         let publication_names = vec![vec!["Replace"], vec!["Replace"],
             vec!["Replace"], vec!["Replace"], vec!["Replace"],
@@ -572,8 +572,9 @@ mod tests {
         ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
         let publication_table_names = vec![vec!["group_by_tasks_run_log_timestamp_t"], vec!["select_tasks_run_log_timestamp_t"],
             vec!["cmp_processors_subscriptions_t"], vec!["filter_processors_subscriptions_t"], vec!["select_processors_subscriptions_t"],
-            vec!["cmp_processors_publications_t"], vec!["select_processors_publications_t"], vec!["select_processors_publications_t"],
+            vec!["cmp_processors_publications_t"], vec!["filter_processors_publications_t"], vec!["select_processors_publications_t"],
         ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
+        let session_names = task_names.iter().map(|_| tasks_publish_subscribe_session.session_context_name.to_string()).collect::<Vec<_>>();
 
         let batch = create_session_tasks_subscribe_publish_batch(session_names, task_names, processor_names, processor_types, subscription_names, subscription_table_names, publication_names, publication_table_names)?;
         let table = Table::get_builder()
@@ -591,223 +592,249 @@ mod tests {
             .build()?;
         let _ = message_map.insert(tasks_publish_subscribe_message.get_name().to_string(), tasks_publish_subscribe_message);
 
-        // Run the session stream step
-        // let response = SessionStreamStep::run_superstep(session_ctx_arc, message_map, 0).await?;
-        // let response = SessionStreamStep::run_superstep_0(session_ctx_arc, message_map, 0)?;
+        // Run the session
+        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+
+        assert_eq!(response.len(), 0);
+
+        { // Debug any errors
+            let subjects_reading = session_ctx_arc.read();
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        }
+
+        let session_reading = session_ctx_arc.read();
+        let table_reading = session_reading.get_states().get("select_tasks_run_log_timestamp_t").unwrap().read();
+        let column = table_reading.get_column_as_vec_str("task_name");
+        assert_eq!(column, ["filter_and_join_session_contexts_by_email_inbox_task_name", "filter_and_join_session_contexts_by_email_outbox_task_name", "filter_session_contexts_by_email_task_name", "filter_user_info_by_email_task_name", "join_session_contexts_with_mermaid_diagrams_task_name", "user_session"]);
+        let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+        for timestamp in column {
+            assert!(timestamp > 0);
+        }
+
+        let table_reading = session_reading.get_states().get("select_processors_subscriptions_t").unwrap().read();
+        let column = table_reading.get_column_as_vec_str("session_name");
+        assert_eq!(column, ["user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session"]);
+        let column = table_reading.get_column_as_vec_str("processor_name");
+        assert_eq!(column, ["filter_and_join_session_contexts_by_email_inbox_processor_name", "filter_and_join_session_contexts_by_email_inbox_processor_name", "filter_session_contexts_by_email_processor_name", "filter_session_contexts_by_email_processor_name", "filter_session_contexts_by_email_processor_name", "join_session_contexts_with_mermaid_diagrams_processor_name", "join_session_contexts_with_mermaid_diagrams_processor_name", "join_session_contexts_with_mermaid_diagrams_processor_name", "filter_user_info_by_email_processor_name", "filter_user_info_by_email_processor_name", "filter_user_info_by_email_processor_name", "filter_and_join_session_contexts_by_email_outbox_processor_name", "filter_and_join_session_contexts_by_email_outbox_processor_name", "filter_and_join_session_contexts_by_email_outbox_processor_name", "user_session"]);
+        let column = table_reading.get_column_as_vec_str("processor_type");
+        assert_eq!(column, ["ExtractTabular", "ExtractTabular", "Join", "Join", "Join", "Join", "Join", "Join", "Join", "Join", "Join", "DataSummaryProcessor", "DataSummaryProcessor", "DataSummaryProcessor", "ProcessorEcho"]);
+        let column = table_reading.get_column_as_vec_str("publication_subscription_name");
+        assert_eq!(column, ["OnUpdateFullTable", "AlwaysFullTable", "AlwaysLastRecordBatch", "OnUpdateFullTable", "AlwaysFullTable", "AlwaysLastRecordBatch", "OnUpdateFullTable", "AlwaysFullTable", "AlwaysLastRecordBatch", "OnUpdateFullTable", "AlwaysFullTable", "AlwaysLastRecordBatch", "OnUpdateFullTable", "OnUpdateFullTable", "OnUpdateFullTable"]);
+        let column = table_reading.get_column_as_vec_str("publication_subscription_table_names");
+        assert_eq!(column, ["UserJson", "filter_and_join_session_contexts_by_email_inbox_processor_name", "filter_session_contexts_by_email_processor_name", "UserInbox", "UserSessionContexts", "join_session_contexts_with_mermaid_diagrams_processor_name", "JoinUserInboxSessionContexts", "BuilderMermaid", "filter_user_info_by_email_processor_name", "UserInbox", "User", "filter_and_join_session_contexts_by_email_outbox_processor_name", "filter_user_info_by_email_table_name", "JoinUserInboxSessionContextsMermaid", "AssistantJson"]);
+        let column = table_reading.get_column_as_vec_str("subscribe_type");
+        assert_eq!(column, ["All", "All", "All", "All", "All", "All", "All", "All", "All", "All", "All", "Any", "Any", "Any", "All"]);
+        let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
+        assert_eq!(column, [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+
+        let table_reading = session_reading.get_states().get("select_processors_publications_t").unwrap().read();
+        // let column = table_reading.get_column_as_vec_str("session_name");
+        // assert_eq!(column, ["user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session"]);
+        // let column = table_reading.get_column_as_vec_str("processor_name");
+        // assert_eq!(column, ["filter_and_join_session_contexts_by_email_inbox_processor_name", "filter_and_join_session_contexts_by_email_inbox_processor_name", "filter_session_contexts_by_email_processor_name", "filter_session_contexts_by_email_processor_name", "filter_session_contexts_by_email_processor_name", "join_session_contexts_with_mermaid_diagrams_processor_name", "join_session_contexts_with_mermaid_diagrams_processor_name", "join_session_contexts_with_mermaid_diagrams_processor_name", "filter_user_info_by_email_processor_name", "filter_user_info_by_email_processor_name", "filter_user_info_by_email_processor_name", "filter_and_join_session_contexts_by_email_outbox_processor_name", "filter_and_join_session_contexts_by_email_outbox_processor_name", "filter_and_join_session_contexts_by_email_outbox_processor_name", "user_session"]);
+        // let column = table_reading.get_column_as_vec_str("processor_type");
+        // assert_eq!(column, ["ExtractTabular", "ExtractTabular", "Join", "Join", "Join", "Join", "Join", "Join", "Join", "Join", "Join", "DataSummaryProcessor", "DataSummaryProcessor", "DataSummaryProcessor", "ProcessorEcho"]);
+        // let column = table_reading.get_column_as_vec_str("publication_subscription_name");
+        // assert_eq!(column, [""]);
+        // let column = table_reading.get_column_as_vec_str("publication_subscription_table_names");
+        // assert_eq!(column, [""]);
+        // let column = table_reading.get_column_as_vec_str("subscribe_type");
+        // assert_eq!(column, [""]);
+        let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
+        assert_eq!(column, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+
+
+        // 2. Message to trigger the second superstep
+        let task_names = vec!["join_tasks_run_log_timestamp_t", 
+            "join_tasks_run_log_timestamp_t", 
+            "join_tasks_run_log_timestamp_t",
+            "join_tasks_run_log_timestamp_t", 
+            "join_tasks_run_log_timestamp_t", 
+            "join_tasks_run_log_timestamp_t",
+        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let processor_names = vec!["group_by_subject_change_log_timestamp_p", 
+            "join_tasks_run_log_timestamp_p",
+            "join_tasks_processors_subscriptions_p",            
+            "join_tasks_processors_subscriptions_subjects_p", 
+            "select_tasks_processors_subscriptions_subjects_p", 
+            "filter_tasks_processors_subscriptions_subjects_p",
+        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let processor_types = vec!["GroupBy", 
+            "Join",            
+            "Join",
+            "Join", 
+            "Select",
+            "Filter", 
+        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let subscription_names = vec![vec!["AlwaysFullTable","AlwaysFullTable"],
+            vec!["OnUpdateFullTable","AlwaysFullTable","AlwaysFullTable"], 
+            vec!["AlwaysFullTable","AlwaysFullTable","AlwaysFullTable"], 
+            vec!["AlwaysFullTable","AlwaysFullTable","AlwaysFullTable"], 
+            vec!["AlwaysFullTable","AlwaysFullTable"], 
+            vec!["AlwaysFullTable","AlwaysFullTable"],
+        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
+        let subscription_table_names = vec![vec!["SubjectsChangeLog", "group_by_subject_change_log_timestamp_p"], 
+            vec!["select_tasks_run_log_timestamp_t", "SessionTasks", "join_tasks_run_log_timestamp_p"], 
+            vec!["join_tasks_run_log_timestamp_t", "select_processors_subscriptions_t", "join_tasks_processors_subscriptions_p"], 
+            vec!["join_tasks_processors_subscriptions_t", "group_by_subject_change_log_timestamp_t", "join_tasks_processors_subscriptions_subjects_p"],             
+            vec!["join_tasks_processors_subscriptions_subjects_t", "select_tasks_processors_subscriptions_subjects_p"], 
+            vec!["select_tasks_processors_subscriptions_subjects_t", "filter_tasks_processors_subscriptions_subjects_p"],
+        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
+        let publication_names = vec![vec!["Replace"], 
+            vec!["Replace"],             
+            vec!["Replace"],
+            vec!["Replace"], 
+            vec!["Replace"], 
+            vec!["Replace"],
+        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
+        let publication_table_names = vec![vec!["group_by_subject_change_log_timestamp_t"], 
+            vec!["join_tasks_run_log_timestamp_t"],             
+            vec!["join_tasks_processors_subscriptions_t"],
+            vec!["join_tasks_processors_subscriptions_subjects_t"], 
+            vec!["select_tasks_processors_subscriptions_subjects_t"], 
+            vec!["SessionTasksSubscribe"],
+        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
+        let session_names = task_names.iter().map(|_| tasks_publish_subscribe_session.session_context_name.to_string()).collect::<Vec<_>>();
+
+        let batch = create_session_tasks_subscribe_publish_batch(session_names, task_names, processor_names, processor_types, subscription_names, subscription_table_names, publication_names, publication_table_names)?;
+        let table = Table::get_builder()
+            .with_name(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
+            .with_record_batches(vec![batch])?
+            .build()?;
+        let tasks_publish_subscribe_message = IPCMessage::get_builder()
+            .with_message(table.to_ipc_stream()?)
+            .with_subject(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
+            .with_update(&TablePublication::Replace {
+                table_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+            })
+            .with_publisher(tasks_publish_subscribe_session.session_context_name)
+            .make_name()?
+            .build()?;
+        let message_map = create_message_map(vec![tasks_publish_subscribe_message]);
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
-        dbg!(&response);
 
         assert_eq!(response.len(), 0);
 
-        // let session_reading = session_ctx_arc.read();
-        // let table_reading = session_reading.get_states().get("select_tasks_run_log_timestamp_t").unwrap().read();
-        // let column = table_reading.get_column_as_vec_str("task_name");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-        // for timestamp in column {
-        //     assert!(timestamp > 0);
-        // }
+        {
+            let subjects_reading = session_ctx_arc.read();
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        }
 
-        // let table_reading = session_reading.get_states().get("select_processors_publications_t").unwrap().read();
-        // let column = table_reading.get_column_as_vec_str("session_name");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_str("processor_name");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_str("processor_type");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_str("publication_subscription_name");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_str("publication_subscription_table_names");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_str("subscribe_type");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
-        // assert_eq!(column, [0]);
+        let session_reading = session_ctx_arc.read();
+        let table_reading = session_reading.get_states().get("SessionTasksSubscribe").unwrap().read();
+        let column = table_reading.get_column_as_vec_str("session_name");
+        assert_eq!(column, [""]);
+        let column = table_reading.get_column_as_vec_str("processor_name");
+        assert_eq!(column, [""]);
+        let column = table_reading.get_column_as_vec_str("processor_type");
+        assert_eq!(column, [""]);
+        let column = table_reading.get_column_as_vec_str("subscription_name");
+        assert_eq!(column, [""]);
+        let column = table_reading.get_column_as_vec_str("subscription_table_name");
+        assert_eq!(column, [""]);
+        let column = table_reading.get_column_as_vec_str("subscribe_type");
+        assert_eq!(column, [""]);
 
-        // let table_reading = session_reading.get_states().get("select_processors_publications_t").unwrap().read();
-        // let column = table_reading.get_column_as_vec_str("session_name");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_str("processor_name");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_str("processor_type");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_str("publication_subscription_name");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_str("publication_subscription_table_names");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_str("subscribe_type");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
-        // assert_eq!(column, [0]);
+        // 3. Message to trigger the third superstep
+        let task_names = vec!["select_tasks_processors_publications_t", 
+            "select_tasks_processors_publications_t", 
+            "select_tasks_processors_publications_t",
+            "select_tasks_processors_publications_t",
+        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let processor_names = vec!["group_by_tasks_processors_subscriptions_subjects_p", 
+            "group_by_tasks_processors_publications_p",
+            "join_tasks_processors_publications_p",            
+            "select_tasks_processors_publications_p", 
+        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let processor_types = vec!["GroupBy", 
+            "GroupBy",            
+            "Join",
+            "Select",
+        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let subscription_names = vec![vec!["OnUpdateFullTable","AlwaysFullTable"],
+            vec!["AlwaysFullTable","AlwaysFullTable"], 
+            vec!["AlwaysFullTable","AlwaysFullTable","AlwaysFullTable"], 
+            vec!["AlwaysFullTable","AlwaysFullTable"], 
+        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
+        let subscription_table_names = vec![vec!["SessionTasksSubscribe", "group_by_tasks_processors_subscriptions_subjects_p"], 
+            vec!["group_by_tasks_processors_subscriptions_subjects_t", "SessionTasks", "group_by_tasks_processors_publications_p"], 
+            vec!["group_by_tasks_processors_subscriptions_subjects_t", "group_by_tasks_processors_publications_t", "join_tasks_processors_publications_p"], 
+            vec!["select_processors_publications_t", "select_tasks_processors_publications_p"],
+        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
+        let publication_names = vec![vec!["Replace"], 
+            vec!["Replace"],             
+            vec!["Replace"],
+            vec!["Replace"],
+        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
+        let publication_table_names = vec![vec!["group_by_tasks_processors_subscriptions_subjects_t"], 
+            vec!["join_tasks_ready_to_run_t"],             
+            vec!["join_tasks_processors_publications_t"],
+            vec!["SessionTasksSubscribePublish"], 
+        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
+        let session_names = task_names.iter().map(|_| tasks_publish_subscribe_session.session_context_name.to_string()).collect::<Vec<_>>();
 
-        // // 2. Message to trigger the second superstep
-        // let session_names = (0..6).map(|_| tasks_publish_subscribe_session.session_context_name.to_string()).collect::<Vec<_>>();
-        // let task_names = vec!["join_tasks_run_log_timestamp_t", 
-        //     "join_tasks_run_log_timestamp_t", 
-        //     "join_tasks_run_log_timestamp_t",
-        //     "join_tasks_run_log_timestamp_t", 
-        //     "join_tasks_run_log_timestamp_t", 
-        //     "join_tasks_run_log_timestamp_t",
-        // ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        // let processor_names = vec!["group_by_subject_change_log_timestamp_p", 
-        //     "join_tasks_run_log_timestamp_p",
-        //     "join_tasks_processors_subscriptions_p",            
-        //     "join_tasks_processors_subscriptions_subjects_p", 
-        //     "select_tasks_processors_subscriptions_subjects_p", 
-        //     "filter_tasks_processors_subscriptions_subjects_p",
-        // ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        // let processor_types = vec!["GroupBy", 
-        //     "Join",            
-        //     "Join",
-        //     "Join", 
-        //     "Select",
-        //     "Filter", 
-        // ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        // let subscription_names = vec![vec!["AlwaysFullTable","AlwaysFullTable"],
-        //     vec!["OnUpdateFullTable","AlwaysFullTable","AlwaysFullTable"], 
-        //     vec!["AlwaysFullTable","AlwaysFullTable","AlwaysFullTable"], 
-        //     vec!["AlwaysFullTable","AlwaysFullTable","AlwaysFullTable"], 
-        //     vec!["AlwaysFullTable","AlwaysFullTable"], 
-        //     vec!["AlwaysFullTable","AlwaysFullTable"],
-        // ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
-        // let subscription_table_names = vec![vec!["SubjectsChangeLog", "group_by_subject_change_log_timestamp_p"], 
-        //     vec!["select_tasks_run_log_timestamp_t", "SessionTasks", "join_tasks_run_log_timestamp_p"], 
-        //     vec!["join_tasks_run_log_timestamp_t", "select_processors_subscriptions_t", "join_tasks_processors_subscriptions_p"], 
-        //     vec!["join_tasks_processors_subscriptions_t", "group_by_subject_change_log_timestamp_t", "join_tasks_processors_subscriptions_subjects_p"],             
-        //     vec!["join_tasks_processors_subscriptions_subjects_t", "select_tasks_processors_subscriptions_subjects_p"], 
-        //     vec!["select_tasks_processors_subscriptions_subjects_t", "filter_tasks_processors_subscriptions_subjects_p"],
-        // ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
-        // let publication_names = vec![vec!["Replace"], 
-        //     vec!["Replace"],             
-        //     vec!["Replace"],
-        //     vec!["Replace"], 
-        //     vec!["Replace"], 
-        //     vec!["Replace"],
-        // ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
-        // let publication_table_names = vec![vec!["group_by_subject_change_log_timestamp_t"], 
-        //     vec!["join_tasks_run_log_timestamp_t"],             
-        //     vec!["join_tasks_processors_subscriptions_t"],
-        //     vec!["join_tasks_processors_subscriptions_subjects_t"], 
-        //     vec!["select_tasks_processors_subscriptions_subjects_t"], 
-        //     vec!["SessionTasksSubscribe"],
-        // ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
+        let batch = create_session_tasks_subscribe_publish_batch(session_names, task_names, processor_names, processor_types, subscription_names, subscription_table_names, publication_names, publication_table_names)?;
+        let table = Table::get_builder()
+            .with_name(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
+            .with_record_batches(vec![batch])?
+            .build()?;
+        let tasks_publish_subscribe_message = IPCMessage::get_builder()
+            .with_message(table.to_ipc_stream()?)
+            .with_subject(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
+            .with_update(&TablePublication::Replace {
+                table_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+            })
+            .with_publisher(tasks_publish_subscribe_session.session_context_name)
+            .make_name()?
+            .build()?;
+        let message_map = create_message_map(vec![tasks_publish_subscribe_message]);
 
-        // let batch = create_session_tasks_subscribe_publish_batch(session_names, task_names, processor_names, processor_types, subscription_names, subscription_table_names, publication_names, publication_table_names)?;
-        // let table = Table::get_builder()
-        //     .with_name(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
-        //     .with_record_batches(vec![batch])?
-        //     .build()?;
-        // let tasks_publish_subscribe_message = IPCMessage::get_builder()
-        //     .with_message(table.to_ipc_stream()?)
-        //     .with_subject(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
-        //     .with_update(&TablePublication::Replace {
-        //         table_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
-        //     })
-        //     .with_publisher(tasks_publish_subscribe_session.session_context_name)
-        //     .make_name()?
-        //     .build()?;
-        // let message_map = create_message_map(vec![tasks_publish_subscribe_message]);
+        // Run the session
+        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-        // // Run the session
-        // let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
-        // let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        assert_eq!(response.len(), 0);
 
-        // assert_eq!(response.len(), 0);
+        {
+            let subjects_reading = session_ctx_arc.read();
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        }
 
-        // let session_reading = session_ctx_arc.read();
-        // let table_reading = session_reading.get_states().get("SessionTasksSubscribe").unwrap().read();
-        // let column = table_reading.get_column_as_vec_str("session_name");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_str("processor_name");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_str("processor_type");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_str("subscription_name");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_str("subscription_table_name");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_str("subscribe_type");
-        // assert_eq!(column, [""]);
-
-        // // 3. Message to trigger the third superstep
-        // let session_names = (0..4).map(|_| tasks_publish_subscribe_session.session_context_name.to_string()).collect::<Vec<_>>();
-        // let task_names = vec!["select_tasks_processors_publications_t", 
-        //     "select_tasks_processors_publications_t", 
-        //     "select_tasks_processors_publications_t",
-        //     "select_tasks_processors_publications_t",
-        // ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        // let processor_names = vec!["group_by_tasks_processors_subscriptions_subjects_p", 
-        //     "join_tasks_ready_to_run_p",
-        //     "join_tasks_processors_publications_p",            
-        //     "select_tasks_processors_publications_p", 
-        // ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        // let processor_types = vec!["Select", 
-        //     "Join",            
-        //     "Join",
-        //     "Select",
-        // ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        // let subscription_names = vec![vec!["OnUpdateFullTable","AlwaysFullTable"],
-        //     vec!["AlwaysFullTable","AlwaysFullTable","AlwaysFullTable"], 
-        //     vec!["AlwaysFullTable","AlwaysFullTable","AlwaysFullTable"], 
-        //     vec!["AlwaysFullTable","AlwaysFullTable"], 
-        // ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
-        // let subscription_table_names = vec![vec!["SessionTasksSubscribe", "group_by_tasks_processors_subscriptions_subjects_p"], 
-        //     vec!["group_by_tasks_processors_subscriptions_subjects_t", "SessionTasks", "join_tasks_ready_to_run_p"], 
-        //     vec!["join_tasks_ready_to_run_t", "select_processors_publications_t", "join_tasks_processors_publications_p"], 
-        //     vec!["select_processors_publications_t", "select_tasks_processors_publications_p"],
-        // ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
-        // let publication_names = vec![vec!["Replace"], 
-        //     vec!["Replace"],             
-        //     vec!["Replace"],
-        //     vec!["Replace"],
-        // ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
-        // let publication_table_names = vec![vec!["group_by_tasks_processors_subscriptions_subjects_t"], 
-        //     vec!["join_tasks_ready_to_run_t"],             
-        //     vec!["join_tasks_processors_publications_t"],
-        //     vec!["SessionTasksSubscribePublish"], 
-        // ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
-
-        // let batch = create_session_tasks_subscribe_publish_batch(session_names, task_names, processor_names, processor_types, subscription_names, subscription_table_names, publication_names, publication_table_names)?;
-        // let table = Table::get_builder()
-        //     .with_name(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
-        //     .with_record_batches(vec![batch])?
-        //     .build()?;
-        // let tasks_publish_subscribe_message = IPCMessage::get_builder()
-        //     .with_message(table.to_ipc_stream()?)
-        //     .with_subject(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
-        //     .with_update(&TablePublication::Replace {
-        //         table_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
-        //     })
-        //     .with_publisher(tasks_publish_subscribe_session.session_context_name)
-        //     .make_name()?
-        //     .build()?;
-        // let message_map = create_message_map(vec![tasks_publish_subscribe_message]);
-
-        // // Run the session
-        // let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
-        // let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
-
-        // assert_eq!(response.len(), 0);
-
-        // let session_reading = session_ctx_arc.read();
-        // let table_reading = session_reading.get_states().get("SessionTasksSubscribePublish").unwrap().read();
-        // let column = table_reading.get_column_as_vec_str("session_name");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_str("processor_name");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_str("processor_type");
-        // assert_eq!(column, [""]);
-        // let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
-        // assert_eq!(column, [[""]]);
-        // let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
-        // assert_eq!(column, [[""]]);
-        // let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
-        // assert_eq!(column, [[""]]);
-        // let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
-        // assert_eq!(column, [[""]]);
+        let session_reading = session_ctx_arc.read();
+        let table_reading = session_reading.get_states().get("SessionTasksSubscribePublish").unwrap().read();
+        let column = table_reading.get_column_as_vec_str("session_name");
+        assert_eq!(column, [""]);
+        let column = table_reading.get_column_as_vec_str("processor_name");
+        assert_eq!(column, [""]);
+        let column = table_reading.get_column_as_vec_str("processor_type");
+        assert_eq!(column, [""]);
+        let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
+        assert_eq!(column, [[""]]);
+        let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
+        assert_eq!(column, [[""]]);
+        let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
+        assert_eq!(column, [[""]]);
+        let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
+        assert_eq!(column, [[""]]);
 
         Ok(())
     }

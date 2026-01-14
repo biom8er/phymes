@@ -73,7 +73,10 @@ impl ProcessorTrait for CandleEmbedProcessor {
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
 
-        // Make the outbox and send
+        // Re-index the messages by the subject name which needs to be unique at this stage
+        let message = message.into_iter().map(|(k, v)| (v.get_subject().to_string(), v)).collect::<HashMap<_, _>>();
+
+        // run the embed stream
         let out = Box::pin(CandleEmbedStream::new(
             message,
             config,

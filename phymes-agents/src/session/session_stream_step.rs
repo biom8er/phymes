@@ -353,7 +353,7 @@ pub trait SessionStreamStepTrait {
 
 }
 
-/// A single step of a dynamic [SessionStream]
+/// A single step of a [SessionStream]
 /// [SessionStream]: crate::session::session_stream::SessionStream
 pub struct SessionStreamStep {}
 
@@ -378,7 +378,6 @@ impl SessionStreamStepTrait for SessionStreamStep {
 
         // Retrieve the task ready to subscribe and their corresponding publications
         let tasks = session_context.read().tasks_subscribe_publish()?;
-        dbg!(&tasks);
 
         // Break if there is nothing to update
         if tasks.is_empty() {
@@ -418,33 +417,6 @@ impl SessionStreamStepTrait for SessionStreamStep {
 
             Ok(Some(user_batches))
         }
-    }
-}
-
-impl SessionStreamStep {
-    pub fn run_superstep_0(
-        session_context: Arc<RwLock<SessionContext>>,
-        messages: IPCMessageMap,
-        iter: usize,
-    ) -> Result<Option<IPCMessageMap>> {
-        // Start the diagnostics
-        let (mut diagnostics_vec, span, trace) = if session_context.read().get_diagnostics() {
-            let (diagnostics_vec, span, trace) = Self::enter_span(&messages, &session_context, iter)?;
-            (Some(diagnostics_vec), Some(span), Some(trace))
-        } else {
-            (None, None, None)
-        };
-
-        // Update the session context with the incoming messages
-        if !messages.is_empty() {
-            Self::update_subjects_and_changelog_from_messages(&session_context, messages)?;
-        }  
-
-        // Retrieve the task ready to subscribe and their corresponding publications
-        let tasks: HashMap<(String, String), HashMap<String, ProcessorSubjects>> = session_context.read().tasks_subscribe_publish()?;
-        dbg!(&tasks);
-
-        Ok(None)
     }
 }
 

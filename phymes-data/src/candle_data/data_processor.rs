@@ -75,6 +75,9 @@ impl ProcessorTrait for CandleDataProcessor {
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
 
+        // Re-index the messages by the subject name which needs to be unique at this stage
+        let message = message.into_iter().map(|(k, v)| (v.get_subject().to_string(), v)).collect::<HashMap<_, _>>();
+
         // Run the ops
         let out = Box::pin(CandleDataStream::new(
             message,

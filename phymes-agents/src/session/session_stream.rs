@@ -9,18 +9,11 @@ use tracing::{Level, event};
 
 use crate::{SessionContext, SessionStreamStep, create_message_map, session::session_stream_step::SessionStreamStepTrait};
 
-/// The state of the [SessionStream]
-pub enum SessionStreamState {
-    Step(Pin<Box<dyn Future<Output = Result<Option<IPCMessageMap>>> + Send>>),
-    Message(HashMap<String, IPCMessage>),
-    Done,
-}
-
 pub struct SessionStream {
-    /// The current state of the stream
-    stream_state: SessionStreamState,
     /// The session context
     session_context: Arc<RwLock<SessionContext>>,
+    /// The next superstep
+    next_step: Option<Pin<Box<dyn Future<Output = Result<Option<IPCMessageMap>>> + Send>>>,
     /// The maximum number of supersteps
     max_steps: usize,
     /// The current dynamic step
@@ -32,12 +25,12 @@ impl SessionStream {
     pub fn new(messages: IPCMessageMap, session_context: Arc<RwLock<SessionContext>>) -> Self {
         let max_steps = session_context.read().get_max_iter();
         let step = 0;
-        let next_step = Box::pin(SessionStreamStep::run_superstep(Arc::clone(&session_context), messages, step));
-        let stream_state = SessionStreamState::Step(next_step);
+        #[allow(clippy::type_complexity)]
+        let next_step: Option<Pin<Box<dyn Future<Output = Result<Option<IPCMessageMap>>> + Send>>> = Some(Box::pin(SessionStreamStep::run_superstep(Arc::clone(&session_context), messages, step)));
 
         Self {
-            stream_state,
             session_context,
+            next_step,
             max_steps,
             step,
         }
@@ -48,49 +41,40 @@ impl Stream for SessionStream {
     type Item = Result<IPCMessageMap>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        match &mut self.stream_state {
-            SessionStreamState::Step(step) => {
-                // Poll the step
-                let stream_state = match ready!(step.poll_unpin(cx)) {
-                    Ok(Some(message)) => SessionStreamState::Message(message),
-                    Ok(None) => SessionStreamState::Done,
+        // An internal while loop is needed to skip empty messages without causing an infinite poll
+        while self.step < self.max_steps {
+            // Poll the next superstep
+            let messages = if let Some(fut) = self.next_step.as_mut() {
+                match ready!(fut.poll_unpin(cx)) {
+                    Ok(Some(messages)) => messages,
+                    Ok(None) => return Poll::Ready(None),
                     Err(err) => {
                         event!(Level::ERROR, "{err:?}");
-                        SessionStreamState::Message(HashMap::<String, IPCMessage>::new())
+                        HashMap::<String, IPCMessage>::new()
                     }
-                };
-
-                // Update the stream state
-                self.stream_state = stream_state;
-                self.poll_next(cx)
-            },
-            SessionStreamState::Message(message) => {
-                // Prepare the poll
-                let poll = Poll::Ready(Some(Ok(message.drain().collect::<HashMap<_, _>>())));
-
-                // Prepare the next step
-                dbg!(&self.step);
-                if self.step < self.max_steps {
-                    self.step += 1;
-                    let stream_state = SessionStreamState::Step(Box::pin(SessionStreamStep::run_superstep(
-                        Arc::clone(&self.session_context),
-                        HashMap::<String, IPCMessage>::new(),
-                        self.step,
-                    )));
-                    self.stream_state = stream_state;
-                } else {
-                    self.stream_state = SessionStreamState::Done;
                 }
+            } else {
+                return Poll::Ready(None);
+            };
 
-                // Return the poll
-                poll
-                
+            // Prepare the next superstep
+            self.next_step = Some(Box::pin(SessionStreamStep::run_superstep(
+                Arc::clone(&self.session_context),
+                HashMap::<String, IPCMessage>::new(),
+                self.step
+            )));
+            self.step += 1;
+
+            // Return the superstep result
+            if messages.is_empty() {
+                // Skip empty results
+                continue;
+            } else {
+                return Poll::Ready(Some(Ok(messages)));
             }
-            SessionStreamState::Done => {
-                println!("Poll is Done");
-                Poll::Ready(None)
-            },
         }
+        event!(Level::DEBUG, "Maximum iterations {} exeeded.", self.max_steps);
+        Poll::Ready(None)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
