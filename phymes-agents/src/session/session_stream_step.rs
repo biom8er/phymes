@@ -127,8 +127,6 @@ pub trait SessionStreamStepTrait {
             }
         };
 
-        dbg!(&update);
-
         let mut messages = vec![IPCMessageBuilder::new()
             .with_subject(update.get_name())
             .with_publisher(&session_context_name)
@@ -140,27 +138,27 @@ pub trait SessionStreamStepTrait {
             .build()?
         ];
 
-        // // Update the errors
-        // if !error_messages.is_empty() {
-        //     let errors_update = session_context
-        //         .write()
-        //         .update_subjects_from_messages(error_messages)?;
+        // Update the errors
+        if !error_messages.is_empty() {
+            let errors_update = session_context
+                .write()
+                .update_subjects_from_messages(error_messages)?;
 
-        //     messages.push(IPCMessageBuilder::new()
-        //         .with_subject(errors_update.get_name())
-        //         .with_publisher(&session_context_name)
-        //         .with_update(&TablePublication::Extend {
-        //             table_name: errors_update.get_name().to_string(),
-        //         })
-        //         .with_message(errors_update.to_ipc_stream()?)
-        //         .make_random_name()?
-        //         .build()?
-        //     );
-        // }
+            messages.push(IPCMessageBuilder::new()
+                .with_subject(errors_update.get_name())
+                .with_publisher(&session_context_name)
+                .with_update(&TablePublication::Extend {
+                    table_name: errors_update.get_name().to_string(),
+                })
+                .with_message(errors_update.to_ipc_stream()?)
+                .make_random_name()?
+                .build()?
+            );
+        }
 
-        // // Update the subjects change log
-        // let messages = create_message_map(messages);
-        // let _ = session_context.write().update_subjects_from_messages(messages)?;
+        // Update the subjects change log
+        let messages = create_message_map(messages);
+        let _ = session_context.write().update_subjects_from_messages(messages)?;
 
         Ok(())
     }
@@ -380,25 +378,26 @@ impl SessionStreamStepTrait for SessionStreamStep {
 
         // Retrieve the task ready to subscribe and their corresponding publications
         let tasks = session_context.read().tasks_subscribe_publish()?;
-        let (subject_tasks, session_tasks) = tasks.into_iter().partition(|((t, s), _v)| t != s);
-        dbg!(&subject_tasks);
-
-        // Iterate through each task and collect the resulting stream responses
-        let subject_streams = Self::run_tasks(&session_context, &subject_tasks, &mut diagnostics_vec, &span)?;
-        let user_streams = Self::run_tasks(&session_context, &session_tasks, &mut diagnostics_vec, &span)?;
-
-        // Update the tasks run log
-        Self::update_subjects_and_changelog_from_tasks(&session_context, subject_tasks)?;
-        Self::update_subjects_and_changelog_from_tasks(&session_context, session_tasks)?;
+        dbg!(&tasks);
 
         // Break if there is nothing to update
-        if subject_streams.is_empty() && user_streams.is_empty() {
+        if tasks.is_empty() {
             if let (Some(diagnostics_vec), Some(trace)) = (diagnostics_vec, trace) {
                 Self::exit_span(&session_context, &HashMap::<String, IPCMessage>::new(), diagnostics_vec, trace)?;
-            }            
+            }      
+            println!("Done");   
 
             Ok(None)
         } else {
+            // Iterate through each task and collect the resulting stream responses
+            let (subject_tasks, session_tasks) = tasks.into_iter().partition(|((t, s), _v)| t != s);
+            let subject_streams = Self::run_tasks(&session_context, &subject_tasks, &mut diagnostics_vec, &span)?;
+            let user_streams = Self::run_tasks(&session_context, &session_tasks, &mut diagnostics_vec, &span)?;
+
+            // Update the tasks run log
+            Self::update_subjects_and_changelog_from_tasks(&session_context, subject_tasks)?;
+            Self::update_subjects_and_changelog_from_tasks(&session_context, session_tasks)?;
+
             // Join each of the response futures
             let subject_batches =
                 match Self::join_message_streams(subject_streams).await {

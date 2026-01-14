@@ -176,7 +176,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
 		join_tasks_processors_publications_t-subject-->|FullTable|select_tasks_processors_publications_p-subscribe
 		select_tasks_processors_publications_p-subscribe-->select_tasks_processors_publications_p-processor
 		select_tasks_processors_publications_p-processor-->select_tasks_processors_publications_p-publish
-		select_tasks_processors_publications_p-publish-->|Replace|select_tasks_processors_publications_t-subject
+		select_tasks_processors_publications_p-publish-->|Replace|SessionTasksSubscribePublish-subject
 	end
 	default_runtime_env_name-rt-->select_tasks_processors_publications_t
 	group_by_tasks_processors_subscriptions_subjects_p-subscribe@{shape: diamond, label: All}
@@ -194,7 +194,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
 	select_tasks_processors_publications_p-subscribe@{shape: diamond, label: All}
 	select_tasks_processors_publications_p-processor@{shape: rect, label: Select}
 	select_tasks_processors_publications_p-publish@{shape: fork}
-	select_tasks_processors_publications_t-subject@{shape: doc, label: select_tasks_processors_publications_t}"#
+	SessionTasksSubscribePublish-subject@{shape: doc, label: SessionTasksSubscribePublish}"#
     }
     pub fn as_mermaid_erdiagram(&self) -> &str {
         r#"erDiagram
@@ -231,6 +231,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
         Utf8 publication_subscription_name
         Utf8 publication_subscription_table_names
         Utf8 subscribe_type
+        Utf8 update_type
         UInt8 is_subscription
     }
     cmp_processors_subscriptions_p["cmp_processors_subscriptions_p"] {
@@ -400,7 +401,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
         List-Utf8 agg_operators "['List','List']"
         Boolean cpu "false"
         Utf8 lhs_name "select_processors_publications_t"
-        List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type']"
+        List-Utf8 lhs_values "['session_name','processor_name','processor_type']"
         Utf8 operator "GroupBy"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
@@ -418,18 +419,20 @@ impl<'a> TasksSubscribePublishSession<'a> {
     select_tasks_processors_publications_p["select_tasks_processors_publications_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "join_tasks_processors_publications_t"
-        List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type']"
+        List-Utf8 as_columns "['','','','','subscription_names','subscription_table_name','publication_names','publication_table_names']"
+        List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type','subscription_name-List','subscription_table_name-List','publication_subscription_name-List','publication_subscription_table_name-List']"
         Utf8 operator "Select"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
-    select_tasks_processors_publications_t["select_tasks_processors_publications_t"] {
+    SessionTasksSubscribePublish["SessionTasksSubscribePublish"] {
         Utf8 session_name
         Utf8 task_name
         Utf8 processor_name
         Utf8 processor_type
-        Utf8 publication_subscription_name
-        Utf8 publication_subscription_table_name
-        Utf8 subscribe_type
+        List-Utf8 subscription_names
+        List-Utf8 subscription_table_names
+        List-Utf8 publication_names
+        List-Utf8 publication_table_names
     }"#
     }
 }
@@ -590,14 +593,14 @@ mod tests {
 
         // Run the session stream step
         // let response = SessionStreamStep::run_superstep(session_ctx_arc, message_map, 0).await?;
-        let response = SessionStreamStep::run_superstep_0(session_ctx_arc, message_map, 0)?;
+        // let response = SessionStreamStep::run_superstep_0(session_ctx_arc, message_map, 0)?;
+
+        // Run the session
+        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
         dbg!(&response);
 
-        // // Run the session
-        // let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
-        // let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
-
-        // assert_eq!(response.len(), 0);
+        assert_eq!(response.len(), 0);
 
         // let session_reading = session_ctx_arc.read();
         // let table_reading = session_reading.get_states().get("select_tasks_run_log_timestamp_t").unwrap().read();

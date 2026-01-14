@@ -12,6 +12,7 @@ use crate::{SessionContext, SessionStreamStep, create_message_map, session::sess
 /// The state of the [SessionStream]
 pub enum SessionStreamState {
     Step(Pin<Box<dyn Future<Output = Result<Option<IPCMessageMap>>> + Send>>),
+    Message(HashMap<String, IPCMessage>),
     Done,
 }
 
@@ -50,17 +51,22 @@ impl Stream for SessionStream {
         match &mut self.stream_state {
             SessionStreamState::Step(step) => {
                 // Poll the step
-                let message = match ready!(step.poll_unpin(cx)) {
-                    Ok(Some(message)) => message,
-                    Ok(None) => {
-                        self.stream_state = SessionStreamState::Done;
-                        return Poll::Ready(None);
-                    },
+                let stream_state = match ready!(step.poll_unpin(cx)) {
+                    Ok(Some(message)) => SessionStreamState::Message(message),
+                    Ok(None) => SessionStreamState::Done,
                     Err(err) => {
                         event!(Level::ERROR, "{err:?}");
-                        HashMap::<String, IPCMessage>::new()
+                        SessionStreamState::Message(HashMap::<String, IPCMessage>::new())
                     }
                 };
+
+                // Update the stream state
+                self.stream_state = stream_state;
+                self.poll_next(cx)
+            },
+            SessionStreamState::Message(message) => {
+                // Prepare the poll
+                let poll = Poll::Ready(Some(Ok(message.drain().collect::<HashMap<_, _>>())));
 
                 // Prepare the next step
                 dbg!(&self.step);
@@ -77,13 +83,13 @@ impl Stream for SessionStream {
                 }
 
                 // Return the poll
-                if message.is_empty() {
-                    self.poll_next(cx)
-                } else {
-                    Poll::Ready(Some(Ok(message)))
-                }
+                poll
+                
+            }
+            SessionStreamState::Done => {
+                println!("Poll is Done");
+                Poll::Ready(None)
             },
-            SessionStreamState::Done => Poll::Ready(None),
         }
     }
 

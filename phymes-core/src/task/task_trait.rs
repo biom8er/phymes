@@ -152,7 +152,6 @@ impl TaskTrait for Task {
             };
 
             // Run the processor
-            dbg!(&message_sub.keys());
             let message_builder = processor.process(
                 message_sub,
                 trace_builder.as_ref(),
@@ -168,7 +167,6 @@ impl TaskTrait for Task {
             if let Some(trace) = trace {
                 trace.exit(&message_pub.values().collect::<Vec<_>>());
             }
-            dbg!(&message_pub.keys());
 
             // Update the message stream
             messages.extend(message_pub);
