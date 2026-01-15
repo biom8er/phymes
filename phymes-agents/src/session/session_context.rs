@@ -651,7 +651,7 @@ impl BuildableTrait for SessionContext {
 mod tests {
     use super::*;
     use crate::test_session_context_builder::{
-        make_test_session_context_parallel_task, make_test_session_context_parallel_task_empty,
+        make_test_session_context_builder_parallel_task, make_test_session_context_builder_parallel_task_empty,
     };
     use arrow::array::Int64Array;
     use phymes_core::{
@@ -664,7 +664,7 @@ mod tests {
 
     #[test]
     fn test_session_get_table_name_by_schema() -> Result<()> {
-        let session_context = make_test_session_context_parallel_task("session_1", 25)?;
+        let session_context = make_test_session_context_builder_parallel_task("session_1", 25)?.build()?;
 
         // table should be found
         let schema = make_test_table_schema(8)?;
@@ -680,7 +680,7 @@ mod tests {
 
     #[test]
     fn test_session_update_subject_num_rows_table() -> Result<()> {
-        let mut session_context = make_test_session_context_parallel_task("session_1", 25)?;
+        let mut session_context = make_test_session_context_builder_parallel_task("session_1", 25)?.build()?;
         session_context.update_subject_num_rows_table();
         let info = session_context
             .get_states()
@@ -718,7 +718,7 @@ mod tests {
     #[test]
     fn test_session_read_write_state() -> Result<()> {
         // Create the session
-        let session_context = make_test_session_context_parallel_task("session_1", 25)?;
+        let session_context = make_test_session_context_builder_parallel_task("session_1", 25)?.build()?;
 
         // Write the session to disk
         let tmp_dir = tempdir()?;
@@ -726,7 +726,7 @@ mod tests {
 
         // Read the state
         let mut session_context_empty =
-            make_test_session_context_parallel_task_empty("session_1", 25)?;
+            make_test_session_context_builder_parallel_task_empty("session_1", 25)?.build()?;
         session_context_empty.read_state(tmp_dir.path().to_str().unwrap(), "tag")?;
 
         for subject in session_context.get_states().keys() {
@@ -786,7 +786,7 @@ mod tests {
     #[test]
     fn test_session_update_subjects_from_messages() -> Result<()> {
         // Case 1: no state update
-        let session_context = make_test_session_context_parallel_task("session_1", 25)?;
+        let session_context = make_test_session_context_builder_parallel_task("session_1", 25)?.build()?;
         let input = test_task::make_test_input_message(
             "task_1",
             "session_1",

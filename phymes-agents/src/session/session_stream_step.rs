@@ -498,7 +498,7 @@ mod tests {
     use crate::{
         SessionContextBuilder, SessionContextBuilderTrait,
         test_session_context_builder::{
-            make_test_session_context_parallel_task, make_test_session_context_sequential_task,
+            make_test_session_context_builder_parallel_task, make_test_session_context_builder_sequential_task,
         },
     };
     use phymes_core::{
@@ -510,7 +510,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_no_state_update() -> Result<()> {
-        let session_context = make_test_session_context_parallel_task("session_1", 4)?;
+        let session_context = make_test_session_context_builder_parallel_task("session_1", 4)?.build()?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
@@ -596,7 +596,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_extend_state_update_single_task() -> Result<()> {
-        let session_context = make_test_session_context_parallel_task("session_1", 4)?;
+        let session_context = make_test_session_context_builder_parallel_task("session_1", 4)?.build()?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
@@ -729,7 +729,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_single_task() -> Result<()> {
-        let session_context = make_test_session_context_parallel_task("session_1", 4)?;
+        let session_context = make_test_session_context_builder_parallel_task("session_1", 4)?.build()?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
@@ -863,7 +863,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_parallel_tasks() -> Result<()> {
         // Superstep 1
-        let session_context = make_test_session_context_parallel_task("session_1", 4)?;
+        let session_context = make_test_session_context_builder_parallel_task("session_1", 4)?.build()?;
         let mut input = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -1316,7 +1316,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_sequential_tasks() -> Result<()> {
         // Superstep 1
-        let session_context = make_test_session_context_sequential_task("session_1", 4)?;
+        let session_context = make_test_session_context_builder_sequential_task("session_1", 4)?.build()?;
         let input = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -1644,7 +1644,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_schema_mismatch_error() -> Result<()> {
-        let session_context = make_test_session_context_sequential_task("session_1", 4)?;
+        let session_context = make_test_session_context_builder_sequential_task("session_1", 4)?.build()?;
         let input = test_task::make_test_input_message(
             "task_1",
             "session_1",
