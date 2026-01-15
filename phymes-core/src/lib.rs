@@ -33,11 +33,10 @@ pub use schemas::{
     create_queries_batch, create_schema_from_fields, create_session_mermaid_batch,
     create_session_processors_batch, create_session_runtime_envs_batch,
     create_session_subjects_batch, create_session_tasks_batch, create_session_tasks_check_batch,
-    create_session_tasks_publish_batch, create_session_tasks_run_log_batch,
-    create_session_tasks_subscribe_aggregate_batch, create_subjects_change_log_batch,
+    create_session_tasks_publish_batch, create_session_tasks_run_log_batch, create_subjects_change_log_batch,
     create_subjects_num_rows_batch, create_tools_record_batch, create_user_batch,
     create_user_inbox_batch, create_user_session_contexts_batch, create_values_record_batch,
-    from_diagnostics_to_tables, create_session_tasks_subscribe_publish_batch
+    from_diagnostics_to_tables, create_session_tasks_subscribe_publish_batch, create_session_tasks_subscribe_batch
 };
 pub use table::{
     AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, CsvFormat, DataFormat,

@@ -76,7 +76,7 @@ pub(crate) fn create_session_processors_fields() -> Fields {
         "processor_name",
         "processor_type",
         "publication_subscription_name",
-        "publication_subscription_table_names",
+        "publication_subscription_table_name",
         "subscribe_type",
         "update_type",
     ];
@@ -117,7 +117,7 @@ pub fn create_session_processors_batch(
         ("processor_name", processor_names),
         ("processor_type", processor_types),
         ("publication_subscription_name", pub_sub_name),
-        ("publication_subscription_table_names", pub_sub_table_names),
+        ("publication_subscription_table_name", pub_sub_table_names),
         ("subscribe_type", subscribe_types),
         ("update_type", update_types),
         ("is_subscription", is_sub),
@@ -221,9 +221,9 @@ pub(crate) fn create_session_tasks_subscribe_fields() -> Fields {
         "processor_name",
         "processor_type",
         "subscription_name",
-        "subscription_table_names",
-        "subscribe_type",
-        "update_type",
+        "subscription_table_name",
+        // "subscribe_type",
+        // "update_type",
     ];
     let fields_vec = field_names
         .iter()
@@ -232,34 +232,33 @@ pub(crate) fn create_session_tasks_subscribe_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-#[allow(dead_code)]
 pub fn create_session_tasks_subscribe_batch(
     session_names: Vec<String>,
     task_names: Vec<String>,
     processor_names: Vec<String>,
     processor_types: Vec<String>,
-    pub_sub_name: Vec<String>,
-    pub_sub_table_names: Vec<String>,
-    subscribe_types: Vec<String>,
-    update_types: Vec<String>,
+    subscription_names: Vec<String>,
+    subscription_table_name: Vec<String>,
+    // subscribe_types: Vec<String>,
+    // update_types: Vec<String>,
 ) -> Result<RecordBatch> {
     let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
     let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
     let processor_types: ArrayRef = Arc::new(StringArray::from(processor_types));
-    let pub_sub_name: ArrayRef = Arc::new(StringArray::from(pub_sub_name));
-    let pub_sub_table_names: ArrayRef = Arc::new(StringArray::from(pub_sub_table_names));
-    let subscribe_types: ArrayRef = Arc::new(StringArray::from(subscribe_types));
-    let update_types: ArrayRef = Arc::new(StringArray::from(update_types));
+    let subscription_names: ArrayRef = Arc::new(StringArray::from(subscription_names));
+    let subscription_table_name: ArrayRef = Arc::new(StringArray::from(subscription_table_name));
+    // let subscribe_types: ArrayRef = Arc::new(StringArray::from(subscribe_types));
+    // let update_types: ArrayRef = Arc::new(StringArray::from(update_types));
     let batch = RecordBatch::try_from_iter(vec![
         ("session_name", session_names),
         ("task_name", task_names),
         ("processor_name", processor_names),
         ("processor_type", processor_types),
-        ("subscription_name", pub_sub_name),
-        ("subscription_table_names", pub_sub_table_names),
-        ("subscribe_type", subscribe_types),
-        ("update_type", update_types),
+        ("subscription_name", subscription_names),
+        ("subscription_table_name", subscription_table_name),
+        // ("subscribe_type", subscribe_types),
+        // ("update_type", update_types),
     ])?;
     Ok(batch)
 }
@@ -271,84 +270,32 @@ pub(crate) fn create_session_tasks_subscribe_aggregate_fields() -> Fields {
         "task_name",
         "processor_name",
         "processor_type",
-        "subscribe_type",
-        "update_type",
+        "subscribe_type-Last",
+        "update_type-Last",
     ];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
     let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Utf8, false)));
-    let field_names = ["subscription_names", "subscription_table_names"];
+    let field_names = ["subscription_names-List", "subscription_table_name-List"];
     fields_vec.extend(
         field_names
             .iter()
             .map(|f| Field::new(*f, list_data_type.clone(), false))
             .collect::<Vec<_>>(),
     );
-    // let list_data_type = DataType::List(
-    //     Arc::new(Field::new_list_field(DataType::UInt8, false))
-    // );
-    // let field_names = ["is_subscription_updated"];
-    // fields_vec.extend(
-    //     field_names
-    //         .iter()
-    //         .map(|f| Field::new(*f, list_data_type.clone(), false))
-    //         .collect::<Vec<_>>(),
-    // );
+    let list_data_type = DataType::List(
+        Arc::new(Field::new_list_field(DataType::Int64, false))
+    );
+    let field_names = ["timestamp-List", "timestamp-Last-List"];
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, list_data_type.clone(), false))
+            .collect::<Vec<_>>(),
+    );
     Fields::from(fields_vec)
-}
-
-pub fn create_session_tasks_subscribe_aggregate_batch(
-    session_names: Vec<String>,
-    task_names: Vec<String>,
-    processor_names: Vec<String>,
-    processor_types: Vec<String>,
-    subscription_names: Vec<Vec<String>>,
-    subscription_table_names: Vec<Vec<String>>,
-    // is_subscription_updated: Vec<Vec<u8>>,
-) -> Result<RecordBatch> {
-    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
-    let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
-    let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
-    let processor_types: ArrayRef = Arc::new(StringArray::from(processor_types));
-    let value_builder = StringBuilder::new();
-    let mut list_builder =
-        ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Utf8, false));
-    for values in subscription_names.into_iter() {
-        for value in values.into_iter() {
-            list_builder.values().append_value(&value);
-        }
-        list_builder.append(true);
-    }
-    let subscription_names: ArrayRef = Arc::new(list_builder.finish());
-    let value_builder = StringBuilder::new();
-    let mut list_builder =
-        ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Utf8, false));
-    for values in subscription_table_names.into_iter() {
-        for value in values.into_iter() {
-            list_builder.values().append_value(&value);
-        }
-        list_builder.append(true);
-    }
-    let subscription_table_names: ArrayRef = Arc::new(list_builder.finish());
-    // let value_builder = UInt8Builder::new();
-    // let mut list_builder = ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Utf8, false));
-    // for values in is_subscription_updated {
-    //     list_builder.values().append_slice(values.as_slice());
-    //     list_builder.append(true);
-    // }
-    // let is_subscription_updated: ArrayRef = Arc::new(list_builder.finish());
-    let batch = RecordBatch::try_from_iter(vec![
-        ("session_name", session_names),
-        ("task_name", task_names),
-        ("processor_name", processor_names),
-        ("processor_type", processor_types),
-        ("subscription_names", subscription_names),
-        ("subscription_table_names", subscription_table_names),
-        // ("is_subscription_updated", is_subscription_updated),
-    ])?;
-    Ok(batch)
 }
 
 pub(crate) fn create_session_tasks_publish_fields() -> Fields {

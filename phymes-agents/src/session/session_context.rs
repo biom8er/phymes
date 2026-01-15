@@ -1,18 +1,15 @@
 use anyhow::{Result, anyhow};
 use arrow::datatypes::SchemaRef;
+use clap::ValueEnum;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessageMap,
-    MappableTrait, MessageTrait, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap,
-    RuntimeEnv, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication,
-    TablePublicationTrait, TableSubscription, TableTrait, TaskMap,
-    create_subjects_change_log_batch, create_subjects_num_rows_batch, from_diagnostics_to_tables,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, RuntimeEnv, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableSubscription, TableTrait, TaskMap, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_diagnostics_to_tables
 };
 use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
 use std::sync::Arc;
 use tracing::{Level, event};
 
-use crate::SessionContextBuilder;
+use crate::{SessionContextBuilder, create_message_map};
 
 /// The [SessionContext] creates a (dynamic) execution graph based on a [TaskPlan]
 ///   and manages the running of individual [Task]s and the [Message]s passed between them.
@@ -77,6 +74,141 @@ impl SessionContext {
         self.state
     }
 
+    /// Compute the next tasks to subscribe
+    pub fn tasks_subscribe(&self) -> Result<()> {
+        // Extract the columns
+        let batches = self
+            .get_states()
+            .get(
+                AvailableSubjects::SessionTasksSubscribeAggregate
+                    .to_string()
+                    .as_str(),
+            )
+            .unwrap_or_else(|| {
+                panic!(
+                    "Missing table for `{}` in session `{}`.",
+                    AvailableSubjects::SessionTasksSubscribeAggregate,
+                    self.get_name()
+                )
+            })
+            .write()
+            .get_record_batches_mut()
+            .drain(0..)
+            .collect::<Vec<_>>();
+        let table = TableBuilder::default()
+            .with_name(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+
+        // Extract out the columns
+        let session_names = table.get_column_as_vec_str("session_name");
+        let task_names = table.get_column_as_vec_str("task_name");
+        let processor_names = table.get_column_as_vec_str("processor_name");
+        let processor_types = table.get_column_as_vec_str("processor_type");
+        let subscription_names = table.get_column_as_vec_nested_nonprimitive::<String>("subscription_name-List")?;
+        let subscription_table_names = table.get_column_as_vec_nested_nonprimitive::<String>("subscription_table_name-List")?;
+        let subscribe_types = table.get_column_as_vec_str("subscribe_type-Last");
+        let update_types = table.get_column_as_vec_str("update_type-Last");
+        let timestamps = table.get_column_as_vec_nested_primitive::<i64>("timestamp-List")?;
+        let timestamp_lasts = table.get_column_as_vec_nested_primitive::<i64>("timestamp-Last-List")?;
+
+        // Determine the processor subscriptions
+        let processors_subscribe = session_names.into_iter()
+            .zip(task_names.into_iter())
+            .zip(processor_names.into_iter())
+            .zip(processor_types.into_iter())
+            .zip(subscription_names.into_iter())
+            .zip(subscription_table_names.into_iter())
+            .zip(subscribe_types.into_iter())
+            .zip(update_types.into_iter())
+            .zip(timestamps.into_iter())
+            .zip(timestamp_lasts.into_iter())
+            .map(|(((((((((session_name, task_name), processor_name), processor_type), subscription_names), subscription_table_names), subscribe_type), update_type), timestamps), timestamps_lasts)| {
+                let subscriptions = subscription_names.iter()
+                    .zip(subscription_table_names.iter())
+                    .map(|(name, subject)| TableSubscription::from_str_fuzzy(name, subject).unwrap())
+                    .collect::<Vec<_>>();
+                let update_policy = AvailableTableUpdatePolicies::from_str(update_type, false).unwrap().build();
+                let subjects_change_log = subscription_table_names.iter()
+                    .zip(timestamps_lasts.iter())
+                    .map(|(subject_name, timestamp)| (subject_name.to_string(), timestamp.to_owned()))
+                    .collect::<HashMap<_, _>>();
+                let updates = update_policy.determine_updates(&subscriptions, timestamps.last().unwrap(), &subjects_change_log, self.get_states());
+                let subscribe_policy = AvailableTableSubscribePolicies::from_str_fuzzy(subscribe_type).unwrap().build();
+                let subscribe = subscribe_policy.check_subscriptions(&subscriptions, &updates, self.get_states());
+                (session_name, task_name, processor_name, processor_type, subscription_names, subscription_table_names, subscribe_type, update_type, timestamps, timestamps_lasts, subscribe)
+            })
+            .collect::<Vec<_>>();
+
+        // Determine the task subscriptions
+        let mut tasks_subscribe = HashMap::<(String, String), bool>::new();
+        for (session_name, task_name, _processor_name, _processor_type, _subscription_names, _subscription_table_names, _subscribe_type, _update_type, _timestamps, _timestamps_lasts, subscribe) in processors_subscribe.iter() {
+            if let Some(subscribe_t) = tasks_subscribe.get_mut(&(session_name.to_string(), task_name.to_string())) {
+                *subscribe_t = *subscribe_t & subscribe;
+            } else {
+                let _ = tasks_subscribe.insert((session_name.to_string(), task_name.to_string()), *subscribe);
+            }
+        }
+        let (session_names_subscribe, task_names_subscribe): (String, String) = tasks_subscribe.into_iter()
+            .filter_map(|(k, v)| if v {
+                Some(k)
+            } else {
+                None
+            })
+            .unzip();
+
+        // Determine the subjects to subscribe to
+        let (((((session_names, task_names), processor_names), processor_types), subscription_names), subscription_table_names) = processors_subscribe.into_iter()
+            .filter_map(|(session_name, task_name, processor_name, processor_type, subscription_names, subscription_table_names, subscribe_type, update_type, timestamps, timestamps_lasts, _subscribe)| if session_names_subscribe.contains(session_name) && task_names_subscribe.contains(task_name) {
+                let subscribe = subscription_names.into_iter()
+                    .zip(subscription_table_names.into_iter())
+                    .zip(timestamps.into_iter())
+                    .zip(timestamps_lasts.into_iter())
+                    .filter_map(|(((name, subject), timestamp), timestamp_last)| {
+                        let subscriptions = vec![TableSubscription::from_str_fuzzy(&name, &subject).unwrap()];
+                        let update_policy = AvailableTableUpdatePolicies::from_str(update_type, false).unwrap().build();
+                        let mut subjects_change_log = HashMap::<String, i64>::new();
+                        let _ = subjects_change_log.insert(subject.to_string(), timestamp_last);
+                        let updates = update_policy.determine_updates(&subscriptions, &timestamp, &subjects_change_log, self.get_states());
+                        let subscribe_policy = AvailableTableSubscribePolicies::from_str_fuzzy(subscribe_type).unwrap().build();
+                        let subscribe = subscribe_policy.check_subscriptions(&subscriptions, &updates, self.get_states());
+                        if subscribe {
+                            Some((((((session_name.to_string(), task_name.to_string()), processor_name.to_string()), processor_type.to_string()), name), subject))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                Some(subscribe)
+            } else {
+                None
+            })
+            .flatten()
+            .unzip();
+
+        // Create the table
+        let batch = create_session_tasks_subscribe_batch(session_names, task_names, processor_names, processor_types, subscription_names, subscription_table_names)?;
+        let table = TableBuilder::default()
+            .with_name(AvailableSubjects::SessionTasksSubscribe.to_string().as_str())
+            .with_record_batches(vec![batch])?
+            .build()?;
+
+        // Update the table
+        let message = IPCMessageBuilder::default()
+            .with_subject(table.get_name())
+            .with_publisher(self.get_name())
+            .with_update(&TablePublication::Replace {
+                table_name: table.get_name().to_string(),
+            })
+            .with_message(table.to_ipc_stream()?)
+            .make_name()?
+            .build()?;
+        let messages = create_message_map(vec![message]);
+        let _ = self.update_subjects_from_messages(messages)?;
+
+        Ok(())
+    }
+
     /// Update the session tasks subscribe
 
     /// Update the session subscribe and publish
@@ -106,21 +238,6 @@ impl SessionContext {
             .get_record_batches_mut()
             .drain(0..)
             .collect::<Vec<_>>();
-        // let table = self
-        //     .get_states()
-        //     .get(
-        //         AvailableSubjects::SessionTasksSubscribePublish
-        //             .to_string()
-        //             .as_str(),
-        //     )
-        //     .unwrap_or_else(|| {
-        //         panic!(
-        //             "Missing table for `{}` in session `{}`.",
-        //             AvailableSubjects::SessionTasksSubscribePublish,
-        //             self.get_name()
-        //         )
-        //     })
-        //     .read();
         let table = TableBuilder::default()
             .with_name(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
             .with_record_batches(batches)?
@@ -671,7 +788,7 @@ mod tests {
     }
     
     #[test]
-    fn test_session_update_state() -> Result<()> {
+    fn test_session_update_subjects_from_messages() -> Result<()> {
         // Case 1: no state update
         let session_context = make_test_session_context_parallel_task("session_1", 25)?;
         let input = test_task::make_test_input_message(
@@ -832,6 +949,12 @@ mod tests {
         let updates = session_context.update_subjects_from_messages(input);
         assert!(updates.is_err());
 
+        Ok(())
+    }
+    
+    #[test]
+    fn test_session_tasks_subscribe() -> Result<()> {
+        // Make the test data
         Ok(())
     }
 }

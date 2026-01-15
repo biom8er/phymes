@@ -15,13 +15,13 @@ pub trait TableUpdatePolicyTrait: MappableTrait + Debug + Send + Sync {
     ///
     /// * `subscriptions` - Slice of `TableSubscription`s for the processor
     /// * `last_run` - timestamp of the last run
-    /// * `subjects_change_long` - `HashMap` of the subjects and when they were changed last
+    /// * `subjects_change_log` - `HashMap` of the subjects and when they were changed last
     /// * `state` - `HashMap` of the subject tables
     fn determine_updates(
         &self,
         subscriptions: &[TableSubscription],
         last_run: &i64,
-        subjects_change_long: &HashMap<String, i64>,
+        subjects_change_log: &HashMap<String, i64>,
         state: &StateMap,
     ) -> HashMap<String, bool>;
     fn new_box() -> Box<dyn TableUpdatePolicyTrait>
@@ -40,7 +40,7 @@ impl TableUpdatePolicyTrait for TableHasBatchesUpdate {
         &self,
         subscriptions: &[TableSubscription],
         _last_run: &i64,
-        _subjects_change_long: &HashMap<String, i64>,
+        _subjects_change_log: &HashMap<String, i64>,
         state: &StateMap,
     ) -> HashMap<String, bool> {
         subscriptions
@@ -81,13 +81,13 @@ impl TableUpdatePolicyTrait for TableChangedSinceLastRunUpdate {
         &self,
         subscriptions: &[TableSubscription],
         last_run: &i64,
-        subjects_change_long: &HashMap<String, i64>,
+        subjects_change_log: &HashMap<String, i64>,
         _state: &StateMap,
     ) -> HashMap<String, bool> {
         subscriptions
             .iter()
             .map(|s| {
-                if let Some(timestamp) = subjects_change_long.get(s.get_table_name()) {
+                if let Some(timestamp) = subjects_change_log.get(s.get_table_name()) {
                     if timestamp > last_run {
                         (s.get_table_name().to_string(), true)
                     } else {
@@ -122,7 +122,7 @@ impl TableUpdatePolicyTrait for TableExistsUpdate {
         &self,
         subscriptions: &[TableSubscription],
         _last_run: &i64,
-        _subjects_change_long: &HashMap<String, i64>,
+        _subjects_change_log: &HashMap<String, i64>,
         state: &StateMap,
     ) -> HashMap<String, bool> {
         subscriptions
@@ -154,7 +154,7 @@ mod test_update_policy {
     use super::*;
 
     #[allow(dead_code)]
-    pub fn make_test_subjects_change_long() -> HashMap<String, i64> {
+    pub fn make_test_subjects_change_log() -> HashMap<String, i64> {
         let mut change_log = HashMap::<String, i64>::new();
         change_log.insert("t1".to_string(), 0);
         change_log.insert("t2".to_string(), 1);
@@ -173,7 +173,7 @@ mod tests {
     fn test_table_exists_update() {
         let mut state = test_subscribe_policy::make_test_state();
         let subscriptions = test_subscribe_policy::make_test_subscriptions(true);
-        let changes = test_update_policy::make_test_subjects_change_long();
+        let changes = test_update_policy::make_test_subjects_change_log();
         let up = TableExistsUpdate::new_box();
 
         let updates = up.determine_updates(&subscriptions, &0, &changes, &state);
@@ -197,7 +197,7 @@ mod tests {
     fn test_table_has_batches_update() {
         let mut state = test_subscribe_policy::make_test_state();
         let subscriptions = test_subscribe_policy::make_test_subscriptions(true);
-        let changes = test_update_policy::make_test_subjects_change_long();
+        let changes = test_update_policy::make_test_subjects_change_log();
         let up = TableHasBatchesUpdate::new_box();
 
         let updates = up.determine_updates(&subscriptions, &0, &changes, &state);
@@ -227,7 +227,7 @@ mod tests {
     fn test_table_changed_since_last_run_update() {
         let state = test_subscribe_policy::make_test_state();
         let subscriptions = test_subscribe_policy::make_test_subscriptions(true);
-        let changes = test_update_policy::make_test_subjects_change_long();
+        let changes = test_update_policy::make_test_subjects_change_log();
         let up = TableChangedSinceLastRunUpdate::new_box();
 
         let updates = up.determine_updates(&subscriptions, &1, &changes, &state);

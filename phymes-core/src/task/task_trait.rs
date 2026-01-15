@@ -124,10 +124,10 @@ impl TaskTrait for Task {
         // Run the processing sequence and collect the messages
         let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         for processor in self.processor.iter() {
-            // DM: skip missing processors during debugging...
-            if processor_subjects.get(processor.get_name()).is_none() {
-                continue;
-            }
+            // // DM: skip missing processors during debugging...
+            // if processor_subjects.get(processor.get_name()).is_none() {
+            //     continue;
+            // }
             // Subscribe to the processor subjects
             let processor_subject = processor_subjects.get(processor.get_name()).ok_or(anyhow!(
                 "Processor `{}` not found in processor subscriptions and publications `{:?}`.",

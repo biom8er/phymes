@@ -73,7 +73,6 @@ impl<'a> TasksSubscribePublishSession<'a> {
 	select_processors_subscriptions_p-publish@{shape: fork}
 	select_processors_subscriptions_t-subject@{shape: doc, label: select_processors_subscriptions_t}
 
-    %% `filter_tasks_processors_subscriptions_subjects_p` requires a custom operator...
 	subgraph join_tasks_run_log_timestamp_t
 		SubjectsChangeLog-subject-->|FullTable|group_by_subject_change_log_timestamp_p-subscribe
 		group_by_subject_change_log_timestamp_p-subscribe-->group_by_subject_change_log_timestamp_p-processor
@@ -98,10 +97,10 @@ impl<'a> TasksSubscribePublishSession<'a> {
 		select_tasks_processors_subscriptions_subjects_p-subscribe-->select_tasks_processors_subscriptions_subjects_p-processor
 		select_tasks_processors_subscriptions_subjects_p-processor-->select_tasks_processors_subscriptions_subjects_p-publish
 		select_tasks_processors_subscriptions_subjects_p-publish-->|Replace|select_tasks_processors_subscriptions_subjects_t-subject
-		select_tasks_processors_subscriptions_subjects_t-subject-->|FullTable|filter_tasks_processors_subscriptions_subjects_p-subscribe
-		filter_tasks_processors_subscriptions_subjects_p-subscribe-->filter_tasks_processors_subscriptions_subjects_p-processor
-		filter_tasks_processors_subscriptions_subjects_p-processor-->filter_tasks_processors_subscriptions_subjects_p-publish
-		filter_tasks_processors_subscriptions_subjects_p-publish-->|Replace|filter_tasks_processors_subscriptions_subjects_t-subject
+		select_tasks_processors_subscriptions_subjects_t-subject-->|FullTable|group_by_tasks_processors_subscriptions_p-subscribe
+		group_by_tasks_processors_subscriptions_p-subscribe-->group_by_tasks_processors_subscriptions_p-processor
+		group_by_tasks_processors_subscriptions_p-processor-->group_by_tasks_processors_subscriptions_p-publish
+		group_by_tasks_processors_subscriptions_p-publish-->|Replace|SessionTasksSubscribeAggregate-subject
 	end
 	default_runtime_env_name-rt-->join_tasks_run_log_timestamp_t
 	SubjectsChangeLog-subject@{shape: doc, label: SubjectsChangeLog}
@@ -126,10 +125,10 @@ impl<'a> TasksSubscribePublishSession<'a> {
 	select_tasks_processors_subscriptions_subjects_p-processor@{shape: rect, label: Select}
 	select_tasks_processors_subscriptions_subjects_p-publish@{shape: fork}
 	select_tasks_processors_subscriptions_subjects_t-subject@{shape: doc, label: select_tasks_processors_subscriptions_subjects_t}
-	filter_tasks_processors_subscriptions_subjects_p-subscribe@{shape: diamond, label: All}
-	filter_tasks_processors_subscriptions_subjects_p-processor@{shape: rect, label: Filter}
-	filter_tasks_processors_subscriptions_subjects_p-publish@{shape: fork}
-	filter_tasks_processors_subscriptions_subjects_t-subject@{shape: doc, label: filter_tasks_processors_subscriptions_subjects_t}
+	group_by_tasks_processors_subscriptions_p-subscribe@{shape: diamond, label: All}
+	group_by_tasks_processors_subscriptions_p-processor@{shape: rect, label: GroupBy}
+	group_by_tasks_processors_subscriptions_p-publish@{shape: fork}
+	SessionTasksSubscribeAggregate-subject@{shape: doc, label: SessionTasksSubscribeAggregate}
 
 	subgraph filter_processors_publications_t
 		SessionProcessors-subject-.->|FullTable|cmp_processors_publications_p-subscribe
@@ -230,7 +229,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
         Utf8 processor_name
         Utf8 processor_type
         Utf8 publication_subscription_name
-        Utf8 publication_subscription_table_names
+        Utf8 publication_subscription_table_name
         Utf8 subscribe_type
         Utf8 update_type
         UInt8 is_subscription
@@ -241,7 +240,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
         List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Ones']"
         Boolean cpu "false"
         Utf8 lhs_name "SessionProcessors"
-        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_names','subscribe_type','update_type','is_subscription','subscription']"
+        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','update_type','is_subscription','subscription']"
         Utf8 operator "Select"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
@@ -258,7 +257,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
     select_processors_subscriptions_p["select_processors_subscriptions_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "filter_processors_subscriptions_t"
-        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_names','subscribe_type','update_type','is_subscription']"
+        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','update_type','is_subscription']"
         Utf8 operator "Select"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
@@ -267,7 +266,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
         Utf8 processor_name
         Utf8 processor_type
         Utf8 publication_subscription_name
-        Utf8 publication_subscription_table_names
+        Utf8 publication_subscription_table_name
         Utf8 subscribe_type
         Utf8 update_type
         UInt8 is_subscription
@@ -278,7 +277,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
         List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Zeros']"
         Boolean cpu "false"
         Utf8 lhs_name "SessionProcessors"
-        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_names','subscribe_type','update_type','is_subscription','publication']"
+        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','update_type','is_subscription','publication']"
         Utf8 operator "Select"
     }
     filter_processors_publications_p["filter_processors_publications_p"] {
@@ -294,7 +293,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
     select_processors_publications_p["select_processors_publications_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "filter_processors_publications_t"
-        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_names','subscribe_type','update_type','is_subscription']"
+        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','update_type','is_subscription']"
         Utf8 operator "Select"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
@@ -303,7 +302,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
         Utf8 processor_name
         Utf8 processor_type
         Utf8 publication_subscription_name
-        Utf8 publication_subscription_table_names
+        Utf8 publication_subscription_table_name
         Utf8 subscribe_type
         Utf8 update_type
         UInt8 is_subscription
@@ -354,9 +353,9 @@ impl<'a> TasksSubscribePublishSession<'a> {
     }
     join_tasks_processors_subscriptions_subjects_p["join_tasks_processors_subscriptions_subjects_p"] {
         Boolean cpu "false"
-        Utf8 lhs_fk "publication_subscription_table_names"
+        Utf8 lhs_fk "publication_subscription_table_name"
         Utf8 lhs_name "join_tasks_processors_subscriptions_t"
-        Utf8 lhs_pk "publication_subscription_table_names"
+        Utf8 lhs_pk "publication_subscription_table_name"
         Utf8 operator "Join"
         Utf8 rhs_fk "subject_name"
         Utf8 rhs_name "group_by_subject_change_log_timestamp_t"
@@ -367,21 +366,11 @@ impl<'a> TasksSubscribePublishSession<'a> {
         List-Utf8 as_columns "['','','','','subscription_name','subscription_table_name','','','','']"
         Boolean cpu "false"
         Utf8 lhs_name "join_tasks_processors_subscriptions_subjects_t"
-        List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_names','subscribe_type','update_type','timestamp','timestamp-Last']"
+        List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','update_type','timestamp','timestamp-Last']"
         Utf8 operator "Select"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
-    filter_tasks_processors_subscriptions_subjects_p["filter_tasks_processors_subscriptions_subjects_p"] {
-        List-Utf8 cmp_columns "['timestamp-Last']"
-        List-Utf8 cmp_operators "['LessThanOrEqualTo']"
-        Utf8 cmp_predicate "All"
-        Boolean cpu "false"
-        Utf8 lhs_name "select_tasks_processors_subscriptions_subjects_t"
-        List-Utf8 lhs_values "['timestamp']"
-        Utf8 operator "Filter"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    filter_tasks_processors_subscriptions_subjects_t["filter_tasks_processors_subscriptions_subjects_t"] {
+    select_tasks_processors_subscriptions_subjects_t["select_tasks_processors_subscriptions_subjects_t"] {
         Utf8 session_name
         Utf8 task_name
         Utf8 processor_name
@@ -393,6 +382,27 @@ impl<'a> TasksSubscribePublishSession<'a> {
         Int64 timestamp
         Int64 timestamp-Last
     }
+    group_by_tasks_processors_subscriptions_p["group_by_tasks_processors_subscriptions_p"] {
+        List-Utf8 agg_columns "['subscription_name','subscription_table_name','subscribe_type','update_type','timestamp','timestamp-Last']"
+        List-Utf8 agg_operators "['List','List','Last','Last','List','List']"
+        Boolean cpu "false"
+        Utf8 lhs_name "select_tasks_processors_subscriptions_subjects_t"
+        List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type']"
+        Utf8 operator "GroupBy"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    SessionTasksSubscribeAggregate["SessionTasksSubscribeAggregate"] {
+        Utf8 session_name
+        Utf8 task_name
+        Utf8 processor_name
+        Utf8 processor_type
+        List-Utf8 subscription_name-List
+        List-Utf8 subscription_table_name-List
+        Utf8 subscribe_type-Last
+        Utf8 update_type-Last
+        List-Int64 timestamp-List
+        List-Int64 timestamp-Last-List
+    }
     SessionTasksSubscribe["SessionTasksSubscribe"] {
         Utf8 session_name
         Utf8 task_name
@@ -400,8 +410,6 @@ impl<'a> TasksSubscribePublishSession<'a> {
         Utf8 processor_type
         Utf8 subscription_name
         Utf8 subscription_table_name
-        Utf8 subscribe_type
-        Utf8 update_type
     }
     group_by_tasks_processors_subscriptions_subjects_p["group_by_tasks_processors_subscriptions_subjects_p"] {
         List-Utf8 agg_columns "['subscription_name','subscription_table_name']"
@@ -413,7 +421,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     group_by_tasks_processors_publications_p["group_by_tasks_processors_publications_p"] {
-        List-Utf8 agg_columns "['publication_subscription_name','publication_subscription_table_names']"
+        List-Utf8 agg_columns "['publication_subscription_name','publication_subscription_table_name']"
         List-Utf8 agg_operators "['List','List']"
         Boolean cpu "false"
         Utf8 lhs_name "select_processors_publications_t"
@@ -436,7 +444,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "join_tasks_processors_publications_t"
         List-Utf8 as_columns "['','','','','subscription_names','subscription_table_name','publication_names','publication_table_names']"
-        List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type','subscription_name-List','subscription_table_name-List','publication_subscription_name-List','publication_subscription_table_names-List']"
+        List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type','subscription_name-List','subscription_table_name-List','publication_subscription_name-List','publication_subscription_table_name-List']"
         Utf8 operator "Select"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
@@ -641,7 +649,7 @@ mod tests {
             assert_eq!(column, ["ExtractTabular", "ExtractTabular", "Join", "Join", "Join", "Join", "Join", "Join", "Join", "Join", "Join", "DataSummaryProcessor", "DataSummaryProcessor", "DataSummaryProcessor", "ProcessorEcho"]);
             let column = table_reading.get_column_as_vec_str("publication_subscription_name");
             assert_eq!(column, ["OnUpdateFullTable", "AlwaysFullTable", "AlwaysLastRecordBatch", "OnUpdateFullTable", "AlwaysFullTable", "AlwaysLastRecordBatch", "OnUpdateFullTable", "AlwaysFullTable", "AlwaysLastRecordBatch", "OnUpdateFullTable", "AlwaysFullTable", "AlwaysLastRecordBatch", "OnUpdateFullTable", "OnUpdateFullTable", "OnUpdateFullTable"]);
-            let column = table_reading.get_column_as_vec_str("publication_subscription_table_names");
+            let column = table_reading.get_column_as_vec_str("publication_subscription_table_name");
             assert_eq!(column, ["UserJson", "filter_and_join_session_contexts_by_email_inbox_processor_name", "filter_session_contexts_by_email_processor_name", "UserInbox", "UserSessionContexts", "join_session_contexts_with_mermaid_diagrams_processor_name", "JoinUserInboxSessionContexts", "BuilderMermaid", "filter_user_info_by_email_processor_name", "UserInbox", "User", "filter_and_join_session_contexts_by_email_outbox_processor_name", "filter_user_info_by_email_table_name", "JoinUserInboxSessionContextsMermaid", "AssistantJson"]);
             let column = table_reading.get_column_as_vec_str("subscribe_type");
             assert_eq!(column, ["All", "All", "All", "All", "All", "All", "All", "All", "All", "All", "All", "Any", "Any", "Any", "All"]);
@@ -659,7 +667,7 @@ mod tests {
             assert_eq!(column, ["ExtractTabular", "Join", "Join", "Join", "DataSummaryProcessor", "ProcessorEcho", "ProcessorEcho", "ProcessorEcho", "ProcessorEcho", "ProcessorEcho"]);
             let column = table_reading.get_column_as_vec_str("publication_subscription_name");
             assert_eq!(column, ["Replace", "Replace", "Replace", "Replace", "Replace", "Extend", "Extend", "Extend", "Replace", "Replace"]);
-            let column = table_reading.get_column_as_vec_str("publication_subscription_table_names");
+            let column = table_reading.get_column_as_vec_str("publication_subscription_table_name");
             assert_eq!(column, ["UserInbox", "JoinUserInboxSessionContexts", "JoinUserInboxSessionContextsMermaid", "filter_user_info_by_email_table_name", "AssistantJson", "BuilderMermaid", "User", "UserSessionContexts", "UserJson", "AssistantJson"]);
             let column = table_reading.get_column_as_vec_str("subscribe_type");
             assert_eq!(column, ["All", "All", "All", "All", "Any", "All", "All", "All", "All", "All"]);
@@ -675,49 +683,49 @@ mod tests {
             "join_tasks_run_log_timestamp_t",
             "join_tasks_run_log_timestamp_t", 
             "join_tasks_run_log_timestamp_t", 
-            "join_tasks_run_log_timestamp_t",
+            "join_tasks_run_log_timestamp_t", 
         ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let processor_names = vec!["group_by_subject_change_log_timestamp_p", 
             "join_tasks_run_log_timestamp_p",
             "join_tasks_processors_subscriptions_p",        
             "join_tasks_processors_subscriptions_subjects_p", 
-            "select_tasks_processors_subscriptions_subjects_p", 
-            "filter_tasks_processors_subscriptions_subjects_p",
+            "select_tasks_processors_subscriptions_subjects_p",
+            "group_by_tasks_processors_subscriptions_p"
         ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let processor_types = vec!["GroupBy", 
             "Join",    
             "Join",
             "Join", 
             "Select",
-            "Filter", 
+            "GroupBy",
         ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let subscription_names = vec![vec!["AlwaysFullTable","AlwaysFullTable"],
             vec!["OnUpdateFullTable","AlwaysFullTable","AlwaysFullTable"], 
             vec!["AlwaysFullTable","AlwaysFullTable","AlwaysFullTable"],
             vec!["AlwaysFullTable","AlwaysFullTable","AlwaysFullTable"], 
             vec!["AlwaysFullTable","AlwaysFullTable"], 
-            vec!["AlwaysFullTable","AlwaysFullTable"],
+            vec!["AlwaysFullTable","AlwaysFullTable"], 
         ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
         let subscription_table_names = vec![vec!["SubjectsChangeLog", "group_by_subject_change_log_timestamp_p"], 
             vec!["select_tasks_run_log_timestamp_t", "SessionTasks", "join_tasks_run_log_timestamp_p"],
             vec!["join_tasks_run_log_timestamp_t", "select_processors_subscriptions_t", "join_tasks_processors_subscriptions_p"], 
-            vec!["join_tasks_processors_subscriptions_t", "group_by_subject_change_log_timestamp_t", "join_tasks_processors_subscriptions_subjects_p"],             
-            vec!["join_tasks_processors_subscriptions_subjects_t", "select_tasks_processors_subscriptions_subjects_p"], 
-            vec!["select_tasks_processors_subscriptions_subjects_t", "filter_tasks_processors_subscriptions_subjects_p"],
+            vec!["join_tasks_processors_subscriptions_t", "group_by_subject_change_log_timestamp_t", "join_tasks_processors_subscriptions_subjects_p"],
+            vec!["join_tasks_processors_subscriptions_subjects_t", "select_tasks_processors_subscriptions_subjects_p"],
+            vec!["select_tasks_processors_subscriptions_subjects_t", "group_by_tasks_processors_subscriptions_p"],
         ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
         let publication_names = vec![vec!["Replace"], 
             vec!["Replace"],      
             vec!["Replace"],
             vec!["Replace"], 
-            vec!["Replace"], 
+            vec!["Replace"],
             vec!["Replace"],
         ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
         let publication_table_names = vec![vec!["group_by_subject_change_log_timestamp_t"], 
             vec!["join_tasks_run_log_timestamp_t"],           
             vec!["join_tasks_processors_subscriptions_t"],
             vec!["join_tasks_processors_subscriptions_subjects_t"], 
-            vec!["select_tasks_processors_subscriptions_subjects_t"], 
-            vec!["filter_tasks_processors_subscriptions_subjects_t"],
+            vec!["select_tasks_processors_subscriptions_subjects_t"],
+            vec!["SessionTasksSubscribeAggregate"],
         ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
         let session_names = task_names.iter().map(|_| tasks_publish_subscribe_session.session_context_name.to_string()).collect::<Vec<_>>();
 
@@ -764,48 +772,106 @@ mod tests {
             }
 
             let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading.get_states().get("filter_tasks_processors_subscriptions_subjects_t").unwrap().read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            // let table_reading = session_reading.get_states().get("select_tasks_processors_subscriptions_subjects_t").unwrap().read();
+            // let column = table_reading.get_column_as_vec_str("session_name");
+            // assert_eq!(column, ["user_session","user_session","user_session","user_session","user_session","user_session","user_session","user_session","user_session","user_session","user_session"]);
+            // let column = table_reading.get_column_as_vec_str("task_name");
+            // assert_eq!(column, ["user_session","user_session","join_session_contexts_with_mermaid_diagrams_task_name","join_session_contexts_with_mermaid_diagrams_task_name","filter_and_join_session_contexts_by_email_outbox_task_name","filter_user_info_by_email_task_name","filter_session_contexts_by_email_task_name","filter_user_info_by_email_task_name","filter_and_join_session_contexts_by_email_inbox_task_name","filter_session_contexts_by_email_task_name","filter_and_join_session_contexts_by_email_outbox_task_name"]);
+            // let column = table_reading.get_column_as_vec_str("processor_name");
+            // assert_eq!(column, ["user_session","user_session","join_session_contexts_with_mermaid_diagrams_processor_name","join_session_contexts_with_mermaid_diagrams_processor_name","filter_and_join_session_contexts_by_email_outbox_processor_name","filter_user_info_by_email_processor_name","filter_session_contexts_by_email_processor_name","filter_user_info_by_email_processor_name","filter_and_join_session_contexts_by_email_inbox_processor_name","filter_session_contexts_by_email_processor_name","filter_and_join_session_contexts_by_email_outbox_processor_name"]);
+            // let column = table_reading.get_column_as_vec_str("processor_type");
+            // assert_eq!(column, ["ProcessorEcho","ProcessorEcho","Join","Join","DataSummaryProcessor","Join","Join","Join","ExtractTabular","Join","DataSummaryProcessor"]);
+            // let column = table_reading.get_column_as_vec_str("subscription_name");
+            // assert_eq!(column, ["OnUpdateFullTable", "OnUpdateFullTable", "AlwaysFullTable", "OnUpdateFullTable", "OnUpdateFullTable", "AlwaysFullTable", "OnUpdateFullTable", "OnUpdateFullTable", "OnUpdateFullTable", "AlwaysFullTable", "OnUpdateFullTable"]);
+            // let column = table_reading.get_column_as_vec_str("subscription_table_name");
+            // assert_eq!(column, ["AssistantJson", "AssistantJson", "BuilderMermaid", "JoinUserInboxSessionContexts", "JoinUserInboxSessionContextsMermaid", "User", "UserInbox", "UserInbox", "UserJson", "UserSessionContexts", "filter_user_info_by_email_table_name"]);
+            // let column = table_reading.get_column_as_vec_str("subscribe_type");
+            // assert_eq!(column, ["All", "All", "All", "All", "Any", "All", "All", "All", "All", "All", "Any"]);
+            // let column = table_reading.get_column_as_vec_str("update_type");
+            // assert_eq!(column, ["TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate"]);
+            // let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            // for timestamp in column {
+            //     assert!(timestamp > 0);
+            // }
+            // let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp-Last")?;
+            // for timestamp in column {
+            //     assert!(timestamp > 0);
+            // }            
+            let table_reading = session_reading.get_states().get("SessionTasksSubscribeAggregate").unwrap().read();
             let column = table_reading.get_column_as_vec_str("session_name");
-            assert_eq!(column, ["user_session","user_session","user_session","user_session","user_session","user_session","user_session","user_session","user_session","user_session","user_session"]);
+            assert_eq!(column, ["user_session", "user_session", "user_session", "user_session", "user_session", "user_session"]);
             let column = table_reading.get_column_as_vec_str("task_name");
-            assert_eq!(column, ["user_session","user_session","join_session_contexts_with_mermaid_diagrams_task_name","join_session_contexts_with_mermaid_diagrams_task_name","filter_and_join_session_contexts_by_email_outbox_task_name","filter_user_info_by_email_task_name","filter_session_contexts_by_email_task_name","filter_user_info_by_email_task_name","filter_and_join_session_contexts_by_email_inbox_task_name","filter_session_contexts_by_email_task_name","filter_and_join_session_contexts_by_email_outbox_task_name"]);
+            assert_eq!(column, ["filter_and_join_session_contexts_by_email_outbox_task_name", "filter_and_join_session_contexts_by_email_inbox_task_name", "filter_session_contexts_by_email_task_name", "filter_user_info_by_email_task_name", "join_session_contexts_with_mermaid_diagrams_task_name", "user_session"]);
             let column = table_reading.get_column_as_vec_str("processor_name");
-            assert_eq!(column, ["user_session","user_session","join_session_contexts_with_mermaid_diagrams_processor_name","join_session_contexts_with_mermaid_diagrams_processor_name","filter_and_join_session_contexts_by_email_outbox_processor_name","filter_user_info_by_email_processor_name","filter_session_contexts_by_email_processor_name","filter_user_info_by_email_processor_name","filter_and_join_session_contexts_by_email_inbox_processor_name","filter_session_contexts_by_email_processor_name","filter_and_join_session_contexts_by_email_outbox_processor_name"]);
+            assert_eq!(column, ["filter_and_join_session_contexts_by_email_outbox_processor_name", "filter_and_join_session_contexts_by_email_inbox_processor_name", "filter_session_contexts_by_email_processor_name", "filter_user_info_by_email_processor_name", "join_session_contexts_with_mermaid_diagrams_processor_name", "user_session"]);
             let column = table_reading.get_column_as_vec_str("processor_type");
-            assert_eq!(column, ["ProcessorEcho","ProcessorEcho","Join","Join","DataSummaryProcessor","Join","Join","Join","ExtractTabular","Join","DataSummaryProcessor"]);
-            let column = table_reading.get_column_as_vec_str("subscription_name");
-            assert_eq!(column, ["OnUpdateFullTable", "OnUpdateFullTable", "AlwaysFullTable", "OnUpdateFullTable", "OnUpdateFullTable", "AlwaysFullTable", "OnUpdateFullTable", "OnUpdateFullTable", "OnUpdateFullTable", "AlwaysFullTable", "OnUpdateFullTable"]);
-            let column = table_reading.get_column_as_vec_str("subscription_table_name");
-            assert_eq!(column, ["AssistantJson", "AssistantJson", "BuilderMermaid", "JoinUserInboxSessionContexts", "JoinUserInboxSessionContextsMermaid", "User", "UserInbox", "UserInbox", "UserJson", "UserSessionContexts", "filter_user_info_by_email_table_name"]);
-            let column = table_reading.get_column_as_vec_str("subscribe_type");
-            assert_eq!(column, ["All", "All", "All", "All", "Any", "All", "All", "All", "All", "All", "Any"]);
-            let column = table_reading.get_column_as_vec_str("update_type");
-            assert_eq!(column, ["TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate"]);
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;            
-            for timestamp in column {
-                assert!(timestamp > 0);
+            assert_eq!(column, ["DataSummaryProcessor", "ExtractTabular", "Join", "Join", "Join", "ProcessorEcho"]);
+            let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_name-List")?;
+            let flattened = column.into_iter().flatten().collect::<Vec<_>>();
+            assert_eq!(flattened, ["OnUpdateFullTable", "OnUpdateFullTable", "OnUpdateFullTable", "OnUpdateFullTable", "AlwaysFullTable", "AlwaysFullTable", "OnUpdateFullTable", "AlwaysFullTable", "OnUpdateFullTable", "OnUpdateFullTable", "OnUpdateFullTable"]);
+            let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_table_name-List")?;
+            let flattened = column.into_iter().flatten().collect::<Vec<_>>();
+            assert_eq!(flattened, ["JoinUserInboxSessionContextsMermaid", "filter_user_info_by_email_table_name", "UserJson", "UserInbox", "UserSessionContexts", "User", "UserInbox", "BuilderMermaid", "JoinUserInboxSessionContexts", "AssistantJson", "AssistantJson"]);
+            let column = table_reading.get_column_as_vec_str("subscribe_type-Last");
+            assert_eq!(column, ["Any", "All", "All", "All", "All", "All"]);
+            let column = table_reading.get_column_as_vec_str("update_type-Last");
+            assert_eq!(column, ["TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate"]);
+            let column = table_reading.get_column_as_vec_nested_primitive::<i64>("timestamp-List")?;
+            for timestamps in column {
+                for timestamp in timestamps {
+                    assert!(timestamp > 0);
+                }
             }
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp-Last")?;
-            for timestamp in column {
-                assert!(timestamp > 0);
+            let column = table_reading.get_column_as_vec_nested_primitive::<i64>("timestamp-Last-List")?;
+            for timestamps in column {
+                for timestamp in timestamps {
+                    assert!(timestamp > 0);
+                }
             }
+        }
 
+        // Calculate the tasks subscribe
+        session_ctx_arc.read().tasks_subscribe()?;
+
+        { // Test the tasks subscribe
+            let session_reading = session_ctx_arc.read();
             let table_reading = session_reading.get_states().get("SessionTasksSubscribe").unwrap().read();
             let column = table_reading.get_column_as_vec_str("session_name");
-            assert_eq!(column, [""]);
+            assert_eq!(column, ["user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session"]);
+            let column = table_reading.get_column_as_vec_str("task_name");
+            assert_eq!(column, ["filter_and_join_session_contexts_by_email_outbox_task_name", "filter_and_join_session_contexts_by_email_outbox_task_name", "filter_and_join_session_contexts_by_email_inbox_task_name", "filter_session_contexts_by_email_task_name", "filter_session_contexts_by_email_task_name", "filter_user_info_by_email_task_name", "filter_user_info_by_email_task_name", "join_session_contexts_with_mermaid_diagrams_task_name", "join_session_contexts_with_mermaid_diagrams_task_name", "user_session", "user_session"]);
             let column = table_reading.get_column_as_vec_str("processor_name");
-            assert_eq!(column, [""]);
+            assert_eq!(column, ["filter_and_join_session_contexts_by_email_outbox_processor_name", "filter_and_join_session_contexts_by_email_outbox_processor_name", "filter_and_join_session_contexts_by_email_inbox_processor_name", "filter_session_contexts_by_email_processor_name", "filter_session_contexts_by_email_processor_name", "filter_user_info_by_email_processor_name", "filter_user_info_by_email_processor_name", "join_session_contexts_with_mermaid_diagrams_processor_name", "join_session_contexts_with_mermaid_diagrams_processor_name", "user_session", "user_session"]);
             let column = table_reading.get_column_as_vec_str("processor_type");
-            assert_eq!(column, [""]);
+            assert_eq!(column, ["DataSummaryProcessor", "DataSummaryProcessor", "ExtractTabular", "Join", "Join", "Join", "Join", "Join", "Join", "ProcessorEcho", "ProcessorEcho"]);
             let column = table_reading.get_column_as_vec_str("subscription_name");
-            assert_eq!(column, [""]);
+            assert_eq!(column, [
+                "OnUpdateFullTable",
+                "OnUpdateFullTable",
+                "OnUpdateFullTable",
+                "OnUpdateFullTable",
+                "AlwaysFullTable",
+                "AlwaysFullTable",
+                "OnUpdateFullTable",
+                "AlwaysFullTable",
+                "OnUpdateFullTable",
+                "OnUpdateFullTable",
+                "OnUpdateFullTable",
+            ]);
             let column = table_reading.get_column_as_vec_str("subscription_table_name");
-            assert_eq!(column, [""]);
-            let column = table_reading.get_column_as_vec_str("subscribe_type");
-            assert_eq!(column, [""]);
-            let column = table_reading.get_column_as_vec_str("update_type");
-            assert_eq!(column, [""]);
+            assert_eq!(column, [
+                "JoinUserInboxSessionContextsMermaid",
+                "filter_user_info_by_email_table_name",
+                "UserJson",
+                "UserInbox",
+                "UserSessionContexts",
+                "User",
+                "UserInbox",
+                "BuilderMermaid",
+                "JoinUserInboxSessionContexts",
+                "AssistantJson",
+                "AssistantJson",
+            ]);
         }
 
         // 3. Message to trigger the third superstep
@@ -830,7 +896,7 @@ mod tests {
             vec!["AlwaysFullTable","AlwaysFullTable"], 
         ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
         let subscription_table_names = vec![vec!["SessionTasksSubscribe", "group_by_tasks_processors_subscriptions_subjects_p"], 
-            vec!["group_by_tasks_processors_subscriptions_subjects_t", "SessionTasks", "group_by_tasks_processors_publications_p"], 
+            vec!["select_processors_publications_t", "SessionTasks", "group_by_tasks_processors_publications_p"], 
             vec!["group_by_tasks_processors_subscriptions_subjects_t", "group_by_tasks_processors_publications_t", "join_tasks_processors_publications_p"], 
             vec!["select_processors_publications_t", "select_tasks_processors_publications_p"],
         ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
@@ -840,7 +906,7 @@ mod tests {
             vec!["Replace"],
         ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
         let publication_table_names = vec![vec!["group_by_tasks_processors_subscriptions_subjects_t"], 
-            vec!["join_tasks_ready_to_run_t"],             
+            vec!["group_by_tasks_processors_publications_t"],             
             vec!["join_tasks_processors_publications_t"],
             vec!["SessionTasksSubscribePublish"], 
         ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
@@ -868,7 +934,7 @@ mod tests {
 
         assert_eq!(response.len(), 0);
 
-        { // Test supserstep 2
+        { // Test supserstep 3
             { // Debug errors
                 let subjects_reading = session_ctx_arc.read();
                 let table_reading = subjects_reading
@@ -881,6 +947,7 @@ mod tests {
 
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading.get_states().get("SessionTasksSubscribePublish").unwrap().read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
             let column = table_reading.get_column_as_vec_str("session_name");
             assert_eq!(column, [""]);
             let column = table_reading.get_column_as_vec_str("processor_name");
