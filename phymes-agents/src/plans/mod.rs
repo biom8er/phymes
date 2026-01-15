@@ -23,3 +23,4 @@ pub use tool_agent_session::ToolAgentSession;
 pub use user_session::UserSession;
 #[allow(unused_imports)]
 pub(crate) use user_session::user_session_inner;
+pub(crate) use tasks_subscribe_publish_session::TasksSubscribePublishSession;

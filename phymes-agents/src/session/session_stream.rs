@@ -7,7 +7,7 @@ use phymes_core::{IPCMessage, IPCMessageMap};
 use phymes_diagnostics::HashMap;
 use tracing::{Level, event};
 
-use crate::{SessionContext, SessionStreamStep, create_message_map, session::session_stream_step::SessionStreamStepTrait};
+use crate::{SessionContext, SessionStreamStep, session::session_stream_step::SessionStreamStepTrait};
 
 pub struct SessionStream {
     /// The session context

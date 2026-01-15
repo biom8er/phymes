@@ -785,6 +785,12 @@ impl Default for Table {
     }
 }
 
+impl PartialEq for Table {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.schema == other.schema && self.record_batches == other.record_batches
+    }
+}
+
 impl Table {
     /// Concatenate multiple record batches into a single record batch
     pub fn concat_record_batches(mut self) -> Result<Self> {

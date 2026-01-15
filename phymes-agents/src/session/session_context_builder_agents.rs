@@ -83,7 +83,7 @@ pub trait SessionContextBuilderAgentsTrait {
     /// Add tasks that automatically update the number of subject rows
     /// 
     /// # Notes
-    /// * See ... for stand alone session
+    /// * See ... for stand alone session and testing
     fn add_subjects_num_rows(self) -> Result<Self>
     where
         Self: Sized;
@@ -91,7 +91,7 @@ pub trait SessionContextBuilderAgentsTrait {
     /// Add tasks that dynamically compute the next set of tasks that are ready to subscribe to their subjects
     /// 
     /// # Notes
-    /// * See ... for stand alone session
+    /// * See [TasksSubscribePublishSession] for stand alone session and testing
     fn add_tasks_subscribe_publish(self) -> Result<Self>
     where
         Self: Sized;

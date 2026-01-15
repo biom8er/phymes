@@ -20,6 +20,17 @@ pub struct ProcessorPlan {
     update_policy: Box<dyn TableUpdatePolicyTrait>,
 }
 
+impl PartialEq for ProcessorPlan {
+    fn eq(&self, other: &Self) -> bool {
+        self.processor.get_name() == other.processor.get_name()
+        && self.processor.get_type() == other.processor.get_type()
+        && self.publications == other.publications
+        && self.subscriptions == other.subscriptions 
+        && self.subscribe_policy.get_name() == other.subscribe_policy.get_name()
+        && self.update_policy.get_name() == other.update_policy.get_name()
+    }
+}
+
 impl ProcessorPlan {
     pub fn new(
         processor: Arc<dyn ProcessorTrait>,

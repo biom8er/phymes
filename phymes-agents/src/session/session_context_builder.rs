@@ -26,7 +26,7 @@ pub trait SessionContextBuilderTrait: BuilderTrait {
     fn check_state(&self) -> Result<()>;
 }
 
-#[derive(Default)]
+#[derive(Default, PartialEq, Debug)]
 pub struct SessionContextBuilder {
     pub name: Option<String>,
     pub processors: Option<Vec<ProcessorPlan>>,
@@ -217,6 +217,79 @@ impl SessionContextBuilder {
             max_iter,
             self.diagnostics.unwrap_or_default(),
         ))
+    }
+
+    /// Extend a session with another
+    fn extend(mut self, other: SessionContextBuilder) -> Result<Self> {
+        // Extend the state
+        let other_state = if let Some(state) = self.state.as_ref() {
+            if let Some(other) = other.state {
+                let names = state.iter().map(|t| t.get_name()).collect::<HashSet<_>>();
+                other.into_iter().filter(|t| !names.contains(t.get_name())).collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+        if let Some(state) = self.state.as_mut() {
+            state.extend(other_state);
+        } else {
+            self.state.replace(other_state);
+        }
+
+        // Extend the processors
+        let other_processors = if let Some(processors) = self.processors.as_ref() {
+            if let Some(other) = other.processors {
+                let names = processors.iter().map(|t| t.get_name()).collect::<HashSet<_>>();
+                other.into_iter().filter(|t| !names.contains(t.get_name())).collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+        if let Some(processors) = self.processors.as_mut() {
+            processors.extend(other_processors);
+        } else {
+            self.processors.replace(other_processors);
+        }
+        
+        // Extend the tasks
+        let other_tasks = if let Some(tasks) = self.tasks.as_ref() {
+            if let Some(other) = other.tasks {
+                let names = tasks.iter().map(|t| &t.task_name).collect::<HashSet<_>>();
+                other.into_iter().filter(|t| !names.contains(&t.task_name)).collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+        if let Some(tasks) = self.tasks.as_mut() {
+            tasks.extend(other_tasks);
+        } else {
+            self.tasks.replace(other_tasks);
+        }
+
+        // Extend the runtime_envs
+        let other_runtime_envs = if let Some(runtime_envs) = self.runtime_envs.as_ref() {
+            if let Some(other) = other.runtime_envs {
+                let names = runtime_envs.iter().map(|t| t.get_name()).collect::<HashSet<_>>();
+                other.into_iter().filter(|t| !names.contains(t.get_name())).collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+        if let Some(runtime_envs) = self.runtime_envs.as_mut() {
+            runtime_envs.extend(other_runtime_envs);
+        } else {
+            self.runtime_envs.replace(other_runtime_envs);
+        }
+
+        Ok(self)
     }
 }
 
@@ -716,6 +789,18 @@ mod tests {
         let plan = test_session_context_builder::make_test_session_builder_parallel_task();
         let names = plan.get_processor_names_for_task("task_1");
         assert_eq!(names, vec!["processor_1".to_string()]);
+    }
+
+    #[test]
+    fn get_session_context_builder_extend() -> Result<()> {
+        // Case 1: Duplicate
+        let plan = test_session_context_builder::make_test_session_builder_parallel_task();
+        let plan = plan.extend(test_session_context_builder::make_test_session_builder_parallel_task())?;
+        assert_eq!(plan, test_session_context_builder::make_test_session_builder_parallel_task());
+
+        // Case 2: No duplication
+
+        Ok(())
     }
 
     #[test]

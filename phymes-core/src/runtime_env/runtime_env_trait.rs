@@ -13,7 +13,7 @@ pub trait RuntimeEnvTrait: MappableTrait + Send + Sync {
     fn with_name(self, name: &str) -> Self;
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq)]
 pub struct RuntimeEnv {
     /// name for the runtime environment config
     pub name: String,

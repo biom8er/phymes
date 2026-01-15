@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// The plan for the tasks
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 pub struct TaskPlan {
     /// The name of the task
     pub task_name: String,

@@ -207,11 +207,7 @@ impl SessionContext {
         let _ = self.update_subjects_from_messages(messages)?;
 
         Ok(())
-    }
-
-    /// Update the session tasks subscribe
-
-    /// Update the session subscribe and publish
+    }        
 
     /// Take the task subscriptions and publications that are ready to subscribe and publish
     /// 
