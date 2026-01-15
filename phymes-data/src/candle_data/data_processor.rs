@@ -72,7 +72,7 @@ impl ProcessorTrait for CandleDataProcessor {
         // Extract out the config
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
-            None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
+            None => return Err(anyhow!("Config not provided for {}. Available options are {:?}.", self.get_name(), message.keys())),
         };
 
         // Re-index the messages by the subject name which needs to be unique at this stage
