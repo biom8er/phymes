@@ -5,7 +5,7 @@ mod builder_session;
 mod chat_agent_session;
 mod diagnostic_session;
 mod document_rag_session;
-mod subjects_session;
+mod subjects_num_rows_session;
 mod tool_agent_session;
 mod user_session;
 mod tasks_subscribe_publish_session;
@@ -24,3 +24,4 @@ pub use user_session::UserSession;
 #[allow(unused_imports)]
 pub(crate) use user_session::user_session_inner;
 pub(crate) use tasks_subscribe_publish_session::TasksSubscribePublishSession;
+pub(crate) use subjects_num_rows_session::SubjectsNumRowsSession;

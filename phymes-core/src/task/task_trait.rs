@@ -205,20 +205,25 @@ pub mod test_task {
         test_table::{make_test_table, make_test_table_chat},
     };
 
-    use arrow::array::{ArrayRef, StringArray, UInt16Array, UInt32Array};
+    use arrow::array::{ArrayRef, BooleanArray, StringArray};
     use phymes_diagnostics::HashMap;
     use std::sync::Arc;
 
-    pub fn make_state_tables(table_name: &str, config_name: &str) -> Result<Vec<Table>> {
+    pub fn make_config_tables(config_name: &str) -> Result<Table> {
         // mock config for the task
-        let a: ArrayRef = Arc::new(StringArray::from(vec!["a".to_string()]));
-        let b: ArrayRef = Arc::new(UInt32Array::from(vec![1]));
-        let c: ArrayRef = Arc::new(UInt16Array::from(vec![1]));
-        let batch = RecordBatch::try_from_iter(vec![("a", a), ("b", b), ("c", c)])?;
+        let a: ArrayRef = Arc::new(StringArray::from(vec!["HumanInTheLoop".to_string()]));
+        let b: ArrayRef = Arc::new(BooleanArray::from(vec![true]));
+        let batch = RecordBatch::try_from_iter(vec![("operator", a), ("cpu", b)])?;
         let config = TableBuilder::new()
             .with_name(config_name)
             .with_record_batches(vec![batch])?
             .build()?;
+        Ok(config)
+    }
+
+    pub fn make_state_tables(table_name: &str, config_name: &str) -> Result<Vec<Table>> {
+        // mock config for the task
+        let config = make_config_tables(config_name)?;
 
         // mock table for the task
         let table = make_test_table(table_name, 4, 8, 3)?;
@@ -228,9 +233,8 @@ pub mod test_task {
     pub fn make_state_tables_empty(table_name: &str, config_name: &str) -> Result<Vec<Table>> {
         // mock config for the task
         let a: ArrayRef = Arc::new(StringArray::from(vec!["".to_string()]));
-        let b: ArrayRef = Arc::new(UInt32Array::from(vec![0]));
-        let c: ArrayRef = Arc::new(UInt16Array::from(vec![0]));
-        let batch = RecordBatch::try_from_iter(vec![("a", a), ("b", b), ("c", c)])?;
+        let b: ArrayRef = Arc::new(BooleanArray::from(vec![true]));
+        let batch = RecordBatch::try_from_iter(vec![("operator", a), ("cpu", b)])?;
         let config = TableBuilder::new()
             .with_name(config_name)
             .with_record_batches(vec![batch])?

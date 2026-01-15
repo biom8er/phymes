@@ -496,10 +496,9 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
 mod tests {
     use super::*;
     use crate::{
-        SessionContextBuilder, SessionContextBuilderTrait,
-        test_session_context_builder::{
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, test_session_context_builder::{
             make_test_session_context_builder_parallel_task, make_test_session_context_builder_sequential_task,
-        },
+        }
     };
     use phymes_core::{
         AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies,
@@ -510,7 +509,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_no_state_update() -> Result<()> {
-        let session_context = make_test_session_context_builder_parallel_task("session_1", 4)?.build()?;
+        let session_context = make_test_session_context_builder_parallel_task("session_1", 4)?.build_with_tables()?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
@@ -582,13 +581,57 @@ mod tests {
                 .len(),
             3
         );
-        assert!(
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            2
+        );
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
+        assert_eq!(
             session_context_arc
                 .try_read()
                 .unwrap()
                 .get_states()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-                .is_none()
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            0
         );
 
         Ok(())
@@ -596,7 +639,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_extend_state_update_single_task() -> Result<()> {
-        let session_context = make_test_session_context_builder_parallel_task("session_1", 4)?.build()?;
+        let session_context = make_test_session_context_builder_parallel_task("session_1", 4)?.build_with_tables()?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
@@ -729,7 +772,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_single_task() -> Result<()> {
-        let session_context = make_test_session_context_builder_parallel_task("session_1", 4)?.build()?;
+        let session_context = make_test_session_context_builder_parallel_task("session_1", 4)?.build_with_tables()?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
@@ -863,7 +906,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_parallel_tasks() -> Result<()> {
         // Superstep 1
-        let session_context = make_test_session_context_builder_parallel_task("session_1", 4)?.build()?;
+        let session_context = make_test_session_context_builder_parallel_task("session_1", 4)?.build_with_tables()?;
         let mut input = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -1316,7 +1359,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_sequential_tasks() -> Result<()> {
         // Superstep 1
-        let session_context = make_test_session_context_builder_sequential_task("session_1", 4)?.build()?;
+        let session_context = make_test_session_context_builder_sequential_task("session_1", 4)?.build_with_tables()?;
         let input = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -1644,7 +1687,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_schema_mismatch_error() -> Result<()> {
-        let session_context = make_test_session_context_builder_sequential_task("session_1", 4)?.build()?;
+        let session_context = make_test_session_context_builder_sequential_task("session_1", 4)?.build_with_tables()?;
         let input = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -1694,7 +1737,7 @@ mod tests {
                         table_name: "state_1".to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
-                        table_name: "config_1".to_string(),
+                        table_name: "processor_1".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
@@ -1714,22 +1757,27 @@ mod tests {
                 }])
                 .with_subscriptions(&[TableSubscription::OnUpdateFullTable {
                     table_name: "state_1".to_string(),
-                }])
+                },
+                    TableSubscription::AlwaysFullTable {
+                        table_name: "error_1".to_string(),
+                    },
+                ])
                 .with_subscribe_policy(
                     AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
         ];
-        let session_context = test_task::make_state_tables("state_1", "config_1")?;
+        let mut state = test_task::make_state_tables("state_1", "processor_1")?;
+        state.push(test_task::make_config_tables("error_1")?);
         let mut session_context = SessionContextBuilder::new()
             .with_name("session_1")
             .with_tasks(task_plans)
             .with_processors(processors)
             .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
-            .with_state(session_context)
+            .with_state(state)
             .with_max_iter(1)
-            .build()?;
+            .build_with_tables()?;
 
         // Run the session context without adding the Error table
         let input = test_task::make_test_input_message(

@@ -76,7 +76,7 @@ impl ProcessorTrait for CandleDataProcessor {
         };
 
         // Re-index the messages by the subject name which needs to be unique at this stage
-        let message = message.into_iter().map(|(k, v)| (v.get_subject().to_string(), v)).collect::<HashMap<_, _>>();
+        let message = message.into_iter().map(|(_k, v)| (v.get_subject().to_string(), v)).collect::<HashMap<_, _>>();
 
         // Run the ops
         let out = Box::pin(CandleDataStream::new(

@@ -17,8 +17,7 @@ use phymes_diagnostics::{HashMap, HashSet};
 use phymes_ml::{CandleChatConfig, CandleEmbedConfig};
 
 use crate::{
-    AvailableInterfaceSubjects, AvailableProcessors, SessionContext, SessionContextBuilder,
-    SessionContextBuilderTabularTrait, SessionContextBuilderTrait,
+    AvailableInterfaceSubjects, AvailableProcessors, SessionContext, SessionContextBuilder, SessionContextBuilderMermaidTrait, SessionContextBuilderTabularTrait, SessionContextBuilderTrait, plans::{SubjectsNumRowsSession, TasksSubscribePublishSession}
 };
 
 type SessionContextInput = (
@@ -83,7 +82,7 @@ pub trait SessionContextBuilderAgentsTrait {
     /// Add tasks that automatically update the number of subject rows
     /// 
     /// # Notes
-    /// * See ... for stand alone session and testing
+    /// * See [SubjectsNumRowsSession] for stand alone session and testing
     fn add_subjects_num_rows(self) -> Result<Self>
     where
         Self: Sized;
@@ -944,13 +943,37 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
     fn add_subjects_num_rows(self) -> Result<Self>
         where
             Self: Sized {
-        todo!()
+        // Initialize the subjects num rows session
+        let subjects_session = SubjectsNumRowsSession::default();
+        let other_builder = SessionContextBuilder::from_mermaid_flowchart(
+            subjects_session.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_state_from_mermaid_erdiagram(subjects_session.as_mermaid_erdiagram(), false, true)?
+        .with_name(subjects_session.session_context_name)
+        .add_processor_subjects()?;
+
+        // Extend the current session context builder
+        self.extend(other_builder)
     }
 
     fn add_tasks_subscribe_publish(self) -> Result<Self>
         where
             Self: Sized {
-        todo!()
+
+        // Initialize the task subscribe and publish session
+        let tasks_publish_subscribe_session = TasksSubscribePublishSession::default();
+        let other_builder = SessionContextBuilder::from_mermaid_flowchart(
+            tasks_publish_subscribe_session.as_mermaid_flowchart(),
+            false,
+            )?
+            .with_state_from_mermaid_erdiagram(tasks_publish_subscribe_session.as_mermaid_erdiagram(), false, true)?
+            .with_name(tasks_publish_subscribe_session.session_context_name)
+            .add_processor_subjects()?;
+
+        // Extend the current session context builder
+        self.extend(other_builder)
+                
     }
 }
 

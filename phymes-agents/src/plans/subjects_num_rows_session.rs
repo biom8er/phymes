@@ -11,22 +11,22 @@
 /// 4. Updating the `SubjectsChangeLog` cache with the most recent updates and `TasksRunLog` cache with the most recent task runs
 ///
 /// * Caching is implemented to minimize memory and compute
-pub struct SubjectsSession<'a> {
+pub struct SubjectsNumRowsSession<'a> {
     /// Session
     pub session_context_name: &'a str,
 }
 
-impl Default for SubjectsSession<'_> {
+impl Default for SubjectsNumRowsSession<'_> {
     fn default() -> Self {
-        SubjectsSession {
-            session_context_name: "subject_session",
+        SubjectsNumRowsSession {
+            session_context_name: "subjects_num_rows_session",
         }
     }
 }
 
-impl<'a> SubjectsSession<'a> {
+impl<'a> SubjectsNumRowsSession<'a> {
     pub fn new_with_session_name(session_context_name: &'a str) -> Self {
-        SubjectsSession {
+        SubjectsNumRowsSession {
             session_context_name,
             ..Default::default()
         }
@@ -145,7 +145,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_subjects_session() -> Result<()> {
         // Initialize the session
-        let subjects_session = SubjectsSession::default();
+        let subjects_session = SubjectsNumRowsSession::default();
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
             subjects_session.as_mermaid_flowchart(),
             true,

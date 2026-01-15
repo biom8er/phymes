@@ -234,11 +234,16 @@ impl SessionContext {
             .get_record_batches_mut()
             .drain(0..)
             .collect::<Vec<_>>();
+
+        // Return if there are no tasks
+        if batches.is_empty() {
+            return Ok(HashMap::<(String, String), ProcessorSubjectsMap>::new())
+        }
+
         let table = TableBuilder::default()
             .with_name(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
             .with_record_batches(batches)?
             .build()?;
-
         let task_names = table.get_column_as_vec_nonprimitive::<String>("task_name")?;
         let processor_names =
             table.get_column_as_vec_nonprimitive::<String>("processor_name")?;
@@ -945,12 +950,6 @@ mod tests {
         let updates = session_context.update_subjects_from_messages(input);
         assert!(updates.is_err());
 
-        Ok(())
-    }
-    
-    #[test]
-    fn test_session_tasks_subscribe() -> Result<()> {
-        // Make the test data
         Ok(())
     }
 }

@@ -220,7 +220,7 @@ impl SessionContextBuilder {
     }
 
     /// Extend a session with another
-    fn extend(mut self, other: SessionContextBuilder) -> Result<Self> {
+    pub fn extend(mut self, other: SessionContextBuilder) -> Result<Self> {
         // Extend the state
         let other_state = if let Some(state) = self.state.as_ref() {
             if let Some(other) = other.state {
@@ -468,10 +468,10 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 pub mod test_session_context_builder {
     use phymes_core::{
         AvailableTableSubscribePolicies, ProcessorPlanBuilder,
-        test_task::{make_runtime_env, make_state_tables, make_state_tables_empty},
+        test_task::{make_config_tables, make_runtime_env, make_state_tables, make_state_tables_empty},
     };
 
-    use crate::AvailableProcessors;
+    use crate::{AvailableProcessors, SessionContextBuilderAgentsTrait};
 
     use super::*;
 
@@ -513,7 +513,7 @@ pub mod test_session_context_builder {
                         table_name: "state_1".to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
-                        table_name: "config_1".to_string(),
+                        table_name: "processor_1".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
@@ -531,7 +531,7 @@ pub mod test_session_context_builder {
                         table_name: "state_2".to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
-                        table_name: "config_2".to_string(),
+                        table_name: "processor_2".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
@@ -549,7 +549,7 @@ pub mod test_session_context_builder {
                         table_name: "state_3".to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
-                        table_name: "config_3".to_string(),
+                        table_name: "processor_3".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
@@ -607,7 +607,7 @@ pub mod test_session_context_builder {
                         table_name: "state_1".to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
-                        table_name: "config_1".to_string(),
+                        table_name: "processor_1".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
@@ -625,7 +625,7 @@ pub mod test_session_context_builder {
                         table_name: "state_1".to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
-                        table_name: "config_1".to_string(),
+                        table_name: "processor_2".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
@@ -643,7 +643,7 @@ pub mod test_session_context_builder {
                         table_name: "state_1".to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
-                        table_name: "config_1".to_string(),
+                        table_name: "processor_3".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
@@ -680,16 +680,17 @@ pub mod test_session_context_builder {
         let runtime_envs = vec![make_runtime_env("rt_1")?];
 
         // Init state
-        let mut state = make_state_tables("state_1", "config_1")?;
-        state.extend(make_state_tables("state_2", "config_2")?);
-        state.extend(make_state_tables("state_3", "config_3")?);
+        let mut state = make_state_tables("state_1", "processor_1")?;
+        state.extend(make_state_tables("state_2", "processor_2")?);
+        state.extend(make_state_tables("state_3", "processor_3")?);
 
         let builder = make_test_session_builder_parallel_task()
             .with_name(name)
             .with_runtime_envs(runtime_envs)
             .with_state(state)
             .with_max_iter(max_iter)
-            .with_diagnostics(true);
+            .with_diagnostics(true)
+            .add_tasks_subscribe_publish()?;
 
         Ok(builder)
     }
@@ -702,16 +703,17 @@ pub mod test_session_context_builder {
         let runtime_envs = vec![make_runtime_env("rt_1")?];
 
         // Init state
-        let mut state = make_state_tables_empty("state_1", "config_1")?;
-        state.extend(make_state_tables_empty("state_2", "config_2")?);
-        state.extend(make_state_tables_empty("state_3", "config_3")?);
+        let mut state = make_state_tables_empty("state_1", "processor_1")?;
+        state.extend(make_state_tables_empty("state_2", "processor_2")?);
+        state.extend(make_state_tables_empty("state_3", "processor_3")?);
 
         let builder = make_test_session_builder_parallel_task()
             .with_name(name)
             .with_runtime_envs(runtime_envs)
             .with_state(state)
             .with_max_iter(max_iter)
-            .with_diagnostics(true);
+            .with_diagnostics(true)
+            .add_tasks_subscribe_publish()?;
 
         Ok(builder)
     }
@@ -724,14 +726,18 @@ pub mod test_session_context_builder {
         let runtime_envs = vec![make_runtime_env("rt_1")?];
 
         // Init state
-        let state = make_state_tables("state_1", "config_1")?;
+        let mut state = make_state_tables("state_1", "processor_1")?;
+        state.push(make_config_tables("processor_2")?);
+        state.push(make_config_tables("processor_3")?);
+
 
         let builder = make_test_session_builder_sequential_task()
             .with_name(name)
             .with_runtime_envs(runtime_envs)
             .with_state(state)
             .with_max_iter(max_iter)
-            .with_diagnostics(true);
+            .with_diagnostics(true)
+            .add_tasks_subscribe_publish()?;
 
         Ok(builder)
     }
@@ -753,7 +759,7 @@ mod tests {
         let (subscriptions, publications) = plan.get_sub_pub_for_task("task_1");
         assert!(
             subscriptions.contains(&&TableSubscription::AlwaysFullTable {
-                table_name: "config_1".to_string()
+                table_name: "processor_1".to_string()
             })
         );
         assert!(
@@ -783,9 +789,9 @@ mod tests {
         assert!(names.contains("state_1"));
         assert!(names.contains("state_2"));
         assert!(names.contains("state_3"));
-        assert!(names.contains("config_1"));
-        assert!(names.contains("config_2"));
-        assert!(names.contains("config_3"));
+        assert!(names.contains("processor_1"));
+        assert!(names.contains("processor_2"));
+        assert!(names.contains("processor_3"));
     }
 
     #[test]
@@ -835,10 +841,10 @@ mod tests {
                 .build()?,
         ];
         let runtime_envs = vec![make_runtime_env("rt_4")?];
-        let mut state = make_state_tables("state_1", "config_1")?;
-        state.extend(make_state_tables("state_2", "config_2")?);
-        state.extend(make_state_tables("state_3", "config_3")?);
-        state.extend(make_state_tables("state_4", "config_4")?);		
+        let mut state = make_state_tables("state_1", "processor_1")?;
+        state.extend(make_state_tables("state_2", "processor_2")?);
+        state.extend(make_state_tables("state_3", "processor_3")?);
+        state.extend(make_state_tables("state_4", "processor_4")?);		
         let other_plan = SessionContextBuilder::new()
             .with_tasks(task_plans)
             .with_processors(processor_plans)
@@ -859,7 +865,7 @@ mod tests {
         let names = plan.runtime_envs.unwrap().into_iter().map(|t| t.get_name().to_string()).collect::<Vec<_>>();
         assert_eq!(names, ["rt_1", "rt_4"]);
         let names = plan.state.unwrap().into_iter().map(|t| t.get_name().to_string()).collect::<Vec<_>>();
-        assert_eq!(names, ["config_1", "state_1", "config_2", "state_2", "config_3", "state_3", "config_4", "state_4"]);
+        assert_eq!(names, ["processor_1", "state_1", "processor_2", "state_2", "processor_3", "state_3", "processor_4", "state_4"]);
 
         Ok(())
     }
@@ -1048,20 +1054,20 @@ mod tests {
         let result = test_session_context_builder::make_test_session_builder_parallel_task()
             .with_name("session_1")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
-            .with_state(make_state_tables("state_1", "config_1")?)
+            .with_state(make_state_tables("state_1", "processor_1")?)
             .build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Mismatch between provided state [\"config_1\", \"config_2\", \"config_3\", \"state_1\", \"state_2\", \"state_3\"] and plan subjects and subscription names [\"config_1\", \"state_1\"]."
+                "Mismatch between provided state [\"processor_1\", \"processor_2\", \"processor_3\", \"state_1\", \"state_2\", \"state_3\"] and plan subjects and subscription names [\"processor_1\", \"state_1\"]."
             ),
         }
 
         // State not found in plan
-        let mut state = make_state_tables("state_1", "config_1")?;
-        state.extend(make_state_tables("state_2", "config_2")?);
-        state.extend(make_state_tables("not_found", "config_3")?);
+        let mut state = make_state_tables("state_1", "processor_1")?;
+        state.extend(make_state_tables("state_2", "processor_2")?);
+        state.extend(make_state_tables("not_found", "processor_3")?);
         let result = test_session_context_builder::make_test_session_builder_parallel_task()
             .with_name("session_1")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
@@ -1071,7 +1077,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Mismatch between provided state [\"config_1\", \"config_2\", \"config_3\", \"state_1\", \"state_2\", \"state_3\"] and plan subjects and subscription names [\"config_1\", \"config_2\", \"config_3\", \"not_found\", \"state_1\", \"state_2\"]."
+                "Mismatch between provided state [\"processor_1\", \"processor_2\", \"processor_3\", \"state_1\", \"state_2\", \"state_3\"] and plan subjects and subscription names [\"processor_1\", \"processor_2\", \"processor_3\", \"not_found\", \"state_1\", \"state_2\"]."
             ),
         }
         Ok(())

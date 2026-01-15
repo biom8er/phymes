@@ -13,7 +13,7 @@ use phymes_diagnostics::{HashSet, create_timestamp_micros};
 
 use crate::{
     AvailableProcessors, SessionContextBuilder, SessionContextBuilderMermaidTrait,
-    SessionContextBuilderTrait,
+    SessionContextBuilderTrait, plans::{SubjectsNumRowsSession, TasksSubscribePublishSession},
 };
 
 /// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from tabular format
@@ -135,12 +135,12 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
         // include_tasks_run_log is before include_subjects_change_log
         // so that the timestamp of all tasks is less than the timestamp of all subjects
-        if include_tasks_run_log {
-            tables.push(self.get_tasks_run_log_as_table()?);
-        }
         if include_subjects_change_log {
             tables.push(self.get_subjects_num_rows_as_table()?);
             tables.push(self.get_subjects_change_log_as_table()?);
+        }
+        if include_tasks_run_log {
+            tables.push(self.get_tasks_run_log_as_table()?);
         }
         tables.extend([
             self.get_subjects_as_table(&tables)?,
@@ -454,8 +454,29 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 "Add session name before making the tasks run log table."
             ));
         };
+
+        // Tasks to exclude
+        let tasks_publish_subscribe_session = TasksSubscribePublishSession::default();
+        let tasks_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
+            tasks_publish_subscribe_session.as_mermaid_flowchart(),
+            false,
+            )?
+            .tasks.unwrap().into_iter().map(|t| t.task_name).collect::<Vec<_>>();
+        let subjects_session = SubjectsNumRowsSession::default();
+        let tasks_subjects = SessionContextBuilder::from_mermaid_flowchart(
+            subjects_session.as_mermaid_flowchart(),
+            false,
+            )?
+            .tasks.unwrap().into_iter().map(|t| t.task_name).collect::<Vec<_>>();
+        let exclusion_set = tasks_publish_subscribe.into_iter().chain(tasks_subjects.into_iter()).collect::<HashSet<_>>();
+
+        // Create the table
         let ((session_names, task_names), timestamps) = self.tasks.as_ref().unwrap().iter()
-            .map(|task| ((session_name.to_string(), task.task_name.to_string()), create_timestamp_micros()))
+            .filter_map(|task| if exclusion_set.contains(&task.task_name) {
+                None
+            } else {
+                Some(((session_name.to_string(), task.task_name.to_string()), create_timestamp_micros()))
+            })
             .unzip();
         let batch = create_session_tasks_run_log_batch(session_names, task_names, timestamps)?;
         Table::get_builder().with_name(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
