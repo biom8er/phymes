@@ -760,15 +760,15 @@ mod tests {
                     .read();
                 println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
             }
-            { // Check metrics
-                let subjects_reading = session_ctx_arc.read();
-                let table_reading = subjects_reading
-                    .get_states()
-                    .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-                    .unwrap()
-                    .read();
-                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            }
+            // { // Check metrics
+            //     let subjects_reading = session_ctx_arc.read();
+            //     let table_reading = subjects_reading
+            //         .get_states()
+            //         .get(AvailableSubjects::SessionMetrics.to_string().as_str())
+            //         .unwrap()
+            //         .read();
+            //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            // }
 
             let session_reading = session_ctx_arc.read();
             // let table_reading = session_reading.get_states().get("select_tasks_processors_subscriptions_subjects_t").unwrap().read();
@@ -947,30 +947,84 @@ mod tests {
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading.get_states().get("SessionTasksSubscribePublish").unwrap().read();
             let column = table_reading.get_column_as_vec_str("session_name");
-            dbg!(&column);
-            assert_eq!(column, [""]);
+            assert_eq!(column, [
+                "user_session",
+                "user_session",
+                "user_session",
+                "user_session",
+                "user_session",
+                "user_session"
+            ]);
             let column = table_reading.get_column_as_vec_str("processor_name");
-            dbg!(&column);
-            assert_eq!(column, [""]);
+            assert_eq!(column, ["filter_and_join_session_contexts_by_email_inbox_processor_name",
+                "filter_and_join_session_contexts_by_email_outbox_processor_name",
+                "filter_session_contexts_by_email_processor_name",
+                "filter_user_info_by_email_processor_name",
+                "join_session_contexts_with_mermaid_diagrams_processor_name",
+                "user_session",
+            ]);
             let column = table_reading.get_column_as_vec_str("processor_type");
-            dbg!(&column);
-            assert_eq!(column, [""]);
+            assert_eq!(column, ["ExtractTabular",
+                "DataSummaryProcessor",
+                "Join",
+                "Join",
+                "Join",
+                "ProcessorEcho",
+            ]);
             let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            dbg!(&flattened);
-            // assert_eq!(flattened, [[""]]);
+            assert_eq!(flattened, ["OnUpdateFullTable",
+                "OnUpdateFullTable",
+                "OnUpdateFullTable",
+                "OnUpdateFullTable",
+                "AlwaysFullTable",
+                "AlwaysFullTable",
+                "OnUpdateFullTable",
+                "AlwaysFullTable",
+                "OnUpdateFullTable",
+                "OnUpdateFullTable",
+                "OnUpdateFullTable",
+            ]);
             let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            dbg!(&flattened);
-            // assert_eq!(flattened, [[""]]);
+            assert_eq!(flattened, ["UserJson",
+                "JoinUserInboxSessionContextsMermaid",
+                "filter_user_info_by_email_table_name",
+                "UserInbox",
+                "UserSessionContexts",
+                "User",
+                "UserInbox",
+                "BuilderMermaid",
+                "JoinUserInboxSessionContexts",
+                "AssistantJson",
+                "AssistantJson",
+            ]);
             let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            dbg!(&flattened);
-            // assert_eq!(flattened, [[""]]);
+            assert_eq!(flattened, ["Replace",
+                "Replace",
+                "Replace",
+                "Replace",
+                "Replace",
+                "Extend",
+                "Extend",
+                "Extend",
+                "Replace",
+                "Replace",
+            ]);
             let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            dbg!(&flattened);
-            // assert_eq!(flattened, [[""]]);
+            assert_eq!(flattened, ["UserInbox",
+                "AssistantJson",
+                "JoinUserInboxSessionContexts",
+                "filter_user_info_by_email_table_name",
+                "JoinUserInboxSessionContextsMermaid",
+                "BuilderMermaid",
+                "User",
+                "UserSessionContexts",
+                "UserJson",
+                "AssistantJson",
+            ]);
         }
 
         Ok(())
