@@ -560,6 +560,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     if processor.config_type() == "DataConfig" {
                         if config.operator.to_string().as_str() != r#type
                             && r#type != AvailableProcessors::ProcessorMock.to_string().as_str()
+                            && r#type != AvailableProcessors::ProcessorError.to_string().as_str()
                             && r#type
                                 != AvailableProcessors::AttachmentAggregatorProcessor
                                     .to_string()
@@ -574,7 +575,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                                     .as_str()
                         {
                             return Err(anyhow!(
-                                "Operator {} for `DataConfig` from subject `{}` does not match the expected for processor type `{}`.",
+                                "Operator `{}` for `DataConfig` from subject `{}` does not match the expected for processor type `{}`.",
                                 config.operator,
                                 table.get_name(),
                                 r#type
@@ -591,7 +592,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                                         .as_str())
                         {
                             return Err(anyhow!(
-                                "Operator {} for `DataConfig` from subject `{}` for processor type `{}` with does not match the expected for processor type of `{}` required by {} and {}.",
+                                "Operator `{}` for `DataConfig` from subject `{}` for processor type `{}` with does not match the expected for processor type of `{}` required by {} and {}.",
                                 config.operator,
                                 table.get_name(),
                                 r#type,

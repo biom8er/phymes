@@ -133,8 +133,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             tables.push(AvailableSubjects::SessionTraces.to_table(None, None)?);
             tables.push(AvailableSubjects::SessionEvents.to_table(None, None)?);
         }
-        // include_tasks_run_log is before include_subjects_change_log
-        // so that the timestamp of all tasks is less than the timestamp of all subjects
+        // include_tasks_run_log is after include_subjects_change_log
+        // so that the timestamp of all tasks is greater than the timestamp of all subjects
         if include_subjects_change_log {
             tables.push(self.get_subjects_num_rows_as_table()?);
             tables.push(self.get_subjects_change_log_as_table()?);
@@ -517,8 +517,10 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let ((((subject_names, task_names), session_names), num_rows_delta), timestamps) = self.tasks.as_ref().unwrap().iter()
             .map(|task| self.state.as_ref().unwrap().iter()
                 .filter_map(|table| {
-                    let (_subscriptions, publications) = self.get_sub_pub_for_task(&task.task_name);
-                    let table_names = publications.into_iter().map(|p| p.get_table_name()).collect::<Vec<_>>();
+                    let (subscriptions, publications) = self.get_sub_pub_for_task(&task.task_name);
+                    let publication_names = publications.into_iter().map(|p| p.get_table_name()).collect::<Vec<_>>();
+                    let subscription_names = subscriptions.into_iter().map(|p| p.get_table_name()).collect::<Vec<_>>();
+                    let table_names = publication_names.into_iter().chain(subscription_names.into_iter()).collect::<HashSet<_>>();
                     if table_names.contains(&table.get_name()) {
                         Some(((((table.get_name().to_string(), task.task_name.to_string()), session_name.to_string()), 0 as i64), create_timestamp_micros()))
                     } else {

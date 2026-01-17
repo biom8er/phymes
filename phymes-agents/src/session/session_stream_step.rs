@@ -236,7 +236,14 @@ pub trait SessionStreamStepTrait {
                     session_context.read().tasks_subscribe()?;
                 } else {
                     let _result = SessionStreamStepMinimal::run_superstep(Arc::clone(&session_context), messages, step).await?;
-                }            
+                }
+                let subjects_reading = session_context.read();
+                let table_reading = subjects_reading
+                    .get_states()
+                    .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                    .unwrap()
+                    .read();
+                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);        
             }
         }
         session_context.read().tasks_subscribe_publish()
@@ -725,7 +732,7 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            1
+            3
         );
         assert_eq!(
             session_context_arc
@@ -738,7 +745,7 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            1
+            5
         );
         assert_eq!(
             session_context_arc
@@ -858,7 +865,7 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            1
+            3
         );
         assert_eq!(
             session_context_arc
@@ -871,7 +878,7 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            1
+            5
         );
         assert_eq!(
             session_context_arc
@@ -938,10 +945,51 @@ mod tests {
             true,
         )?);
         let session_context_arc = Arc::new(RwLock::new(session_context));
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input, 0)
+        let mut response = SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input, 0)
             .await?
             .unwrap();
-        assert!(response.is_empty());
+        // assert!(response.is_empty());
+        assert_eq!(response.len(), 1);
+        assert_eq!(
+            response
+                .get("from_session_1_on_state_1")
+                .unwrap()
+                .get_name(),
+            "from_session_1_on_state_1"
+        );
+        assert_eq!(
+            response
+                .get("from_session_1_on_state_1")
+                .unwrap()
+                .get_publisher(),
+            "session_1"
+        );
+        assert_eq!(
+            response
+                .get("from_session_1_on_state_1")
+                .unwrap()
+                .get_subject(),
+            "state_1"
+        );
+        assert_eq!(
+            *response
+                .get("from_session_1_on_state_1")
+                .unwrap()
+                .get_update(),
+            TablePublication::Extend {
+                table_name: "state_1".to_string()
+            }
+        );
+
+        let bytes = response
+            .remove("from_session_1_on_state_1")
+            .unwrap()
+            .get_message_own();
+        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+            .with_name("")
+            .build()?;
+        let n_rows: usize = partitions.count_rows();
+        assert_eq!(n_rows, 5);
 
         // check the session and session_context
         assert_eq!(
@@ -1039,7 +1087,7 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            1
+            3
         );
         assert_eq!(
             session_context_arc
@@ -1052,7 +1100,7 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            1
+            5
         );
         assert_eq!(
             session_context_arc
@@ -1371,10 +1419,51 @@ mod tests {
             true,
         )?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input, 0)
+        let mut response = SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input, 0)
             .await?
             .unwrap();
-        assert!(response.is_empty());
+        // assert!(response.is_empty());
+        assert_eq!(response.len(), 1);
+        assert_eq!(
+            response
+                .get("from_session_1_on_state_1")
+                .unwrap()
+                .get_name(),
+            "from_session_1_on_state_1"
+        );
+        assert_eq!(
+            response
+                .get("from_session_1_on_state_1")
+                .unwrap()
+                .get_publisher(),
+            "session_1"
+        );
+        assert_eq!(
+            response
+                .get("from_session_1_on_state_1")
+                .unwrap()
+                .get_subject(),
+            "state_1"
+        );
+        assert_eq!(
+            *response
+                .get("from_session_1_on_state_1")
+                .unwrap()
+                .get_update(),
+            TablePublication::Extend {
+                table_name: "state_1".to_string()
+            }
+        );
+
+        let bytes = response
+            .remove("from_session_1_on_state_1")
+            .unwrap()
+            .get_message_own();
+        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+            .with_name("")
+            .build()?;
+        let n_rows: usize = partitions.count_rows();
+        assert_eq!(n_rows, 5);
 
         // check the session and session_context
         assert_eq!(
@@ -1416,7 +1505,7 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            1
+            3
         );
         assert_eq!(
             session_context_arc
@@ -1429,7 +1518,7 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            1
+            5
         );
         assert_eq!(
             session_context_arc
@@ -1476,7 +1565,7 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            1
+            3
         );
         assert_eq!(
             session_context_arc
@@ -1489,7 +1578,7 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            1
+            5
         );
         assert_eq!(
             session_context_arc
@@ -1726,7 +1815,7 @@ mod tests {
                 .with_processor(
                     ProcessorBuilder::default()
                         .with_name("processor_1")
-                        .with_type("")
+                        .with_type(ProcessorMock::get_static_name())
                         .build_arc::<ProcessorMock>()?,
                 )
                 .with_publications(&[TablePublication::Extend {
@@ -1749,7 +1838,7 @@ mod tests {
                 .with_processor(
                     ProcessorBuilder::default()
                         .with_name("error_1")
-                        .with_type("")
+                        .with_type(ProcessorError::get_static_name())
                         .build_arc::<ProcessorError>()?,
                 )
                 .with_publications(&[TablePublication::Extend {

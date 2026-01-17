@@ -5,7 +5,7 @@ use arrow::datatypes::DataType;
 use clap::ValueEnum;
 use phymes_core::{
     DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Table,
-    test_processor::ProcessorMock,
+    test_processor::{ProcessorError, ProcessorMock},
 };
 use phymes_data::{
     AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,
@@ -25,6 +25,8 @@ use serde::{Deserialize, Serialize};
 /// The available [ProcessorTrait]s
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableProcessors {
+    #[value(name = "ProcessorError")]
+    ProcessorError,
     #[value(name = "ProcessorMock")]
     ProcessorMock,
     #[value(name = "ProcessorEcho")]
@@ -112,6 +114,7 @@ impl Display for AvailableProcessors {
             Self::ExtractXML => write!(f, "{}", AvailableCandleOperators::ExtractXML),
             Self::Melt => write!(f, "{}", AvailableCandleOperators::Melt),
             Self::NormalizeTime => write!(f, "{}", AvailableCandleOperators::NormalizeTime),
+            Self::ProcessorError => write!(f, "{}", ProcessorError::get_static_name()),
             Self::ProcessorMock => write!(f, "{}", ProcessorMock::get_static_name()),
             Self::ProcessorEcho => write!(f, "{}", ProcessorEcho::get_static_name()),
             Self::CandleDataProcessor => write!(f, "{}", CandleDataProcessor::get_static_name()),
@@ -143,7 +146,7 @@ impl DataConfigTrait for AvailableProcessors {
         Self: Serialize,
     {
         match self {
-            Self::ProcessorMock => serde_json::to_vec(&DataConfig::default()), // Just for testing purposes...
+            Self::ProcessorMock | Self::ProcessorError => serde_json::to_vec(&DataConfig::default()), // Just for testing purposes...
             Self::ProcessorEcho => Ok(Vec::new()),
             Self::CandleDataProcessor => serde_json::to_vec(&DataConfig::default()),
             Self::ApplyTemplate => serde_json::to_vec(&DataConfig {
@@ -437,6 +440,7 @@ impl DataConfigTrait for AvailableProcessors {
 impl ToolTrait for AvailableProcessors {
     fn get_description(&self) -> String {
         match self {
+            Self::ProcessorError => todo!(),
             Self::ProcessorEcho => todo!(),
             Self::ProcessorMock => todo!(),
             Self::CandleDataProcessor => todo!(),
@@ -471,6 +475,7 @@ impl ToolTrait for AvailableProcessors {
     }
     fn to_json_tool_schema(&self) -> String {
         match self {
+            Self::ProcessorError => todo!(),
             Self::ProcessorEcho => todo!(),
             Self::ProcessorMock => todo!(),
             Self::CandleDataProcessor => todo!(),
@@ -509,6 +514,7 @@ impl AvailableProcessors {
     /// Get all available processor plans
     pub fn all_varient_names() -> Vec<String> {
         let processor_names = [
+            AvailableProcessors::ProcessorError.to_string(),
             AvailableProcessors::ProcessorMock.to_string(),
             AvailableProcessors::ProcessorEcho.to_string(),
             AvailableProcessors::CandleDataProcessor.to_string(),
@@ -550,6 +556,8 @@ impl AvailableProcessors {
     pub fn from_str_fuzzy(line: &str) -> Result<Self> {
         if line.contains(&AvailableProcessors::ProcessorMock.to_string()) {
             Ok(AvailableProcessors::ProcessorMock)
+        } else if line.contains(&AvailableProcessors::ProcessorError.to_string()) {
+            Ok(AvailableProcessors::ProcessorError)
         } else if line.contains(&AvailableProcessors::ProcessorEcho.to_string()) {
             Ok(AvailableProcessors::ProcessorEcho)
         } else if line.contains(&AvailableProcessors::CandleDataProcessor.to_string()) {
@@ -625,6 +633,7 @@ impl AvailableProcessors {
     /// Build the [ProcessorTrait] object
     pub fn build_arc(self, name: &str) -> Arc<dyn ProcessorTrait> {
         match self {
+            Self::ProcessorError => Arc::new(ProcessorError::new(name, self.to_string().as_str())),
             Self::ProcessorMock => Arc::new(ProcessorMock::new(name, self.to_string().as_str())),
             Self::ProcessorEcho => Arc::new(ProcessorEcho::new(name, self.to_string().as_str())),
             Self::CandleDataProcessor
@@ -683,8 +692,9 @@ impl AvailableProcessors {
     /// Build the [ProcessorTrait] object form the [ProcessorBuilder]
     pub fn build_with_builder(self, builder: ProcessorBuilder) -> Result<Arc<dyn ProcessorTrait>> {
         match self {
+            Self::ProcessorError => builder.build_arc::<ProcessorError>(),
             Self::ProcessorMock => builder.build_arc::<ProcessorMock>(),
-            Self::ProcessorEcho => builder.build_arc::<ProcessorMock>(),
+            Self::ProcessorEcho => builder.build_arc::<ProcessorEcho>(),
             Self::CandleDataProcessor
             | Self::ChunkDocuments
             | Self::ExtractPDF
@@ -723,6 +733,7 @@ impl AvailableProcessors {
         match self {
             Self::ProcessorEcho => "",
             Self::ProcessorMock
+            | Self::ProcessorError
             | Self::CandleDataProcessor
             | Self::ChunkDocuments
             | Self::ExtractPDF
