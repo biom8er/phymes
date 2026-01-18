@@ -696,7 +696,7 @@ mod tests {
         assert_eq!(
             info.get_column_as_vec_str("subject_name"),
             [
-                "config_1", "config_2", "config_3", "state_1", "state_2", "state_3",
+                "processor_1", "processor_2", "processor_3", "state_1", "state_2", "state_3",
             ]
         );
         let num_rows = info

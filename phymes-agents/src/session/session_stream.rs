@@ -91,12 +91,15 @@ mod tests {
     };
 
     use super::*;
-    use crate::{SessionContextBuilderAgentsTrait, test_session_context_builder::make_test_session_context_builder_sequential};
+    use crate::{SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, test_session_context_builder::make_test_session_context_builder_sequential};
 
     #[tokio::test]
     async fn test_session_stream_replace_state_update_sequential_tasks() -> Result<()> {
         // Build the session
-        let session_context = make_test_session_context_builder_sequential("session_1", 2)?.build_with_tables()?;
+        let session_context = make_test_session_context_builder_sequential("session_1", 2)?
+            .with_diagnostics(true)
+            .add_tasks_subscribe_publish()?
+            .build_with_tables()?;
         let input = make_test_input_message(
             "task_1",
             "session_1",

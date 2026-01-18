@@ -757,6 +757,8 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             .unwrap()
             .build()
             .unwrap();
+        candle_embed_config.documents = AvailableInterfaceSubjects::UserQueries.to_string();
+        let candle_embed_config_json = serde_json::to_vec(&candle_embed_config).unwrap();
         let candle_query_embed_state = TableBuilder::new()
             .with_name(self.embed_query_processor_name)
             .with_json(&candle_embed_config_json, 1)
@@ -1083,6 +1085,7 @@ mod tests {
             .build()
             .with_name(doc_rag_session.session_context_name)
             .add_session_interface(None)?
+            .add_tasks_subscribe_publish()?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 

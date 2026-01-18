@@ -87,6 +87,7 @@ impl UserState {
         // Run the tasks for the user session
         let session_stream = SessionStream::new(message_map, self.users.clone());
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        dbg!(&response.iter().map(|r| r.keys()).collect::<Vec<_>>());
 
         // Parse the response
         let mut attachment_data = response
@@ -120,6 +121,7 @@ impl UserState {
                 }
             })
             .collect::<Vec<_>>();
+        dbg!(&attachment_data);
         let user = attachment_data.swap_remove(0).to_struct::<UserSubject>()?;
         let join = attachment_data
             .swap_remove(0)

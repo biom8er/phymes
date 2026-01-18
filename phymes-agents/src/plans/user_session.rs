@@ -487,6 +487,7 @@ pub(crate) mod user_session_inner {
             .build()
             .with_name(user_agent_session.session_context_name)
             .with_diagnostics(true)
+            .add_tasks_subscribe_publish()?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 

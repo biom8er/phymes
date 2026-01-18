@@ -1198,7 +1198,7 @@ mod tests {
     fn test_build_with_tables_success() -> Result<()> {
         let session = test_session_context_builder_agents::make_test_session_builder_agents()?
             .build_with_tables()?;
-        assert_eq!(session.get_states().len(), 16);
+        assert_eq!(session.get_states().len(), 19);
         assert_eq!(session.get_tasks().len(), 4);
         assert_eq!(session.get_name(), "session");
         assert_eq!(session.get_max_iter(), 25);
@@ -1211,7 +1211,7 @@ mod tests {
         let session = test_session_context_builder_agents::make_test_session_builder_agents()?
             .add_session_interface(Some(&["state_1"]))?
             .build_with_tables()?;
-        assert_eq!(session.get_states().len(), 16);
+        assert_eq!(session.get_states().len(), 19);
         assert_eq!(session.get_tasks().len(), 5);
         assert_eq!(
             session.get_tasks().get("session").unwrap().get_name(),
@@ -1241,9 +1241,9 @@ mod tests {
     #[test]
     fn test_build_with_tables_missing_processor_configs_subjects() -> Result<()> {
         // Check that missing config subscriptions can be identified
-        let mut state = make_state_tables("state_1", "config_1")?;
-        state.extend(make_state_tables("state_2", "config_2")?);
-        state.extend(make_state_tables("state_3", "config_3")?);
+        let mut state = make_state_tables("state_1", "processor_1")?;
+        state.extend(make_state_tables("state_2", "processor_2")?);
+        state.extend(make_state_tables("state_3", "processor_3")?);
         let result = make_test_session_context_builder_parallel_processors()
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
@@ -1253,7 +1253,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "A subscription with the same name as the processor (i.e., its config) is not provided for processors [\"processor_1\", \"processor_2\", \"processor_3\", \"session_1\"]."
+                "A subscription with the same name as the processor (i.e., its config) is not provided for processors [\"session_1\"]."
             ),
         }
 
@@ -1268,7 +1268,6 @@ mod tests {
         assert_eq!(session.get_tasks().len(), 4);
         assert_eq!(session.get_name(), "session");
         assert_eq!(session.get_max_iter(), 25);
-        assert!(!session.get_diagnostics());
         Ok(())
     }
 
@@ -1490,7 +1489,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Operator NormalizeTime for `DataConfig` from subject `session_1` does not match the expected for processor type `Join`."
+                "Operator `NormalizeTime` for `DataConfig` from subject `session_1` does not match the expected for processor type `Join`."
             ),
         }
 

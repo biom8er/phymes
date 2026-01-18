@@ -1960,6 +1960,7 @@ mod tests {
             .add_session_interface(Some(&[AvailableInterfaceSubjects::AggregatedAttachments
                 .to_string()
                 .as_str()]))?
+            .add_tasks_subscribe_publish()?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 

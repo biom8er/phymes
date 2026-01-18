@@ -709,9 +709,7 @@ pub mod test_session_context_builder {
             .with_name(name)
             .with_runtime_envs(runtime_envs)
             .with_state(state)
-            .with_max_iter(max_iter)
-            .with_diagnostics(true)
-            .add_tasks_subscribe_publish()?;
+            .with_max_iter(max_iter);
 
         Ok(builder)
     }
@@ -732,9 +730,7 @@ pub mod test_session_context_builder {
             .with_name(name)
             .with_runtime_envs(runtime_envs)
             .with_state(state)
-            .with_max_iter(max_iter)
-            .with_diagnostics(true)
-            .add_tasks_subscribe_publish()?;
+            .with_max_iter(max_iter);
 
         Ok(builder)
     }
@@ -756,9 +752,7 @@ pub mod test_session_context_builder {
             .with_name(name)
             .with_runtime_envs(runtime_envs)
             .with_state(state)
-            .with_max_iter(max_iter)
-            .with_diagnostics(true)
-            .add_tasks_subscribe_publish()?;
+            .with_max_iter(max_iter);
 
         Ok(builder)
     }
@@ -874,7 +868,8 @@ mod tests {
             .with_state(state)
             .with_max_iter(1)
             .with_diagnostics(false);
-        let plan = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?;
+        let plan = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?
+            .with_diagnostics(true);
         let plan = plan.extend(other_plan)?;
         assert_eq!(plan.name.unwrap(), "session_1");
         assert_eq!(plan.max_iter.unwrap(), 25);
@@ -894,7 +889,9 @@ mod tests {
     #[test]
     fn test_session_context_builder_build_success() -> Result<()> {
         let session =
-            test_session_context_builder::make_test_session_context_builder_parallel("session_1", 10)?.build()?;
+            test_session_context_builder::make_test_session_context_builder_parallel("session_1", 10)?
+            .with_diagnostics(true)
+            .build()?;
         assert_eq!(session.get_states().len(), 6);
         assert_eq!(session.get_tasks().len(), 4);
         assert_eq!(session.get_name(), "session_1");
@@ -1098,7 +1095,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Mismatch between provided state [\"processor_1\", \"processor_2\", \"processor_3\", \"state_1\", \"state_2\", \"state_3\"] and plan subjects and subscription names [\"processor_1\", \"processor_2\", \"processor_3\", \"not_found\", \"state_1\", \"state_2\"]."
+                "Mismatch between provided state [\"processor_1\", \"processor_2\", \"processor_3\", \"state_1\", \"state_2\", \"state_3\"] and plan subjects and subscription names [\"not_found\", \"processor_1\", \"processor_2\", \"processor_3\", \"state_1\", \"state_2\"]."
             ),
         }
         Ok(())

@@ -418,7 +418,6 @@ impl SessionStreamStepTrait for SessionStreamStep {
 
         // Retrieve the task subscriptions and corresponding publications
         let tasks = Self::get_tasks(&session_context).await?;
-        dbg!(&tasks);
 
         // Break if there is nothing to update
         if tasks.is_empty() {
@@ -517,7 +516,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_no_state_update() -> Result<()> {
-        let session_context = make_test_session_context_builder_parallel("session_1", 4)?.build_with_tables()?;
+        let session_context = make_test_session_context_builder_parallel("session_1", 4)?
+            .with_diagnostics(true)
+            .add_tasks_subscribe_publish()?
+            .build_with_tables()?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
@@ -686,7 +688,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_extend_state_update_single_task() -> Result<()> {
-        let session_context = make_test_session_context_builder_parallel("session_1", 4)?.build_with_tables()?;
+        let session_context = make_test_session_context_builder_parallel("session_1", 4)?
+            .with_diagnostics(true)
+            .add_tasks_subscribe_publish()?
+            .build_with_tables()?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
@@ -858,7 +863,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_single_task() -> Result<()> {
-        let session_context = make_test_session_context_builder_parallel("session_1", 4)?.build_with_tables()?;
+        let session_context = make_test_session_context_builder_parallel("session_1", 4)?
+            .with_diagnostics(true)
+            .add_tasks_subscribe_publish()?
+            .build_with_tables()?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
@@ -1031,7 +1039,10 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_parallel_tasks() -> Result<()> {
         // Superstep 1
-        let session_context = make_test_session_context_builder_parallel("session_1", 4)?.build_with_tables()?;
+        let session_context = make_test_session_context_builder_parallel("session_1", 4)?
+            .with_diagnostics(true)
+            .add_tasks_subscribe_publish()?
+            .build_with_tables()?;
         let mut input = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -1684,7 +1695,10 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_sequential_tasks() -> Result<()> {
         // Superstep 1
-        let session_context = make_test_session_context_builder_sequential("session_1", 4)?.build_with_tables()?;
+        let session_context = make_test_session_context_builder_sequential("session_1", 4)?
+            .with_diagnostics(true)
+            .add_tasks_subscribe_publish()?
+            .build_with_tables()?;
         let input = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -2016,7 +2030,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_schema_mismatch_error() -> Result<()> {
-        let session_context = make_test_session_context_builder_sequential("session_1", 4)?.build_with_tables()?;
+        let session_context = make_test_session_context_builder_sequential("session_1", 4)?
+            .with_diagnostics(true)
+            .add_tasks_subscribe_publish()?
+            .build_with_tables()?;
         let input = test_task::make_test_input_message(
             "task_1",
             "session_1",

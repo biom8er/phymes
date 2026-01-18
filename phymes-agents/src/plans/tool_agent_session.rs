@@ -545,8 +545,6 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         // Default chat config
         #[allow(unused_mut)]
         let mut candle_chat_config = CandleChatConfig {
-            messages: self.chat_task_name.to_string(),
-            tools: Some(self.state_tools_table_name.to_string()),
             max_tokens: 1000,
             temperature: 0.8,
             seed: 299792458,
@@ -599,16 +597,23 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             candle_chat_config.api_url = self.chat_api_url.map(|s| s.to_string());
         }
 
+        // Message Parser config
+        candle_chat_config.messages = self.message_parser_task_name.to_string();
+        let candle_chat_config_json = serde_json::to_vec(&candle_chat_config).unwrap();
+        let candle_message_parser_state = TableBuilder::new()
+            .with_name(self.message_parser_processor_name)
+            .with_json(&candle_chat_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        // Chat config
+        candle_chat_config.messages = self.chat_task_name.to_string();
+        candle_chat_config.tools = Some(self.state_tools_table_name.to_string());
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config).unwrap();
         let candle_chat_state = TableBuilder::new()
             .with_name(self.chat_processor_name)
             .with_json(&candle_chat_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-        let candle_message_parser_state = TableBuilder::new()
-            .with_name(self.message_parser_processor_name)
-            .with_json(&candle_chat_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
@@ -847,6 +852,7 @@ mod tests {
             .build()
             .with_name(tool_agent_session.session_context_name)
             .add_session_interface(None)?
+            .add_tasks_subscribe_publish()?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
