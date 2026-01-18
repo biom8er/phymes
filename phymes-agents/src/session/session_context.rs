@@ -96,7 +96,7 @@ impl SessionContext {
             .drain(0..)
             .collect::<Vec<_>>();
         let table = TableBuilder::default()
-            .with_name(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
+            .with_name(AvailableSubjects::SessionTasksSubscribeAggregate.to_string().as_str())
             .with_record_batches(batches)?
             .build()?;
 
@@ -191,7 +191,7 @@ impl SessionContext {
         let table = TableBuilder::default()
             .with_name(AvailableSubjects::SessionTasksSubscribe.to_string().as_str())
             .with_record_batches(vec![batch])?
-            .build()?;
+            .build()?;        
 
         // Update the table
         let message = IPCMessageBuilder::default()
@@ -869,13 +869,13 @@ mod tests {
         // check the updates
         assert_eq!(updates.count_rows(), 1);
         let col = updates.get_column_as_vec_str("subject_name");
-        assert_eq!(col, [""]);
+        assert_eq!(col, ["state_1"]);
         let col = updates.get_column_as_vec_str("task_name");
-        assert_eq!(col, [""]);
+        assert_eq!(col, ["session_1"]);
         let col = updates.get_column_as_vec_str("session_name");
-        assert_eq!(col, [""]);
+        assert_eq!(col, ["session_1"]);
         let col = updates.get_column_as_vec_primitive::<i64>("num_rows_delta")?;
-        assert_eq!(col, [0]);
+        assert_eq!(col, [12]);
 
         // check the session context
         assert_eq!(

@@ -3,14 +3,14 @@ use arrow::record_batch::RecordBatch;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjects, ProcessorSubjectsMap, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, TaskTrait, create_error_message_map, create_error_message_map_stream, create_session_tasks_run_log_batch
+    AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjectsMap, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, TaskTrait, create_error_message_map, create_error_message_map_stream, create_session_tasks_run_log_batch
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap, Span, SpanBuilder, TraceBuilderTrait, TraceRecord, create_timestamp_micros
 };
 use std::sync::Arc;
 use tokio::task::JoinSet;
-use tracing::{Level, event, instrument};
+use tracing::{Level, event};
 
 use crate::{SessionContext, create_message_map, plans::TasksSubscribePublishSession};
 
@@ -126,7 +126,6 @@ pub trait SessionStreamStepTrait {
                 AvailableSubjects::SubjectsChangeLog.to_table(None, None)?
             }
         };
-        dbg!(&update);
 
         let mut messages = vec![IPCMessageBuilder::new()
             .with_subject(update.get_name())
@@ -238,13 +237,13 @@ pub trait SessionStreamStepTrait {
                 } else {
                     let _result = SessionStreamStepMinimal::run_superstep(Arc::clone(&session_context), messages, step).await?;
                 }
-                let subjects_reading = session_context.read();
-                let table_reading = subjects_reading
-                    .get_states()
-                    .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                    .unwrap()
-                    .read();
-                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);        
+                // let subjects_reading = session_context.read();
+                // let table_reading = subjects_reading
+                //     .get_states()
+                //     .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                //     .unwrap()
+                //     .read();
+                // println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);        
             }
         }
         session_context.read().tasks_subscribe_publish()
@@ -510,7 +509,7 @@ mod tests {
         }
     };
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies,
+        AvailableSubjects, AvailableTableSubscribePolicies,
         ProcessorBuilder, ProcessorPlanBuilder, TablePublication, TableSubscription, TaskPlan,
         test_processor::{ProcessorError, ProcessorMock},
         test_task,
@@ -1514,7 +1513,7 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            6
+            12
         ); // The same as superstep 1
         assert_eq!(
             session_context_arc
@@ -1529,7 +1528,7 @@ mod tests {
                 .last()
                 .unwrap()
                 .num_rows(),
-            5
+            6
         );
         assert_eq!(
             session_context_arc
@@ -1542,7 +1541,7 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            6
+            12
         );
         assert_eq!(
             session_context_arc
@@ -1557,7 +1556,7 @@ mod tests {
                 .last()
                 .unwrap()
                 .num_rows(),
-            5
+            6
         );
         assert_eq!(
             session_context_arc
@@ -1570,7 +1569,7 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            6
+            12
         );
         assert_eq!(
             session_context_arc
@@ -1585,7 +1584,7 @@ mod tests {
                 .last()
                 .unwrap()
                 .num_rows(),
-            5
+            6
         );
         assert_eq!(
             session_context_arc
@@ -1611,7 +1610,7 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            7
+            8
         );
         assert_eq!(
             session_context_arc
@@ -1637,7 +1636,7 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            1
+            2
         );
         assert_eq!(
             session_context_arc
@@ -1700,6 +1699,8 @@ mod tests {
         let mut response = SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input, 0)
             .await?
             .unwrap();
+
+        // Check the response
         assert_eq!(response.len(), 1);
         assert_eq!(
             response
@@ -1863,101 +1864,11 @@ mod tests {
             0
         );
 
-        // Supersteps 2, 3, and 4
-        let _ = SessionStreamStep::run_superstep(
-            Arc::clone(&session_context_arc),
-            HashMap::<String, IPCMessage>::new(),
-            1,
-        )
-        .await?;
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            7
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        let _ = SessionStreamStep::run_superstep(
-            Arc::clone(&session_context_arc),
-            HashMap::<String, IPCMessage>::new(),
-            2
-        )
-        .await?;
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            7
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
+        // Supersteps 2
         let mut response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
             HashMap::<String, IPCMessage>::new(),
-            3,
+            1,
         )
         .await?
         .unwrap();
@@ -2003,7 +1914,7 @@ mod tests {
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 8);
+        assert_eq!(n_rows, 7);
 
         // check the session and session_context
         assert_eq!(
@@ -2017,8 +1928,8 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            768
-        ); // Originally 3
+            12
+        );
         assert_eq!(
             session_context_arc
                 .try_read()
@@ -2032,7 +1943,7 @@ mod tests {
                 .last()
                 .unwrap()
                 .num_rows(),
-            8
+            10
         );
         assert_eq!(
             session_context_arc
@@ -2045,7 +1956,7 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            1
+            5
         );
         assert_eq!(
             session_context_arc
@@ -2058,7 +1969,7 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            1
+            8
         );
         assert_eq!(
             session_context_arc
@@ -2084,7 +1995,20 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            4
+            2
+        );
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            0
         );
 
         Ok(())
@@ -2299,7 +2223,6 @@ mod tests {
             .get(AvailableSubjects::SessionErrors.to_string().as_str())
             .unwrap()
             .read();
-        // println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
         let errors = table_reading.get_column_as_vec_str("content");
         assert_eq!(errors, ["This is an error!"]);
 

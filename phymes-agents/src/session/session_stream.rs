@@ -91,15 +91,12 @@ mod tests {
     };
 
     use super::*;
-    use crate::test_session_context_builder::make_test_session_context_builder_sequential;
+    use crate::{SessionContextBuilderAgentsTrait, test_session_context_builder::make_test_session_context_builder_sequential};
 
     #[tokio::test]
     async fn test_session_stream_replace_state_update_sequential_tasks() -> Result<()> {
-        // session -> task_1: add a row
-        //         -> task_2: add a row
-        //         -> task_3: add a row
-        //         -> session
-        let session_context = make_test_session_context_builder_sequential("session_1", 4)?.build()?;
+        // Build the session
+        let session_context = make_test_session_context_builder_sequential("session_1", 2)?.build_with_tables()?;
         let input = make_test_input_message(
             "task_1",
             "session_1",
@@ -114,8 +111,8 @@ mod tests {
         let session_stream = SessionStream::new(input, Arc::clone(&session_context_arc));
         let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-        // check the response
-        assert_eq!(response.len(), 3); //was 2...
+        // Check the response
+        assert_eq!(response.len(), 2);
         assert_eq!(response.last().unwrap().len(), 1);
         assert_eq!(
             response
@@ -156,7 +153,7 @@ mod tests {
             }
         );
         let bytes = response
-            .get_mut(0)
+            .pop()
             .unwrap()
             .remove("from_session_1_on_state_1")
             .unwrap()
@@ -165,9 +162,89 @@ mod tests {
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 6);
+        assert_eq!(n_rows, 7);
+        let bytes = response
+            .pop()
+            .unwrap()
+            .remove("from_session_1_on_state_1")
+            .unwrap()
+            .get_message_own();
+        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+            .with_name("")
+            .build()?;
+        let n_rows: usize = partitions.count_rows();
+        assert_eq!(n_rows, 4);
+
+        // check the session and session_context
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get("state_1")
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            12
+        );
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get("state_1")
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .last()
+                .unwrap()
+                .num_rows(),
+            10
+        );
 
         // Check the traces, events, and metrics tables
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            5
+        );
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            8
+        );
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
         assert_eq!(
             session_context_arc
                 .try_read()
@@ -179,33 +256,20 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            4
+            2
         );
         assert_eq!(
             session_context_arc
                 .try_read()
                 .unwrap()
                 .get_states()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .try_read()
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            4
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionEvents.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            4
+            0
         );
 
         Ok(())

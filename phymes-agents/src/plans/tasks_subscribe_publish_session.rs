@@ -48,7 +48,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
             "Select", "Filter","Select",
             "Select", "Filter","Select",
         ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let subscription_names = vec![vec!["OnUpdateLastRecordBatch","AlwaysFullTable"], vec!["AlwaysFullTable","AlwaysFullTable"],
+        let subscription_names = vec![vec!["OnUpdateFullTable","AlwaysFullTable"], vec!["AlwaysFullTable","AlwaysFullTable"],
             vec!["OnUpdateFullTable","AlwaysFullTable"], vec!["AlwaysFullTable","AlwaysFullTable"], vec!["AlwaysFullTable","AlwaysFullTable"],
             vec!["OnUpdateFullTable","AlwaysFullTable"], vec!["AlwaysFullTable","AlwaysFullTable"], vec!["AlwaysFullTable","AlwaysFullTable"],
         ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
@@ -217,7 +217,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
     default_runtime_env_name-rt@{shape: subproc, label: default_runtime_env_name}
 
 	subgraph group_by_tasks_run_log_timestamp_t
-		SessionTasksRunLog-subject-.->|LastRecordBatch|group_by_tasks_run_log_timestamp_p-subscribe
+		SessionTasksRunLog-subject-.->|FullTable|group_by_tasks_run_log_timestamp_p-subscribe
 		group_by_tasks_run_log_timestamp_p-subscribe-->group_by_tasks_run_log_timestamp_p-processor
 		group_by_tasks_run_log_timestamp_p-processor-->group_by_tasks_run_log_timestamp_p-publish
 		group_by_tasks_run_log_timestamp_p-publish-->|Replace|group_by_tasks_run_log_timestamp_t-subject
