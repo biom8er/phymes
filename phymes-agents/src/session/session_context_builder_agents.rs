@@ -1022,7 +1022,7 @@ pub mod test_session_context_builder_agents {
 
     use std::vec;
 
-    use crate::test_session_context_builder::make_test_session_builder_tasks;
+    use crate::test_session_context_builder::make_test_session_context_builder_parallel_tasks;
     use phymes_core::{
         AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, TableBuilderTrait,
         TablePublication, TableSubscription, test_table::make_test_table,
@@ -1170,7 +1170,7 @@ pub mod test_session_context_builder_agents {
         state.push(join_config_state);
 
         let builder = SessionContextBuilder::new()
-            .with_tasks(make_test_session_builder_tasks())
+            .with_tasks(make_test_session_context_builder_parallel_tasks())
             .with_processors(processor_plans)
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
@@ -1184,7 +1184,7 @@ pub mod test_session_context_builder_agents {
 mod tests {
 
     use crate::test_session_context_builder::{
-        make_test_session_builder_parallel_task, make_test_session_builder_tasks,
+        make_test_session_context_builder_parallel_processors, make_test_session_context_builder_parallel_tasks,
     };
     use phymes_core::{
         BuildableTrait, BuilderTrait, DataFormat, TableBuilderTrait, TaskTrait,
@@ -1244,7 +1244,7 @@ mod tests {
         let mut state = make_state_tables("state_1", "config_1")?;
         state.extend(make_state_tables("state_2", "config_2")?);
         state.extend(make_state_tables("state_3", "config_3")?);
-        let result = make_test_session_builder_parallel_task()
+        let result = make_test_session_context_builder_parallel_processors()
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state.clone())
@@ -1258,7 +1258,7 @@ mod tests {
         }
 
         // Check that the default processor subjects fix the issue
-        let session = make_test_session_builder_parallel_task()
+        let session = make_test_session_context_builder_parallel_processors()
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state)
@@ -1301,7 +1301,7 @@ mod tests {
         state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
-            .with_tasks(make_test_session_builder_tasks())
+            .with_tasks(make_test_session_context_builder_parallel_tasks())
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
@@ -1329,7 +1329,7 @@ mod tests {
         state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
-            .with_tasks(make_test_session_builder_tasks())
+            .with_tasks(make_test_session_context_builder_parallel_tasks())
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
@@ -1367,7 +1367,7 @@ mod tests {
         state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
-            .with_tasks(make_test_session_builder_tasks())
+            .with_tasks(make_test_session_context_builder_parallel_tasks())
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
@@ -1406,7 +1406,7 @@ mod tests {
         state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
-            .with_tasks(make_test_session_builder_tasks())
+            .with_tasks(make_test_session_context_builder_parallel_tasks())
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
@@ -1444,7 +1444,7 @@ mod tests {
         state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
-            .with_tasks(make_test_session_builder_tasks())
+            .with_tasks(make_test_session_context_builder_parallel_tasks())
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
@@ -1479,7 +1479,7 @@ mod tests {
         state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
-            .with_tasks(make_test_session_builder_tasks())
+            .with_tasks(make_test_session_context_builder_parallel_tasks())
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
@@ -1514,7 +1514,7 @@ mod tests {
         state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
-            .with_tasks(make_test_session_builder_tasks())
+            .with_tasks(make_test_session_context_builder_parallel_tasks())
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])

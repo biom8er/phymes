@@ -514,9 +514,29 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 "Add session name before making the subjects change log table."
             ));
         };
+
+        // Tasks to exclude
+        let tasks_publish_subscribe_session = TasksSubscribePublishSession::default();
+        let tasks_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
+            tasks_publish_subscribe_session.as_mermaid_flowchart(),
+            false,
+            )?
+            .tasks.unwrap().into_iter().map(|t| t.task_name).collect::<Vec<_>>();
+        // let subjects_session = SubjectsNumRowsSession::default();
+        // let tasks_subjects = SessionContextBuilder::from_mermaid_flowchart(
+        //     subjects_session.as_mermaid_flowchart(),
+        //     false,
+        //     )?
+        //     .tasks.unwrap().into_iter().map(|t| t.task_name).collect::<Vec<_>>();
+        // let exclusion_set = tasks_publish_subscribe.into_iter().chain(tasks_subjects.into_iter()).collect::<HashSet<_>>();
+        let exclusion_set = tasks_publish_subscribe.into_iter().collect::<HashSet<_>>();
+
+        // Create the table
         let ((((subject_names, task_names), session_names), num_rows_delta), timestamps) = self.tasks.as_ref().unwrap().iter()
-            .map(|task| self.state.as_ref().unwrap().iter()
-                .filter_map(|table| {
+            .filter_map(|task| if exclusion_set.contains(&task.task_name) {
+                None
+            } else {
+                let subjects = self.state.as_ref().unwrap().iter().filter_map(|table| {
                     let (subscriptions, publications) = self.get_sub_pub_for_task(&task.task_name);
                     let publication_names = publications.into_iter().map(|p| p.get_table_name()).collect::<Vec<_>>();
                     let subscription_names = subscriptions.into_iter().map(|p| p.get_table_name()).collect::<Vec<_>>();
@@ -527,7 +547,9 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                         None
                     }
                 })
-                .collect::<Vec<_>>())
+                .collect::<Vec<_>>();
+                Some(subjects)
+            })
             .flatten()
             .unzip();
         let batch = create_subjects_change_log_batch(subject_names, task_names, session_names, num_rows_delta, timestamps)?;
@@ -755,7 +777,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_session_context_builder::make_test_session_builder_parallel_task;
+    use crate::test_session_context_builder::make_test_session_context_builder_parallel_processors;
     use phymes_core::test_task::{make_runtime_env, make_state_tables};
 
     use super::*;
@@ -771,7 +793,7 @@ mod tests {
         state.extend(make_state_tables("state_3", "config_3")?);
 
         // Make the builder
-        let builder = make_test_session_builder_parallel_task()
+        let builder = make_test_session_context_builder_parallel_processors()
             .with_name("")
             .with_runtime_envs(runtime_envs)
             .with_state(state);
@@ -1248,7 +1270,7 @@ mod tests {
         // DM: need to check why this test is failing
         // left: {"SessionTasksRunLog", "SessionEvents", "state_1", "config_2", "SessionMetrics", "SessionTraces", "SubjectsNumRows", "SubjectsChangeLog", "state_3", "SessionErrors", "state_2", "config_3", "config_1", "SessionMermaid"}
         // right: {"config_2", "state_3", "state_1", "config_1", "state_2", "config_3"}
-        // assert_eq!(tables_test_set, tables_set);
+        assert_eq!(tables_test_set, tables_set);
         assert_eq!(
             tables_test.get(7).unwrap().get_name(),
             tables.get(7).unwrap().get_name()

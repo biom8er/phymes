@@ -50,6 +50,7 @@ impl ProcessorTrait for ProcessorEcho {
         for (k, v) in message {
             let builder = SendableRecordBatchStreamMessage::get_builder()
                 .with_name(v.get_name())
+                .with_subject(v.get_subject())
                 .with_message(v.get_message_own());
             let _ = builder_map.insert(k, builder);
         }

@@ -91,7 +91,7 @@ mod tests {
     };
 
     use super::*;
-    use crate::test_session_context_builder::make_test_session_context_builder_sequential_task;
+    use crate::test_session_context_builder::make_test_session_context_builder_sequential;
 
     #[tokio::test]
     async fn test_session_stream_replace_state_update_sequential_tasks() -> Result<()> {
@@ -99,7 +99,7 @@ mod tests {
         //         -> task_2: add a row
         //         -> task_3: add a row
         //         -> session
-        let session_context = make_test_session_context_builder_sequential_task("session_1", 4)?.build()?;
+        let session_context = make_test_session_context_builder_sequential("session_1", 4)?.build()?;
         let input = make_test_input_message(
             "task_1",
             "session_1",
