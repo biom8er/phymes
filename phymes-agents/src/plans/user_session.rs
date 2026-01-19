@@ -24,16 +24,7 @@ use crate::{
 /// 1. Filtering the user information by email
 /// 2. Joining the user sessions with their mermaid diagrams
 /// 3. Registering new users
-///
-/// An inbox and outbox for each support task are provided
-///   that trigger the task
 pub struct UserSession<'a> {
-    /// Extract data from inbox subtask
-    pub filter_and_join_session_contexts_by_email_inbox_task_name: &'a str,
-    pub filter_and_join_session_contexts_by_email_inbox_processor_name: &'a str,
-    /// Make outbox attachment subtask
-    pub filter_and_join_session_contexts_by_email_outbox_task_name: &'a str,
-    pub filter_and_join_session_contexts_by_email_outbox_processor_name: &'a str,
     /// Filter session contexts by email subtask
     pub filter_session_contexts_by_email_runtime_env_name: &'a str,
     pub filter_session_contexts_by_email_task_name: &'a str,
@@ -57,10 +48,6 @@ impl Default for UserSession<'_> {
     fn default() -> Self {
         UserSession {
             session_context_name: "user_session",
-            filter_and_join_session_contexts_by_email_inbox_task_name: "filter_and_join_session_contexts_by_email_inbox_task_name",
-            filter_and_join_session_contexts_by_email_inbox_processor_name: "filter_and_join_session_contexts_by_email_inbox_processor_name",
-            filter_and_join_session_contexts_by_email_outbox_task_name: "filter_and_join_session_contexts_by_email_outbox_task_name",
-            filter_and_join_session_contexts_by_email_outbox_processor_name: "filter_and_join_session_contexts_by_email_outbox_processor_name",
             filter_session_contexts_by_email_runtime_env_name: "filter_session_contexts_by_email_runtime_env_name",
             filter_session_contexts_by_email_task_name: "filter_session_contexts_by_email_task_name",
             filter_session_contexts_by_email_processor_name: "filter_session_contexts_by_email_processor_name",
@@ -116,16 +103,6 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![
             TaskPlan {
-                task_name: self
-                    .filter_and_join_session_contexts_by_email_inbox_task_name
-                    .to_string(),
-                runtime_env_name: "rt_default".to_string(),
-                processor_names: vec![
-                    self.filter_and_join_session_contexts_by_email_inbox_processor_name
-                        .to_string(),
-                ],
-            },
-            TaskPlan {
                 task_name: self.filter_session_contexts_by_email_task_name.to_string(),
                 runtime_env_name: self
                     .filter_session_contexts_by_email_runtime_env_name
@@ -148,21 +125,6 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 ],
             },
             TaskPlan {
-                task_name: self
-                    .filter_and_join_session_contexts_by_email_outbox_task_name
-                    .to_string(),
-                runtime_env_name: "rt_default".to_string(),
-                processor_names: vec![
-                    self.filter_and_join_session_contexts_by_email_outbox_processor_name
-                        .to_string(),
-                ],
-            },
-            TaskPlan {
-                task_name: self.session_context_name.to_string(),
-                runtime_env_name: "rt_default".to_string(),
-                processor_names: vec![self.session_context_name.to_string()],
-            },
-            TaskPlan {
                 task_name: self.filter_user_info_by_email_task_name.to_string(),
                 runtime_env_name: self.filter_user_info_by_email_runtime_env_name.to_string(),
                 processor_names: vec![self.filter_user_info_by_email_processor_name.to_string()],
@@ -175,30 +137,6 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
     fn make_processors(&self) -> Option<Vec<ProcessorPlan>> {
         // The order is the order in which the processors are called in the task
         let processors = vec![
-            ProcessorPlanBuilder::default()
-                .with_processor(
-                    AvailableProcessors::ExtractTabular.build_arc(
-                        self.filter_and_join_session_contexts_by_email_inbox_processor_name,
-                    ),
-                )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: AvailableSubjects::UserInbox.to_string(),
-                }])
-                .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableInterfaceSubjects::UserJson.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self
-                            .filter_and_join_session_contexts_by_email_inbox_processor_name
-                            .to_string(),
-                    },
-                ])
-                .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                )
-                .build()
-                .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(
                     AvailableProcessors::Join
@@ -275,61 +213,6 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 )
                 .build()
                 .unwrap(),
-            ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::DataSummaryProcessor.build_arc(
-                    self.filter_and_join_session_contexts_by_email_outbox_processor_name,
-                ))
-                .with_publications(&[TablePublication::Replace {
-                    table_name: AvailableInterfaceSubjects::AssistantJson.to_string(),
-                }])
-                .with_subscriptions(&[
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self
-                            .filter_and_join_session_contexts_by_email_outbox_processor_name
-                            .to_string(),
-                    },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.filter_user_info_by_email_table_name.to_string(),
-                    },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid
-                            .to_string(),
-                    },
-                ])
-                .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
-                )
-                .build()
-                .unwrap(),
-            ProcessorPlanBuilder::default()
-                .with_processor(
-                    AvailableProcessors::ProcessorEcho.build_arc(self.session_context_name),
-                )
-                .with_publications(&[
-                    TablePublication::Extend {
-                        table_name: AvailableSubjects::BuilderMermaid.to_string(),
-                    },
-                    TablePublication::Extend {
-                        table_name: AvailableSubjects::User.to_string(),
-                    },
-                    TablePublication::Extend {
-                        table_name: AvailableSubjects::UserSessionContexts.to_string(),
-                    },
-                    TablePublication::Replace {
-                        table_name: AvailableInterfaceSubjects::UserJson.to_string(),
-                    },
-                    TablePublication::Replace {
-                        table_name: AvailableInterfaceSubjects::AssistantJson.to_string(),
-                    },
-                ])
-                .with_subscriptions(&[TableSubscription::OnUpdateFullTable {
-                    table_name: AvailableInterfaceSubjects::AssistantJson.to_string(),
-                }])
-                .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                )
-                .build()
-                .unwrap(),
         ];
 
         Some(processors)
@@ -337,7 +220,6 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 
     fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
         Some(vec![
-            RuntimeEnv::new().with_name("rt_default"),
             RuntimeEnv::new().with_name(self.filter_session_contexts_by_email_runtime_env_name),
             RuntimeEnv::new()
                 .with_name(self.join_session_contexts_with_mermaid_diagrams_runtime_env_name),
@@ -346,36 +228,6 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
     }
 
     fn make_state_tables(&self) -> Option<Vec<Table>> {
-        // Extract tabular data config
-        let extract_tabular_data_config = DataConfig {
-            lhs_name: Some(AvailableInterfaceSubjects::UserJson.to_string()),
-            lhs_values: Some(vec!["bytes".to_string()]),
-            format: Some(DataFormat::JsonDefault),
-            operator: AvailableCandleOperators::ExtractTabular,
-            ..Default::default()
-        };
-        let extract_tabular_data_config_json =
-            serde_json::to_vec(&extract_tabular_data_config).unwrap();
-        let extract_tabular_data_state = TableBuilder::new()
-            .with_name(self.filter_and_join_session_contexts_by_email_inbox_processor_name)
-            .with_json(&extract_tabular_data_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        // Attachment config
-        let attachment_config = DataSummaryConfig {
-            summary_format: DataFormat::JsonDefault,
-            ..Default::default()
-        };
-        let attachment_config_json = serde_json::to_vec(&attachment_config).unwrap();
-        let attachment_state = TableBuilder::new()
-            .with_name(self.filter_and_join_session_contexts_by_email_outbox_processor_name)
-            .with_json(&attachment_config_json.clone(), 1)
-            .unwrap()
-            .build()
-            .unwrap();
-
         // Configs for filter
         let filter_user_info_data_config = DataConfig {
             operator: AvailableCandleOperators::Join,
@@ -437,17 +289,9 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
             .unwrap();
 
         Some(vec![
-            extract_tabular_data_state,
-            attachment_state,
             filter_user_info_data_state,
             filter_user_session_context_data_state,
             join_user_session_context_data_state,
-            AvailableInterfaceSubjects::UserJson
-                .to_table(None, None)
-                .unwrap(),
-            AvailableInterfaceSubjects::AssistantJson
-                .to_table(None, None)
-                .unwrap(),
             self.make_user_table().unwrap(),
             self.make_user_session_context_table().unwrap(),
             AvailableSubjects::User
@@ -491,29 +335,22 @@ pub(crate) mod user_session_inner {
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
-        // Make the tabular data
+        // Make the user inbox message
         let batch = create_user_inbox_batch(vec!["contact@biom8er.com".to_string()])?;
-        let bytes = Table::get_builder()
+        let table = Table::get_builder()
             .with_record_batches(vec![batch])?
-            .with_name(AvailableInterfaceSubjects::UserJson.to_string().as_str())
-            .build()?
-            .to_json()?;
-
-        // Wrap into the message
-        let blob = AvailableInterfaceSubjects::UserJson
-            .to_table_builder(None)
-            .with_blob(None, Some("json"), &bytes, None)?
+            .with_name(AvailableSubjects::UserInbox.to_string().as_str())
             .build()?;
-        let blob_message = IPCMessage::get_builder()
-            .with_message(blob.to_ipc_stream()?)
-            .with_subject(blob.get_name())
+        let message = IPCMessage::get_builder()
+            .with_message(table.to_ipc_stream()?)
+            .with_subject(table.get_name())
             .with_update(&TablePublication::Replace {
-                table_name: blob.get_name().to_string(),
+                table_name: table.get_name().to_string(),
             })
             .with_publisher(user_agent_session.session_context_name)
             .make_name()?
             .build()?;
-        let message_map = create_message_map(vec![blob_message]);
+        let message_map = create_message_map(vec![message]);
 
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
 
@@ -525,7 +362,7 @@ pub(crate) mod user_session_inner {
 mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{IPCMessage, MappableTrait, MessageTrait, TableTrait};
+    use phymes_core::{IPCMessage, TableTrait};
     use phymes_diagnostics::HashMap;
 
     use super::*;
@@ -534,42 +371,52 @@ mod tests {
     async fn test_user_session() -> Result<()> {
         let (session_ctx_arc, session_stream) = user_session_inner::user_session()?;
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        assert!(response.is_empty());
 
-        let attachment_data = response
-            .into_iter()
-            .map(|mut r| {
-                r.remove(&format!(
-                    "from_{}_on_{}",
-                    session_ctx_arc.read().get_name(),
-                    AvailableInterfaceSubjects::AssistantJson
-                ))
-            })
-            .filter_map(|m| {
-                m.map(|message| {
-                    TableBuilder::new_from_ipc_stream(&message.get_message_own())
-                        .unwrap()
-                        .with_name("")
-                        .build()
-                        .unwrap()
-                        .to_json_object()
-                        .unwrap()
-                })
-            })
-            .flatten()
-            .collect::<Vec<_>>();
-        for row in &attachment_data {
-            let bytes = row["bytes"]
-                .as_array()
+        { // Check the User subject
+            let session_reading = session_ctx_arc.read();
+            let table_reading = session_reading.get_states()
+                .get(AvailableSubjects::User.to_string().as_str())
                 .unwrap()
-                .iter()
-                .map(|v| v.as_u64().unwrap() as u8)
-                .collect::<Vec<u8>>();
-            println!(
-                "attachment {}{}: {}",
-                row["filename"].as_str().unwrap(),
-                row["extension"].as_str().unwrap(),
-                String::from_utf8_lossy(bytes.as_ref()).into_owned()
-            )
+                .read();
+            // println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let column = table_reading.get_column_as_vec_str("email");
+            assert_eq!(column, ["contact@biom8er.com"]);
+            let column = table_reading.get_column_as_vec_str("first_name");
+            assert_eq!(column, ["con"]);
+            let column = table_reading.get_column_as_vec_str("last_name");
+            assert_eq!(column, ["tact"]);
+            let column = table_reading.get_column_as_vec_str("password_hash");
+            assert_eq!(column.len(), 1);
+            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for c in column {
+                assert!(c > 0);
+            }            
+        }
+
+        { // Check the Join subject
+            let session_reading = session_ctx_arc.read();
+            let table_reading = session_reading.get_states()
+                .get(AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string().as_str())
+                .unwrap()
+                .read();
+            // println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let column = table_reading.get_column_as_vec_str("email");
+            assert_eq!(column, ["contact@biom8er.com", "contact@biom8er.com", "contact@biom8er.com", "contact@biom8er.com"]);
+            let column = table_reading.get_column_as_vec_str("session_context_name");
+            assert_eq!(column, ["Builder", "Chat", "DocChat", "ToolChat"]);
+            let column = table_reading.get_column_as_vec_str("er_diagram");
+            for c in column {
+                assert!(!c.is_empty());
+            } 
+            let column = table_reading.get_column_as_vec_str("flowchart_diagram");
+            for c in column {
+                assert!(!c.is_empty());
+            } 
+            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for c in column {
+                assert!(c > 0);
+            }            
         }
 
         Ok(())
