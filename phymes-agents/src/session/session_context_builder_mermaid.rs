@@ -129,7 +129,9 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 tasks_publish_subscribe_session.as_mermaid_flowchart(),
                 false,
                 )?
-                .with_state_from_mermaid_erdiagram(tasks_publish_subscribe_session.as_mermaid_erdiagram(), false, false)?;
+                .with_state_from_mermaid_erdiagram(tasks_publish_subscribe_session.as_mermaid_erdiagram(), false, false)?
+                .with_name(tasks_publish_subscribe_session.session_context_name)
+                .add_processor_subjects()?;
             if let Some(tasks) = tasks_publish_subscribe.tasks {
                 for task in tasks {
                     tasks_exclude.insert(task.task_name);
@@ -145,8 +147,13 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             }
         }
         if !with_configs {
-            subjects_exclude.extend(self.get_processor_names_from_tasks());
-            subjects_exclude.extend(self.tasks.as_ref().unwrap().iter().map(|t| t.task_name.to_owned()).collect::<HashSet<_>>());
+            let mut subjects = self.get_processor_names_from_tasks();
+            if let Some(tasks) = self.tasks.as_ref() {
+                for task in tasks {
+                    let _ = subjects.remove(&task.task_name);
+                }                
+            }
+            subjects_exclude.extend(subjects);
         }
         if !with_session_interface {
             tasks_exclude.insert(session_name.to_owned());
@@ -521,7 +528,14 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                                 .unwrap()
                                 .processor_names
                                 .replace(vec![processor.to_owned()]);
-                        } else {
+                        } else if !task_plan_builders
+                            .get(&task_name)
+                            .unwrap()
+                            .processor_names
+                            .as_ref()
+                            .unwrap()
+                            .contains(&processor)
+                        {
                             task_plan_builders
                                 .get_mut(&task_name)
                                 .unwrap()
@@ -529,7 +543,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                                 .as_mut()
                                 .unwrap()
                                 .push(processor.to_owned());
-                        }
+                        } 
                         processor_names.insert(processor);
                         // ArrowTableSubscribe::None will not have a subject
                         if !subject.is_empty() {
@@ -582,14 +596,34 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                             ));
                         }
 
-                        // Update
-                        task_plan_builders
-                            .get_mut(&task_name)
+                        // Update                        
+                        if task_plan_builders
+                            .get(&task_name)
                             .unwrap()
                             .processor_names
-                            .as_mut()
+                            .is_none()
+                        {
+                            task_plan_builders
+                                .get_mut(&task_name)
+                                .unwrap()
+                                .processor_names
+                                .replace(vec![processor_1.to_owned()]);
+                        } else if !task_plan_builders
+                            .get(&task_name)
                             .unwrap()
-                            .push(processor_1.to_owned());
+                            .processor_names
+                            .as_ref()
+                            .unwrap()
+                            .contains(&processor_1)
+                        {
+                            task_plan_builders
+                                .get_mut(&task_name)
+                                .unwrap()
+                                .processor_names
+                                .as_mut()
+                                .unwrap()
+                                .push(processor_1.to_owned());
+                        }
                         processor_names.insert(processor_1);
 
                     // Processor, Publish triple
@@ -639,13 +673,33 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         }
 
                         // Update
-                        task_plan_builders
-                            .get_mut(&task_name)
+                        if task_plan_builders
+                            .get(&task_name)
                             .unwrap()
                             .processor_names
-                            .as_mut()
+                            .is_none()
+                        {
+                            task_plan_builders
+                                .get_mut(&task_name)
+                                .unwrap()
+                                .processor_names
+                                .replace(vec![processor_1.to_owned()]);
+                        } else if !task_plan_builders
+                            .get(&task_name)
                             .unwrap()
-                            .push(processor_1.to_owned());
+                            .processor_names
+                            .as_ref()
+                            .unwrap()
+                            .contains(&processor_1)
+                        {
+                            task_plan_builders
+                                .get_mut(&task_name)
+                                .unwrap()
+                                .processor_names
+                                .as_mut()
+                                .unwrap()
+                                .push(processor_1.to_owned());
+                        }
                         processor_names.insert(processor_1);
 
                     // Publish, Publication, Subject triple
@@ -725,13 +779,33 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         }
 
                         // Update
-                        task_plan_builders
-                            .get_mut(&task_name)
+                        if task_plan_builders
+                            .get(&task_name)
                             .unwrap()
                             .processor_names
-                            .as_mut()
+                            .is_none()
+                        {
+                            task_plan_builders
+                                .get_mut(&task_name)
+                                .unwrap()
+                                .processor_names
+                                .replace(vec![processor.to_owned()]);
+                        } else if !task_plan_builders
+                            .get(&task_name)
                             .unwrap()
-                            .push(processor.to_owned());
+                            .processor_names
+                            .as_ref()
+                            .unwrap()
+                            .contains(&processor)
+                        {
+                            task_plan_builders
+                                .get_mut(&task_name)
+                                .unwrap()
+                                .processor_names
+                                .as_mut()
+                                .unwrap()
+                                .push(processor.to_owned());
+                        }
                         processor_names.insert(processor);
                         subject_names.insert(subject);
 
@@ -1385,7 +1459,7 @@ mod tests {
     use crate::{
         SessionContextBuilderAgentsTrait,
         ChatAgentSession, DocumentRAGSession, ToolAgentSession,
-        CustomAgentsBuilderTrait, test_session_context_builder_agents, test_session_context_builder,
+        CustomAgentsBuilderTrait, test_session_context_builder_agents,
     };
 
     use super::*;
@@ -1397,11 +1471,11 @@ mod tests {
 
         // Test to flowchart
         let mermaid_js = builder.to_mermaid_flowchart(false, false, false)?;
-        assert_eq!(mermaid_js, "");
+        assert_eq!(mermaid_js, "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|FullTable|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|FullTable|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|FullTable|processor_3-subscribe\n\t\tstate_2-subject-.->|FullTable|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}");
         let mermaid_js = builder.to_mermaid_flowchart(false, true, false)?;
-        assert_eq!(mermaid_js, "");
+        assert_eq!(mermaid_js, "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|FullTable|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|FullTable|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|FullTable|processor_3-subscribe\n\t\tstate_2-subject-.->|FullTable|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_2-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_3-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish-->|Extend|state_1-subject\n\t\tsession_1-publish-->|Extend|state_2-subject\n\t\tsession_1-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\tsession_1-runtime_env-rt-->session_1\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\tsession_1-processor@{shape: rect, label: ProcessorEcho}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tsession_1-runtime_env-rt@{shape: subproc, label: session_1-runtime_env}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tsession_1-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tsession_1-subscribe@{shape: diamond, label: Any}");
         let mermaid_js = builder.to_mermaid_flowchart(true, true, true)?;
-        assert_eq!(mermaid_js, "");
+        assert_eq!(mermaid_js, "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|FullTable|processor_1-subscribe\n\t\tprocessor_1-subject-->|FullTable|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|FullTable|processor_2-subscribe\n\t\tprocessor_2-subject-->|FullTable|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|FullTable|processor_3-subscribe\n\t\tstate_2-subject-.->|FullTable|processor_3-subscribe\n\t\tprocessor_3-subject-->|FullTable|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_2-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_3-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish-->|Extend|state_1-subject\n\t\tsession_1-publish-->|Extend|state_2-subject\n\t\tsession_1-publish-->|Extend|state_3-subject\n\tend\n\tsubgraph group_by_tasks_run_log_timestamp_t\n\t\tSessionTasksRunLog-subject-.->|FullTable|group_by_tasks_run_log_timestamp_p-subscribe\n\t\tgroup_by_tasks_run_log_timestamp_p-subject-->|FullTable|group_by_tasks_run_log_timestamp_p-subscribe\n\t\tgroup_by_tasks_run_log_timestamp_p-subscribe-->group_by_tasks_run_log_timestamp_p-processor\n\t\tgroup_by_tasks_run_log_timestamp_p-processor-->group_by_tasks_run_log_timestamp_p-publish\n\t\tgroup_by_tasks_run_log_timestamp_p-publish-->|Replace|group_by_tasks_run_log_timestamp_t-subject\n\t\tgroup_by_tasks_run_log_timestamp_t-subject-->|FullTable|select_tasks_run_log_timestamp_p-subscribe\n\t\tselect_tasks_run_log_timestamp_p-subject-->|FullTable|select_tasks_run_log_timestamp_p-subscribe\n\t\tselect_tasks_run_log_timestamp_p-subscribe-->select_tasks_run_log_timestamp_p-processor\n\t\tselect_tasks_run_log_timestamp_p-processor-->select_tasks_run_log_timestamp_p-publish\n\t\tselect_tasks_run_log_timestamp_p-publish-->|Replace|select_tasks_run_log_timestamp_t-subject\n\tend\n\tsubgraph filter_processors_subscriptions_t\n\t\tSessionProcessors-subject-.->|FullTable|cmp_processors_subscriptions_p-subscribe\n\t\tcmp_processors_subscriptions_p-subject-->|FullTable|cmp_processors_subscriptions_p-subscribe\n\t\tcmp_processors_subscriptions_p-subscribe-->cmp_processors_subscriptions_p-processor\n\t\tcmp_processors_subscriptions_p-processor-->cmp_processors_subscriptions_p-publish\n\t\tcmp_processors_subscriptions_p-publish-->|Replace|cmp_processors_subscriptions_t-subject\n\t\tcmp_processors_subscriptions_t-subject-->|FullTable|filter_processors_subscriptions_p-subscribe\n\t\tfilter_processors_subscriptions_p-subject-->|FullTable|filter_processors_subscriptions_p-subscribe\n\t\tfilter_processors_subscriptions_p-subscribe-->filter_processors_subscriptions_p-processor\n\t\tfilter_processors_subscriptions_p-processor-->filter_processors_subscriptions_p-publish\n\t\tfilter_processors_subscriptions_p-publish-->|Replace|filter_processors_subscriptions_t-subject\n\t\tfilter_processors_subscriptions_t-subject-->|FullTable|select_processors_subscriptions_p-subscribe\n\t\tselect_processors_subscriptions_p-subject-->|FullTable|select_processors_subscriptions_p-subscribe\n\t\tselect_processors_subscriptions_p-subscribe-->select_processors_subscriptions_p-processor\n\t\tselect_processors_subscriptions_p-processor-->select_processors_subscriptions_p-publish\n\t\tselect_processors_subscriptions_p-publish-->|Replace|select_processors_subscriptions_t-subject\n\tend\n\tsubgraph join_tasks_run_log_timestamp_t\n\t\tSubjectsChangeLog-subject-->|FullTable|group_by_subject_change_log_timestamp_p-subscribe\n\t\tgroup_by_subject_change_log_timestamp_p-subject-->|FullTable|group_by_subject_change_log_timestamp_p-subscribe\n\t\tgroup_by_subject_change_log_timestamp_p-subscribe-->group_by_subject_change_log_timestamp_p-processor\n\t\tgroup_by_subject_change_log_timestamp_p-processor-->group_by_subject_change_log_timestamp_p-publish\n\t\tgroup_by_subject_change_log_timestamp_p-publish-->|Replace|group_by_subject_change_log_timestamp_t-subject\n\t\tselect_tasks_run_log_timestamp_t-subject-.->|FullTable|join_tasks_run_log_timestamp_p-subscribe\n\t\tSessionTasks-subject-->|FullTable|join_tasks_run_log_timestamp_p-subscribe\n\t\tjoin_tasks_run_log_timestamp_p-subject-->|FullTable|join_tasks_run_log_timestamp_p-subscribe\n\t\tjoin_tasks_run_log_timestamp_p-subscribe-->join_tasks_run_log_timestamp_p-processor\n\t\tjoin_tasks_run_log_timestamp_p-processor-->join_tasks_run_log_timestamp_p-publish\n\t\tjoin_tasks_run_log_timestamp_p-publish-->|Replace|join_tasks_run_log_timestamp_t-subject\n\t\tjoin_tasks_run_log_timestamp_t-subject-->|FullTable|join_tasks_processors_subscriptions_p-subscribe\n\t\tselect_processors_subscriptions_t-subject-->|FullTable|join_tasks_processors_subscriptions_p-subscribe\n\t\tjoin_tasks_processors_subscriptions_p-subject-->|FullTable|join_tasks_processors_subscriptions_p-subscribe\n\t\tjoin_tasks_processors_subscriptions_p-subscribe-->join_tasks_processors_subscriptions_p-processor\n\t\tjoin_tasks_processors_subscriptions_p-processor-->join_tasks_processors_subscriptions_p-publish\n\t\tjoin_tasks_processors_subscriptions_p-publish-->|Replace|join_tasks_processors_subscriptions_t-subject\n\t\tjoin_tasks_processors_subscriptions_t-subject-->|FullTable|join_tasks_processors_subscriptions_subjects_p-subscribe\n\t\tgroup_by_subject_change_log_timestamp_t-subject-->|FullTable|join_tasks_processors_subscriptions_subjects_p-subscribe\n\t\tjoin_tasks_processors_subscriptions_subjects_p-subject-->|FullTable|join_tasks_processors_subscriptions_subjects_p-subscribe\n\t\tjoin_tasks_processors_subscriptions_subjects_p-subscribe-->join_tasks_processors_subscriptions_subjects_p-processor\n\t\tjoin_tasks_processors_subscriptions_subjects_p-processor-->join_tasks_processors_subscriptions_subjects_p-publish\n\t\tjoin_tasks_processors_subscriptions_subjects_p-publish-->|Replace|join_tasks_processors_subscriptions_subjects_t-subject\n\t\tjoin_tasks_processors_subscriptions_subjects_t-subject-->|FullTable|select_tasks_processors_subscriptions_subjects_p-subscribe\n\t\tselect_tasks_processors_subscriptions_subjects_p-subject-->|FullTable|select_tasks_processors_subscriptions_subjects_p-subscribe\n\t\tselect_tasks_processors_subscriptions_subjects_p-subscribe-->select_tasks_processors_subscriptions_subjects_p-processor\n\t\tselect_tasks_processors_subscriptions_subjects_p-processor-->select_tasks_processors_subscriptions_subjects_p-publish\n\t\tselect_tasks_processors_subscriptions_subjects_p-publish-->|Replace|select_tasks_processors_subscriptions_subjects_t-subject\n\t\tselect_tasks_processors_subscriptions_subjects_t-subject-->|FullTable|group_by_tasks_processors_subscriptions_p-subscribe\n\t\tgroup_by_tasks_processors_subscriptions_p-subject-->|FullTable|group_by_tasks_processors_subscriptions_p-subscribe\n\t\tgroup_by_tasks_processors_subscriptions_p-subscribe-->group_by_tasks_processors_subscriptions_p-processor\n\t\tgroup_by_tasks_processors_subscriptions_p-processor-->group_by_tasks_processors_subscriptions_p-publish\n\t\tgroup_by_tasks_processors_subscriptions_p-publish-->|Replace|SessionTasksSubscribeAggregate-subject\n\tend\n\tsubgraph filter_processors_publications_t\n\t\tSessionProcessors-subject-.->|FullTable|cmp_processors_publications_p-subscribe\n\t\tcmp_processors_publications_p-subject-->|FullTable|cmp_processors_publications_p-subscribe\n\t\tcmp_processors_publications_p-subscribe-->cmp_processors_publications_p-processor\n\t\tcmp_processors_publications_p-processor-->cmp_processors_publications_p-publish\n\t\tcmp_processors_publications_p-publish-->|Replace|cmp_processors_publications_t-subject\n\t\tcmp_processors_publications_t-subject-->|FullTable|filter_processors_publications_p-subscribe\n\t\tfilter_processors_publications_p-subject-->|FullTable|filter_processors_publications_p-subscribe\n\t\tfilter_processors_publications_p-subscribe-->filter_processors_publications_p-processor\n\t\tfilter_processors_publications_p-processor-->filter_processors_publications_p-publish\n\t\tfilter_processors_publications_p-publish-->|Replace|filter_processors_publications_t-subject\n\t\tfilter_processors_publications_t-subject-->|FullTable|select_processors_publications_p-subscribe\n\t\tselect_processors_publications_p-subject-->|FullTable|select_processors_publications_p-subscribe\n\t\tselect_processors_publications_p-subscribe-->select_processors_publications_p-processor\n\t\tselect_processors_publications_p-processor-->select_processors_publications_p-publish\n\t\tselect_processors_publications_p-publish-->|Replace|select_processors_publications_t-subject\n\tend\n\tsubgraph select_tasks_processors_publications_t\n\t\tSessionTasksSubscribe-subject-.->|FullTable|group_by_tasks_processors_subscriptions_subjects_p-subscribe\n\t\tgroup_by_tasks_processors_subscriptions_subjects_p-subject-->|FullTable|group_by_tasks_processors_subscriptions_subjects_p-subscribe\n\t\tgroup_by_tasks_processors_subscriptions_subjects_p-subscribe-->group_by_tasks_processors_subscriptions_subjects_p-processor\n\t\tgroup_by_tasks_processors_subscriptions_subjects_p-processor-->group_by_tasks_processors_subscriptions_subjects_p-publish\n\t\tgroup_by_tasks_processors_subscriptions_subjects_p-publish-->|Replace|group_by_tasks_processors_subscriptions_subjects_t-subject\n\t\tselect_processors_publications_t-subject-->|FullTable|group_by_tasks_processors_publications_p-subscribe\n\t\tgroup_by_tasks_processors_publications_p-subject-->|FullTable|group_by_tasks_processors_publications_p-subscribe\n\t\tgroup_by_tasks_processors_publications_p-subscribe-->group_by_tasks_processors_publications_p-processor\n\t\tgroup_by_tasks_processors_publications_p-processor-->group_by_tasks_processors_publications_p-publish\n\t\tgroup_by_tasks_processors_publications_p-publish-->|Replace|group_by_tasks_processors_publications_t-subject\n\t\tgroup_by_tasks_processors_subscriptions_subjects_t-subject-->|FullTable|join_tasks_processors_publications_p-subscribe\n\t\tgroup_by_tasks_processors_publications_t-subject-->|FullTable|join_tasks_processors_publications_p-subscribe\n\t\tjoin_tasks_processors_publications_p-subject-->|FullTable|join_tasks_processors_publications_p-subscribe\n\t\tjoin_tasks_processors_publications_p-subscribe-->join_tasks_processors_publications_p-processor\n\t\tjoin_tasks_processors_publications_p-processor-->join_tasks_processors_publications_p-publish\n\t\tjoin_tasks_processors_publications_p-publish-->|Replace|join_tasks_processors_publications_t-subject\n\t\tjoin_tasks_processors_publications_t-subject-->|FullTable|select_tasks_processors_publications_p-subscribe\n\t\tselect_tasks_processors_publications_p-subject-->|FullTable|select_tasks_processors_publications_p-subscribe\n\t\tselect_tasks_processors_publications_p-subscribe-->select_tasks_processors_publications_p-processor\n\t\tselect_tasks_processors_publications_p-processor-->select_tasks_processors_publications_p-publish\n\t\tselect_tasks_processors_publications_p-publish-->|Replace|SessionTasksSubscribePublish-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\tsession_1-runtime_env-rt-->session_1\n\tdefault_runtime_env_name-rt-->group_by_tasks_run_log_timestamp_t\n\tdefault_runtime_env_name-rt-->filter_processors_subscriptions_t\n\tdefault_runtime_env_name-rt-->join_tasks_run_log_timestamp_t\n\tdefault_runtime_env_name-rt-->filter_processors_publications_t\n\tdefault_runtime_env_name-rt-->select_tasks_processors_publications_t\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\tsession_1-processor@{shape: rect, label: ProcessorEcho}\n\tgroup_by_tasks_run_log_timestamp_p-processor@{shape: rect, label: GroupBy}\n\tselect_tasks_run_log_timestamp_p-processor@{shape: rect, label: Select}\n\tcmp_processors_subscriptions_p-processor@{shape: rect, label: Select}\n\tfilter_processors_subscriptions_p-processor@{shape: rect, label: Filter}\n\tselect_processors_subscriptions_p-processor@{shape: rect, label: Select}\n\tgroup_by_subject_change_log_timestamp_p-processor@{shape: rect, label: GroupBy}\n\tjoin_tasks_run_log_timestamp_p-processor@{shape: rect, label: Join}\n\tjoin_tasks_processors_subscriptions_p-processor@{shape: rect, label: Join}\n\tjoin_tasks_processors_subscriptions_subjects_p-processor@{shape: rect, label: Join}\n\tselect_tasks_processors_subscriptions_subjects_p-processor@{shape: rect, label: Select}\n\tgroup_by_tasks_processors_subscriptions_p-processor@{shape: rect, label: GroupBy}\n\tcmp_processors_publications_p-processor@{shape: rect, label: Select}\n\tfilter_processors_publications_p-processor@{shape: rect, label: Filter}\n\tselect_processors_publications_p-processor@{shape: rect, label: Select}\n\tgroup_by_tasks_processors_subscriptions_subjects_p-processor@{shape: rect, label: GroupBy}\n\tgroup_by_tasks_processors_publications_p-processor@{shape: rect, label: GroupBy}\n\tjoin_tasks_processors_publications_p-processor@{shape: rect, label: Join}\n\tselect_tasks_processors_publications_p-processor@{shape: rect, label: Select}\n\tdefault_runtime_env_name-rt@{shape: subproc, label: default_runtime_env_name}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tsession_1-runtime_env-rt@{shape: subproc, label: session_1-runtime_env}\n\tSessionProcessors-subject@{shape: doc, label: SessionProcessors}\n\tSessionTasks-subject@{shape: doc, label: SessionTasks}\n\tSessionTasksRunLog-subject@{shape: doc, label: SessionTasksRunLog}\n\tSessionTasksSubscribe-subject@{shape: doc, label: SessionTasksSubscribe}\n\tSessionTasksSubscribeAggregate-subject@{shape: doc, label: SessionTasksSubscribeAggregate}\n\tSessionTasksSubscribePublish-subject@{shape: doc, label: SessionTasksSubscribePublish}\n\tSubjectsChangeLog-subject@{shape: doc, label: SubjectsChangeLog}\n\tcmp_processors_publications_p-subject@{shape: doc, label: cmp_processors_publications_p}\n\tcmp_processors_publications_t-subject@{shape: doc, label: cmp_processors_publications_t}\n\tcmp_processors_subscriptions_p-subject@{shape: doc, label: cmp_processors_subscriptions_p}\n\tcmp_processors_subscriptions_t-subject@{shape: doc, label: cmp_processors_subscriptions_t}\n\tfilter_processors_publications_p-subject@{shape: doc, label: filter_processors_publications_p}\n\tfilter_processors_publications_t-subject@{shape: doc, label: filter_processors_publications_t}\n\tfilter_processors_subscriptions_p-subject@{shape: doc, label: filter_processors_subscriptions_p}\n\tfilter_processors_subscriptions_t-subject@{shape: doc, label: filter_processors_subscriptions_t}\n\tgroup_by_subject_change_log_timestamp_p-subject@{shape: doc, label: group_by_subject_change_log_timestamp_p}\n\tgroup_by_subject_change_log_timestamp_t-subject@{shape: doc, label: group_by_subject_change_log_timestamp_t}\n\tgroup_by_tasks_processors_publications_p-subject@{shape: doc, label: group_by_tasks_processors_publications_p}\n\tgroup_by_tasks_processors_publications_t-subject@{shape: doc, label: group_by_tasks_processors_publications_t}\n\tgroup_by_tasks_processors_subscriptions_p-subject@{shape: doc, label: group_by_tasks_processors_subscriptions_p}\n\tgroup_by_tasks_processors_subscriptions_subjects_p-subject@{shape: doc, label: group_by_tasks_processors_subscriptions_subjects_p}\n\tgroup_by_tasks_processors_subscriptions_subjects_t-subject@{shape: doc, label: group_by_tasks_processors_subscriptions_subjects_t}\n\tgroup_by_tasks_run_log_timestamp_p-subject@{shape: doc, label: group_by_tasks_run_log_timestamp_p}\n\tgroup_by_tasks_run_log_timestamp_t-subject@{shape: doc, label: group_by_tasks_run_log_timestamp_t}\n\tjoin_tasks_processors_publications_p-subject@{shape: doc, label: join_tasks_processors_publications_p}\n\tjoin_tasks_processors_publications_t-subject@{shape: doc, label: join_tasks_processors_publications_t}\n\tjoin_tasks_processors_subscriptions_p-subject@{shape: doc, label: join_tasks_processors_subscriptions_p}\n\tjoin_tasks_processors_subscriptions_subjects_p-subject@{shape: doc, label: join_tasks_processors_subscriptions_subjects_p}\n\tjoin_tasks_processors_subscriptions_subjects_t-subject@{shape: doc, label: join_tasks_processors_subscriptions_subjects_t}\n\tjoin_tasks_processors_subscriptions_t-subject@{shape: doc, label: join_tasks_processors_subscriptions_t}\n\tjoin_tasks_run_log_timestamp_p-subject@{shape: doc, label: join_tasks_run_log_timestamp_p}\n\tjoin_tasks_run_log_timestamp_t-subject@{shape: doc, label: join_tasks_run_log_timestamp_t}\n\tprocessor_1-subject@{shape: doc, label: processor_1}\n\tprocessor_2-subject@{shape: doc, label: processor_2}\n\tprocessor_3-subject@{shape: doc, label: processor_3}\n\tselect_processors_publications_p-subject@{shape: doc, label: select_processors_publications_p}\n\tselect_processors_publications_t-subject@{shape: doc, label: select_processors_publications_t}\n\tselect_processors_subscriptions_p-subject@{shape: doc, label: select_processors_subscriptions_p}\n\tselect_processors_subscriptions_t-subject@{shape: doc, label: select_processors_subscriptions_t}\n\tselect_tasks_processors_publications_p-subject@{shape: doc, label: select_tasks_processors_publications_p}\n\tselect_tasks_processors_subscriptions_subjects_p-subject@{shape: doc, label: select_tasks_processors_subscriptions_subjects_p}\n\tselect_tasks_processors_subscriptions_subjects_t-subject@{shape: doc, label: select_tasks_processors_subscriptions_subjects_t}\n\tselect_tasks_run_log_timestamp_p-subject@{shape: doc, label: select_tasks_run_log_timestamp_p}\n\tselect_tasks_run_log_timestamp_t-subject@{shape: doc, label: select_tasks_run_log_timestamp_t}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tcmp_processors_publications_p-publish@{shape: fork}\n\tcmp_processors_subscriptions_p-publish@{shape: fork}\n\tfilter_processors_publications_p-publish@{shape: fork}\n\tfilter_processors_subscriptions_p-publish@{shape: fork}\n\tgroup_by_subject_change_log_timestamp_p-publish@{shape: fork}\n\tgroup_by_tasks_processors_publications_p-publish@{shape: fork}\n\tgroup_by_tasks_processors_subscriptions_p-publish@{shape: fork}\n\tgroup_by_tasks_processors_subscriptions_subjects_p-publish@{shape: fork}\n\tgroup_by_tasks_run_log_timestamp_p-publish@{shape: fork}\n\tjoin_tasks_processors_publications_p-publish@{shape: fork}\n\tjoin_tasks_processors_subscriptions_p-publish@{shape: fork}\n\tjoin_tasks_processors_subscriptions_subjects_p-publish@{shape: fork}\n\tjoin_tasks_run_log_timestamp_p-publish@{shape: fork}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tselect_processors_publications_p-publish@{shape: fork}\n\tselect_processors_subscriptions_p-publish@{shape: fork}\n\tselect_tasks_processors_publications_p-publish@{shape: fork}\n\tselect_tasks_processors_subscriptions_subjects_p-publish@{shape: fork}\n\tselect_tasks_run_log_timestamp_p-publish@{shape: fork}\n\tsession_1-publish@{shape: fork}\n\tcmp_processors_publications_p-subscribe@{shape: diamond, label: All}\n\tcmp_processors_subscriptions_p-subscribe@{shape: diamond, label: All}\n\tfilter_processors_publications_p-subscribe@{shape: diamond, label: All}\n\tfilter_processors_subscriptions_p-subscribe@{shape: diamond, label: All}\n\tgroup_by_subject_change_log_timestamp_p-subscribe@{shape: diamond, label: All}\n\tgroup_by_tasks_processors_publications_p-subscribe@{shape: diamond, label: All}\n\tgroup_by_tasks_processors_subscriptions_p-subscribe@{shape: diamond, label: All}\n\tgroup_by_tasks_processors_subscriptions_subjects_p-subscribe@{shape: diamond, label: All}\n\tgroup_by_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}\n\tjoin_tasks_processors_publications_p-subscribe@{shape: diamond, label: All}\n\tjoin_tasks_processors_subscriptions_p-subscribe@{shape: diamond, label: All}\n\tjoin_tasks_processors_subscriptions_subjects_p-subscribe@{shape: diamond, label: All}\n\tjoin_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tselect_processors_publications_p-subscribe@{shape: diamond, label: All}\n\tselect_processors_subscriptions_p-subscribe@{shape: diamond, label: All}\n\tselect_tasks_processors_publications_p-subscribe@{shape: diamond, label: All}\n\tselect_tasks_processors_subscriptions_subjects_p-subscribe@{shape: diamond, label: All}\n\tselect_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}\n\tsession_1-subscribe@{shape: diamond, label: Any}");
 
         Ok(())
     }
@@ -1412,18 +1486,19 @@ mod tests {
 
         // Make the ER Diagram
         let mermaid_js = builder.to_mermaid_erdiagram(false, false)?;
-        assert_eq!(mermaid_js, "erDiagram\n    \n    processor_1[\"processor_1\"] {\n        Boolean cpu\n        Utf8 operator\n        Utf8 stream\n    }\n    processor_2[\"processor_2\"] {\n        Boolean cpu\n        Utf8 operator\n        Utf8 stream\n    }\n    processor_3[\"processor_3\"] {\n        Boolean cpu\n        Utf8 operator\n        Utf8 stream\n    }\n    session_1[\"session_1\"] {\n        Boolean cpu\n        Utf8 lhs_fk\n        Utf8 lhs_name\n        Utf8 lhs_pk\n        Utf8 operator\n        Utf8 rhs_fk\n        Utf8 rhs_name\n        Utf8 rhs_pk\n        Utf8 stream\n    }\n    state_1[\"state_1\"] {\n        UInt32 id\n        Utf8 collection\n        Utf8 title\n        Utf8 text\n        Utf8 metadata\n        Float32 score\n        FixedSizeList-Float32-8 embedding\n    }\n    state_2[\"state_2\"] {\n        UInt32 id\n        Utf8 collection\n        Utf8 title\n        Utf8 text\n        Utf8 metadata\n        Float32 score\n        FixedSizeList-Float32-8 embedding\n    }\n    state_3[\"state_3\"] {\n        UInt32 id\n        Utf8 collection\n        Utf8 title\n        Utf8 text\n        Utf8 metadata\n        Float32 score\n        FixedSizeList-Float32-8 embedding\n    }".to_string());
+        assert_eq!(mermaid_js, "erDiagram\n    \n    processor_1[\"processor_1\"] {\n        Boolean cpu\n        Utf8 lhs_name\n        Utf8 operator\n        Utf8 stream\n    }\n    processor_2[\"processor_2\"] {\n        Boolean cpu\n        Utf8 lhs_name\n        Utf8 operator\n        Utf8 stream\n    }\n    processor_3[\"processor_3\"] {\n        Boolean cpu\n        Utf8 lhs_fk\n        Utf8 lhs_name\n        Utf8 lhs_pk\n        Utf8 operator\n        Utf8 rhs_fk\n        Utf8 rhs_name\n        Utf8 rhs_pk\n        Utf8 stream\n    }\n    state_1[\"state_1\"] {\n        UInt32 id\n        Utf8 collection\n        Utf8 title\n        Utf8 text\n        Utf8 metadata\n        Float32 score\n        FixedSizeList-Float32-8 embedding\n    }\n    state_2[\"state_2\"] {\n        UInt32 id\n        Utf8 collection\n        Utf8 title\n        Utf8 text\n        Utf8 metadata\n        Float32 score\n        FixedSizeList-Float32-8 embedding\n    }\n    state_3[\"state_3\"] {\n        UInt32 id\n        Utf8 collection\n        Utf8 title\n        Utf8 text\n        Utf8 metadata\n        Float32 score\n        FixedSizeList-Float32-8 embedding\n    }");
         let mermaid_js = builder.to_mermaid_erdiagram(true, false)?;
-        assert_eq!(mermaid_js, "erDiagram\n    \n    processor_1[\"processor_1\"] {\n        Boolean cpu \"false\"\n        Utf8 operator \"HumanInTheLoop\"\n        Utf8 stream \"AccumulateLHSAccumulateRHS\"\n    }\n    processor_2[\"processor_2\"] {\n        Boolean cpu \"false\"\n        Utf8 operator \"HumanInTheLoop\"\n        Utf8 stream \"AccumulateLHSAccumulateRHS\"\n    }\n    processor_3[\"processor_3\"] {\n        Boolean cpu \"false\"\n        Utf8 operator \"HumanInTheLoop\"\n        Utf8 stream \"AccumulateLHSAccumulateRHS\"\n    }\n    session_1[\"session_1\"] {\n        Boolean cpu \"false\"\n        Utf8 lhs_fk \"id\"\n        Utf8 lhs_name \"state_1\"\n        Utf8 lhs_pk \"id\"\n        Utf8 operator \"Join\"\n        Utf8 rhs_fk \"id\"\n        Utf8 rhs_name \"state_2\"\n        Utf8 rhs_pk \"id\"\n        Utf8 stream \"AccumulateLHSAccumulateRHS\"\n    }\n    state_1[\"state_1\"] {\n        UInt32 id \"3\"\n        Utf8 collection \"collection3\"\n        Utf8 title \"title3\"\n        Utf8 text \"text3\"\n        Utf8 metadata \"metadata3\"\n        Float32 score \"3.0\"\n        FixedSizeList-Float32-8 embedding \"[3.4e-44,3.5000000000000003e-44,3.6000000000000004e-44,3.8e-44,3.9e-44,4.0000000000000003e-44,4.2000000000000005e-44,4.3e-44]\"\n    }\n    state_2[\"state_2\"] {\n        UInt32 id \"3\"\n        Utf8 collection \"collection3\"\n        Utf8 title \"title3\"\n        Utf8 text \"text3\"\n        Utf8 metadata \"metadata3\"\n        Float32 score \"3.0\"\n        FixedSizeList-Float32-8 embedding \"[3.4e-44,3.5000000000000003e-44,3.6000000000000004e-44,3.8e-44,3.9e-44,4.0000000000000003e-44,4.2000000000000005e-44,4.3e-44]\"\n    }\n    state_3[\"state_3\"] {\n        UInt32 id \"3\"\n        Utf8 collection \"collection3\"\n        Utf8 title \"title3\"\n        Utf8 text \"text3\"\n        Utf8 metadata \"metadata3\"\n        Float32 score \"3.0\"\n        FixedSizeList-Float32-8 embedding \"[3.4e-44,3.5000000000000003e-44,3.6000000000000004e-44,3.8e-44,3.9e-44,4.0000000000000003e-44,4.2000000000000005e-44,4.3e-44]\"\n    }".to_string());
+        assert_eq!(mermaid_js, "erDiagram\n    \n    processor_1[\"processor_1\"] {\n        Boolean cpu \"false\"\n        Utf8 lhs_name \"state_1\"\n        Utf8 operator \"HumanInTheLoop\"\n        Utf8 stream \"AccumulateLHSAccumulateRHS\"\n    }\n    processor_2[\"processor_2\"] {\n        Boolean cpu \"false\"\n        Utf8 lhs_name \"state_2\"\n        Utf8 operator \"HumanInTheLoop\"\n        Utf8 stream \"AccumulateLHSAccumulateRHS\"\n    }\n    processor_3[\"processor_3\"] {\n        Boolean cpu \"false\"\n        Utf8 lhs_fk \"id\"\n        Utf8 lhs_name \"state_1\"\n        Utf8 lhs_pk \"id\"\n        Utf8 operator \"Join\"\n        Utf8 rhs_fk \"id\"\n        Utf8 rhs_name \"state_2\"\n        Utf8 rhs_pk \"id\"\n        Utf8 stream \"AccumulateLHSAccumulateRHS\"\n    }\n    state_1[\"state_1\"] {\n        UInt32 id \"3\"\n        Utf8 collection \"collection3\"\n        Utf8 title \"title3\"\n        Utf8 text \"text3\"\n        Utf8 metadata \"metadata3\"\n        Float32 score \"3.0\"\n        FixedSizeList-Float32-8 embedding \"[3.4e-44,3.5000000000000003e-44,3.6000000000000004e-44,3.8e-44,3.9e-44,4.0000000000000003e-44,4.2000000000000005e-44,4.3e-44]\"\n    }\n    state_2[\"state_2\"] {\n        UInt32 id \"3\"\n        Utf8 collection \"collection3\"\n        Utf8 title \"title3\"\n        Utf8 text \"text3\"\n        Utf8 metadata \"metadata3\"\n        Float32 score \"3.0\"\n        FixedSizeList-Float32-8 embedding \"[3.4e-44,3.5000000000000003e-44,3.6000000000000004e-44,3.8e-44,3.9e-44,4.0000000000000003e-44,4.2000000000000005e-44,4.3e-44]\"\n    }\n    state_3[\"state_3\"] {\n        UInt32 id \"3\"\n        Utf8 collection \"collection3\"\n        Utf8 title \"title3\"\n        Utf8 text \"text3\"\n        Utf8 metadata \"metadata3\"\n        Float32 score \"3.0\"\n        FixedSizeList-Float32-8 embedding \"[3.4e-44,3.5000000000000003e-44,3.6000000000000004e-44,3.8e-44,3.9e-44,4.0000000000000003e-44,4.2000000000000005e-44,4.3e-44]\"\n    }");
         let mermaid_js = builder.to_mermaid_erdiagram(false, true)?;
-        assert_eq!(mermaid_js, "erDiagram\n    \n    processor_1[\"processor_1\"] {\n        Boolean cpu \"false\"\n        Utf8 operator \"HumanInTheLoop\"\n        Utf8 stream \"AccumulateLHSAccumulateRHS\"\n    }\n    processor_2[\"processor_2\"] {\n        Boolean cpu \"false\"\n        Utf8 operator \"HumanInTheLoop\"\n        Utf8 stream \"AccumulateLHSAccumulateRHS\"\n    }\n    processor_3[\"processor_3\"] {\n        Boolean cpu \"false\"\n        Utf8 operator \"HumanInTheLoop\"\n        Utf8 stream \"AccumulateLHSAccumulateRHS\"\n    }\n    session_1[\"session_1\"] {\n        Boolean cpu \"false\"\n        Utf8 lhs_fk \"id\"\n        Utf8 lhs_name \"state_1\"\n        Utf8 lhs_pk \"id\"\n        Utf8 operator \"Join\"\n        Utf8 rhs_fk \"id\"\n        Utf8 rhs_name \"state_2\"\n        Utf8 rhs_pk \"id\"\n        Utf8 stream \"AccumulateLHSAccumulateRHS\"\n    }\n    state_1[\"state_1\"] {\n        UInt32 id\n        Utf8 collection\n        Utf8 title\n        Utf8 text\n        Utf8 metadata\n        Float32 score\n        FixedSizeList-Float32-8 embedding\n    }\n    state_2[\"state_2\"] {\n        UInt32 id\n        Utf8 collection\n        Utf8 title\n        Utf8 text\n        Utf8 metadata\n        Float32 score\n        FixedSizeList-Float32-8 embedding\n    }\n    state_3[\"state_3\"] {\n        UInt32 id\n        Utf8 collection\n        Utf8 title\n        Utf8 text\n        Utf8 metadata\n        Float32 score\n        FixedSizeList-Float32-8 embedding\n    }".to_string());
+        assert_eq!(mermaid_js, "erDiagram\n    \n    processor_1[\"processor_1\"] {\n        Boolean cpu \"false\"\n        Utf8 lhs_name \"state_1\"\n        Utf8 operator \"HumanInTheLoop\"\n        Utf8 stream \"AccumulateLHSAccumulateRHS\"\n    }\n    processor_2[\"processor_2\"] {\n        Boolean cpu \"false\"\n        Utf8 lhs_name \"state_2\"\n        Utf8 operator \"HumanInTheLoop\"\n        Utf8 stream \"AccumulateLHSAccumulateRHS\"\n    }\n    processor_3[\"processor_3\"] {\n        Boolean cpu \"false\"\n        Utf8 lhs_fk \"id\"\n        Utf8 lhs_name \"state_1\"\n        Utf8 lhs_pk \"id\"\n        Utf8 operator \"Join\"\n        Utf8 rhs_fk \"id\"\n        Utf8 rhs_name \"state_2\"\n        Utf8 rhs_pk \"id\"\n        Utf8 stream \"AccumulateLHSAccumulateRHS\"\n    }\n    state_1[\"state_1\"] {\n        UInt32 id\n        Utf8 collection\n        Utf8 title\n        Utf8 text\n        Utf8 metadata\n        Float32 score\n        FixedSizeList-Float32-8 embedding\n    }\n    state_2[\"state_2\"] {\n        UInt32 id\n        Utf8 collection\n        Utf8 title\n        Utf8 text\n        Utf8 metadata\n        Float32 score\n        FixedSizeList-Float32-8 embedding\n    }\n    state_3[\"state_3\"] {\n        UInt32 id\n        Utf8 collection\n        Utf8 title\n        Utf8 text\n        Utf8 metadata\n        Float32 score\n        FixedSizeList-Float32-8 embedding\n    }");
 
         Ok(())
     }
 
     #[test]
-    fn test_from_mermaid_parallel_task_with_config_and_session_no_data() -> Result<()> {
-        let builder = test_session_context_builder_agents::make_test_session_builder_agents("session_1")?;
+    fn test_from_mermaid_parallel_with_config_and_session_no_data() -> Result<()> {
+        let builder = test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
+            .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart(true, true, true)?;
@@ -1434,28 +1509,7 @@ mod tests {
             .with_state_from_mermaid_erdiagram(&erdiagram, false, false)?;
 
         // Test that the names match
-        let mut test = builder_test
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-        let mut test = builder_test
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
+        assert_eq!(builder_test.tasks, builder.tasks);
         let mut test = builder_test
             .get_subject_names_from_processors()
             .into_iter()
@@ -1513,8 +1567,9 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_parallel_task_with_config_and_session_with_data() -> Result<()> {
-        let builder = test_session_context_builder_agents::make_test_session_builder_agents("session_1")?;
+    fn test_from_mermaid_parallel_with_config_and_session_with_data() -> Result<()> {
+        let builder = test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
+            .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart(true, true, true)?;
@@ -1525,28 +1580,7 @@ mod tests {
             .with_state_from_mermaid_erdiagram(&erdiagram, false, true)?;
 
         // Test that the names match
-        let mut test = builder_test
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-        let mut test = builder_test
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
+        assert_eq!(builder_test.tasks, builder.tasks);
         let mut test = builder_test
             .get_subject_names_from_processors()
             .into_iter()
@@ -1609,8 +1643,9 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mermaid_parallel_task_no_config_with_session_and_data() -> Result<()> {
-        let builder = test_session_context_builder_agents::make_test_session_builder_agents("session_1")?;
+    fn test_from_mermaid_parallel_no_config_with_session_and_data() -> Result<()> {
+        let builder = test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
+            .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
         let flowchart = builder.to_mermaid_flowchart(false, true, true)?;
@@ -1620,29 +1655,8 @@ mod tests {
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, false)?
             .with_state_from_mermaid_erdiagram(&erdiagram, false, true)?;
 
-        // Test that the names match
-        let mut test = builder_test
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-        let mut test = builder_test
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
+        // Test that the tasks match
+        assert_eq!(builder_test.tasks, builder.tasks);
 
         // Test the order of the processors
         let test = builder_test
@@ -1688,7 +1702,7 @@ mod tests {
         }
 
         // Test that the processor configs were added to the subscriptions
-        let builder_test = builder_test.with_name("session").add_processor_subjects()?;
+        let builder_test = builder_test.with_name("session_1").add_processor_subjects()?;
         let mut test = builder_test
             .get_subject_names_from_processors()
             .into_iter()
@@ -1702,7 +1716,7 @@ mod tests {
         assert_eq!(test, expected);
 
         // Test that we can build the session
-        let _ = builder_test.with_name("session_1").build()?;
+        let _ = builder_test.build()?;
 
         Ok(())
     }
@@ -1724,28 +1738,7 @@ mod tests {
             .with_state_from_mermaid_erdiagram(&erdiagram, true, false)?;
 
         // Test that the names match
-        let mut test = builder_test
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-        let mut test = builder_test
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
+        assert_eq!(builder_test.tasks, builder.tasks);
         let mut test = builder_test
             .get_subject_names_from_processors()
             .into_iter()
@@ -1798,28 +1791,7 @@ mod tests {
             .with_state_from_mermaid_erdiagram(&erdiagram, true, false)?;
 
         // Test that the names match
-        let mut test = builder_test
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-        let mut test = builder_test
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
+        assert_eq!(builder_test.tasks, builder.tasks);
         let mut test = builder_test
             .get_subject_names_from_processors()
             .into_iter()
@@ -1872,28 +1844,7 @@ mod tests {
             .with_state_from_mermaid_erdiagram(&erdiagram, true, false)?;
 
         // Test that the names match
-        let mut test = builder_test
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-        let mut test = builder_test
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
+        assert_eq!(builder_test.tasks, builder.tasks);
         let mut test = builder_test
             .get_subject_names_from_processors()
             .into_iter()
@@ -1949,28 +1900,7 @@ mod tests {
             .add_session_interface(None)?;
 
         // Test that the names match
-        let mut test = builder_test
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-        let mut test = builder_test
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
+        assert_eq!(builder_test.tasks, builder.tasks);
         let mut test = builder_test
             .get_subject_names_from_processors()
             .into_iter()
@@ -2026,28 +1956,7 @@ mod tests {
             .add_session_interface(None)?;
 
         // Test that the names match
-        let mut test = builder_test
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-        let mut test = builder_test
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
+        assert_eq!(builder_test.tasks, builder.tasks);
         let mut test = builder_test
             .get_subject_names_from_processors()
             .into_iter()
@@ -2103,28 +2012,7 @@ mod tests {
             .add_session_interface(None)?;
 
         // Test that the names match
-        let mut test = builder_test
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-        let mut test = builder_test
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
+        assert_eq!(builder_test.tasks, builder.tasks);
         let mut test = builder_test
             .get_subject_names_from_processors()
             .into_iter()
@@ -2180,28 +2068,7 @@ mod tests {
             .add_session_interface(None)?;
 
         // Test that the names match
-        let mut test = builder_test
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-        let mut test = builder_test
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
+        assert_eq!(builder_test.tasks, builder.tasks);
         let mut test = builder_test
             .get_subject_names_from_processors()
             .into_iter()
@@ -2298,28 +2165,7 @@ mod tests {
             .add_session_interface(None)?;
 
         // Test that the names match
-        let mut test = builder_test
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_processor_names_from_tasks()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
-        let mut test = builder_test
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        test.sort();
-        let mut expected = builder
-            .get_runtime_env_names()
-            .into_iter()
-            .collect::<Vec<_>>();
-        expected.sort();
-        assert_eq!(test, expected);
+        assert_eq!(builder_test.tasks, builder.tasks);
         let mut test = builder_test
             .get_subject_names_from_processors()
             .into_iter()

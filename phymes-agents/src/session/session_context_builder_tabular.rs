@@ -12,8 +12,7 @@ use phymes_core::{
 use phymes_diagnostics::{HashSet, create_timestamp_micros};
 
 use crate::{
-    AvailableProcessors, SessionContextBuilder, SessionContextBuilderMermaidTrait,
-    SessionContextBuilderTrait, plans::{SubjectsNumRowsSession, TasksSubscribePublishSession},
+    AvailableProcessors, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, plans::{SubjectsNumRowsSession, TasksSubscribePublishSession}
 };
 
 /// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from tabular format
@@ -496,6 +495,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             false,
             )?
             .with_state_from_mermaid_erdiagram(tasks_publish_subscribe_session.as_mermaid_erdiagram(), false, false)?
+            .add_processor_subjects()?
+            .with_name(tasks_publish_subscribe_session.session_context_name)
             .state.unwrap().into_iter().map(|t| t.get_name().to_string()).collect::<Vec<_>>();
         let subjects_session = SubjectsNumRowsSession::default();
         let tasks_subjects = SessionContextBuilder::from_mermaid_flowchart(
@@ -503,6 +504,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             false,
             )?
             .with_state_from_mermaid_erdiagram(subjects_session.as_mermaid_erdiagram(), false, false)?
+            .with_name(subjects_session.session_context_name)
+            .add_processor_subjects()?
             .state.unwrap().into_iter().map(|t| t.get_name().to_string()).collect::<Vec<_>>();
         let exclusion_set = tasks_publish_subscribe.into_iter().chain(tasks_subjects.into_iter()).collect::<HashSet<_>>();
 
