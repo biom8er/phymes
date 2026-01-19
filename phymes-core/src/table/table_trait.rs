@@ -230,7 +230,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     }
 
     /// Convert to a sendable record batch stream by consuming the batches but leaving the object
-    fn to_record_batch_stream_mut(&mut self) -> SendableRecordBatchStream {
+    fn to_record_batch_stream_drain(&mut self) -> SendableRecordBatchStream {
         let schema = Arc::clone(&self.get_schema());
         let batches = self.get_record_batches_mut().drain(0..).collect::<Vec<_>>();
         let stream = futures::stream::iter(batches.into_iter().map(Ok));
@@ -238,7 +238,7 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     }
 
     /// Convert to a sendable record batch stream after taking ownership
-    fn to_record_batch_stream_last_record_batch_mut(&mut self) -> SendableRecordBatchStream {
+    fn to_record_batch_stream_last_record_batch_pop(&mut self) -> SendableRecordBatchStream {
         let schema = Arc::clone(&self.get_schema());
         let last_record_batch = if let Some(batch) = self.get_record_batches_mut().pop() {
             vec![batch]

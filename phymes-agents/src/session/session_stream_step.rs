@@ -1041,6 +1041,7 @@ mod tests {
         // Superstep 1
         let session_context = make_test_session_context_builder_parallel("session_1", 4)?
             .with_diagnostics(true)
+            .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?
             .add_tasks_subscribe_publish()?
             .build_with_tables()?;
         let mut input = test_task::make_test_input_message(
@@ -1697,6 +1698,7 @@ mod tests {
         // Superstep 1
         let session_context = make_test_session_context_builder_sequential("session_1", 4)?
             .with_diagnostics(true)
+            .add_session_interface(Some(&["state_1"]))?
             .add_tasks_subscribe_publish()?
             .build_with_tables()?;
         let input = test_task::make_test_input_message(

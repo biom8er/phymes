@@ -83,21 +83,21 @@ impl TablePublication {
 
     /// New [TablePublication] from a short name identifying the variant and the `table_name`
     pub fn from_str_fuzzy(name: &str, subject: &str) -> Result<TablePublication> {
-        let publication = if name.contains("Extend") {
-            TablePublication::Extend {
-                table_name: subject.to_string(),
-            }
-        } else if name.contains("ExtendChunks") {
+        let publication = if name.contains("ExtendChunks") {
             TablePublication::ExtendChunks {
                 table_name: subject.to_string(),
                 col_name: "content".to_string(),
             }
-        } else if name.contains("Replace") {
-            TablePublication::Replace {
+        } else if name.contains("Extend") {
+            TablePublication::Extend {
                 table_name: subject.to_string(),
             }
         } else if name.contains("ReplaceLast") {
             TablePublication::ReplaceLast {
+                table_name: subject.to_string(),
+            }
+        } else if name.contains("Replace") {
+            TablePublication::Replace {
                 table_name: subject.to_string(),
             }
         } else if name.contains("None") {

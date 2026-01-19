@@ -98,6 +98,7 @@ mod tests {
         // Build the session
         let session_context = make_test_session_context_builder_sequential("session_1", 2)?
             .with_diagnostics(true)
+            .add_session_interface(Some(&["state_1"]))?
             .add_tasks_subscribe_publish()?
             .build_with_tables()?;
         let input = make_test_input_message(

@@ -495,8 +495,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             false,
             )?
             .with_state_from_mermaid_erdiagram(tasks_publish_subscribe_session.as_mermaid_erdiagram(), false, false)?
-            .add_processor_subjects()?
             .with_name(tasks_publish_subscribe_session.session_context_name)
+            .add_processor_subjects()?
             .state.unwrap().into_iter().map(|t| t.get_name().to_string()).collect::<Vec<_>>();
         let subjects_session = SubjectsNumRowsSession::default();
         let tasks_subjects = SessionContextBuilder::from_mermaid_flowchart(

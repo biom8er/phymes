@@ -24,22 +24,14 @@ pub enum TableSubscription {
     AlwaysFullTable { table_name: String },
     /// Always copy just the last record batch
     AlwaysLastRecordBatch { table_name: String },
-    /// Only when the subject has been updated, take the full table
-    OnUpdateFullTableOwn { table_name: String },
-    /// Only when the subject has been updated, and just take the last RecordBatch
-    OnUpdateLastRecordBatchOwn { table_name: String },
-    /// Always take the full table
-    AlwaysFullTableOwn { table_name: String },
-    /// Always take just the last record batch
-    AlwaysLastRecordBatchOwn { table_name: String },
     /// Only when the subject has been updated, drain the full table
-    OnUpdateFullTableMut { table_name: String },
+    OnUpdateFullTableDrain { table_name: String },
     /// Only when the subject has been updated, and just pop the last RecordBatch
-    OnUpdateLastRecordBatchMut { table_name: String },
+    OnUpdateLastRecordBatchPop { table_name: String },
     /// Always drain the full table
-    AlwaysFullTableMut { table_name: String },
+    AlwaysFullTableDrain { table_name: String },
     /// Always pop just the last record batch
-    AlwaysLastRecordBatchMut { table_name: String },
+    AlwaysLastRecordBatchPop { table_name: String },
     /// No reading of the table
     #[default]
     None,
@@ -56,14 +48,10 @@ impl TableSubscription {
             Self::OnUpdateEmpty { table_name: tn } => tn,
             Self::AlwaysFullTable { table_name: tn } => tn,
             Self::AlwaysLastRecordBatch { table_name: tn } => tn,
-            Self::OnUpdateFullTableOwn { table_name: tn } => tn,
-            Self::OnUpdateLastRecordBatchOwn { table_name: tn } => tn,
-            Self::AlwaysFullTableOwn { table_name: tn } => tn,
-            Self::AlwaysLastRecordBatchOwn { table_name: tn } => tn,
-            Self::OnUpdateFullTableMut { table_name: tn } => tn,
-            Self::OnUpdateLastRecordBatchMut { table_name: tn } => tn,
-            Self::AlwaysFullTableMut { table_name: tn } => tn,
-            Self::AlwaysLastRecordBatchMut { table_name: tn } => tn,
+            Self::OnUpdateFullTableDrain { table_name: tn } => tn,
+            Self::OnUpdateLastRecordBatchPop { table_name: tn } => tn,
+            Self::AlwaysFullTableDrain { table_name: tn } => tn,
+            Self::AlwaysLastRecordBatchPop { table_name: tn } => tn,
             Self::None => "",
             Self::Custom(_name) => "",
         }
@@ -80,21 +68,13 @@ impl TableSubscription {
             Self::OnUpdateEmpty { table_name: tn } => format!("OnUpdateEmpty-{tn}"),
             Self::AlwaysFullTable { table_name: tn } => format!("AlwaysFullTable-{tn}"),
             Self::AlwaysLastRecordBatch { table_name: tn } => format!("AlwaysLastRecordBatch-{tn}"),
-            Self::OnUpdateFullTableOwn { table_name: tn } => format!("OnUpdateFullTableOwn-{tn}"),
-            Self::OnUpdateLastRecordBatchOwn { table_name: tn } => {
-                format!("OnUpdateLastRecordBatchOwn-{tn}")
+            Self::OnUpdateFullTableDrain { table_name: tn } => format!("OnUpdateFullTableDrain-{tn}"),
+            Self::OnUpdateLastRecordBatchPop { table_name: tn } => {
+                format!("OnUpdateLastRecordBatchPop-{tn}")
             }
-            Self::AlwaysFullTableOwn { table_name: tn } => format!("AlwaysFullTableOwn-{tn}"),
-            Self::AlwaysLastRecordBatchOwn { table_name: tn } => {
-                format!("AlwaysLastRecordBatchOwn-{tn}")
-            }
-            Self::OnUpdateFullTableMut { table_name: tn } => format!("OnUpdateFullTableMut-{tn}"),
-            Self::OnUpdateLastRecordBatchMut { table_name: tn } => {
-                format!("OnUpdateLastRecordBatchMut-{tn}")
-            }
-            Self::AlwaysFullTableMut { table_name: tn } => format!("AlwaysFullTableMut-{tn}"),
-            Self::AlwaysLastRecordBatchMut { table_name: tn } => {
-                format!("AlwaysLastRecordBatchMut-{tn}")
+            Self::AlwaysFullTableDrain { table_name: tn } => format!("AlwaysFullTableDrain-{tn}"),
+            Self::AlwaysLastRecordBatchPop { table_name: tn } => {
+                format!("AlwaysLastRecordBatchPop-{tn}")
             }
             Self::None => "None".to_string(),
             Self::Custom(name) => name.to_string(),
@@ -106,17 +86,13 @@ impl TableSubscription {
         match self {
             Self::OnUpdateFullTable { table_name: _tn }
             | Self::OnUpdateLastRecordBatch { table_name: _tn }
-            | Self::OnUpdateFullTableOwn { table_name: _tn }
-            | Self::OnUpdateLastRecordBatchOwn { table_name: _tn }
-            | Self::OnUpdateFullTableMut { table_name: _tn }
-            | Self::OnUpdateLastRecordBatchMut { table_name: _tn }
+            | Self::OnUpdateFullTableDrain { table_name: _tn }
+            | Self::OnUpdateLastRecordBatchPop { table_name: _tn }
             | Self::OnUpdateEmpty { table_name: _tn } => true,
             Self::AlwaysFullTable { table_name: _tn }
             | Self::AlwaysLastRecordBatch { table_name: _tn }
-            | Self::AlwaysFullTableOwn { table_name: _tn }
-            | Self::AlwaysLastRecordBatchOwn { table_name: _tn }
-            | Self::AlwaysFullTableMut { table_name: _tn }
-            | Self::AlwaysLastRecordBatchMut { table_name: _tn } => false,
+            | Self::AlwaysFullTableDrain { table_name: _tn }
+            | Self::AlwaysLastRecordBatchPop { table_name: _tn } => false,
             Self::None => false,
             Self::Custom(_name) => false,
         }
@@ -130,35 +106,10 @@ impl TableSubscription {
             | Self::OnUpdateEmpty { table_name: _tn }
             | Self::AlwaysFullTable { table_name: _tn }
             | Self::AlwaysLastRecordBatch { table_name: _tn } => true,
-            Self::OnUpdateFullTableOwn { table_name: _tn }
-            | Self::OnUpdateLastRecordBatchOwn { table_name: _tn }
-            | Self::AlwaysFullTableOwn { table_name: _tn }
-            | Self::AlwaysLastRecordBatchOwn { table_name: _tn }
-            | Self::OnUpdateFullTableMut { table_name: _tn }
-            | Self::OnUpdateLastRecordBatchMut { table_name: _tn }
-            | Self::AlwaysFullTableMut { table_name: _tn }
-            | Self::AlwaysLastRecordBatchMut { table_name: _tn } => false,
-            Self::None => false,
-            Self::Custom(_name) => false,
-        }
-    }
-
-    /// Does the subscription result in taking ownership of the table?
-    pub fn is_own(&self) -> bool {
-        match self {
-            Self::OnUpdateFullTable { table_name: _tn }
-            | Self::OnUpdateLastRecordBatch { table_name: _tn }
-            | Self::OnUpdateEmpty { table_name: _tn }
-            | Self::AlwaysFullTable { table_name: _tn }
-            | Self::AlwaysLastRecordBatch { table_name: _tn }
-            | Self::OnUpdateFullTableMut { table_name: _tn }
-            | Self::OnUpdateLastRecordBatchMut { table_name: _tn }
-            | Self::AlwaysFullTableMut { table_name: _tn }
-            | Self::AlwaysLastRecordBatchMut { table_name: _tn } => false,
-            Self::OnUpdateFullTableOwn { table_name: _tn }
-            | Self::OnUpdateLastRecordBatchOwn { table_name: _tn }
-            | Self::AlwaysFullTableOwn { table_name: _tn }
-            | Self::AlwaysLastRecordBatchOwn { table_name: _tn } => true,
+            Self::OnUpdateFullTableDrain { table_name: _tn }
+            | Self::OnUpdateLastRecordBatchPop { table_name: _tn }
+            | Self::AlwaysFullTableDrain { table_name: _tn }
+            | Self::AlwaysLastRecordBatchPop { table_name: _tn } => false,
             Self::None => false,
             Self::Custom(_name) => false,
         }
@@ -171,15 +122,11 @@ impl TableSubscription {
             | Self::OnUpdateLastRecordBatch { table_name: _tn }
             | Self::OnUpdateEmpty { table_name: _tn }
             | Self::AlwaysFullTable { table_name: _tn }
-            | Self::AlwaysLastRecordBatch { table_name: _tn }
-            | Self::OnUpdateFullTableOwn { table_name: _tn }
-            | Self::OnUpdateLastRecordBatchOwn { table_name: _tn }
-            | Self::AlwaysFullTableOwn { table_name: _tn }
-            | Self::AlwaysLastRecordBatchOwn { table_name: _tn } => false,
-            Self::OnUpdateFullTableMut { table_name: _tn }
-            | Self::OnUpdateLastRecordBatchMut { table_name: _tn }
-            | Self::AlwaysFullTableMut { table_name: _tn }
-            | Self::AlwaysLastRecordBatchMut { table_name: _tn } => true,
+            | Self::AlwaysLastRecordBatch { table_name: _tn } => false,
+            Self::OnUpdateFullTableDrain { table_name: _tn }
+            | Self::OnUpdateLastRecordBatchPop { table_name: _tn }
+            | Self::AlwaysFullTableDrain { table_name: _tn }
+            | Self::AlwaysLastRecordBatchPop { table_name: _tn } => true,
             Self::None => false,
             Self::Custom(_name) => false,
         }
@@ -193,14 +140,10 @@ impl TableSubscription {
             Self::OnUpdateEmpty { table_name: _tn } => "Empty",
             Self::AlwaysFullTable { table_name: _tn } => "FullTable",
             Self::AlwaysLastRecordBatch { table_name: _tn } => "LastRecordBatch",
-            Self::OnUpdateFullTableOwn { table_name: _tn } => "FullTableOwn",
-            Self::OnUpdateLastRecordBatchOwn { table_name: _tn } => "LastRecordBatchOwn",
-            Self::AlwaysFullTableOwn { table_name: _tn } => "FullTableOwn",
-            Self::AlwaysLastRecordBatchOwn { table_name: _tn } => "LastRecordBatchOwn",
-            Self::OnUpdateFullTableMut { table_name: _tn } => "FullTableMut",
-            Self::OnUpdateLastRecordBatchMut { table_name: _tn } => "LastRecordBatchMut",
-            Self::AlwaysFullTableMut { table_name: _tn } => "FullTableMut",
-            Self::AlwaysLastRecordBatchMut { table_name: _tn } => "LastRecordBatchMut",
+            Self::OnUpdateFullTableDrain { table_name: _tn } => "FullTableDrain",
+            Self::OnUpdateLastRecordBatchPop { table_name: _tn } => "LastRecordBatchPop",
+            Self::AlwaysFullTableDrain { table_name: _tn } => "FullTableDrain",
+            Self::AlwaysLastRecordBatchPop { table_name: _tn } => "LastRecordBatchPop",
             Self::None => "None",
             Self::Custom(name) => name,
         }
@@ -208,36 +151,20 @@ impl TableSubscription {
 
     /// New [TableSubscription] from a short name identifying the variant and the `table_name`
     pub fn from_str_fuzzy(name: &str, subject: &str) -> Result<TableSubscription> {
-        let subscription = if name.contains("OnUpdateFullTableOwn") {
-            TableSubscription::OnUpdateFullTableOwn {
+        let subscription = if name.contains("OnUpdateFullTableDrain") {
+            TableSubscription::OnUpdateFullTableDrain {
                 table_name: subject.to_string(),
             }
-        } else if name.contains("AlwaysFullTableOwn") {
-            TableSubscription::AlwaysFullTableOwn {
+        } else if name.contains("AlwaysFullTableDrain") {
+            TableSubscription::AlwaysFullTableDrain {
                 table_name: subject.to_string(),
             }
-        } else if name.contains("OnUpdateLastRecordBatchOwn") {
-            TableSubscription::OnUpdateLastRecordBatchOwn {
+        } else if name.contains("OnUpdateLastRecordBatchPop") {
+            TableSubscription::OnUpdateLastRecordBatchPop {
                 table_name: subject.to_string(),
             }
-        } else if name.contains("AlwaysLastRecordBatchOwn") {
-            TableSubscription::AlwaysLastRecordBatchOwn {
-                table_name: subject.to_string(),
-            }
-        } else if name.contains("OnUpdateFullTableMut") {
-            TableSubscription::OnUpdateFullTableMut {
-                table_name: subject.to_string(),
-            }
-        } else if name.contains("AlwaysFullTableMut") {
-            TableSubscription::AlwaysFullTableMut {
-                table_name: subject.to_string(),
-            }
-        } else if name.contains("OnUpdateLastRecordBatchMut") {
-            TableSubscription::OnUpdateLastRecordBatchMut {
-                table_name: subject.to_string(),
-            }
-        } else if name.contains("AlwaysLastRecordBatchMut") {
-            TableSubscription::AlwaysLastRecordBatchMut {
+        } else if name.contains("AlwaysLastRecordBatchPop") {
+            TableSubscription::AlwaysLastRecordBatchPop {
                 table_name: subject.to_string(),
             }
         } else if name.contains("OnUpdateFullTable") {
@@ -273,36 +200,20 @@ impl TableSubscription {
     /// New [TableSubscription] from a short name identifying the variant, the subject `table_name`
     ///   and the mermaid.js flowchart diagram link type
     pub fn from_str_mermaid(line: &str, subject: &str) -> Result<TableSubscription> {
-        if line.contains("|") & line.contains("-.->") & line.contains("FullTableOwn") {
-            Ok(TableSubscription::OnUpdateFullTableOwn {
+        if line.contains("|") & line.contains("-.->") & line.contains("FullTableDrain") {
+            Ok(TableSubscription::OnUpdateFullTableDrain {
                 table_name: subject.to_string(),
             })
-        } else if line.contains("|") & line.contains("-->") & line.contains("FullTableOwn") {
-            Ok(TableSubscription::AlwaysFullTableOwn {
+        } else if line.contains("|") & line.contains("-->") & line.contains("FullTableDrain") {
+            Ok(TableSubscription::AlwaysFullTableDrain {
                 table_name: subject.to_string(),
             })
-        } else if line.contains("|") & line.contains("-.->") & line.contains("LastRecordBatchOwn") {
-            Ok(TableSubscription::OnUpdateLastRecordBatchOwn {
+        } else if line.contains("|") & line.contains("-.->") & line.contains("LastRecordBatchPop") {
+            Ok(TableSubscription::OnUpdateLastRecordBatchPop {
                 table_name: subject.to_string(),
             })
-        } else if line.contains("|") & line.contains("-->") & line.contains("LastRecordBatchOwn") {
-            Ok(TableSubscription::AlwaysLastRecordBatchOwn {
-                table_name: subject.to_string(),
-            })
-        } else if line.contains("|") & line.contains("-.->") & line.contains("FullTableMut") {
-            Ok(TableSubscription::OnUpdateFullTableMut {
-                table_name: subject.to_string(),
-            })
-        } else if line.contains("|") & line.contains("-->") & line.contains("FullTableMut") {
-            Ok(TableSubscription::AlwaysFullTableMut {
-                table_name: subject.to_string(),
-            })
-        } else if line.contains("|") & line.contains("-.->") & line.contains("LastRecordBatchMut") {
-            Ok(TableSubscription::OnUpdateLastRecordBatchMut {
-                table_name: subject.to_string(),
-            })
-        } else if line.contains("|") & line.contains("-->") & line.contains("LastRecordBatchMut") {
-            Ok(TableSubscription::AlwaysLastRecordBatchMut {
+        } else if line.contains("|") & line.contains("-->") & line.contains("LastRecordBatchPop") {
+            Ok(TableSubscription::AlwaysLastRecordBatchPop {
                 table_name: subject.to_string(),
             })
         } else if line.contains("|") & line.contains("-.->") & line.contains("FullTable") {
@@ -343,14 +254,10 @@ impl MappableTrait for TableSubscription {
             Self::OnUpdateEmpty { table_name: _tn } => "OnUpdateEmpty",
             Self::AlwaysFullTable { table_name: _tn } => "AlwaysFullTable",
             Self::AlwaysLastRecordBatch { table_name: _tn } => "AlwaysLastRecordBatch",
-            Self::OnUpdateFullTableOwn { table_name: _tn } => "OnUpdateFullTableOwn",
-            Self::OnUpdateLastRecordBatchOwn { table_name: _tn } => "OnUpdateLastRecordBatchOwn",
-            Self::AlwaysFullTableOwn { table_name: _tn } => "AlwaysFullTableOwn",
-            Self::AlwaysLastRecordBatchOwn { table_name: _tn } => "AlwaysLastRecordBatchOwn",
-            Self::OnUpdateFullTableMut { table_name: _tn } => "OnUpdateFullTableMut",
-            Self::OnUpdateLastRecordBatchMut { table_name: _tn } => "OnUpdateLastRecordBatchMut",
-            Self::AlwaysFullTableMut { table_name: _tn } => "AlwaysFullTableMut",
-            Self::AlwaysLastRecordBatchMut { table_name: _tn } => "AlwaysLastRecordBatchMut",
+            Self::OnUpdateFullTableDrain { table_name: _tn } => "OnUpdateFullTableDrain",
+            Self::OnUpdateLastRecordBatchPop { table_name: _tn } => "OnUpdateLastRecordBatchPop",
+            Self::AlwaysFullTableDrain { table_name: _tn } => "AlwaysFullTableDrain",
+            Self::AlwaysLastRecordBatchPop { table_name: _tn } => "AlwaysLastRecordBatchPop",
             Self::None => "None",
             Self::Custom(name) => name,
         }
@@ -378,22 +285,6 @@ pub trait TableSubscriptionTrait: TableTrait {
     /// * `subscribe` - `ArrowTableSubscribe` the subscription enum
     fn subscribe_to_table(
         &self,
-        subscribe: &TableSubscription,
-    ) -> Option<SendableRecordBatchStream>;
-
-    /// Implement the subscription owning the table
-    ///
-    /// # Notes
-    ///
-    /// * Empty tables are skipped
-    /// * `TableSubscription` where `is_own` = false are skipped
-    ///
-    /// # Arguments
-    ///
-    /// * `updated` - whether the table has been updated or not
-    /// * `subscribe` - `ArrowTableSubscribe` the subscription enum
-    fn subscribe_to_table_own(
-        self,
         subscribe: &TableSubscription,
     ) -> Option<SendableRecordBatchStream>;
 
@@ -443,47 +334,10 @@ impl TableSubscriptionTrait for Table {
                     stream,
                 )))
             }
-            TableSubscription::AlwaysFullTableOwn { table_name: _ } => None,
-            TableSubscription::AlwaysLastRecordBatchOwn { table_name: _ } => None,
-            TableSubscription::OnUpdateFullTableOwn { table_name: _ } => None,
-            TableSubscription::OnUpdateLastRecordBatchOwn { table_name: _ } => None,
-            TableSubscription::AlwaysFullTableMut { table_name: _ } => None,
-            TableSubscription::AlwaysLastRecordBatchMut { table_name: _ } => None,
-            TableSubscription::OnUpdateFullTableMut { table_name: _ } => None,
-            TableSubscription::OnUpdateLastRecordBatchMut { table_name: _ } => None,
-            TableSubscription::None => None,
-            TableSubscription::Custom(_) => None,
-        }
-    }
-    fn subscribe_to_table_own(
-        self,
-        subscribe: &TableSubscription,
-    ) -> Option<SendableRecordBatchStream> {
-        if self.count_rows() == 0 {
-            return None;
-        }
-        match subscribe {
-            TableSubscription::AlwaysFullTableOwn { table_name: _ } => {
-                Some(self.to_record_batch_stream_own())
-            }
-            TableSubscription::AlwaysLastRecordBatchOwn { table_name: _ } => {
-                Some(self.to_record_batch_stream_last_record_batch_own())
-            }
-            TableSubscription::OnUpdateFullTableOwn { table_name: _ } => {
-                Some(self.to_record_batch_stream_own())
-            }
-            TableSubscription::OnUpdateLastRecordBatchOwn { table_name: _ } => {
-                Some(self.to_record_batch_stream_last_record_batch_own())
-            }
-            TableSubscription::OnUpdateEmpty { table_name: _ } => None,
-            TableSubscription::AlwaysFullTable { table_name: _ } => None,
-            TableSubscription::AlwaysLastRecordBatch { table_name: _ } => None,
-            TableSubscription::OnUpdateFullTable { table_name: _ } => None,
-            TableSubscription::OnUpdateLastRecordBatch { table_name: _ } => None,
-            TableSubscription::AlwaysFullTableMut { table_name: _ } => None,
-            TableSubscription::AlwaysLastRecordBatchMut { table_name: _ } => None,
-            TableSubscription::OnUpdateFullTableMut { table_name: _ } => None,
-            TableSubscription::OnUpdateLastRecordBatchMut { table_name: _ } => None,
+            TableSubscription::AlwaysFullTableDrain { table_name: _ } => None,
+            TableSubscription::AlwaysLastRecordBatchPop { table_name: _ } => None,
+            TableSubscription::OnUpdateFullTableDrain { table_name: _ } => None,
+            TableSubscription::OnUpdateLastRecordBatchPop { table_name: _ } => None,
             TableSubscription::None => None,
             TableSubscription::Custom(_) => None,
         }
@@ -496,27 +350,23 @@ impl TableSubscriptionTrait for Table {
             return None;
         }
         match subscribe {
-            TableSubscription::AlwaysFullTableMut { table_name: _ } => {
-                Some(self.to_record_batch_stream_mut())
+            TableSubscription::AlwaysFullTableDrain { table_name: _ } => {
+                Some(self.to_record_batch_stream_drain())
             }
-            TableSubscription::AlwaysLastRecordBatchMut { table_name: _ } => {
-                Some(self.to_record_batch_stream_last_record_batch_mut())
+            TableSubscription::AlwaysLastRecordBatchPop { table_name: _ } => {
+                Some(self.to_record_batch_stream_last_record_batch_pop())
             }
-            TableSubscription::OnUpdateFullTableMut { table_name: _ } => {
-                Some(self.to_record_batch_stream_mut())
+            TableSubscription::OnUpdateFullTableDrain { table_name: _ } => {
+                Some(self.to_record_batch_stream_drain())
             }
-            TableSubscription::OnUpdateLastRecordBatchMut { table_name: _ } => {
-                Some(self.to_record_batch_stream_last_record_batch_mut())
+            TableSubscription::OnUpdateLastRecordBatchPop { table_name: _ } => {
+                Some(self.to_record_batch_stream_last_record_batch_pop())
             }
             TableSubscription::OnUpdateEmpty { table_name: _ } => None,
             TableSubscription::AlwaysFullTable { table_name: _ } => None,
             TableSubscription::AlwaysLastRecordBatch { table_name: _ } => None,
             TableSubscription::OnUpdateFullTable { table_name: _ } => None,
             TableSubscription::OnUpdateLastRecordBatch { table_name: _ } => None,
-            TableSubscription::AlwaysFullTableOwn { table_name: _ } => None,
-            TableSubscription::AlwaysLastRecordBatchOwn { table_name: _ } => None,
-            TableSubscription::OnUpdateFullTableOwn { table_name: _ } => None,
-            TableSubscription::OnUpdateLastRecordBatchOwn { table_name: _ } => None,
             TableSubscription::None => None,
             TableSubscription::Custom(_) => None,
         }
@@ -565,59 +415,30 @@ mod tests {
         let test = TableSubscription::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
-        let line = "message_parsing-subject-->|FullTableOwn|message_parser-subscribe";
+        let line = "message_parsing-subject-->|FullTableDrain|message_parser-subscribe";
         let subject = "message_parser";
-        let publication = TableSubscription::AlwaysFullTableOwn {
+        let publication = TableSubscription::AlwaysFullTableDrain {
             table_name: subject.to_string(),
         };
         let test = TableSubscription::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
-        let line = "message_parsing-subject-.->|FullTableOwn|message_parser-subscribe";
-        let publication = TableSubscription::OnUpdateFullTableOwn {
+        let line = "message_parsing-subject-.->|FullTableDrain|message_parser-subscribe";
+        let publication = TableSubscription::OnUpdateFullTableDrain {
             table_name: subject.to_string(),
         };
         let test = TableSubscription::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
-        let line = "message_parsing-subject-->|LastRecordBatchOwn|message_parser-subscribe";
-        let publication = TableSubscription::AlwaysLastRecordBatchOwn {
+        let line = "message_parsing-subject-->|LastRecordBatchPop|message_parser-subscribe";
+        let publication = TableSubscription::AlwaysLastRecordBatchPop {
             table_name: subject.to_string(),
         };
         let test = TableSubscription::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
-        let line = "message_parsing-subject-.->|LastRecordBatchOwn|message_parser-subscribe";
-        let publication = TableSubscription::OnUpdateLastRecordBatchOwn {
-            table_name: subject.to_string(),
-        };
-        let test = TableSubscription::from_str_mermaid(line, subject)?;
-        assert_eq!(test, publication);
-
-        let line = "message_parsing-subject-->|FullTableMut|message_parser-subscribe";
-        let subject = "message_parser";
-        let publication = TableSubscription::AlwaysFullTableMut {
-            table_name: subject.to_string(),
-        };
-        let test = TableSubscription::from_str_mermaid(line, subject)?;
-        assert_eq!(test, publication);
-
-        let line = "message_parsing-subject-.->|FullTableMut|message_parser-subscribe";
-        let publication = TableSubscription::OnUpdateFullTableMut {
-            table_name: subject.to_string(),
-        };
-        let test = TableSubscription::from_str_mermaid(line, subject)?;
-        assert_eq!(test, publication);
-
-        let line = "message_parsing-subject-->|LastRecordBatchMut|message_parser-subscribe";
-        let publication = TableSubscription::AlwaysLastRecordBatchMut {
-            table_name: subject.to_string(),
-        };
-        let test = TableSubscription::from_str_mermaid(line, subject)?;
-        assert_eq!(test, publication);
-
-        let line = "message_parsing-subject-.->|LastRecordBatchMut|message_parser-subscribe";
-        let publication = TableSubscription::OnUpdateLastRecordBatchMut {
+        let line = "message_parsing-subject-.->|LastRecordBatchPop|message_parser-subscribe";
+        let publication = TableSubscription::OnUpdateLastRecordBatchPop {
             table_name: subject.to_string(),
         };
         let test = TableSubscription::from_str_mermaid(line, subject)?;

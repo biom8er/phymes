@@ -153,7 +153,6 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                         TableSubscription::OnUpdateFullTable {
                             table_name: self.chat_task_name.to_string(),
                         },
-                        TableSubscription::None,
                         TableSubscription::AlwaysFullTable {
                             table_name: self.chat_processor_name.to_string(),
                         },
@@ -179,7 +178,6 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                         TableSubscription::OnUpdateFullTable {
                             table_name: self.chat_task_name.to_string(),
                         },
-                        TableSubscription::None,
                         TableSubscription::AlwaysFullTable {
                             table_name: self.chat_processor_name.to_string(),
                         },
