@@ -613,7 +613,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config).unwrap();
         let candle_chat_state = TableBuilder::new()
             .with_name(self.chat_processor_name)
-            .with_json(&candle_chat_config_json.clone(), 1)
+            .with_json(&candle_chat_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
@@ -628,7 +628,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
         let aggregator_1_state = TableBuilder::new()
             .with_name(self.message_aggregator_processor_1_name)
-            .with_json(&aggregator_config_json.clone(), 1)
+            .with_json(&aggregator_config_json, 1)
             .unwrap()
             .build()
             .unwrap();

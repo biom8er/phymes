@@ -216,6 +216,8 @@ pub async fn session_diagnostics(
                     .to_string()
                     .as_str()]))
                 .unwrap()
+                .add_tasks_subscribe_publish()
+                .unwrap()
                 .build_with_tables()
                 .unwrap();
             let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
