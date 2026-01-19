@@ -1033,38 +1033,35 @@ pub mod test_session_context_builder_agents {
     use super::*;
 
     pub fn make_test_state_agents() -> Result<Vec<Table>> {
-        let state = vec![
+        let mut state = vec![
             make_test_table("state_1", 4, 8, 3)?,
-            Table::get_builder()
-                .with_name("processor_1")
-                .with_json(
-                    &AvailableProcessors::CandleDataProcessor.to_example_json()?,
-                    1,
-                )
-                .unwrap()
-                .build()
-                .unwrap(),
             make_test_table("state_2", 4, 8, 3)?,
-            Table::get_builder()
-                .with_name("processor_2")
-                .with_json(
-                    &AvailableProcessors::CandleDataProcessor.to_example_json()?,
-                    1,
-                )
-                .unwrap()
-                .build()
-                .unwrap(),
             make_test_table("state_3", 4, 8, 3)?,
-            Table::get_builder()
-                .with_name("processor_3")
-                .with_json(
-                    &AvailableProcessors::CandleDataProcessor.to_example_json()?,
-                    1,
-                )
-                .unwrap()
-                .build()
-                .unwrap(),
         ];
+        let processor_1 = DataConfig {
+            lhs_name: Some("state_1".to_string()),
+            ..Default::default()
+        };
+        let join_config_json = serde_json::to_vec(&processor_1).unwrap();
+        let join_config_state = Table::get_builder()
+            .with_name("processor_1")
+            .with_json(&join_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+        state.push(join_config_state);
+        let processor_2 = DataConfig {
+            lhs_name: Some("state_2".to_string()),
+            ..Default::default()
+        };
+        let join_config_json = serde_json::to_vec(&processor_2).unwrap();
+        let join_config_state = Table::get_builder()
+            .with_name("processor_2")
+            .with_json(&join_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+        state.push(join_config_state);
         Ok(state)
     }
 
@@ -1105,36 +1102,19 @@ pub mod test_session_context_builder_agents {
                 )
                 .build()?,
             ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_3"))
+                .with_processor(AvailableProcessors::Join.build_arc("processor_3"))
                 .with_publications(&[TablePublication::Extend {
                     table_name: "state_3".to_string(),
                 }])
                 .with_subscriptions(&[
                     TableSubscription::OnUpdateFullTable {
-                        table_name: "state_3".to_string(),
+                        table_name: "state_1".to_string(),
+                    },
+                    TableSubscription::OnUpdateFullTable {
+                        table_name: "state_2".to_string(),
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: "processor_3".to_string(),
-                    },
-                ])
-                .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                )
-                .build()?,
-            ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::Join.build_arc("session_1"))
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_3".to_string(),
-                }])
-                .with_subscriptions(&[
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: "state_1".to_string(),
-                    },
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: "state_2".to_string(),
-                    },
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: "session_1".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
@@ -1146,7 +1126,7 @@ pub mod test_session_context_builder_agents {
     }
 
     #[allow(dead_code)]
-    pub fn make_test_session_builder_agents() -> Result<SessionContextBuilder> {
+    pub fn make_test_session_builder_agents(name: &str) -> Result<SessionContextBuilder> {
         let processor_plans = make_test_processors_agents()?;
         let mut state = make_test_state_agents()?;
 
@@ -1162,7 +1142,7 @@ pub mod test_session_context_builder_agents {
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
         let join_config_state = Table::get_builder()
-            .with_name("session_1")
+            .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
             .build()
@@ -1170,9 +1150,9 @@ pub mod test_session_context_builder_agents {
         state.push(join_config_state);
 
         let builder = SessionContextBuilder::new()
+            .with_name(name)
             .with_tasks(make_test_session_context_builder_parallel_tasks())
             .with_processors(processor_plans)
-            .with_name("session")
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
             .with_state(state)
             .with_diagnostics(true);
@@ -1183,131 +1163,155 @@ pub mod test_session_context_builder_agents {
 #[cfg(test)]
 mod tests {
 
-    use crate::test_session_context_builder::{
-        make_test_session_context_builder_parallel_processors, make_test_session_context_builder_parallel_tasks,
-    };
+    use crate::test_session_context_builder;
     use phymes_core::{
         BuildableTrait, BuilderTrait, DataFormat, TableBuilderTrait, TaskTrait,
-        test_task::{make_runtime_env, make_state_tables},
+        test_task, test_table
     };
     use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager};
 
     use super::*;
 
     #[test]
-    fn test_build_with_tables_success() -> Result<()> {
-        let session = test_session_context_builder_agents::make_test_session_builder_agents()?
+    fn test_session_context_builder_agents_build_with_tables_success() -> Result<()> {
+        let session = test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
             .build_with_tables()?;
-        assert_eq!(session.get_states().len(), 19);
-        assert_eq!(session.get_tasks().len(), 4);
-        assert_eq!(session.get_name(), "session");
+        assert_eq!(session.get_states().len(), 18);
+        assert_eq!(session.get_tasks().len(), 3);
+        assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_iter(), 25);
         assert!(session.get_diagnostics());
         Ok(())
     }
 
     #[test]
-    fn test_build_with_tables_add_session_interface() -> Result<()> {
-        let session = test_session_context_builder_agents::make_test_session_builder_agents()?
+    fn test_session_context_builder_agents_build_with_tables_add_session_interface() -> Result<()> {
+        let session = test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
             .add_session_interface(Some(&["state_1"]))?
             .build_with_tables()?;
-        assert_eq!(session.get_states().len(), 19);
-        assert_eq!(session.get_tasks().len(), 5);
+        assert_eq!(session.get_states().len(), 18);
+        assert_eq!(session.get_tasks().len(), 4);
         assert_eq!(
-            session.get_tasks().get("session").unwrap().get_name(),
-            "session"
+            session.get_tasks().get("session_1").unwrap().get_name(),
+            "session_1"
         );
         let test = session
             .get_tasks()
-            .get("session")
+            .get("session_1")
             .unwrap()
             .get_processors()
             .iter()
             .map(|p| p.get_name())
             .collect::<Vec<_>>();
-        assert_eq!(test, ["session"]);
+        assert_eq!(test, ["session_1"]);
         let test = session
             .get_tasks()
-            .get("session")
+            .get("session_1")
             .unwrap()
             .get_runtime_env();
-        assert_eq!(test.get_name(), "session-runtime_env");
-        assert_eq!(session.get_name(), "session");
+        assert_eq!(test.get_name(), "session_1-runtime_env");
+        assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_iter(), 25);
         assert!(session.get_diagnostics());
         Ok(())
     }
 
     #[test]
-    fn test_build_with_tables_missing_processor_configs_subjects() -> Result<()> {
+    fn test_session_context_builder_agents_build_with_tables_missing_processor_configs_subjects() -> Result<()> {
         // Check that missing config subscriptions can be identified
-        let mut state = make_state_tables("state_1", "processor_1")?;
-        state.extend(make_state_tables("state_2", "processor_2")?);
-        state.extend(make_state_tables("state_3", "processor_3")?);
-        let result = make_test_session_context_builder_parallel_processors()
-            .with_name("session")
-            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+        let mut state = test_session_context_builder_agents::make_test_state_agents()?;
+        let join_config = DataConfig {
+            lhs_name: Some("state_1".to_string()),
+            rhs_name: Some("state_2".to_string()),
+            lhs_fk: Some("id".to_string()),
+            rhs_fk: Some("id".to_string()),
+            lhs_pk: Some("id".to_string()),
+            rhs_pk: Some("id".to_string()),
+            operator: AvailableCandleOperators::Join,
+            ..Default::default()
+        };
+        let join_config_json = serde_json::to_vec(&join_config).unwrap();
+        let join_config_state = Table::get_builder()
+            .with_name("processor_3")
+            .with_json(&join_config_json, 1)
+            .unwrap()
+            .build()
+            .unwrap();
+        state.push(join_config_state);
+        let mut task_plans = test_session_context_builder::make_test_session_context_builder_parallel_tasks();
+        task_plans.push(TaskPlan {
+            task_name: "task_4".to_string(),
+            runtime_env_name: "rt_1".to_string(),
+            processor_names: vec!["processor_4".to_string()],
+        });
+        let mut processor_plans = test_session_context_builder_agents::make_test_processors_agents()?;
+        processor_plans.push(ProcessorPlanBuilder::default()
+            .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_4"))
+            .with_publications(&[TablePublication::Extend {
+                table_name: "state_3".to_string(),
+            }])
+            .with_subscriptions(&[
+                TableSubscription::OnUpdateFullTable {
+                    table_name: "state_3".to_string(),
+                },
+            ])
+            .with_subscribe_policy(
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+            )
+            .build()?
+        );
+        let result = SessionContextBuilder::new()
+            .with_name("session_1")
+            .with_tasks(task_plans.clone())
+            .with_processors(processor_plans)
+            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
+            .with_diagnostics(true)
             .with_state(state.clone())
             .build_with_tables();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "A subscription with the same name as the processor (i.e., its config) is not provided for processors [\"session_1\"]."
+                "A subscription with the same name as the processor (i.e., its config) is not provided for processors [\"processor_4\"]."
             ),
         }
 
         // Check that the default processor subjects fix the issue
-        let session = make_test_session_context_builder_parallel_processors()
-            .with_name("session")
-            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
-            .with_state(state)
+        let mut processor_plans = test_session_context_builder_agents::make_test_processors_agents()?;
+        processor_plans.push(ProcessorPlanBuilder::default()
+            .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_4"))
+            .with_publications(&[TablePublication::Extend {
+                table_name: "state_3".to_string(),
+            }])
+            .with_subscriptions(&[
+                TableSubscription::OnUpdateFullTable {
+                    table_name: "state_3".to_string(),
+                },
+            ])
+            .with_subscribe_policy(
+                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+            )
+            .build()?
+        );
+        let session = SessionContextBuilder::new()
+            .with_name("session_1")
+            .with_tasks(task_plans)
+            .with_processors(processor_plans)
+            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
+            .with_diagnostics(true)
+            .with_state(state.clone())
             .add_processor_subjects()?
             .build_with_tables()?;
         assert_eq!(session.get_states().len(), 19);
         assert_eq!(session.get_tasks().len(), 4);
-        assert_eq!(session.get_name(), "session");
+        assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_iter(), 25);
         Ok(())
     }
 
     #[test]
-    fn test_build_with_tables_missing_data_config_subjects() -> Result<()> {
+    fn test_session_context_builder_agents_build_with_tables_missing_data_config_subjects() -> Result<()> {
         let state = test_session_context_builder_agents::make_test_state_agents()?;
-
-        // Check that no errors are found
-        let join_config = DataConfig {
-            lhs_name: Some("state_1".to_string()),
-            rhs_name: Some("state_2".to_string()),
-            lhs_fk: Some("id".to_string()),
-            rhs_fk: Some("id".to_string()),
-            lhs_pk: Some("title".to_string()),
-            rhs_pk: Some("title".to_string()),
-            lhs_values: Some(vec!["metadata".to_string(), "score".to_string()]),
-            rhs_values: Some(vec!["metadata".to_string(), "score".to_string()]),
-            operator: AvailableCandleOperators::Join,
-            stream: DataStreamManager::AccumulateLHSAccumulateRHS,
-            ..Default::default()
-        };
-        let join_config_json = serde_json::to_vec(&join_config).unwrap();
-        let join_config_state = Table::get_builder()
-            .with_name("session_1")
-            .with_json(&join_config_json, 1)
-            .unwrap()
-            .build()
-            .unwrap();
-        let mut state_test = state.clone();
-        state_test.push(join_config_state);
-
-        let result = SessionContextBuilder::new()
-            .with_tasks(make_test_session_context_builder_parallel_tasks())
-            .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
-            .with_name("session")
-            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
-            .with_state(state_test)
-            .with_diagnostics(true)
-            .build_with_tables();
-        assert!(result.is_ok());
 
         // Test that mismatches in the lhs/rhs name are identified
         let join_config = DataConfig {
@@ -1319,7 +1323,7 @@ mod tests {
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
         let join_config_state = Table::get_builder()
-            .with_name("session_1")
+            .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
             .build()
@@ -1328,10 +1332,10 @@ mod tests {
         state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
-            .with_tasks(make_test_session_context_builder_parallel_tasks())
+            .with_tasks(test_session_context_builder::make_test_session_context_builder_parallel_tasks())
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
-            .with_name("session")
-            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+            .with_name("session_1")
+            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
             .with_state(state_test)
             .with_diagnostics(true)
             .build_with_tables();
@@ -1339,7 +1343,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "A subscriptions with the same name as the `DataConfig` rhs_name was not found for processor session_1 with rhs_name missing_state."
+                "A subscriptions with the same name as the `DataConfig` rhs_name was not found for processor processor_3 with rhs_name missing_state."
             ),
         }
 
@@ -1357,7 +1361,7 @@ mod tests {
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
         let join_config_state = Table::get_builder()
-            .with_name("session_1")
+            .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
             .build()
@@ -1366,10 +1370,10 @@ mod tests {
         state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
-            .with_tasks(make_test_session_context_builder_parallel_tasks())
+            .with_tasks(test_session_context_builder::make_test_session_context_builder_parallel_tasks())
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
-            .with_name("session")
-            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+            .with_name("session_1")
+            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
             .with_state(state_test)
             .with_diagnostics(true)
             .build_with_tables();
@@ -1377,7 +1381,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Subscription state_2 does not have a column for `DataConfig` rhs_pk missing_pk for processor session_1 with rhs_name state_2."
+                "Subscription state_2 does not have a column for `DataConfig` rhs_pk missing_pk for processor processor_3 with rhs_name state_2."
             ),
         }
 
@@ -1396,7 +1400,7 @@ mod tests {
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
         let join_config_state = Table::get_builder()
-            .with_name("session_1")
+            .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
             .build()
@@ -1405,10 +1409,10 @@ mod tests {
         state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
-            .with_tasks(make_test_session_context_builder_parallel_tasks())
+            .with_tasks(test_session_context_builder::make_test_session_context_builder_parallel_tasks())
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
-            .with_name("session")
-            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+            .with_name("session_1")
+            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
             .with_state(state_test)
             .with_diagnostics(true)
             .build_with_tables();
@@ -1416,7 +1420,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Subscription state_1 does not have columns for `DataConfig` lhs_values [\"missing_value\"] for processor session_1 with lhs_name state_1."
+                "Subscription state_1 does not have columns for `DataConfig` lhs_values [\"missing_value\"] for processor processor_3 with lhs_name state_1."
             ),
         }
 
@@ -1424,7 +1428,7 @@ mod tests {
     }
 
     #[test]
-    fn test_build_with_tables_failing_processor_config_builds() -> Result<()> {
+    fn test_session_context_builder_agents_build_with_tables_failing_processor_config_builds() -> Result<()> {
         let state = test_session_context_builder_agents::make_test_state_agents()?;
 
         // Test for mismatch between processor and config types
@@ -1434,7 +1438,7 @@ mod tests {
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
         let join_config_state = Table::get_builder()
-            .with_name("session_1")
+            .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
             .build()
@@ -1443,10 +1447,10 @@ mod tests {
         state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
-            .with_tasks(make_test_session_context_builder_parallel_tasks())
+            .with_tasks(test_session_context_builder::make_test_session_context_builder_parallel_tasks())
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
-            .with_name("session")
-            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+            .with_name("session_1")
+            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
             .with_state(state_test)
             .with_diagnostics(true)
             .build_with_tables();
@@ -1454,7 +1458,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Schema for `DataSummaryConfig` from subject `session_1` for processor type `Join` does not match the expected processor type DataSummaryProcessor."
+                "Schema for `DataSummaryConfig` from subject `processor_3` for processor type `Join` does not match the expected processor type DataSummaryProcessor."
             ),
         }
 
@@ -1469,7 +1473,7 @@ mod tests {
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
         let join_config_state = Table::get_builder()
-            .with_name("session_1")
+            .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
             .build()
@@ -1478,10 +1482,10 @@ mod tests {
         state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
-            .with_tasks(make_test_session_context_builder_parallel_tasks())
+            .with_tasks(test_session_context_builder::make_test_session_context_builder_parallel_tasks())
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
-            .with_name("session")
-            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+            .with_name("session_1")
+            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
             .with_state(state_test)
             .with_diagnostics(true)
             .build_with_tables();
@@ -1489,7 +1493,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Operator `NormalizeTime` for `DataConfig` from subject `session_1` does not match the expected for processor type `Join`."
+                "Operator `NormalizeTime` for `DataConfig` from subject `processor_3` does not match the expected for processor type `Join`."
             ),
         }
 
@@ -1504,7 +1508,7 @@ mod tests {
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
         let join_config_state = Table::get_builder()
-            .with_name("session_1")
+            .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
             .build()
@@ -1513,10 +1517,10 @@ mod tests {
         state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
-            .with_tasks(make_test_session_context_builder_parallel_tasks())
+            .with_tasks(test_session_context_builder::make_test_session_context_builder_parallel_tasks())
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
-            .with_name("session")
-            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+            .with_name("session_1")
+            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
             .with_state(state_test)
             .with_diagnostics(true)
             .build_with_tables();
@@ -1524,7 +1528,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Failed to build `Join` with DataConfig from subject `session_1`. Missing `lhs_pk` for `Join`."
+                "Failed to build `Join` with DataConfig from subject `processor_3`. Missing `lhs_pk` for `Join`."
             ),
         }
 

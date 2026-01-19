@@ -11,7 +11,7 @@ pub use session_context_builder::{
     SessionContextBuilder, SessionContextBuilderTrait, test_session_context_builder,
 };
 pub use session_context_builder_agents::{
-    CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait,
+    CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait, test_session_context_builder_agents,
 };
 pub use session_context_builder_mermaid::{
     SessionContextBuilderMermaid, SessionContextBuilderMermaidTrait,

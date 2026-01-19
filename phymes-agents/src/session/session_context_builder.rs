@@ -493,11 +493,6 @@ pub mod test_session_context_builder {
                 runtime_env_name: "rt_1".to_string(),
                 processor_names: vec!["processor_3".to_string()],
             },
-            TaskPlan {
-                task_name: "session_1".to_string(),
-                runtime_env_name: "rt_1".to_string(),
-                processor_names: vec!["session_1".to_string()],
-            },
         ]
     }
 
@@ -512,11 +507,6 @@ pub mod test_session_context_builder {
                     "processor_2".to_string(),
                     "processor_3".to_string(),
                 ],
-            },
-            TaskPlan {
-                task_name: "session_1".to_string(),
-                runtime_env_name: "rt_1".to_string(),
-                processor_names: vec!["session_1".to_string()],
             },
         ]
     }
@@ -571,35 +561,6 @@ pub mod test_session_context_builder {
                     },
                     TableSubscription::AlwaysFullTable {
                         table_name: "processor_3".to_string(),
-                    },
-                ])
-                .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                )
-                .build()
-                .unwrap(),
-            ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::ProcessorEcho.build_arc("session_1"))
-                .with_publications(&[
-                    TablePublication::Extend {
-                        table_name: "state_1".to_string(),
-                    },
-                    TablePublication::Extend {
-                        table_name: "state_2".to_string(),
-                    },
-                    TablePublication::Extend {
-                        table_name: "state_3".to_string(),
-                    },
-                ])
-                .with_subscriptions(&[
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: "state_1".to_string(),
-                    },
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: "state_2".to_string(),
-                    },
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: "state_3".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
@@ -672,19 +633,6 @@ pub mod test_session_context_builder {
                 )
                 .build()
                 .unwrap(),
-            ProcessorPlanBuilder::default()
-                .with_processor(AvailableProcessors::ProcessorEcho.build_arc("session_1"))
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_1".to_string(),
-                }])
-                .with_subscriptions(&[TableSubscription::OnUpdateLastRecordBatch {
-                    table_name: "state_1".to_string(),
-                }])
-                .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                )
-                .build()
-                .unwrap(),
         ];
 
         // Build the session
@@ -697,7 +645,7 @@ pub mod test_session_context_builder {
         name: &str,
         max_iter: usize,
     ) -> Result<SessionContextBuilder> {
-        // Init runtime env
+        // Init runtime env session_1-runtime_env
         let runtime_envs = vec![make_runtime_env("rt_1")?];
 
         // Init state
@@ -794,7 +742,6 @@ mod tests {
         assert!(names.contains("processor_1"));
         assert!(names.contains("processor_2"));
         assert!(names.contains("processor_3"));
-        assert!(names.contains("session_1"));
     }
 
     #[test]
@@ -875,9 +822,9 @@ mod tests {
         assert_eq!(plan.max_iter.unwrap(), 25);
         assert_eq!(plan.diagnostics.unwrap(), true);
         let names = plan.tasks.unwrap().into_iter().map(|t| t.task_name).collect::<Vec<_>>();
-        assert_eq!(names, ["task_1", "task_2", "task_3", "session_1", "task_4"]);
+        assert_eq!(names, ["task_1", "task_2", "task_3","task_4"]);
         let names = plan.processors.unwrap().into_iter().map(|t| t.get_name().to_string()).collect::<Vec<_>>();
-        assert_eq!(names, ["processor_1", "processor_2", "processor_3", "session_1", "processor_4"]);
+        assert_eq!(names, ["processor_1", "processor_2", "processor_3", "processor_4"]);
         let names = plan.runtime_envs.unwrap().into_iter().map(|t| t.get_name().to_string()).collect::<Vec<_>>();
         assert_eq!(names, ["rt_1", "rt_4"]);
         let names = plan.state.unwrap().into_iter().map(|t| t.get_name().to_string()).collect::<Vec<_>>();
@@ -893,7 +840,7 @@ mod tests {
             .with_diagnostics(true)
             .build()?;
         assert_eq!(session.get_states().len(), 6);
-        assert_eq!(session.get_tasks().len(), 4);
+        assert_eq!(session.get_tasks().len(), 3);
         assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_iter(), 10);
         assert!(session.get_diagnostics());
@@ -965,7 +912,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Mismatch between provided processors [\"processor_1\", \"processor_2\", \"processor_3\", \"session_1\"] and plan processor names [\"processor_1\", \"processor_2\"]."
+                "Mismatch between provided processors [\"processor_1\", \"processor_2\", \"processor_3\"] and plan processor names [\"processor_1\", \"processor_2\"]."
             ),
         }
 
@@ -1005,7 +952,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Mismatch between provided processors [\"processor_1\", \"processor_2\", \"processor_3\", \"session_1\"] and plan processor names [\"not_found\", \"processor_1\", \"processor_2\", \"processor_3\"]."
+                "Mismatch between provided processors [\"processor_1\", \"processor_2\", \"processor_3\"] and plan processor names [\"not_found\", \"processor_1\", \"processor_2\", \"processor_3\"]."
             ),
         }
         Ok(())

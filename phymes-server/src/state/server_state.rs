@@ -64,68 +64,37 @@ impl UserState {
 
         // Prepare the input message
         let batch = create_user_inbox_batch(vec![email.to_string()])?;
-        let bytes = Table::get_builder()
-            .with_name(AvailableInterfaceSubjects::UserJson.to_string().as_str())
+        let table = Table::get_builder()
+            .with_name(AvailableSubjects::UserInbox.to_string().as_str())
             .with_record_batches(vec![batch])?
-            .build()?
-            .to_json()?;
-        let blob = AvailableInterfaceSubjects::UserJson
-            .to_table_builder(None)
-            .with_blob(None, Some("json"), &bytes, None)?
             .build()?;
-        let blob_message = IPCMessage::get_builder()
-            .with_message(blob.to_ipc_stream()?)
-            .with_subject(blob.get_name())
+        let message = IPCMessage::get_builder()
+            .with_message(table.to_ipc_stream()?)
+            .with_subject(table.get_name())
             .with_update(&TablePublication::Replace {
-                table_name: blob.get_name().to_string(),
+                table_name: table.get_name().to_string(),
             })
             .with_publisher(session_context_name.as_str())
             .make_name()?
             .build()?;
-        let message_map = create_message_map(vec![blob_message]);
+        let message_map = create_message_map(vec![message]);
 
         // Run the tasks for the user session
         let session_stream = SessionStream::new(message_map, self.users.clone());
-        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
-        dbg!(&response.iter().map(|r| r.keys()).collect::<Vec<_>>());
+        let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-        // Parse the response
-        let mut attachment_data = response
-            .into_iter()
-            .map(|mut r| {
-                r.remove(&format!(
-                    "from_{}_on_{}",
-                    session_context_name.as_str(),
-                    AvailableInterfaceSubjects::AssistantJson
-                ))
-            })
-            .filter_map(|m| {
-                if let Some(message) = m {
-                    let bytes = TableBuilder::new_from_ipc_stream(&message.get_message_own())
-                        .unwrap()
-                        .with_name("")
-                        .build()
-                        .unwrap()
-                        .get_column_as_vec_nested_primitive::<u8>("bytes")
-                        .unwrap();
-                    let json_format = JsonFormat::default();
-                    let table = Table::get_builder()
-                        .with_name("attachment_data")
-                        .with_json(bytes.first().unwrap(), json_format.batch_size)
-                        .unwrap()
-                        .build()
-                        .unwrap();
-                    Some(table)
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-        dbg!(&attachment_data);
-        let user = attachment_data.swap_remove(0).to_struct::<UserSubject>()?;
-        let join = attachment_data
-            .swap_remove(0)
-            .to_struct::<JoinUserInboxSessionContextsMermaidDiagrams>()?;
+        // Parse out the results
+        let session_reading = self.users.read();
+        let table_reading = session_reading.get_states()
+            .get(AvailableSubjects::User.to_string().as_str())
+            .unwrap()
+            .read();
+        let user = table_reading.to_struct::<UserSubject>()?;
+        let table_reading = session_reading.get_states()
+            .get(AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string().as_str())
+            .unwrap()
+            .read();
+        let join = table_reading.to_struct::<JoinUserInboxSessionContextsMermaidDiagrams>()?;
 
         Ok((user, join))
     }

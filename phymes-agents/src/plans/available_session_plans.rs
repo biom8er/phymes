@@ -97,8 +97,8 @@ impl AvailableSessionPlans {
         let session_ctx = builder
             .with_name(session_name)
             .with_diagnostics(true)
-            // .add_session_interface(None)
-            // .unwrap()
+            .add_session_interface(None)
+            .unwrap()
             .add_tasks_subscribe_publish()
             .unwrap()
             .build_with_tables()
