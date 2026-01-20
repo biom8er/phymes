@@ -991,7 +991,7 @@ mod tests {
             .collect::<Vec<_>>();
 
         // Run the session
-        let _ = message_map.extend(tasks_publish_subscribe_messages.pop().unwrap());
+        message_map.extend(tasks_publish_subscribe_messages.pop().unwrap());
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 

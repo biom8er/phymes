@@ -849,7 +849,7 @@ mod tests {
         let plan = plan.extend(other_plan)?;
         assert_eq!(plan.name.unwrap(), "session_1");
         assert_eq!(plan.max_iter.unwrap(), 25);
-        assert_eq!(plan.diagnostics.unwrap(), true);
+        assert!(plan.diagnostics.unwrap());
         let names = plan
             .tasks
             .unwrap()
