@@ -27,7 +27,6 @@ impl<'a> TasksSubscribePublishSession<'a> {
     pub fn new_with_session_name(session_context_name: &'a str) -> Self {
         TasksSubscribePublishSession {
             session_context_name,
-            ..Default::default()
         }
     }
 
@@ -36,6 +35,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
     /// # Notes
     /// * Messages 1, 2, and 4 trigger SuperSteps
     /// * Message 3 is empty and is meant to trigger `tasks_subscribe` method of [SessionContext]
+    /// 
     /// [SessionContext]: crate::SessionContext
     pub fn tasks_subscribe_publish_messages(&self) -> Result<Vec<IPCMessageMap>> {
         // 1. Message to trigger the first superstep

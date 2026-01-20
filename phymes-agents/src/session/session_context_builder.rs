@@ -237,10 +237,8 @@ impl SessionContextBuilder {
         };
         if let Some(state) = self.state.as_mut() {
             state.extend(other_state);
-        } else {
-            if !other_state.is_empty() {
-                self.state.replace(other_state);
-            }
+        } else if !other_state.is_empty() {
+            self.state.replace(other_state);
         }
 
         // Extend the processors
@@ -262,10 +260,8 @@ impl SessionContextBuilder {
         };
         if let Some(processors) = self.processors.as_mut() {
             processors.extend(other_processors);
-        } else {
-            if !other_processors.is_empty() {
-                self.processors.replace(other_processors);
-            }
+        } else if !other_processors.is_empty() {
+            self.processors.replace(other_processors);
         }
 
         // Extend the tasks
@@ -284,10 +280,8 @@ impl SessionContextBuilder {
         };
         if let Some(tasks) = self.tasks.as_mut() {
             tasks.extend(other_tasks);
-        } else {
-            if !other_tasks.is_empty() {
-                self.tasks.replace(other_tasks);
-            }
+        } else if !other_tasks.is_empty() {
+            self.tasks.replace(other_tasks);
         }
 
         // Extend the runtime_envs
@@ -309,10 +303,8 @@ impl SessionContextBuilder {
         };
         if let Some(runtime_envs) = self.runtime_envs.as_mut() {
             runtime_envs.extend(other_runtime_envs);
-        } else {
-            if !other_runtime_envs.is_empty() {
-                self.runtime_envs.replace(other_runtime_envs);
-            }
+        } else if !other_runtime_envs.is_empty() {
+            self.runtime_envs.replace(other_runtime_envs);
         }
 
         Ok(self)

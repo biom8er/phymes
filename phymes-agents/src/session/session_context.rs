@@ -128,15 +128,15 @@ impl SessionContext {
         // Determine the processor subscriptions
         let processors_subscribe = session_names
             .into_iter()
-            .zip(task_names.into_iter())
-            .zip(processor_names.into_iter())
-            .zip(processor_types.into_iter())
-            .zip(subscription_names.into_iter())
-            .zip(subscription_table_names.into_iter())
-            .zip(subscribe_types.into_iter())
-            .zip(update_types.into_iter())
-            .zip(timestamps.into_iter())
-            .zip(timestamp_lasts.into_iter())
+            .zip(task_names)
+            .zip(processor_names)
+            .zip(processor_types)
+            .zip(subscription_names)
+            .zip(subscription_table_names)
+            .zip(subscribe_types)
+            .zip(update_types)
+            .zip(timestamps)
+            .zip(timestamp_lasts)
             .map(
                 |(
                     (
@@ -228,7 +228,7 @@ impl SessionContext {
             if let Some(subscribe_t) =
                 tasks_subscribe.get_mut(&(session_name.to_string(), task_name.to_string()))
             {
-                *subscribe_t = *subscribe_t & subscribe;
+                *subscribe_t &= subscribe;
             } else {
                 let _ = tasks_subscribe.insert(
                     (session_name.to_string(), task_name.to_string()),
@@ -266,9 +266,9 @@ impl SessionContext {
                     {
                         let subscribe = subscription_names
                             .into_iter()
-                            .zip(subscription_table_names.into_iter())
-                            .zip(timestamps.into_iter())
-                            .zip(timestamps_lasts.into_iter())
+                            .zip(subscription_table_names)
+                            .zip(timestamps)
+                            .zip(timestamps_lasts)
                             .filter_map(|(((name, subject), timestamp), timestamp_last)| {
                                 let subscriptions = vec![
                                     TableSubscription::from_str_fuzzy(&name, &subject).unwrap(),

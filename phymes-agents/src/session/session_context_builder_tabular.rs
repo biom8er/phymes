@@ -510,7 +510,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         .collect::<Vec<_>>();
         let exclusion_set = tasks_publish_subscribe
             .into_iter()
-            .chain(tasks_subjects.into_iter())
+            .chain(tasks_subjects)
             .collect::<HashSet<_>>();
 
         // Create the table
@@ -577,7 +577,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         .collect::<Vec<_>>();
         let exclusion_set = tables_publish_subscribe
             .into_iter()
-            .chain(tables_subjects.into_iter())
+            .chain(tables_subjects)
             .collect::<HashSet<_>>();
 
         // Create the table
@@ -673,7 +673,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                                 .collect::<Vec<_>>();
                             let table_names = publication_names
                                 .into_iter()
-                                .chain(subscription_names.into_iter())
+                                .chain(subscription_names)
                                 .collect::<HashSet<_>>();
                             if table_names.contains(&table.get_name()) {
                                 Some((
@@ -685,7 +685,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                                             ),
                                             session_name.to_string(),
                                         ),
-                                        0 as i64,
+                                        0_i64,
                                     ),
                                     create_timestamp_micros(),
                                 ))

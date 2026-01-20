@@ -5,7 +5,7 @@
 /// * Supported tasks include the following:
 ///
 /// 1. Counting the number of rows per subject (i.e., updating the `SubjectNumRows` table)
-///   after updates have been made to the `SubjectsChangeLog`
+///    after updates have been made to the `SubjectsChangeLog`
 /// 2. Determining what tasks are ready to run for the next super step
 /// 3. Retrieving the publications per task and processor that will run for the next super step
 /// 4. Updating the `SubjectsChangeLog` cache with the most recent updates and `TasksRunLog` cache with the most recent task runs
@@ -28,7 +28,6 @@ impl<'a> SubjectsNumRowsSession<'a> {
     pub fn new_with_session_name(session_context_name: &'a str) -> Self {
         SubjectsNumRowsSession {
             session_context_name,
-            ..Default::default()
         }
     }
     pub fn as_mermaid_flowchart(&self) -> &str {

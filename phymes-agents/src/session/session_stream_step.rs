@@ -275,7 +275,7 @@ pub trait SessionStreamStepTrait {
                         session_context.read().tasks_subscribe()?;
                     } else {
                         let _result = SessionStreamStepMinimal::run_superstep(
-                            Arc::clone(&session_context),
+                            Arc::clone(session_context),
                             messages,
                             step,
                         )
@@ -339,7 +339,7 @@ pub trait SessionStreamStepTrait {
                 (diagnostics_vec.as_mut(), span.as_ref())
             {
                 let diagnostics = Diagnostics::new();
-                let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+                let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(span);
                 diagnostics_vec.push(diagnostics);
                 Some(diagnostic_builder)
             } else {
@@ -454,86 +454,84 @@ pub trait SessionStreamStepTrait {
 pub struct SessionStreamStep {}
 
 impl SessionStreamStepTrait for SessionStreamStep {
-    fn run_superstep(
+    async fn run_superstep(
         session_context: Arc<RwLock<SessionContext>>,
         messages: IPCMessageMap,
         step: usize,
-    ) -> impl std::future::Future<Output = Result<Option<IPCMessageMap>>> + Send {
-        async move {
-            // Start the diagnostics
-            let (mut diagnostics_vec, span, trace) = if session_context.read().get_diagnostics() {
-                let (diagnostics_vec, span, trace) =
-                    Self::enter_span(&messages, &session_context, step)?;
-                (Some(diagnostics_vec), Some(span), Some(trace))
-            } else {
-                (None, None, None)
+    ) -> Result<Option<IPCMessageMap>> {
+        // Start the diagnostics
+        let (mut diagnostics_vec, span, trace) = if session_context.read().get_diagnostics() {
+            let (diagnostics_vec, span, trace) =
+                Self::enter_span(&messages, &session_context, step)?;
+            (Some(diagnostics_vec), Some(span), Some(trace))
+        } else {
+            (None, None, None)
+        };
+
+        // Update the session context with the incoming messages
+        if !messages.is_empty() {
+            Self::update_subjects_and_changelog_from_messages(&session_context, messages)?;
+        }
+
+        // Retrieve the task subscriptions and corresponding publications
+        let tasks = Self::get_tasks(&session_context).await?;
+
+        // Break if there is nothing to update
+        if tasks.is_empty() {
+            if let (Some(diagnostics_vec), Some(trace)) = (diagnostics_vec, trace) {
+                Self::exit_span(
+                    &session_context,
+                    &HashMap::<String, IPCMessage>::new(),
+                    diagnostics_vec,
+                    trace,
+                )?;
+            }
+
+            Ok(None)
+        } else {
+            // Iterate through each task and collect the resulting stream responses
+            let (subject_tasks, session_tasks) =
+                tasks.into_iter().partition(|((t, s), _v)| t != s);
+            let subject_streams = Self::run_tasks(
+                &session_context,
+                &subject_tasks,
+                &mut diagnostics_vec,
+                &span,
+            )?;
+            let user_streams = Self::run_tasks(
+                &session_context,
+                &session_tasks,
+                &mut diagnostics_vec,
+                &span,
+            )?;
+
+            // Update the tasks run log
+            Self::update_subjects_and_changelog_from_tasks(&session_context, subject_tasks)?;
+            Self::update_subjects_and_changelog_from_tasks(&session_context, session_tasks)?;
+
+            // Join each of the response futures
+            let subject_batches = match Self::join_message_streams(subject_streams).await {
+                Ok(subject_batches) => subject_batches,
+                Err(err) => {
+                    create_error_message_map(&err, session_context.read().get_name(), true)?
+                }
             };
 
             // Update the session context with the incoming messages
-            if !messages.is_empty() {
-                Self::update_subjects_and_changelog_from_messages(&session_context, messages)?;
+            if !subject_batches.is_empty() {
+                Self::update_subjects_and_changelog_from_messages(
+                    &session_context,
+                    subject_batches,
+                )?;
             }
 
-            // Retrieve the task subscriptions and corresponding publications
-            let tasks = Self::get_tasks(&session_context).await?;
-
-            // Break if there is nothing to update
-            if tasks.is_empty() {
-                if let (Some(diagnostics_vec), Some(trace)) = (diagnostics_vec, trace) {
-                    Self::exit_span(
-                        &session_context,
-                        &HashMap::<String, IPCMessage>::new(),
-                        diagnostics_vec,
-                        trace,
-                    )?;
-                }
-
-                Ok(None)
-            } else {
-                // Iterate through each task and collect the resulting stream responses
-                let (subject_tasks, session_tasks) =
-                    tasks.into_iter().partition(|((t, s), _v)| t != s);
-                let subject_streams = Self::run_tasks(
-                    &session_context,
-                    &subject_tasks,
-                    &mut diagnostics_vec,
-                    &span,
-                )?;
-                let user_streams = Self::run_tasks(
-                    &session_context,
-                    &session_tasks,
-                    &mut diagnostics_vec,
-                    &span,
-                )?;
-
-                // Update the tasks run log
-                Self::update_subjects_and_changelog_from_tasks(&session_context, subject_tasks)?;
-                Self::update_subjects_and_changelog_from_tasks(&session_context, session_tasks)?;
-
-                // Join each of the response futures
-                let subject_batches = match Self::join_message_streams(subject_streams).await {
-                    Ok(subject_batches) => subject_batches,
-                    Err(err) => {
-                        create_error_message_map(&err, session_context.read().get_name(), true)?
-                    }
-                };
-
-                // Update the session context with the incoming messages
-                if !subject_batches.is_empty() {
-                    Self::update_subjects_and_changelog_from_messages(
-                        &session_context,
-                        subject_batches,
-                    )?;
-                }
-
-                // Join each of the response futures
-                let user_batches = Self::join_message_streams(user_streams).await?;
-                if let (Some(diagnostics_vec), Some(trace)) = (diagnostics_vec, trace) {
-                    Self::exit_span(&session_context, &user_batches, diagnostics_vec, trace)?;
-                }
-
-                Ok(Some(user_batches))
+            // Join each of the response futures
+            let user_batches = Self::join_message_streams(user_streams).await?;
+            if let (Some(diagnostics_vec), Some(trace)) = (diagnostics_vec, trace) {
+                Self::exit_span(&session_context, &user_batches, diagnostics_vec, trace)?;
             }
+
+            Ok(Some(user_batches))
         }
     }
 }
@@ -543,45 +541,43 @@ impl SessionStreamStepTrait for SessionStreamStep {
 pub struct SessionStreamStepMinimal {}
 
 impl SessionStreamStepTrait for SessionStreamStepMinimal {
-    fn run_superstep(
+    async fn run_superstep(
         session_context: Arc<RwLock<SessionContext>>,
         messages: IPCMessageMap,
         _step: usize,
-    ) -> impl std::future::Future<Output = Result<Option<IPCMessageMap>>> + Send {
-        async move {
+    ) -> Result<Option<IPCMessageMap>> {
+        // Update the session context with the incoming messages
+        if !messages.is_empty() {
+            let _ = session_context
+                .write()
+                .update_subjects_from_messages(messages)?;
+        }
+
+        // Retrieve the task subscriptions and corresponding publications
+        let subject_tasks = session_context.read().tasks_subscribe_publish()?;
+
+        if !subject_tasks.is_empty() {
+            // Iterate through each task and collect the resulting stream responses
+            let subject_streams =
+                Self::run_tasks(&session_context, &subject_tasks, &mut None, &None)?;
+
+            // Join each of the response futures
+            let subject_batches = match Self::join_message_streams(subject_streams).await {
+                Ok(subject_batches) => subject_batches,
+                Err(err) => {
+                    create_error_message_map(&err, session_context.read().get_name(), true)?
+                }
+            };
+
             // Update the session context with the incoming messages
-            if !messages.is_empty() {
+            if !subject_batches.is_empty() {
                 let _ = session_context
                     .write()
-                    .update_subjects_from_messages(messages)?;
+                    .update_subjects_from_messages(subject_batches)?;
             }
-
-            // Retrieve the task subscriptions and corresponding publications
-            let subject_tasks = session_context.read().tasks_subscribe_publish()?;
-
-            if !subject_tasks.is_empty() {
-                // Iterate through each task and collect the resulting stream responses
-                let subject_streams =
-                    Self::run_tasks(&session_context, &subject_tasks, &mut None, &None)?;
-
-                // Join each of the response futures
-                let subject_batches = match Self::join_message_streams(subject_streams).await {
-                    Ok(subject_batches) => subject_batches,
-                    Err(err) => {
-                        create_error_message_map(&err, session_context.read().get_name(), true)?
-                    }
-                };
-
-                // Update the session context with the incoming messages
-                if !subject_batches.is_empty() {
-                    let _ = session_context
-                        .write()
-                        .update_subjects_from_messages(subject_batches)?;
-                }
-            }
-
-            Ok(None)
         }
+
+        Ok(None)
     }
 }
 

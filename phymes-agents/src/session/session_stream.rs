@@ -20,6 +20,7 @@ pub struct SessionStream {
     /// The session context
     session_context: Arc<RwLock<SessionContext>>,
     /// The next superstep
+    #[allow(clippy::type_complexity)]
     next_step: Option<Pin<Box<dyn Future<Output = Result<Option<IPCMessageMap>>> + Send>>>,
     /// The maximum number of supersteps
     max_steps: usize,
