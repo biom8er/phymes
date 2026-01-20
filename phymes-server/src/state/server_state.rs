@@ -4,7 +4,9 @@ use anyhow::{Result, anyhow};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::{
-    AvailableInterfaceSubjects, AvailableSessionPlans, SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, create_message_map
+    AvailableInterfaceSubjects, AvailableSessionPlans, SessionContext, SessionContextBuilder,
+    SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+    SessionContextBuilderTrait, SessionStream, create_message_map,
 };
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait,
@@ -56,11 +58,7 @@ impl UserState {
         Vec<JoinUserInboxSessionContextsMermaidDiagrams>,
     )> {
         // To prevent locks and other performance issues
-        let session_context_name = self
-            .users
-            .read()
-            .get_name()
-            .to_string();
+        let session_context_name = self.users.read().get_name().to_string();
 
         // Prepare the input message
         let batch = create_user_inbox_batch(vec![email.to_string()])?;
@@ -85,13 +83,19 @@ impl UserState {
 
         // Parse out the results
         let session_reading = self.users.read();
-        let table_reading = session_reading.get_states()
+        let table_reading = session_reading
+            .get_states()
             .get(AvailableSubjects::User.to_string().as_str())
             .unwrap()
             .read();
         let user = table_reading.to_struct::<UserSubject>()?;
-        let table_reading = session_reading.get_states()
-            .get(AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string().as_str())
+        let table_reading = session_reading
+            .get_states()
+            .get(
+                AvailableSubjects::JoinUserInboxSessionContextsMermaid
+                    .to_string()
+                    .as_str(),
+            )
             .unwrap()
             .read();
         let join = table_reading.to_struct::<JoinUserInboxSessionContextsMermaidDiagrams>()?;
@@ -109,12 +113,7 @@ impl UserState {
         timestamp: &[i64],
     ) -> Result<()> {
         // To prevent locks and other performance issues
-        let session_plan = self
-            .users
-            .try_read()
-            .unwrap()
-            .get_name()
-            .to_string();
+        let session_plan = self.users.try_read().unwrap().get_name().to_string();
 
         // Prepare the update messages
         let email_vec = session_context_name
@@ -222,10 +221,9 @@ impl ServerState {
     /// Make a new server state
     pub fn new() -> Self {
         Self {
-            session_contexts: Arc::new(RwLock::new(HashMap::<
-                String,
-                Arc<RwLock<SessionContext>>,
-            >::new())),
+            session_contexts: Arc::new(RwLock::new(
+                HashMap::<String, Arc<RwLock<SessionContext>>>::new(),
+            )),
             user_session_names: Arc::new(RwLock::new(HashMap::<String, Vec<String>>::new())),
         }
     }
@@ -270,11 +268,10 @@ impl ServerState {
                     .contains(&user_session_context.session_context_name)
                 {
                     // Prioritize the available session plans with initialized configs and other state
-                    let session_ctx_arc =
-                        AvailableSessionPlans::get_session_stream_state_by_name(
-                            &user_session_context.session_context_name,
-                            &session_name,
-                        )?;
+                    let session_ctx_arc = AvailableSessionPlans::get_session_stream_state_by_name(
+                        &user_session_context.session_context_name,
+                        &session_name,
+                    )?;
 
                     // Add the session stream state to the state
                     let _ = self
@@ -305,8 +302,7 @@ impl ServerState {
                     .add_session_interface(None)?
                     .with_diagnostics(true)
                     .build_with_tables()?;
-                    let session_ctx_arc =
-                        Arc::new(RwLock::new(session_context));
+                    let session_ctx_arc = Arc::new(RwLock::new(session_context));
 
                     // Add the session stream state to the state
                     let _ = self

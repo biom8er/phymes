@@ -285,9 +285,7 @@ pub(crate) fn create_session_tasks_subscribe_aggregate_fields() -> Fields {
             .map(|f| Field::new(*f, list_data_type.clone(), false))
             .collect::<Vec<_>>(),
     );
-    let list_data_type = DataType::List(
-        Arc::new(Field::new_list_field(DataType::Int64, false))
-    );
+    let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Int64, false)));
     let field_names = ["timestamp-List", "timestamp-Last-List"];
     fields_vec.extend(
         field_names
@@ -427,7 +425,7 @@ pub fn create_session_tasks_subscribe_publish_batch(
         list_builder.append(true);
     }
     let subscription_table_names: ArrayRef = Arc::new(list_builder.finish());
-    
+
     let value_builder = StringBuilder::new();
     let mut list_builder =
         ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Utf8, false));

@@ -1,4 +1,9 @@
-use std::{future::Future, pin::Pin, sync::Arc, task::{Context, Poll, ready}};
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll, ready},
+};
 
 use anyhow::Result;
 use futures::{FutureExt, Stream};
@@ -7,7 +12,9 @@ use phymes_core::{IPCMessage, IPCMessageMap};
 use phymes_diagnostics::HashMap;
 use tracing::{Level, event};
 
-use crate::{SessionContext, SessionStreamStep, session::session_stream_step::SessionStreamStepTrait};
+use crate::{
+    SessionContext, SessionStreamStep, session::session_stream_step::SessionStreamStepTrait,
+};
 
 pub struct SessionStream {
     /// The session context
@@ -26,7 +33,13 @@ impl SessionStream {
         let max_steps = session_context.read().get_max_iter();
         let step = 0;
         #[allow(clippy::type_complexity)]
-        let next_step: Option<Pin<Box<dyn Future<Output = Result<Option<IPCMessageMap>>> + Send>>> = Some(Box::pin(SessionStreamStep::run_superstep(Arc::clone(&session_context), messages, step)));
+        let next_step: Option<
+            Pin<Box<dyn Future<Output = Result<Option<IPCMessageMap>>> + Send>>,
+        > = Some(Box::pin(SessionStreamStep::run_superstep(
+            Arc::clone(&session_context),
+            messages,
+            step,
+        )));
 
         Self {
             session_context,
@@ -61,7 +74,7 @@ impl Stream for SessionStream {
             self.next_step = Some(Box::pin(SessionStreamStep::run_superstep(
                 Arc::clone(&self.session_context),
                 HashMap::<String, IPCMessage>::new(),
-                self.step
+                self.step,
             )));
             self.step += 1;
 
@@ -73,7 +86,11 @@ impl Stream for SessionStream {
                 return Poll::Ready(Some(Ok(messages)));
             }
         }
-        event!(Level::DEBUG, "Maximum iterations {} exeeded.", self.max_steps);
+        event!(
+            Level::DEBUG,
+            "Maximum iterations {} exeeded.",
+            self.max_steps
+        );
         Poll::Ready(None)
     }
 
@@ -91,7 +108,10 @@ mod tests {
     };
 
     use super::*;
-    use crate::{SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, test_session_context_builder::make_test_session_context_builder_sequential};
+    use crate::{
+        SessionContextBuilderAgentsTrait, SessionContextBuilderTrait,
+        test_session_context_builder::make_test_session_context_builder_sequential,
+    };
 
     #[tokio::test]
     async fn test_session_stream_replace_state_update_sequential_tasks() -> Result<()> {

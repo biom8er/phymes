@@ -67,7 +67,10 @@ impl ProcessorTrait for OpenAIEmbedProcessor {
         };
 
         // Re-index the messages by the subject name which needs to be unique at this stage
-        let message = message.into_iter().map(|(k, v)| (v.get_subject().to_string(), v)).collect::<HashMap<_, _>>();
+        let message = message
+            .into_iter()
+            .map(|(k, v)| (v.get_subject().to_string(), v))
+            .collect::<HashMap<_, _>>();
 
         // Run the embed stream
         let out = Box::pin(OpenAIEmbedStream::new(

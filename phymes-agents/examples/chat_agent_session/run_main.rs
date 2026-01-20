@@ -48,8 +48,7 @@ pub async fn run_main() -> Result<()> {
         .make_name()?
         .build()?;
     let incoming_message_map = create_message_map(vec![message]);
-    let session_stream =
-        SessionStream::new(incoming_message_map, Arc::clone(&session_ctx_arc));
+    let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_ctx_arc));
     let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
     // Update the chat history with the response
@@ -90,8 +89,7 @@ pub async fn run_main() -> Result<()> {
         .make_name()?
         .build()?;
     let incoming_message_map = create_message_map(vec![message]);
-    let session_stream =
-        SessionStream::new(incoming_message_map, Arc::clone(&session_ctx_arc));
+    let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_ctx_arc));
     let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
     // Update the chat history with the response

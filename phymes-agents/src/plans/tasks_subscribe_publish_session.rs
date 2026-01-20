@@ -1,5 +1,9 @@
 use anyhow::Result;
-use phymes_core::{AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageMap, MessageBuilderTrait, Table, TableBuilderTrait, TablePublication, TableTrait, create_session_tasks_subscribe_publish_batch};
+use phymes_core::{
+    AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageMap,
+    MessageBuilderTrait, Table, TableBuilderTrait, TablePublication, TableTrait,
+    create_session_tasks_subscribe_publish_batch,
+};
 use phymes_diagnostics::HashMap;
 
 use crate::create_message_map;
@@ -28,52 +32,142 @@ impl<'a> TasksSubscribePublishSession<'a> {
     }
 
     /// Return the pre-compiled task subscriptions and publications as messages
-    /// 
+    ///
     /// # Notes
     /// * Messages 1, 2, and 4 trigger SuperSteps
     /// * Message 3 is empty and is meant to trigger `tasks_subscribe` method of [SessionContext]
     /// [SessionContext]: crate::SessionContext
     pub fn tasks_subscribe_publish_messages(&self) -> Result<Vec<IPCMessageMap>> {
-
         // 1. Message to trigger the first superstep
-        let task_names = vec!["group_by_tasks_run_log_timestamp_t", "group_by_tasks_run_log_timestamp_t",
-            "filter_processors_subscriptions_t", "filter_processors_subscriptions_t", "filter_processors_subscriptions_t",
-            "filter_processors_publications_t", "filter_processors_publications_t", "filter_processors_publications_t",
-        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let processor_names = vec!["group_by_tasks_run_log_timestamp_p", "select_tasks_run_log_timestamp_p",
-            "cmp_processors_subscriptions_p", "filter_processors_subscriptions_p", "select_processors_subscriptions_p",
-            "cmp_processors_publications_p", "filter_processors_publications_p", "select_processors_publications_p",
-        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let processor_types = vec!["GroupBy", "Select",
-            "Select", "Filter","Select",
-            "Select", "Filter","Select",
-        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let subscription_names = vec![vec!["OnUpdateFullTable","AlwaysFullTable"], vec!["AlwaysFullTable","AlwaysFullTable"],
-            vec!["OnUpdateFullTable","AlwaysFullTable"], vec!["AlwaysFullTable","AlwaysFullTable"], vec!["AlwaysFullTable","AlwaysFullTable"],
-            vec!["OnUpdateFullTable","AlwaysFullTable"], vec!["AlwaysFullTable","AlwaysFullTable"], vec!["AlwaysFullTable","AlwaysFullTable"],
-        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
-        let subscription_table_names = vec![vec!["SessionTasksRunLog", "group_by_tasks_run_log_timestamp_p"], vec!["group_by_tasks_run_log_timestamp_t", "select_tasks_run_log_timestamp_p"],
-            vec!["SessionProcessors", "cmp_processors_subscriptions_p"], vec!["cmp_processors_subscriptions_t", "filter_processors_subscriptions_p"], vec!["filter_processors_subscriptions_t", "select_processors_subscriptions_p"],
-            vec!["SessionProcessors", "cmp_processors_publications_p"], vec!["cmp_processors_publications_t", "filter_processors_publications_p"], vec!["filter_processors_publications_t", "select_processors_publications_p"],
-        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
-        let publication_names = vec![vec!["Replace"], vec!["Replace"],
-            vec!["Replace"], vec!["Replace"], vec!["Replace"],
-            vec!["Replace"], vec!["Replace"], vec!["Replace"],
-        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
-        let publication_table_names = vec![vec!["group_by_tasks_run_log_timestamp_t"], vec!["select_tasks_run_log_timestamp_t"],
-            vec!["cmp_processors_subscriptions_t"], vec!["filter_processors_subscriptions_t"], vec!["select_processors_subscriptions_t"],
-            vec!["cmp_processors_publications_t"], vec!["filter_processors_publications_t"], vec!["select_processors_publications_t"],
-        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
-        let session_names = task_names.iter().map(|_| self.session_context_name.to_string()).collect::<Vec<_>>();
+        let task_names = vec![
+            "group_by_tasks_run_log_timestamp_t",
+            "group_by_tasks_run_log_timestamp_t",
+            "filter_processors_subscriptions_t",
+            "filter_processors_subscriptions_t",
+            "filter_processors_subscriptions_t",
+            "filter_processors_publications_t",
+            "filter_processors_publications_t",
+            "filter_processors_publications_t",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+        let processor_names = vec![
+            "group_by_tasks_run_log_timestamp_p",
+            "select_tasks_run_log_timestamp_p",
+            "cmp_processors_subscriptions_p",
+            "filter_processors_subscriptions_p",
+            "select_processors_subscriptions_p",
+            "cmp_processors_publications_p",
+            "filter_processors_publications_p",
+            "select_processors_publications_p",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+        let processor_types = vec![
+            "GroupBy", "Select", "Select", "Filter", "Select", "Select", "Filter", "Select",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+        let subscription_names = vec![
+            vec!["OnUpdateFullTable", "AlwaysFullTable"],
+            vec!["AlwaysFullTable", "AlwaysFullTable"],
+            vec!["OnUpdateFullTable", "AlwaysFullTable"],
+            vec!["AlwaysFullTable", "AlwaysFullTable"],
+            vec!["AlwaysFullTable", "AlwaysFullTable"],
+            vec!["OnUpdateFullTable", "AlwaysFullTable"],
+            vec!["AlwaysFullTable", "AlwaysFullTable"],
+            vec!["AlwaysFullTable", "AlwaysFullTable"],
+        ]
+        .into_iter()
+        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+        let subscription_table_names = vec![
+            vec!["SessionTasksRunLog", "group_by_tasks_run_log_timestamp_p"],
+            vec![
+                "group_by_tasks_run_log_timestamp_t",
+                "select_tasks_run_log_timestamp_p",
+            ],
+            vec!["SessionProcessors", "cmp_processors_subscriptions_p"],
+            vec![
+                "cmp_processors_subscriptions_t",
+                "filter_processors_subscriptions_p",
+            ],
+            vec![
+                "filter_processors_subscriptions_t",
+                "select_processors_subscriptions_p",
+            ],
+            vec!["SessionProcessors", "cmp_processors_publications_p"],
+            vec![
+                "cmp_processors_publications_t",
+                "filter_processors_publications_p",
+            ],
+            vec![
+                "filter_processors_publications_t",
+                "select_processors_publications_p",
+            ],
+        ]
+        .into_iter()
+        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+        let publication_names = vec![
+            vec!["Replace"],
+            vec!["Replace"],
+            vec!["Replace"],
+            vec!["Replace"],
+            vec!["Replace"],
+            vec!["Replace"],
+            vec!["Replace"],
+            vec!["Replace"],
+        ]
+        .into_iter()
+        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+        let publication_table_names = vec![
+            vec!["group_by_tasks_run_log_timestamp_t"],
+            vec!["select_tasks_run_log_timestamp_t"],
+            vec!["cmp_processors_subscriptions_t"],
+            vec!["filter_processors_subscriptions_t"],
+            vec!["select_processors_subscriptions_t"],
+            vec!["cmp_processors_publications_t"],
+            vec!["filter_processors_publications_t"],
+            vec!["select_processors_publications_t"],
+        ]
+        .into_iter()
+        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+        let session_names = task_names
+            .iter()
+            .map(|_| self.session_context_name.to_string())
+            .collect::<Vec<_>>();
 
-        let batch = create_session_tasks_subscribe_publish_batch(session_names, task_names, processor_names, processor_types, subscription_names, subscription_table_names, publication_names, publication_table_names)?;
+        let batch = create_session_tasks_subscribe_publish_batch(
+            session_names,
+            task_names,
+            processor_names,
+            processor_types,
+            subscription_names,
+            subscription_table_names,
+            publication_names,
+            publication_table_names,
+        )?;
         let table = Table::get_builder()
-            .with_name(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
+            .with_name(
+                AvailableSubjects::SessionTasksSubscribePublish
+                    .to_string()
+                    .as_str(),
+            )
             .with_record_batches(vec![batch])?
             .build()?;
         let tasks_publish_subscribe_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
-            .with_subject(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
+            .with_subject(
+                AvailableSubjects::SessionTasksSubscribePublish
+                    .to_string()
+                    .as_str(),
+            )
             .with_update(&TablePublication::Replace {
                 table_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
             })
@@ -83,65 +177,127 @@ impl<'a> TasksSubscribePublishSession<'a> {
         let messages_1 = create_message_map(vec![tasks_publish_subscribe_message]);
 
         // 2. Message to trigger the second superstep
-        let task_names = vec!["join_tasks_run_log_timestamp_t", 
-            "join_tasks_run_log_timestamp_t", 
+        let task_names = vec![
             "join_tasks_run_log_timestamp_t",
-            "join_tasks_run_log_timestamp_t", 
-            "join_tasks_run_log_timestamp_t", 
-            "join_tasks_run_log_timestamp_t", 
-        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let processor_names = vec!["group_by_subject_change_log_timestamp_p", 
+            "join_tasks_run_log_timestamp_t",
+            "join_tasks_run_log_timestamp_t",
+            "join_tasks_run_log_timestamp_t",
+            "join_tasks_run_log_timestamp_t",
+            "join_tasks_run_log_timestamp_t",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+        let processor_names = vec![
+            "group_by_subject_change_log_timestamp_p",
             "join_tasks_run_log_timestamp_p",
-            "join_tasks_processors_subscriptions_p",        
-            "join_tasks_processors_subscriptions_subjects_p", 
+            "join_tasks_processors_subscriptions_p",
+            "join_tasks_processors_subscriptions_subjects_p",
             "select_tasks_processors_subscriptions_subjects_p",
-            "group_by_tasks_processors_subscriptions_p"
-        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let processor_types = vec!["GroupBy", 
-            "Join",    
-            "Join",
-            "Join", 
-            "Select",
-            "GroupBy",
-        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let subscription_names = vec![vec!["AlwaysFullTable","AlwaysFullTable"],
-            vec!["OnUpdateFullTable","AlwaysFullTable","AlwaysFullTable"], 
-            vec!["AlwaysFullTable","AlwaysFullTable","AlwaysFullTable"],
-            vec!["AlwaysFullTable","AlwaysFullTable","AlwaysFullTable"], 
-            vec!["AlwaysFullTable","AlwaysFullTable"], 
-            vec!["AlwaysFullTable","AlwaysFullTable"], 
-        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
-        let subscription_table_names = vec![vec!["SubjectsChangeLog", "group_by_subject_change_log_timestamp_p"], 
-            vec!["select_tasks_run_log_timestamp_t", "SessionTasks", "join_tasks_run_log_timestamp_p"],
-            vec!["join_tasks_run_log_timestamp_t", "select_processors_subscriptions_t", "join_tasks_processors_subscriptions_p"], 
-            vec!["join_tasks_processors_subscriptions_t", "group_by_subject_change_log_timestamp_t", "join_tasks_processors_subscriptions_subjects_p"],
-            vec!["join_tasks_processors_subscriptions_subjects_t", "select_tasks_processors_subscriptions_subjects_p"],
-            vec!["select_tasks_processors_subscriptions_subjects_t", "group_by_tasks_processors_subscriptions_p"],
-        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
-        let publication_names = vec![vec!["Replace"], 
-            vec!["Replace"],      
+            "group_by_tasks_processors_subscriptions_p",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+        let processor_types = vec!["GroupBy", "Join", "Join", "Join", "Select", "GroupBy"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let subscription_names = vec![
+            vec!["AlwaysFullTable", "AlwaysFullTable"],
+            vec!["OnUpdateFullTable", "AlwaysFullTable", "AlwaysFullTable"],
+            vec!["AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable"],
+            vec!["AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable"],
+            vec!["AlwaysFullTable", "AlwaysFullTable"],
+            vec!["AlwaysFullTable", "AlwaysFullTable"],
+        ]
+        .into_iter()
+        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+        let subscription_table_names = vec![
+            vec![
+                "SubjectsChangeLog",
+                "group_by_subject_change_log_timestamp_p",
+            ],
+            vec![
+                "select_tasks_run_log_timestamp_t",
+                "SessionTasks",
+                "join_tasks_run_log_timestamp_p",
+            ],
+            vec![
+                "join_tasks_run_log_timestamp_t",
+                "select_processors_subscriptions_t",
+                "join_tasks_processors_subscriptions_p",
+            ],
+            vec![
+                "join_tasks_processors_subscriptions_t",
+                "group_by_subject_change_log_timestamp_t",
+                "join_tasks_processors_subscriptions_subjects_p",
+            ],
+            vec![
+                "join_tasks_processors_subscriptions_subjects_t",
+                "select_tasks_processors_subscriptions_subjects_p",
+            ],
+            vec![
+                "select_tasks_processors_subscriptions_subjects_t",
+                "group_by_tasks_processors_subscriptions_p",
+            ],
+        ]
+        .into_iter()
+        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+        let publication_names = vec![
             vec!["Replace"],
-            vec!["Replace"], 
             vec!["Replace"],
             vec!["Replace"],
-        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
-        let publication_table_names = vec![vec!["group_by_subject_change_log_timestamp_t"], 
-            vec!["join_tasks_run_log_timestamp_t"],           
+            vec!["Replace"],
+            vec!["Replace"],
+            vec!["Replace"],
+        ]
+        .into_iter()
+        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+        let publication_table_names = vec![
+            vec!["group_by_subject_change_log_timestamp_t"],
+            vec!["join_tasks_run_log_timestamp_t"],
             vec!["join_tasks_processors_subscriptions_t"],
-            vec!["join_tasks_processors_subscriptions_subjects_t"], 
+            vec!["join_tasks_processors_subscriptions_subjects_t"],
             vec!["select_tasks_processors_subscriptions_subjects_t"],
             vec!["SessionTasksSubscribeAggregate"],
-        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
-        let session_names = task_names.iter().map(|_| self.session_context_name.to_string()).collect::<Vec<_>>();
+        ]
+        .into_iter()
+        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+        let session_names = task_names
+            .iter()
+            .map(|_| self.session_context_name.to_string())
+            .collect::<Vec<_>>();
 
-        let batch = create_session_tasks_subscribe_publish_batch(session_names, task_names, processor_names, processor_types, subscription_names, subscription_table_names, publication_names, publication_table_names)?;
+        let batch = create_session_tasks_subscribe_publish_batch(
+            session_names,
+            task_names,
+            processor_names,
+            processor_types,
+            subscription_names,
+            subscription_table_names,
+            publication_names,
+            publication_table_names,
+        )?;
         let table = Table::get_builder()
-            .with_name(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
+            .with_name(
+                AvailableSubjects::SessionTasksSubscribePublish
+                    .to_string()
+                    .as_str(),
+            )
             .with_record_batches(vec![batch])?
             .build()?;
         let tasks_publish_subscribe_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
-            .with_subject(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
+            .with_subject(
+                AvailableSubjects::SessionTasksSubscribePublish
+                    .to_string()
+                    .as_str(),
+            )
             .with_update(&TablePublication::Replace {
                 table_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
             })
@@ -154,51 +310,107 @@ impl<'a> TasksSubscribePublishSession<'a> {
         let messages_none = HashMap::<String, IPCMessage>::new();
 
         // 3. Message to trigger the third superstep
-        let task_names = vec!["select_tasks_processors_publications_t", 
-            "select_tasks_processors_publications_t", 
+        let task_names = vec![
             "select_tasks_processors_publications_t",
             "select_tasks_processors_publications_t",
-        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let processor_names = vec!["group_by_tasks_processors_subscriptions_subjects_p", 
+            "select_tasks_processors_publications_t",
+            "select_tasks_processors_publications_t",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+        let processor_names = vec![
+            "group_by_tasks_processors_subscriptions_subjects_p",
             "group_by_tasks_processors_publications_p",
             "join_tasks_processors_publications_p",
-            "select_tasks_processors_publications_p", 
-        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let processor_types = vec!["GroupBy", 
-            "GroupBy",
-            "Join",
-            "Select",
-        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let subscription_names = vec![vec!["OnUpdateFullTable","AlwaysFullTable"],
-            vec!["AlwaysFullTable","AlwaysFullTable"], 
-            vec!["AlwaysFullTable","AlwaysFullTable","AlwaysFullTable"], 
-            vec!["AlwaysFullTable","AlwaysFullTable"], 
-        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
-        let subscription_table_names = vec![vec!["SessionTasksSubscribe", "group_by_tasks_processors_subscriptions_subjects_p"], 
-            vec!["select_processors_publications_t", "group_by_tasks_processors_publications_p"], 
-            vec!["group_by_tasks_processors_subscriptions_subjects_t", "group_by_tasks_processors_publications_t", "join_tasks_processors_publications_p"], 
-            vec!["join_tasks_processors_publications_t", "select_tasks_processors_publications_p"],
-        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
-        let publication_names = vec![vec!["Replace"], 
-            vec!["Replace"],      
+            "select_tasks_processors_publications_p",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+        let processor_types = vec!["GroupBy", "GroupBy", "Join", "Select"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let subscription_names = vec![
+            vec!["OnUpdateFullTable", "AlwaysFullTable"],
+            vec!["AlwaysFullTable", "AlwaysFullTable"],
+            vec!["AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable"],
+            vec!["AlwaysFullTable", "AlwaysFullTable"],
+        ]
+        .into_iter()
+        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+        let subscription_table_names = vec![
+            vec![
+                "SessionTasksSubscribe",
+                "group_by_tasks_processors_subscriptions_subjects_p",
+            ],
+            vec![
+                "select_processors_publications_t",
+                "group_by_tasks_processors_publications_p",
+            ],
+            vec![
+                "group_by_tasks_processors_subscriptions_subjects_t",
+                "group_by_tasks_processors_publications_t",
+                "join_tasks_processors_publications_p",
+            ],
+            vec![
+                "join_tasks_processors_publications_t",
+                "select_tasks_processors_publications_p",
+            ],
+        ]
+        .into_iter()
+        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+        let publication_names = vec![
             vec!["Replace"],
             vec!["Replace"],
-        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
-        let publication_table_names = vec![vec!["group_by_tasks_processors_subscriptions_subjects_t"], 
+            vec!["Replace"],
+            vec!["Replace"],
+        ]
+        .into_iter()
+        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+        let publication_table_names = vec![
+            vec!["group_by_tasks_processors_subscriptions_subjects_t"],
             vec!["group_by_tasks_processors_publications_t"],
             vec!["join_tasks_processors_publications_t"],
-            vec!["SessionTasksSubscribePublish"], 
-        ].into_iter().map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>();
-        let session_names = task_names.iter().map(|_| self.session_context_name.to_string()).collect::<Vec<_>>();
+            vec!["SessionTasksSubscribePublish"],
+        ]
+        .into_iter()
+        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+        let session_names = task_names
+            .iter()
+            .map(|_| self.session_context_name.to_string())
+            .collect::<Vec<_>>();
 
-        let batch = create_session_tasks_subscribe_publish_batch(session_names, task_names, processor_names, processor_types, subscription_names, subscription_table_names, publication_names, publication_table_names)?;
+        let batch = create_session_tasks_subscribe_publish_batch(
+            session_names,
+            task_names,
+            processor_names,
+            processor_types,
+            subscription_names,
+            subscription_table_names,
+            publication_names,
+            publication_table_names,
+        )?;
         let table = Table::get_builder()
-            .with_name(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
+            .with_name(
+                AvailableSubjects::SessionTasksSubscribePublish
+                    .to_string()
+                    .as_str(),
+            )
             .with_record_batches(vec![batch])?
             .build()?;
         let tasks_publish_subscribe_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
-            .with_subject(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
+            .with_subject(
+                AvailableSubjects::SessionTasksSubscribePublish
+                    .to_string()
+                    .as_str(),
+            )
             .with_update(&TablePublication::Replace {
                 table_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
             })
@@ -208,7 +420,6 @@ impl<'a> TasksSubscribePublishSession<'a> {
         let messages_3 = create_message_map(vec![tasks_publish_subscribe_message]);
 
         Ok(vec![messages_1, messages_2, messages_none, messages_3])
-        
     }
 
     /// Return the Mermaid.js flowchart representation of the session
@@ -663,10 +874,17 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, TablePublication, TableTrait};
+    use phymes_core::{
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait,
+        TablePublication, TableTrait,
+    };
     use phymes_diagnostics::HashMap;
 
-    use crate::{CustomAgentsBuilderTrait, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, UserSession, create_message_map};
+    use crate::{
+        CustomAgentsBuilderTrait, SessionContextBuilder, SessionContextBuilderAgentsTrait,
+        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, UserSession,
+        create_message_map,
+    };
 
     use super::*;
 
@@ -677,22 +895,27 @@ mod tests {
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
             tasks_publish_subscribe_session.as_mermaid_flowchart(),
             false,
-            )?
-            .with_state_from_mermaid_erdiagram(tasks_publish_subscribe_session.as_mermaid_erdiagram(), false, true)?
-            .with_name(tasks_publish_subscribe_session.session_context_name)
-            .with_diagnostics(true)
-            .add_processor_subjects()?
-            .with_max_iter(1) // DM: prevent continued execution after the final superstep for testing
-            .build_with_tables()?;
+        )?
+        .with_state_from_mermaid_erdiagram(
+            tasks_publish_subscribe_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
+        .with_name(tasks_publish_subscribe_session.session_context_name)
+        .with_diagnostics(true)
+        .add_processor_subjects()?
+        .with_max_iter(1) // DM: prevent continued execution after the final superstep for testing
+        .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
         // Make the test session data
         let user_agent_session = UserSession::default();
-        let user_session_ctx = Arc::new(RwLock::new(user_agent_session
-            .build()
-            .with_name(user_agent_session.session_context_name)
-            .with_diagnostics(true)
-            .build_with_tables()?
+        let user_session_ctx = Arc::new(RwLock::new(
+            user_agent_session
+                .build()
+                .with_name(user_agent_session.session_context_name)
+                .with_diagnostics(true)
+                .build_with_tables()?,
         ));
 
         let mut message_map = {
@@ -761,7 +984,11 @@ mod tests {
             ])
         };
 
-        let mut tasks_publish_subscribe_messages = tasks_publish_subscribe_session.tasks_subscribe_publish_messages()?.into_iter().rev().collect::<Vec<_>>();
+        let mut tasks_publish_subscribe_messages = tasks_publish_subscribe_session
+            .tasks_subscribe_publish_messages()?
+            .into_iter()
+            .rev()
+            .collect::<Vec<_>>();
 
         // Run the session
         let _ = message_map.extend(tasks_publish_subscribe_messages.pop().unwrap());
@@ -770,8 +997,10 @@ mod tests {
 
         assert_eq!(response.len(), 0);
 
-        { // Test supserstep 1
-            { // Debug any errors
+        {
+            // Test supserstep 1
+            {
+                // Debug any errors
                 let subjects_reading = session_ctx_arc.read();
                 let table_reading = subjects_reading
                     .get_states()
@@ -782,59 +1011,287 @@ mod tests {
             }
 
             let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading.get_states().get("select_tasks_run_log_timestamp_t").unwrap().read();
+            let table_reading = session_reading
+                .get_states()
+                .get("select_tasks_run_log_timestamp_t")
+                .unwrap()
+                .read();
             let column = table_reading.get_column_as_vec_str("task_name");
-            assert_eq!(column, ["filter_and_join_session_contexts_by_email_inbox_task_name", "filter_and_join_session_contexts_by_email_outbox_task_name", "filter_session_contexts_by_email_task_name", "filter_user_info_by_email_task_name", "join_session_contexts_with_mermaid_diagrams_task_name", "user_session"]);
+            assert_eq!(
+                column,
+                [
+                    "filter_and_join_session_contexts_by_email_inbox_task_name",
+                    "filter_and_join_session_contexts_by_email_outbox_task_name",
+                    "filter_session_contexts_by_email_task_name",
+                    "filter_user_info_by_email_task_name",
+                    "join_session_contexts_with_mermaid_diagrams_task_name",
+                    "user_session"
+                ]
+            );
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             for timestamp in column {
                 assert!(timestamp > 0);
             }
 
-            let table_reading = session_reading.get_states().get("select_processors_subscriptions_t").unwrap().read();
+            let table_reading = session_reading
+                .get_states()
+                .get("select_processors_subscriptions_t")
+                .unwrap()
+                .read();
             let column = table_reading.get_column_as_vec_str("session_name");
-            assert_eq!(column, ["user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session"]);
+            assert_eq!(
+                column,
+                [
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("processor_name");
-            assert_eq!(column, ["filter_and_join_session_contexts_by_email_inbox_processor_name", "filter_and_join_session_contexts_by_email_inbox_processor_name", "filter_session_contexts_by_email_processor_name", "filter_session_contexts_by_email_processor_name", "filter_session_contexts_by_email_processor_name", "join_session_contexts_with_mermaid_diagrams_processor_name", "join_session_contexts_with_mermaid_diagrams_processor_name", "join_session_contexts_with_mermaid_diagrams_processor_name", "filter_user_info_by_email_processor_name", "filter_user_info_by_email_processor_name", "filter_user_info_by_email_processor_name", "filter_and_join_session_contexts_by_email_outbox_processor_name", "filter_and_join_session_contexts_by_email_outbox_processor_name", "filter_and_join_session_contexts_by_email_outbox_processor_name", "user_session"]);
+            assert_eq!(
+                column,
+                [
+                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
+                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
+                    "filter_session_contexts_by_email_processor_name",
+                    "filter_session_contexts_by_email_processor_name",
+                    "filter_session_contexts_by_email_processor_name",
+                    "join_session_contexts_with_mermaid_diagrams_processor_name",
+                    "join_session_contexts_with_mermaid_diagrams_processor_name",
+                    "join_session_contexts_with_mermaid_diagrams_processor_name",
+                    "filter_user_info_by_email_processor_name",
+                    "filter_user_info_by_email_processor_name",
+                    "filter_user_info_by_email_processor_name",
+                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
+                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
+                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
+                    "user_session"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("processor_type");
-            assert_eq!(column, ["ExtractTabular", "ExtractTabular", "Join", "Join", "Join", "Join", "Join", "Join", "Join", "Join", "Join", "DataSummaryProcessor", "DataSummaryProcessor", "DataSummaryProcessor", "ProcessorEcho"]);
+            assert_eq!(
+                column,
+                [
+                    "ExtractTabular",
+                    "ExtractTabular",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "DataSummaryProcessor",
+                    "DataSummaryProcessor",
+                    "DataSummaryProcessor",
+                    "ProcessorEcho"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("publication_subscription_name");
-            assert_eq!(column, ["OnUpdateFullTable", "AlwaysFullTable", "AlwaysLastRecordBatch", "OnUpdateFullTable", "AlwaysFullTable", "AlwaysLastRecordBatch", "OnUpdateFullTable", "AlwaysFullTable", "AlwaysLastRecordBatch", "OnUpdateFullTable", "AlwaysFullTable", "AlwaysLastRecordBatch", "OnUpdateFullTable", "OnUpdateFullTable", "OnUpdateFullTable"]);
+            assert_eq!(
+                column,
+                [
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysLastRecordBatch",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysLastRecordBatch",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysLastRecordBatch",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysLastRecordBatch",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("publication_subscription_table_name");
-            assert_eq!(column, ["UserJson", "filter_and_join_session_contexts_by_email_inbox_processor_name", "filter_session_contexts_by_email_processor_name", "UserInbox", "UserSessionContexts", "join_session_contexts_with_mermaid_diagrams_processor_name", "JoinUserInboxSessionContexts", "BuilderMermaid", "filter_user_info_by_email_processor_name", "UserInbox", "User", "filter_and_join_session_contexts_by_email_outbox_processor_name", "filter_user_info_by_email_table_name", "JoinUserInboxSessionContextsMermaid", "AssistantJson"]);
+            assert_eq!(
+                column,
+                [
+                    "UserJson",
+                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
+                    "filter_session_contexts_by_email_processor_name",
+                    "UserInbox",
+                    "UserSessionContexts",
+                    "join_session_contexts_with_mermaid_diagrams_processor_name",
+                    "JoinUserInboxSessionContexts",
+                    "BuilderMermaid",
+                    "filter_user_info_by_email_processor_name",
+                    "UserInbox",
+                    "User",
+                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
+                    "filter_user_info_by_email_table_name",
+                    "JoinUserInboxSessionContextsMermaid",
+                    "AssistantJson"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("subscribe_type");
-            assert_eq!(column, ["All", "All", "All", "All", "All", "All", "All", "All", "All", "All", "All", "Any", "Any", "Any", "All"]);
+            assert_eq!(
+                column,
+                [
+                    "All", "All", "All", "All", "All", "All", "All", "All", "All", "All", "All",
+                    "Any", "Any", "Any", "All"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("update_type");
-            assert_eq!(column, ["TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate"]);
+            assert_eq!(
+                column,
+                [
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate"
+                ]
+            );
             let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
             assert_eq!(column, [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
 
-            let table_reading = session_reading.get_states().get("select_processors_publications_t").unwrap().read();
+            let table_reading = session_reading
+                .get_states()
+                .get("select_processors_publications_t")
+                .unwrap()
+                .read();
             let column = table_reading.get_column_as_vec_str("session_name");
-            assert_eq!(column, ["user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session"]);
+            assert_eq!(
+                column,
+                [
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("processor_name");
-            assert_eq!(column, ["filter_and_join_session_contexts_by_email_inbox_processor_name", "filter_session_contexts_by_email_processor_name", "join_session_contexts_with_mermaid_diagrams_processor_name", "filter_user_info_by_email_processor_name", "filter_and_join_session_contexts_by_email_outbox_processor_name", "user_session", "user_session", "user_session", "user_session", "user_session"]);
+            assert_eq!(
+                column,
+                [
+                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
+                    "filter_session_contexts_by_email_processor_name",
+                    "join_session_contexts_with_mermaid_diagrams_processor_name",
+                    "filter_user_info_by_email_processor_name",
+                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("processor_type");
-            assert_eq!(column, ["ExtractTabular", "Join", "Join", "Join", "DataSummaryProcessor", "ProcessorEcho", "ProcessorEcho", "ProcessorEcho", "ProcessorEcho", "ProcessorEcho"]);
+            assert_eq!(
+                column,
+                [
+                    "ExtractTabular",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "DataSummaryProcessor",
+                    "ProcessorEcho",
+                    "ProcessorEcho",
+                    "ProcessorEcho",
+                    "ProcessorEcho",
+                    "ProcessorEcho"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("publication_subscription_name");
-            assert_eq!(column, ["Replace", "Replace", "Replace", "Replace", "Replace", "Extend", "Extend", "Extend", "Replace", "Replace"]);
+            assert_eq!(
+                column,
+                [
+                    "Replace", "Replace", "Replace", "Replace", "Replace", "Extend", "Extend",
+                    "Extend", "Replace", "Replace"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("publication_subscription_table_name");
-            assert_eq!(column, ["UserInbox", "JoinUserInboxSessionContexts", "JoinUserInboxSessionContextsMermaid", "filter_user_info_by_email_table_name", "AssistantJson", "BuilderMermaid", "User", "UserSessionContexts", "UserJson", "AssistantJson"]);
+            assert_eq!(
+                column,
+                [
+                    "UserInbox",
+                    "JoinUserInboxSessionContexts",
+                    "JoinUserInboxSessionContextsMermaid",
+                    "filter_user_info_by_email_table_name",
+                    "AssistantJson",
+                    "BuilderMermaid",
+                    "User",
+                    "UserSessionContexts",
+                    "UserJson",
+                    "AssistantJson"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("subscribe_type");
-            assert_eq!(column, ["All", "All", "All", "All", "Any", "All", "All", "All", "All", "All"]);
+            assert_eq!(
+                column,
+                [
+                    "All", "All", "All", "All", "Any", "All", "All", "All", "All", "All"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("update_type");
-            assert_eq!(column, ["TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate"]);
+            assert_eq!(
+                column,
+                [
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate"
+                ]
+            );
             let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
             assert_eq!(column, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
         }
 
         // Run the session
-        let session_stream = SessionStream::new(tasks_publish_subscribe_messages.pop().unwrap(), Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(
+            tasks_publish_subscribe_messages.pop().unwrap(),
+            Arc::clone(&session_ctx_arc),
+        );
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
 
-        { // Test supserstep 2
-            { // Debug any errors
+        {
+            // Test supserstep 2
+            {
+                // Debug any errors
                 let subjects_reading = session_ctx_arc.read();
                 let table_reading = subjects_reading
                     .get_states()
@@ -853,33 +1310,141 @@ mod tests {
             //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
             // }
 
-            let session_reading = session_ctx_arc.read();          
-            let table_reading = session_reading.get_states().get("SessionTasksSubscribeAggregate").unwrap().read();
+            let session_reading = session_ctx_arc.read();
+            let table_reading = session_reading
+                .get_states()
+                .get("SessionTasksSubscribeAggregate")
+                .unwrap()
+                .read();
             let column = table_reading.get_column_as_vec_str("session_name");
-            assert_eq!(column, ["user_session", "user_session", "user_session", "user_session", "user_session", "user_session"]);
+            assert_eq!(
+                column,
+                [
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("task_name");
-            assert_eq!(column, ["filter_and_join_session_contexts_by_email_outbox_task_name", "filter_and_join_session_contexts_by_email_inbox_task_name", "filter_session_contexts_by_email_task_name", "filter_user_info_by_email_task_name", "join_session_contexts_with_mermaid_diagrams_task_name", "user_session"]);
+            assert_eq!(
+                column,
+                [
+                    "filter_and_join_session_contexts_by_email_outbox_task_name",
+                    "filter_and_join_session_contexts_by_email_inbox_task_name",
+                    "filter_session_contexts_by_email_task_name",
+                    "filter_user_info_by_email_task_name",
+                    "join_session_contexts_with_mermaid_diagrams_task_name",
+                    "user_session"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("processor_name");
-            assert_eq!(column, ["filter_and_join_session_contexts_by_email_outbox_processor_name", "filter_and_join_session_contexts_by_email_inbox_processor_name", "filter_session_contexts_by_email_processor_name", "filter_user_info_by_email_processor_name", "join_session_contexts_with_mermaid_diagrams_processor_name", "user_session"]);
+            assert_eq!(
+                column,
+                [
+                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
+                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
+                    "filter_session_contexts_by_email_processor_name",
+                    "filter_user_info_by_email_processor_name",
+                    "join_session_contexts_with_mermaid_diagrams_processor_name",
+                    "user_session"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("processor_type");
-            assert_eq!(column, ["DataSummaryProcessor", "ExtractTabular", "Join", "Join", "Join", "ProcessorEcho"]);
-            let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_name-List")?;
+            assert_eq!(
+                column,
+                [
+                    "DataSummaryProcessor",
+                    "ExtractTabular",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "ProcessorEcho"
+                ]
+            );
+            let column = table_reading
+                .get_column_as_vec_nested_nonprimitive::<String>("subscription_name-List")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(flattened, ["OnUpdateFullTable", "AlwaysLastRecordBatch", "OnUpdateFullTable", "OnUpdateFullTable", "AlwaysFullTable", "OnUpdateFullTable", "AlwaysFullTable", "AlwaysLastRecordBatch", "AlwaysFullTable", "OnUpdateFullTable", "AlwaysLastRecordBatch", "AlwaysFullTable", "OnUpdateFullTable", "AlwaysLastRecordBatch", "OnUpdateFullTable"]);
-            let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_table_name-List")?;
+            assert_eq!(
+                flattened,
+                [
+                    "OnUpdateFullTable",
+                    "AlwaysLastRecordBatch",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysLastRecordBatch",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysLastRecordBatch",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysLastRecordBatch",
+                    "OnUpdateFullTable"
+                ]
+            );
+            let column = table_reading
+                .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_name-List")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(flattened, ["JoinUserInboxSessionContextsMermaid", "JoinUserInboxSessionContextsMermaid", "filter_and_join_session_contexts_by_email_outbox_processor_name", "filter_user_info_by_email_table_name", "filter_user_info_by_email_table_name", "UserJson", "UserJson", "filter_and_join_session_contexts_by_email_inbox_processor_name", "UserInbox", "UserInbox", "UserInbox", "UserSessionContexts", "UserSessionContexts", "filter_session_contexts_by_email_processor_name", "User", "User", "UserInbox", "UserInbox", "UserInbox", "filter_user_info_by_email_processor_name", "BuilderMermaid", "BuilderMermaid", "JoinUserInboxSessionContexts", "JoinUserInboxSessionContexts", "join_session_contexts_with_mermaid_diagrams_processor_name", "AssistantJson", "AssistantJson"]);
+            assert_eq!(
+                flattened,
+                [
+                    "JoinUserInboxSessionContextsMermaid",
+                    "JoinUserInboxSessionContextsMermaid",
+                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
+                    "filter_user_info_by_email_table_name",
+                    "filter_user_info_by_email_table_name",
+                    "UserJson",
+                    "UserJson",
+                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
+                    "UserInbox",
+                    "UserInbox",
+                    "UserInbox",
+                    "UserSessionContexts",
+                    "UserSessionContexts",
+                    "filter_session_contexts_by_email_processor_name",
+                    "User",
+                    "User",
+                    "UserInbox",
+                    "UserInbox",
+                    "UserInbox",
+                    "filter_user_info_by_email_processor_name",
+                    "BuilderMermaid",
+                    "BuilderMermaid",
+                    "JoinUserInboxSessionContexts",
+                    "JoinUserInboxSessionContexts",
+                    "join_session_contexts_with_mermaid_diagrams_processor_name",
+                    "AssistantJson",
+                    "AssistantJson"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("subscribe_type-Last");
             assert_eq!(column, ["Any", "All", "All", "All", "All", "All"]);
             let column = table_reading.get_column_as_vec_str("update_type-Last");
-            assert_eq!(column, ["TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate"]);
-            let column = table_reading.get_column_as_vec_nested_primitive::<i64>("timestamp-List")?;
+            assert_eq!(
+                column,
+                [
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate"
+                ]
+            );
+            let column =
+                table_reading.get_column_as_vec_nested_primitive::<i64>("timestamp-List")?;
             for timestamps in column {
                 for timestamp in timestamps {
                     assert!(timestamp > 0);
                 }
             }
-            let column = table_reading.get_column_as_vec_nested_primitive::<i64>("timestamp-Last-List")?;
+            let column =
+                table_reading.get_column_as_vec_nested_primitive::<i64>("timestamp-Last-List")?;
             for timestamps in column {
                 for timestamp in timestamps {
                     assert!(timestamp > 0);
@@ -891,112 +1456,227 @@ mod tests {
         let _ = tasks_publish_subscribe_messages.pop().unwrap();
         session_ctx_arc.read().tasks_subscribe()?;
 
-        { // Test the tasks subscribe
+        {
+            // Test the tasks subscribe
             let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading.get_states().get("SessionTasksSubscribe").unwrap().read();
+            let table_reading = session_reading
+                .get_states()
+                .get("SessionTasksSubscribe")
+                .unwrap()
+                .read();
             let column = table_reading.get_column_as_vec_str("session_name");
-            assert_eq!(column, ["user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session", "user_session"]);
+            assert_eq!(
+                column,
+                [
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("task_name");
-            assert_eq!(column, ["filter_and_join_session_contexts_by_email_outbox_task_name", "filter_and_join_session_contexts_by_email_outbox_task_name", "filter_and_join_session_contexts_by_email_outbox_task_name", "filter_and_join_session_contexts_by_email_outbox_task_name", "filter_and_join_session_contexts_by_email_outbox_task_name", "filter_and_join_session_contexts_by_email_inbox_task_name", "filter_and_join_session_contexts_by_email_inbox_task_name", "filter_and_join_session_contexts_by_email_inbox_task_name", "filter_session_contexts_by_email_task_name", "filter_session_contexts_by_email_task_name", "filter_session_contexts_by_email_task_name", "filter_session_contexts_by_email_task_name", "filter_session_contexts_by_email_task_name", "filter_session_contexts_by_email_task_name", "filter_user_info_by_email_task_name", "filter_user_info_by_email_task_name", "filter_user_info_by_email_task_name", "filter_user_info_by_email_task_name", "filter_user_info_by_email_task_name", "filter_user_info_by_email_task_name", "join_session_contexts_with_mermaid_diagrams_task_name", "join_session_contexts_with_mermaid_diagrams_task_name", "join_session_contexts_with_mermaid_diagrams_task_name", "join_session_contexts_with_mermaid_diagrams_task_name", "join_session_contexts_with_mermaid_diagrams_task_name", "user_session", "user_session"]);
+            assert_eq!(
+                column,
+                [
+                    "filter_and_join_session_contexts_by_email_outbox_task_name",
+                    "filter_and_join_session_contexts_by_email_outbox_task_name",
+                    "filter_and_join_session_contexts_by_email_outbox_task_name",
+                    "filter_and_join_session_contexts_by_email_outbox_task_name",
+                    "filter_and_join_session_contexts_by_email_outbox_task_name",
+                    "filter_and_join_session_contexts_by_email_inbox_task_name",
+                    "filter_and_join_session_contexts_by_email_inbox_task_name",
+                    "filter_and_join_session_contexts_by_email_inbox_task_name",
+                    "filter_session_contexts_by_email_task_name",
+                    "filter_session_contexts_by_email_task_name",
+                    "filter_session_contexts_by_email_task_name",
+                    "filter_session_contexts_by_email_task_name",
+                    "filter_session_contexts_by_email_task_name",
+                    "filter_session_contexts_by_email_task_name",
+                    "filter_user_info_by_email_task_name",
+                    "filter_user_info_by_email_task_name",
+                    "filter_user_info_by_email_task_name",
+                    "filter_user_info_by_email_task_name",
+                    "filter_user_info_by_email_task_name",
+                    "filter_user_info_by_email_task_name",
+                    "join_session_contexts_with_mermaid_diagrams_task_name",
+                    "join_session_contexts_with_mermaid_diagrams_task_name",
+                    "join_session_contexts_with_mermaid_diagrams_task_name",
+                    "join_session_contexts_with_mermaid_diagrams_task_name",
+                    "join_session_contexts_with_mermaid_diagrams_task_name",
+                    "user_session",
+                    "user_session"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("processor_name");
-            assert_eq!(column, ["filter_and_join_session_contexts_by_email_outbox_processor_name", "filter_and_join_session_contexts_by_email_outbox_processor_name", "filter_and_join_session_contexts_by_email_outbox_processor_name", "filter_and_join_session_contexts_by_email_outbox_processor_name", "filter_and_join_session_contexts_by_email_outbox_processor_name", "filter_and_join_session_contexts_by_email_inbox_processor_name", "filter_and_join_session_contexts_by_email_inbox_processor_name", "filter_and_join_session_contexts_by_email_inbox_processor_name", "filter_session_contexts_by_email_processor_name", "filter_session_contexts_by_email_processor_name", "filter_session_contexts_by_email_processor_name", "filter_session_contexts_by_email_processor_name", "filter_session_contexts_by_email_processor_name", "filter_session_contexts_by_email_processor_name", "filter_user_info_by_email_processor_name", "filter_user_info_by_email_processor_name", "filter_user_info_by_email_processor_name", "filter_user_info_by_email_processor_name", "filter_user_info_by_email_processor_name", "filter_user_info_by_email_processor_name", "join_session_contexts_with_mermaid_diagrams_processor_name", "join_session_contexts_with_mermaid_diagrams_processor_name", "join_session_contexts_with_mermaid_diagrams_processor_name", "join_session_contexts_with_mermaid_diagrams_processor_name", "join_session_contexts_with_mermaid_diagrams_processor_name", "user_session", "user_session"]);
+            assert_eq!(
+                column,
+                [
+                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
+                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
+                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
+                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
+                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
+                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
+                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
+                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
+                    "filter_session_contexts_by_email_processor_name",
+                    "filter_session_contexts_by_email_processor_name",
+                    "filter_session_contexts_by_email_processor_name",
+                    "filter_session_contexts_by_email_processor_name",
+                    "filter_session_contexts_by_email_processor_name",
+                    "filter_session_contexts_by_email_processor_name",
+                    "filter_user_info_by_email_processor_name",
+                    "filter_user_info_by_email_processor_name",
+                    "filter_user_info_by_email_processor_name",
+                    "filter_user_info_by_email_processor_name",
+                    "filter_user_info_by_email_processor_name",
+                    "filter_user_info_by_email_processor_name",
+                    "join_session_contexts_with_mermaid_diagrams_processor_name",
+                    "join_session_contexts_with_mermaid_diagrams_processor_name",
+                    "join_session_contexts_with_mermaid_diagrams_processor_name",
+                    "join_session_contexts_with_mermaid_diagrams_processor_name",
+                    "join_session_contexts_with_mermaid_diagrams_processor_name",
+                    "user_session",
+                    "user_session"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("processor_type");
-            assert_eq!(column, ["DataSummaryProcessor",
-                "DataSummaryProcessor",
-                "DataSummaryProcessor",
-                "DataSummaryProcessor",
-                "DataSummaryProcessor",
-                "ExtractTabular",
-                "ExtractTabular",
-                "ExtractTabular",
-                "Join",
-                "Join",
-                "Join",
-                "Join",
-                "Join",
-                "Join",
-                "Join",
-                "Join",
-                "Join",
-                "Join",
-                "Join",
-                "Join",
-                "Join",
-                "Join",
-                "Join",
-                "Join",
-                "Join",
-                "ProcessorEcho",
-                "ProcessorEcho"
-            ]);
+            assert_eq!(
+                column,
+                [
+                    "DataSummaryProcessor",
+                    "DataSummaryProcessor",
+                    "DataSummaryProcessor",
+                    "DataSummaryProcessor",
+                    "DataSummaryProcessor",
+                    "ExtractTabular",
+                    "ExtractTabular",
+                    "ExtractTabular",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "ProcessorEcho",
+                    "ProcessorEcho"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("subscription_name");
-            assert_eq!(column, ["OnUpdateFullTable",
-                "OnUpdateFullTable",
-                "AlwaysLastRecordBatch",
-                "OnUpdateFullTable",
-                "OnUpdateFullTable",
-                "OnUpdateFullTable",
-                "OnUpdateFullTable",
-                "AlwaysFullTable",
-                "OnUpdateFullTable",
-                "OnUpdateFullTable",
-                "OnUpdateFullTable",
-                "AlwaysFullTable",
-                "AlwaysFullTable",
-                "AlwaysLastRecordBatch",
-                "AlwaysFullTable",
-                "AlwaysFullTable",
-                "OnUpdateFullTable",
-                "OnUpdateFullTable",
-                "OnUpdateFullTable",
-                "AlwaysLastRecordBatch",
-                "AlwaysFullTable",
-                "AlwaysFullTable",
-                "OnUpdateFullTable",
-                "OnUpdateFullTable",
-                "AlwaysLastRecordBatch",
-                "OnUpdateFullTable",
-                "OnUpdateFullTable",
-            ]);
+            assert_eq!(
+                column,
+                [
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysLastRecordBatch",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysLastRecordBatch",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysLastRecordBatch",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysLastRecordBatch",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("subscription_table_name");
-            assert_eq!(column, ["JoinUserInboxSessionContextsMermaid",
-                "JoinUserInboxSessionContextsMermaid",
-                "filter_and_join_session_contexts_by_email_outbox_processor_name",
-                "filter_user_info_by_email_table_name",
-                "filter_user_info_by_email_table_name",
-                "UserJson",
-                "UserJson",
-                "filter_and_join_session_contexts_by_email_inbox_processor_name",
-                "UserInbox",
-                "UserInbox",
-                "UserInbox",
-                "UserSessionContexts",
-                "UserSessionContexts",
-                "filter_session_contexts_by_email_processor_name",
-                "User",
-                "User",
-                "UserInbox",
-                "UserInbox",
-                "UserInbox",
-                "filter_user_info_by_email_processor_name",
-                "BuilderMermaid",
-                "BuilderMermaid",
-                "JoinUserInboxSessionContexts",
-                "JoinUserInboxSessionContexts",
-                "join_session_contexts_with_mermaid_diagrams_processor_name",
-                "AssistantJson",
-                "AssistantJson",
-            ]);
+            assert_eq!(
+                column,
+                [
+                    "JoinUserInboxSessionContextsMermaid",
+                    "JoinUserInboxSessionContextsMermaid",
+                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
+                    "filter_user_info_by_email_table_name",
+                    "filter_user_info_by_email_table_name",
+                    "UserJson",
+                    "UserJson",
+                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
+                    "UserInbox",
+                    "UserInbox",
+                    "UserInbox",
+                    "UserSessionContexts",
+                    "UserSessionContexts",
+                    "filter_session_contexts_by_email_processor_name",
+                    "User",
+                    "User",
+                    "UserInbox",
+                    "UserInbox",
+                    "UserInbox",
+                    "filter_user_info_by_email_processor_name",
+                    "BuilderMermaid",
+                    "BuilderMermaid",
+                    "JoinUserInboxSessionContexts",
+                    "JoinUserInboxSessionContexts",
+                    "join_session_contexts_with_mermaid_diagrams_processor_name",
+                    "AssistantJson",
+                    "AssistantJson",
+                ]
+            );
         }
 
         // Run the session
-        let session_stream = SessionStream::new(tasks_publish_subscribe_messages.pop().unwrap(), Arc::clone(&session_ctx_arc));
+        let session_stream = SessionStream::new(
+            tasks_publish_subscribe_messages.pop().unwrap(),
+            Arc::clone(&session_ctx_arc),
+        );
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
 
-        { // Test supserstep 3
-            { // Debug errors
+        {
+            // Test supserstep 3
+            {
+                // Debug errors
                 let subjects_reading = session_ctx_arc.read();
                 let table_reading = subjects_reading
                     .get_states()
@@ -1007,118 +1687,145 @@ mod tests {
             }
 
             let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading.get_states().get("SessionTasksSubscribePublish").unwrap().read();
+            let table_reading = session_reading
+                .get_states()
+                .get("SessionTasksSubscribePublish")
+                .unwrap()
+                .read();
             let column = table_reading.get_column_as_vec_str("session_name");
-            assert_eq!(column, [
-                "user_session",
-                "user_session",
-                "user_session",
-                "user_session",
-                "user_session",
-                "user_session"
-            ]);
+            assert_eq!(
+                column,
+                [
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session",
+                    "user_session"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("processor_name");
-            assert_eq!(column, ["filter_and_join_session_contexts_by_email_inbox_processor_name",
-                "filter_and_join_session_contexts_by_email_outbox_processor_name",
-                "filter_session_contexts_by_email_processor_name",
-                "filter_user_info_by_email_processor_name",
-                "join_session_contexts_with_mermaid_diagrams_processor_name",
-                "user_session",
-            ]);
+            assert_eq!(
+                column,
+                [
+                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
+                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
+                    "filter_session_contexts_by_email_processor_name",
+                    "filter_user_info_by_email_processor_name",
+                    "join_session_contexts_with_mermaid_diagrams_processor_name",
+                    "user_session",
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("processor_type");
-            assert_eq!(column, ["ExtractTabular",
-                "DataSummaryProcessor",
-                "Join",
-                "Join",
-                "Join",
-                "ProcessorEcho",
-            ]);
-            let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
+            assert_eq!(
+                column,
+                [
+                    "ExtractTabular",
+                    "DataSummaryProcessor",
+                    "Join",
+                    "Join",
+                    "Join",
+                    "ProcessorEcho",
+                ]
+            );
+            let column = table_reading
+                .get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(flattened, ["OnUpdateFullTable",
-                "OnUpdateFullTable",
-                "AlwaysFullTable",
-                "OnUpdateFullTable",
-                "OnUpdateFullTable",
-                "AlwaysLastRecordBatch",
-                "OnUpdateFullTable",
-                "OnUpdateFullTable",
-                "OnUpdateFullTable",
-                "OnUpdateFullTable",
-                "OnUpdateFullTable",
-                "AlwaysFullTable",
-                "AlwaysFullTable",
-                "AlwaysLastRecordBatch",
-                "AlwaysFullTable",
-                "AlwaysFullTable",
-                "OnUpdateFullTable",
-                "OnUpdateFullTable",
-                "OnUpdateFullTable",
-                "AlwaysLastRecordBatch",
-                "AlwaysFullTable",
-                "AlwaysFullTable",
-                "OnUpdateFullTable",
-                "OnUpdateFullTable",
-                "AlwaysLastRecordBatch",
-                "OnUpdateFullTable",
-                "OnUpdateFullTable",
-            ]);
-            let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
+            assert_eq!(
+                flattened,
+                [
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysLastRecordBatch",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysLastRecordBatch",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysLastRecordBatch",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysLastRecordBatch",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                ]
+            );
+            let column = table_reading
+                .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(flattened, ["UserJson",
-                "UserJson",
-                "filter_and_join_session_contexts_by_email_inbox_processor_name",
-                "JoinUserInboxSessionContextsMermaid",
-                "JoinUserInboxSessionContextsMermaid",
-                "filter_and_join_session_contexts_by_email_outbox_processor_name",
-                "filter_user_info_by_email_table_name",
-                "filter_user_info_by_email_table_name",
-                "UserInbox",
-                "UserInbox",
-                "UserInbox",
-                "UserSessionContexts",
-                "UserSessionContexts",
-                "filter_session_contexts_by_email_processor_name",
-                "User",
-                "User",
-                "UserInbox",
-                "UserInbox",
-                "UserInbox",
-                "filter_user_info_by_email_processor_name",
-                "BuilderMermaid",
-                "BuilderMermaid",
-                "JoinUserInboxSessionContexts",
-                "JoinUserInboxSessionContexts",
-                "join_session_contexts_with_mermaid_diagrams_processor_name",
-                "AssistantJson",
-                "AssistantJson",
-            ]);
-            let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
+            assert_eq!(
+                flattened,
+                [
+                    "UserJson",
+                    "UserJson",
+                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
+                    "JoinUserInboxSessionContextsMermaid",
+                    "JoinUserInboxSessionContextsMermaid",
+                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
+                    "filter_user_info_by_email_table_name",
+                    "filter_user_info_by_email_table_name",
+                    "UserInbox",
+                    "UserInbox",
+                    "UserInbox",
+                    "UserSessionContexts",
+                    "UserSessionContexts",
+                    "filter_session_contexts_by_email_processor_name",
+                    "User",
+                    "User",
+                    "UserInbox",
+                    "UserInbox",
+                    "UserInbox",
+                    "filter_user_info_by_email_processor_name",
+                    "BuilderMermaid",
+                    "BuilderMermaid",
+                    "JoinUserInboxSessionContexts",
+                    "JoinUserInboxSessionContexts",
+                    "join_session_contexts_with_mermaid_diagrams_processor_name",
+                    "AssistantJson",
+                    "AssistantJson",
+                ]
+            );
+            let column = table_reading
+                .get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(flattened, ["Replace",
-                "Replace",
-                "Replace",
-                "Replace",
-                "Replace",
-                "Extend",
-                "Extend",
-                "Extend",
-                "Replace",
-                "Replace",
-            ]);
-            let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
+            assert_eq!(
+                flattened,
+                [
+                    "Replace", "Replace", "Replace", "Replace", "Replace", "Extend", "Extend",
+                    "Extend", "Replace", "Replace",
+                ]
+            );
+            let column = table_reading
+                .get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(flattened, ["UserInbox",
-                "AssistantJson",
-                "JoinUserInboxSessionContexts",
-                "filter_user_info_by_email_table_name",
-                "JoinUserInboxSessionContextsMermaid",
-                "BuilderMermaid",
-                "User",
-                "UserSessionContexts",
-                "UserJson",
-                "AssistantJson",
-            ]);
+            assert_eq!(
+                flattened,
+                [
+                    "UserInbox",
+                    "AssistantJson",
+                    "JoinUserInboxSessionContexts",
+                    "filter_user_info_by_email_table_name",
+                    "JoinUserInboxSessionContextsMermaid",
+                    "BuilderMermaid",
+                    "User",
+                    "UserSessionContexts",
+                    "UserJson",
+                    "AssistantJson",
+                ]
+            );
         }
 
         Ok(())

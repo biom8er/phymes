@@ -1065,9 +1065,7 @@ mod tests {
     use phymes_data::make_pdf_document;
     use phymes_diagnostics::HashMap;
 
-    use crate::{
-        SessionContextBuilderAgentsTrait, SessionStream, create_message_map,
-    };
+    use crate::{SessionContextBuilderAgentsTrait, SessionStream, create_message_map};
 
     use super::*;
 

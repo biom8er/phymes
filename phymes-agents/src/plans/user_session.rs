@@ -319,7 +319,8 @@ pub(crate) mod user_session_inner {
     };
 
     use crate::{
-        SessionContext, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream, create_message_map
+        SessionContext, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait,
+        SessionStream, create_message_map,
     };
 
     use super::*;
@@ -373,9 +374,11 @@ mod tests {
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
         assert!(response.is_empty());
 
-        { // Check the User subject
+        {
+            // Check the User subject
             let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading.get_states()
+            let table_reading = session_reading
+                .get_states()
                 .get(AvailableSubjects::User.to_string().as_str())
                 .unwrap()
                 .read();
@@ -391,32 +394,46 @@ mod tests {
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             for c in column {
                 assert!(c > 0);
-            }            
+            }
         }
 
-        { // Check the Join subject
+        {
+            // Check the Join subject
             let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading.get_states()
-                .get(AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string().as_str())
+            let table_reading = session_reading
+                .get_states()
+                .get(
+                    AvailableSubjects::JoinUserInboxSessionContextsMermaid
+                        .to_string()
+                        .as_str(),
+                )
                 .unwrap()
                 .read();
             // println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
             let column = table_reading.get_column_as_vec_str("email");
-            assert_eq!(column, ["contact@biom8er.com", "contact@biom8er.com", "contact@biom8er.com", "contact@biom8er.com"]);
+            assert_eq!(
+                column,
+                [
+                    "contact@biom8er.com",
+                    "contact@biom8er.com",
+                    "contact@biom8er.com",
+                    "contact@biom8er.com"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("session_context_name");
             assert_eq!(column, ["Builder", "Chat", "DocChat", "ToolChat"]);
             let column = table_reading.get_column_as_vec_str("er_diagram");
             for c in column {
                 assert!(!c.is_empty());
-            } 
+            }
             let column = table_reading.get_column_as_vec_str("flowchart_diagram");
             for c in column {
                 assert!(!c.is_empty());
-            } 
+            }
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             for c in column {
                 assert!(c > 0);
-            }            
+            }
         }
 
         Ok(())

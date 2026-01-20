@@ -838,9 +838,7 @@ mod tests {
     use phymes_data::test_extract_tabular_data::make_scores_table;
     use phymes_diagnostics::HashMap;
 
-    use crate::{
-        SessionContextBuilderAgentsTrait, SessionStream, create_message_map,
-    };
+    use crate::{SessionContextBuilderAgentsTrait, SessionStream, create_message_map};
 
     use super::*;
 

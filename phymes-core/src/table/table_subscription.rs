@@ -68,7 +68,9 @@ impl TableSubscription {
             Self::OnUpdateEmpty { table_name: tn } => format!("OnUpdateEmpty-{tn}"),
             Self::AlwaysFullTable { table_name: tn } => format!("AlwaysFullTable-{tn}"),
             Self::AlwaysLastRecordBatch { table_name: tn } => format!("AlwaysLastRecordBatch-{tn}"),
-            Self::OnUpdateFullTableDrain { table_name: tn } => format!("OnUpdateFullTableDrain-{tn}"),
+            Self::OnUpdateFullTableDrain { table_name: tn } => {
+                format!("OnUpdateFullTableDrain-{tn}")
+            }
             Self::OnUpdateLastRecordBatchPop { table_name: tn } => {
                 format!("OnUpdateLastRecordBatchPop-{tn}")
             }

@@ -7,12 +7,21 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskPlanBuilder, create_session_mermaid_batch, create_session_processors_batch, create_session_runtime_envs_batch, create_session_subjects_batch, create_session_tasks_batch, create_session_tasks_run_log_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_data_type_to_str, from_str_to_data_type
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies,
+    AvailableTableUpdatePolicies, BuildableTrait, BuilderTrait, MappableTrait,
+    ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication,
+    TableSubscription, TableTrait, TaskPlanBuilder, create_session_mermaid_batch,
+    create_session_processors_batch, create_session_runtime_envs_batch,
+    create_session_subjects_batch, create_session_tasks_batch, create_session_tasks_run_log_batch,
+    create_subjects_change_log_batch, create_subjects_num_rows_batch, from_data_type_to_str,
+    from_str_to_data_type,
 };
 use phymes_diagnostics::{HashSet, create_timestamp_micros};
 
 use crate::{
-    AvailableProcessors, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, plans::{SubjectsNumRowsSession, TasksSubscribePublishSession}
+    AvailableProcessors, SessionContextBuilder, SessionContextBuilderAgentsTrait,
+    SessionContextBuilderMermaidTrait, SessionContextBuilderTrait,
+    plans::{SubjectsNumRowsSession, TasksSubscribePublishSession},
 };
 
 /// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from tabular format
@@ -230,11 +239,19 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let tables_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
             tasks_publish_subscribe_session.as_mermaid_flowchart(),
             false,
-            )?
-            .with_state_from_mermaid_erdiagram(tasks_publish_subscribe_session.as_mermaid_erdiagram(), false, false)?
-            .with_name(tasks_publish_subscribe_session.session_context_name)
-            .add_processor_subjects()?
-            .state.unwrap().into_iter().map(|t| t.get_name().to_string()).collect::<Vec<_>>();
+        )?
+        .with_state_from_mermaid_erdiagram(
+            tasks_publish_subscribe_session.as_mermaid_erdiagram(),
+            false,
+            false,
+        )?
+        .with_name(tasks_publish_subscribe_session.session_context_name)
+        .add_processor_subjects()?
+        .state
+        .unwrap()
+        .into_iter()
+        .map(|t| t.get_name().to_string())
+        .collect::<Vec<_>>();
         let exclusion_set = tables_publish_subscribe.into_iter().collect::<HashSet<_>>();
 
         // initialize the table columns
@@ -458,7 +475,9 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
     fn get_tasks_run_log_as_table(&self) -> Result<Table> {
         if self.tasks.is_none() {
-            return Err(anyhow!("Add task plans before making the tasks run log table."));
+            return Err(anyhow!(
+                "Add task plans before making the tasks run log table."
+            ));
         }
         let session_name = if let Some(session_name) = self.name.as_ref() {
             session_name
@@ -473,33 +492,56 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let tasks_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
             tasks_publish_subscribe_session.as_mermaid_flowchart(),
             false,
-            )?
-            .tasks.unwrap().into_iter().map(|t| t.task_name).collect::<Vec<_>>();
+        )?
+        .tasks
+        .unwrap()
+        .into_iter()
+        .map(|t| t.task_name)
+        .collect::<Vec<_>>();
         let subjects_session = SubjectsNumRowsSession::default();
         let tasks_subjects = SessionContextBuilder::from_mermaid_flowchart(
             subjects_session.as_mermaid_flowchart(),
             false,
-            )?
-            .tasks.unwrap().into_iter().map(|t| t.task_name).collect::<Vec<_>>();
-        let exclusion_set = tasks_publish_subscribe.into_iter().chain(tasks_subjects.into_iter()).collect::<HashSet<_>>();
+        )?
+        .tasks
+        .unwrap()
+        .into_iter()
+        .map(|t| t.task_name)
+        .collect::<Vec<_>>();
+        let exclusion_set = tasks_publish_subscribe
+            .into_iter()
+            .chain(tasks_subjects.into_iter())
+            .collect::<HashSet<_>>();
 
         // Create the table
-        let ((session_names, task_names), timestamps) = self.tasks.as_ref().unwrap().iter()
-            .filter_map(|task| if exclusion_set.contains(&task.task_name) {
-                None
-            } else {
-                Some(((session_name.to_string(), task.task_name.to_string()), create_timestamp_micros()))
+        let ((session_names, task_names), timestamps) = self
+            .tasks
+            .as_ref()
+            .unwrap()
+            .iter()
+            .filter_map(|task| {
+                if exclusion_set.contains(&task.task_name) {
+                    None
+                } else {
+                    Some((
+                        (session_name.to_string(), task.task_name.to_string()),
+                        create_timestamp_micros(),
+                    ))
+                }
             })
             .unzip();
         let batch = create_session_tasks_run_log_batch(session_names, task_names, timestamps)?;
-        Table::get_builder().with_name(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+        Table::get_builder()
+            .with_name(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
     }
 
     fn get_subjects_num_rows_as_table(&self) -> Result<Table> {
         if self.state.is_none() {
-            return Err(anyhow!("Add subjects before making the subjects num rows table."));
+            return Err(anyhow!(
+                "Add subjects before making the subjects num rows table."
+            ));
         }
 
         // Tables to exclude
@@ -507,45 +549,73 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let tables_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
             tasks_publish_subscribe_session.as_mermaid_flowchart(),
             false,
-            )?
-            .with_state_from_mermaid_erdiagram(tasks_publish_subscribe_session.as_mermaid_erdiagram(), false, false)?
-            .with_name(tasks_publish_subscribe_session.session_context_name)
-            .add_processor_subjects()?
-            .state.unwrap().into_iter().map(|t| t.get_name().to_string()).collect::<Vec<_>>();
+        )?
+        .with_state_from_mermaid_erdiagram(
+            tasks_publish_subscribe_session.as_mermaid_erdiagram(),
+            false,
+            false,
+        )?
+        .with_name(tasks_publish_subscribe_session.session_context_name)
+        .add_processor_subjects()?
+        .state
+        .unwrap()
+        .into_iter()
+        .map(|t| t.get_name().to_string())
+        .collect::<Vec<_>>();
         let subjects_session = SubjectsNumRowsSession::default();
         let tables_subjects = SessionContextBuilder::from_mermaid_flowchart(
             subjects_session.as_mermaid_flowchart(),
             false,
-            )?
-            .with_state_from_mermaid_erdiagram(subjects_session.as_mermaid_erdiagram(), false, false)?
-            .with_name(subjects_session.session_context_name)
-            .add_processor_subjects()?
-            .state.unwrap().into_iter().map(|t| t.get_name().to_string()).collect::<Vec<_>>();
-        let exclusion_set = tables_publish_subscribe.into_iter().chain(tables_subjects.into_iter()).collect::<HashSet<_>>();
+        )?
+        .with_state_from_mermaid_erdiagram(subjects_session.as_mermaid_erdiagram(), false, false)?
+        .with_name(subjects_session.session_context_name)
+        .add_processor_subjects()?
+        .state
+        .unwrap()
+        .into_iter()
+        .map(|t| t.get_name().to_string())
+        .collect::<Vec<_>>();
+        let exclusion_set = tables_publish_subscribe
+            .into_iter()
+            .chain(tables_subjects.into_iter())
+            .collect::<HashSet<_>>();
 
         // Create the table
-        let (subject_names, num_rows): (Vec<String>, Vec<i64>) = self.state.as_ref().unwrap().iter()
-            .filter_map(|t| if exclusion_set.contains(t.get_name()) {
-                None
-            } else {
-                Some((t.get_name().to_string(), t.count_rows() as i64))
+        let (subject_names, num_rows): (Vec<String>, Vec<i64>) = self
+            .state
+            .as_ref()
+            .unwrap()
+            .iter()
+            .filter_map(|t| {
+                if exclusion_set.contains(t.get_name()) {
+                    None
+                } else {
+                    Some((t.get_name().to_string(), t.count_rows() as i64))
+                }
             })
             .unzip();
         let batch = create_subjects_num_rows_batch(subject_names, num_rows)?;
-        Table::get_builder().with_name(AvailableSubjects::SubjectsNumRows.to_string().as_str())
+        Table::get_builder()
+            .with_name(AvailableSubjects::SubjectsNumRows.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
     }
 
     fn get_subjects_change_log_as_table(&self) -> Result<Table> {
         if self.state.is_none() {
-            return Err(anyhow!("Add subjects before making the subjects change log table."));
+            return Err(anyhow!(
+                "Add subjects before making the subjects change log table."
+            ));
         }
         if self.tasks.is_none() {
-            return Err(anyhow!("Add task plans before making subjects change log table."));
+            return Err(anyhow!(
+                "Add task plans before making subjects change log table."
+            ));
         }
         if self.processors.is_none() {
-            return Err(anyhow!("Add processor plans before making subjects change log table."));
+            return Err(anyhow!(
+                "Add processor plans before making subjects change log table."
+            ));
         }
         let session_name = if let Some(session_name) = self.name.as_ref() {
             session_name
@@ -560,8 +630,12 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let tasks_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
             tasks_publish_subscribe_session.as_mermaid_flowchart(),
             false,
-            )?
-            .tasks.unwrap().into_iter().map(|t| t.task_name).collect::<Vec<_>>();
+        )?
+        .tasks
+        .unwrap()
+        .into_iter()
+        .map(|t| t.task_name)
+        .collect::<Vec<_>>();
         // let subjects_session = SubjectsNumRowsSession::default();
         // let tasks_subjects = SessionContextBuilder::from_mermaid_flowchart(
         //     subjects_session.as_mermaid_flowchart(),
@@ -572,28 +646,68 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let exclusion_set = tasks_publish_subscribe.into_iter().collect::<HashSet<_>>();
 
         // Create the table
-        let ((((subject_names, task_names), session_names), num_rows_delta), timestamps) = self.tasks.as_ref().unwrap().iter()
-            .filter_map(|task| if exclusion_set.contains(&task.task_name) {
-                None
-            } else {
-                let subjects = self.state.as_ref().unwrap().iter().filter_map(|table| {
-                    let (subscriptions, publications) = self.get_sub_pub_for_task(&task.task_name);
-                    let publication_names = publications.into_iter().map(|p| p.get_table_name()).collect::<Vec<_>>();
-                    let subscription_names = subscriptions.into_iter().map(|p| p.get_table_name()).collect::<Vec<_>>();
-                    let table_names = publication_names.into_iter().chain(subscription_names.into_iter()).collect::<HashSet<_>>();
-                    if table_names.contains(&table.get_name()) {
-                        Some(((((table.get_name().to_string(), task.task_name.to_string()), session_name.to_string()), 0 as i64), create_timestamp_micros()))
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Vec<_>>();
-                Some(subjects)
+        let ((((subject_names, task_names), session_names), num_rows_delta), timestamps) = self
+            .tasks
+            .as_ref()
+            .unwrap()
+            .iter()
+            .filter_map(|task| {
+                if exclusion_set.contains(&task.task_name) {
+                    None
+                } else {
+                    let subjects = self
+                        .state
+                        .as_ref()
+                        .unwrap()
+                        .iter()
+                        .filter_map(|table| {
+                            let (subscriptions, publications) =
+                                self.get_sub_pub_for_task(&task.task_name);
+                            let publication_names = publications
+                                .into_iter()
+                                .map(|p| p.get_table_name())
+                                .collect::<Vec<_>>();
+                            let subscription_names = subscriptions
+                                .into_iter()
+                                .map(|p| p.get_table_name())
+                                .collect::<Vec<_>>();
+                            let table_names = publication_names
+                                .into_iter()
+                                .chain(subscription_names.into_iter())
+                                .collect::<HashSet<_>>();
+                            if table_names.contains(&table.get_name()) {
+                                Some((
+                                    (
+                                        (
+                                            (
+                                                table.get_name().to_string(),
+                                                task.task_name.to_string(),
+                                            ),
+                                            session_name.to_string(),
+                                        ),
+                                        0 as i64,
+                                    ),
+                                    create_timestamp_micros(),
+                                ))
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    Some(subjects)
+                }
             })
             .flatten()
             .unzip();
-        let batch = create_subjects_change_log_batch(subject_names, task_names, session_names, num_rows_delta, timestamps)?;
-        Table::get_builder().with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+        let batch = create_subjects_change_log_batch(
+            subject_names,
+            task_names,
+            session_names,
+            num_rows_delta,
+            timestamps,
+        )?;
+        Table::get_builder()
+            .with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
     }
@@ -1276,7 +1390,10 @@ mod tests {
             .get_column_as_vec_str("subject_name")
             .into_iter()
             .collect::<HashSet<_>>();
-        let tables_set = tables.get(5).unwrap().get_column_as_vec_str("subject_name")
+        let tables_set = tables
+            .get(5)
+            .unwrap()
+            .get_column_as_vec_str("subject_name")
             .into_iter()
             .collect::<HashSet<_>>();
         // DM: need to check why this test is failing
@@ -1293,7 +1410,10 @@ mod tests {
             .get_column_as_vec_str("subject_name")
             .into_iter()
             .collect::<HashSet<_>>();
-        let tables_set = tables.get(6).unwrap().get_column_as_vec_str("subject_name")
+        let tables_set = tables
+            .get(6)
+            .unwrap()
+            .get_column_as_vec_str("subject_name")
             .into_iter()
             .collect::<HashSet<_>>();
         assert_eq!(tables_test_set, tables_set);

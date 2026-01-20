@@ -72,11 +72,20 @@ impl ProcessorTrait for CandleDataProcessor {
         // Extract out the config
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
-            None => return Err(anyhow!("Config not provided for {}. Available options are {:?}.", self.get_name(), message.keys())),
+            None => {
+                return Err(anyhow!(
+                    "Config not provided for {}. Available options are {:?}.",
+                    self.get_name(),
+                    message.keys()
+                ));
+            }
         };
 
         // Re-index the messages by the subject name which needs to be unique at this stage
-        let message = message.into_iter().map(|(_k, v)| (v.get_subject().to_string(), v)).collect::<HashMap<_, _>>();
+        let message = message
+            .into_iter()
+            .map(|(_k, v)| (v.get_subject().to_string(), v))
+            .collect::<HashMap<_, _>>();
 
         // Run the ops
         let out = Box::pin(CandleDataStream::new(

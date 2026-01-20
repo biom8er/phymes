@@ -225,7 +225,10 @@ impl SessionContextBuilder {
         let other_state = if let Some(state) = self.state.as_ref() {
             if let Some(other) = other.state {
                 let names = state.iter().map(|t| t.get_name()).collect::<HashSet<_>>();
-                other.into_iter().filter(|t| !names.contains(t.get_name())).collect::<Vec<_>>()
+                other
+                    .into_iter()
+                    .filter(|t| !names.contains(t.get_name()))
+                    .collect::<Vec<_>>()
             } else {
                 Vec::new()
             }
@@ -243,8 +246,14 @@ impl SessionContextBuilder {
         // Extend the processors
         let other_processors = if let Some(processors) = self.processors.as_ref() {
             if let Some(other) = other.processors {
-                let names = processors.iter().map(|t| t.get_name()).collect::<HashSet<_>>();
-                other.into_iter().filter(|t| !names.contains(t.get_name())).collect::<Vec<_>>()
+                let names = processors
+                    .iter()
+                    .map(|t| t.get_name())
+                    .collect::<HashSet<_>>();
+                other
+                    .into_iter()
+                    .filter(|t| !names.contains(t.get_name()))
+                    .collect::<Vec<_>>()
             } else {
                 Vec::new()
             }
@@ -258,12 +267,15 @@ impl SessionContextBuilder {
                 self.processors.replace(other_processors);
             }
         }
-        
+
         // Extend the tasks
         let other_tasks = if let Some(tasks) = self.tasks.as_ref() {
             if let Some(other) = other.tasks {
                 let names = tasks.iter().map(|t| &t.task_name).collect::<HashSet<_>>();
-                other.into_iter().filter(|t| !names.contains(&t.task_name)).collect::<Vec<_>>()
+                other
+                    .into_iter()
+                    .filter(|t| !names.contains(&t.task_name))
+                    .collect::<Vec<_>>()
             } else {
                 Vec::new()
             }
@@ -281,8 +293,14 @@ impl SessionContextBuilder {
         // Extend the runtime_envs
         let other_runtime_envs = if let Some(runtime_envs) = self.runtime_envs.as_ref() {
             if let Some(other) = other.runtime_envs {
-                let names = runtime_envs.iter().map(|t| t.get_name()).collect::<HashSet<_>>();
-                other.into_iter().filter(|t| !names.contains(t.get_name())).collect::<Vec<_>>()
+                let names = runtime_envs
+                    .iter()
+                    .map(|t| t.get_name())
+                    .collect::<HashSet<_>>();
+                other
+                    .into_iter()
+                    .filter(|t| !names.contains(t.get_name()))
+                    .collect::<Vec<_>>()
             } else {
                 Vec::new()
             }
@@ -468,7 +486,9 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 pub mod test_session_context_builder {
     use phymes_core::{
         AvailableTableSubscribePolicies, ProcessorPlanBuilder,
-        test_task::{make_config_tables, make_runtime_env, make_state_tables, make_state_tables_empty},
+        test_task::{
+            make_config_tables, make_runtime_env, make_state_tables, make_state_tables_empty,
+        },
     };
 
     use crate::{AvailableProcessors, SessionContextBuilderAgentsTrait};
@@ -498,17 +518,15 @@ pub mod test_session_context_builder {
 
     /// Tasks subscribe and publish to state_1
     pub fn make_test_session_context_builder_sequential_tasks() -> Vec<TaskPlan> {
-        vec![
-            TaskPlan {
-                task_name: "task_1".to_string(),
-                runtime_env_name: "rt_1".to_string(),
-                processor_names: vec![
-                    "processor_1".to_string(),
-                    "processor_2".to_string(),
-                    "processor_3".to_string(),
-                ],
-            },
-        ]
+        vec![TaskPlan {
+            task_name: "task_1".to_string(),
+            runtime_env_name: "rt_1".to_string(),
+            processor_names: vec![
+                "processor_1".to_string(),
+                "processor_2".to_string(),
+                "processor_3".to_string(),
+            ],
+        }]
     }
 
     /// Tasks and processors subscribe and publish to state_1, state_2, and state_3
@@ -695,7 +713,6 @@ pub mod test_session_context_builder {
         state.push(make_config_tables("processor_2")?);
         state.push(make_config_tables("processor_3")?);
 
-
         let builder = make_test_session_context_builder_sequential_processors()
             .with_name(name)
             .with_runtime_envs(runtime_envs)
@@ -718,7 +735,8 @@ mod tests {
 
     #[test]
     fn test_session_context_builder_get_task_sub_pub_with_input() {
-        let plan = test_session_context_builder::make_test_session_context_builder_parallel_processors();
+        let plan =
+            test_session_context_builder::make_test_session_context_builder_parallel_processors();
         let (subscriptions, publications) = plan.get_sub_pub_for_task("task_1");
         assert!(
             subscriptions.contains(&&TableSubscription::AlwaysFullTable {
@@ -737,7 +755,8 @@ mod tests {
 
     #[test]
     fn test_session_context_builder_get_processor_names() {
-        let plan = test_session_context_builder::make_test_session_context_builder_parallel_processors();
+        let plan =
+            test_session_context_builder::make_test_session_context_builder_parallel_processors();
         let names = plan.get_processor_names_from_tasks();
         assert!(names.contains("processor_1"));
         assert!(names.contains("processor_2"));
@@ -746,7 +765,8 @@ mod tests {
 
     #[test]
     fn test_session_context_builder_get_subject_names() {
-        let plan = test_session_context_builder::make_test_session_context_builder_parallel_processors();
+        let plan =
+            test_session_context_builder::make_test_session_context_builder_parallel_processors();
         let names = plan.get_subject_names_from_processors();
         assert!(names.contains("state_1"));
         assert!(names.contains("state_2"));
@@ -758,36 +778,50 @@ mod tests {
 
     #[test]
     fn test_session_context_builder_get_runtime_env_names() {
-        let plan = test_session_context_builder::make_test_session_context_builder_parallel_processors();
+        let plan =
+            test_session_context_builder::make_test_session_context_builder_parallel_processors();
         let names = plan.get_runtime_env_names();
         assert!(names.contains("rt_1"));
     }
 
     #[test]
     fn test_session_context_builder_get_processor_names_for_task() {
-        let plan = test_session_context_builder::make_test_session_context_builder_parallel_processors();
+        let plan =
+            test_session_context_builder::make_test_session_context_builder_parallel_processors();
         let names = plan.get_processor_names_for_task("task_1");
         assert_eq!(names, vec!["processor_1".to_string()]);
     }
 
     #[test]
     fn test_session_context_builder_extend_duplicate() -> Result<()> {
-        let plan = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?;
-        let plan = plan.extend(test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?)?;
-        assert_eq!(plan, test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?);
+        let plan = test_session_context_builder::make_test_session_context_builder_parallel(
+            "session_1",
+            25,
+        )?;
+        let plan = plan.extend(
+            test_session_context_builder::make_test_session_context_builder_parallel(
+                "session_1",
+                25,
+            )?,
+        )?;
+        assert_eq!(
+            plan,
+            test_session_context_builder::make_test_session_context_builder_parallel(
+                "session_1",
+                25
+            )?
+        );
 
         Ok(())
     }
 
     #[test]
     fn test_session_context_builder_extend_other() -> Result<()> {
-        let task_plans = vec![
-            TaskPlan {
-                task_name: "task_4".to_string(),
-                runtime_env_name: "rt_4".to_string(),
-                processor_names: vec!["processor_4".to_string()],
-            },
-        ];
+        let task_plans = vec![TaskPlan {
+            task_name: "task_4".to_string(),
+            runtime_env_name: "rt_4".to_string(),
+            processor_names: vec!["processor_4".to_string()],
+        }];
         let processor_plans = vec![
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_4"))
@@ -806,7 +840,7 @@ mod tests {
         let mut state = make_state_tables("state_1", "processor_1")?;
         state.extend(make_state_tables("state_2", "processor_2")?);
         state.extend(make_state_tables("state_3", "processor_3")?);
-        state.extend(make_state_tables("state_4", "processor_4")?);		
+        state.extend(make_state_tables("state_4", "processor_4")?);
         let other_plan = SessionContextBuilder::new()
             .with_tasks(task_plans)
             .with_processors(processor_plans)
@@ -815,30 +849,70 @@ mod tests {
             .with_state(state)
             .with_max_iter(1)
             .with_diagnostics(false);
-        let plan = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?
-            .with_diagnostics(true);
+        let plan = test_session_context_builder::make_test_session_context_builder_parallel(
+            "session_1",
+            25,
+        )?
+        .with_diagnostics(true);
         let plan = plan.extend(other_plan)?;
         assert_eq!(plan.name.unwrap(), "session_1");
         assert_eq!(plan.max_iter.unwrap(), 25);
         assert_eq!(plan.diagnostics.unwrap(), true);
-        let names = plan.tasks.unwrap().into_iter().map(|t| t.task_name).collect::<Vec<_>>();
-        assert_eq!(names, ["task_1", "task_2", "task_3","task_4"]);
-        let names = plan.processors.unwrap().into_iter().map(|t| t.get_name().to_string()).collect::<Vec<_>>();
-        assert_eq!(names, ["processor_1", "processor_2", "processor_3", "processor_4"]);
-        let names = plan.runtime_envs.unwrap().into_iter().map(|t| t.get_name().to_string()).collect::<Vec<_>>();
+        let names = plan
+            .tasks
+            .unwrap()
+            .into_iter()
+            .map(|t| t.task_name)
+            .collect::<Vec<_>>();
+        assert_eq!(names, ["task_1", "task_2", "task_3", "task_4"]);
+        let names = plan
+            .processors
+            .unwrap()
+            .into_iter()
+            .map(|t| t.get_name().to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            names,
+            ["processor_1", "processor_2", "processor_3", "processor_4"]
+        );
+        let names = plan
+            .runtime_envs
+            .unwrap()
+            .into_iter()
+            .map(|t| t.get_name().to_string())
+            .collect::<Vec<_>>();
         assert_eq!(names, ["rt_1", "rt_4"]);
-        let names = plan.state.unwrap().into_iter().map(|t| t.get_name().to_string()).collect::<Vec<_>>();
-        assert_eq!(names, ["processor_1", "state_1", "processor_2", "state_2", "processor_3", "state_3", "processor_4", "state_4"]);
+        let names = plan
+            .state
+            .unwrap()
+            .into_iter()
+            .map(|t| t.get_name().to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            names,
+            [
+                "processor_1",
+                "state_1",
+                "processor_2",
+                "state_2",
+                "processor_3",
+                "state_3",
+                "processor_4",
+                "state_4"
+            ]
+        );
 
         Ok(())
     }
 
     #[test]
     fn test_session_context_builder_build_success() -> Result<()> {
-        let session =
-            test_session_context_builder::make_test_session_context_builder_parallel("session_1", 10)?
-            .with_diagnostics(true)
-            .build()?;
+        let session = test_session_context_builder::make_test_session_context_builder_parallel(
+            "session_1",
+            10,
+        )?
+        .with_diagnostics(true)
+        .build()?;
         assert_eq!(session.get_states().len(), 6);
         assert_eq!(session.get_tasks().len(), 3);
         assert_eq!(session.get_name(), "session_1");
@@ -878,7 +952,9 @@ mod tests {
         // No tasks
         let result = SessionContextBuilder::new()
             .with_name("session_1")
-            .with_tasks(test_session_context_builder::make_test_session_context_builder_parallel_tasks())
+            .with_tasks(
+                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+            )
             .build();
         match result {
             Ok(_) => panic!("Should have failed"),
@@ -905,7 +981,9 @@ mod tests {
         ];
         let result = SessionContextBuilder::new()
             .with_name("session_1")
-            .with_tasks(test_session_context_builder::make_test_session_context_builder_parallel_tasks())
+            .with_tasks(
+                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+            )
             .with_processors(processors)
             .build();
         match result {
@@ -945,7 +1023,9 @@ mod tests {
         ];
         let result = SessionContextBuilder::new()
             .with_name("session_1")
-            .with_tasks(test_session_context_builder::make_test_session_context_builder_parallel_tasks())
+            .with_tasks(
+                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+            )
             .with_processors(processors)
             .build();
         match result {
@@ -961,9 +1041,10 @@ mod tests {
     #[test]
     fn test_session_context_builder_build_fail_missing_runtime_env() -> Result<()> {
         // No runtime env
-        let result = test_session_context_builder::make_test_session_context_builder_parallel_processors()
-            .with_name("session_1")
-            .build();
+        let result =
+            test_session_context_builder::make_test_session_context_builder_parallel_processors()
+                .with_name("session_1")
+                .build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -973,10 +1054,11 @@ mod tests {
         }
 
         // Missing runtime env
-        let result = test_session_context_builder::make_test_session_context_builder_parallel_processors()
-            .with_name("session_1")
-            .with_runtime_envs(Vec::new())
-            .build();
+        let result =
+            test_session_context_builder::make_test_session_context_builder_parallel_processors()
+                .with_name("session_1")
+                .with_runtime_envs(Vec::new())
+                .build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -986,10 +1068,11 @@ mod tests {
         }
 
         // Runtime env not found in plan
-        let result = test_session_context_builder::make_test_session_context_builder_parallel_processors()
-            .with_name("session_1")
-            .with_runtime_envs(vec![make_runtime_env("not_found")?])
-            .build();
+        let result =
+            test_session_context_builder::make_test_session_context_builder_parallel_processors()
+                .with_name("session_1")
+                .with_runtime_envs(vec![make_runtime_env("not_found")?])
+                .build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -1003,10 +1086,11 @@ mod tests {
     #[test]
     fn test_session_context_builder_build_fail_missing_state() -> Result<()> {
         // No state
-        let result = test_session_context_builder::make_test_session_context_builder_parallel_processors()
-            .with_name("session_1")
-            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
-            .build();
+        let result =
+            test_session_context_builder::make_test_session_context_builder_parallel_processors()
+                .with_name("session_1")
+                .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+                .build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -1016,11 +1100,12 @@ mod tests {
         }
 
         // Missing state
-        let result = test_session_context_builder::make_test_session_context_builder_parallel_processors()
-            .with_name("session_1")
-            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
-            .with_state(make_state_tables("state_1", "processor_1")?)
-            .build();
+        let result =
+            test_session_context_builder::make_test_session_context_builder_parallel_processors()
+                .with_name("session_1")
+                .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+                .with_state(make_state_tables("state_1", "processor_1")?)
+                .build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
@@ -1033,11 +1118,12 @@ mod tests {
         let mut state = make_state_tables("state_1", "processor_1")?;
         state.extend(make_state_tables("state_2", "processor_2")?);
         state.extend(make_state_tables("not_found", "processor_3")?);
-        let result = test_session_context_builder::make_test_session_context_builder_parallel_processors()
-            .with_name("session_1")
-            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
-            .with_state(state)
-            .build();
+        let result =
+            test_session_context_builder::make_test_session_context_builder_parallel_processors()
+                .with_name("session_1")
+                .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+                .with_state(state)
+                .build();
         match result {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(

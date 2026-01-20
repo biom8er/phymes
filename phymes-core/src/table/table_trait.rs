@@ -787,7 +787,9 @@ impl Default for Table {
 
 impl PartialEq for Table {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name && self.schema == other.schema && self.record_batches == other.record_batches
+        self.name == other.name
+            && self.schema == other.schema
+            && self.record_batches == other.record_batches
     }
 }
 

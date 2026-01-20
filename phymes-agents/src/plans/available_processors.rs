@@ -146,7 +146,9 @@ impl DataConfigTrait for AvailableProcessors {
         Self: Serialize,
     {
         match self {
-            Self::ProcessorMock | Self::ProcessorError => serde_json::to_vec(&DataConfig::default()), // Just for testing purposes...
+            Self::ProcessorMock | Self::ProcessorError => {
+                serde_json::to_vec(&DataConfig::default())
+            } // Just for testing purposes...
             Self::ProcessorEcho => Ok(Vec::new()),
             Self::CandleDataProcessor => serde_json::to_vec(&DataConfig::default()),
             Self::ApplyTemplate => serde_json::to_vec(&DataConfig {

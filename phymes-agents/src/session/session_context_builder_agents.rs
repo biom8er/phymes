@@ -17,7 +17,10 @@ use phymes_diagnostics::{HashMap, HashSet};
 use phymes_ml::{CandleChatConfig, CandleEmbedConfig};
 
 use crate::{
-    AvailableInterfaceSubjects, AvailableProcessors, SessionContext, SessionContextBuilder, SessionContextBuilderMermaidTrait, SessionContextBuilderTabularTrait, SessionContextBuilderTrait, plans::{SubjectsNumRowsSession, TasksSubscribePublishSession}
+    AvailableInterfaceSubjects, AvailableProcessors, SessionContext, SessionContextBuilder,
+    SessionContextBuilderMermaidTrait, SessionContextBuilderTabularTrait,
+    SessionContextBuilderTrait,
+    plans::{SubjectsNumRowsSession, TasksSubscribePublishSession},
 };
 
 type SessionContextInput = (
@@ -80,7 +83,7 @@ pub trait SessionContextBuilderAgentsTrait {
         Self: Sized;
 
     /// Add tasks that automatically update the number of subject rows
-    /// 
+    ///
     /// # Notes
     /// * See [SubjectsNumRowsSession] for stand alone session and testing
     fn add_subjects_num_rows(self) -> Result<Self>
@@ -88,7 +91,7 @@ pub trait SessionContextBuilderAgentsTrait {
         Self: Sized;
 
     /// Add tasks that dynamically compute the next set of tasks that are ready to subscribe to their subjects
-    /// 
+    ///
     /// # Notes
     /// * See [TasksSubscribePublishSession] for stand alone session and testing
     fn add_tasks_subscribe_publish(self) -> Result<Self>
@@ -942,8 +945,9 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
     }
 
     fn add_subjects_num_rows(self) -> Result<Self>
-        where
-            Self: Sized {
+    where
+        Self: Sized,
+    {
         // Initialize the subjects num rows session
         let subjects_session = SubjectsNumRowsSession::default();
         let other_builder = SessionContextBuilder::from_mermaid_flowchart(
@@ -959,22 +963,25 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
     }
 
     fn add_tasks_subscribe_publish(self) -> Result<Self>
-        where
-            Self: Sized {
-
+    where
+        Self: Sized,
+    {
         // Initialize the task subscribe and publish session
         let tasks_publish_subscribe_session = TasksSubscribePublishSession::default();
         let other_builder = SessionContextBuilder::from_mermaid_flowchart(
             tasks_publish_subscribe_session.as_mermaid_flowchart(),
             false,
-            )?
-            .with_state_from_mermaid_erdiagram(tasks_publish_subscribe_session.as_mermaid_erdiagram(), false, true)?
-            .with_name(tasks_publish_subscribe_session.session_context_name)
-            .add_processor_subjects()?;
+        )?
+        .with_state_from_mermaid_erdiagram(
+            tasks_publish_subscribe_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
+        .with_name(tasks_publish_subscribe_session.session_context_name)
+        .add_processor_subjects()?;
 
         // Extend the current session context builder
         self.extend(other_builder)
-                
     }
 }
 
@@ -1165,8 +1172,8 @@ mod tests {
 
     use crate::test_session_context_builder;
     use phymes_core::{
-        BuildableTrait, BuilderTrait, DataFormat, TableBuilderTrait, TaskTrait,
-        test_task, test_table
+        BuildableTrait, BuilderTrait, DataFormat, TableBuilderTrait, TaskTrait, test_table,
+        test_task,
     };
     use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager};
 
@@ -1174,8 +1181,9 @@ mod tests {
 
     #[test]
     fn test_session_context_builder_agents_build_with_tables_success() -> Result<()> {
-        let session = test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
-            .build_with_tables()?;
+        let session =
+            test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
+                .build_with_tables()?;
         assert_eq!(session.get_states().len(), 18);
         assert_eq!(session.get_tasks().len(), 3);
         assert_eq!(session.get_name(), "session_1");
@@ -1186,9 +1194,10 @@ mod tests {
 
     #[test]
     fn test_session_context_builder_agents_build_with_tables_add_session_interface() -> Result<()> {
-        let session = test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
-            .add_session_interface(Some(&["state_1"]))?
-            .build_with_tables()?;
+        let session =
+            test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
+                .add_session_interface(Some(&["state_1"]))?
+                .build_with_tables()?;
         assert_eq!(session.get_states().len(), 18);
         assert_eq!(session.get_tasks().len(), 4);
         assert_eq!(
@@ -1217,7 +1226,8 @@ mod tests {
     }
 
     #[test]
-    fn test_session_context_builder_agents_build_with_tables_missing_processor_configs_subjects() -> Result<()> {
+    fn test_session_context_builder_agents_build_with_tables_missing_processor_configs_subjects()
+    -> Result<()> {
         // Check that missing config subscriptions can be identified
         let mut state = test_session_context_builder_agents::make_test_state_agents()?;
         let join_config = DataConfig {
@@ -1238,27 +1248,28 @@ mod tests {
             .build()
             .unwrap();
         state.push(join_config_state);
-        let mut task_plans = test_session_context_builder::make_test_session_context_builder_parallel_tasks();
+        let mut task_plans =
+            test_session_context_builder::make_test_session_context_builder_parallel_tasks();
         task_plans.push(TaskPlan {
             task_name: "task_4".to_string(),
             runtime_env_name: "rt_1".to_string(),
             processor_names: vec!["processor_4".to_string()],
         });
-        let mut processor_plans = test_session_context_builder_agents::make_test_processors_agents()?;
-        processor_plans.push(ProcessorPlanBuilder::default()
-            .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_4"))
-            .with_publications(&[TablePublication::Extend {
-                table_name: "state_3".to_string(),
-            }])
-            .with_subscriptions(&[
-                TableSubscription::OnUpdateFullTable {
+        let mut processor_plans =
+            test_session_context_builder_agents::make_test_processors_agents()?;
+        processor_plans.push(
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_4"))
+                .with_publications(&[TablePublication::Extend {
                     table_name: "state_3".to_string(),
-                },
-            ])
-            .with_subscribe_policy(
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            )
-            .build()?
+                }])
+                .with_subscriptions(&[TableSubscription::OnUpdateFullTable {
+                    table_name: "state_3".to_string(),
+                }])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()?,
         );
         let result = SessionContextBuilder::new()
             .with_name("session_1")
@@ -1277,21 +1288,21 @@ mod tests {
         }
 
         // Check that the default processor subjects fix the issue
-        let mut processor_plans = test_session_context_builder_agents::make_test_processors_agents()?;
-        processor_plans.push(ProcessorPlanBuilder::default()
-            .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_4"))
-            .with_publications(&[TablePublication::Extend {
-                table_name: "state_3".to_string(),
-            }])
-            .with_subscriptions(&[
-                TableSubscription::OnUpdateFullTable {
+        let mut processor_plans =
+            test_session_context_builder_agents::make_test_processors_agents()?;
+        processor_plans.push(
+            ProcessorPlanBuilder::default()
+                .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_4"))
+                .with_publications(&[TablePublication::Extend {
                     table_name: "state_3".to_string(),
-                },
-            ])
-            .with_subscribe_policy(
-                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-            )
-            .build()?
+                }])
+                .with_subscriptions(&[TableSubscription::OnUpdateFullTable {
+                    table_name: "state_3".to_string(),
+                }])
+                .with_subscribe_policy(
+                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                )
+                .build()?,
         );
         let session = SessionContextBuilder::new()
             .with_name("session_1")
@@ -1310,7 +1321,8 @@ mod tests {
     }
 
     #[test]
-    fn test_session_context_builder_agents_build_with_tables_missing_data_config_subjects() -> Result<()> {
+    fn test_session_context_builder_agents_build_with_tables_missing_data_config_subjects()
+    -> Result<()> {
         let state = test_session_context_builder_agents::make_test_state_agents()?;
 
         // Test that mismatches in the lhs/rhs name are identified
@@ -1332,7 +1344,9 @@ mod tests {
         state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
-            .with_tasks(test_session_context_builder::make_test_session_context_builder_parallel_tasks())
+            .with_tasks(
+                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+            )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
@@ -1370,7 +1384,9 @@ mod tests {
         state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
-            .with_tasks(test_session_context_builder::make_test_session_context_builder_parallel_tasks())
+            .with_tasks(
+                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+            )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
@@ -1409,7 +1425,9 @@ mod tests {
         state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
-            .with_tasks(test_session_context_builder::make_test_session_context_builder_parallel_tasks())
+            .with_tasks(
+                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+            )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
@@ -1428,7 +1446,8 @@ mod tests {
     }
 
     #[test]
-    fn test_session_context_builder_agents_build_with_tables_failing_processor_config_builds() -> Result<()> {
+    fn test_session_context_builder_agents_build_with_tables_failing_processor_config_builds()
+    -> Result<()> {
         let state = test_session_context_builder_agents::make_test_state_agents()?;
 
         // Test for mismatch between processor and config types
@@ -1447,7 +1466,9 @@ mod tests {
         state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
-            .with_tasks(test_session_context_builder::make_test_session_context_builder_parallel_tasks())
+            .with_tasks(
+                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+            )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
@@ -1482,7 +1503,9 @@ mod tests {
         state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
-            .with_tasks(test_session_context_builder::make_test_session_context_builder_parallel_tasks())
+            .with_tasks(
+                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+            )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
@@ -1517,7 +1540,9 @@ mod tests {
         state_test.push(join_config_state);
 
         let result = SessionContextBuilder::new()
-            .with_tasks(test_session_context_builder::make_test_session_context_builder_parallel_tasks())
+            .with_tasks(
+                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+            )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])

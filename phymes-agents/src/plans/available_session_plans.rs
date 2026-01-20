@@ -7,7 +7,9 @@ use phymes_core::BuilderTrait;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BuilderSession, ChatAgentSession, CustomAgentsBuilderTrait, DocumentRAGSession, SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, ToolAgentSession, UserSession
+    BuilderSession, ChatAgentSession, CustomAgentsBuilderTrait, DocumentRAGSession, SessionContext,
+    SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait,
+    ToolAgentSession, UserSession,
 };
 
 /// The available session plans
