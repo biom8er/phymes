@@ -491,7 +491,7 @@ pub mod test_session_context_builder {
         },
     };
 
-    use crate::{AvailableProcessors, SessionContextBuilderAgentsTrait};
+    use crate::AvailableProcessors;
 
     use super::*;
 

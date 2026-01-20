@@ -183,17 +183,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 }
             })
             .collect::<Vec<_>>();
-
-        // Optionally, filter out subject names that match the processor name (i.e., configs)
-        // Exclude tool processor task subjects from the filter
-        let task_names = self
-            .tasks
-            .as_ref()
-            .unwrap()
-            .iter()
-            .map(|t| t.task_name.as_str())
-            .collect::<Vec<_>>();
-        let processor_names = self.get_processor_names_from_tasks();
+        
         let mut subjects_vec = Vec::new();
         let mut sorted_subject_names = self
             .get_subject_names_from_processors()

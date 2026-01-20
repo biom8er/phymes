@@ -2,16 +2,15 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
-    DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table,
     TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan,
     create_user_batch, create_user_session_contexts_batch,
 };
-use phymes_data::{AvailableCandleOperators, DataConfig, DataSummaryConfig};
+use phymes_data::{AvailableCandleOperators, DataConfig};
 use phymes_diagnostics::create_timestamp_micros;
 
 use crate::{
-    AvailableInterfaceSubjects, AvailableProcessors, AvailableSessionPlans,
+    AvailableProcessors, AvailableSessionPlans,
     CustomAgentsBuilderTrait, make_example_mermaid_table,
 };
 
@@ -314,7 +313,7 @@ pub(crate) mod user_session_inner {
     use anyhow::Result;
     use parking_lot::RwLock;
     use phymes_core::{
-        BlobBuilderTraitExt, BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait,
+        BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait,
         TableTrait, create_user_inbox_batch,
     };
 

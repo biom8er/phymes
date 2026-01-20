@@ -159,13 +159,13 @@ mod tests {
         .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
-        // // Create the messages
-        // let message_map = create_message_map(vec![]);
+        // Create the messages
+        let message_map = create_message_map(vec![]);
 
-        // // Run the session
-        // let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
-        // let mut response: Vec<HashMap<String, IPCMessage>> =
-        //     session_stream.try_collect().await?;
+        // Run the session
+        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let mut _response: Vec<HashMap<String, IPCMessage>> =
+            session_stream.try_collect().await?;
 
         Ok(())
     }
