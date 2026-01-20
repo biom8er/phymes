@@ -183,7 +183,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 }
             })
             .collect::<Vec<_>>();
-        
+
         let mut subjects_vec = Vec::new();
         let mut sorted_subject_names = self
             .get_subject_names_from_processors()

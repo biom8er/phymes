@@ -4,15 +4,14 @@ use anyhow::{Result, anyhow};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::{
-    AvailableSessionPlans, SessionContext, SessionContextBuilder,
-    SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-    SessionContextBuilderTrait, SessionStream, create_message_map,
+    AvailableSessionPlans, SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait,
+    SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
+    create_message_map,
 };
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait,
-    IPCMessage, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams,
-    MappableTrait, MessageBuilderTrait, Table, TableBuilderTrait,
-    TablePublication, TableTrait, UserSubject, create_session_mermaid_batch,
+    AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder,
+    JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, Table,
+    TableBuilderTrait, TablePublication, TableTrait, UserSubject, create_session_mermaid_batch,
     create_user_inbox_batch, create_user_session_contexts_batch,
 };
 use phymes_diagnostics::HashMap;

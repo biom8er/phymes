@@ -163,8 +163,7 @@ mod tests {
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
-        let mut _response: Vec<HashMap<String, IPCMessage>> =
-            session_stream.try_collect().await?;
+        let mut _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         Ok(())
     }

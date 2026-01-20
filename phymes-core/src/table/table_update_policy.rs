@@ -47,7 +47,7 @@ impl TableUpdatePolicyTrait for TableHasBatchesUpdate {
             .iter()
             .map(|s| {
                 if let Some(table) = state.get(s.get_table_name()) {
-                    if table.read().get_record_batches().len() > 0 {
+                    if !table.read().get_record_batches().is_empty() {
                         (s.get_table_name().to_string(), true)
                     } else {
                         (s.get_table_name().to_string(), false)

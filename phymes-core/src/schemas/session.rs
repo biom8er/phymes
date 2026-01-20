@@ -94,6 +94,7 @@ pub(crate) fn create_session_processors_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_session_processors_batch(
     session_names: Vec<String>,
     processor_names: Vec<String>,
@@ -391,6 +392,7 @@ pub(crate) fn create_session_tasks_subscribe_publish_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_session_tasks_subscribe_publish_batch(
     session_names: Vec<String>,
     task_names: Vec<String>,

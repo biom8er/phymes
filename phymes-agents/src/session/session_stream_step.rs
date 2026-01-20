@@ -490,8 +490,7 @@ impl SessionStreamStepTrait for SessionStreamStep {
             Ok(None)
         } else {
             // Iterate through each task and collect the resulting stream responses
-            let (subject_tasks, session_tasks) =
-                tasks.into_iter().partition(|((t, s), _v)| t != s);
+            let (subject_tasks, session_tasks) = tasks.into_iter().partition(|((t, s), _v)| t != s);
             let subject_streams = Self::run_tasks(
                 &session_context,
                 &subject_tasks,
