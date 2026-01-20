@@ -175,30 +175,16 @@ mod tests {
 
         {
             // Test session stream
-            {
-                // Debug any errors
-                let subjects_reading = session_ctx_arc.read();
-                let table_reading = subjects_reading
-                    .get_states()
-                    .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                    .unwrap()
-                    .read();
-                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-                let subjects_reading = session_ctx_arc.read();
-                let table_reading = subjects_reading
-                    .get_states()
-                    .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                    .unwrap()
-                    .read();
-                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-                let subjects_reading = session_ctx_arc.read();
-                let table_reading = subjects_reading
-                    .get_states()
-                    .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                    .unwrap()
-                    .read();
-                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            }
+            // {
+            //     // Debug any errors
+            //     let subjects_reading = session_ctx_arc.read();
+            //     let table_reading = subjects_reading
+            //         .get_states()
+            //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
+            //         .unwrap()
+            //         .read();
+            //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            // }
 
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
@@ -209,7 +195,7 @@ mod tests {
             let column = table_reading.get_column_as_vec_str("subject_name");
             assert_eq!(column, ["SessionTasksRunLog", "SubjectsChangeLog", "SubjectsNumRows", "group_by_subject_change_log_delta_p", "group_by_subject_change_log_delta_t", "processor_1", "processor_2", "processor_3", "select_subject_change_log_delta_p", "state_1"]);
             let column = table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
-            assert_eq!(column, [1,1,1,1,1,1,1]);
+            assert_eq!(column, [4, 12, 0, 0, 0, 0, 0, 0, 0, 72]);
         }
 
         Ok(())

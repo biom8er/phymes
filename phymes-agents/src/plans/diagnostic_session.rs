@@ -11,7 +11,7 @@ use phymes_data::{
 };
 use serde_json::json;
 
-use crate::{AvailableInterfaceSubjects, AvailableProcessors, CustomAgentsBuilderTrait};
+use crate::{AvailableProcessors, CustomAgentsBuilderTrait};
 
 /// A session for gathering analytics based on the session metrics
 ///
@@ -26,21 +26,6 @@ use crate::{AvailableInterfaceSubjects, AvailableProcessors, CustomAgentsBuilder
 /// An inbox and outbox for each support task are provided
 ///   that trigger the task
 pub struct DiagnosticSession<'a> {
-    // /// Extract data from inbox subtask
-    // pub metrics_from_inbox_task_name: &'a str,
-    // pub traces_from_inbox_task_name: &'a str,
-    // pub events_from_inbox_task_name: &'a str,
-    // pub metrics_from_inbox_processor_name: &'a str,
-    // pub traces_from_inbox_processor_name: &'a str,
-    // pub events_from_inbox_processor_name: &'a str,
-
-    // /// Make outbox attachment subtask
-    // pub metrics_mermaid_outbox_task_name: &'a str,
-    // pub traces_mermaid_outbox_task_name: &'a str,
-    // pub events_mermaid_outbox_task_name: &'a str,
-    // pub metrics_mermaid_outbox_processor_name: &'a str,
-    // pub traces_mermaid_outbox_processor_name: &'a str,
-    // pub events_mermaid_outbox_processor_name: &'a str,
     /// Metrics analytics
     pub metrics_pivot_task_name: &'a str,
     pub metrics_pivot_processor_name: &'a str,
@@ -98,10 +83,6 @@ pub struct DiagnosticSession<'a> {
     pub events_apply_kanban_processor_name: &'a str,
     pub events_runtime_env_name: &'a str,
 
-    /// Outbox
-    pub aggregate_visualizations_task_name: &'a str,
-    pub aggregate_visualizations_processor_name: &'a str,
-
     /// Session
     pub session_context_name: &'a str,
 }
@@ -118,68 +99,64 @@ impl<'a> DiagnosticSession<'a> {
 impl Default for DiagnosticSession<'_> {
     fn default() -> Self {
         DiagnosticSession {
-            session_context_name: "session_context_name",
+            session_context_name: "diagnostic_session",
 
             // Metrics analytics
-            metrics_pivot_task_name: "metrics_pivot_task_name",
-            metrics_pivot_processor_name: "metrics_pivot_processor_name",
-            metrics_normalize_time_task_name: "metrics_normalize_time_task_name",
-            metrics_normalize_time_processor_name: "metrics_normalize_time_processor_name",
-            metrics_processors_traces_select_and_cast_to_gantt_task_name: "metrics_processors_traces_select_and_cast_to_gantt_task_name",
-            metrics_processors_traces_select_and_cast_to_gantt_processor_name: "metrics_processors_traces_select_and_cast_to_gantt_processor_name",
-            metrics_elapsed_compute_select_and_cast_to_gantt_task_name: "metrics_elapsed_compute_select_and_cast_to_gantt_task_name",
-            metrics_elapsed_compute_select_and_cast_to_gantt_processor_name: "metrics_elapsed_compute_select_and_cast_to_gantt_processor_name",
-            metrics_output_rows_select_and_cast_to_gantt_task_name: "metrics_output_rows_select_and_cast_to_gantt_task_name",
-            metrics_output_rows_select_and_cast_to_gantt_processor_name: "metrics_output_rows_select_and_cast_to_gantt_processor_name",
+            metrics_pivot_task_name: "metrics_pivot_t",
+            metrics_pivot_processor_name: "metrics_pivot_p",
+            metrics_normalize_time_task_name: "metrics_normalize_time_t",
+            metrics_normalize_time_processor_name: "metrics_normalize_time_p",
+            metrics_processors_traces_select_and_cast_to_gantt_task_name: "metrics_processors_traces_select_and_cast_to_gantt_t",
+            metrics_processors_traces_select_and_cast_to_gantt_processor_name: "metrics_processors_traces_select_and_cast_to_gantt_p",
+            metrics_elapsed_compute_select_and_cast_to_gantt_task_name: "metrics_elapsed_compute_select_and_cast_to_gantt_t",
+            metrics_elapsed_compute_select_and_cast_to_gantt_processor_name: "metrics_elapsed_compute_select_and_cast_to_gantt_p",
+            metrics_output_rows_select_and_cast_to_gantt_task_name: "metrics_output_rows_select_and_cast_to_gantt_t",
+            metrics_output_rows_select_and_cast_to_gantt_processor_name: "metrics_output_rows_select_and_cast_to_gantt_p",
             metrics_processors_traces_apply_gantt_task_name: "Processor traces gantt",
-            metrics_processors_traces_apply_gantt_processor_name: "metrics_processors_traces_apply_gantt_processor_name",
+            metrics_processors_traces_apply_gantt_processor_name: "metrics_processors_traces_apply_gantt_p",
             metrics_elapsed_compute_apply_gantt_task_name: "Elapsed compute barplot",
-            metrics_elapsed_compute_apply_gantt_processor_name: "metrics_elapsed_compute_apply_gantt_processor_name",
+            metrics_elapsed_compute_apply_gantt_processor_name: "metrics_elapsed_compute_apply_gantt_p",
             metrics_output_rows_apply_gantt_task_name: "Output rows barplot",
-            metrics_output_rows_apply_gantt_processor_name: "metrics_output_rows_apply_gantt_processor_name",
-            metrics_runtime_env_name: "metrics_runtime_env_name",
-            metrics_processors_traces_runtime_env_name: "metrics_processors_traces_runtime_env_name",
-            metrics_elapsed_compute_runtime_env_name: "metrics_elapsed_compute_runtime_env_name",
-            metrics_output_rows_runtime_env_name: "metrics_output_rows_runtime_env_name",
+            metrics_output_rows_apply_gantt_processor_name: "metrics_output_rows_apply_gantt_p",
+            metrics_runtime_env_name: "metrics_runtime_env",
+            metrics_processors_traces_runtime_env_name: "metrics_processors_traces_runtime_env",
+            metrics_elapsed_compute_runtime_env_name: "metrics_elapsed_compute_runtime_env",
+            metrics_output_rows_runtime_env_name: "metrics_output_rows_runtime_env",
 
             // Traces analytics
-            traces_to_sequence_diagram_messages_task_name: "traces_to_sequence_diagram_messages_task_name",
-            traces_to_sequence_diagram_messages_processor_name: "traces_to_sequence_diagram_messages_processor_name",
-            apply_sequence_diagram_messages_task_name: "apply_sequence_diagram_messages_task_name",
-            apply_sequence_diagram_messages_processor_name: "apply_sequence_diagram_messages_processor_name",
-            select_sequence_diagram_messages_task_name: "select_sequence_diagram_messages_task_name",
-            select_sequence_diagram_messages_processor_name: "select_sequence_diagram_messages_processor_name",
-            session_tasks_to_sequence_diagram_participants_task_name: "session_tasks_to_sequence_diagram_participants_task_name",
-            session_tasks_to_sequence_diagram_participants_processor_name: "session_tasks_to_sequence_diagram_participants_processor_name",
-            apply_sequence_diagram_participants_task_name: "apply_sequence_diagram_participants_task_name",
-            apply_sequence_diagram_participants_processor_name: "apply_sequence_diagram_participants_processor_name",
-            select_sequence_diagram_participants_task_name: "select_sequence_diagram_participants_task_name",
-            select_sequence_diagram_participants_processor_name: "select_sequence_diagram_participants_processor_name",
-            traces_aggregate_sequence_diagram_content_task_name: "traces_aggregate_sequence_diagram_content_task_name",
-            traces_aggregate_sequence_diagram_content_processor_name: "traces_aggregate_sequence_diagram_content_processor_name",
-            apply_sequence_diagram_task_name: "apply_sequence_diagram_task_name",
-            apply_sequence_diagram_processor_name: "apply_sequence_diagram_processor_name",
-            traces_runtime_env_name: "traces_runtime_env_name",
+            traces_to_sequence_diagram_messages_task_name: "traces_to_sequence_diagram_messages_t",
+            traces_to_sequence_diagram_messages_processor_name: "traces_to_sequence_diagram_messages_p",
+            apply_sequence_diagram_messages_task_name: "apply_sequence_diagram_messages_t",
+            apply_sequence_diagram_messages_processor_name: "apply_sequence_diagram_messages_p",
+            select_sequence_diagram_messages_task_name: "select_sequence_diagram_messages_t",
+            select_sequence_diagram_messages_processor_name: "select_sequence_diagram_messages_p",
+            session_tasks_to_sequence_diagram_participants_task_name: "session_tasks_to_sequence_diagram_participants_t",
+            session_tasks_to_sequence_diagram_participants_processor_name: "session_tasks_to_sequence_diagram_participants_p",
+            apply_sequence_diagram_participants_task_name: "apply_sequence_diagram_participants_t",
+            apply_sequence_diagram_participants_processor_name: "apply_sequence_diagram_participants_p",
+            select_sequence_diagram_participants_task_name: "select_sequence_diagram_participants_t",
+            select_sequence_diagram_participants_processor_name: "select_sequence_diagram_participants_p",
+            traces_aggregate_sequence_diagram_content_task_name: "traces_aggregate_sequence_diagram_content_t",
+            traces_aggregate_sequence_diagram_content_processor_name: "traces_aggregate_sequence_diagram_content_p",
+            apply_sequence_diagram_task_name: "apply_sequence_diagram_t",
+            apply_sequence_diagram_processor_name: "apply_sequence_diagram_p",
+            traces_runtime_env_name: "traces_runtime_env",
 
             // Errors analytics
-            errors_select_and_cast_to_kanban_task_name: "errors_select_and_cast_to_kanban_task_name",
-            errors_select_and_cast_to_kanban_processor_name: "errors_select_and_cast_to_kanban_processor_name",
-            errors_runtime_env_name: "errors_runtime_env_name",
-            errors_apply_kanban_task_name: "errors_apply_kanban_task_name",
-            errors_apply_kanban_processor_name: "errors_apply_kanban_processor_name",
+            errors_select_and_cast_to_kanban_task_name: "errors_select_and_cast_to_kanban_t",
+            errors_select_and_cast_to_kanban_processor_name: "errors_select_and_cast_to_kanban_p",
+            errors_runtime_env_name: "errors_runtime_env",
+            errors_apply_kanban_task_name: "errors_apply_kanban_t",
+            errors_apply_kanban_processor_name: "errors_apply_kanban_p",
 
             // Events analytics
-            events_select_and_cast_to_kanban_task_name: "events_select_and_cast_to_kanban_task_name",
+            events_select_and_cast_to_kanban_task_name: "events_select_and_cast_to_kanban_t",
             events_select_and_cast_to_kanban_processor_1_name: "events_select_and_cast_to_kanban_processor_1_name",
             events_select_and_cast_to_kanban_processor_2_name: "events_select_and_cast_to_kanban_processor_2_name",
             events_select_and_cast_tmp: "events_select_and_cast_tmp",
-            events_apply_kanban_task_name: "events_apply_kanban_task_name",
-            events_apply_kanban_processor_name: "events_apply_kanban_processor_name",
-            events_runtime_env_name: "events_runtime_env_name",
-
-            // Outbox
-            aggregate_visualizations_task_name: "aggregate_visualizations_task_name",
-            aggregate_visualizations_processor_name: "aggregate_visualizations_processor_name",
+            events_apply_kanban_task_name: "events_apply_kanban_t",
+            events_apply_kanban_processor_name: "events_apply_kanban_p",
+            events_runtime_env_name: "events_runtime_env",
         }
     }
 }
@@ -353,11 +330,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 task_name: self.events_apply_kanban_task_name.to_string(),
                 runtime_env_name: self.events_runtime_env_name.to_string(),
                 processor_names: vec![self.events_apply_kanban_processor_name.to_string()],
-            },
-            TaskPlan {
-                task_name: self.aggregate_visualizations_task_name.to_string(),
-                runtime_env_name: self.metrics_runtime_env_name.to_string(),
-                processor_names: vec![self.aggregate_visualizations_processor_name.to_string()],
             },
         ];
 
@@ -880,45 +852,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .with_subscribe_policy(
                     AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
                 )
-                .build()
-                .unwrap(),
-            ProcessorPlanBuilder::default()
-                .with_processor(
-                    AvailableProcessors::AttachmentAggregatorProcessor
-                        .build_arc(self.aggregate_visualizations_processor_name),
-                )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
-                }])
-                .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: DiagnosticsVisualizations::MetricProcessorTracesGantt
-                            .to_string(),
-                    },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: DiagnosticsVisualizations::MetricElapsedComputeGantt
-                            .to_string(),
-                    },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: DiagnosticsVisualizations::MetricOutputRowsGantt.to_string(),
-                    },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: DiagnosticsVisualizations::TraceSequenceDiagram.to_string(),
-                    },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: DiagnosticsVisualizations::EventKanban.to_string(),
-                    },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: DiagnosticsVisualizations::ErrorKanban.to_string(),
-                    },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.aggregate_visualizations_processor_name.to_string(),
-                    },
-                ])
-                .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
-                )
-                // AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(), // DM: Was Replace Publish, but changed to Extend
                 .build()
                 .unwrap(),
         ];
@@ -1748,19 +1681,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             .unwrap()
             .build()
             .unwrap();
-        let aggregator_2_config = DataConfig {
-            lhs_values: Some(vec!["timestamp".to_string()]),
-            asc: Some(true),
-            operator: AvailableCandleOperators::Sort,
-            ..Default::default()
-        };
-        let aggregator_2_config_json = serde_json::to_vec(&aggregator_2_config).unwrap();
-        let aggregator_2_state = TableBuilder::new()
-            .with_name(self.aggregate_visualizations_processor_name)
-            .with_json(&aggregator_2_config_json, 1)
-            .unwrap()
-            .build()
-            .unwrap();
 
         Some(vec![
             // Processor configs
@@ -1785,7 +1705,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             events_select_and_cast_to_kanban_1_config_state,
             events_select_and_cast_to_kanban_2_config_state,
             events_apply_kanban_config_state,
-            aggregator_2_state,
             // Metrics
             AvailableSubjects::AnalyticsMetrics
                 .to_table(None, None)
@@ -1924,10 +1843,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     None,
                 )
                 .unwrap(),
-            // Outbox
-            AvailableInterfaceSubjects::AggregatedAttachments
-                .to_table(None, None)
-                .unwrap(),
         ])
     }
 }
@@ -1939,12 +1854,12 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, TableTrait};
-    use phymes_diagnostics::HashMap;
+    use phymes_core::{BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait, TableTrait, test_task};
+    use phymes_diagnostics::{HashMap, HashSet};
 
     use crate::{
         SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream,
-        create_message_map, plans::user_session_inner,
+        create_message_map, test_session_context_builder,
     };
 
     use super::*;
@@ -1957,20 +1872,44 @@ mod tests {
             .build()
             .with_name(diagnostic_session.session_context_name)
             .with_diagnostics(true) // Debugging
-            .add_session_interface(Some(&[AvailableInterfaceSubjects::AggregatedAttachments
-                .to_string()
-                .as_str()]))?
+            // DM: tables appear to be sent back to the user multiple times
+            // .add_session_interface(Some(&[DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string().as_str(),
+            //     DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string().as_str(),
+            //     DiagnosticsVisualizations::MetricOutputRowsGantt.to_string().as_str(),
+            //     DiagnosticsVisualizations::TraceSequenceDiagram.to_string().as_str(),
+            //     DiagnosticsVisualizations::EventKanban.to_string().as_str(),
+            //     DiagnosticsVisualizations::ErrorKanban.to_string().as_str(),
+            // ]))?
             .add_tasks_subscribe_publish()?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
         // Make diagnostic data and session tasks data
-        let (user_session_ctx, user_session_stream) = user_session_inner::user_session()?;
-        let _user_response: Vec<HashMap<String, IPCMessage>> =
-            user_session_stream.try_collect().await?;
-
         let message_map = {
-            let usss = user_session_ctx.read();
+            // Make the test sequential session
+            let session_context = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 2)?
+                .with_diagnostics(true)
+                .add_session_interface(Some(&["state_1"]))?
+                .add_tasks_subscribe_publish()?
+                .build_with_tables()?;
+
+            // Mimic a session run for 1 steps
+            let messages = test_task::make_test_input_message(
+                "task_1",
+                "session_1",
+                "state_1",
+                "state_1",
+                &TablePublication::Replace {
+                    table_name: "state_1".to_string(),
+                },
+                true,
+            )?;
+            let session_context_arc = Arc::new(RwLock::new(session_context));
+            let session_stream = SessionStream::new(messages, Arc::clone(&session_context_arc));
+            let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+
+            // Extract the subjects
+            let usss = session_context_arc.read();
             let table = usss
                 .get_states()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
@@ -2062,62 +2001,139 @@ mod tests {
 
         // Run
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
-        let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-        // let sss = session_ctx_arc.read();
-        // let table = sss
-        //     .get_session_context()
-        //     .get_states()
-        //     .get(AvailableSubjects::SessionErrors.to_string().as_str())
-        //     .unwrap()
-        //     .read();
-        // println!("__ERRORS__");
-        // println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
-        // let table = sss
-        //     .get_session_context()
-        //     .get_states()
-        //     .get(AvailableSubjects::SessionTraces.to_string().as_str())
-        //     .unwrap()
-        //     .read();
-        // println!("__TRACES__");
-        // println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
+        // DM: deactivated session interface (see comments above)
+        assert_eq!(response.len(), 0);
 
-        let bytes = response
-            .iter_mut()
-            .filter_map(|map| {
-                map.remove(&format!(
-                    "from_{}_on_{}",
-                    diagnostic_session.session_context_name,
-                    AvailableInterfaceSubjects::AggregatedAttachments
-                ))
-                .map(|v| v.get_message_own())
-            })
-            .collect::<Vec<_>>();
-        let attachment_data = bytes
-            .into_iter()
-            .flat_map(|b| {
-                TableBuilder::new_from_ipc_stream(&b)
-                    .unwrap()
-                    .with_name("")
-                    .build()
-                    .unwrap()
-                    .to_json_object()
-                    .unwrap()
-            })
-            .collect::<Vec<_>>();
-        for row in &attachment_data {
-            let bytes = row["bytes"]
-                .as_array()
+        // // Check the response
+        // let keys = response.iter()
+        //     .flat_map(|m| m.keys()
+        //         .into_iter()
+        //         .map(|k| k.to_string())
+        //         .collect::<Vec<_>>())
+        //     .collect::<HashSet<_>>();
+        // let expected = [DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string(),
+        //     DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string(),
+        //     DiagnosticsVisualizations::MetricOutputRowsGantt.to_string(),
+        //     DiagnosticsVisualizations::TraceSequenceDiagram.to_string(),
+        //     DiagnosticsVisualizations::EventKanban.to_string(),
+        //     // DiagnosticsVisualizations::ErrorKanban.to_string(),
+        // ].into_iter().map(|s| format!("from_{}_on_{s}", diagnostic_session.session_context_name)).collect::<HashSet<_>>();
+        // assert_eq!(keys, expected);
+
+        // // Extract the response
+        // let tables = response
+        //     .into_iter()
+        //     .flat_map(|map| map.into_iter()
+        //         .filter_map(|(k,v)| if k.contains(diagnostic_session.session_context_name) {
+        //             let table_name = v.get_subject().to_string();
+        //             Some(TableBuilder::new_from_ipc_stream(&v.get_message_own())
+        //                 .unwrap()
+        //                 .with_name(table_name.as_str())
+        //                 .build()
+        //                 .unwrap())
+        //         } else {
+        //             None
+        //         })
+        //         .collect::<Vec<_>>())
+        //     .collect::<Vec<_>>();
+        // dbg!(&tables.iter().map(|t| t.get_name().to_string()).collect::<Vec<_>>());
+        // assert_eq!(tables.len(), 14);
+        // assert_eq!(tables.first().unwrap().get_name(), "");
+        // let columns = tables.first().unwrap().get_column_as_vec_str("filename");
+        // assert_eq!(columns, [""]);
+        // let columns = tables.first().unwrap().get_column_as_vec_str("extension");
+        // assert_eq!(columns, [""]);
+        // let columns = tables.first().unwrap().get_column_as_vec_str("metadata");
+        // assert_eq!(columns, [""]);
+        // let bytes = tables.first().unwrap().get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+        // let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+        // assert_eq!(column, "");
+        // assert_eq!(tables.get(1).unwrap().get_name(), "");
+        // let columns = tables.get(1).unwrap().get_column_as_vec_str("filename");
+        // assert_eq!(columns, [""]);
+        // let columns = tables.get(1).unwrap().get_column_as_vec_str("extension");
+        // assert_eq!(columns, [""]);
+        // let columns = tables.get(1).unwrap().get_column_as_vec_str("metadata");
+        // assert_eq!(columns, [""]);
+        // let bytes = tables.get(1).unwrap().get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+        // let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+        // assert_eq!(column, "");
+
+        {
+            // Check the session
+            let session_reading = session_ctx_arc.read();
+            let table_reading = session_reading
+                .get_states()
+                .get(DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string().as_str())
                 .unwrap()
-                .iter()
-                .map(|v| v.as_u64().unwrap() as u8)
-                .collect::<Vec<u8>>();
-            println!(
-                "attachment {}.{}: {}",
-                row["filename"],
-                row["extension"],
-                String::from_utf8_lossy(bytes.as_ref()).into_owned()
-            )
+                .read();
+            let columns = table_reading.get_column_as_vec_str("filename");
+            assert_eq!(columns, ["MetricProcessorTracesGantt"]);
+            let columns = table_reading.get_column_as_vec_str("extension");
+            assert_eq!(columns, ["txt"]);
+            let columns = table_reading.get_column_as_vec_str("metadata");
+            assert_eq!(columns, ["assistant"]);
+            let bytes = table_reading.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+            let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+            assert_eq!(&column[..15], "\n        gantt\n");
+            let table_reading = session_reading
+                .get_states()
+                .get(DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string().as_str())
+                .unwrap()
+                .read();
+            let columns = table_reading.get_column_as_vec_str("filename");
+            assert_eq!(columns, ["MetricElapsedComputeGantt"]);
+            let columns = table_reading.get_column_as_vec_str("extension");
+            assert_eq!(columns, ["txt"]);
+            let columns = table_reading.get_column_as_vec_str("metadata");
+            assert_eq!(columns, ["assistant"]);
+            let bytes = table_reading.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+            let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+            assert_eq!(&column[..15], "\n        gantt\n");
+            let table_reading = session_reading
+                .get_states()
+                .get(DiagnosticsVisualizations::MetricOutputRowsGantt.to_string().as_str())
+                .unwrap()
+                .read();
+            let columns = table_reading.get_column_as_vec_str("filename");
+            assert_eq!(columns, ["MetricOutputRowsGantt"]);
+            let columns = table_reading.get_column_as_vec_str("extension");
+            assert_eq!(columns, ["txt"]);
+            let columns = table_reading.get_column_as_vec_str("metadata");
+            assert_eq!(columns, ["assistant"]);
+            let bytes = table_reading.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+            let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+            assert_eq!(&column[..15], "\n        gantt\n");
+            let table_reading = session_reading
+                .get_states()
+                .get(DiagnosticsVisualizations::TraceSequenceDiagram.to_string().as_str())
+                .unwrap()
+                .read();
+            let columns = table_reading.get_column_as_vec_str("filename");
+            assert_eq!(columns, ["TraceSequenceDiagram"]);
+            let columns = table_reading.get_column_as_vec_str("extension");
+            assert_eq!(columns, ["txt"]);
+            let columns = table_reading.get_column_as_vec_str("metadata");
+            assert_eq!(columns, ["assistant"]);
+            let bytes = table_reading.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+            let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+            assert_eq!(&column[..25], "\n        sequenceDiagram\n");
+            let table_reading = session_reading
+                .get_states()
+                .get(DiagnosticsVisualizations::EventKanban.to_string().as_str())
+                .unwrap()
+                .read();
+            let columns = table_reading.get_column_as_vec_str("filename");
+            assert_eq!(columns, ["EventKanban"]);
+            let columns = table_reading.get_column_as_vec_str("extension");
+            assert_eq!(columns, ["txt"]);
+            let columns = table_reading.get_column_as_vec_str("metadata");
+            assert_eq!(columns, ["assistant"]);
+            let bytes = table_reading.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+            let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+            assert_eq!(&column[..16], "\n        kanban\n");
         }
 
         Ok(())
