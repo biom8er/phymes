@@ -910,7 +910,7 @@ mod tests {
         let mut message_map = {
             // Make the test sequential session
             let session_context = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 4)?
-                .with_diagnostics(true)
+                .with_diagnostics(false)
                 .add_session_interface(Some(&["state_1"]))?
                 .build_with_tables()?;
             let session_context_arc = Arc::new(RwLock::new(session_context));

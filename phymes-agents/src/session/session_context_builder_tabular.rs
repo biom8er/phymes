@@ -498,19 +498,19 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         .into_iter()
         .map(|t| t.task_name)
         .collect::<Vec<_>>();
-        let subjects_session = SubjectsNumRowsSession::default();
-        let tasks_subjects = SessionContextBuilder::from_mermaid_flowchart(
-            subjects_session.as_mermaid_flowchart(),
-            false,
-        )?
-        .tasks
-        .unwrap()
-        .into_iter()
-        .map(|t| t.task_name)
-        .collect::<Vec<_>>();
+        // let subjects_session = SubjectsNumRowsSession::default();
+        // let tasks_subjects = SessionContextBuilder::from_mermaid_flowchart(
+        //     subjects_session.as_mermaid_flowchart(),
+        //     false,
+        // )?
+        // .tasks
+        // .unwrap()
+        // .into_iter()
+        // .map(|t| t.task_name)
+        // .collect::<Vec<_>>();
         let exclusion_set = tasks_publish_subscribe
             .into_iter()
-            .chain(tasks_subjects)
+            // .chain(tasks_subjects)
             .collect::<HashSet<_>>();
 
         // Create the table
@@ -627,7 +627,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // Tasks to exclude
         let tasks_publish_subscribe_session = TasksSubscribePublishSession::default();
-        let tasks_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
+        let tables_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
             tasks_publish_subscribe_session.as_mermaid_flowchart(),
             false,
         )?
@@ -636,14 +636,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         .into_iter()
         .map(|t| t.task_name)
         .collect::<Vec<_>>();
-        // let subjects_session = SubjectsNumRowsSession::default();
-        // let tasks_subjects = SessionContextBuilder::from_mermaid_flowchart(
-        //     subjects_session.as_mermaid_flowchart(),
-        //     false,
-        //     )?
-        //     .tasks.unwrap().into_iter().map(|t| t.task_name).collect::<Vec<_>>();
-        // let exclusion_set = tasks_publish_subscribe.into_iter().chain(tasks_subjects.into_iter()).collect::<HashSet<_>>();
-        let exclusion_set = tasks_publish_subscribe.into_iter().collect::<HashSet<_>>();
+        let exclusion_set = tables_publish_subscribe.into_iter().collect::<HashSet<_>>();
 
         // Create the table
         let ((((subject_names, task_names), session_names), num_rows_delta), timestamps) = self

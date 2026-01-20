@@ -95,12 +95,12 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{BuilderTrait, IPCMessage};
+    use phymes_core::{AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, TablePublication, TableTrait, test_task};
     use phymes_diagnostics::HashMap;
 
     use crate::{
         SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream, create_message_map,
+        SessionContextBuilderTrait, SessionStream, create_message_map, test_session_context_builder,
     };
 
     use super::*;
@@ -111,23 +111,106 @@ mod tests {
         let subjects_session = SubjectsNumRowsSession::default();
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
             subjects_session.as_mermaid_flowchart(),
-            true,
+            false,
         )?
-        .with_state_from_mermaid_erdiagram(subjects_session.as_mermaid_erdiagram(), true, true)?
+        .with_state_from_mermaid_erdiagram(subjects_session.as_mermaid_erdiagram(), false, true)?
         .with_name(subjects_session.session_context_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
-        .add_session_interface(None)?
         .add_tasks_subscribe_publish()?
         .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
-        // Create the messages
-        let message_map = create_message_map(vec![]);
+        // Make the test session data
+        let message_map = {
+            // Make the test sequential session
+            let session_context = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 2)?
+                .with_diagnostics(false)
+                .add_session_interface(Some(&["state_1"]))?
+                .add_tasks_subscribe_publish()?
+                .build_with_tables()?;
+
+            // Mimic a session run for 1 steps
+            let messages = test_task::make_test_input_message(
+                "task_1",
+                "session_1",
+                "state_1",
+                "state_1",
+                &TablePublication::Replace {
+                    table_name: "state_1".to_string(),
+                },
+                true,
+            )?;
+            let session_context_arc = Arc::new(RwLock::new(session_context));
+            let session_stream = SessionStream::new(messages, Arc::clone(&session_context_arc));
+            let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+
+            // Extract out the subjects for the test
+            let session_ctx_reading = session_context_arc.read();
+            let table = session_ctx_reading
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .read();
+            dbg!(&table);
+            let subjects_change_log_message = IPCMessage::get_builder()
+                .with_message(table.to_ipc_stream()?)
+                .with_subject(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .with_update(&TablePublication::Extend {
+                    table_name: AvailableSubjects::SubjectsChangeLog.to_string(),
+                })
+                .with_publisher(subjects_session.session_context_name)
+                .make_name()?
+                .build()?;
+            create_message_map(vec![
+                subjects_change_log_message,
+            ])
+        };
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
-        let mut _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+
+        assert_eq!(response.len(), 0);
+
+        {
+            // Test session stream
+            {
+                // Debug any errors
+                let subjects_reading = session_ctx_arc.read();
+                let table_reading = subjects_reading
+                    .get_states()
+                    .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                    .unwrap()
+                    .read();
+                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+                let subjects_reading = session_ctx_arc.read();
+                let table_reading = subjects_reading
+                    .get_states()
+                    .get(AvailableSubjects::SessionTraces.to_string().as_str())
+                    .unwrap()
+                    .read();
+                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+                let subjects_reading = session_ctx_arc.read();
+                let table_reading = subjects_reading
+                    .get_states()
+                    .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                    .unwrap()
+                    .read();
+                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            }
+
+            let session_reading = session_ctx_arc.read();
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
+                .unwrap()
+                .read();
+            let column = table_reading.get_column_as_vec_str("subject_name");
+            assert_eq!(column, ["SessionTasksRunLog", "SubjectsChangeLog", "SubjectsNumRows", "group_by_subject_change_log_delta_p", "group_by_subject_change_log_delta_t", "processor_1", "processor_2", "processor_3", "select_subject_change_log_delta_p", "state_1"]);
+            let column = table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
+            assert_eq!(column, [1,1,1,1,1,1,1]);
+        }
 
         Ok(())
     }
