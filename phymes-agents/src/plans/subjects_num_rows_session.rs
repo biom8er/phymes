@@ -35,14 +35,14 @@ impl<'a> SubjectsNumRowsSession<'a> {
     default_runtime_env_name-rt@{shape: subproc, label: default_runtime_env_name}
 
 	subgraph group_by_subject_change_log_delta_t
-		SubjectsChangeLog-subject-.->|LastRecordBatch|group_by_subject_change_log_delta_p-subscribe
+		SubjectsChangeLog-subject-.->|FullTable|group_by_subject_change_log_delta_p-subscribe
 		group_by_subject_change_log_delta_p-subscribe-->group_by_subject_change_log_delta_p-processor
 		group_by_subject_change_log_delta_p-processor-->group_by_subject_change_log_delta_p-publish
 		group_by_subject_change_log_delta_p-publish-->|Replace|group_by_subject_change_log_delta_t-subject
 		group_by_subject_change_log_delta_t-subject-->|FullTable|select_subject_change_log_delta_p-subscribe
 		select_subject_change_log_delta_p-subscribe-->select_subject_change_log_delta_p-processor
 		select_subject_change_log_delta_p-processor-->select_subject_change_log_delta_p-publish
-		select_subject_change_log_delta_p-publish-->|Extend|SubjectsNumRows-subject
+		select_subject_change_log_delta_p-publish-->|Replace|SubjectsNumRows-subject
 	end
 	default_runtime_env_name-rt-->group_by_subject_change_log_delta_t
 	SubjectsChangeLog-subject@{shape: doc, label: SubjectsChangeLog}
@@ -53,26 +53,7 @@ impl<'a> SubjectsNumRowsSession<'a> {
 	select_subject_change_log_delta_p-subscribe@{shape: diamond, label: All}
 	select_subject_change_log_delta_p-processor@{shape: rect, label: Select}
 	select_subject_change_log_delta_p-publish@{shape: fork}
-	SubjectsNumRows-subject@{shape: doc, label: SubjectsNumRows}
-
-	subgraph group_by_subjects_num_rows_t
-		SubjectsNumRows-subject-.->|FullTable|group_by_subjects_num_rows_p-subscribe
-		group_by_subjects_num_rows_p-subscribe-->group_by_subjects_num_rows_p-processor
-		group_by_subjects_num_rows_p-processor-->group_by_subjects_num_rows_p-publish
-		group_by_subjects_num_rows_p-publish-->|Replace|group_by_subjects_num_rows_t-subject
-		group_by_subjects_num_rows_t-subject-->|FullTable|select_subjects_num_rows_delta_p-subscribe
-		select_subjects_num_rows_delta_p-subscribe-->select_subjects_num_rows_delta_p-processor
-		select_subjects_num_rows_delta_p-processor-->select_subjects_num_rows_delta_p-publish
-		select_subjects_num_rows_delta_p-publish-->|Extend|SubjectsNumRows-subject
-	end
-	default_runtime_env_name-rt-->group_by_subjects_num_rows_t
-	group_by_subjects_num_rows_p-subscribe@{shape: diamond, label: All}
-	group_by_subjects_num_rows_p-processor@{shape: rect, label: GroupBy}
-	group_by_subjects_num_rows_p-publish@{shape: fork}
-	group_by_subjects_num_rows_t-subject@{shape: doc, label: group_by_subjects_num_rows_t}
-	select_subjects_num_rows_delta_p-subscribe@{shape: diamond, label: All}
-	select_subjects_num_rows_delta_p-processor@{shape: rect, label: Select}
-	select_subjects_num_rows_delta_p-publish@{shape: fork}"#
+	SubjectsNumRows-subject@{shape: doc, label: SubjectsNumRows}"#
     }
     pub fn as_mermaid_erdiagram(&self) -> &str {
         r#"erDiagram
@@ -103,23 +84,6 @@ impl<'a> SubjectsNumRowsSession<'a> {
     SubjectsNumRows["SubjectsNumRows"] {
         Utf8 subject_name
         Int64 num_rows
-    }
-    group_by_subjects_num_rows_p["group_by_subjects_num_rows_p"] {
-        List-Utf8 agg_columns "['num_rows']"
-        List-Utf8 agg_operators "['Sum']"
-        Boolean cpu "false"
-        Utf8 lhs_name "SubjectsNumRows"
-        List-Utf8 lhs_values "['subject_name']"
-        Utf8 operator "GroupBy"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    select_subjects_num_rows_delta_p["select_subjects_num_rows_delta_p"] {
-        List-Utf8 as_columns "['','num_rows']"
-        Boolean cpu "false"
-        Utf8 lhs_name "group_by_subjects_num_rows_t"
-        List-Utf8 lhs_values "['subject_name','num_rows-Sum']"
-        Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
     }"#
     }
 }

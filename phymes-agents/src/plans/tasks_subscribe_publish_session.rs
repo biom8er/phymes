@@ -876,14 +876,12 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait,
-        TablePublication, TableTrait,
+        TablePublication, TableTrait, test_task,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        CustomAgentsBuilderTrait, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, UserSession,
-        create_message_map,
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, create_message_map, test_session_context_builder
     };
 
     use super::*;
@@ -909,18 +907,30 @@ mod tests {
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
         // Make the test session data
-        let user_agent_session = UserSession::default();
-        let user_session_ctx = Arc::new(RwLock::new(
-            user_agent_session
-                .build()
-                .with_name(user_agent_session.session_context_name)
-                .with_diagnostics(true)
-                .build_with_tables()?,
-        ));
-
         let mut message_map = {
-            let usss = user_session_ctx.read();
-            let table = usss
+            // Make the test sequential session
+            let session_context = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 4)?
+                .with_diagnostics(true)
+                .add_session_interface(Some(&["state_1"]))?
+                .build_with_tables()?;
+            let session_context_arc = Arc::new(RwLock::new(session_context));
+
+            // Mimic a superstep update without running the superstep
+            let messages = test_task::make_test_input_message(
+                "task_1",
+                "session_1",
+                "state_1",
+                "state_1",
+                &TablePublication::Replace {
+                    table_name: "state_1".to_string(),
+                },
+                true,
+            )?;
+            SessionStreamStep::update_subjects_and_changelog_from_messages(&session_context_arc, messages)?;
+
+            // Extract out the subjects for the test
+            let session_ctx_reading = session_context_arc.read();
+            let table = session_ctx_reading
                 .get_states()
                 .get(AvailableSubjects::SessionProcessors.to_string().as_str())
                 .unwrap()
@@ -934,7 +944,7 @@ mod tests {
                 .with_publisher(tasks_publish_subscribe_session.session_context_name)
                 .make_name()?
                 .build()?;
-            let table = usss
+            let table = session_ctx_reading
                 .get_states()
                 .get(AvailableSubjects::SessionTasks.to_string().as_str())
                 .unwrap()
@@ -948,7 +958,7 @@ mod tests {
                 .with_publisher(tasks_publish_subscribe_session.session_context_name)
                 .make_name()?
                 .build()?;
-            let table = usss
+            let table = session_ctx_reading
                 .get_states()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
@@ -962,7 +972,7 @@ mod tests {
                 .with_publisher(tasks_publish_subscribe_session.session_context_name)
                 .make_name()?
                 .build()?;
-            let table = usss
+            let table = session_ctx_reading
                 .get_states()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
@@ -1017,17 +1027,7 @@ mod tests {
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("task_name");
-            assert_eq!(
-                column,
-                [
-                    "filter_and_join_session_contexts_by_email_inbox_task_name",
-                    "filter_and_join_session_contexts_by_email_outbox_task_name",
-                    "filter_session_contexts_by_email_task_name",
-                    "filter_user_info_by_email_task_name",
-                    "join_session_contexts_with_mermaid_diagrams_task_name",
-                    "user_session"
-                ]
-            );
+            assert_eq!(column, ["session_1", "task_1"]);
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             for timestamp in column {
                 assert!(timestamp > 0);
@@ -1039,141 +1039,21 @@ mod tests {
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("session_name");
-            assert_eq!(
-                column,
-                [
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session"
-                ]
-            );
+            assert_eq!(column, ["session_1","session_1","session_1","session_1","session_1","session_1","session_1"]);
             let column = table_reading.get_column_as_vec_str("processor_name");
-            assert_eq!(
-                column,
-                [
-                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
-                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
-                    "filter_session_contexts_by_email_processor_name",
-                    "filter_session_contexts_by_email_processor_name",
-                    "filter_session_contexts_by_email_processor_name",
-                    "join_session_contexts_with_mermaid_diagrams_processor_name",
-                    "join_session_contexts_with_mermaid_diagrams_processor_name",
-                    "join_session_contexts_with_mermaid_diagrams_processor_name",
-                    "filter_user_info_by_email_processor_name",
-                    "filter_user_info_by_email_processor_name",
-                    "filter_user_info_by_email_processor_name",
-                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
-                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
-                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
-                    "user_session"
-                ]
-            );
+            assert_eq!(column, ["processor_1","processor_1","processor_2","processor_2","processor_3","processor_3","session_1"]);
             let column = table_reading.get_column_as_vec_str("processor_type");
-            assert_eq!(
-                column,
-                [
-                    "ExtractTabular",
-                    "ExtractTabular",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "DataSummaryProcessor",
-                    "DataSummaryProcessor",
-                    "DataSummaryProcessor",
-                    "ProcessorEcho"
-                ]
-            );
+            assert_eq!(column, ["ProcessorMock","ProcessorMock","ProcessorMock","ProcessorMock","ProcessorMock","ProcessorMock","ProcessorEcho"]);
             let column = table_reading.get_column_as_vec_str("publication_subscription_name");
-            assert_eq!(
-                column,
-                [
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysLastRecordBatch",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysLastRecordBatch",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysLastRecordBatch",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysLastRecordBatch",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable"
-                ]
-            );
+            assert_eq!(column, ["OnUpdateFullTable","AlwaysFullTable","OnUpdateFullTable","AlwaysFullTable","OnUpdateFullTable","AlwaysFullTable","OnUpdateLastRecordBatch"]);
             let column = table_reading.get_column_as_vec_str("publication_subscription_table_name");
-            assert_eq!(
-                column,
-                [
-                    "UserJson",
-                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
-                    "filter_session_contexts_by_email_processor_name",
-                    "UserInbox",
-                    "UserSessionContexts",
-                    "join_session_contexts_with_mermaid_diagrams_processor_name",
-                    "JoinUserInboxSessionContexts",
-                    "BuilderMermaid",
-                    "filter_user_info_by_email_processor_name",
-                    "UserInbox",
-                    "User",
-                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
-                    "filter_user_info_by_email_table_name",
-                    "JoinUserInboxSessionContextsMermaid",
-                    "AssistantJson"
-                ]
-            );
+            assert_eq!(column, ["state_1","processor_1","state_1","processor_2","state_1","processor_3","state_1"]);
             let column = table_reading.get_column_as_vec_str("subscribe_type");
-            assert_eq!(
-                column,
-                [
-                    "All", "All", "All", "All", "All", "All", "All", "All", "All", "All", "All",
-                    "Any", "Any", "Any", "All"
-                ]
-            );
+            assert_eq!(column, ["All","All","All","All","All","All","Any"]);
             let column = table_reading.get_column_as_vec_str("update_type");
-            assert_eq!(
-                column,
-                [
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate"
-                ]
-            );
+            assert_eq!(column, ["TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate"]);
             let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
-            assert_eq!(column, [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+            assert_eq!(column, [1,1,1,1,1,1,1]);
 
             let table_reading = session_reading
                 .get_states()
@@ -1181,102 +1061,21 @@ mod tests {
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("session_name");
-            assert_eq!(
-                column,
-                [
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session"
-                ]
-            );
+            assert_eq!(column, ["session_1","session_1","session_1","session_1"]);
             let column = table_reading.get_column_as_vec_str("processor_name");
-            assert_eq!(
-                column,
-                [
-                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
-                    "filter_session_contexts_by_email_processor_name",
-                    "join_session_contexts_with_mermaid_diagrams_processor_name",
-                    "filter_user_info_by_email_processor_name",
-                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session"
-                ]
-            );
+            assert_eq!(column, ["processor_1","processor_2","processor_3","session_1"]);
             let column = table_reading.get_column_as_vec_str("processor_type");
-            assert_eq!(
-                column,
-                [
-                    "ExtractTabular",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "DataSummaryProcessor",
-                    "ProcessorEcho",
-                    "ProcessorEcho",
-                    "ProcessorEcho",
-                    "ProcessorEcho",
-                    "ProcessorEcho"
-                ]
-            );
+            assert_eq!(column, ["ProcessorMock","ProcessorMock","ProcessorMock","ProcessorEcho"]);
             let column = table_reading.get_column_as_vec_str("publication_subscription_name");
-            assert_eq!(
-                column,
-                [
-                    "Replace", "Replace", "Replace", "Replace", "Replace", "Extend", "Extend",
-                    "Extend", "Replace", "Replace"
-                ]
-            );
+            assert_eq!(column, ["Extend","Extend","Extend","Extend"]);
             let column = table_reading.get_column_as_vec_str("publication_subscription_table_name");
-            assert_eq!(
-                column,
-                [
-                    "UserInbox",
-                    "JoinUserInboxSessionContexts",
-                    "JoinUserInboxSessionContextsMermaid",
-                    "filter_user_info_by_email_table_name",
-                    "AssistantJson",
-                    "BuilderMermaid",
-                    "User",
-                    "UserSessionContexts",
-                    "UserJson",
-                    "AssistantJson"
-                ]
-            );
+            assert_eq!(column, ["state_1","state_1","state_1","state_1"]);
             let column = table_reading.get_column_as_vec_str("subscribe_type");
-            assert_eq!(
-                column,
-                [
-                    "All", "All", "All", "All", "Any", "All", "All", "All", "All", "All"
-                ]
-            );
+            assert_eq!(column, ["All","All","All","Any"]);
             let column = table_reading.get_column_as_vec_str("update_type");
-            assert_eq!(
-                column,
-                [
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate"
-                ]
-            );
+            assert_eq!(column, ["TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate"]);
             let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
-            assert_eq!(column, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+            assert_eq!(column, [0,0,0,0]);
         }
 
         // Run the session
@@ -1317,125 +1116,25 @@ mod tests {
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("session_name");
-            assert_eq!(
-                column,
-                [
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session"
-                ]
-            );
+            assert_eq!(column, ["session_1","session_1","session_1","session_1"]);
             let column = table_reading.get_column_as_vec_str("task_name");
-            assert_eq!(
-                column,
-                [
-                    "filter_and_join_session_contexts_by_email_outbox_task_name",
-                    "filter_and_join_session_contexts_by_email_inbox_task_name",
-                    "filter_session_contexts_by_email_task_name",
-                    "filter_user_info_by_email_task_name",
-                    "join_session_contexts_with_mermaid_diagrams_task_name",
-                    "user_session"
-                ]
-            );
+            assert_eq!(column, ["session_1","task_1","task_1","task_1"]);
             let column = table_reading.get_column_as_vec_str("processor_name");
-            assert_eq!(
-                column,
-                [
-                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
-                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
-                    "filter_session_contexts_by_email_processor_name",
-                    "filter_user_info_by_email_processor_name",
-                    "join_session_contexts_with_mermaid_diagrams_processor_name",
-                    "user_session"
-                ]
-            );
+            assert_eq!(column, ["session_1","processor_1","processor_2","processor_3"]);
             let column = table_reading.get_column_as_vec_str("processor_type");
-            assert_eq!(
-                column,
-                [
-                    "DataSummaryProcessor",
-                    "ExtractTabular",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "ProcessorEcho"
-                ]
-            );
+            assert_eq!(column, ["ProcessorEcho","ProcessorMock","ProcessorMock","ProcessorMock"]);
             let column = table_reading
                 .get_column_as_vec_nested_nonprimitive::<String>("subscription_name-List")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(
-                flattened,
-                [
-                    "OnUpdateFullTable",
-                    "AlwaysLastRecordBatch",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysLastRecordBatch",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysLastRecordBatch",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysLastRecordBatch",
-                    "OnUpdateFullTable"
-                ]
-            );
+            assert_eq!(flattened, ["OnUpdateLastRecordBatch","AlwaysFullTable","OnUpdateFullTable","AlwaysFullTable","OnUpdateFullTable","AlwaysFullTable","OnUpdateFullTable"]);
             let column = table_reading
                 .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_name-List")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(
-                flattened,
-                [
-                    "JoinUserInboxSessionContextsMermaid",
-                    "JoinUserInboxSessionContextsMermaid",
-                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
-                    "filter_user_info_by_email_table_name",
-                    "filter_user_info_by_email_table_name",
-                    "UserJson",
-                    "UserJson",
-                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
-                    "UserInbox",
-                    "UserInbox",
-                    "UserInbox",
-                    "UserSessionContexts",
-                    "UserSessionContexts",
-                    "filter_session_contexts_by_email_processor_name",
-                    "User",
-                    "User",
-                    "UserInbox",
-                    "UserInbox",
-                    "UserInbox",
-                    "filter_user_info_by_email_processor_name",
-                    "BuilderMermaid",
-                    "BuilderMermaid",
-                    "JoinUserInboxSessionContexts",
-                    "JoinUserInboxSessionContexts",
-                    "join_session_contexts_with_mermaid_diagrams_processor_name",
-                    "AssistantJson",
-                    "AssistantJson"
-                ]
-            );
+            assert_eq!(flattened, ["state_1","processor_1","state_1","processor_2","state_1","processor_3","state_1"]);
             let column = table_reading.get_column_as_vec_str("subscribe_type-Last");
-            assert_eq!(column, ["Any", "All", "All", "All", "All", "All"]);
+            assert_eq!(column, ["Any","All","All","All"]);
             let column = table_reading.get_column_as_vec_str("update_type-Last");
-            assert_eq!(
-                column,
-                [
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate"
-                ]
-            );
+            assert_eq!(column, ["TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate"]);
             let column =
                 table_reading.get_column_as_vec_nested_primitive::<i64>("timestamp-List")?;
             for timestamps in column {
@@ -1465,203 +1164,17 @@ mod tests {
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("session_name");
-            assert_eq!(
-                column,
-                [
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session"
-                ]
-            );
+            assert_eq!(column, ["session_1","session_1","session_1","session_1","session_1","session_1","session_1"]);
             let column = table_reading.get_column_as_vec_str("task_name");
-            assert_eq!(
-                column,
-                [
-                    "filter_and_join_session_contexts_by_email_outbox_task_name",
-                    "filter_and_join_session_contexts_by_email_outbox_task_name",
-                    "filter_and_join_session_contexts_by_email_outbox_task_name",
-                    "filter_and_join_session_contexts_by_email_outbox_task_name",
-                    "filter_and_join_session_contexts_by_email_outbox_task_name",
-                    "filter_and_join_session_contexts_by_email_inbox_task_name",
-                    "filter_and_join_session_contexts_by_email_inbox_task_name",
-                    "filter_and_join_session_contexts_by_email_inbox_task_name",
-                    "filter_session_contexts_by_email_task_name",
-                    "filter_session_contexts_by_email_task_name",
-                    "filter_session_contexts_by_email_task_name",
-                    "filter_session_contexts_by_email_task_name",
-                    "filter_session_contexts_by_email_task_name",
-                    "filter_session_contexts_by_email_task_name",
-                    "filter_user_info_by_email_task_name",
-                    "filter_user_info_by_email_task_name",
-                    "filter_user_info_by_email_task_name",
-                    "filter_user_info_by_email_task_name",
-                    "filter_user_info_by_email_task_name",
-                    "filter_user_info_by_email_task_name",
-                    "join_session_contexts_with_mermaid_diagrams_task_name",
-                    "join_session_contexts_with_mermaid_diagrams_task_name",
-                    "join_session_contexts_with_mermaid_diagrams_task_name",
-                    "join_session_contexts_with_mermaid_diagrams_task_name",
-                    "join_session_contexts_with_mermaid_diagrams_task_name",
-                    "user_session",
-                    "user_session"
-                ]
-            );
+            assert_eq!(column, ["session_1","task_1","task_1","task_1","task_1","task_1","task_1"]);
             let column = table_reading.get_column_as_vec_str("processor_name");
-            assert_eq!(
-                column,
-                [
-                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
-                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
-                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
-                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
-                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
-                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
-                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
-                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
-                    "filter_session_contexts_by_email_processor_name",
-                    "filter_session_contexts_by_email_processor_name",
-                    "filter_session_contexts_by_email_processor_name",
-                    "filter_session_contexts_by_email_processor_name",
-                    "filter_session_contexts_by_email_processor_name",
-                    "filter_session_contexts_by_email_processor_name",
-                    "filter_user_info_by_email_processor_name",
-                    "filter_user_info_by_email_processor_name",
-                    "filter_user_info_by_email_processor_name",
-                    "filter_user_info_by_email_processor_name",
-                    "filter_user_info_by_email_processor_name",
-                    "filter_user_info_by_email_processor_name",
-                    "join_session_contexts_with_mermaid_diagrams_processor_name",
-                    "join_session_contexts_with_mermaid_diagrams_processor_name",
-                    "join_session_contexts_with_mermaid_diagrams_processor_name",
-                    "join_session_contexts_with_mermaid_diagrams_processor_name",
-                    "join_session_contexts_with_mermaid_diagrams_processor_name",
-                    "user_session",
-                    "user_session"
-                ]
-            );
+            assert_eq!(column, ["session_1","processor_1","processor_1","processor_2","processor_2","processor_3","processor_3"]);
             let column = table_reading.get_column_as_vec_str("processor_type");
-            assert_eq!(
-                column,
-                [
-                    "DataSummaryProcessor",
-                    "DataSummaryProcessor",
-                    "DataSummaryProcessor",
-                    "DataSummaryProcessor",
-                    "DataSummaryProcessor",
-                    "ExtractTabular",
-                    "ExtractTabular",
-                    "ExtractTabular",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "ProcessorEcho",
-                    "ProcessorEcho"
-                ]
-            );
+            assert_eq!(column, ["ProcessorEcho","ProcessorMock","ProcessorMock","ProcessorMock","ProcessorMock","ProcessorMock","ProcessorMock"]);
             let column = table_reading.get_column_as_vec_str("subscription_name");
-            assert_eq!(
-                column,
-                [
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysLastRecordBatch",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysLastRecordBatch",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysLastRecordBatch",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysLastRecordBatch",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                ]
-            );
+            assert_eq!(column, ["OnUpdateLastRecordBatch","AlwaysFullTable","OnUpdateFullTable","AlwaysFullTable","OnUpdateFullTable","AlwaysFullTable","OnUpdateFullTable"]);
             let column = table_reading.get_column_as_vec_str("subscription_table_name");
-            assert_eq!(
-                column,
-                [
-                    "JoinUserInboxSessionContextsMermaid",
-                    "JoinUserInboxSessionContextsMermaid",
-                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
-                    "filter_user_info_by_email_table_name",
-                    "filter_user_info_by_email_table_name",
-                    "UserJson",
-                    "UserJson",
-                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
-                    "UserInbox",
-                    "UserInbox",
-                    "UserInbox",
-                    "UserSessionContexts",
-                    "UserSessionContexts",
-                    "filter_session_contexts_by_email_processor_name",
-                    "User",
-                    "User",
-                    "UserInbox",
-                    "UserInbox",
-                    "UserInbox",
-                    "filter_user_info_by_email_processor_name",
-                    "BuilderMermaid",
-                    "BuilderMermaid",
-                    "JoinUserInboxSessionContexts",
-                    "JoinUserInboxSessionContexts",
-                    "join_session_contexts_with_mermaid_diagrams_processor_name",
-                    "AssistantJson",
-                    "AssistantJson",
-                ]
-            );
+            assert_eq!(column, ["state_1","processor_1","state_1","processor_2","state_1","processor_3","state_1"]);
         }
 
         // Run the session
@@ -1693,139 +1206,27 @@ mod tests {
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("session_name");
-            assert_eq!(
-                column,
-                [
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session",
-                    "user_session"
-                ]
-            );
+            assert_eq!(column, ["session_1","session_1","session_1","session_1"]);
             let column = table_reading.get_column_as_vec_str("processor_name");
-            assert_eq!(
-                column,
-                [
-                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
-                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
-                    "filter_session_contexts_by_email_processor_name",
-                    "filter_user_info_by_email_processor_name",
-                    "join_session_contexts_with_mermaid_diagrams_processor_name",
-                    "user_session",
-                ]
-            );
+            assert_eq!(column, ["processor_1","processor_2","processor_3","session_1"]);
             let column = table_reading.get_column_as_vec_str("processor_type");
-            assert_eq!(
-                column,
-                [
-                    "ExtractTabular",
-                    "DataSummaryProcessor",
-                    "Join",
-                    "Join",
-                    "Join",
-                    "ProcessorEcho",
-                ]
-            );
+            assert_eq!(column, ["ProcessorMock","ProcessorMock","ProcessorMock","ProcessorEcho"]);
             let column = table_reading
                 .get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(
-                flattened,
-                [
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysLastRecordBatch",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysLastRecordBatch",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysLastRecordBatch",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysLastRecordBatch",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                ]
-            );
+            assert_eq!(flattened, ["AlwaysFullTable","OnUpdateFullTable","AlwaysFullTable","OnUpdateFullTable","AlwaysFullTable","OnUpdateFullTable","OnUpdateLastRecordBatch"]);
             let column = table_reading
                 .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(
-                flattened,
-                [
-                    "UserJson",
-                    "UserJson",
-                    "filter_and_join_session_contexts_by_email_inbox_processor_name",
-                    "JoinUserInboxSessionContextsMermaid",
-                    "JoinUserInboxSessionContextsMermaid",
-                    "filter_and_join_session_contexts_by_email_outbox_processor_name",
-                    "filter_user_info_by_email_table_name",
-                    "filter_user_info_by_email_table_name",
-                    "UserInbox",
-                    "UserInbox",
-                    "UserInbox",
-                    "UserSessionContexts",
-                    "UserSessionContexts",
-                    "filter_session_contexts_by_email_processor_name",
-                    "User",
-                    "User",
-                    "UserInbox",
-                    "UserInbox",
-                    "UserInbox",
-                    "filter_user_info_by_email_processor_name",
-                    "BuilderMermaid",
-                    "BuilderMermaid",
-                    "JoinUserInboxSessionContexts",
-                    "JoinUserInboxSessionContexts",
-                    "join_session_contexts_with_mermaid_diagrams_processor_name",
-                    "AssistantJson",
-                    "AssistantJson",
-                ]
-            );
+            assert_eq!(flattened, ["processor_1","state_1","processor_2","state_1","processor_3","state_1","state_1"]);
             let column = table_reading
                 .get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(
-                flattened,
-                [
-                    "Replace", "Replace", "Replace", "Replace", "Replace", "Extend", "Extend",
-                    "Extend", "Replace", "Replace",
-                ]
-            );
+            assert_eq!(flattened, ["Extend","Extend","Extend","Extend"]);
             let column = table_reading
                 .get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(
-                flattened,
-                [
-                    "UserInbox",
-                    "AssistantJson",
-                    "JoinUserInboxSessionContexts",
-                    "filter_user_info_by_email_table_name",
-                    "JoinUserInboxSessionContextsMermaid",
-                    "BuilderMermaid",
-                    "User",
-                    "UserSessionContexts",
-                    "UserJson",
-                    "AssistantJson",
-                ]
-            );
+            assert_eq!(flattened, ["state_1","state_1","state_1","state_1"]);
         }
 
         Ok(())

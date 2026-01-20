@@ -250,7 +250,8 @@ pub trait SessionStreamStepTrait {
     ) -> impl std::future::Future<Output = Result<HashMap<(String, String), ProcessorSubjectsMap>>> + Send
     {
         async move {
-            let num_rows = session_context
+            // Check if there are tasks subscribe and publish available, and determine them if not
+            if session_context
                 .read()
                 .get_states()
                 .get(
@@ -266,8 +267,7 @@ pub trait SessionStreamStepTrait {
                     )
                 })
                 .read()
-                .count_rows();
-            if num_rows == 0 {
+                .count_rows() == 0 {
                 let tasks_publish_subscribe_messages =
                     TasksSubscribePublishSession::default().tasks_subscribe_publish_messages()?;
                 for (step, messages) in tasks_publish_subscribe_messages.into_iter().enumerate() {
@@ -281,16 +281,15 @@ pub trait SessionStreamStepTrait {
                         )
                         .await?;
                     }
-                    // let subjects_reading = session_context.read();
-                    // let table_reading = subjects_reading
-                    //     .get_states()
-                    //     .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                    //     .unwrap()
-                    //     .read();
-                    // println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
                 }
             }
-            session_context.read().tasks_subscribe_publish()
+
+            // Return the tasks subscribe and publish if availabe or an empty map
+            let tasks = match session_context.read().tasks_subscribe_publish() {
+                Ok(tasks) => tasks,
+                Err(_err) => HashMap::<(String, String), ProcessorSubjectsMap>::new(),
+            };
+            Ok(tasks)
         }
     }
 
@@ -584,11 +583,7 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
 mod tests {
     use super::*;
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait,
-        test_session_context_builder::{
-            make_test_session_context_builder_parallel,
-            make_test_session_context_builder_sequential,
-        },
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, test_session_context_builder,
     };
     use phymes_core::{
         AvailableSubjects, AvailableTableSubscribePolicies, ProcessorBuilder, ProcessorPlanBuilder,
@@ -599,7 +594,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_no_state_update() -> Result<()> {
-        let session_context = make_test_session_context_builder_parallel("session_1", 4)?
+        let session_context = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 4)?
             .with_diagnostics(true)
             .add_tasks_subscribe_publish()?
             .build_with_tables()?;
@@ -771,7 +766,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_extend_state_update_single_task() -> Result<()> {
-        let session_context = make_test_session_context_builder_parallel("session_1", 4)?
+        let session_context = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 4)?
             .with_diagnostics(true)
             .add_tasks_subscribe_publish()?
             .build_with_tables()?;
@@ -946,7 +941,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_single_task() -> Result<()> {
-        let session_context = make_test_session_context_builder_parallel("session_1", 4)?
+        let session_context = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 4)?
             .with_diagnostics(true)
             .add_tasks_subscribe_publish()?
             .build_with_tables()?;
@@ -1122,7 +1117,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_parallel_tasks() -> Result<()> {
         // Superstep 1
-        let session_context = make_test_session_context_builder_parallel("session_1", 4)?
+        let session_context = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 4)?
             .with_diagnostics(true)
             .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?
             .add_tasks_subscribe_publish()?
@@ -1780,7 +1775,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_sequential_tasks() -> Result<()> {
         // Superstep 1
-        let session_context = make_test_session_context_builder_sequential("session_1", 4)?
+        let session_context = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 4)?
             .with_diagnostics(true)
             .add_session_interface(Some(&["state_1"]))?
             .add_tasks_subscribe_publish()?
@@ -2117,7 +2112,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_schema_mismatch_error() -> Result<()> {
-        let session_context = make_test_session_context_builder_sequential("session_1", 4)?
+        let session_context = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 4)?
             .with_diagnostics(true)
             .add_tasks_subscribe_publish()?
             .build_with_tables()?;
