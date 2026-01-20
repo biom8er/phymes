@@ -42,6 +42,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
         let task_names = vec![
             "group_by_tasks_run_log_timestamp_t",
             "group_by_tasks_run_log_timestamp_t",
+            "group_by_tasks_run_log_timestamp_t",
             "filter_processors_subscriptions_t",
             "filter_processors_subscriptions_t",
             "filter_processors_subscriptions_t",
@@ -53,6 +54,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
         .map(|s| s.to_string())
         .collect::<Vec<_>>();
         let processor_names = vec![
+            "sort_tasks_run_log_timestamp_p",
             "group_by_tasks_run_log_timestamp_p",
             "select_tasks_run_log_timestamp_p",
             "cmp_processors_subscriptions_p",
@@ -66,13 +68,14 @@ impl<'a> TasksSubscribePublishSession<'a> {
         .map(|s| s.to_string())
         .collect::<Vec<_>>();
         let processor_types = vec![
-            "GroupBy", "Select", "Select", "Filter", "Select", "Select", "Filter", "Select",
+            "Sort", "GroupBy", "Select", "Select", "Filter", "Select", "Select", "Filter", "Select",
         ]
         .into_iter()
         .map(|s| s.to_string())
         .collect::<Vec<_>>();
         let subscription_names = vec![
             vec!["OnUpdateFullTable", "AlwaysFullTable"],
+            vec!["AlwaysFullTable", "AlwaysFullTable"],
             vec!["AlwaysFullTable", "AlwaysFullTable"],
             vec!["OnUpdateFullTable", "AlwaysFullTable"],
             vec!["AlwaysFullTable", "AlwaysFullTable"],
@@ -85,7 +88,8 @@ impl<'a> TasksSubscribePublishSession<'a> {
         .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
         .collect::<Vec<_>>();
         let subscription_table_names = vec![
-            vec!["SessionTasksRunLog", "group_by_tasks_run_log_timestamp_p"],
+            vec!["SessionTasksRunLog", "sort_tasks_run_log_timestamp_p"],
+            vec!["sort_tasks_run_log_timestamp_t", "group_by_tasks_run_log_timestamp_p"],
             vec![
                 "group_by_tasks_run_log_timestamp_t",
                 "select_tasks_run_log_timestamp_p",
@@ -121,11 +125,13 @@ impl<'a> TasksSubscribePublishSession<'a> {
             vec!["Replace"],
             vec!["Replace"],
             vec!["Replace"],
+            vec!["Replace"],
         ]
         .into_iter()
         .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
         .collect::<Vec<_>>();
         let publication_table_names = vec![
+            vec!["sort_tasks_run_log_timestamp_t"],
             vec!["group_by_tasks_run_log_timestamp_t"],
             vec!["select_tasks_run_log_timestamp_t"],
             vec!["cmp_processors_subscriptions_t"],
@@ -184,11 +190,13 @@ impl<'a> TasksSubscribePublishSession<'a> {
             "join_tasks_run_log_timestamp_t",
             "join_tasks_run_log_timestamp_t",
             "join_tasks_run_log_timestamp_t",
+            "join_tasks_run_log_timestamp_t",
         ]
         .into_iter()
         .map(|s| s.to_string())
         .collect::<Vec<_>>();
         let processor_names = vec![
+            "sort_subject_change_log_timestamp_p",
             "group_by_subject_change_log_timestamp_p",
             "join_tasks_run_log_timestamp_p",
             "join_tasks_processors_subscriptions_p",
@@ -199,11 +207,12 @@ impl<'a> TasksSubscribePublishSession<'a> {
         .into_iter()
         .map(|s| s.to_string())
         .collect::<Vec<_>>();
-        let processor_types = vec!["GroupBy", "Join", "Join", "Join", "Select", "GroupBy"]
+        let processor_types = vec!["Sort", "GroupBy", "Join", "Join", "Join", "Select", "GroupBy"]
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
         let subscription_names = vec![
+            vec!["AlwaysFullTable", "AlwaysFullTable"],
             vec!["AlwaysFullTable", "AlwaysFullTable"],
             vec!["OnUpdateFullTable", "AlwaysFullTable", "AlwaysFullTable"],
             vec!["AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable"],
@@ -217,6 +226,10 @@ impl<'a> TasksSubscribePublishSession<'a> {
         let subscription_table_names = vec![
             vec![
                 "SubjectsChangeLog",
+                "sort_subject_change_log_timestamp_p",
+            ],
+            vec![
+                "sort_subject_change_log_timestamp_t",
                 "group_by_subject_change_log_timestamp_p",
             ],
             vec![
@@ -253,11 +266,13 @@ impl<'a> TasksSubscribePublishSession<'a> {
             vec!["Replace"],
             vec!["Replace"],
             vec!["Replace"],
+            vec!["Replace"],
         ]
         .into_iter()
         .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
         .collect::<Vec<_>>();
         let publication_table_names = vec![
+            vec!["sort_subject_change_log_timestamp_t"],
             vec!["group_by_subject_change_log_timestamp_t"],
             vec!["join_tasks_run_log_timestamp_t"],
             vec!["join_tasks_processors_subscriptions_t"],
@@ -428,7 +443,11 @@ impl<'a> TasksSubscribePublishSession<'a> {
     default_runtime_env_name-rt@{shape: subproc, label: default_runtime_env_name}
 
 	subgraph group_by_tasks_run_log_timestamp_t
-		SessionTasksRunLog-subject-.->|FullTable|group_by_tasks_run_log_timestamp_p-subscribe
+		SessionTasksRunLog-subject-.->|FullTable|sort_tasks_run_log_timestamp_p-subscribe
+		sort_tasks_run_log_timestamp_p-subscribe-->sort_tasks_run_log_timestamp_p-processor
+		sort_tasks_run_log_timestamp_p-processor-->sort_tasks_run_log_timestamp_p-publish
+		sort_tasks_run_log_timestamp_p-publish-->|Replace|sort_tasks_run_log_timestamp_t-subject
+		sort_tasks_run_log_timestamp_t-subject-->|FullTable|group_by_tasks_run_log_timestamp_p-subscribe
 		group_by_tasks_run_log_timestamp_p-subscribe-->group_by_tasks_run_log_timestamp_p-processor
 		group_by_tasks_run_log_timestamp_p-processor-->group_by_tasks_run_log_timestamp_p-publish
 		group_by_tasks_run_log_timestamp_p-publish-->|Replace|group_by_tasks_run_log_timestamp_t-subject
@@ -439,6 +458,10 @@ impl<'a> TasksSubscribePublishSession<'a> {
 	end
 	default_runtime_env_name-rt-->group_by_tasks_run_log_timestamp_t
 	SessionTasksRunLog-subject@{shape: doc, label: SessionTasksRunLog}
+	sort_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}
+	sort_tasks_run_log_timestamp_p-processor@{shape: rect, label: Sort}
+	sort_tasks_run_log_timestamp_p-publish@{shape: fork}
+	sort_tasks_run_log_timestamp_t-subject@{shape: doc, label: sort_tasks_run_log_timestamp_t}
 	group_by_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}
 	group_by_tasks_run_log_timestamp_p-processor@{shape: rect, label: GroupBy}
 	group_by_tasks_run_log_timestamp_p-publish@{shape: fork}
@@ -478,7 +501,11 @@ impl<'a> TasksSubscribePublishSession<'a> {
 	select_processors_subscriptions_t-subject@{shape: doc, label: select_processors_subscriptions_t}
 
 	subgraph join_tasks_run_log_timestamp_t
-		SubjectsChangeLog-subject-->|FullTable|group_by_subject_change_log_timestamp_p-subscribe
+		SubjectsChangeLog-subject-->|FullTable|sort_subject_change_log_timestamp_p-subscribe
+		sort_subject_change_log_timestamp_p-subscribe-->sort_subject_change_log_timestamp_p-processor
+		sort_subject_change_log_timestamp_p-processor-->sort_subject_change_log_timestamp_p-publish
+		sort_subject_change_log_timestamp_p-publish-->|Replace|sort_subject_change_log_timestamp_t-subject
+		sort_subject_change_log_timestamp_t-subject-->|FullTable|group_by_subject_change_log_timestamp_p-subscribe
 		group_by_subject_change_log_timestamp_p-subscribe-->group_by_subject_change_log_timestamp_p-processor
 		group_by_subject_change_log_timestamp_p-processor-->group_by_subject_change_log_timestamp_p-publish
 		group_by_subject_change_log_timestamp_p-publish-->|Replace|group_by_subject_change_log_timestamp_t-subject
@@ -508,6 +535,10 @@ impl<'a> TasksSubscribePublishSession<'a> {
 	end
 	default_runtime_env_name-rt-->join_tasks_run_log_timestamp_t
 	SubjectsChangeLog-subject@{shape: doc, label: SubjectsChangeLog}
+	sort_subject_change_log_timestamp_p-subscribe@{shape: diamond, label: All}
+	sort_subject_change_log_timestamp_p-processor@{shape: rect, label: Sort}
+	sort_subject_change_log_timestamp_p-publish@{shape: fork}
+	sort_subject_change_log_timestamp_t-subject@{shape: doc, label: sort_subject_change_log_timestamp_t}
 	group_by_subject_change_log_timestamp_p-subscribe@{shape: diamond, label: All}
 	group_by_subject_change_log_timestamp_p-processor@{shape: rect, label: GroupBy}
 	group_by_subject_change_log_timestamp_p-publish@{shape: fork}
@@ -609,11 +640,19 @@ impl<'a> TasksSubscribePublishSession<'a> {
         Utf8 task_name
         Int64 timestamp
     }
+    sort_tasks_run_log_timestamp_p["sort_tasks_run_log_timestamp_p"] {
+        Boolean asc "true"
+        Boolean cpu "false"
+        Utf8 lhs_name "SessionTasksRunLog"
+        List-Utf8 lhs_values "['timestamp']"
+        Utf8 operator "Sort"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
     group_by_tasks_run_log_timestamp_p["group_by_tasks_run_log_timestamp_p"] {
         List-Utf8 agg_columns "['timestamp']"
         List-Utf8 agg_operators "['Last']"
         Boolean cpu "false"
-        Utf8 lhs_name "SessionTasksRunLog"
+        Utf8 lhs_name "sort_tasks_run_log_timestamp_t"
         List-Utf8 lhs_values "['task_name']"
         Utf8 operator "GroupBy"
         Utf8 stream "AccumulateLHSAccumulateRHS"
@@ -720,11 +759,19 @@ impl<'a> TasksSubscribePublishSession<'a> {
         Int64 num_rows_delta
         Int64 timestamp
     }
+    sort_subject_change_log_timestamp_p["sort_subject_change_log_timestamp_p"] {
+        Boolean asc "true"
+        Boolean cpu "false"
+        Utf8 lhs_name "SubjectsChangeLog"
+        List-Utf8 lhs_values "['subject_name']"
+        Utf8 operator "Sort"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
     group_by_subject_change_log_timestamp_p["group_by_subject_change_log_timestamp_p"] {
         List-Utf8 agg_columns "['timestamp']"
         List-Utf8 agg_operators "['Last']"
         Boolean cpu "false"
-        Utf8 lhs_name "SubjectsChangeLog"
+        Utf8 lhs_name "sort_subject_change_log_timestamp_t"
         List-Utf8 lhs_values "['subject_name']"
         Utf8 operator "GroupBy"
         Utf8 stream "AccumulateLHSAccumulateRHS"
