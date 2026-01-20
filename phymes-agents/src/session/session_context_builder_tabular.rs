@@ -1384,19 +1384,19 @@ mod tests {
             tables_test.get(5).unwrap().get_name(),
             tables.get(5).unwrap().get_name()
         );
-        let tables_test_set = tables_test
-            .get(5)
-            .unwrap()
-            .get_column_as_vec_str("subject_name")
-            .into_iter()
-            .collect::<HashSet<_>>();
-        let tables_set = tables
-            .get(5)
-            .unwrap()
-            .get_column_as_vec_str("subject_name")
-            .into_iter()
-            .collect::<HashSet<_>>();
         // DM: need to check why this test is failing
+        // let tables_test_set = tables_test
+        //     .get(5)
+        //     .unwrap()
+        //     .get_column_as_vec_str("subject_name")
+        //     .into_iter()
+        //     .collect::<HashSet<_>>();
+        // let tables_set = tables
+        //     .get(5)
+        //     .unwrap()
+        //     .get_column_as_vec_str("subject_name")
+        //     .into_iter()
+        //     .collect::<HashSet<_>>();
         // left: {"SessionTasksRunLog", "SessionEvents", "state_1", "config_2", "SessionMetrics", "SessionTraces", "SubjectsNumRows", "SubjectsChangeLog", "state_3", "SessionErrors", "state_2", "config_3", "config_1", "SessionMermaid"}
         // right: {"config_2", "state_3", "state_1", "config_1", "state_2", "config_3"}
         // assert_eq!(tables_test_set, tables_set);

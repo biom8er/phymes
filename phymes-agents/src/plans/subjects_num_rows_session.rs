@@ -132,7 +132,7 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{BuilderTrait, IPCMessage, MappableTrait, MessageTrait, TableTrait};
+    use phymes_core::{BuilderTrait, IPCMessage};
     use phymes_diagnostics::HashMap;
 
     use crate::{

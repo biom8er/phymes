@@ -1172,7 +1172,7 @@ mod tests {
 
     use crate::test_session_context_builder;
     use phymes_core::{
-        BuildableTrait, BuilderTrait, DataFormat, TableBuilderTrait, TaskTrait, test_table,
+        BuildableTrait, BuilderTrait, DataFormat, TableBuilderTrait, TaskTrait,
         test_task,
     };
     use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager};
