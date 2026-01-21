@@ -815,9 +815,7 @@ mod tests {
     };
     use arrow::array::Int64Array;
     use phymes_core::{
-        IPCMessage,
-        test_table::{self, make_test_table_schema},
-        test_task,
+        IPCMessage, Task, create_session_tasks_subscribe_aggregate_batch, test_table::{self, make_test_table_schema}, test_task
     };
     #[cfg(not(target_family = "wasm"))]
     use tempfile::tempdir;
@@ -1120,4 +1118,186 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn test_session_tasks_subscribe_all_subscribe() -> Result<()> {
+        // Make the test data
+        let session_names = ["session_1","session_1","session_1","session_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let task_names = ["session_1","task_1","task_1","task_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let processor_names = ["session_1","processor_1","processor_2","processor_3"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let processor_types = ["ProcessorEcho","ProcessorMock","ProcessorMock","ProcessorMock"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let subscription_names = vec![["OnUpdateLastRecordBatch"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["AlwaysFullTable","OnUpdateFullTable"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["AlwaysFullTable","OnUpdateFullTable"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["AlwaysFullTable","OnUpdateFullTable"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()];
+        let subscription_table_names = vec![["state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["processor_1","state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["processor_2","state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["processor_3","state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()];
+        let subscribe_type = ["Any","All","All","All"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let update_types = ["TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let timestamps = vec![vec![1768954478778611],
+            vec![1768954478778609,1768954478778609],
+            vec![1768954478778609,1768954478778609],
+            vec![1768954478778609,1768954478778609]];
+        let timestamp_lasts = vec![vec![1768954478786822],
+            vec![1768954478776320,1768954478786822],
+            vec![1768954478776344,1768954478786822],
+            vec![1768954478776354,1768954478786822]];
+
+        let batch = create_session_tasks_subscribe_aggregate_batch(session_names, task_names, processor_names, processor_types, subscribe_type, update_types, subscription_names, subscription_table_names, timestamps, timestamp_lasts)?;
+        let table_tasks_subscribe_aggregate = AvailableSubjects::SessionTasksSubscribeAggregate.to_table(None, Some(vec![batch]))?;
+        let table_tasks_subscribe = AvailableSubjects::SessionTasksSubscribe.to_table(None, None)?;
+
+        // Make the session context for testing
+        let mut state = HashMap::<String, Arc<RwLock<Table>>>::new();
+        let _ = state.insert(table_tasks_subscribe_aggregate.get_name().to_string(), Arc::new(RwLock::new(table_tasks_subscribe_aggregate)));
+        let _ = state.insert(table_tasks_subscribe.get_name().to_string(), Arc::new(RwLock::new(table_tasks_subscribe)));
+        let session_context = SessionContext::new(
+            "session_1".to_string(), 
+            HashMap::<String, Arc<Task>>::new(), 
+            state, 
+            HashMap::<String, Arc<RuntimeEnv>>::new(),
+            1, 
+            true);
+
+        // Run and check the updated state
+        session_context.tasks_subscribe()?;
+        let table_reading = session_context
+            .get_states()
+            .get("SessionTasksSubscribe")
+            .unwrap()
+            .read();
+        let column = table_reading.get_column_as_vec_str("session_name");
+        assert_eq!(column, ["session_1","session_1","session_1","session_1","session_1","session_1","session_1"]);
+        let column = table_reading.get_column_as_vec_str("task_name");
+        assert_eq!(column, ["session_1","task_1","task_1","task_1","task_1","task_1","task_1"]);
+        let column = table_reading.get_column_as_vec_str("processor_name");
+        assert_eq!(column, ["session_1","processor_1","processor_1","processor_2","processor_2","processor_3","processor_3"]);
+        let column = table_reading.get_column_as_vec_str("processor_type");
+        assert_eq!(column, ["ProcessorEcho","ProcessorMock","ProcessorMock","ProcessorMock","ProcessorMock","ProcessorMock","ProcessorMock"]);
+        let column = table_reading.get_column_as_vec_str("subscription_name");
+        assert_eq!(column, ["OnUpdateLastRecordBatch","AlwaysFullTable","OnUpdateFullTable","AlwaysFullTable","OnUpdateFullTable","AlwaysFullTable","OnUpdateFullTable"]);
+        let column = table_reading.get_column_as_vec_str("subscription_table_name");
+        assert_eq!(column, ["state_1","processor_1","state_1","processor_2","state_1","processor_3","state_1"]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_session_tasks_subscribe_none_subscribe() -> Result<()> {
+        // Make the test data
+        let session_names = ["session_1","session_1","session_1","session_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let task_names = ["session_1","task_1","task_1","task_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let processor_names = ["session_1","processor_1","processor_2","processor_3"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let processor_types = ["ProcessorEcho","ProcessorMock","ProcessorMock","ProcessorMock"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let subscription_names = vec![["OnUpdateLastRecordBatch"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["AlwaysFullTable","OnUpdateFullTable"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["AlwaysFullTable","OnUpdateFullTable"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["AlwaysFullTable","OnUpdateFullTable"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()];
+        let subscription_table_names = vec![["state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["processor_1","state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["processor_2","state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["processor_3","state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()];
+        let subscribe_type = ["Any","All","All","All"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let update_types = ["TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let timestamps = vec![vec![1768954478778611],
+            vec![1768954478778609,1768954478778609],
+            vec![1768954478778609,1768954478778609],
+            vec![1768954478778609,1768954478778609]];
+        let timestamp_lasts = vec![vec![0],
+            vec![0,0],
+            vec![0,0],
+            vec![0,0]];
+
+        let batch = create_session_tasks_subscribe_aggregate_batch(session_names, task_names, processor_names, processor_types, subscribe_type, update_types, subscription_names, subscription_table_names, timestamps, timestamp_lasts)?;
+        let table_tasks_subscribe_aggregate = AvailableSubjects::SessionTasksSubscribeAggregate.to_table(None, Some(vec![batch]))?;
+        let table_tasks_subscribe = AvailableSubjects::SessionTasksSubscribe.to_table(None, None)?;
+
+        // Make the session context for testing
+        let mut state = HashMap::<String, Arc<RwLock<Table>>>::new();
+        let _ = state.insert(table_tasks_subscribe_aggregate.get_name().to_string(), Arc::new(RwLock::new(table_tasks_subscribe_aggregate)));
+        let _ = state.insert(table_tasks_subscribe.get_name().to_string(), Arc::new(RwLock::new(table_tasks_subscribe)));
+        let session_context = SessionContext::new(
+            "session_1".to_string(), 
+            HashMap::<String, Arc<Task>>::new(), 
+            state, 
+            HashMap::<String, Arc<RuntimeEnv>>::new(),
+            1, 
+            true);
+
+        // Run and check the updated state
+        session_context.tasks_subscribe()?;
+        let table_reading = session_context
+            .get_states()
+            .get("SessionTasksSubscribe")
+            .unwrap()
+            .read();
+        assert_eq!(table_reading.count_rows(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_session_tasks_subscribe_some_subscribe() -> Result<()> {
+        // Make the test data
+        let session_names = ["session_1","session_1","session_1","session_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let task_names = ["session_1","task_1","task_1","task_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let processor_names = ["session_1","processor_1","processor_2","processor_3"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let processor_types = ["ProcessorEcho","ProcessorMock","ProcessorMock","ProcessorMock"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let subscription_names = vec![["OnUpdateLastRecordBatch"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["AlwaysFullTable","OnUpdateFullTable"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["AlwaysFullTable","OnUpdateFullTable"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["AlwaysFullTable","OnUpdateFullTable"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()];
+        let subscription_table_names = vec![["state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["processor_1","state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["processor_2","state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["processor_3","state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()];
+        let subscribe_type = ["Any","All","All","All"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let update_types = ["TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let timestamps = vec![vec![1768954478778611],
+            vec![1768954478778609,1768954478778609],
+            vec![1768954478778609,1768954478778609],
+            vec![1768954478778609,1768954478778609]];
+        let timestamp_lasts = vec![vec![1768954478786822],
+            vec![1768954478776320,0],
+            vec![1768954478776344,1768954478786822],
+            vec![1768954478776354,1768954478786822]];
+
+        let batch = create_session_tasks_subscribe_aggregate_batch(session_names, task_names, processor_names, processor_types, subscribe_type, update_types, subscription_names, subscription_table_names, timestamps, timestamp_lasts)?;
+        let table_tasks_subscribe_aggregate = AvailableSubjects::SessionTasksSubscribeAggregate.to_table(None, Some(vec![batch]))?;
+        let table_tasks_subscribe = AvailableSubjects::SessionTasksSubscribe.to_table(None, None)?;
+
+        // Make the session context for testing
+        let mut state = HashMap::<String, Arc<RwLock<Table>>>::new();
+        let _ = state.insert(table_tasks_subscribe_aggregate.get_name().to_string(), Arc::new(RwLock::new(table_tasks_subscribe_aggregate)));
+        let _ = state.insert(table_tasks_subscribe.get_name().to_string(), Arc::new(RwLock::new(table_tasks_subscribe)));
+        let session_context = SessionContext::new(
+            "session_1".to_string(), 
+            HashMap::<String, Arc<Task>>::new(), 
+            state, 
+            HashMap::<String, Arc<RuntimeEnv>>::new(),
+            1, 
+            true);
+
+        // Run and check the updated state
+        session_context.tasks_subscribe()?;
+        let table_reading = session_context
+            .get_states()
+            .get("SessionTasksSubscribe")
+            .unwrap()
+            .read();
+        let column = table_reading.get_column_as_vec_str("session_name");
+        assert_eq!(column, ["session_1"]);
+        let column = table_reading.get_column_as_vec_str("task_name");
+        assert_eq!(column, ["session_1"]);
+        let column = table_reading.get_column_as_vec_str("processor_name");
+        assert_eq!(column, ["session_1"]);
+        let column = table_reading.get_column_as_vec_str("processor_type");
+        assert_eq!(column, ["ProcessorEcho"]);
+        let column = table_reading.get_column_as_vec_str("subscription_name");
+        assert_eq!(column, ["OnUpdateLastRecordBatch"]);
+        let column = table_reading.get_column_as_vec_str("subscription_table_name");
+        assert_eq!(column, ["state_1"]);
+        Ok(())
+    }
+
 }
