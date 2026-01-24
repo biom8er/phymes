@@ -91,7 +91,7 @@ impl MappableTrait for ProcessorPlan {
 }
 
 /// The publications and subscriptions to run the processor with
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ProcessorSubjects {
     /// Name of the processor
     pub name: String,

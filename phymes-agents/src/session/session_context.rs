@@ -815,7 +815,7 @@ mod tests {
     };
     use arrow::array::Int64Array;
     use phymes_core::{
-        IPCMessage, Task, create_session_tasks_subscribe_aggregate_batch, test_table::{self, make_test_table_schema}, test_task
+        IPCMessage, Task, create_session_tasks_subscribe_aggregate_batch, create_session_tasks_subscribe_publish_batch, test_table::{self, make_test_table_schema}, test_task
     };
     #[cfg(not(target_family = "wasm"))]
     use tempfile::tempdir;
@@ -1297,6 +1297,85 @@ mod tests {
         assert_eq!(column, ["OnUpdateLastRecordBatch"]);
         let column = table_reading.get_column_as_vec_str("subscription_table_name");
         assert_eq!(column, ["state_1"]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_session_tasks_subscribe_publish() -> Result<()> {
+        // Make the test data
+        let session_names = ["session_1","session_1","session_1","session_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let task_names = ["task_1","task_1","task_1","session_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let processor_names = ["processor_1","processor_2","processor_3","session_1",].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let processor_types = ["ProcessorMock","ProcessorMock","ProcessorMock","ProcessorEcho"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let subscription_names = vec![
+            ["AlwaysFullTable","OnUpdateFullTable"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["AlwaysFullTable","OnUpdateFullTable"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["AlwaysFullTable","OnUpdateFullTable"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["OnUpdateLastRecordBatch"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()];
+        let subscription_table_names = vec![
+            ["processor_1","state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["processor_2","state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["processor_3","state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()];
+        let publication_names = vec![
+            ["Extend"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["Extend"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["Extend"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["Extend"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()];
+        let publication_table_names = vec![
+            ["state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            ["state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()];
+
+        let batch = create_session_tasks_subscribe_publish_batch(session_names, task_names, processor_names, processor_types, subscription_names, subscription_table_names, publication_names, publication_table_names)?;
+        let table_tasks_subscribe_publish = AvailableSubjects::SessionTasksSubscribePublish.to_table(None, Some(vec![batch]))?;
+
+        // Make the session context for testing
+        let mut state = HashMap::<String, Arc<RwLock<Table>>>::new();
+        let _ = state.insert(table_tasks_subscribe_publish.get_name().to_string(), Arc::new(RwLock::new(table_tasks_subscribe_publish)));
+        let session_context = SessionContext::new(
+            "session_1".to_string(), 
+            HashMap::<String, Arc<Task>>::new(), 
+            state, 
+            HashMap::<String, Arc<RuntimeEnv>>::new(),
+            1, 
+            true);
+
+        // Run and check the updated state
+        let tasks = session_context.tasks_subscribe_publish()?;
+        let mut expected_tasks = HashMap::<(String, String), HashMap<String, ProcessorSubjects>>::new();
+        let mut processor_subjects_map = HashMap::<String, ProcessorSubjects>::new();
+        let processor_subjects = ProcessorSubjectsBuilder::default()
+            .with_name("session_1")
+            .with_subscriptions(&[TableSubscription::OnUpdateLastRecordBatch { table_name: "state_1".to_string() }])
+            .with_publications(&[TablePublication::Extend { table_name: "state_1".to_string() }])
+            .build()?;
+        let _ = processor_subjects_map.insert("session_1".to_string(), processor_subjects);
+        let _ = expected_tasks.insert(("session_1".to_string(), "session_1".to_string()), processor_subjects_map);
+        let mut processor_subjects_map = HashMap::<String, ProcessorSubjects>::new();
+        let processor_subjects = ProcessorSubjectsBuilder::default()
+            .with_name("processor_1")
+            .with_subscriptions(&[TableSubscription::AlwaysFullTable { table_name: "processor_1".to_string() }, TableSubscription::OnUpdateFullTable { table_name: "state_1".to_string() }])
+            .with_publications(&[TablePublication::Extend { table_name: "state_1".to_string() }])
+            .build()?;
+        let _ = processor_subjects_map.insert("processor_1".to_string(), processor_subjects);
+        let processor_subjects = ProcessorSubjectsBuilder::default()
+            .with_name("processor_2")
+            .with_subscriptions(&[TableSubscription::AlwaysFullTable { table_name: "processor_2".to_string() }, TableSubscription::OnUpdateFullTable { table_name: "state_1".to_string() }])
+            .with_publications(&[TablePublication::Extend { table_name: "state_1".to_string() }])
+            .build()?;
+        let _ = processor_subjects_map.insert("processor_2".to_string(), processor_subjects);
+        let processor_subjects = ProcessorSubjectsBuilder::default()
+            .with_name("processor_3")
+            .with_subscriptions(&[TableSubscription::AlwaysFullTable { table_name: "processor_3".to_string() }, TableSubscription::OnUpdateFullTable { table_name: "state_1".to_string() }])
+            .with_publications(&[TablePublication::Extend { table_name: "state_1".to_string() }])
+            .build()?;
+        let _ = processor_subjects_map.insert("processor_3".to_string(), processor_subjects);
+        let _ = expected_tasks.insert(("task_1".to_string(), "session_1".to_string()), processor_subjects_map);
+
+        assert_eq!(tasks.len(), 2);
+        assert_eq!(tasks, expected_tasks);
         Ok(())
     }
 
