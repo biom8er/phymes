@@ -1858,7 +1858,7 @@ mod tests {
     use phymes_diagnostics::{HashMap, HashSet};
 
     use crate::{
-        SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, create_message_map, test_session_context_builder
+        SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream, create_message_map, test_session_context_builder
     };
 
     use super::*;
@@ -1870,15 +1870,15 @@ mod tests {
         let session_ctx = diagnostic_session
             .build()
             .with_name(diagnostic_session.session_context_name)
-            .with_max_iter(9)
+            .with_max_iter(25)
             .with_diagnostics(true) // Debugging
-            // .add_session_interface(Some(&[DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string().as_str(),
-            //     DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string().as_str(),
-            //     DiagnosticsVisualizations::MetricOutputRowsGantt.to_string().as_str(),
-            //     DiagnosticsVisualizations::TraceSequenceDiagram.to_string().as_str(),
-            //     DiagnosticsVisualizations::EventKanban.to_string().as_str(),
-            //     DiagnosticsVisualizations::ErrorKanban.to_string().as_str(),
-            // ]))?
+            .add_session_interface(Some(&[DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string().as_str(),
+                DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string().as_str(),
+                DiagnosticsVisualizations::MetricOutputRowsGantt.to_string().as_str(),
+                DiagnosticsVisualizations::TraceSequenceDiagram.to_string().as_str(),
+                DiagnosticsVisualizations::EventKanban.to_string().as_str(),
+                DiagnosticsVisualizations::ErrorKanban.to_string().as_str(),
+            ]))?
             .add_tasks_subscribe_publish()?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
@@ -2001,96 +2001,91 @@ mod tests {
         // Run
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            // let table_reading = subjects_reading
-            //     .get_states()
-            //     .get(AvailableSubjects::SessionTraces.to_string().as_str())
-            //     .unwrap()
-            //     .read();
-            // println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
-        // dbg!(&response.iter().map(|m| m.iter().map(|(k,v)| k.to_string()).collect::<Vec<_>>()).collect::<Vec<_>>());
 
-        // // Check the response
-        // let keys = response.iter()
-        //     .flat_map(|m| m.keys()
-        //         .into_iter()
-        //         .map(|k| k.to_string())
-        //         .collect::<Vec<_>>())
-        //     .collect::<HashSet<_>>();
-        // let expected = [DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string(),
-        //     DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string(),
-        //     DiagnosticsVisualizations::MetricOutputRowsGantt.to_string(),
-        //     DiagnosticsVisualizations::TraceSequenceDiagram.to_string(),
-        //     DiagnosticsVisualizations::EventKanban.to_string(),
-        //     // DiagnosticsVisualizations::ErrorKanban.to_string(),
-        // ].into_iter().map(|s| format!("from_{}_on_{s}", diagnostic_session.session_context_name)).collect::<HashSet<_>>();
-        // assert_eq!(keys, expected);
+        // Check the response
+        let keys = response.iter()
+            .flat_map(|m| m.keys()
+                .into_iter()
+                .map(|k| k.to_string())
+                .collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        assert_eq!(keys.len(), 5);
+        let keys_set = keys.into_iter().collect::<HashSet<_>>();
+        let expected = [DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string(),
+            DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string(),
+            DiagnosticsVisualizations::MetricOutputRowsGantt.to_string(),
+            DiagnosticsVisualizations::TraceSequenceDiagram.to_string(),
+            DiagnosticsVisualizations::EventKanban.to_string(),
+            // DiagnosticsVisualizations::ErrorKanban.to_string(),
+        ].into_iter().map(|s| format!("from_{}_on_{s}", diagnostic_session.session_context_name)).collect::<HashSet<_>>();
+        assert_eq!(keys_set, expected);
 
-        // // Extract the response
-        // let tables = response
-        //     .into_iter()
-        //     .flat_map(|map| map.into_iter()
-        //         .filter_map(|(k,v)| if k.contains(diagnostic_session.session_context_name) {
-        //             let table_name = v.get_subject().to_string();
-        //             Some(TableBuilder::new_from_ipc_stream(&v.get_message_own())
-        //                 .unwrap()
-        //                 .with_name(table_name.as_str())
-        //                 .build()
-        //                 .unwrap())
-        //         } else {
-        //             None
-        //         })
-        //         .collect::<Vec<_>>())
-        //     .collect::<Vec<_>>();
-        // dbg!(&tables.iter().map(|t| t.get_name().to_string()).collect::<Vec<_>>());
-        // assert_eq!(tables.len(), 5);
-        // assert_eq!(tables.first().unwrap().get_name(), "");
-        // let columns = tables.first().unwrap().get_column_as_vec_str("filename");
-        // assert_eq!(columns, [""]);
-        // let columns = tables.first().unwrap().get_column_as_vec_str("extension");
-        // assert_eq!(columns, [""]);
-        // let columns = tables.first().unwrap().get_column_as_vec_str("metadata");
-        // assert_eq!(columns, [""]);
-        // let bytes = tables.first().unwrap().get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
-        // let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-        // assert_eq!(column, "");
-        // assert_eq!(tables.get(1).unwrap().get_name(), "");
-        // let columns = tables.get(1).unwrap().get_column_as_vec_str("filename");
-        // assert_eq!(columns, [""]);
-        // let columns = tables.get(1).unwrap().get_column_as_vec_str("extension");
-        // assert_eq!(columns, [""]);
-        // let columns = tables.get(1).unwrap().get_column_as_vec_str("metadata");
-        // assert_eq!(columns, [""]);
-        // let bytes = tables.get(1).unwrap().get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
-        // let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-        // assert_eq!(column, "");
+        // Extract the response
+        let tables = response
+            .into_iter()
+            .flat_map(|map| map.into_iter()
+                .filter_map(|(k,v)| if k.contains(diagnostic_session.session_context_name) {
+                    let table_name = v.get_subject().to_string();
+                    Some((k, TableBuilder::new_from_ipc_stream(&v.get_message_own())
+                        .unwrap()
+                        .with_name(table_name.as_str())
+                        .build()
+                        .unwrap()))
+                } else {
+                    None
+                })
+                .collect::<HashMap<_, _>>())
+            .collect::<HashMap<_, _>>();
+        let table_reading = tables.get(format!("from_{}_on_{}", diagnostic_session.session_context_name, DiagnosticsVisualizations::MetricProcessorTracesGantt).as_str()).unwrap();
+        let columns = table_reading.get_column_as_vec_str("filename");
+        assert_eq!(columns, ["MetricProcessorTracesGantt"]);
+        let columns = table_reading.get_column_as_vec_str("extension");
+        assert_eq!(columns, ["txt"]);
+        let columns = table_reading.get_column_as_vec_str("metadata");
+        assert_eq!(columns, ["assistant"]);
+        let bytes = table_reading.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+        let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+        assert_eq!(&column[..15], "\n        gantt\n");
+        let table_reading = tables.get(format!("from_{}_on_{}", diagnostic_session.session_context_name, DiagnosticsVisualizations::MetricElapsedComputeGantt).as_str()).unwrap();
+        let columns = table_reading.get_column_as_vec_str("filename");
+        assert_eq!(columns, ["MetricElapsedComputeGantt"]);
+        let columns = table_reading.get_column_as_vec_str("extension");
+        assert_eq!(columns, ["txt"]);
+        let columns = table_reading.get_column_as_vec_str("metadata");
+        assert_eq!(columns, ["assistant"]);
+        let bytes = table_reading.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+        let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+        assert_eq!(&column[..15], "\n        gantt\n");
+        let table_reading = tables.get(format!("from_{}_on_{}", diagnostic_session.session_context_name, DiagnosticsVisualizations::MetricOutputRowsGantt).as_str()).unwrap();
+        let columns = table_reading.get_column_as_vec_str("filename");
+        assert_eq!(columns, ["MetricOutputRowsGantt"]);
+        let columns = table_reading.get_column_as_vec_str("extension");
+        assert_eq!(columns, ["txt"]);
+        let columns = table_reading.get_column_as_vec_str("metadata");
+        assert_eq!(columns, ["assistant"]);
+        let bytes = table_reading.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+        let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+        assert_eq!(&column[..15], "\n        gantt\n");
+        let table_reading = tables.get(format!("from_{}_on_{}", diagnostic_session.session_context_name, DiagnosticsVisualizations::TraceSequenceDiagram).as_str()).unwrap();
+        let columns = table_reading.get_column_as_vec_str("filename");
+        assert_eq!(columns, ["TraceSequenceDiagram"]);
+        let columns = table_reading.get_column_as_vec_str("extension");
+        assert_eq!(columns, ["txt"]);
+        let columns = table_reading.get_column_as_vec_str("metadata");
+        assert_eq!(columns, ["assistant"]);
+        let bytes = table_reading.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+        let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+        assert_eq!(&column[..25], "\n        sequenceDiagram\n");
+        let table_reading = tables.get(format!("from_{}_on_{}", diagnostic_session.session_context_name, DiagnosticsVisualizations::EventKanban).as_str()).unwrap();
+        let columns = table_reading.get_column_as_vec_str("filename");
+        assert_eq!(columns, ["EventKanban"]);
+        let columns = table_reading.get_column_as_vec_str("extension");
+        assert_eq!(columns, ["txt"]);
+        let columns = table_reading.get_column_as_vec_str("metadata");
+        assert_eq!(columns, ["assistant"]);
+        let bytes = table_reading.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+        let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+        assert_eq!(&column[..16], "\n        kanban\n");
 
         {
             // Check the session

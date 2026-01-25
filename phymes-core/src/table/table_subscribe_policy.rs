@@ -268,12 +268,17 @@ impl TableSubscribePolicyTrait for ChatContentSubscribe {
         updates: &HashMap<String, bool>,
         _state: &StateMap,
     ) -> bool {
+        // DM: default to false to prevent unwanted subscriptions
         let user = updates.get(&self.user_message_table_name).unwrap_or(&false);
         let tool = updates.get(&self.tool_message_table_name).unwrap_or(&false);
         let error = updates
             .get(&self.error_message_table_name)
             .unwrap_or(&false);
-        *tool || *user || *error
+        // DM: assume the config is "other" which is always subscribed too
+        let config = !updates.contains_key(&self.user_message_table_name) 
+            && !updates.contains_key(&self.tool_message_table_name) 
+            && !updates.contains_key(&self.error_message_table_name);
+        *tool || *user || *error || config
     }
     fn new_box() -> Box<dyn TableSubscribePolicyTrait> {
         Box::new(Self {

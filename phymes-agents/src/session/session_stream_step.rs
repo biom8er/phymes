@@ -247,7 +247,7 @@ pub trait SessionStreamStepTrait {
     /// Get the next tasks to run using the [TasksSubscribePublishSession] pre-compiled tasks and [SessionContext] helpers
     fn get_tasks(
         session_context: &Arc<RwLock<SessionContext>>,
-    ) -> impl std::future::Future<Output = Result<HashMap<(String, String), ProcessorSubjectsMap>>> + Send
+    ) -> impl std::future::Future<Output = HashMap<(String, String), ProcessorSubjectsMap>> + Send
     {
         async move {
             // Check if there are tasks subscribe and publish available, and determine them if not
@@ -269,27 +269,33 @@ pub trait SessionStreamStepTrait {
                 .read()
                 .count_rows() == 0 {
                 let tasks_publish_subscribe_messages =
-                    TasksSubscribePublishSession::default().tasks_subscribe_publish_messages()?;
+                    TasksSubscribePublishSession::default().tasks_subscribe_publish_messages()
+                    .unwrap_or_else(|_err| {
+                    panic!("Missing pre-compiled tasks for `TasksSubscribePublishSession`.")
+                });
                 for (step, messages) in tasks_publish_subscribe_messages.into_iter().enumerate() {
                     if messages.is_empty() {
-                        session_context.read().tasks_subscribe()?;
+                        if let Err(_err) = session_context.read().tasks_subscribe() {
+                            return HashMap::<(String, String), ProcessorSubjectsMap>::new()
+                        }
                     } else {
-                        let _result = SessionStreamStepMinimal::run_superstep(
+                        if let Err(_err) = SessionStreamStepMinimal::run_superstep(
                             Arc::clone(session_context),
                             messages,
                             step,
                         )
-                        .await?;
+                        .await {
+                            return HashMap::<(String, String), ProcessorSubjectsMap>::new()
+                        }
                     }
                 }
             }
 
             // Return the tasks subscribe and publish if availabe or an empty map
-            let tasks = match session_context.read().tasks_subscribe_publish() {
+            match session_context.read().tasks_subscribe_publish() {
                 Ok(tasks) => tasks,
                 Err(_err) => HashMap::<(String, String), ProcessorSubjectsMap>::new(),
-            };
-            Ok(tasks)
+            }
         }
     }
 
@@ -473,7 +479,7 @@ impl SessionStreamStepTrait for SessionStreamStep {
         }
 
         // Retrieve the task subscriptions and corresponding publications
-        let tasks = Self::get_tasks(&session_context).await?;
+        let tasks = Self::get_tasks(&session_context).await;
 
         // Break if there is nothing to update
         if tasks.is_empty() {
@@ -539,6 +545,62 @@ impl SessionStreamStepTrait for SessionStreamStep {
 pub struct SessionStreamStepMinimal {}
 
 impl SessionStreamStepTrait for SessionStreamStepMinimal {
+
+    /// Minimal implementation of `join_message_streams` without intercepting Errors
+    fn join_message_streams(
+        messages: SendableRecordBatchStreamMessageMap,
+    ) -> impl std::future::Future<Output = Result<IPCMessageMap>> + Send {
+        async {
+            // Inspect each of the response futures
+            let mut response_builder = HashMap::<String, IPCMessageBuilder>::new();
+            let mut join_set = JoinSet::new();
+            messages.into_iter().for_each(|(resp_name, resp)| {
+                // Copy over name, source, destination for later building of the complete response
+                let message = IPCMessageBuilder::new()
+                    .with_name(resp_name.as_str())
+                    .with_subject(resp.get_subject())
+                    .with_publisher(resp.get_publisher())
+                    .with_update(resp.get_update());
+                let _ = response_builder.insert(resp_name.clone(), message);
+
+                // Spawn the future
+                join_set.spawn(async move {
+                    let result: Result<Vec<RecordBatch>> =
+                        resp.get_message_own().try_collect().await;
+                    (resp_name, result)
+                });
+            });
+
+            // Collect each of the response RecordBatches
+            let mut response_batches = HashMap::<String, IPCMessage>::new();
+            // Note that currently this doesn't identify the thread that panicked
+            //
+            // TODO: Replace with [join_next_with_id](https://docs.rs/tokio/latest/tokio/task/struct.JoinSet.html#method.join_next_with_id
+            // once it is stable
+            while let Some(response) = join_set.join_next().await {
+                // Check the response
+                let (resp_name, resp) = response?;
+                let batches = resp?;
+                let table = TableBuilder::new()
+                    .with_name(resp_name.as_str())
+                    .with_record_batches(batches)?
+                    .build()?;                
+                let message = response_builder
+                    .remove(resp_name.as_str())
+                    .unwrap()
+                    .with_message(table.to_ipc_stream()?)
+                    .build()?;
+
+                // Add the message to the joined responses
+                let message_map = message.to_map()?;
+                response_batches.extend(message_map);
+            }
+
+            Ok(response_batches)
+        }
+    }
+
+    /// Minimal implementation of `run_superstep` without error handling and diagnostics
     async fn run_superstep(
         session_context: Arc<RwLock<SessionContext>>,
         messages: IPCMessageMap,
@@ -560,12 +622,7 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
                 Self::run_tasks(&session_context, &subject_tasks, &mut None, &None)?;
 
             // Join each of the response futures
-            let subject_batches = match Self::join_message_streams(subject_streams).await {
-                Ok(subject_batches) => subject_batches,
-                Err(err) => {
-                    create_error_message_map(&err, session_context.read().get_name(), true)?
-                }
-            };
+            let subject_batches = Self::join_message_streams(subject_streams).await?;
 
             // Update the session context with the incoming messages
             if !subject_batches.is_empty() {

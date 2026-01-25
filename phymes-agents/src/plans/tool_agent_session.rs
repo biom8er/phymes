@@ -216,6 +216,9 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     table_name: self.chat_task_name.to_string(),
                 }])
                 .with_subscriptions(&[
+                    // TableSubscription::OnUpdateFullTable {
+                    //     table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                    // },
                     TableSubscription::AlwaysFullTable {
                         table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
@@ -225,6 +228,9 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     TableSubscription::OnUpdateLastRecordBatch {
                         table_name: AvailableSubjects::SessionErrors.to_string(),
                     },
+                    // TableSubscription::OnUpdateFullTable {
+                    //     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    // },
                     TableSubscription::AlwaysFullTable {
                         table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     },
@@ -233,6 +239,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     },
                 ])
                 .with_subscribe_policy(
+                    // AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
                     AvailableTableSubscribePolicies::ChatContentSubscribe.build(),
                 )
                 .build()
@@ -896,6 +903,17 @@ mod tests {
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
+
+            {
+                // Debug errors
+                let subjects_reading = session_ctx_arc.read();
+                let table_reading = subjects_reading
+                    .get_states()
+                    .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                    .unwrap()
+                    .read();
+                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            }
 
             // Update the chat history with the response
             let bytes = response

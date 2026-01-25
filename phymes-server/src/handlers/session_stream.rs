@@ -241,9 +241,9 @@ pub async fn session_stream(
                         })
                         .collect::<Vec<_>>();
                     let response = TableBuilder::new()
+                        .with_name("session_stream_response")
                         .with_record_batches(batches)
                         .unwrap()
-                        .with_name("")
                         .build()
                         .unwrap()
                         .concat_record_batches()
