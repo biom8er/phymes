@@ -20,7 +20,7 @@ use crate::{
     AvailableInterfaceSubjects, AvailableProcessors, SessionContext, SessionContextBuilder,
     SessionContextBuilderMermaidTrait, SessionContextBuilderTabularTrait,
     SessionContextBuilderTrait,
-    plans::{SubjectsNumRowsSession, TasksSubscribePublishSession},
+    plans::{SubjectsNumRowsSession, NextTaskSession},
 };
 
 type SessionContextInput = (
@@ -93,8 +93,8 @@ pub trait SessionContextBuilderAgentsTrait {
     /// Add tasks that dynamically compute the next set of tasks that are ready to subscribe to their subjects
     ///
     /// # Notes
-    /// * See [TasksSubscribePublishSession] for stand alone session and testing
-    fn add_tasks_subscribe_publish(self) -> Result<Self>
+    /// * See [NextTaskSession] for stand alone session and testing
+    fn add_next_tasks(self) -> Result<Self>
     where
         Self: Sized;
 }
@@ -962,22 +962,22 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         self.extend(other_builder)
     }
 
-    fn add_tasks_subscribe_publish(self) -> Result<Self>
+    fn add_next_tasks(self) -> Result<Self>
     where
         Self: Sized,
     {
         // Initialize the task subscribe and publish session
-        let tasks_publish_subscribe_session = TasksSubscribePublishSession::default();
+        let next_task_session = NextTaskSession::default();
         let other_builder = SessionContextBuilder::from_mermaid_flowchart(
-            tasks_publish_subscribe_session.as_mermaid_flowchart(),
+            next_task_session.as_mermaid_flowchart(),
             false,
         )?
         .with_state_from_mermaid_erdiagram(
-            tasks_publish_subscribe_session.as_mermaid_erdiagram(),
+            next_task_session.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(tasks_publish_subscribe_session.session_context_name)
+        .with_name(next_task_session.session_context_name)
         .add_processor_subjects()?;
 
         // Extend the current session context builder

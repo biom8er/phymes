@@ -21,7 +21,7 @@ use phymes_diagnostics::{HashSet, create_timestamp_micros};
 use crate::{
     AvailableProcessors, SessionContextBuilder, SessionContextBuilderAgentsTrait,
     SessionContextBuilderMermaidTrait, SessionContextBuilderTrait,
-    plans::{SubjectsNumRowsSession, TasksSubscribePublishSession},
+    plans::{SubjectsNumRowsSession, NextTaskSession},
 };
 
 /// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from tabular format
@@ -235,17 +235,17 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         };
 
         // Tables to exclude
-        let tasks_publish_subscribe_session = TasksSubscribePublishSession::default();
+        let next_task_session = NextTaskSession::default();
         let tables_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
-            tasks_publish_subscribe_session.as_mermaid_flowchart(),
+            next_task_session.as_mermaid_flowchart(),
             false,
         )?
         .with_state_from_mermaid_erdiagram(
-            tasks_publish_subscribe_session.as_mermaid_erdiagram(),
+            next_task_session.as_mermaid_erdiagram(),
             false,
             false,
         )?
-        .with_name(tasks_publish_subscribe_session.session_context_name)
+        .with_name(next_task_session.session_context_name)
         .add_processor_subjects()?
         .state
         .unwrap()
@@ -488,9 +488,9 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         };
 
         // Tasks to exclude
-        let tasks_publish_subscribe_session = TasksSubscribePublishSession::default();
+        let next_task_session = NextTaskSession::default();
         let tasks_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
-            tasks_publish_subscribe_session.as_mermaid_flowchart(),
+            next_task_session.as_mermaid_flowchart(),
             false,
         )?
         .tasks
@@ -545,17 +545,17 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
 
         // Tables to exclude
-        let tasks_publish_subscribe_session = TasksSubscribePublishSession::default();
+        let next_task_session = NextTaskSession::default();
         let tables_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
-            tasks_publish_subscribe_session.as_mermaid_flowchart(),
+            next_task_session.as_mermaid_flowchart(),
             false,
         )?
         .with_state_from_mermaid_erdiagram(
-            tasks_publish_subscribe_session.as_mermaid_erdiagram(),
+            next_task_session.as_mermaid_erdiagram(),
             false,
             false,
         )?
-        .with_name(tasks_publish_subscribe_session.session_context_name)
+        .with_name(next_task_session.session_context_name)
         .add_processor_subjects()?
         .state
         .unwrap()
@@ -626,9 +626,9 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         };
 
         // Tasks to exclude
-        let tasks_publish_subscribe_session = TasksSubscribePublishSession::default();
+        let next_task_session = NextTaskSession::default();
         let tables_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
-            tasks_publish_subscribe_session.as_mermaid_flowchart(),
+            next_task_session.as_mermaid_flowchart(),
             false,
         )?
         .tasks

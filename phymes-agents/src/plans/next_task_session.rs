@@ -9,23 +9,23 @@ use phymes_diagnostics::HashMap;
 use crate::create_message_map;
 
 /// A session for determining the next superstep task publications and subscriptions
-pub struct TasksSubscribePublishSession<'a> {
+pub struct NextTaskSession<'a> {
     /// Session
     pub session_context_name: &'a str,
 }
 
-impl Default for TasksSubscribePublishSession<'_> {
+impl Default for NextTaskSession<'_> {
     fn default() -> Self {
-        TasksSubscribePublishSession {
-            session_context_name: "tasks_publish_subscribe_session",
+        NextTaskSession {
+            session_context_name: "next_task_session",
         }
     }
 }
 
-impl<'a> TasksSubscribePublishSession<'a> {
+impl<'a> NextTaskSession<'a> {
     /// Create a new session with a name
     pub fn new_with_session_name(session_context_name: &'a str) -> Self {
-        TasksSubscribePublishSession {
+        NextTaskSession {
             session_context_name,
         }
     }
@@ -934,19 +934,19 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_tasks_subscribe_publish_session() -> Result<()> {
+    async fn test_next_task_session() -> Result<()> {
         // Initialize the session
-        let tasks_publish_subscribe_session = TasksSubscribePublishSession::default();
+        let next_task_session = NextTaskSession::default();
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
-            tasks_publish_subscribe_session.as_mermaid_flowchart(),
+            next_task_session.as_mermaid_flowchart(),
             false,
         )?
         .with_state_from_mermaid_erdiagram(
-            tasks_publish_subscribe_session.as_mermaid_erdiagram(),
+            next_task_session.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(tasks_publish_subscribe_session.session_context_name)
+        .with_name(next_task_session.session_context_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .with_max_iter(1) // DM: prevent continued execution after the final superstep for testing
@@ -988,7 +988,7 @@ mod tests {
                 .with_update(&TablePublication::Replace {
                     table_name: AvailableSubjects::SessionProcessors.to_string(),
                 })
-                .with_publisher(tasks_publish_subscribe_session.session_context_name)
+                .with_publisher(next_task_session.session_context_name)
                 .make_name()?
                 .build()?;
             let table = session_ctx_reading
@@ -1002,7 +1002,7 @@ mod tests {
                 .with_update(&TablePublication::Replace {
                     table_name: AvailableSubjects::SessionTasks.to_string(),
                 })
-                .with_publisher(tasks_publish_subscribe_session.session_context_name)
+                .with_publisher(next_task_session.session_context_name)
                 .make_name()?
                 .build()?;
             let table = session_ctx_reading
@@ -1016,7 +1016,7 @@ mod tests {
                 .with_update(&TablePublication::Replace {
                     table_name: AvailableSubjects::SessionTasksRunLog.to_string(),
                 })
-                .with_publisher(tasks_publish_subscribe_session.session_context_name)
+                .with_publisher(next_task_session.session_context_name)
                 .make_name()?
                 .build()?;
             let table = session_ctx_reading
@@ -1030,7 +1030,7 @@ mod tests {
                 .with_update(&TablePublication::Replace {
                     table_name: AvailableSubjects::SubjectsChangeLog.to_string(),
                 })
-                .with_publisher(tasks_publish_subscribe_session.session_context_name)
+                .with_publisher(next_task_session.session_context_name)
                 .make_name()?
                 .build()?;
             create_message_map(vec![
@@ -1041,7 +1041,7 @@ mod tests {
             ])
         };
 
-        let mut tasks_publish_subscribe_messages = tasks_publish_subscribe_session
+        let mut tasks_publish_subscribe_messages = next_task_session
             .as_task_messages()?
             .into_iter()
             .rev()

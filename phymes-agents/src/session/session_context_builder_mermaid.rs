@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait,
     SessionContextBuilderTrait,
-    plans::{AvailableProcessors, TasksSubscribePublishSession, check_agent_subjects},
+    plans::{AvailableProcessors, NextTaskSession, check_agent_subjects},
 };
 use anyhow::{Result, anyhow};
 use arrow::{
@@ -124,17 +124,17 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         let mut runtime_envs_exclude = HashSet::new();
         let mut subjects_exclude = HashSet::new();
         if !with_tasks_subscribe_publish {
-            let tasks_publish_subscribe_session = TasksSubscribePublishSession::default();
+            let next_task_session = NextTaskSession::default();
             let tasks_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
-                tasks_publish_subscribe_session.as_mermaid_flowchart(),
+                next_task_session.as_mermaid_flowchart(),
                 false,
             )?
             .with_state_from_mermaid_erdiagram(
-                tasks_publish_subscribe_session.as_mermaid_erdiagram(),
+                next_task_session.as_mermaid_erdiagram(),
                 false,
                 false,
             )?
-            .with_name(tasks_publish_subscribe_session.session_context_name)
+            .with_name(next_task_session.session_context_name)
             .add_processor_subjects()?;
             if let Some(tasks) = tasks_publish_subscribe.tasks {
                 for task in tasks {
@@ -1461,7 +1461,7 @@ mod tests {
         let builder =
             test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
                 .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?
-                .add_tasks_subscribe_publish()?;
+                .add_next_tasks()?;
 
         // Test to flowchart
         let mermaid_js = builder.to_mermaid_flowchart(false, false, false)?;

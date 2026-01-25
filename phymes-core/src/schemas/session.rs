@@ -559,3 +559,19 @@ pub fn create_session_supersteps_batch(
     ])?;
     Ok(batch)
 }
+
+pub(crate) fn create_session_superstep_max_fields() -> Fields {
+    let field_names = ["session_name"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let field_names = ["superstep-Max"];
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::UInt32, false))
+            .collect::<Vec<_>>(),
+    );
+    Fields::from(fields_vec)
+}

@@ -1879,7 +1879,7 @@ mod tests {
                 DiagnosticsVisualizations::EventKanban.to_string().as_str(),
                 DiagnosticsVisualizations::ErrorKanban.to_string().as_str(),
             ]))?
-            .add_tasks_subscribe_publish()?
+            .add_next_tasks()?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
@@ -1889,7 +1889,7 @@ mod tests {
             let session_context = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 2)?
                 .with_diagnostics(true)
                 .add_session_interface(Some(&["state_1"]))?
-                .add_tasks_subscribe_publish()?
+                .add_next_tasks()?
                 .build_with_tables()?;
 
             // Mimic a session run for 1 steps

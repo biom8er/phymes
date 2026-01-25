@@ -6,10 +6,10 @@ mod chat_agent_session;
 mod diagnostic_session;
 mod document_rag_session;
 mod subjects_num_rows_session;
-mod tasks_subscribe_publish_session;
+mod next_task_session;
 mod tool_agent_session;
 mod user_session;
-mod track_superstep_session;
+mod next_superstep_session;
 
 pub use available_interface_subjects::{
     AvailableInterfaceSubjects, check_agent_subjects, create_message_map,
@@ -21,7 +21,8 @@ pub use chat_agent_session::ChatAgentSession;
 pub use diagnostic_session::DiagnosticSession;
 pub use document_rag_session::DocumentRAGSession;
 pub(crate) use subjects_num_rows_session::SubjectsNumRowsSession;
-pub(crate) use tasks_subscribe_publish_session::TasksSubscribePublishSession;
+pub(crate) use next_task_session::NextTaskSession;
+pub(crate) use next_superstep_session::NextSuperstepSession;
 pub use tool_agent_session::ToolAgentSession;
 pub use user_session::UserSession;
 #[allow(unused_imports)]

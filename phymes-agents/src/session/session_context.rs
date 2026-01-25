@@ -3,13 +3,7 @@ use arrow::datatypes::SchemaRef;
 use clap::ValueEnum;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies,
-    AvailableTableUpdatePolicies, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap,
-    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjects, ProcessorSubjectsBuilder,
-    ProcessorSubjectsMap, RuntimeEnv, StateMap, Table, TableBuilder, TableBuilderTrait,
-    TablePublication, TablePublicationTrait, TableSubscription, TableTrait, TaskMap,
-    create_session_tasks_subscribe_batch, create_subjects_change_log_batch,
-    create_subjects_num_rows_batch, from_diagnostics_to_tables,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, RuntimeEnv, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableSubscription, TableTrait, TaskMap, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_diagnostics_to_tables
 };
 use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
 use std::sync::Arc;
@@ -619,6 +613,54 @@ impl SessionContext {
         self.diagnostics
     }
 
+    /// Increment the session superstep
+    pub fn increment_superstep(&self) -> Result<u32> {
+        let next_superstep = self.current_superstep()? + 1;
+        let session_names = [self.get_name()].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let supersteps = vec![next_superstep];
+        let batch = create_session_supersteps_batch(session_names, supersteps)?;
+        let table = Table::get_builder()
+            .with_name(AvailableSubjects::SessionSupersteps.to_string().as_str())
+            .with_record_batches(vec![batch])?
+            .build()?;
+        let superstep_message = IPCMessageBuilder::default()
+            .with_message(table.to_ipc_stream()?)
+            .with_subject(AvailableSubjects::SessionSupersteps.to_string().as_str())
+            .with_update(&TablePublication::Extend {
+                table_name: AvailableSubjects::SessionSupersteps.to_string(),
+            })
+            .with_publisher(self.get_name())
+            .make_name()?
+            .build()?;
+        let messages = create_message_map(vec![superstep_message]);
+        let _ = self.update_subjects_from_messages(messages)?;
+        Ok(next_superstep)
+    }
+
+    /// Get the current session superstep
+    pub fn current_superstep(&self) -> Result<u32> {
+        let current_superstep = self
+            .get_states()
+            .get(
+                AvailableSubjects::SessionSuperstepMax
+                    .to_string()
+                    .as_str(),
+            )
+            .unwrap_or_else(|| {
+                panic!(
+                    "Missing table for `{}` in session `{}`.",
+                    AvailableSubjects::SessionSuperstepMax,
+                    self.get_name()
+                )
+            })
+            .read()
+            .get_column_as_vec_primitive::<u32>("superstep-Max")?
+            .last()
+            .unwrap_or(&0)
+            .to_owned();
+        Ok(current_superstep)
+    }
+
     /// Update the row counts for the subjects
     pub fn update_subject_num_rows_table(&mut self) {
         let mut subject_names = Vec::new();
@@ -740,6 +782,7 @@ impl SessionContext {
         let mut session_names = Vec::new();
         let mut num_rows_deltas = Vec::new();
         let mut timestamps = Vec::new();
+        let step = self.current_superstep()?;
         for (_name, message) in messages.into_iter() {
             // Should the subject be updated?
             let update = message.get_update().clone();
@@ -770,7 +813,7 @@ impl SessionContext {
                 task_names.push(publisher);
                 session_names.push(self.get_name().to_string());
                 num_rows_deltas.push(num_rows_new as i64 - num_rows_old as i64);
-                timestamps.push(create_timestamp_micros());
+                timestamps.push(step as i64);
             } else {
                 // Mismatch in table names of the update and state
                 return Err(anyhow!(

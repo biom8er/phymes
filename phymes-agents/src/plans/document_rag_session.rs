@@ -1081,7 +1081,7 @@ mod tests {
             .build()
             .with_name(doc_rag_session.session_context_name)
             .add_session_interface(None)?
-            .add_tasks_subscribe_publish()?
+            .add_next_tasks()?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 

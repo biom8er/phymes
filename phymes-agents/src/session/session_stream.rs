@@ -39,7 +39,6 @@ impl SessionStream {
         > = Some(Box::pin(SessionStreamStep::run_superstep(
             Arc::clone(&session_context),
             messages,
-            step,
         )));
 
         Self {
@@ -75,7 +74,6 @@ impl Stream for SessionStream {
             self.next_step = Some(Box::pin(SessionStreamStep::run_superstep(
                 Arc::clone(&self.session_context),
                 HashMap::<String, IPCMessage>::new(),
-                self.step,
             )));
             self.step += 1;
 
@@ -120,7 +118,7 @@ mod tests {
         let session_context = make_test_session_context_builder_sequential("session_1", 2)?
             .with_diagnostics(true)
             .add_session_interface(Some(&["state_1"]))?
-            .add_tasks_subscribe_publish()?
+            .add_next_tasks()?
             .build_with_tables()?;
         let input = make_test_input_message(
             "task_1",

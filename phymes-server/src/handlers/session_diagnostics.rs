@@ -218,7 +218,7 @@ pub async fn session_diagnostics(
                     DiagnosticsVisualizations::ErrorKanban.to_string().as_str(),
                 ]))
                 .unwrap()
-                .add_tasks_subscribe_publish()
+                .add_next_tasks()
                 .unwrap()
                 .build_with_tables()
                 .unwrap();

@@ -11,13 +11,13 @@ use phymes_core::{
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap, Span,
-    SpanBuilder, TraceBuilderTrait, TraceRecord, create_timestamp_micros,
+    SpanBuilder, TraceBuilderTrait, TraceRecord,
 };
 use std::sync::Arc;
 use tokio::task::JoinSet;
 use tracing::{Level, event};
 
-use crate::{SessionContext, create_message_map, plans::TasksSubscribePublishSession};
+use crate::{SessionContext, create_message_map, plans::{NextSuperstepSession, NextTaskSession}};
 
 /// Traits for running a static or dynamic [SessionStream] step
 ///
@@ -72,7 +72,6 @@ pub trait SessionStreamStepTrait {
     ///
     /// * `session_context` - [SessionContext] to use while running the current session stream super step
     /// * `messages` - [IPCMessageMap] input messages for the superstep
-    /// * `step` - The current step of the session stream supersteps
     ///
     /// # Returns
     ///
@@ -80,14 +79,13 @@ pub trait SessionStreamStepTrait {
     fn run_superstep(
         session_context: Arc<RwLock<SessionContext>>,
         messages: IPCMessageMap,
-        step: usize,
     ) -> impl std::future::Future<Output = Result<Option<IPCMessageMap>>> + Send;
 
     /// Enter the superstep span generating the [Span], [TraceRecord], and [Diagnostics]
     fn enter_span(
         subject_messages: &IPCMessageMap,
         session_context: &Arc<RwLock<SessionContext>>,
-        step: usize,
+        step: u32,
     ) -> Result<(Vec<Diagnostics>, Span, TraceRecord)> {
         // Create the span for the session
         let span = SpanBuilder::default()
@@ -197,11 +195,12 @@ pub trait SessionStreamStepTrait {
         tasks: HashMap<(String, String), ProcessorSubjectsMap>,
     ) -> Result<()> {
         // Create the tasks run log message
+        let step = session_context.read().current_superstep()?;
         let session_context_name = session_context.read().get_name().to_string();
         let (session_names, (task_names, timestamps)): (Vec<_>, (Vec<_>, Vec<_>)) = tasks
             .into_iter()
             .map(|((task_name, session_name), _)| {
-                (session_name, (task_name, create_timestamp_micros()))
+                (session_name, (task_name, step as i64))
             })
             .unzip();
         let tasks_run_log_batch =
@@ -244,8 +243,37 @@ pub trait SessionStreamStepTrait {
         Ok(())
     }
 
-    /// Get the next tasks to run using the [TasksSubscribePublishSession] pre-compiled tasks and [SessionContext] helpers
-    fn get_tasks(
+    /// Get the next superstep using the [NextSuperstepSession] pre-compiled tasks and [SessionContext] helpers
+    fn next_superstep(
+        session_context: &Arc<RwLock<SessionContext>>,
+    ) -> impl std::future::Future<Output = u32> + Send
+    {
+        async move {
+            // Compute the current superstep
+            let next_superstep_messages = NextSuperstepSession::default().as_task_messages()
+                .unwrap_or_else(|_err| {
+                panic!("Missing pre-compiled tasks for `NextSuperstepSession`.")
+            });
+            for messages in next_superstep_messages.into_iter() {
+                if let Err(_err) = SessionStreamStepMinimal::run_superstep(
+                    Arc::clone(session_context),
+                    messages,
+                )
+                .await {
+                    return 0
+                }
+            }
+
+            // Increment and return the next superstep
+            match session_context.read().current_superstep() {
+                Ok(current_superstep) => current_superstep,
+                Err(_err) => 0,
+            }
+        }
+    }
+
+    /// Get the next tasks to run using the [NextTaskSession] pre-compiled tasks and [SessionContext] helpers
+    fn next_tasks(
         session_context: &Arc<RwLock<SessionContext>>,
     ) -> impl std::future::Future<Output = HashMap<(String, String), ProcessorSubjectsMap>> + Send
     {
@@ -268,12 +296,12 @@ pub trait SessionStreamStepTrait {
                 })
                 .read()
                 .count_rows() == 0 {
-                let tasks_publish_subscribe_messages =
-                    TasksSubscribePublishSession::default().as_task_messages()
+                let next_task_messages =
+                    NextTaskSession::default().as_task_messages()
                     .unwrap_or_else(|_err| {
-                    panic!("Missing pre-compiled tasks for `TasksSubscribePublishSession`.")
+                    panic!("Missing pre-compiled tasks for `NextTaskSession`.")
                 });
-                for (step, messages) in tasks_publish_subscribe_messages.into_iter().enumerate() {
+                for messages in next_task_messages.into_iter() {
                     if messages.is_empty() {
                         if let Err(_err) = session_context.read().tasks_subscribe() {
                             return HashMap::<(String, String), ProcessorSubjectsMap>::new()
@@ -282,7 +310,6 @@ pub trait SessionStreamStepTrait {
                         if let Err(_err) = SessionStreamStepMinimal::run_superstep(
                             Arc::clone(session_context),
                             messages,
-                            step,
                         )
                         .await {
                             return HashMap::<(String, String), ProcessorSubjectsMap>::new()
@@ -462,8 +489,10 @@ impl SessionStreamStepTrait for SessionStreamStep {
     async fn run_superstep(
         session_context: Arc<RwLock<SessionContext>>,
         messages: IPCMessageMap,
-        step: usize,
     ) -> Result<Option<IPCMessageMap>> {
+        // Get the next superstep
+        let step = Self::next_superstep(&session_context).await;
+
         // Start the diagnostics
         let (mut diagnostics_vec, span, trace) = if session_context.read().get_diagnostics() {
             let (diagnostics_vec, span, trace) =
@@ -479,7 +508,7 @@ impl SessionStreamStepTrait for SessionStreamStep {
         }
 
         // Retrieve the task subscriptions and corresponding publications
-        let tasks = Self::get_tasks(&session_context).await;
+        let tasks = Self::next_tasks(&session_context).await;
 
         // Break if there is nothing to update
         if tasks.is_empty() {
@@ -520,6 +549,9 @@ impl SessionStreamStepTrait for SessionStreamStep {
                     create_error_message_map(&err, session_context.read().get_name(), true)?
                 }
             };
+
+            // Increment the superstep
+            let step = session_context.read().increment_superstep()?;
 
             // Update the session context with the incoming messages
             if !subject_batches.is_empty() {
@@ -604,7 +636,6 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
     async fn run_superstep(
         session_context: Arc<RwLock<SessionContext>>,
         messages: IPCMessageMap,
-        _step: usize,
     ) -> Result<Option<IPCMessageMap>> {
         // Update the session context with the incoming messages
         if !messages.is_empty() {
@@ -653,7 +684,7 @@ mod tests {
     async fn test_session_run_superstep_no_state_update() -> Result<()> {
         let session_context = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 4)?
             .with_diagnostics(true)
-            .add_tasks_subscribe_publish()?
+            .add_next_tasks()?
             .build_with_tables()?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let response = SessionStreamStep::run_superstep(
@@ -666,7 +697,6 @@ mod tests {
                 &TablePublication::None,
                 true,
             )?,
-            0,
         )
         .await?;
         assert!(response.is_none());
@@ -825,7 +855,7 @@ mod tests {
     async fn test_session_run_superstep_extend_state_update_single_task() -> Result<()> {
         let session_context = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 4)?
             .with_diagnostics(true)
-            .add_tasks_subscribe_publish()?
+            .add_next_tasks()?
             .build_with_tables()?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let response = SessionStreamStep::run_superstep(
@@ -840,7 +870,6 @@ mod tests {
                 },
                 true,
             )?,
-            0,
         )
         .await?
         .unwrap();
@@ -1000,7 +1029,7 @@ mod tests {
     async fn test_session_run_superstep_replace_state_update_single_task() -> Result<()> {
         let session_context = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 4)?
             .with_diagnostics(true)
-            .add_tasks_subscribe_publish()?
+            .add_next_tasks()?
             .build_with_tables()?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let response = SessionStreamStep::run_superstep(
@@ -1015,7 +1044,6 @@ mod tests {
                 },
                 true,
             )?,
-            0,
         )
         .await?
         .unwrap();
@@ -1177,7 +1205,7 @@ mod tests {
         let session_context = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 4)?
             .with_diagnostics(true)
             .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?
-            .add_tasks_subscribe_publish()?
+            .add_next_tasks()?
             .build_with_tables()?;
         let mut input = test_task::make_test_input_message(
             "task_1",
@@ -1211,7 +1239,7 @@ mod tests {
         )?);
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let mut response =
-            SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input, 0)
+            SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input)
                 .await?
                 .unwrap();
         assert_eq!(response.len(), 3);
@@ -1519,7 +1547,6 @@ mod tests {
         let mut response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
             HashMap::<String, IPCMessage>::new(),
-            0,
         )
         .await?
         .unwrap();
@@ -1835,7 +1862,7 @@ mod tests {
         let session_context = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 4)?
             .with_diagnostics(true)
             .add_session_interface(Some(&["state_1"]))?
-            .add_tasks_subscribe_publish()?
+            .add_next_tasks()?
             .build_with_tables()?;
         let input = test_task::make_test_input_message(
             "task_1",
@@ -1849,7 +1876,7 @@ mod tests {
         )?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let mut response =
-            SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input, 0)
+            SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input)
                 .await?
                 .unwrap();
 
@@ -2021,7 +2048,6 @@ mod tests {
         let mut response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
             HashMap::<String, IPCMessage>::new(),
-            1,
         )
         .await?
         .unwrap();
@@ -2171,7 +2197,7 @@ mod tests {
     async fn test_session_run_superstep_schema_mismatch_error() -> Result<()> {
         let session_context = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 4)?
             .with_diagnostics(true)
-            .add_tasks_subscribe_publish()?
+            .add_next_tasks()?
             .build_with_tables()?;
         let input = test_task::make_test_input_message(
             "task_1",
@@ -2185,7 +2211,7 @@ mod tests {
         )?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let response =
-            SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input, 0).await;
+            SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input).await;
         assert!(response.is_err());
 
         Ok(())
@@ -2264,7 +2290,7 @@ mod tests {
             .with_state(state)
             .with_max_iter(1)
             .with_diagnostics(true)
-            .add_tasks_subscribe_publish()?
+            .add_next_tasks()?
             .build_with_tables()?;
 
         // Run the session context
@@ -2279,7 +2305,7 @@ mod tests {
             true,
         )?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input, 0)
+        let response = SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input)
             .await?
             .unwrap();
 

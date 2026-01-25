@@ -101,7 +101,7 @@ impl AvailableSessionPlans {
             .with_diagnostics(true)
             .add_session_interface(None)
             .unwrap()
-            .add_tasks_subscribe_publish()
+            .add_next_tasks()
             .unwrap()
             .build_with_tables()
             .unwrap();
