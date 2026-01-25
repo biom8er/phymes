@@ -530,3 +530,32 @@ pub fn create_session_tasks_subscribe_publish_batch(
     ])?;
     Ok(batch)
 }
+
+pub(crate) fn create_session_supersteps_fields() -> Fields {
+    let field_names = ["session_name"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let field_names = ["superstep"];
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::UInt32, false))
+            .collect::<Vec<_>>(),
+    );
+    Fields::from(fields_vec)
+}
+
+pub fn create_session_supersteps_batch(
+    session_names: Vec<String>,
+    supersteps: Vec<u32>,
+) -> Result<RecordBatch> {
+    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let supersteps: ArrayRef = Arc::new(UInt32Array::from(supersteps));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("session_name", session_names),
+        ("superstep", supersteps),
+    ])?;
+    Ok(batch)
+}

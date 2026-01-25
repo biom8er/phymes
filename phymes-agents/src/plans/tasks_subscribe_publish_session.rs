@@ -37,7 +37,7 @@ impl<'a> TasksSubscribePublishSession<'a> {
     /// * Message 3 is empty and is meant to trigger `tasks_subscribe` method of [SessionContext]
     ///
     /// [SessionContext]: crate::SessionContext
-    pub fn tasks_subscribe_publish_messages(&self) -> Result<Vec<IPCMessageMap>> {
+    pub fn as_task_messages(&self) -> Result<Vec<IPCMessageMap>> {
         // 1. Message to trigger the first superstep
         let task_names = vec![
             "group_by_tasks_run_log_timestamp_t",
@@ -1042,7 +1042,7 @@ mod tests {
         };
 
         let mut tasks_publish_subscribe_messages = tasks_publish_subscribe_session
-            .tasks_subscribe_publish_messages()?
+            .as_task_messages()?
             .into_iter()
             .rev()
             .collect::<Vec<_>>();

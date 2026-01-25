@@ -438,6 +438,7 @@ pub fn group_by(
     agg_operators: &[DataAggregatorOperator],
     device: &Device,
 ) -> Result<RecordBatch> {
+    // todo!(): need to account for the case of no `lhs_values`
     // Presort the lhs group by columns
     let mut lhs_sorted = RecordBatch::new_empty(Arc::new(Schema::empty()));
     for (iter, column_name) in lhs_values.iter().enumerate() {

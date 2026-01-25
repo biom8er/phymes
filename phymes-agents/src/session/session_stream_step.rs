@@ -269,7 +269,7 @@ pub trait SessionStreamStepTrait {
                 .read()
                 .count_rows() == 0 {
                 let tasks_publish_subscribe_messages =
-                    TasksSubscribePublishSession::default().tasks_subscribe_publish_messages()
+                    TasksSubscribePublishSession::default().as_task_messages()
                     .unwrap_or_else(|_err| {
                     panic!("Missing pre-compiled tasks for `TasksSubscribePublishSession`.")
                 });
