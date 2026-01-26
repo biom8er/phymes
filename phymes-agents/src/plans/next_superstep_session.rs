@@ -152,15 +152,13 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait,
-        TablePublication, TableTrait, create_session_subjects_batch,
-        create_session_supersteps_batch, test_task,
+        TablePublication, TableTrait, create_session_supersteps_batch,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
         SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait,
-        create_message_map, test_session_context_builder,
+        SessionContextBuilderTrait, SessionStream, create_message_map,
     };
 
     use super::*;

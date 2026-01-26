@@ -1860,7 +1860,7 @@ mod tests {
     use phymes_diagnostics::{HashMap, HashSet};
 
     use crate::{
-        SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderAgentsTrait,
         SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait,
         create_message_map, test_session_context_builder,
     };
@@ -2756,28 +2756,13 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            // let table_reading = subjects_reading
-            //     .get_states()
-            //     .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-            //     .unwrap()
-            //     .read();
-            // println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            // let table_reading = subjects_reading
-            //     .get_states()
-            //     .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-            //     .unwrap()
-            //     .read();
-            // println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
         }
 
         // Check the response
         let keys = response
             .iter()
             .flat_map(|m| {
-                m.keys()
-                    .into_iter()
-                    .map(|k| k.to_string())
-                    .collect::<Vec<_>>()
+                m.keys().map(|k| k.to_string()).collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
         assert_eq!(keys.len(), 5);
