@@ -321,13 +321,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 t.processor_names
                     .iter()
                     .map(|p| {
-                        ((
+                        (
                             (
                                 (session_name.to_string(), t.task_name.to_string()),
                                 p.to_string(),
                             ),
                             t.runtime_env_name.to_string(),
-                        ))
+                        )
                     })
                     .collect::<Vec<_>>()
             })

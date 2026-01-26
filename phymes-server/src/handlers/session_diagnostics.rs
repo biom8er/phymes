@@ -311,7 +311,7 @@ pub async fn session_diagnostics(
                     // Convert the output to IPC messages
                     // DM: the bytes cannot be flattened and then read as a single table
                     //  because the reader will break at the end of the first batch encountered!
-                    let mut response: Vec<HashMap<String, IPCMessage>> =
+                    let response: Vec<HashMap<String, IPCMessage>> =
                         session_stream.try_collect().await.unwrap();
                     let batches = response
                         .into_iter()

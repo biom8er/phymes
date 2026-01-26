@@ -15,7 +15,7 @@ use bytes::Bytes;
 use phymes_agents::{SessionStreamStep, SessionStreamStepTrait, create_message_map};
 use phymes_core::{
     BuilderTrait, CsvFormat, DataFormat, IPCMessageBuilder,
-    JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait,
+    JoinUserInboxSessionContextsMermaidDiagrams, MessageBuilderTrait, MessageTrait,
     SessionInterfaceMessage, SessionInterfaceMessageTrait, TableBuilder, TableBuilderTrait,
     TableTrait,
 };

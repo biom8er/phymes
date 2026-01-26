@@ -11,7 +11,7 @@ use phymes_core::{
     create_session_supersteps_batch, create_session_tasks_subscribe_batch,
     create_subjects_change_log_batch, create_subjects_num_rows_batch, from_diagnostics_to_tables,
 };
-use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
+use phymes_diagnostics::{Diagnostics, HashMap};
 use std::sync::Arc;
 use tracing::{Level, event};
 
