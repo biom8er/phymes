@@ -286,7 +286,7 @@ pub(crate) fn create_session_tasks_subscribe_aggregate_fields() -> Fields {
             .collect::<Vec<_>>(),
     );
     let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Int64, false)));
-    let field_names = ["timestamp-List", "timestamp-Last-List"];
+    let field_names = ["timestamp-List", "timestamp-Max-List"];
     fields_vec.extend(
         field_names
             .iter()
@@ -362,7 +362,7 @@ pub fn create_session_tasks_subscribe_aggregate_batch(
         ("subscription_name-List", subscription_names),
         ("subscription_table_name-List", subscription_table_names),
         ("timestamp-List", timestamps),
-        ("timestamp-Last-List", timestamp_lasts),
+        ("timestamp-Max-List", timestamp_lasts),
     ])?;
     Ok(batch)
 }

@@ -98,10 +98,13 @@ impl AvailableSessionPlans {
         let builder = self.get_session_context_builder(session_name);
         let session_ctx = builder
             .with_name(session_name)
+            .with_max_iter(50)
             .with_diagnostics(true)
             .add_session_interface(None)
             .unwrap()
             .add_next_tasks()
+            .unwrap()
+            .add_next_supersteps()
             .unwrap()
             .build_with_tables()
             .unwrap();

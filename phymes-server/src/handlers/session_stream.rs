@@ -85,9 +85,7 @@ pub async fn session_stream(
                 .unwrap()
                 .get(payload.get_session_name())
             {
-                // Continue an existing session
                 Some(session) => Arc::clone(session),
-                // Create new session
                 None => {
                     return JsonError::new("Failed to get the session stream state".to_string())
                         .to_response(StatusCode::INTERNAL_SERVER_ERROR);

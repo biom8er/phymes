@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 // Server related imports
 use axum::{
     Extension,
@@ -10,7 +12,7 @@ use axum::{
 // General imports
 use anyhow::Result;
 use bytes::Bytes;
-use phymes_agents::create_message_map;
+use phymes_agents::{SessionStreamStep, SessionStreamStepTrait, create_message_map};
 use phymes_core::{
     BuilderTrait, CsvFormat, DataFormat, IPCMessageBuilder,
     JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait,
@@ -71,126 +73,109 @@ pub async fn session_put_state(
                 }
             }
 
-            match state
+            let session_ctx_arc = match state
                 .session_contexts
                 .try_write()
                 .unwrap()
                 .get(payload.get_session_name())
             {
-                Some(session_ctx_arc) => {
-                    let schema = if let Some(subject) = session_ctx_arc
-                        .try_read()
-                        .unwrap()
-                        .get_states()
-                        .get(payload.get_subject())
-                    {
-                        subject.try_read().unwrap().get_schema()
-                    } else {
-                        return JsonError::new(
-                            "Failed to get the session stream state".to_string(),
-                        )
-                        .to_response(StatusCode::INTERNAL_SERVER_ERROR);
-                    };
-                    let bytes = match payload.get_format() {
-                        DataFormat::Csv(csv_format) => TableBuilder::new()
-                            .with_schema(schema)
-                            .with_name(payload.get_subject())
-                            .with_csv(
-                                payload.get_message(),
-                                csv_format.delimiter,
-                                csv_format.header,
-                                csv_format.batch_size,
-                            )
-                            .unwrap()
-                            .build()
-                            .unwrap()
-                            .to_ipc_stream()
-                            .unwrap(),
-                        DataFormat::CsvDefault => {
-                            let csv_format = CsvFormat::default();
-                            TableBuilder::new()
-                                .with_schema(schema)
-                                .with_name(payload.get_subject())
-                                .with_csv(
-                                    payload.get_message(),
-                                    csv_format.delimiter,
-                                    csv_format.header,
-                                    csv_format.batch_size,
-                                )
-                                .unwrap()
-                                .build()
-                                .unwrap()
-                                .to_ipc_stream()
-                                .unwrap()
-                        }
-                        DataFormat::JsonDefault => {
-                            let json_value: Vec<serde_json::Value> =
-                                serde_json::from_slice(payload.get_message()).unwrap();
-                            TableBuilder::new()
-                                .with_schema(schema)
-                                .with_name(payload.get_subject())
-                                .with_json_values(&json_value)
-                                .unwrap()
-                                .build()
-                                .unwrap()
-                                .to_ipc_stream()
-                                .unwrap()
-                        }
-                        DataFormat::Bytes => TableBuilder::new()
-                            .with_schema(schema)
-                            .with_name(payload.get_subject())
-                            .with_bytes(payload.get_message())
-                            .unwrap()
-                            .build()
-                            .unwrap()
-                            .to_ipc_stream()
-                            .unwrap(),
-                        DataFormat::Ipc => payload.get_message().to_owned(),
-                        _ => unimplemented!(),
-                    };
-
-                    // Create the update message
-                    let message = IPCMessageBuilder::new()
-                        .with_subject(payload.get_subject())
-                        .with_publisher(payload.get_publisher())
-                        .with_message(bytes)
-                        .with_update(payload.get_update())
-                        .make_name()
-                        .unwrap()
-                        .build()
-                        .unwrap();
-                    let message_map = create_message_map(vec![message]);
-
-                    // Update the session state with the new message
-                    let update = session_ctx_arc
-                        .try_write()
-                        .unwrap()
-                        .update_subjects_from_messages(message_map)
-                        .unwrap();
-
-                    // Update the subjects change log
-                    let messages = create_message_map(vec![
-                        IPCMessageBuilder::new()
-                            .with_name(update.get_name())
-                            .with_subject(update.get_name())
-                            .with_publisher("")
-                            .with_update(&phymes_core::TablePublication::Extend {
-                                table_name: update.get_name().to_string(),
-                            })
-                            .with_message(update.to_ipc_stream().unwrap())
-                            .build()
-                            .unwrap(),
-                    ]);
-                    let _ = session_ctx_arc
-                        .write()
-                        .update_subjects_from_messages(messages)
-                        .unwrap();
-                }
+                Some(session) => Arc::clone(session),
                 None => {
                     return JsonError::new("Failed to get the session stream state".to_string())
                         .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                 }
             };
+
+            // Extract the payload as bytes
+            let schema = if let Some(subject) = session_ctx_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get(payload.get_subject())
+            {
+                subject.try_read().unwrap().get_schema()
+            } else {
+                return JsonError::new(
+                    "Failed to get the session stream state".to_string(),
+                )
+                .to_response(StatusCode::INTERNAL_SERVER_ERROR);
+            };
+            let bytes = match payload.get_format() {
+                DataFormat::Csv(csv_format) => TableBuilder::new()
+                    .with_schema(schema)
+                    .with_name(payload.get_subject())
+                    .with_csv(
+                        payload.get_message(),
+                        csv_format.delimiter,
+                        csv_format.header,
+                        csv_format.batch_size,
+                    )
+                    .unwrap()
+                    .build()
+                    .unwrap()
+                    .to_ipc_stream()
+                    .unwrap(),
+                DataFormat::CsvDefault => {
+                    let csv_format = CsvFormat::default();
+                    TableBuilder::new()
+                        .with_schema(schema)
+                        .with_name(payload.get_subject())
+                        .with_csv(
+                            payload.get_message(),
+                            csv_format.delimiter,
+                            csv_format.header,
+                            csv_format.batch_size,
+                        )
+                        .unwrap()
+                        .build()
+                        .unwrap()
+                        .to_ipc_stream()
+                        .unwrap()
+                }
+                DataFormat::JsonDefault => {
+                    let json_value: Vec<serde_json::Value> =
+                        serde_json::from_slice(payload.get_message()).unwrap();
+                    TableBuilder::new()
+                        .with_schema(schema)
+                        .with_name(payload.get_subject())
+                        .with_json_values(&json_value)
+                        .unwrap()
+                        .build()
+                        .unwrap()
+                        .to_ipc_stream()
+                        .unwrap()
+                }
+                DataFormat::Bytes => TableBuilder::new()
+                    .with_schema(schema)
+                    .with_name(payload.get_subject())
+                    .with_bytes(payload.get_message())
+                    .unwrap()
+                    .build()
+                    .unwrap()
+                    .to_ipc_stream()
+                    .unwrap(),
+                DataFormat::Ipc => payload.get_message().to_owned(),
+                _ => unimplemented!(),
+            };
+
+            // Create the update message
+            let message = IPCMessageBuilder::new()
+                .with_subject(payload.get_subject())
+                .with_publisher(payload.get_publisher())
+                .with_message(bytes)
+                .with_update(payload.get_update())
+                .make_name()
+                .unwrap()
+                .build()
+                .unwrap();
+            let messages = create_message_map(vec![message]);
+
+            // Update the session state with the new message
+            let _step = SessionStreamStep::current_superstep(&session_ctx_arc).await;
+            if let Err(e) = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, messages) {
+                return JsonError::new(format!("Failed to update the session stream state {e:?}"))
+                    .to_response(StatusCode::INTERNAL_SERVER_ERROR);
+            }
 
             // Write the updates to disk
             if let Err(e) = state.write_session_contexts(

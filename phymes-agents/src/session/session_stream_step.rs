@@ -255,20 +255,18 @@ pub trait SessionStreamStepTrait {
                 panic!("Missing pre-compiled tasks for `NextSuperstepSession`.")
             });
             for messages in next_superstep_messages.into_iter() {
-                if let Err(_err) = SessionStreamStepMinimal::run_superstep(
+                let _ = SessionStreamStepMinimal::run_superstep(
                     Arc::clone(session_context),
                     messages,
                 )
-                .await {
-                    return 0
-                }
+                .await.unwrap_or_else(|err| {
+                panic!("Error `{err}` running pre-compiled tasks for `NextSuperstepSession`.")});
             }
 
             // Return the next superstep
-            match session_context.read().current_superstep() {
-                Ok(current_superstep) => current_superstep,
-                Err(_err) => 0,
-            }
+            session_context.read().current_superstep()
+                .unwrap_or_else(|err| {
+                panic!("Error `{err}` reading the `current_superstep`.")})
         }
     }
 

@@ -112,11 +112,11 @@ impl Default for DiagnosticSession<'_> {
             metrics_elapsed_compute_select_and_cast_to_gantt_processor_name: "metrics_elapsed_compute_select_and_cast_to_gantt_p",
             metrics_output_rows_select_and_cast_to_gantt_task_name: "metrics_output_rows_select_and_cast_to_gantt_t",
             metrics_output_rows_select_and_cast_to_gantt_processor_name: "metrics_output_rows_select_and_cast_to_gantt_p",
-            metrics_processors_traces_apply_gantt_task_name: "Processor traces gantt",
+            metrics_processors_traces_apply_gantt_task_name: "Processor_traces_gantt",
             metrics_processors_traces_apply_gantt_processor_name: "metrics_processors_traces_apply_gantt_p",
-            metrics_elapsed_compute_apply_gantt_task_name: "Elapsed compute barplot",
+            metrics_elapsed_compute_apply_gantt_task_name: "Elapsed_compute_barplot",
             metrics_elapsed_compute_apply_gantt_processor_name: "metrics_elapsed_compute_apply_gantt_p",
-            metrics_output_rows_apply_gantt_task_name: "Output rows barplot",
+            metrics_output_rows_apply_gantt_task_name: "Output_rows_barplot",
             metrics_output_rows_apply_gantt_processor_name: "metrics_output_rows_apply_gantt_p",
             metrics_runtime_env_name: "metrics_runtime_env",
             metrics_processors_traces_runtime_env_name: "metrics_processors_traces_runtime_env",
@@ -1854,17 +1854,135 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait, TableTrait, test_task};
+    use phymes_core::{BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, TableTrait, test_task};
     use phymes_diagnostics::{HashMap, HashSet};
 
     use crate::{
-        SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream, create_message_map, test_session_context_builder
+        SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, create_message_map, test_session_context_builder
     };
 
     use super::*;
 
+    /// Make the test data for the diagnostic session
+    async fn make_test_data(name: &str) -> Result<HashMap<String, IPCMessage>> {
+        // Make the test sequential session
+        let session_context = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 2)?
+            .with_diagnostics(true)
+            .add_session_interface(Some(&["state_1"]))?
+            .add_next_tasks()?
+            .add_next_supersteps()?
+            .build_with_tables()?;
+
+        // Mimic a session run for 1 steps
+        let messages = test_task::make_test_input_message(
+            "task_1",
+            "session_1",
+            "state_1",
+            "state_1",
+            &TablePublication::Replace {
+                table_name: "state_1".to_string(),
+            },
+            true,
+        )?;
+        let session_context_arc = Arc::new(RwLock::new(session_context));
+        let session_stream = SessionStream::new(messages, Arc::clone(&session_context_arc));
+        let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+
+        // Extract the subjects
+        let usss = session_context_arc.read();
+        let table = usss
+            .get_states()
+            .get(AvailableSubjects::SessionMetrics.to_string().as_str())
+            .unwrap()
+            .read();
+        let metrics_message = IPCMessage::get_builder()
+            .with_message(table.to_ipc_stream()?)
+            .with_subject(AvailableSubjects::AnalyticsMetrics.to_string().as_str())
+            .with_update(&TablePublication::Replace {
+                table_name: AvailableSubjects::AnalyticsMetrics.to_string(),
+            })
+            .with_publisher(name)
+            .make_name()?
+            .build()?;
+        let table = usss
+            .get_states()
+            .get(AvailableSubjects::SessionTraces.to_string().as_str())
+            .unwrap()
+            .read();
+        let traces_message = IPCMessage::get_builder()
+            .with_message(table.to_ipc_stream()?)
+            .with_subject(AvailableSubjects::AnalyticsTraces.to_string().as_str())
+            .with_update(&TablePublication::Replace {
+                table_name: AvailableSubjects::AnalyticsTraces.to_string(),
+            })
+            .with_publisher(name)
+            .make_name()?
+            .build()?;
+        let table = usss
+            .get_states()
+            .get(AvailableSubjects::SessionEvents.to_string().as_str())
+            .unwrap()
+            .read();
+        let events_message = IPCMessage::get_builder()
+            .with_message(table.to_ipc_stream()?)
+            .with_subject(AvailableSubjects::AnalyticsEvents.to_string().as_str())
+            .with_update(&TablePublication::Replace {
+                table_name: AvailableSubjects::AnalyticsEvents.to_string(),
+            })
+            .with_publisher(name)
+            .make_name()?
+            .build()?;
+        let table = usss
+            .get_states()
+            .get(AvailableSubjects::SessionTasks.to_string().as_str())
+            .unwrap()
+            .read();
+        let tasks_message = IPCMessage::get_builder()
+            .with_message(table.to_ipc_stream()?)
+            .with_subject(AvailableSubjects::AnalyticsTasks.to_string().as_str())
+            .with_update(&TablePublication::Replace {
+                table_name: AvailableSubjects::AnalyticsTasks.to_string(),
+            })
+            .with_publisher(name)
+            .make_name()?
+            .build()?;
+        let table = usss
+            .get_states()
+            .get(AvailableSubjects::SessionErrors.to_string().as_str())
+            .unwrap()
+            .read();
+
+        let messages = if table.count_rows() > 0 {
+            let errors_message = IPCMessage::get_builder()
+                .with_message(table.to_ipc_stream()?)
+                .with_subject(AvailableSubjects::AnalyticsErrors.to_string().as_str())
+                .with_update(&TablePublication::Replace {
+                    table_name: AvailableSubjects::AnalyticsErrors.to_string(),
+                })
+                .with_publisher(name)
+                .make_name()?
+                .build()?;
+
+            create_message_map(vec![
+                metrics_message,
+                traces_message,
+                events_message,
+                errors_message,
+                tasks_message,
+            ])
+        } else {
+            create_message_map(vec![
+                metrics_message,
+                traces_message,
+                events_message,
+                tasks_message,
+            ])
+        };
+        Ok(messages)
+    }    
+
     #[tokio::test(flavor = "current_thread")]
-    async fn test_diagnostic_session() -> Result<()> {
+    async fn test_diagnostic_session_supersteps() -> Result<()> {
         // initialize the session
         let diagnostic_session = DiagnosticSession::default();
         let session_ctx = diagnostic_session
@@ -1885,124 +2003,588 @@ mod tests {
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
         // Make diagnostic data and session tasks data
-        let message_map = {
-            // Make the test sequential session
-            let session_context = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 2)?
-                .with_diagnostics(true)
-                .add_session_interface(Some(&["state_1"]))?
-                .add_next_tasks()?
-                .add_next_supersteps()?
-                .build_with_tables()?;
+        let messages = make_test_data(diagnostic_session.session_context_name).await?;
+        
+        // Step 1
+        let result = SessionStreamStep::run_superstep(session_ctx_arc.clone(), messages).await?.unwrap();
+        assert_eq!(result.len(), 0);
 
-            // Mimic a session run for 1 steps
-            let messages = test_task::make_test_input_message(
-                "task_1",
-                "session_1",
-                "state_1",
-                "state_1",
-                &TablePublication::Replace {
-                    table_name: "state_1".to_string(),
-                },
-                true,
-            )?;
-            let session_context_arc = Arc::new(RwLock::new(session_context));
-            let session_stream = SessionStream::new(messages, Arc::clone(&session_context_arc));
-            let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        {
+            // Check the session
+            let session_reading = session_ctx_arc.read();
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .read();
+            let subject_names = table_reading.get_column_as_vec_str("subject_name");
+            let task_names = table_reading.get_column_as_vec_str("task_name");
+            let session_names = table_reading.get_column_as_vec_str("session_name");
+            let num_rows_deltas = table_reading.get_column_as_vec_primitive::<i64>("num_rows_delta")?;
+            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let mut combined = subject_names.into_iter()
+                .zip(task_names)
+                .zip(session_names)
+                .zip(num_rows_deltas)
+                .zip(timestamps)
+                .filter_map(|((((subject_name, task_name), session_name), _num_rows_delta), timestamp)| if timestamp == 2 {
+                    Some((subject_name, task_name, session_name, timestamp))
+                } else {
+                    None
+                }).collect::<Vec<_>>();
+            combined.sort_by(|a, b| a.0.cmp(b.0));
+            combined.sort_by(|a, b| a.1.cmp(b.1));
+            assert_eq!(combined, [
+                (
+                    "events_select_and_cast_to_kanban_t",
+                    "events_select_and_cast_to_kanban_t",
+                    "diagnostic_session",
+                    // 2,
+                    2,
+                ),
+                (
+                    "MetricPivot",
+                    "metrics_pivot_t",
+                    "diagnostic_session",
+                    // 52,
+                    2,
+                ),
+                (
+                    "traces_to_sequence_diagram_messages_t",
+                    "traces_to_sequence_diagram_messages_t",
+                    "diagnostic_session",
+                    // 42,
+                    2,
+                ),
+            ]);
 
-            // Extract the subjects
-            let usss = session_context_arc.read();
-            let table = usss
+            let table_reading = session_reading
                 .get_states()
-                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
+                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
                 .read();
-            let metrics_message = IPCMessage::get_builder()
-                .with_message(table.to_ipc_stream()?)
-                .with_subject(AvailableSubjects::AnalyticsMetrics.to_string().as_str())
-                .with_update(&TablePublication::Replace {
-                    table_name: AvailableSubjects::AnalyticsMetrics.to_string(),
-                })
-                .with_publisher(diagnostic_session.session_context_name)
-                .make_name()?
-                .build()?;
-            let table = usss
-                .get_states()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .read();
-            let traces_message = IPCMessage::get_builder()
-                .with_message(table.to_ipc_stream()?)
-                .with_subject(AvailableSubjects::AnalyticsTraces.to_string().as_str())
-                .with_update(&TablePublication::Replace {
-                    table_name: AvailableSubjects::AnalyticsTraces.to_string(),
-                })
-                .with_publisher(diagnostic_session.session_context_name)
-                .make_name()?
-                .build()?;
-            let table = usss
-                .get_states()
-                .get(AvailableSubjects::SessionEvents.to_string().as_str())
-                .unwrap()
-                .read();
-            let events_message = IPCMessage::get_builder()
-                .with_message(table.to_ipc_stream()?)
-                .with_subject(AvailableSubjects::AnalyticsEvents.to_string().as_str())
-                .with_update(&TablePublication::Replace {
-                    table_name: AvailableSubjects::AnalyticsEvents.to_string(),
-                })
-                .with_publisher(diagnostic_session.session_context_name)
-                .make_name()?
-                .build()?;
-            let table = usss
-                .get_states()
-                .get(AvailableSubjects::SessionTasks.to_string().as_str())
-                .unwrap()
-                .read();
-            let tasks_message = IPCMessage::get_builder()
-                .with_message(table.to_ipc_stream()?)
-                .with_subject(AvailableSubjects::AnalyticsTasks.to_string().as_str())
-                .with_update(&TablePublication::Replace {
-                    table_name: AvailableSubjects::AnalyticsTasks.to_string(),
-                })
-                .with_publisher(diagnostic_session.session_context_name)
-                .make_name()?
-                .build()?;
-            let table = usss
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            if table.count_rows() > 0 {
-                let errors_message = IPCMessage::get_builder()
-                    .with_message(table.to_ipc_stream()?)
-                    .with_subject(AvailableSubjects::AnalyticsErrors.to_string().as_str())
-                    .with_update(&TablePublication::Replace {
-                        table_name: AvailableSubjects::AnalyticsErrors.to_string(),
-                    })
-                    .with_publisher(diagnostic_session.session_context_name)
-                    .make_name()?
-                    .build()?;
+            let task_names = table_reading.get_column_as_vec_str("task_name");
+            let session_names = table_reading.get_column_as_vec_str("session_name");
+            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let mut combined = session_names.into_iter()
+                .zip(task_names)
+                .zip(timestamps)
+                .filter_map(|((session_name, task_name), timestamp)| if timestamp == 1 {
+                    Some((session_name, task_name, timestamp))
+                } else {
+                    None
+                }).collect::<Vec<_>>();
+            combined.sort_by(|a, b| a.1.cmp(b.1));
+            assert_eq!(combined, [
+                (
+                    "diagnostic_session",
+                    "events_select_and_cast_to_kanban_t",
+                    1,
+                ),
+                (
+                    "diagnostic_session",
+                    "metrics_pivot_t",
+                    1,
+                ),
+                (
+                    "diagnostic_session",
+                    "traces_to_sequence_diagram_messages_t",
+                    1,
+                ),
+            ]);
+        }
+        
+        // Step 2
+        let result = SessionStreamStep::run_superstep(session_ctx_arc.clone(), HashMap::<String, IPCMessage>::new()).await?.unwrap();
+        assert_eq!(result.len(), 0);
 
-                create_message_map(vec![
-                    metrics_message,
-                    traces_message,
-                    events_message,
-                    errors_message,
-                    tasks_message,
-                ])
-            } else {
-                create_message_map(vec![
-                    metrics_message,
-                    traces_message,
-                    events_message,
-                    tasks_message,
-                ])
-            }
-        };
+        {
+            // Check the session
+            let session_reading = session_ctx_arc.read();
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .read();
+            let subject_names = table_reading.get_column_as_vec_str("subject_name");
+            let task_names = table_reading.get_column_as_vec_str("task_name");
+            let session_names = table_reading.get_column_as_vec_str("session_name");
+            let num_rows_deltas = table_reading.get_column_as_vec_primitive::<i64>("num_rows_delta")?;
+            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let mut combined = subject_names.into_iter()
+                .zip(task_names)
+                .zip(session_names)
+                .zip(num_rows_deltas)
+                .zip(timestamps)
+                .filter_map(|((((subject_name, task_name), session_name), _num_rows_delta), timestamp)| if timestamp == 3 {
+                    Some((subject_name, task_name, session_name, timestamp))
+                } else {
+                    None
+                }).collect::<Vec<_>>();
+            combined.sort_by(|a, b| a.0.cmp(b.0));
+            combined.sort_by(|a, b| a.1.cmp(b.1));
+            assert_eq!(combined, [
+                (
+                    "apply_sequence_diagram_messages_t",
+                    "apply_sequence_diagram_messages_t",
+                    "diagnostic_session",
+                    3,
+                ),
+                (
+                    "EventKanban",
+                    "events_apply_kanban_t",
+                    "diagnostic_session",
+                    3,
+                ),
+                (
+                    "MetricPivotNormTime",
+                    "metrics_normalize_time_t",
+                    "diagnostic_session",
+                    3,
+                ),
+                (
+                    "session_tasks_to_sequence_diagram_participants_t",
+                    "session_tasks_to_sequence_diagram_participants_t",
+                    "diagnostic_session",
+                    3,
+                ),
+            ]);
+
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .unwrap()
+                .read();
+            let task_names = table_reading.get_column_as_vec_str("task_name");
+            let session_names = table_reading.get_column_as_vec_str("session_name");
+            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let mut combined = session_names.into_iter()
+                .zip(task_names)
+                .zip(timestamps)
+                .filter_map(|((session_name, task_name), timestamp)| if timestamp == 2 {
+                    Some((session_name, task_name, timestamp))
+                } else {
+                    None
+                }).collect::<Vec<_>>();
+            combined.sort_by(|a, b| a.1.cmp(b.1));
+            assert_eq!(combined, [
+                (
+                    "diagnostic_session",
+                    "apply_sequence_diagram_messages_t",
+                    2,
+                ),
+                (
+                    "diagnostic_session",
+                    "events_apply_kanban_t",
+                    2,
+                ),
+                (
+                    "diagnostic_session",
+                    "metrics_normalize_time_t",
+                    2,
+                ),
+                (
+                    "diagnostic_session",
+                    "metrics_normalize_time_t",
+                    2,
+                ),
+                (
+                    "diagnostic_session",
+                    "session_tasks_to_sequence_diagram_participants_t",
+                    2,
+                ),
+            ]);
+        }
+        
+        // Step 3
+        let result = SessionStreamStep::run_superstep(session_ctx_arc.clone(), HashMap::<String, IPCMessage>::new()).await?.unwrap();
+        assert_eq!(result.len(), 0);
+
+        {
+            // Check the session
+            let session_reading = session_ctx_arc.read();
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .read();
+            let subject_names = table_reading.get_column_as_vec_str("subject_name");
+            let task_names = table_reading.get_column_as_vec_str("task_name");
+            let session_names = table_reading.get_column_as_vec_str("session_name");
+            let num_rows_deltas = table_reading.get_column_as_vec_primitive::<i64>("num_rows_delta")?;
+            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let mut combined = subject_names.into_iter()
+                .zip(task_names)
+                .zip(session_names)
+                .zip(num_rows_deltas)
+                .zip(timestamps)
+                .filter_map(|((((subject_name, task_name), session_name), _num_rows_delta), timestamp)| if timestamp == 4 {
+                    Some((subject_name, task_name, session_name, timestamp))
+                } else {
+                    None
+                }).collect::<Vec<_>>();
+            combined.sort_by(|a, b| a.0.cmp(b.0));
+            combined.sort_by(|a, b| a.1.cmp(b.1));
+            assert_eq!(combined, [
+                (
+                    "apply_sequence_diagram_participants_t",
+                    "apply_sequence_diagram_participants_t",
+                    "diagnostic_session",
+                    4,
+                ),
+                (
+                    "metrics_elapsed_compute_select_and_cast_to_gantt_t",
+                    "metrics_elapsed_compute_select_and_cast_to_gantt_t",
+                    "diagnostic_session",
+                    4,
+                ),
+                (
+                    "metrics_output_rows_select_and_cast_to_gantt_t",
+                    "metrics_output_rows_select_and_cast_to_gantt_t",
+                    "diagnostic_session",
+                    4,
+                ),
+                (
+                    "metrics_processors_traces_select_and_cast_to_gantt_t",
+                    "metrics_processors_traces_select_and_cast_to_gantt_t",
+                    "diagnostic_session",
+                    4,
+                ),
+                (
+                    "select_sequence_diagram_messages_t",
+                    "select_sequence_diagram_messages_t",
+                    "diagnostic_session",
+                    4,
+                ),
+            ]);
+
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .unwrap()
+                .read();
+            let task_names = table_reading.get_column_as_vec_str("task_name");
+            let session_names = table_reading.get_column_as_vec_str("session_name");
+            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let mut combined = session_names.into_iter()
+                .zip(task_names)
+                .zip(timestamps)
+                .filter_map(|((session_name, task_name), timestamp)| if timestamp == 3 {
+                    Some((session_name, task_name, timestamp))
+                } else {
+                    None
+                }).collect::<Vec<_>>();
+            combined.sort_by(|a, b| a.1.cmp(b.1));
+            assert_eq!(combined, [
+                (
+                    "diagnostic_session",
+                    "apply_sequence_diagram_participants_t",
+                    3,
+                ),
+                (
+                    "diagnostic_session",
+                    "metrics_elapsed_compute_select_and_cast_to_gantt_t",
+                    3,
+                ),
+                (
+                    "diagnostic_session",
+                    "metrics_output_rows_select_and_cast_to_gantt_t",
+                    3,
+                ),
+                (
+                    "diagnostic_session",
+                    "metrics_processors_traces_select_and_cast_to_gantt_t",
+                    3,
+                ),
+                (
+                    "diagnostic_session",
+                    "select_sequence_diagram_messages_t",
+                    3,
+                ),
+            ]);
+        }
+        
+        // Step 4
+        let result = SessionStreamStep::run_superstep(session_ctx_arc.clone(), HashMap::<String, IPCMessage>::new()).await?.unwrap();
+        assert_eq!(result.len(), 0);
+
+        {
+            // Check the session
+            let session_reading = session_ctx_arc.read();
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .read();
+            let subject_names = table_reading.get_column_as_vec_str("subject_name");
+            let task_names = table_reading.get_column_as_vec_str("task_name");
+            let session_names = table_reading.get_column_as_vec_str("session_name");
+            let num_rows_deltas = table_reading.get_column_as_vec_primitive::<i64>("num_rows_delta")?;
+            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let mut combined = subject_names.into_iter()
+                .zip(task_names)
+                .zip(session_names)
+                .zip(num_rows_deltas)
+                .zip(timestamps)
+                .filter_map(|((((subject_name, task_name), session_name), _num_rows_delta), timestamp)| if timestamp == 5 {
+                    Some((subject_name, task_name, session_name, timestamp))
+                } else {
+                    None
+                }).collect::<Vec<_>>();
+            combined.sort_by(|a, b| a.0.cmp(b.0));
+            combined.sort_by(|a, b| a.1.cmp(b.1));
+            assert_eq!(combined, [
+                (
+                    "MetricElapsedComputeGantt",
+                    "Elapsed_compute_barplot",
+                    "diagnostic_session",
+                    5,
+                ),
+                (
+                    "MetricOutputRowsGantt",
+                    "Output_rows_barplot",
+                    "diagnostic_session",
+                    5,
+                ),
+                (
+                    "MetricProcessorTracesGantt",
+                    "Processor_traces_gantt",
+                    "diagnostic_session",
+                    5,
+                ),
+                (
+                    "select_sequence_diagram_participants_t",
+                    "select_sequence_diagram_participants_t",
+                    "diagnostic_session",
+                    5,
+                ),
+            ]);
+
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .unwrap()
+                .read();
+            let task_names = table_reading.get_column_as_vec_str("task_name");
+            let session_names = table_reading.get_column_as_vec_str("session_name");
+            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let mut combined = session_names.into_iter()
+                .zip(task_names)
+                .zip(timestamps)
+                .filter_map(|((session_name, task_name), timestamp)| if timestamp == 4 {
+                    Some((session_name, task_name, timestamp))
+                } else {
+                    None
+                }).collect::<Vec<_>>();
+            combined.sort_by(|a, b| a.1.cmp(b.1));
+            assert_eq!(combined, [
+                (
+                    "diagnostic_session",
+                    "Elapsed_compute_barplot",
+                    4,
+                ),
+                (
+                    "diagnostic_session",
+                    "Output_rows_barplot",
+                    4,
+                ),
+                (
+                    "diagnostic_session",
+                    "Processor_traces_gantt",
+                    4,
+                ),
+                (
+                    "diagnostic_session",
+                    "select_sequence_diagram_participants_t",
+                    4,
+                ),
+            ]);
+        }
+        
+        // Step 5
+        let result = SessionStreamStep::run_superstep(session_ctx_arc.clone(), HashMap::<String, IPCMessage>::new()).await?.unwrap();
+        assert_eq!(result.len(), 5);
+
+        {
+            // Check the session
+            let session_reading = session_ctx_arc.read();
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .read();
+            let subject_names = table_reading.get_column_as_vec_str("subject_name");
+            let task_names = table_reading.get_column_as_vec_str("task_name");
+            let session_names = table_reading.get_column_as_vec_str("session_name");
+            let num_rows_deltas = table_reading.get_column_as_vec_primitive::<i64>("num_rows_delta")?;
+            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let mut combined = subject_names.into_iter()
+                .zip(task_names)
+                .zip(session_names)
+                .zip(num_rows_deltas)
+                .zip(timestamps)
+                .filter_map(|((((subject_name, task_name), session_name), _num_rows_delta), timestamp)| if timestamp == 6 {
+                    Some((subject_name, task_name, session_name, timestamp))
+                } else {
+                    None
+                }).collect::<Vec<_>>();
+            combined.sort_by(|a, b| a.0.cmp(b.0));
+            combined.sort_by(|a, b| a.1.cmp(b.1));
+            assert_eq!(combined, [
+                (
+                    "traces_aggregate_sequence_diagram_content_t",
+                    "traces_aggregate_sequence_diagram_content_t",
+                    "diagnostic_session",
+                    6,
+                ),
+            ]);
+
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .unwrap()
+                .read();
+            let task_names = table_reading.get_column_as_vec_str("task_name");
+            let session_names = table_reading.get_column_as_vec_str("session_name");
+            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let mut combined = session_names.into_iter()
+                .zip(task_names)
+                .zip(timestamps)
+                .filter_map(|((session_name, task_name), timestamp)| if timestamp == 5 {
+                    Some((session_name, task_name, timestamp))
+                } else {
+                    None
+                }).collect::<Vec<_>>();
+            combined.sort_by(|a, b| a.1.cmp(b.1));
+            assert_eq!(combined, [
+                (
+                    "diagnostic_session",
+                    "traces_aggregate_sequence_diagram_content_t",
+                    5,
+                ),
+            ]);
+        }
+        
+        // Step 6
+        let result = SessionStreamStep::run_superstep(session_ctx_arc.clone(), HashMap::<String, IPCMessage>::new()).await?.unwrap();
+        assert_eq!(result.len(), 5);
+
+        {
+            // Check the session
+            let session_reading = session_ctx_arc.read();
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .read();
+            let subject_names = table_reading.get_column_as_vec_str("subject_name");
+            let task_names = table_reading.get_column_as_vec_str("task_name");
+            let session_names = table_reading.get_column_as_vec_str("session_name");
+            let num_rows_deltas = table_reading.get_column_as_vec_primitive::<i64>("num_rows_delta")?;
+            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let mut combined = subject_names.into_iter()
+                .zip(task_names)
+                .zip(session_names)
+                .zip(num_rows_deltas)
+                .zip(timestamps)
+                .filter_map(|((((subject_name, task_name), session_name), _num_rows_delta), timestamp)| if timestamp == 7 {
+                    Some((subject_name, task_name, session_name, timestamp))
+                } else {
+                    None
+                }).collect::<Vec<_>>();
+            combined.sort_by(|a, b| a.0.cmp(b.0));
+            combined.sort_by(|a, b| a.1.cmp(b.1));
+            assert_eq!(combined, [
+                (
+                    "TraceSequenceDiagram",
+                    "apply_sequence_diagram_t",
+                    "diagnostic_session",
+                    7,
+                ),
+            ]);
+
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .unwrap()
+                .read();
+            let task_names = table_reading.get_column_as_vec_str("task_name");
+            let session_names = table_reading.get_column_as_vec_str("session_name");
+            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let mut combined = session_names.into_iter()
+                .zip(task_names)
+                .zip(timestamps)
+                .filter_map(|((session_name, task_name), timestamp)| if timestamp == 6 {
+                    Some((session_name, task_name, timestamp))
+                } else {
+                    None
+                }).collect::<Vec<_>>();
+            combined.sort_by(|a, b| a.1.cmp(b.1));
+            assert_eq!(combined, [
+                (
+                    "diagnostic_session",
+                    "apply_sequence_diagram_t",
+                    6,
+                ),
+            ]);
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_diagnostic_session() -> Result<()> {
+        // initialize the session
+        let diagnostic_session = DiagnosticSession::default();
+        // println!("{}",diagnostic_session
+        //     .build()
+        //     .with_name(diagnostic_session.session_context_name)
+        //     .to_mermaid_flowchart(false, false)?);
+        let session_ctx = diagnostic_session
+            .build()
+            .with_name(diagnostic_session.session_context_name)
+            .with_max_iter(25)
+            .with_diagnostics(true) // Debugging
+            .add_session_interface(Some(&[DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string().as_str(),
+                DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string().as_str(),
+                DiagnosticsVisualizations::MetricOutputRowsGantt.to_string().as_str(),
+                DiagnosticsVisualizations::TraceSequenceDiagram.to_string().as_str(),
+                DiagnosticsVisualizations::EventKanban.to_string().as_str(),
+                DiagnosticsVisualizations::ErrorKanban.to_string().as_str(),
+            ]))?
+            .add_next_tasks()?
+            .add_next_supersteps()?
+            .build_with_tables()?;
+        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+
+        // Make diagnostic data and session tasks data
+        let message_map = make_test_data(diagnostic_session.session_context_name).await?;
 
         // Run
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+            {
+                // Debug any errors
+                let subjects_reading = session_ctx_arc.read();
+                let table_reading = subjects_reading
+                    .get_states()
+                    .get(AvailableSubjects::SessionMetrics.to_string().as_str())
+                    .unwrap()
+                    .read();
+                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+                // let table_reading = subjects_reading
+                //     .get_states()
+                //     .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                //     .unwrap()
+                //     .read();
+                // println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+                // let table_reading = subjects_reading
+                //     .get_states()
+                //     .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                //     .unwrap()
+                //     .read();
+                // println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            }
 
         // Check the response
         let keys = response.iter()

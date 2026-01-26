@@ -154,7 +154,6 @@ mod tests {
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
                 .read();
-            dbg!(&table);
             let subjects_change_log_message = IPCMessage::get_builder()
                 .with_message(table.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::SubjectsChangeLog.to_string().as_str())

@@ -117,7 +117,7 @@ impl SessionContext {
         let update_types = table.get_column_as_vec_str("update_type-Last");
         let timestamps = table.get_column_as_vec_nested_primitive::<i64>("timestamp-List")?;
         let timestamp_lasts =
-            table.get_column_as_vec_nested_primitive::<i64>("timestamp-Last-List")?;
+            table.get_column_as_vec_nested_primitive::<i64>("timestamp-Max-List")?;
 
         // Determine the processor subscriptions
         let processors_subscribe = session_names
@@ -202,6 +202,7 @@ impl SessionContext {
                 },
             )
             .collect::<Vec<_>>();
+        dbg!(&processors_subscribe);
 
         // Determine the task subscriptions
         let mut tasks_subscribe = HashMap::<(String, String), bool>::new();
