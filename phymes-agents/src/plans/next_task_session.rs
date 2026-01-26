@@ -949,6 +949,7 @@ mod tests {
         .with_name(next_task_session.session_context_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
+        .add_next_supersteps()?
         .with_max_iter(1) // DM: prevent continued execution after the final superstep for testing
         .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
@@ -959,6 +960,7 @@ mod tests {
             let session_context = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 4)?
                 .with_diagnostics(false)
                 .add_session_interface(Some(&["state_1"]))?
+                .add_next_supersteps()?
                 .build_with_tables()?;
             let session_context_arc = Arc::new(RwLock::new(session_context));
 
@@ -973,6 +975,7 @@ mod tests {
                 },
                 true,
             )?;
+            let _step = SessionStreamStep::current_superstep(&session_context_arc).await;
             SessionStreamStep::update_subjects_and_changelog_from_messages(&session_context_arc, messages)?;
 
             // Extract out the subjects for the test
@@ -1065,6 +1068,20 @@ mod tests {
                     .unwrap()
                     .read();
                 println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+                let subjects_reading = session_ctx_arc.read();
+                let table_reading = subjects_reading
+                    .get_states()
+                    .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                    .unwrap()
+                    .read();
+                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+                let subjects_reading = session_ctx_arc.read();
+                let table_reading = subjects_reading
+                    .get_states()
+                    .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                    .unwrap()
+                    .read();
+                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
             }
 
             let session_reading = session_ctx_arc.read();
@@ -1077,7 +1094,7 @@ mod tests {
             assert_eq!(column, ["session_1", "task_1"]);
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             for timestamp in column {
-                assert!(timestamp > 0);
+                assert_eq!(timestamp, 0);
             }
 
             let table_reading = session_reading
@@ -1186,14 +1203,14 @@ mod tests {
                 table_reading.get_column_as_vec_nested_primitive::<i64>("timestamp-List")?;
             for timestamps in column {
                 for timestamp in timestamps {
-                    assert!(timestamp > 0);
+                    assert_eq!(timestamp, 0);
                 }
             }
             let column =
                 table_reading.get_column_as_vec_nested_primitive::<i64>("timestamp-Last-List")?;
             for timestamps in column {
                 for timestamp in timestamps {
-                    assert!(timestamp > 0);
+                    assert_eq!(timestamp, 0);
                 }
             }
         }

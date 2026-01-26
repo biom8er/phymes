@@ -615,7 +615,8 @@ impl SessionContext {
 
     /// Increment the session superstep
     pub fn increment_superstep(&self) -> Result<u32> {
-        let next_superstep = self.current_superstep()? + 1;
+        // Increment the superstep
+        let next_superstep = self.current_superstep().unwrap_or_default() + 1;
         let session_names = [self.get_name()].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let supersteps = vec![next_superstep];
         let batch = create_session_supersteps_batch(session_names, supersteps)?;
@@ -623,15 +624,29 @@ impl SessionContext {
             .with_name(AvailableSubjects::SessionSupersteps.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
-        let superstep_message = IPCMessageBuilder::default()
-            .with_message(table.to_ipc_stream()?)
-            .with_subject(AvailableSubjects::SessionSupersteps.to_string().as_str())
-            .with_update(&TablePublication::Extend {
-                table_name: AvailableSubjects::SessionSupersteps.to_string(),
-            })
-            .with_publisher(self.get_name())
-            .make_name()?
-            .build()?;
+
+        // If this is the first increment then replace the empty batch
+        let superstep_message = if next_superstep <= 1 {
+            IPCMessageBuilder::default()
+                .with_message(table.to_ipc_stream()?)
+                .with_subject(AvailableSubjects::SessionSupersteps.to_string().as_str())
+                .with_update(&TablePublication::Replace {
+                    table_name: AvailableSubjects::SessionSupersteps.to_string(),
+                })
+                .with_publisher(self.get_name())
+                .make_name()?
+                .build()?
+        } else {
+            IPCMessageBuilder::default()
+                .with_message(table.to_ipc_stream()?)
+                .with_subject(AvailableSubjects::SessionSupersteps.to_string().as_str())
+                .with_update(&TablePublication::Extend {
+                    table_name: AvailableSubjects::SessionSupersteps.to_string(),
+                })
+                .with_publisher(self.get_name())
+                .make_name()?
+                .build()?
+        };
         let messages = create_message_map(vec![superstep_message]);
         let _ = self.update_subjects_from_messages(messages)?;
         Ok(next_superstep)
@@ -646,17 +661,19 @@ impl SessionContext {
                     .to_string()
                     .as_str(),
             )
-            .unwrap_or_else(|| {
-                panic!(
-                    "Missing table for `{}` in session `{}`.",
-                    AvailableSubjects::SessionSuperstepMax,
-                    self.get_name()
-                )
-            })
+            .ok_or(anyhow!(
+                "Missing table for `{}` in session `{}`.",
+                AvailableSubjects::SessionSuperstepMax,
+                self.get_name()
+            ))?
             .read()
             .get_column_as_vec_primitive::<u32>("superstep-Max")?
             .last()
-            .unwrap_or(&0)
+            .ok_or(anyhow!(
+                "Missing rows for `{}` in session `{}`.",
+                AvailableSubjects::SessionSuperstepMax,
+                self.get_name()
+            ))?
             .to_owned();
         Ok(current_superstep)
     }
@@ -782,7 +799,7 @@ impl SessionContext {
         let mut session_names = Vec::new();
         let mut num_rows_deltas = Vec::new();
         let mut timestamps = Vec::new();
-        let step = self.current_superstep()?;
+        let step = self.current_superstep().unwrap_or_default();
         for (_name, message) in messages.into_iter() {
             // Should the subject be updated?
             let update = message.get_update().clone();
@@ -1179,14 +1196,22 @@ mod tests {
             ["processor_3","state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()];
         let subscribe_type = ["Any","All","All","All"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let update_types = ["TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let timestamps = vec![vec![1768954478778611],
-            vec![1768954478778609,1768954478778609],
-            vec![1768954478778609,1768954478778609],
-            vec![1768954478778609,1768954478778609]];
-        let timestamp_lasts = vec![vec![1768954478786822],
-            vec![1768954478776320,1768954478786822],
-            vec![1768954478776344,1768954478786822],
-            vec![1768954478776354,1768954478786822]];
+        let timestamps = vec![vec![0],
+            vec![0,0],
+            vec![0,0],
+            vec![0,0]];
+        // let timestamps = vec![vec![1768954478778611],
+        //     vec![1768954478778609,1768954478778609],
+        //     vec![1768954478778609,1768954478778609],
+        //     vec![1768954478778609,1768954478778609]];
+        let timestamp_lasts = vec![vec![1],
+            vec![0,1],
+            vec![0,1],
+            vec![0,1]];
+        // let timestamp_lasts = vec![vec![1768954478786822],
+        //     vec![1768954478776320,1768954478786822],
+        //     vec![1768954478776344,1768954478786822],
+        //     vec![1768954478776354,1768954478786822]];
 
         let batch = create_session_tasks_subscribe_aggregate_batch(session_names, task_names, processor_names, processor_types, subscribe_type, update_types, subscription_names, subscription_table_names, timestamps, timestamp_lasts)?;
         let table_tasks_subscribe_aggregate = AvailableSubjects::SessionTasksSubscribeAggregate.to_table(None, Some(vec![batch]))?;
@@ -1243,10 +1268,14 @@ mod tests {
             ["processor_3","state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()];
         let subscribe_type = ["Any","All","All","All"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let update_types = ["TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let timestamps = vec![vec![1768954478778611],
-            vec![1768954478778609,1768954478778609],
-            vec![1768954478778609,1768954478778609],
-            vec![1768954478778609,1768954478778609]];
+        let timestamps = vec![vec![0],
+            vec![0,0],
+            vec![0,0],
+            vec![0,0]];
+        // let timestamps = vec![vec![1768954478778611],
+        //     vec![1768954478778609,1768954478778609],
+        //     vec![1768954478778609,1768954478778609],
+        //     vec![1768954478778609,1768954478778609]];
         let timestamp_lasts = vec![vec![0],
             vec![0,0],
             vec![0,0],
@@ -1296,14 +1325,22 @@ mod tests {
             ["processor_3","state_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()];
         let subscribe_type = ["Any","All","All","All"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let update_types = ["TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let timestamps = vec![vec![1768954478778611],
-            vec![1768954478778609,1768954478778609],
-            vec![1768954478778609,1768954478778609],
-            vec![1768954478778609,1768954478778609]];
-        let timestamp_lasts = vec![vec![1768954478786822],
-            vec![1768954478776320,0],
-            vec![1768954478776344,1768954478786822],
-            vec![1768954478776354,1768954478786822]];
+        let timestamps = vec![vec![0],
+            vec![0,0],
+            vec![0,0],
+            vec![0,0]];
+        // let timestamps = vec![vec![1768954478778611],
+        //     vec![1768954478778609,1768954478778609],
+        //     vec![1768954478778609,1768954478778609],
+        //     vec![1768954478778609,1768954478778609]];
+        let timestamp_lasts = vec![vec![1],
+            vec![0,0],
+            vec![0,1],
+            vec![0,1]];
+        // let timestamp_lasts = vec![vec![1768954478786822],
+        //     vec![1768954478776320,0],
+        //     vec![1768954478776344,1768954478786822],
+        //     vec![1768954478776354,1768954478786822]];
 
         let batch = create_session_tasks_subscribe_aggregate_batch(session_names, task_names, processor_names, processor_types, subscribe_type, update_types, subscription_names, subscription_table_names, timestamps, timestamp_lasts)?;
         let table_tasks_subscribe_aggregate = AvailableSubjects::SessionTasksSubscribeAggregate.to_table(None, Some(vec![batch]))?;

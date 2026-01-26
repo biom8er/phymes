@@ -4,7 +4,6 @@ use phymes_core::{
     MessageBuilderTrait, Table, TableBuilderTrait, TablePublication, TableTrait,
     create_session_tasks_subscribe_publish_batch,
 };
-use phymes_diagnostics::HashMap;
 
 use crate::create_message_map;
 

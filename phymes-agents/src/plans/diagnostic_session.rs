@@ -1880,6 +1880,7 @@ mod tests {
                 DiagnosticsVisualizations::ErrorKanban.to_string().as_str(),
             ]))?
             .add_next_tasks()?
+            .add_next_supersteps()?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
@@ -1890,6 +1891,7 @@ mod tests {
                 .with_diagnostics(true)
                 .add_session_interface(Some(&["state_1"]))?
                 .add_next_tasks()?
+                .add_next_supersteps()?
                 .build_with_tables()?;
 
             // Mimic a session run for 1 steps

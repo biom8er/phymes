@@ -21,7 +21,7 @@ use phymes_diagnostics::{HashSet, create_timestamp_micros};
 use crate::{
     AvailableProcessors, SessionContextBuilder, SessionContextBuilderAgentsTrait,
     SessionContextBuilderMermaidTrait, SessionContextBuilderTrait,
-    plans::{SubjectsNumRowsSession, NextTaskSession},
+    plans::{NextSuperstepSession, NextTaskSession, SubjectsNumRowsSession},
 };
 
 /// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from tabular format
@@ -198,6 +198,9 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 || table.get_name() == AvailableSubjects::SessionTasksSubscribe.to_string().as_str()
                 || table.get_name() == AvailableSubjects::SessionTasksSubscribeAggregate.to_string().as_str()
                 || table.get_name() == AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str()
+                // Session superstep tables
+                || table.get_name() == AvailableSubjects::SessionSupersteps.to_string().as_str()
+                || table.get_name() == AvailableSubjects::SessionSuperstepMax.to_string().as_str()
             {
                 // These tables are created on the fly so we do not want to duplicate them.
                 // If the user wishes to continue already generated tables they can do so
@@ -252,7 +255,19 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         .into_iter()
         .map(|t| t.get_name().to_string())
         .collect::<Vec<_>>();
-        let exclusion_set = tables_publish_subscribe.into_iter().collect::<HashSet<_>>();
+        let next_superstep = NextSuperstepSession::default();
+        let tables_next_superstep = SessionContextBuilder::from_mermaid_flowchart(
+            next_superstep.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_name(next_superstep.session_context_name)
+        .add_processor_subjects()?
+        .state
+        .unwrap()
+        .into_iter()
+        .map(|t| t.get_name().to_string())
+        .collect::<Vec<_>>();
+        let exclusion_set = tables_publish_subscribe.into_iter().chain(tables_next_superstep).collect::<HashSet<_>>();
 
         // initialize the table columns
         let mut session_names = Vec::<String>::new();
@@ -453,7 +468,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
     }
 
     fn get_mermaid_js_as_table(&self) -> Result<Table> {
-        let flowchart_diagram = self.to_mermaid_flowchart(false, false, false)?;
+        let flowchart_diagram = self.to_mermaid_flowchart(false, false)?;
         let er_diagram = self.to_mermaid_erdiagram(false, true)?;
         let session_context_name = self.name.as_ref().unwrap().to_string();
         let timestamp = create_timestamp_micros();
@@ -498,19 +513,19 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         .into_iter()
         .map(|t| t.task_name)
         .collect::<Vec<_>>();
-        // let subjects_session = SubjectsNumRowsSession::default();
-        // let tasks_subjects = SessionContextBuilder::from_mermaid_flowchart(
-        //     subjects_session.as_mermaid_flowchart(),
-        //     false,
-        // )?
-        // .tasks
-        // .unwrap()
-        // .into_iter()
-        // .map(|t| t.task_name)
-        // .collect::<Vec<_>>();
+        let next_superstep = NextSuperstepSession::default();
+        let tasks_next_superstep = SessionContextBuilder::from_mermaid_flowchart(
+            next_superstep.as_mermaid_flowchart(),
+            false,
+        )?
+        .tasks
+        .unwrap()
+        .into_iter()
+        .map(|t| t.task_name)
+        .collect::<Vec<_>>();
         let exclusion_set = tasks_publish_subscribe
             .into_iter()
-            // .chain(tasks_subjects)
+            .chain(tasks_next_superstep)
             .collect::<HashSet<_>>();
 
         // Create the table
@@ -523,10 +538,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 if exclusion_set.contains(&task.task_name) {
                     None
                 } else {
-                    Some((
-                        (session_name.to_string(), task.task_name.to_string()),
-                        create_timestamp_micros(),
-                    ))
+                    Some(((session_name.to_string(), task.task_name.to_string()), 0_i64))
                 }
             })
             .unzip();
@@ -575,9 +587,23 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         .into_iter()
         .map(|t| t.get_name().to_string())
         .collect::<Vec<_>>();
+        let next_superstep_session = NextSuperstepSession::default();
+        let tables_next_superstep = SessionContextBuilder::from_mermaid_flowchart(
+            next_superstep_session.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_state_from_mermaid_erdiagram(next_superstep_session.as_mermaid_erdiagram(), false, false)?
+        .with_name(next_superstep_session.session_context_name)
+        .add_processor_subjects()?
+        .state
+        .unwrap()
+        .into_iter()
+        .map(|t| t.get_name().to_string())
+        .collect::<Vec<_>>();
         let exclusion_set = tables_publish_subscribe
             .into_iter()
             .chain(tables_subjects)
+            .chain(tables_next_superstep)
             .collect::<HashSet<_>>();
 
         // Create the table
@@ -636,7 +662,17 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         .into_iter()
         .map(|t| t.task_name)
         .collect::<Vec<_>>();
-        let exclusion_set = tables_publish_subscribe.into_iter().collect::<HashSet<_>>();
+        let next_superstep = NextSuperstepSession::default();
+        let tasks_next_superstep = SessionContextBuilder::from_mermaid_flowchart(
+            next_superstep.as_mermaid_flowchart(),
+            false,
+        )?
+        .tasks
+        .unwrap()
+        .into_iter()
+        .map(|t| t.task_name)
+        .collect::<Vec<_>>();
+        let exclusion_set = tables_publish_subscribe.into_iter().chain(tasks_next_superstep).collect::<HashSet<_>>();
 
         // Create the table
         let ((((subject_names, task_names), session_names), num_rows_delta), timestamps) = self
@@ -680,7 +716,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                                         ),
                                         0_i64,
                                     ),
-                                    create_timestamp_micros(),
+                                    0_i64,
                                 ))
                             } else {
                                 None

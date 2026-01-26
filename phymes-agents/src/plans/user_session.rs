@@ -333,6 +333,7 @@ pub(crate) mod user_session_inner {
             .with_name(user_agent_session.session_context_name)
             .with_diagnostics(true)
             .add_next_tasks()?
+            .add_next_supersteps()?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait,
     SessionContextBuilderTrait,
-    plans::{AvailableProcessors, NextTaskSession, check_agent_subjects},
+    plans::{AvailableProcessors, NextSuperstepSession, NextTaskSession, check_agent_subjects},
 };
 use anyhow::{Result, anyhow};
 use arrow::{
@@ -30,7 +30,7 @@ pub trait SessionContextBuilderMermaidTrait {
     /// # Arguments
     /// * `with_processor_configs` - whether to add the processor config subjects to the diagram
     /// * `with_session_interface` - whether to add the session interface tasks, processors, and runtime environments to the diagram
-    /// * `with_tasks_subscribe_publish` - whether to add the tasks subscribe and publish tasks, processors, and runtime environments to the diagram
+    /// * `with_next_tasks` - whether to add the tasks subscribe and publish tasks, processors, and runtime environments to the diagram
     ///
     /// # Notes
     /// * Tool processors (i.e., task_name = processor_name) are triggered by updates on their config subject,
@@ -39,7 +39,6 @@ pub trait SessionContextBuilderMermaidTrait {
         &self,
         with_processor_configs: bool,
         with_session_interface: bool,
-        with_tasks_subscribe_publish: bool,
     ) -> Result<String>;
 
     /// Make a mermaid.js erDiagram of the session
@@ -87,7 +86,6 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         &self,
         with_configs: bool,
         with_session_interface: bool,
-        with_tasks_subscribe_publish: bool,
     ) -> Result<String> {
         // Check if there are members
         if self.tasks.is_none() {
@@ -123,7 +121,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         let mut processors_exclude = HashSet::new();
         let mut runtime_envs_exclude = HashSet::new();
         let mut subjects_exclude = HashSet::new();
-        if !with_tasks_subscribe_publish {
+        { // Exclusions from `NextTaskSession`
             let next_task_session = NextTaskSession::default();
             let tasks_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
                 next_task_session.as_mermaid_flowchart(),
@@ -145,6 +143,33 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 }
             }
             if let Some(subjects) = tasks_publish_subscribe.state {
+                for table in subjects {
+                    subjects_exclude.insert(table.get_name().to_string());
+                }
+            }
+        }
+        { // Exclusions from `NextSuperstepSession`
+            let next_superstep_session = NextSuperstepSession::default();
+            let tasks_next_superstep = SessionContextBuilder::from_mermaid_flowchart(
+                next_superstep_session.as_mermaid_flowchart(),
+                false,
+            )?
+            .with_state_from_mermaid_erdiagram(
+                next_superstep_session.as_mermaid_erdiagram(),
+                false,
+                false,
+            )?
+            .with_name(next_superstep_session.session_context_name)
+            .add_processor_subjects()?;
+            if let Some(tasks) = tasks_next_superstep.tasks {
+                for task in tasks {
+                    tasks_exclude.insert(task.task_name);
+                    runtime_envs_exclude.insert(task.runtime_env_name);
+                    let processors = task.processor_names.into_iter().collect::<HashSet<_>>();
+                    processors_exclude.extend(processors);
+                }
+            }
+            if let Some(subjects) = tasks_next_superstep.state {
                 for table in subjects {
                     subjects_exclude.insert(table.get_name().to_string());
                 }
@@ -1464,20 +1489,15 @@ mod tests {
                 .add_next_tasks()?;
 
         // Test to flowchart
-        let mermaid_js = builder.to_mermaid_flowchart(false, false, false)?;
+        let mermaid_js = builder.to_mermaid_flowchart(false, false)?;
         assert_eq!(
             mermaid_js,
             "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|FullTable|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|FullTable|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|FullTable|processor_3-subscribe\n\t\tstate_2-subject-.->|FullTable|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}"
         );
-        let mermaid_js = builder.to_mermaid_flowchart(false, true, false)?;
+        let mermaid_js = builder.to_mermaid_flowchart(false, true)?;
         assert_eq!(
             mermaid_js,
             "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|FullTable|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|FullTable|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|FullTable|processor_3-subscribe\n\t\tstate_2-subject-.->|FullTable|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_2-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_3-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish-->|Extend|state_1-subject\n\t\tsession_1-publish-->|Extend|state_2-subject\n\t\tsession_1-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\tsession_1-runtime_env-rt-->session_1\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\tsession_1-processor@{shape: rect, label: ProcessorEcho}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tsession_1-runtime_env-rt@{shape: subproc, label: session_1-runtime_env}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tsession_1-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tsession_1-subscribe@{shape: diamond, label: Any}"
-        );
-        let mermaid_js = builder.to_mermaid_flowchart(true, true, true)?;
-        assert_eq!(
-            mermaid_js,
-            "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|FullTable|processor_1-subscribe\n\t\tprocessor_1-subject-->|FullTable|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|FullTable|processor_2-subscribe\n\t\tprocessor_2-subject-->|FullTable|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|FullTable|processor_3-subscribe\n\t\tstate_2-subject-.->|FullTable|processor_3-subscribe\n\t\tprocessor_3-subject-->|FullTable|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_2-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_3-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish-->|Extend|state_1-subject\n\t\tsession_1-publish-->|Extend|state_2-subject\n\t\tsession_1-publish-->|Extend|state_3-subject\n\tend\n\tsubgraph group_by_tasks_run_log_timestamp_t\n\t\tSessionTasksRunLog-subject-.->|FullTable|sort_tasks_run_log_timestamp_p-subscribe\n\t\tsort_tasks_run_log_timestamp_p-subject-->|FullTable|sort_tasks_run_log_timestamp_p-subscribe\n\t\tsort_tasks_run_log_timestamp_p-subscribe-->sort_tasks_run_log_timestamp_p-processor\n\t\tsort_tasks_run_log_timestamp_p-processor-->sort_tasks_run_log_timestamp_p-publish\n\t\tsort_tasks_run_log_timestamp_p-publish-->|Replace|sort_tasks_run_log_timestamp_t-subject\n\t\tsort_tasks_run_log_timestamp_t-subject-->|FullTable|group_by_tasks_run_log_timestamp_p-subscribe\n\t\tgroup_by_tasks_run_log_timestamp_p-subject-->|FullTable|group_by_tasks_run_log_timestamp_p-subscribe\n\t\tgroup_by_tasks_run_log_timestamp_p-subscribe-->group_by_tasks_run_log_timestamp_p-processor\n\t\tgroup_by_tasks_run_log_timestamp_p-processor-->group_by_tasks_run_log_timestamp_p-publish\n\t\tgroup_by_tasks_run_log_timestamp_p-publish-->|Replace|group_by_tasks_run_log_timestamp_t-subject\n\t\tgroup_by_tasks_run_log_timestamp_t-subject-->|FullTable|select_tasks_run_log_timestamp_p-subscribe\n\t\tselect_tasks_run_log_timestamp_p-subject-->|FullTable|select_tasks_run_log_timestamp_p-subscribe\n\t\tselect_tasks_run_log_timestamp_p-subscribe-->select_tasks_run_log_timestamp_p-processor\n\t\tselect_tasks_run_log_timestamp_p-processor-->select_tasks_run_log_timestamp_p-publish\n\t\tselect_tasks_run_log_timestamp_p-publish-->|Replace|select_tasks_run_log_timestamp_t-subject\n\tend\n\tsubgraph filter_processors_subscriptions_t\n\t\tSessionProcessors-subject-.->|FullTable|cmp_processors_subscriptions_p-subscribe\n\t\tcmp_processors_subscriptions_p-subject-->|FullTable|cmp_processors_subscriptions_p-subscribe\n\t\tcmp_processors_subscriptions_p-subscribe-->cmp_processors_subscriptions_p-processor\n\t\tcmp_processors_subscriptions_p-processor-->cmp_processors_subscriptions_p-publish\n\t\tcmp_processors_subscriptions_p-publish-->|Replace|cmp_processors_subscriptions_t-subject\n\t\tcmp_processors_subscriptions_t-subject-->|FullTable|filter_processors_subscriptions_p-subscribe\n\t\tfilter_processors_subscriptions_p-subject-->|FullTable|filter_processors_subscriptions_p-subscribe\n\t\tfilter_processors_subscriptions_p-subscribe-->filter_processors_subscriptions_p-processor\n\t\tfilter_processors_subscriptions_p-processor-->filter_processors_subscriptions_p-publish\n\t\tfilter_processors_subscriptions_p-publish-->|Replace|filter_processors_subscriptions_t-subject\n\t\tfilter_processors_subscriptions_t-subject-->|FullTable|select_processors_subscriptions_p-subscribe\n\t\tselect_processors_subscriptions_p-subject-->|FullTable|select_processors_subscriptions_p-subscribe\n\t\tselect_processors_subscriptions_p-subscribe-->select_processors_subscriptions_p-processor\n\t\tselect_processors_subscriptions_p-processor-->select_processors_subscriptions_p-publish\n\t\tselect_processors_subscriptions_p-publish-->|Replace|select_processors_subscriptions_t-subject\n\tend\n\tsubgraph join_tasks_run_log_timestamp_t\n\t\tSubjectsChangeLog-subject-->|FullTable|sort_subject_change_log_timestamp_p-subscribe\n\t\tsort_subject_change_log_timestamp_p-subject-->|FullTable|sort_subject_change_log_timestamp_p-subscribe\n\t\tsort_subject_change_log_timestamp_p-subscribe-->sort_subject_change_log_timestamp_p-processor\n\t\tsort_subject_change_log_timestamp_p-processor-->sort_subject_change_log_timestamp_p-publish\n\t\tsort_subject_change_log_timestamp_p-publish-->|Replace|sort_subject_change_log_timestamp_t-subject\n\t\tsort_subject_change_log_timestamp_t-subject-->|FullTable|group_by_subject_change_log_timestamp_p-subscribe\n\t\tgroup_by_subject_change_log_timestamp_p-subject-->|FullTable|group_by_subject_change_log_timestamp_p-subscribe\n\t\tgroup_by_subject_change_log_timestamp_p-subscribe-->group_by_subject_change_log_timestamp_p-processor\n\t\tgroup_by_subject_change_log_timestamp_p-processor-->group_by_subject_change_log_timestamp_p-publish\n\t\tgroup_by_subject_change_log_timestamp_p-publish-->|Replace|group_by_subject_change_log_timestamp_t-subject\n\t\tselect_tasks_run_log_timestamp_t-subject-.->|FullTable|join_tasks_run_log_timestamp_p-subscribe\n\t\tSessionTasks-subject-->|FullTable|join_tasks_run_log_timestamp_p-subscribe\n\t\tjoin_tasks_run_log_timestamp_p-subject-->|FullTable|join_tasks_run_log_timestamp_p-subscribe\n\t\tjoin_tasks_run_log_timestamp_p-subscribe-->join_tasks_run_log_timestamp_p-processor\n\t\tjoin_tasks_run_log_timestamp_p-processor-->join_tasks_run_log_timestamp_p-publish\n\t\tjoin_tasks_run_log_timestamp_p-publish-->|Replace|join_tasks_run_log_timestamp_t-subject\n\t\tjoin_tasks_run_log_timestamp_t-subject-->|FullTable|join_tasks_processors_subscriptions_p-subscribe\n\t\tselect_processors_subscriptions_t-subject-->|FullTable|join_tasks_processors_subscriptions_p-subscribe\n\t\tjoin_tasks_processors_subscriptions_p-subject-->|FullTable|join_tasks_processors_subscriptions_p-subscribe\n\t\tjoin_tasks_processors_subscriptions_p-subscribe-->join_tasks_processors_subscriptions_p-processor\n\t\tjoin_tasks_processors_subscriptions_p-processor-->join_tasks_processors_subscriptions_p-publish\n\t\tjoin_tasks_processors_subscriptions_p-publish-->|Replace|join_tasks_processors_subscriptions_t-subject\n\t\tjoin_tasks_processors_subscriptions_t-subject-->|FullTable|join_tasks_processors_subscriptions_subjects_p-subscribe\n\t\tgroup_by_subject_change_log_timestamp_t-subject-->|FullTable|join_tasks_processors_subscriptions_subjects_p-subscribe\n\t\tjoin_tasks_processors_subscriptions_subjects_p-subject-->|FullTable|join_tasks_processors_subscriptions_subjects_p-subscribe\n\t\tjoin_tasks_processors_subscriptions_subjects_p-subscribe-->join_tasks_processors_subscriptions_subjects_p-processor\n\t\tjoin_tasks_processors_subscriptions_subjects_p-processor-->join_tasks_processors_subscriptions_subjects_p-publish\n\t\tjoin_tasks_processors_subscriptions_subjects_p-publish-->|Replace|join_tasks_processors_subscriptions_subjects_t-subject\n\t\tjoin_tasks_processors_subscriptions_subjects_t-subject-->|FullTable|select_tasks_processors_subscriptions_subjects_p-subscribe\n\t\tselect_tasks_processors_subscriptions_subjects_p-subject-->|FullTable|select_tasks_processors_subscriptions_subjects_p-subscribe\n\t\tselect_tasks_processors_subscriptions_subjects_p-subscribe-->select_tasks_processors_subscriptions_subjects_p-processor\n\t\tselect_tasks_processors_subscriptions_subjects_p-processor-->select_tasks_processors_subscriptions_subjects_p-publish\n\t\tselect_tasks_processors_subscriptions_subjects_p-publish-->|Replace|select_tasks_processors_subscriptions_subjects_t-subject\n\t\tselect_tasks_processors_subscriptions_subjects_t-subject-->|FullTable|group_by_tasks_processors_subscriptions_p-subscribe\n\t\tgroup_by_tasks_processors_subscriptions_p-subject-->|FullTable|group_by_tasks_processors_subscriptions_p-subscribe\n\t\tgroup_by_tasks_processors_subscriptions_p-subscribe-->group_by_tasks_processors_subscriptions_p-processor\n\t\tgroup_by_tasks_processors_subscriptions_p-processor-->group_by_tasks_processors_subscriptions_p-publish\n\t\tgroup_by_tasks_processors_subscriptions_p-publish-->|Replace|SessionTasksSubscribeAggregate-subject\n\tend\n\tsubgraph filter_processors_publications_t\n\t\tSessionProcessors-subject-.->|FullTable|cmp_processors_publications_p-subscribe\n\t\tcmp_processors_publications_p-subject-->|FullTable|cmp_processors_publications_p-subscribe\n\t\tcmp_processors_publications_p-subscribe-->cmp_processors_publications_p-processor\n\t\tcmp_processors_publications_p-processor-->cmp_processors_publications_p-publish\n\t\tcmp_processors_publications_p-publish-->|Replace|cmp_processors_publications_t-subject\n\t\tcmp_processors_publications_t-subject-->|FullTable|filter_processors_publications_p-subscribe\n\t\tfilter_processors_publications_p-subject-->|FullTable|filter_processors_publications_p-subscribe\n\t\tfilter_processors_publications_p-subscribe-->filter_processors_publications_p-processor\n\t\tfilter_processors_publications_p-processor-->filter_processors_publications_p-publish\n\t\tfilter_processors_publications_p-publish-->|Replace|filter_processors_publications_t-subject\n\t\tfilter_processors_publications_t-subject-->|FullTable|select_processors_publications_p-subscribe\n\t\tselect_processors_publications_p-subject-->|FullTable|select_processors_publications_p-subscribe\n\t\tselect_processors_publications_p-subscribe-->select_processors_publications_p-processor\n\t\tselect_processors_publications_p-processor-->select_processors_publications_p-publish\n\t\tselect_processors_publications_p-publish-->|Replace|select_processors_publications_t-subject\n\tend\n\tsubgraph select_tasks_processors_publications_t\n\t\tSessionTasksSubscribe-subject-.->|FullTable|group_by_tasks_processors_subscriptions_subjects_p-subscribe\n\t\tgroup_by_tasks_processors_subscriptions_subjects_p-subject-->|FullTable|group_by_tasks_processors_subscriptions_subjects_p-subscribe\n\t\tgroup_by_tasks_processors_subscriptions_subjects_p-subscribe-->group_by_tasks_processors_subscriptions_subjects_p-processor\n\t\tgroup_by_tasks_processors_subscriptions_subjects_p-processor-->group_by_tasks_processors_subscriptions_subjects_p-publish\n\t\tgroup_by_tasks_processors_subscriptions_subjects_p-publish-->|Replace|group_by_tasks_processors_subscriptions_subjects_t-subject\n\t\tselect_processors_publications_t-subject-->|FullTable|group_by_tasks_processors_publications_p-subscribe\n\t\tgroup_by_tasks_processors_publications_p-subject-->|FullTable|group_by_tasks_processors_publications_p-subscribe\n\t\tgroup_by_tasks_processors_publications_p-subscribe-->group_by_tasks_processors_publications_p-processor\n\t\tgroup_by_tasks_processors_publications_p-processor-->group_by_tasks_processors_publications_p-publish\n\t\tgroup_by_tasks_processors_publications_p-publish-->|Replace|group_by_tasks_processors_publications_t-subject\n\t\tgroup_by_tasks_processors_subscriptions_subjects_t-subject-->|FullTable|join_tasks_processors_publications_p-subscribe\n\t\tgroup_by_tasks_processors_publications_t-subject-->|FullTable|join_tasks_processors_publications_p-subscribe\n\t\tjoin_tasks_processors_publications_p-subject-->|FullTable|join_tasks_processors_publications_p-subscribe\n\t\tjoin_tasks_processors_publications_p-subscribe-->join_tasks_processors_publications_p-processor\n\t\tjoin_tasks_processors_publications_p-processor-->join_tasks_processors_publications_p-publish\n\t\tjoin_tasks_processors_publications_p-publish-->|Replace|join_tasks_processors_publications_t-subject\n\t\tjoin_tasks_processors_publications_t-subject-->|FullTable|select_tasks_processors_publications_p-subscribe\n\t\tselect_tasks_processors_publications_p-subject-->|FullTable|select_tasks_processors_publications_p-subscribe\n\t\tselect_tasks_processors_publications_p-subscribe-->select_tasks_processors_publications_p-processor\n\t\tselect_tasks_processors_publications_p-processor-->select_tasks_processors_publications_p-publish\n\t\tselect_tasks_processors_publications_p-publish-->|Replace|SessionTasksSubscribePublish-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\tsession_1-runtime_env-rt-->session_1\n\tdefault_runtime_env_name-rt-->group_by_tasks_run_log_timestamp_t\n\tdefault_runtime_env_name-rt-->filter_processors_subscriptions_t\n\tdefault_runtime_env_name-rt-->join_tasks_run_log_timestamp_t\n\tdefault_runtime_env_name-rt-->filter_processors_publications_t\n\tdefault_runtime_env_name-rt-->select_tasks_processors_publications_t\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\tsession_1-processor@{shape: rect, label: ProcessorEcho}\n\tsort_tasks_run_log_timestamp_p-processor@{shape: rect, label: Sort}\n\tgroup_by_tasks_run_log_timestamp_p-processor@{shape: rect, label: GroupBy}\n\tselect_tasks_run_log_timestamp_p-processor@{shape: rect, label: Select}\n\tcmp_processors_subscriptions_p-processor@{shape: rect, label: Select}\n\tfilter_processors_subscriptions_p-processor@{shape: rect, label: Filter}\n\tselect_processors_subscriptions_p-processor@{shape: rect, label: Select}\n\tsort_subject_change_log_timestamp_p-processor@{shape: rect, label: Sort}\n\tgroup_by_subject_change_log_timestamp_p-processor@{shape: rect, label: GroupBy}\n\tjoin_tasks_run_log_timestamp_p-processor@{shape: rect, label: Join}\n\tjoin_tasks_processors_subscriptions_p-processor@{shape: rect, label: Join}\n\tjoin_tasks_processors_subscriptions_subjects_p-processor@{shape: rect, label: Join}\n\tselect_tasks_processors_subscriptions_subjects_p-processor@{shape: rect, label: Select}\n\tgroup_by_tasks_processors_subscriptions_p-processor@{shape: rect, label: GroupBy}\n\tcmp_processors_publications_p-processor@{shape: rect, label: Select}\n\tfilter_processors_publications_p-processor@{shape: rect, label: Filter}\n\tselect_processors_publications_p-processor@{shape: rect, label: Select}\n\tgroup_by_tasks_processors_subscriptions_subjects_p-processor@{shape: rect, label: GroupBy}\n\tgroup_by_tasks_processors_publications_p-processor@{shape: rect, label: GroupBy}\n\tjoin_tasks_processors_publications_p-processor@{shape: rect, label: Join}\n\tselect_tasks_processors_publications_p-processor@{shape: rect, label: Select}\n\tdefault_runtime_env_name-rt@{shape: subproc, label: default_runtime_env_name}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tsession_1-runtime_env-rt@{shape: subproc, label: session_1-runtime_env}\n\tSessionProcessors-subject@{shape: doc, label: SessionProcessors}\n\tSessionTasks-subject@{shape: doc, label: SessionTasks}\n\tSessionTasksRunLog-subject@{shape: doc, label: SessionTasksRunLog}\n\tSessionTasksSubscribe-subject@{shape: doc, label: SessionTasksSubscribe}\n\tSessionTasksSubscribeAggregate-subject@{shape: doc, label: SessionTasksSubscribeAggregate}\n\tSessionTasksSubscribePublish-subject@{shape: doc, label: SessionTasksSubscribePublish}\n\tSubjectsChangeLog-subject@{shape: doc, label: SubjectsChangeLog}\n\tcmp_processors_publications_p-subject@{shape: doc, label: cmp_processors_publications_p}\n\tcmp_processors_publications_t-subject@{shape: doc, label: cmp_processors_publications_t}\n\tcmp_processors_subscriptions_p-subject@{shape: doc, label: cmp_processors_subscriptions_p}\n\tcmp_processors_subscriptions_t-subject@{shape: doc, label: cmp_processors_subscriptions_t}\n\tfilter_processors_publications_p-subject@{shape: doc, label: filter_processors_publications_p}\n\tfilter_processors_publications_t-subject@{shape: doc, label: filter_processors_publications_t}\n\tfilter_processors_subscriptions_p-subject@{shape: doc, label: filter_processors_subscriptions_p}\n\tfilter_processors_subscriptions_t-subject@{shape: doc, label: filter_processors_subscriptions_t}\n\tgroup_by_subject_change_log_timestamp_p-subject@{shape: doc, label: group_by_subject_change_log_timestamp_p}\n\tgroup_by_subject_change_log_timestamp_t-subject@{shape: doc, label: group_by_subject_change_log_timestamp_t}\n\tgroup_by_tasks_processors_publications_p-subject@{shape: doc, label: group_by_tasks_processors_publications_p}\n\tgroup_by_tasks_processors_publications_t-subject@{shape: doc, label: group_by_tasks_processors_publications_t}\n\tgroup_by_tasks_processors_subscriptions_p-subject@{shape: doc, label: group_by_tasks_processors_subscriptions_p}\n\tgroup_by_tasks_processors_subscriptions_subjects_p-subject@{shape: doc, label: group_by_tasks_processors_subscriptions_subjects_p}\n\tgroup_by_tasks_processors_subscriptions_subjects_t-subject@{shape: doc, label: group_by_tasks_processors_subscriptions_subjects_t}\n\tgroup_by_tasks_run_log_timestamp_p-subject@{shape: doc, label: group_by_tasks_run_log_timestamp_p}\n\tgroup_by_tasks_run_log_timestamp_t-subject@{shape: doc, label: group_by_tasks_run_log_timestamp_t}\n\tjoin_tasks_processors_publications_p-subject@{shape: doc, label: join_tasks_processors_publications_p}\n\tjoin_tasks_processors_publications_t-subject@{shape: doc, label: join_tasks_processors_publications_t}\n\tjoin_tasks_processors_subscriptions_p-subject@{shape: doc, label: join_tasks_processors_subscriptions_p}\n\tjoin_tasks_processors_subscriptions_subjects_p-subject@{shape: doc, label: join_tasks_processors_subscriptions_subjects_p}\n\tjoin_tasks_processors_subscriptions_subjects_t-subject@{shape: doc, label: join_tasks_processors_subscriptions_subjects_t}\n\tjoin_tasks_processors_subscriptions_t-subject@{shape: doc, label: join_tasks_processors_subscriptions_t}\n\tjoin_tasks_run_log_timestamp_p-subject@{shape: doc, label: join_tasks_run_log_timestamp_p}\n\tjoin_tasks_run_log_timestamp_t-subject@{shape: doc, label: join_tasks_run_log_timestamp_t}\n\tprocessor_1-subject@{shape: doc, label: processor_1}\n\tprocessor_2-subject@{shape: doc, label: processor_2}\n\tprocessor_3-subject@{shape: doc, label: processor_3}\n\tselect_processors_publications_p-subject@{shape: doc, label: select_processors_publications_p}\n\tselect_processors_publications_t-subject@{shape: doc, label: select_processors_publications_t}\n\tselect_processors_subscriptions_p-subject@{shape: doc, label: select_processors_subscriptions_p}\n\tselect_processors_subscriptions_t-subject@{shape: doc, label: select_processors_subscriptions_t}\n\tselect_tasks_processors_publications_p-subject@{shape: doc, label: select_tasks_processors_publications_p}\n\tselect_tasks_processors_subscriptions_subjects_p-subject@{shape: doc, label: select_tasks_processors_subscriptions_subjects_p}\n\tselect_tasks_processors_subscriptions_subjects_t-subject@{shape: doc, label: select_tasks_processors_subscriptions_subjects_t}\n\tselect_tasks_run_log_timestamp_p-subject@{shape: doc, label: select_tasks_run_log_timestamp_p}\n\tselect_tasks_run_log_timestamp_t-subject@{shape: doc, label: select_tasks_run_log_timestamp_t}\n\tsort_subject_change_log_timestamp_p-subject@{shape: doc, label: sort_subject_change_log_timestamp_p}\n\tsort_subject_change_log_timestamp_t-subject@{shape: doc, label: sort_subject_change_log_timestamp_t}\n\tsort_tasks_run_log_timestamp_p-subject@{shape: doc, label: sort_tasks_run_log_timestamp_p}\n\tsort_tasks_run_log_timestamp_t-subject@{shape: doc, label: sort_tasks_run_log_timestamp_t}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tcmp_processors_publications_p-publish@{shape: fork}\n\tcmp_processors_subscriptions_p-publish@{shape: fork}\n\tfilter_processors_publications_p-publish@{shape: fork}\n\tfilter_processors_subscriptions_p-publish@{shape: fork}\n\tgroup_by_subject_change_log_timestamp_p-publish@{shape: fork}\n\tgroup_by_tasks_processors_publications_p-publish@{shape: fork}\n\tgroup_by_tasks_processors_subscriptions_p-publish@{shape: fork}\n\tgroup_by_tasks_processors_subscriptions_subjects_p-publish@{shape: fork}\n\tgroup_by_tasks_run_log_timestamp_p-publish@{shape: fork}\n\tjoin_tasks_processors_publications_p-publish@{shape: fork}\n\tjoin_tasks_processors_subscriptions_p-publish@{shape: fork}\n\tjoin_tasks_processors_subscriptions_subjects_p-publish@{shape: fork}\n\tjoin_tasks_run_log_timestamp_p-publish@{shape: fork}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tselect_processors_publications_p-publish@{shape: fork}\n\tselect_processors_subscriptions_p-publish@{shape: fork}\n\tselect_tasks_processors_publications_p-publish@{shape: fork}\n\tselect_tasks_processors_subscriptions_subjects_p-publish@{shape: fork}\n\tselect_tasks_run_log_timestamp_p-publish@{shape: fork}\n\tsession_1-publish@{shape: fork}\n\tsort_subject_change_log_timestamp_p-publish@{shape: fork}\n\tsort_tasks_run_log_timestamp_p-publish@{shape: fork}\n\tcmp_processors_publications_p-subscribe@{shape: diamond, label: All}\n\tcmp_processors_subscriptions_p-subscribe@{shape: diamond, label: All}\n\tfilter_processors_publications_p-subscribe@{shape: diamond, label: All}\n\tfilter_processors_subscriptions_p-subscribe@{shape: diamond, label: All}\n\tgroup_by_subject_change_log_timestamp_p-subscribe@{shape: diamond, label: All}\n\tgroup_by_tasks_processors_publications_p-subscribe@{shape: diamond, label: All}\n\tgroup_by_tasks_processors_subscriptions_p-subscribe@{shape: diamond, label: All}\n\tgroup_by_tasks_processors_subscriptions_subjects_p-subscribe@{shape: diamond, label: All}\n\tgroup_by_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}\n\tjoin_tasks_processors_publications_p-subscribe@{shape: diamond, label: All}\n\tjoin_tasks_processors_subscriptions_p-subscribe@{shape: diamond, label: All}\n\tjoin_tasks_processors_subscriptions_subjects_p-subscribe@{shape: diamond, label: All}\n\tjoin_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tselect_processors_publications_p-subscribe@{shape: diamond, label: All}\n\tselect_processors_subscriptions_p-subscribe@{shape: diamond, label: All}\n\tselect_tasks_processors_publications_p-subscribe@{shape: diamond, label: All}\n\tselect_tasks_processors_subscriptions_subjects_p-subscribe@{shape: diamond, label: All}\n\tselect_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}\n\tsession_1-subscribe@{shape: diamond, label: Any}\n\tsort_subject_change_log_timestamp_p-subscribe@{shape: diamond, label: All}\n\tsort_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}"
         );
 
         Ok(())
@@ -1515,7 +1535,7 @@ mod tests {
                 .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(true, true, true)?;
+        let flowchart = builder.to_mermaid_flowchart(true, true)?;
         let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
 
         // Remake the builder
@@ -1587,7 +1607,7 @@ mod tests {
                 .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(true, true, true)?;
+        let flowchart = builder.to_mermaid_flowchart(true, true)?;
         let erdiagram = builder.to_mermaid_erdiagram(true, false)?;
 
         // Remake the builder
@@ -1664,7 +1684,7 @@ mod tests {
                 .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?;
 
         // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(false, true, true)?;
+        let flowchart = builder.to_mermaid_flowchart(false, true)?;
         let erdiagram = builder.to_mermaid_erdiagram(true, false)?;
 
         // Remake the builder
@@ -1748,7 +1768,7 @@ mod tests {
             .add_session_interface(None)?;
 
         // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(true, true, true)?;
+        let flowchart = builder.to_mermaid_flowchart(true, true)?;
         let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
 
         // Remake the builder
@@ -1801,7 +1821,7 @@ mod tests {
             .add_session_interface(None)?;
 
         // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(true, true, true)?;
+        let flowchart = builder.to_mermaid_flowchart(true, true)?;
         let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
 
         // Remake the builder
@@ -1854,7 +1874,7 @@ mod tests {
             .add_session_interface(None)?;
 
         // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(true, true, true)?;
+        let flowchart = builder.to_mermaid_flowchart(true, true)?;
         let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
 
         // Remake the builder
@@ -1907,7 +1927,7 @@ mod tests {
             .add_session_interface(None)?;
 
         // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(false, false, false)?;
+        let flowchart = builder.to_mermaid_flowchart(false, false)?;
         let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
 
         // Remake the builder
@@ -1963,7 +1983,7 @@ mod tests {
             .add_session_interface(None)?;
 
         // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(false, false, false)?;
+        let flowchart = builder.to_mermaid_flowchart(false, false)?;
         let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
 
         // Remake the builder
@@ -2019,7 +2039,7 @@ mod tests {
             .add_session_interface(None)?;
 
         // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(false, false, false)?;
+        let flowchart = builder.to_mermaid_flowchart(false, false)?;
         let erdiagram = builder.to_mermaid_erdiagram(false, false)?;
 
         // Remake the builder
@@ -2075,7 +2095,7 @@ mod tests {
             .add_session_interface(None)?;
 
         // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(false, false, false)?;
+        let flowchart = builder.to_mermaid_flowchart(false, false)?;
         let erdiagram = builder.to_mermaid_erdiagram(false, true)?;
 
         // Remake the builder
@@ -2172,7 +2192,7 @@ mod tests {
             .add_session_interface(None)?;
 
         // Make the flowchart and erdiagram
-        let flowchart = builder.to_mermaid_flowchart(false, false, false)?;
+        let flowchart = builder.to_mermaid_flowchart(false, false)?;
         let erdiagram = builder.to_mermaid_erdiagram(false, true)?;
 
         // Remake the builder

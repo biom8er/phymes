@@ -264,11 +264,40 @@ pub trait SessionStreamStepTrait {
                 }
             }
 
-            // Increment and return the next superstep
+            // Return the next superstep
             match session_context.read().current_superstep() {
                 Ok(current_superstep) => current_superstep,
                 Err(_err) => 0,
             }
+        }
+    }
+
+    /// Get the current superstep handling any initialization
+    fn current_superstep(
+        session_context: &Arc<RwLock<SessionContext>>,
+    ) -> impl std::future::Future<Output = u32> + Send
+    {
+        async move {
+            let (step, next) = match session_context.read().current_superstep() {
+                Ok(step) => (step, false),
+                Err(_err) => (session_context.read().increment_superstep().unwrap_or_default(), true)
+            };
+            if next {
+                Self::next_superstep(&session_context).await
+            } else {
+                step
+            }
+        }
+    }
+
+    /// Increment the superstep
+    fn increment_superstep(
+        session_context: &Arc<RwLock<SessionContext>>,
+    ) -> impl std::future::Future<Output = u32> + Send
+    {
+        async move {
+            let _step = session_context.read().increment_superstep().unwrap_or_default();
+            Self::next_superstep(&session_context).await
         }
     }
 
@@ -490,8 +519,8 @@ impl SessionStreamStepTrait for SessionStreamStep {
         session_context: Arc<RwLock<SessionContext>>,
         messages: IPCMessageMap,
     ) -> Result<Option<IPCMessageMap>> {
-        // Get the next superstep
-        let step = Self::next_superstep(&session_context).await;
+        // Get the next superstep handling any initialization
+        let step = Self::current_superstep(&session_context).await;
 
         // Start the diagnostics
         let (mut diagnostics_vec, span, trace) = if session_context.read().get_diagnostics() {
@@ -542,6 +571,9 @@ impl SessionStreamStepTrait for SessionStreamStep {
             Self::update_subjects_and_changelog_from_tasks(&session_context, subject_tasks)?;
             Self::update_subjects_and_changelog_from_tasks(&session_context, session_tasks)?;
 
+            // Increment the superstep
+            let _step = Self::increment_superstep(&session_context).await;
+
             // Join each of the response futures
             let subject_batches = match Self::join_message_streams(subject_streams).await {
                 Ok(subject_batches) => subject_batches,
@@ -549,9 +581,6 @@ impl SessionStreamStepTrait for SessionStreamStep {
                     create_error_message_map(&err, session_context.read().get_name(), true)?
                 }
             };
-
-            // Increment the superstep
-            let step = session_context.read().increment_superstep()?;
 
             // Update the session context with the incoming messages
             if !subject_batches.is_empty() {
@@ -685,6 +714,7 @@ mod tests {
         let session_context = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 4)?
             .with_diagnostics(true)
             .add_next_tasks()?
+            .add_next_supersteps()?
             .build_with_tables()?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let response = SessionStreamStep::run_superstep(
@@ -845,6 +875,19 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
+            0
+        );
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
             1
         );
 
@@ -856,6 +899,7 @@ mod tests {
         let session_context = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 4)?
             .with_diagnostics(true)
             .add_next_tasks()?
+            .add_next_supersteps()?
             .build_with_tables()?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let response = SessionStreamStep::run_superstep(
@@ -1021,6 +1065,19 @@ mod tests {
                 .len(),
             0
         );
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            2
+        );
 
         Ok(())
     }
@@ -1030,6 +1087,7 @@ mod tests {
         let session_context = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 4)?
             .with_diagnostics(true)
             .add_next_tasks()?
+            .add_next_supersteps()?
             .build_with_tables()?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let response = SessionStreamStep::run_superstep(
@@ -1195,6 +1253,19 @@ mod tests {
                 .len(),
             0
         );
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            2
+        );
 
         Ok(())
     }
@@ -1206,6 +1277,7 @@ mod tests {
             .with_diagnostics(true)
             .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?
             .add_next_tasks()?
+            .add_next_supersteps()?
             .build_with_tables()?;
         let mut input = test_task::make_test_input_message(
             "task_1",
@@ -1542,6 +1614,19 @@ mod tests {
                 .len(),
             0
         );
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            2
+        );
 
         // Superstep 2
         let mut response = SessionStreamStep::run_superstep(
@@ -1852,6 +1937,19 @@ mod tests {
                 .len(),
             0
         );
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            3
+        );
 
         Ok(())
     }
@@ -1863,6 +1961,7 @@ mod tests {
             .with_diagnostics(true)
             .add_session_interface(Some(&["state_1"]))?
             .add_next_tasks()?
+            .add_next_supersteps()?
             .build_with_tables()?;
         let input = test_task::make_test_input_message(
             "task_1",
@@ -2043,6 +2142,19 @@ mod tests {
                 .len(),
             0
         );
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            2
+        );
 
         // Supersteps 2
         let mut response = SessionStreamStep::run_superstep(
@@ -2189,6 +2301,19 @@ mod tests {
                 .len(),
             0
         );
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            3
+        );
 
         Ok(())
     }
@@ -2198,6 +2323,7 @@ mod tests {
         let session_context = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 4)?
             .with_diagnostics(true)
             .add_next_tasks()?
+            .add_next_supersteps()?
             .build_with_tables()?;
         let input = test_task::make_test_input_message(
             "task_1",
@@ -2291,6 +2417,7 @@ mod tests {
             .with_max_iter(1)
             .with_diagnostics(true)
             .add_next_tasks()?
+            .add_next_supersteps()?
             .build_with_tables()?;
 
         // Run the session context
@@ -2409,6 +2536,27 @@ mod tests {
             .read();
         let errors = table_reading.get_column_as_vec_str("content");
         assert_eq!(errors, ["This is an error!"]);
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            2
+        );
+        let session_reading = session_context_arc.read();
+        let table_reading = session_reading
+            .get_states()
+            .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
+            .unwrap()
+            .read();
+        let columns = table_reading.get_column_as_vec_primitive::<u32>("superstep")?;
+        assert_eq!(columns, [1,2]);
 
         Ok(())
     }

@@ -119,6 +119,7 @@ mod tests {
             .with_diagnostics(true)
             .add_session_interface(Some(&["state_1"]))?
             .add_next_tasks()?
+            .add_next_supersteps()?
             .build_with_tables()?;
         let input = make_test_input_message(
             "task_1",
@@ -293,6 +294,19 @@ mod tests {
                 .get_record_batches()
                 .len(),
             0
+        );
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            3
         );
 
         Ok(())

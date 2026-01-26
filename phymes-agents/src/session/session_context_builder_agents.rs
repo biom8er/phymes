@@ -20,7 +20,7 @@ use crate::{
     AvailableInterfaceSubjects, AvailableProcessors, SessionContext, SessionContextBuilder,
     SessionContextBuilderMermaidTrait, SessionContextBuilderTabularTrait,
     SessionContextBuilderTrait,
-    plans::{SubjectsNumRowsSession, NextTaskSession},
+    plans::{NextSuperstepSession, NextTaskSession, SubjectsNumRowsSession},
 };
 
 type SessionContextInput = (
@@ -95,6 +95,14 @@ pub trait SessionContextBuilderAgentsTrait {
     /// # Notes
     /// * See [NextTaskSession] for stand alone session and testing
     fn add_next_tasks(self) -> Result<Self>
+    where
+        Self: Sized;
+
+    /// Add tasks that dynamically compute the next superstep
+    ///
+    /// # Notes
+    /// * See [NextSuperstepSession] for stand alone session and testing
+    fn add_next_supersteps(self) -> Result<Self>
     where
         Self: Sized;
 }
@@ -978,6 +986,28 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             true,
         )?
         .with_name(next_task_session.session_context_name)
+        .add_processor_subjects()?;
+
+        // Extend the current session context builder
+        self.extend(other_builder)
+    }
+
+    fn add_next_supersteps(self) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        // Initialize the task subscribe and publish session
+        let next_superstep_session = NextSuperstepSession::default();
+        let other_builder = SessionContextBuilder::from_mermaid_flowchart(
+            next_superstep_session.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_state_from_mermaid_erdiagram(
+            next_superstep_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
+        .with_name(next_superstep_session.session_context_name)
         .add_processor_subjects()?;
 
         // Extend the current session context builder
