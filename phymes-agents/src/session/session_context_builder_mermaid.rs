@@ -121,7 +121,8 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         let mut processors_exclude = HashSet::new();
         let mut runtime_envs_exclude = HashSet::new();
         let mut subjects_exclude = HashSet::new();
-        { // Exclusions from `NextTaskSession`
+        {
+            // Exclusions from `NextTaskSession`
             let next_task_session = NextTaskSession::default();
             let tasks_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
                 next_task_session.as_mermaid_flowchart(),
@@ -148,7 +149,8 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 }
             }
         }
-        { // Exclusions from `NextSuperstepSession`
+        {
+            // Exclusions from `NextSuperstepSession`
             let next_superstep_session = NextSuperstepSession::default();
             let tasks_next_superstep = SessionContextBuilder::from_mermaid_flowchart(
                 next_superstep_session.as_mermaid_flowchart(),

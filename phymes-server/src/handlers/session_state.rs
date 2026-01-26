@@ -95,10 +95,8 @@ pub async fn session_put_state(
             {
                 subject.try_read().unwrap().get_schema()
             } else {
-                return JsonError::new(
-                    "Failed to get the session stream state".to_string(),
-                )
-                .to_response(StatusCode::INTERNAL_SERVER_ERROR);
+                return JsonError::new("Failed to get the session stream state".to_string())
+                    .to_response(StatusCode::INTERNAL_SERVER_ERROR);
             };
             let bytes = match payload.get_format() {
                 DataFormat::Csv(csv_format) => TableBuilder::new()
@@ -172,7 +170,10 @@ pub async fn session_put_state(
 
             // Update the session state with the new message
             let _step = SessionStreamStep::current_superstep(&session_ctx_arc).await;
-            if let Err(e) = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, messages) {
+            if let Err(e) = SessionStreamStep::update_subjects_and_changelog_from_messages(
+                &session_ctx_arc,
+                messages,
+            ) {
                 return JsonError::new(format!("Failed to update the session stream state {e:?}"))
                     .to_response(StatusCode::INTERNAL_SERVER_ERROR);
             }

@@ -95,12 +95,16 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use parking_lot::RwLock;
-    use phymes_core::{AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, TablePublication, TableTrait, test_task};
+    use phymes_core::{
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait,
+        TablePublication, TableTrait, test_task,
+    };
     use phymes_diagnostics::HashMap;
 
     use crate::{
         SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream, create_message_map, test_session_context_builder,
+        SessionContextBuilderTrait, SessionStream, create_message_map,
+        test_session_context_builder,
     };
 
     use super::*;
@@ -125,7 +129,11 @@ mod tests {
         // Make the test session data
         let message_map = {
             // Make the test sequential session
-            let session_context = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 2)?
+            let session_context =
+                test_session_context_builder::make_test_session_context_builder_sequential(
+                    "session_1",
+                    2,
+                )?
                 .with_diagnostics(false)
                 .add_session_interface(Some(&["state_1"]))?
                 .add_next_tasks()?
@@ -163,9 +171,7 @@ mod tests {
                 .with_publisher(subjects_session.session_context_name)
                 .make_name()?
                 .build()?;
-            create_message_map(vec![
-                subjects_change_log_message,
-            ])
+            create_message_map(vec![subjects_change_log_message])
         };
 
         // Run the session
@@ -194,7 +200,21 @@ mod tests {
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("subject_name");
-            assert_eq!(column, ["SessionTasksRunLog", "SubjectsChangeLog", "SubjectsNumRows", "group_by_subject_change_log_delta_p", "group_by_subject_change_log_delta_t", "processor_1", "processor_2", "processor_3", "select_subject_change_log_delta_p", "state_1"]);
+            assert_eq!(
+                column,
+                [
+                    "SessionTasksRunLog",
+                    "SubjectsChangeLog",
+                    "SubjectsNumRows",
+                    "group_by_subject_change_log_delta_p",
+                    "group_by_subject_change_log_delta_t",
+                    "processor_1",
+                    "processor_2",
+                    "processor_3",
+                    "select_subject_change_log_delta_p",
+                    "state_1"
+                ]
+            );
             let column = table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
             assert_eq!(column, [4, 12, 0, 0, 0, 0, 0, 0, 0, 72]);
         }

@@ -275,8 +275,8 @@ impl TableSubscribePolicyTrait for ChatContentSubscribe {
             .get(&self.error_message_table_name)
             .unwrap_or(&false);
         // DM: assume the config is "other" which is always subscribed too
-        let config = !updates.contains_key(&self.user_message_table_name) 
-            && !updates.contains_key(&self.tool_message_table_name) 
+        let config = !updates.contains_key(&self.user_message_table_name)
+            && !updates.contains_key(&self.tool_message_table_name)
             && !updates.contains_key(&self.error_message_table_name);
         *tool || *user || *error || config
     }

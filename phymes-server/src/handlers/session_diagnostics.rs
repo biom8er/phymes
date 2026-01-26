@@ -17,7 +17,10 @@ use phymes_agents::{
     create_message_map,
 };
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, DiagnosticsVisualizations, IPCMessage, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait
+    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, DiagnosticsVisualizations,
+    IPCMessage, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait,
+    MessageTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait, TableBuilder,
+    TableBuilderTrait, TablePublication, TableTrait,
 };
 
 // General imports
@@ -210,10 +213,19 @@ pub async fn session_diagnostics(
                 .with_name(diagnostic_session.session_context_name)
                 .with_max_iter(25)
                 .with_diagnostics(true) // Debugging
-                .add_session_interface(Some(&[DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string().as_str(),
-                    DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string().as_str(),
-                    DiagnosticsVisualizations::MetricOutputRowsGantt.to_string().as_str(),
-                    DiagnosticsVisualizations::TraceSequenceDiagram.to_string().as_str(),
+                .add_session_interface(Some(&[
+                    DiagnosticsVisualizations::MetricProcessorTracesGantt
+                        .to_string()
+                        .as_str(),
+                    DiagnosticsVisualizations::MetricElapsedComputeGantt
+                        .to_string()
+                        .as_str(),
+                    DiagnosticsVisualizations::MetricOutputRowsGantt
+                        .to_string()
+                        .as_str(),
+                    DiagnosticsVisualizations::TraceSequenceDiagram
+                        .to_string()
+                        .as_str(),
                     DiagnosticsVisualizations::EventKanban.to_string().as_str(),
                     DiagnosticsVisualizations::ErrorKanban.to_string().as_str(),
                 ]))
@@ -303,18 +315,25 @@ pub async fn session_diagnostics(
                         session_stream.try_collect().await.unwrap();
                     let batches = response
                         .into_iter()
-                        .flat_map(|map| map.into_iter()
-                            .filter_map(|(k,v)| if k.contains(diagnostic_session.session_context_name) {
-                                let table_name = v.get_subject().to_string();
-                                Some((k, TableBuilder::new_from_ipc_stream(&v.get_message_own())
-                                    .unwrap()
-                                    .with_name(table_name.as_str())
-                                    .build()
-                                    .unwrap()))
-                            } else {
-                                None
-                            })
-                            .collect::<HashMap<_, _>>())
+                        .flat_map(|map| {
+                            map.into_iter()
+                                .filter_map(|(k, v)| {
+                                    if k.contains(diagnostic_session.session_context_name) {
+                                        let table_name = v.get_subject().to_string();
+                                        Some((
+                                            k,
+                                            TableBuilder::new_from_ipc_stream(&v.get_message_own())
+                                                .unwrap()
+                                                .with_name(table_name.as_str())
+                                                .build()
+                                                .unwrap(),
+                                        ))
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<HashMap<_, _>>()
+                        })
                         .collect::<HashMap<_, _>>()
                         .into_iter()
                         .flat_map(|(_k, v)| v.get_record_batches_own())
@@ -322,7 +341,11 @@ pub async fn session_diagnostics(
                     let response = TableBuilder::new()
                         .with_record_batches(batches)
                         .unwrap()
-                        .with_name(AvailableInterfaceSubjects::AggregatedAttachments.to_string().as_str())
+                        .with_name(
+                            AvailableInterfaceSubjects::AggregatedAttachments
+                                .to_string()
+                                .as_str(),
+                        )
                         .build()
                         .unwrap()
                         .concat_record_batches()

@@ -17,7 +17,10 @@ use std::sync::Arc;
 use tokio::task::JoinSet;
 use tracing::{Level, event};
 
-use crate::{SessionContext, create_message_map, plans::{NextSuperstepSession, NextTaskSession}};
+use crate::{
+    SessionContext, create_message_map,
+    plans::{NextSuperstepSession, NextTaskSession},
+};
 
 /// Traits for running a static or dynamic [SessionStream] step
 ///
@@ -199,9 +202,7 @@ pub trait SessionStreamStepTrait {
         let session_context_name = session_context.read().get_name().to_string();
         let (session_names, (task_names, timestamps)): (Vec<_>, (Vec<_>, Vec<_>)) = tasks
             .into_iter()
-            .map(|((task_name, session_name), _)| {
-                (session_name, (task_name, step as i64))
-            })
+            .map(|((task_name, session_name), _)| (session_name, (task_name, step as i64)))
             .unzip();
         let tasks_run_log_batch =
             create_session_tasks_run_log_batch(session_names, task_names, timestamps)?;
@@ -246,39 +247,47 @@ pub trait SessionStreamStepTrait {
     /// Get the next superstep using the [NextSuperstepSession] pre-compiled tasks and [SessionContext] helpers
     fn next_superstep(
         session_context: &Arc<RwLock<SessionContext>>,
-    ) -> impl std::future::Future<Output = u32> + Send
-    {
+    ) -> impl std::future::Future<Output = u32> + Send {
         async move {
             // Compute the current superstep
-            let next_superstep_messages = NextSuperstepSession::default().as_task_messages()
+            let next_superstep_messages = NextSuperstepSession::default()
+                .as_task_messages()
                 .unwrap_or_else(|_err| {
-                panic!("Missing pre-compiled tasks for `NextSuperstepSession`.")
-            });
+                    panic!("Missing pre-compiled tasks for `NextSuperstepSession`.")
+                });
             for messages in next_superstep_messages.into_iter() {
                 let _ = SessionStreamStepMinimal::run_superstep(
                     Arc::clone(session_context),
                     messages,
                 )
-                .await.unwrap_or_else(|err| {
-                panic!("Error `{err}` running pre-compiled tasks for `NextSuperstepSession`.")});
+                .await
+                .unwrap_or_else(|err| {
+                    panic!("Error `{err}` running pre-compiled tasks for `NextSuperstepSession`.")
+                });
             }
 
             // Return the next superstep
-            session_context.read().current_superstep()
-                .unwrap_or_else(|err| {
-                panic!("Error `{err}` reading the `current_superstep`.")})
+            session_context
+                .read()
+                .current_superstep()
+                .unwrap_or_else(|err| panic!("Error `{err}` reading the `current_superstep`."))
         }
     }
 
     /// Get the current superstep handling any initialization
     fn current_superstep(
         session_context: &Arc<RwLock<SessionContext>>,
-    ) -> impl std::future::Future<Output = u32> + Send
-    {
+    ) -> impl std::future::Future<Output = u32> + Send {
         async move {
             let (step, next) = match session_context.read().current_superstep() {
                 Ok(step) => (step, false),
-                Err(_err) => (session_context.read().increment_superstep().unwrap_or_default(), true)
+                Err(_err) => (
+                    session_context
+                        .read()
+                        .increment_superstep()
+                        .unwrap_or_default(),
+                    true,
+                ),
             };
             if next {
                 Self::next_superstep(&session_context).await
@@ -291,10 +300,12 @@ pub trait SessionStreamStepTrait {
     /// Increment the superstep
     fn increment_superstep(
         session_context: &Arc<RwLock<SessionContext>>,
-    ) -> impl std::future::Future<Output = u32> + Send
-    {
+    ) -> impl std::future::Future<Output = u32> + Send {
         async move {
-            let _step = session_context.read().increment_superstep().unwrap_or_default();
+            let _step = session_context
+                .read()
+                .increment_superstep()
+                .unwrap_or_default();
             Self::next_superstep(&session_context).await
         }
     }
@@ -322,24 +333,27 @@ pub trait SessionStreamStepTrait {
                     )
                 })
                 .read()
-                .count_rows() == 0 {
-                let next_task_messages =
-                    NextTaskSession::default().as_task_messages()
+                .count_rows()
+                == 0
+            {
+                let next_task_messages = NextTaskSession::default()
+                    .as_task_messages()
                     .unwrap_or_else(|_err| {
-                    panic!("Missing pre-compiled tasks for `NextTaskSession`.")
-                });
+                        panic!("Missing pre-compiled tasks for `NextTaskSession`.")
+                    });
                 for messages in next_task_messages.into_iter() {
                     if messages.is_empty() {
                         if let Err(_err) = session_context.read().tasks_subscribe() {
-                            return HashMap::<(String, String), ProcessorSubjectsMap>::new()
+                            return HashMap::<(String, String), ProcessorSubjectsMap>::new();
                         }
                     } else {
                         if let Err(_err) = SessionStreamStepMinimal::run_superstep(
                             Arc::clone(session_context),
                             messages,
                         )
-                        .await {
-                            return HashMap::<(String, String), ProcessorSubjectsMap>::new()
+                        .await
+                        {
+                            return HashMap::<(String, String), ProcessorSubjectsMap>::new();
                         }
                     }
                 }
@@ -604,7 +618,6 @@ impl SessionStreamStepTrait for SessionStreamStep {
 pub struct SessionStreamStepMinimal {}
 
 impl SessionStreamStepTrait for SessionStreamStepMinimal {
-
     /// Minimal implementation of `join_message_streams` without intercepting Errors
     fn join_message_streams(
         messages: SendableRecordBatchStreamMessageMap,
@@ -643,7 +656,7 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
                 let table = TableBuilder::new()
                     .with_name(resp_name.as_str())
                     .with_record_batches(batches)?
-                    .build()?;                
+                    .build()?;
                 let message = response_builder
                     .remove(resp_name.as_str())
                     .unwrap()
@@ -698,7 +711,8 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
 mod tests {
     use super::*;
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, test_session_context_builder,
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait,
+        test_session_context_builder,
     };
     use phymes_core::{
         AvailableSubjects, AvailableTableSubscribePolicies, ProcessorBuilder, ProcessorPlanBuilder,
@@ -709,7 +723,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_no_state_update() -> Result<()> {
-        let session_context = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 4)?
+        let session_context =
+            test_session_context_builder::make_test_session_context_builder_parallel(
+                "session_1",
+                4,
+            )?
             .with_diagnostics(true)
             .add_next_tasks()?
             .add_next_supersteps()?
@@ -894,7 +912,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_extend_state_update_single_task() -> Result<()> {
-        let session_context = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 4)?
+        let session_context =
+            test_session_context_builder::make_test_session_context_builder_parallel(
+                "session_1",
+                4,
+            )?
             .with_diagnostics(true)
             .add_next_tasks()?
             .add_next_supersteps()?
@@ -1082,7 +1104,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_single_task() -> Result<()> {
-        let session_context = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 4)?
+        let session_context =
+            test_session_context_builder::make_test_session_context_builder_parallel(
+                "session_1",
+                4,
+            )?
             .with_diagnostics(true)
             .add_next_tasks()?
             .add_next_supersteps()?
@@ -1271,7 +1297,11 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_parallel_tasks() -> Result<()> {
         // Superstep 1
-        let session_context = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 4)?
+        let session_context =
+            test_session_context_builder::make_test_session_context_builder_parallel(
+                "session_1",
+                4,
+            )?
             .with_diagnostics(true)
             .add_session_interface(Some(&["state_1", "state_2", "state_3"]))?
             .add_next_tasks()?
@@ -1955,7 +1985,11 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_sequential_tasks() -> Result<()> {
         // Superstep 1
-        let session_context = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 4)?
+        let session_context =
+            test_session_context_builder::make_test_session_context_builder_sequential(
+                "session_1",
+                4,
+            )?
             .with_diagnostics(true)
             .add_session_interface(Some(&["state_1"]))?
             .add_next_tasks()?
@@ -2318,7 +2352,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_schema_mismatch_error() -> Result<()> {
-        let session_context = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 4)?
+        let session_context =
+            test_session_context_builder::make_test_session_context_builder_sequential(
+                "session_1",
+                4,
+            )?
             .with_diagnostics(true)
             .add_next_tasks()?
             .add_next_supersteps()?
@@ -2554,7 +2592,7 @@ mod tests {
             .unwrap()
             .read();
         let columns = table_reading.get_column_as_vec_primitive::<u32>("superstep")?;
-        assert_eq!(columns, [1,2]);
+        assert_eq!(columns, [1, 2]);
 
         Ok(())
     }

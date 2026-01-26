@@ -20,7 +20,7 @@ use crate::{
     AvailableInterfaceSubjects, AvailableProcessors, SessionContext, SessionContextBuilder,
     SessionContextBuilderMermaidTrait, SessionContextBuilderTabularTrait,
     SessionContextBuilderTrait,
-    plans::{NextSuperstepSession, NextTaskSession, CountSubjectRowsSession},
+    plans::{CountSubjectRowsSession, NextSuperstepSession, NextTaskSession},
 };
 
 type SessionContextInput = (
@@ -980,11 +980,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             next_task_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
-            next_task_session.as_mermaid_erdiagram(),
-            false,
-            true,
-        )?
+        .with_state_from_mermaid_erdiagram(next_task_session.as_mermaid_erdiagram(), false, true)?
         .with_name(next_task_session.session_context_name)
         .add_processor_subjects()?;
 

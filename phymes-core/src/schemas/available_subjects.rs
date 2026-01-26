@@ -22,7 +22,13 @@ use crate::{
         },
         queries::create_queries_fields,
         session::{
-            create_session_processors_fields, create_session_runtime_envs_fields, create_session_subjects_fields, create_session_superstep_max_fields, create_session_supersteps_fields, create_session_tasks_check_fields, create_session_tasks_fields, create_session_tasks_publish_aggregate_fields, create_session_tasks_publish_fields, create_session_tasks_run_log_fields, create_session_tasks_subscribe_aggregate_fields, create_session_tasks_subscribe_fields, create_session_tasks_subscribe_publish_fields
+            create_session_processors_fields, create_session_runtime_envs_fields,
+            create_session_subjects_fields, create_session_superstep_max_fields,
+            create_session_supersteps_fields, create_session_tasks_check_fields,
+            create_session_tasks_fields, create_session_tasks_publish_aggregate_fields,
+            create_session_tasks_publish_fields, create_session_tasks_run_log_fields,
+            create_session_tasks_subscribe_aggregate_fields, create_session_tasks_subscribe_fields,
+            create_session_tasks_subscribe_publish_fields,
         },
         set_data::{create_parse_owl_fields, create_parse_xml_fields},
         subjects::{create_subjects_change_log_fields, create_subjects_num_rows_fields},
@@ -528,8 +534,12 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             AvailableSubjects::SessionTasksSubscribePublish => {
                 create_schema_from_fields(&create_session_tasks_subscribe_publish_fields)
             }
-            AvailableSubjects::SessionSupersteps => create_schema_from_fields(&create_session_supersteps_fields),
-            AvailableSubjects::SessionSuperstepMax => create_schema_from_fields(&create_session_superstep_max_fields),
+            AvailableSubjects::SessionSupersteps => {
+                create_schema_from_fields(&create_session_supersteps_fields)
+            }
+            AvailableSubjects::SessionSuperstepMax => {
+                create_schema_from_fields(&create_session_superstep_max_fields)
+            }
         }
     }
 }

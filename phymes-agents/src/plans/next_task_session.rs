@@ -881,7 +881,9 @@ mod tests {
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, create_message_map, test_session_context_builder
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait,
+        create_message_map, test_session_context_builder,
     };
 
     use super::*;
@@ -894,11 +896,7 @@ mod tests {
             next_task_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
-            next_task_session.as_mermaid_erdiagram(),
-            false,
-            true,
-        )?
+        .with_state_from_mermaid_erdiagram(next_task_session.as_mermaid_erdiagram(), false, true)?
         .with_name(next_task_session.session_context_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
@@ -910,7 +908,11 @@ mod tests {
         // Make the test session data
         let mut message_map = {
             // Make the test sequential session
-            let session_context = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 4)?
+            let session_context =
+                test_session_context_builder::make_test_session_context_builder_sequential(
+                    "session_1",
+                    4,
+                )?
                 .with_diagnostics(false)
                 .add_session_interface(Some(&["state_1"]))?
                 .add_next_tasks()? // DM required for 'SessionTasksSubscribePublish' table
@@ -930,7 +932,10 @@ mod tests {
                 true,
             )?;
             let _step = SessionStreamStep::current_superstep(&session_context_arc).await;
-            SessionStreamStep::update_subjects_and_changelog_from_messages(&session_context_arc, messages)?;
+            SessionStreamStep::update_subjects_and_changelog_from_messages(
+                &session_context_arc,
+                messages,
+            )?;
 
             // Extract out the subjects for the test
             let session_ctx_reading = session_context_arc.read();
@@ -1032,21 +1037,87 @@ mod tests {
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("session_name");
-            assert_eq!(column, ["session_1","session_1","session_1","session_1","session_1","session_1","session_1"]);
+            assert_eq!(
+                column,
+                [
+                    "session_1",
+                    "session_1",
+                    "session_1",
+                    "session_1",
+                    "session_1",
+                    "session_1",
+                    "session_1"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("processor_name");
-            assert_eq!(column, ["processor_1","processor_1","processor_2","processor_2","processor_3","processor_3","session_1"]);
+            assert_eq!(
+                column,
+                [
+                    "processor_1",
+                    "processor_1",
+                    "processor_2",
+                    "processor_2",
+                    "processor_3",
+                    "processor_3",
+                    "session_1"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("processor_type");
-            assert_eq!(column, ["ProcessorMock","ProcessorMock","ProcessorMock","ProcessorMock","ProcessorMock","ProcessorMock","ProcessorEcho"]);
+            assert_eq!(
+                column,
+                [
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorEcho"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("publication_subscription_name");
-            assert_eq!(column, ["OnUpdateFullTable","AlwaysFullTable","OnUpdateFullTable","AlwaysFullTable","OnUpdateFullTable","AlwaysFullTable","OnUpdateLastRecordBatch"]);
+            assert_eq!(
+                column,
+                [
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateLastRecordBatch"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("publication_subscription_table_name");
-            assert_eq!(column, ["state_1","processor_1","state_1","processor_2","state_1","processor_3","state_1"]);
+            assert_eq!(
+                column,
+                [
+                    "state_1",
+                    "processor_1",
+                    "state_1",
+                    "processor_2",
+                    "state_1",
+                    "processor_3",
+                    "state_1"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("subscribe_type");
-            assert_eq!(column, ["All","All","All","All","All","All","Any"]);
+            assert_eq!(column, ["All", "All", "All", "All", "All", "All", "Any"]);
             let column = table_reading.get_column_as_vec_str("update_type");
-            assert_eq!(column, ["TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate"]);
+            assert_eq!(
+                column,
+                [
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate"
+                ]
+            );
             let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
-            assert_eq!(column, [1,1,1,1,1,1,1]);
+            assert_eq!(column, [1, 1, 1, 1, 1, 1, 1]);
 
             let table_reading = session_reading
                 .get_states()
@@ -1054,21 +1125,40 @@ mod tests {
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("session_name");
-            assert_eq!(column, ["session_1","session_1","session_1","session_1"]);
+            assert_eq!(column, ["session_1", "session_1", "session_1", "session_1"]);
             let column = table_reading.get_column_as_vec_str("processor_name");
-            assert_eq!(column, ["processor_1","processor_2","processor_3","session_1"]);
+            assert_eq!(
+                column,
+                ["processor_1", "processor_2", "processor_3", "session_1"]
+            );
             let column = table_reading.get_column_as_vec_str("processor_type");
-            assert_eq!(column, ["ProcessorMock","ProcessorMock","ProcessorMock","ProcessorEcho"]);
+            assert_eq!(
+                column,
+                [
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorEcho"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("publication_subscription_name");
-            assert_eq!(column, ["Extend","Extend","Extend","Extend"]);
+            assert_eq!(column, ["Extend", "Extend", "Extend", "Extend"]);
             let column = table_reading.get_column_as_vec_str("publication_subscription_table_name");
-            assert_eq!(column, ["state_1","state_1","state_1","state_1"]);
+            assert_eq!(column, ["state_1", "state_1", "state_1", "state_1"]);
             let column = table_reading.get_column_as_vec_str("subscribe_type");
-            assert_eq!(column, ["All","All","All","Any"]);
+            assert_eq!(column, ["All", "All", "All", "Any"]);
             let column = table_reading.get_column_as_vec_str("update_type");
-            assert_eq!(column, ["TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate"]);
+            assert_eq!(
+                column,
+                [
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate"
+                ]
+            );
             let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
-            assert_eq!(column, [0,0,0,0]);
+            assert_eq!(column, [0, 0, 0, 0]);
         }
 
         // Run the session
@@ -1089,25 +1179,66 @@ mod tests {
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("session_name");
-            assert_eq!(column, ["session_1","session_1","session_1","session_1"]);
+            assert_eq!(column, ["session_1", "session_1", "session_1", "session_1"]);
             let column = table_reading.get_column_as_vec_str("task_name");
-            assert_eq!(column, ["session_1","task_1","task_1","task_1"]);
+            assert_eq!(column, ["session_1", "task_1", "task_1", "task_1"]);
             let column = table_reading.get_column_as_vec_str("processor_name");
-            assert_eq!(column, ["session_1","processor_1","processor_2","processor_3"]);
+            assert_eq!(
+                column,
+                ["session_1", "processor_1", "processor_2", "processor_3"]
+            );
             let column = table_reading.get_column_as_vec_str("processor_type");
-            assert_eq!(column, ["ProcessorEcho","ProcessorMock","ProcessorMock","ProcessorMock"]);
+            assert_eq!(
+                column,
+                [
+                    "ProcessorEcho",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock"
+                ]
+            );
             let column = table_reading
                 .get_column_as_vec_nested_nonprimitive::<String>("subscription_name-List")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(flattened, ["OnUpdateLastRecordBatch","AlwaysFullTable","OnUpdateFullTable","AlwaysFullTable","OnUpdateFullTable","AlwaysFullTable","OnUpdateFullTable"]);
+            assert_eq!(
+                flattened,
+                [
+                    "OnUpdateLastRecordBatch",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable"
+                ]
+            );
             let column = table_reading
                 .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_name-List")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(flattened, ["state_1","processor_1","state_1","processor_2","state_1","processor_3","state_1"]);
+            assert_eq!(
+                flattened,
+                [
+                    "state_1",
+                    "processor_1",
+                    "state_1",
+                    "processor_2",
+                    "state_1",
+                    "processor_3",
+                    "state_1"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("subscribe_type-Last");
-            assert_eq!(column, ["Any","All","All","All"]);
+            assert_eq!(column, ["Any", "All", "All", "All"]);
             let column = table_reading.get_column_as_vec_str("update_type-Last");
-            assert_eq!(column, ["TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate","TableChangedSinceLastRunUpdate"]);
+            assert_eq!(
+                column,
+                [
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate"
+                ]
+            );
             let column =
                 table_reading.get_column_as_vec_nested_primitive::<i64>("timestamp-List")?;
             for timestamps in column {
@@ -1161,17 +1292,83 @@ mod tests {
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("session_name");
-            assert_eq!(column, ["session_1","session_1","session_1","session_1","session_1","session_1","session_1"]);
+            assert_eq!(
+                column,
+                [
+                    "session_1",
+                    "session_1",
+                    "session_1",
+                    "session_1",
+                    "session_1",
+                    "session_1",
+                    "session_1"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("task_name");
-            assert_eq!(column, ["session_1","task_1","task_1","task_1","task_1","task_1","task_1"]);
+            assert_eq!(
+                column,
+                [
+                    "session_1",
+                    "task_1",
+                    "task_1",
+                    "task_1",
+                    "task_1",
+                    "task_1",
+                    "task_1"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("processor_name");
-            assert_eq!(column, ["session_1","processor_1","processor_1","processor_2","processor_2","processor_3","processor_3"]);
+            assert_eq!(
+                column,
+                [
+                    "session_1",
+                    "processor_1",
+                    "processor_1",
+                    "processor_2",
+                    "processor_2",
+                    "processor_3",
+                    "processor_3"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("processor_type");
-            assert_eq!(column, ["ProcessorEcho","ProcessorMock","ProcessorMock","ProcessorMock","ProcessorMock","ProcessorMock","ProcessorMock"]);
+            assert_eq!(
+                column,
+                [
+                    "ProcessorEcho",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("subscription_name");
-            assert_eq!(column, ["OnUpdateLastRecordBatch","AlwaysFullTable","OnUpdateFullTable","AlwaysFullTable","OnUpdateFullTable","AlwaysFullTable","OnUpdateFullTable"]);
+            assert_eq!(
+                column,
+                [
+                    "OnUpdateLastRecordBatch",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("subscription_table_name");
-            assert_eq!(column, ["state_1","processor_1","state_1","processor_2","state_1","processor_3","state_1"]);
+            assert_eq!(
+                column,
+                [
+                    "state_1",
+                    "processor_1",
+                    "state_1",
+                    "processor_2",
+                    "state_1",
+                    "processor_3",
+                    "state_1"
+                ]
+            );
         }
 
         // Run the session
@@ -1192,27 +1389,60 @@ mod tests {
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("session_name");
-            assert_eq!(column, ["session_1","session_1","session_1","session_1"]);
+            assert_eq!(column, ["session_1", "session_1", "session_1", "session_1"]);
             let column = table_reading.get_column_as_vec_str("processor_name");
-            assert_eq!(column, ["processor_1","processor_2","processor_3","session_1"]);
+            assert_eq!(
+                column,
+                ["processor_1", "processor_2", "processor_3", "session_1"]
+            );
             let column = table_reading.get_column_as_vec_str("processor_type");
-            assert_eq!(column, ["ProcessorMock","ProcessorMock","ProcessorMock","ProcessorEcho"]);
+            assert_eq!(
+                column,
+                [
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorEcho"
+                ]
+            );
             let column = table_reading
                 .get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(flattened, ["AlwaysFullTable","OnUpdateFullTable","AlwaysFullTable","OnUpdateFullTable","AlwaysFullTable","OnUpdateFullTable","OnUpdateLastRecordBatch"]);
+            assert_eq!(
+                flattened,
+                [
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "OnUpdateLastRecordBatch"
+                ]
+            );
             let column = table_reading
                 .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(flattened, ["processor_1","state_1","processor_2","state_1","processor_3","state_1","state_1"]);
+            assert_eq!(
+                flattened,
+                [
+                    "processor_1",
+                    "state_1",
+                    "processor_2",
+                    "state_1",
+                    "processor_3",
+                    "state_1",
+                    "state_1"
+                ]
+            );
             let column = table_reading
                 .get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(flattened, ["Extend","Extend","Extend","Extend"]);
+            assert_eq!(flattened, ["Extend", "Extend", "Extend", "Extend"]);
             let column = table_reading
                 .get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(flattened, ["state_1","state_1","state_1","state_1"]);
+            assert_eq!(flattened, ["state_1", "state_1", "state_1", "state_1"]);
         }
 
         Ok(())

@@ -38,48 +38,35 @@ impl<'a> NextSuperstepSession<'a> {
     /// [SessionContext]: crate::SessionContext
     pub fn as_task_messages(&self) -> Result<Vec<IPCMessageMap>> {
         // 1. Message to trigger the first superstep
-        let task_names = vec![
-            "max_superstep_t",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
-        let processor_names = vec![
-            "group_by_session_superstep_p",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
-        let processor_types = vec![
-            "GroupBy",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
-        let subscription_names = vec![
-            vec!["OnUpdateFullTable", "AlwaysFullTable"],
-        ]
-        .into_iter()
-        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
-        .collect::<Vec<_>>();
-        let subscription_table_names = vec![
-            vec!["SessionSupersteps", "group_by_session_superstep_p"],
-        ]
-        .into_iter()
-        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
-        .collect::<Vec<_>>();
-        let publication_names = vec![
-            vec!["Replace"],
-        ]
-        .into_iter()
-        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
-        .collect::<Vec<_>>();
-        let publication_table_names = vec![
-            vec!["SessionSuperstepMax"],
-        ]
-        .into_iter()
-        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
-        .collect::<Vec<_>>();
+        let task_names = vec!["max_superstep_t"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let processor_names = vec!["group_by_session_superstep_p"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let processor_types = vec!["GroupBy"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let subscription_names = vec![vec!["OnUpdateFullTable", "AlwaysFullTable"]]
+            .into_iter()
+            .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        let subscription_table_names =
+            vec![vec!["SessionSupersteps", "group_by_session_superstep_p"]]
+                .into_iter()
+                .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+                .collect::<Vec<_>>();
+        let publication_names = vec![vec!["Replace"]]
+            .into_iter()
+            .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        let publication_table_names = vec![vec!["SessionSuperstepMax"]]
+            .into_iter()
+            .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+            .collect::<Vec<_>>();
         let session_names = task_names
             .iter()
             .map(|_| self.session_context_name.to_string())
@@ -171,12 +158,16 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, TablePublication, TableTrait, create_session_subjects_batch, create_session_supersteps_batch, test_task
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait,
+        TablePublication, TableTrait, create_session_subjects_batch,
+        create_session_supersteps_batch, test_task,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, create_message_map, test_session_context_builder
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait,
+        create_message_map, test_session_context_builder,
     };
 
     use super::*;
@@ -202,7 +193,10 @@ mod tests {
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
         // Make the test session data
-        let session_names = ["session_1","session_1","session_1","session_1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let session_names = ["session_1", "session_1", "session_1", "session_1"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
         let supersteps = vec![0, 1, 2, 3];
         let batch = create_session_supersteps_batch(session_names, supersteps)?;
         let table = Table::get_builder()

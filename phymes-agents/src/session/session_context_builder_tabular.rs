@@ -21,7 +21,7 @@ use phymes_diagnostics::{HashSet, create_timestamp_micros};
 use crate::{
     AvailableProcessors, SessionContextBuilder, SessionContextBuilderAgentsTrait,
     SessionContextBuilderMermaidTrait, SessionContextBuilderTrait,
-    plans::{NextSuperstepSession, NextTaskSession, CountSubjectRowsSession},
+    plans::{CountSubjectRowsSession, NextSuperstepSession, NextTaskSession},
 };
 
 /// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from tabular format
@@ -308,13 +308,29 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let exclusion_set = self.tasks_to_exclude()?;
 
         // extract the tasks in order
-        let (((session_names, task_names), processor_names), runtime_env_names): (((Vec<String>, Vec<String>), Vec<String>), Vec<String>) = self.tasks.as_ref()
-            .unwrap().iter()
+        let (((session_names, task_names), processor_names), runtime_env_names): (
+            ((Vec<String>, Vec<String>), Vec<String>),
+            Vec<String>,
+        ) = self
+            .tasks
+            .as_ref()
+            .unwrap()
+            .iter()
             .filter(|t| !exclusion_set.contains(&t.task_name))
-            .flat_map(|t| t.processor_names
-                .iter()
-                .map(|p| ((((session_name.to_string(), t.task_name.to_string()), p.to_string()), t.runtime_env_name.to_string())))
-                .collect::<Vec<_>>())
+            .flat_map(|t| {
+                t.processor_names
+                    .iter()
+                    .map(|p| {
+                        ((
+                            (
+                                (session_name.to_string(), t.task_name.to_string()),
+                                p.to_string(),
+                            ),
+                            t.runtime_env_name.to_string(),
+                        ))
+                    })
+                    .collect::<Vec<_>>()
+            })
             .unzip();
 
         // create the record batch
@@ -348,18 +364,80 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // extract the processors in order
         let exclusion_set = self.processors_to_exclude()?;
-        let (((((((session_names, processor_names), processor_types), pub_sub_name), pub_sub_table_names), is_sub), subscribe_types), update_types) = self.processors.as_ref()
+        let (
+            (
+                (
+                    (
+                        (((session_names, processor_names), processor_types), pub_sub_name),
+                        pub_sub_table_names,
+                    ),
+                    is_sub,
+                ),
+                subscribe_types,
+            ),
+            update_types,
+        ) = self
+            .processors
+            .as_ref()
             .unwrap()
             .iter()
             .filter(|p| !exclusion_set.contains(p.get_name()))
             .flat_map(|p| {
-                let subs = p.get_subscriptions()
+                let subs = p
+                    .get_subscriptions()
                     .into_iter()
-                    .map(|s| (((((((session_name.to_string(), p.get_name().to_string()), p.get_type().to_string()), s.get_name().to_string()), s.get_table_name().to_string()), 1), p.get_subscribe_policy().get_name().to_string()), p.get_update_policy().get_name().to_string()))
+                    .map(|s| {
+                        (
+                            (
+                                (
+                                    (
+                                        (
+                                            (
+                                                (
+                                                    session_name.to_string(),
+                                                    p.get_name().to_string(),
+                                                ),
+                                                p.get_type().to_string(),
+                                            ),
+                                            s.get_name().to_string(),
+                                        ),
+                                        s.get_table_name().to_string(),
+                                    ),
+                                    1,
+                                ),
+                                p.get_subscribe_policy().get_name().to_string(),
+                            ),
+                            p.get_update_policy().get_name().to_string(),
+                        )
+                    })
                     .collect::<Vec<_>>();
-                let pubs = p.get_publications()
+                let pubs = p
+                    .get_publications()
                     .into_iter()
-                    .map(|s| (((((((session_name.to_string(), p.get_name().to_string()), p.get_type().to_string()), s.get_name().to_string()), s.get_table_name().to_string()), 0), p.get_subscribe_policy().get_name().to_string()), p.get_update_policy().get_name().to_string()))
+                    .map(|s| {
+                        (
+                            (
+                                (
+                                    (
+                                        (
+                                            (
+                                                (
+                                                    session_name.to_string(),
+                                                    p.get_name().to_string(),
+                                                ),
+                                                p.get_type().to_string(),
+                                            ),
+                                            s.get_name().to_string(),
+                                        ),
+                                        s.get_table_name().to_string(),
+                                    ),
+                                    0,
+                                ),
+                                p.get_subscribe_policy().get_name().to_string(),
+                            ),
+                            p.get_update_policy().get_name().to_string(),
+                        )
+                    })
                     .collect::<Vec<_>>();
                 subs.into_iter().chain(pubs).collect::<Vec<_>>()
             })
@@ -408,8 +486,17 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .filter(|r| !exclusion_set.contains(r.get_name()))
             .collect::<Vec<_>>();
         sorted_rts.sort_by(|a, b| a.name.cmp(&b.name));
-        let (((session_names, runtime_env_names), memory_limits), time_limits) = sorted_rts.iter()
-            .map(|r| (((session_name.to_string(), r.get_name().to_string()), r.memory_limit.unwrap_or_default() as u32), r.time_limit.unwrap_or_default() as u32))
+        let (((session_names, runtime_env_names), memory_limits), time_limits) = sorted_rts
+            .iter()
+            .map(|r| {
+                (
+                    (
+                        (session_name.to_string(), r.get_name().to_string()),
+                        r.memory_limit.unwrap_or_default() as u32,
+                    ),
+                    r.time_limit.unwrap_or_default() as u32,
+                )
+            })
             .unzip();
 
         // create the record batch
@@ -475,7 +562,10 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 if exclusion_set.contains(&task.task_name) {
                     None
                 } else {
-                    Some(((session_name.to_string(), task.task_name.to_string()), 0_i64))
+                    Some((
+                        (session_name.to_string(), task.task_name.to_string()),
+                        0_i64,
+                    ))
                 }
             })
             .unzip();
@@ -850,7 +940,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         } else {
             Vec::new()
         };
-    
+
         // Exclude subjects from `NextSuperstepSession`
         let next_superstep = NextSuperstepSession::default();
         let tables_next_superstep = if let Some(session_name) = self.name.as_ref() {
@@ -872,7 +962,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         } else {
             Vec::new()
         };
-    
+
         // Exclude subjects from `SubjectsNumRowsSession`
         let subjects_session = CountSubjectRowsSession::default();
         let tables_subjects = if let Some(session_name) = self.name.as_ref() {
@@ -881,7 +971,11 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                     subjects_session.as_mermaid_flowchart(),
                     false,
                 )?
-                .with_state_from_mermaid_erdiagram(subjects_session.as_mermaid_erdiagram(), false, false)?
+                .with_state_from_mermaid_erdiagram(
+                    subjects_session.as_mermaid_erdiagram(),
+                    false,
+                    false,
+                )?
                 .with_name(subjects_session.session_context_name)
                 .add_processor_subjects()?
                 .state
@@ -897,7 +991,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         };
 
         // Wrap into a HashSet
-        let exclusion_set = tables_publish_subscribe.into_iter()
+        let exclusion_set = tables_publish_subscribe
+            .into_iter()
             .chain(tables_next_superstep)
             .chain(tables_subjects)
             .collect::<HashSet<_>>();
@@ -944,7 +1039,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         } else {
             Vec::new()
         };
-    
+
         // Exclude subjects from `SubjectsNumRowsSession`
         let subjects_session = CountSubjectRowsSession::default();
         let tasks_subjects = if let Some(session_name) = self.name.as_ref() {
@@ -971,7 +1066,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .chain(tasks_next_superstep)
             .chain(tasks_subjects)
             .collect::<HashSet<_>>();
-        Ok(exclusion_set)        
+        Ok(exclusion_set)
     }
 
     fn processors_to_exclude(&self) -> Result<HashSet<String>> {
@@ -1014,7 +1109,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         } else {
             Vec::new()
         };
-    
+
         // Exclude subjects from `SubjectsNumRowsSession`
         let subjects_session = CountSubjectRowsSession::default();
         let processors_subjects = if let Some(session_name) = self.name.as_ref() {
@@ -1041,7 +1136,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .chain(processors_next_superstep)
             .chain(processors_subjects)
             .collect::<HashSet<_>>();
-        Ok(exclusion_set)        
+        Ok(exclusion_set)
     }
 
     fn runtime_envs_to_exclude(&self) -> Result<HashSet<String>> {
@@ -1084,7 +1179,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         } else {
             Vec::new()
         };
-    
+
         // Exclude subjects from `SubjectsNumRowsSession`
         let subjects_session = CountSubjectRowsSession::default();
         let tasks_subjects = if let Some(session_name) = self.name.as_ref() {
@@ -1111,7 +1206,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .chain(tasks_next_superstep)
             .chain(tasks_subjects)
             .collect::<HashSet<_>>();
-        Ok(exclusion_set)        
+        Ok(exclusion_set)
     }
 }
 
