@@ -202,7 +202,6 @@ impl SessionContext {
                 },
             )
             .collect::<Vec<_>>();
-        dbg!(&processors_subscribe);
 
         // Determine the task subscriptions
         let mut tasks_subscribe = HashMap::<(String, String), bool>::new();

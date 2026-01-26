@@ -2185,11 +2185,6 @@ mod tests {
                 ),
                 (
                     "diagnostic_session",
-                    "metrics_normalize_time_t",
-                    2,
-                ),
-                (
-                    "diagnostic_session",
                     "session_tasks_to_sequence_diagram_participants_t",
                     2,
                 ),
@@ -2198,7 +2193,7 @@ mod tests {
         
         // Step 3
         let result = SessionStreamStep::run_superstep(session_ctx_arc.clone(), HashMap::<String, IPCMessage>::new()).await?.unwrap();
-        assert_eq!(result.len(), 0);
+        assert_eq!(result.len(), 1);
 
         {
             // Check the session
@@ -2279,6 +2274,11 @@ mod tests {
                 (
                     "diagnostic_session",
                     "apply_sequence_diagram_participants_t",
+                    3,
+                ),
+                (
+                    "diagnostic_session",
+                    "diagnostic_session",
                     3,
                 ),
                 (
@@ -2403,7 +2403,7 @@ mod tests {
         
         // Step 5
         let result = SessionStreamStep::run_superstep(session_ctx_arc.clone(), HashMap::<String, IPCMessage>::new()).await?.unwrap();
-        assert_eq!(result.len(), 5);
+        assert_eq!(result.len(), 3);
 
         {
             // Check the session
@@ -2459,6 +2459,11 @@ mod tests {
             assert_eq!(combined, [
                 (
                     "diagnostic_session",
+                    "diagnostic_session",
+                    5,
+                ),
+                (
+                    "diagnostic_session",
                     "traces_aggregate_sequence_diagram_content_t",
                     5,
                 ),
@@ -2467,7 +2472,7 @@ mod tests {
         
         // Step 6
         let result = SessionStreamStep::run_superstep(session_ctx_arc.clone(), HashMap::<String, IPCMessage>::new()).await?.unwrap();
-        assert_eq!(result.len(), 5);
+        assert_eq!(result.len(), 0);
 
         {
             // Check the session
@@ -2525,6 +2530,63 @@ mod tests {
                     "diagnostic_session",
                     "apply_sequence_diagram_t",
                     6,
+                ),
+            ]);
+        }
+        
+        // Step 7
+        let result = SessionStreamStep::run_superstep(session_ctx_arc.clone(), HashMap::<String, IPCMessage>::new()).await?.unwrap();
+        assert_eq!(result.len(), 1);
+
+        {
+            // Check the session
+            let session_reading = session_ctx_arc.read();
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .read();
+            let subject_names = table_reading.get_column_as_vec_str("subject_name");
+            let task_names = table_reading.get_column_as_vec_str("task_name");
+            let session_names = table_reading.get_column_as_vec_str("session_name");
+            let num_rows_deltas = table_reading.get_column_as_vec_primitive::<i64>("num_rows_delta")?;
+            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let mut combined = subject_names.into_iter()
+                .zip(task_names)
+                .zip(session_names)
+                .zip(num_rows_deltas)
+                .zip(timestamps)
+                .filter_map(|((((subject_name, task_name), session_name), _num_rows_delta), timestamp)| if timestamp == 8 {
+                    Some((subject_name, task_name, session_name, timestamp))
+                } else {
+                    None
+                }).collect::<Vec<_>>();
+            combined.sort_by(|a, b| a.0.cmp(b.0));
+            combined.sort_by(|a, b| a.1.cmp(b.1));
+            assert_eq!(combined, []);
+
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .unwrap()
+                .read();
+            let task_names = table_reading.get_column_as_vec_str("task_name");
+            let session_names = table_reading.get_column_as_vec_str("session_name");
+            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let mut combined = session_names.into_iter()
+                .zip(task_names)
+                .zip(timestamps)
+                .filter_map(|((session_name, task_name), timestamp)| if timestamp == 7 {
+                    Some((session_name, task_name, timestamp))
+                } else {
+                    None
+                }).collect::<Vec<_>>();
+            combined.sort_by(|a, b| a.1.cmp(b.1));
+            assert_eq!(combined, [
+                (
+                    "diagnostic_session",
+                    "diagnostic_session",
+                    7,
                 ),
             ]);
         }
