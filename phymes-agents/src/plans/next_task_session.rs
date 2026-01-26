@@ -440,7 +440,7 @@ impl<'a> NextTaskSession<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
-    default_runtime_env_name-rt@{shape: subproc, label: default_runtime_env_name}
+    NextTaskSession_runtime_env-rt@{shape: subproc, label: NextTaskSession_runtime_env}
 
 	subgraph group_by_tasks_run_log_timestamp_t
 		SessionTasksRunLog-subject-.->|FullTable|sort_tasks_run_log_timestamp_p-subscribe
@@ -456,7 +456,7 @@ impl<'a> NextTaskSession<'a> {
 		select_tasks_run_log_timestamp_p-processor-->select_tasks_run_log_timestamp_p-publish
 		select_tasks_run_log_timestamp_p-publish-->|Replace|select_tasks_run_log_timestamp_t-subject
 	end
-	default_runtime_env_name-rt-->group_by_tasks_run_log_timestamp_t
+	NextTaskSession_runtime_env-rt-->group_by_tasks_run_log_timestamp_t
 	SessionTasksRunLog-subject@{shape: doc, label: SessionTasksRunLog}
 	sort_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}
 	sort_tasks_run_log_timestamp_p-processor@{shape: rect, label: Sort}
@@ -485,7 +485,7 @@ impl<'a> NextTaskSession<'a> {
 		select_processors_subscriptions_p-processor-->select_processors_subscriptions_p-publish
 		select_processors_subscriptions_p-publish-->|Replace|select_processors_subscriptions_t-subject
 	end
-	default_runtime_env_name-rt-->filter_processors_subscriptions_t
+	NextTaskSession_runtime_env-rt-->filter_processors_subscriptions_t
 	SessionProcessors-subject@{shape: doc, label: SessionProcessors}
 	cmp_processors_subscriptions_p-subscribe@{shape: diamond, label: All}
 	cmp_processors_subscriptions_p-processor@{shape: rect, label: Select}
@@ -533,7 +533,7 @@ impl<'a> NextTaskSession<'a> {
 		group_by_tasks_processors_subscriptions_p-processor-->group_by_tasks_processors_subscriptions_p-publish
 		group_by_tasks_processors_subscriptions_p-publish-->|Replace|SessionTasksSubscribeAggregate-subject
 	end
-	default_runtime_env_name-rt-->join_tasks_run_log_timestamp_t
+	NextTaskSession_runtime_env-rt-->join_tasks_run_log_timestamp_t
 	SubjectsChangeLog-subject@{shape: doc, label: SubjectsChangeLog}
 	sort_subject_change_log_timestamp_p-subscribe@{shape: diamond, label: All}
 	sort_subject_change_log_timestamp_p-processor@{shape: rect, label: Sort}
@@ -579,7 +579,7 @@ impl<'a> NextTaskSession<'a> {
 		select_processors_publications_p-processor-->select_processors_publications_p-publish
 		select_processors_publications_p-publish-->|Replace|select_processors_publications_t-subject
 	end
-	default_runtime_env_name-rt-->filter_processors_publications_t
+	NextTaskSession_runtime_env-rt-->filter_processors_publications_t
 	cmp_processors_publications_p-subscribe@{shape: diamond, label: All}
 	cmp_processors_publications_p-processor@{shape: rect, label: Select}
 	cmp_processors_publications_p-publish@{shape: fork}
@@ -612,7 +612,7 @@ impl<'a> NextTaskSession<'a> {
 		select_tasks_processors_publications_p-processor-->select_tasks_processors_publications_p-publish
 		select_tasks_processors_publications_p-publish-->|Replace|SessionTasksSubscribePublish-subject
 	end
-	default_runtime_env_name-rt-->select_tasks_processors_publications_t
+	NextTaskSession_runtime_env-rt-->select_tasks_processors_publications_t
 	SessionTasksSubscribe-subject@{shape: doc, label: SessionTasksSubscribe}
 	group_by_tasks_processors_subscriptions_subjects_p-subscribe@{shape: diamond, label: All}
 	group_by_tasks_processors_subscriptions_subjects_p-processor@{shape: rect, label: GroupBy}

@@ -21,7 +21,7 @@ use phymes_diagnostics::{HashSet, create_timestamp_micros};
 use crate::{
     AvailableProcessors, SessionContextBuilder, SessionContextBuilderAgentsTrait,
     SessionContextBuilderMermaidTrait, SessionContextBuilderTrait,
-    plans::{NextSuperstepSession, NextTaskSession, SubjectsNumRowsSession},
+    plans::{NextSuperstepSession, NextTaskSession, CountSubjectRowsSession},
 };
 
 /// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from tabular format
@@ -118,6 +118,18 @@ pub trait SessionContextBuilderTabularTrait {
     fn with_runtime_envs_as_tables(self, runtime_envs: &Table) -> Result<Self>
     where
         Self: Sized;
+
+    /// Tasks to exclude from the tables
+    fn tasks_to_exclude() -> Result<HashSet<String>>;
+
+    /// Processors to exclude from the tables
+    fn processors_to_exclude() -> Result<HashSet<String>>;
+
+    /// Subjects to exclude from the tables
+    fn subjects_to_exclude() -> Result<HashSet<String>>;
+
+    /// Runtime environments to exclude from the tables
+    fn runtime_envs_to_exclude() -> Result<HashSet<String>>;
 }
 
 impl SessionContextBuilderTabularTrait for SessionContextBuilder {
@@ -238,36 +250,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         };
 
         // Tables to exclude
-        let next_task_session = NextTaskSession::default();
-        let tables_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
-            next_task_session.as_mermaid_flowchart(),
-            false,
-        )?
-        .with_state_from_mermaid_erdiagram(
-            next_task_session.as_mermaid_erdiagram(),
-            false,
-            false,
-        )?
-        .with_name(next_task_session.session_context_name)
-        .add_processor_subjects()?
-        .state
-        .unwrap()
-        .into_iter()
-        .map(|t| t.get_name().to_string())
-        .collect::<Vec<_>>();
-        let next_superstep = NextSuperstepSession::default();
-        let tables_next_superstep = SessionContextBuilder::from_mermaid_flowchart(
-            next_superstep.as_mermaid_flowchart(),
-            false,
-        )?
-        .with_name(next_superstep.session_context_name)
-        .add_processor_subjects()?
-        .state
-        .unwrap()
-        .into_iter()
-        .map(|t| t.get_name().to_string())
-        .collect::<Vec<_>>();
-        let exclusion_set = tables_publish_subscribe.into_iter().chain(tables_next_superstep).collect::<HashSet<_>>();
+        let exclusion_set = Self::subjects_to_exclude()?;
 
         // initialize the table columns
         let mut session_names = Vec::<String>::new();
@@ -322,20 +305,17 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             ));
         };
 
-        let mut session_names = Vec::<String>::new();
-        let mut task_names = Vec::new();
-        let mut processor_names = Vec::new();
-        let mut runtime_env_names = Vec::new();
+        let exclusion_set = Self::tasks_to_exclude()?;
 
         // extract the tasks in order
-        for task in self.tasks.as_ref().unwrap().iter() {
-            for p in task.processor_names.iter() {
-                session_names.push(session_name.to_string());
-                task_names.push(task.task_name.to_owned());
-                processor_names.push(p.to_string());
-                runtime_env_names.push(task.runtime_env_name.to_owned());
-            }
-        }
+        let (((session_names, task_names), processor_names), runtime_env_names): (((Vec<String>, Vec<String>), Vec<String>), Vec<String>) = self.tasks.as_ref()
+            .unwrap().iter()
+            .filter(|t| !exclusion_set.contains(&t.task_name))
+            .flat_map(|t| t.processor_names
+                .iter()
+                .map(|p| ((((session_name.to_string(), t.task_name.to_string()), p.to_string()), t.runtime_env_name.to_string())))
+                .collect::<Vec<_>>())
+            .unzip();
 
         // create the record batch
         let batch = create_session_tasks_batch(
@@ -365,38 +345,25 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 "Add session name before making the subject tables."
             ));
         };
-        let mut session_names = Vec::<String>::new();
-        let mut processor_names = Vec::new();
-        let mut processor_types = Vec::new();
-        let mut pub_sub_name = Vec::new();
-        let mut pub_sub_table_names = Vec::new();
-        let mut is_sub = Vec::new();
-        let mut subscribe_types = Vec::new();
-        let mut update_types = Vec::new();
 
         // extract the processors in order
-        for processor in self.processors.as_ref().unwrap().iter() {
-            for sub in processor.get_subscriptions() {
-                pub_sub_name.push(sub.get_name().to_string());
-                pub_sub_table_names.push(sub.get_table_name().to_string());
-                is_sub.push(1);
-                session_names.push(session_name.to_string());
-                processor_names.push(processor.get_name().to_string());
-                processor_types.push(processor.get_type().to_string());
-                subscribe_types.push(processor.get_subscribe_policy().get_name().to_string());
-                update_types.push(processor.get_update_policy().get_name().to_string());
-            }
-            for p in processor.get_publications() {
-                pub_sub_name.push(p.get_name().to_string());
-                pub_sub_table_names.push(p.get_table_name().to_string());
-                is_sub.push(0);
-                session_names.push(session_name.to_string());
-                processor_names.push(processor.get_name().to_string());
-                processor_types.push(processor.get_type().to_string());
-                subscribe_types.push(processor.get_subscribe_policy().get_name().to_string());
-                update_types.push(processor.get_update_policy().get_name().to_string());
-            }
-        }
+        let exclusion_set = Self::processors_to_exclude()?;
+        let (((((((session_names, processor_names), processor_types), pub_sub_name), pub_sub_table_names), is_sub), subscribe_types), update_types) = self.processors.as_ref()
+            .unwrap()
+            .iter()
+            .filter(|p| !exclusion_set.contains(p.get_name()))
+            .flat_map(|p| {
+                let subs = p.get_subscriptions()
+                    .into_iter()
+                    .map(|s| (((((((session_name.to_string(), p.get_name().to_string()), p.get_type().to_string()), s.get_name().to_string()), s.get_table_name().to_string()), 1), p.get_subscribe_policy().get_name().to_string()), p.get_update_policy().get_name().to_string()))
+                    .collect::<Vec<_>>();
+                let pubs = p.get_publications()
+                    .into_iter()
+                    .map(|s| (((((((session_name.to_string(), p.get_name().to_string()), p.get_type().to_string()), s.get_name().to_string()), s.get_table_name().to_string()), 0), p.get_subscribe_policy().get_name().to_string()), p.get_update_policy().get_name().to_string()))
+                    .collect::<Vec<_>>();
+                subs.into_iter().chain(pubs).collect::<Vec<_>>()
+            })
+            .unzip();
 
         // create the record batch
         let batch = create_session_processors_batch(
@@ -430,27 +397,20 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 "Add session name before making the subject tables."
             ));
         };
-        let mut session_names = Vec::<String>::new();
-        let mut runtime_env_names = Vec::new();
-        let mut memory_limits = Vec::new();
-        let mut time_limits = Vec::new();
+        let exclusion_set = Self::runtime_envs_to_exclude()?;
 
-        // sort the runtime environments
+        // Sort the runtime environments
         let mut sorted_rts = self
             .runtime_envs
             .as_ref()
             .unwrap()
             .iter()
+            .filter(|r| !exclusion_set.contains(r.get_name()))
             .collect::<Vec<_>>();
         sorted_rts.sort_by(|a, b| a.name.cmp(&b.name));
-        for rt in sorted_rts.iter() {
-            session_names.push(session_name.to_string());
-            runtime_env_names.push(rt.get_name().to_string());
-            let memory_limit = rt.memory_limit.unwrap_or_default();
-            memory_limits.push(memory_limit as u32);
-            let time_limit = rt.time_limit.unwrap_or_default();
-            time_limits.push(time_limit as u32);
-        }
+        let (((session_names, runtime_env_names), memory_limits), time_limits) = sorted_rts.iter()
+            .map(|r| (((session_name.to_string(), r.get_name().to_string()), r.memory_limit.unwrap_or_default() as u32), r.time_limit.unwrap_or_default() as u32))
+            .unzip();
 
         // create the record batch
         let batch = create_session_runtime_envs_batch(
@@ -503,30 +463,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         };
 
         // Tasks to exclude
-        let next_task_session = NextTaskSession::default();
-        let tasks_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
-            next_task_session.as_mermaid_flowchart(),
-            false,
-        )?
-        .tasks
-        .unwrap()
-        .into_iter()
-        .map(|t| t.task_name)
-        .collect::<Vec<_>>();
-        let next_superstep = NextSuperstepSession::default();
-        let tasks_next_superstep = SessionContextBuilder::from_mermaid_flowchart(
-            next_superstep.as_mermaid_flowchart(),
-            false,
-        )?
-        .tasks
-        .unwrap()
-        .into_iter()
-        .map(|t| t.task_name)
-        .collect::<Vec<_>>();
-        let exclusion_set = tasks_publish_subscribe
-            .into_iter()
-            .chain(tasks_next_superstep)
-            .collect::<HashSet<_>>();
+        let exclusion_set = Self::tasks_to_exclude()?;
 
         // Create the table
         let ((session_names, task_names), timestamps) = self
@@ -556,57 +493,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             ));
         }
 
-        // Tables to exclude
-        let next_task_session = NextTaskSession::default();
-        let tables_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
-            next_task_session.as_mermaid_flowchart(),
-            false,
-        )?
-        .with_state_from_mermaid_erdiagram(
-            next_task_session.as_mermaid_erdiagram(),
-            false,
-            false,
-        )?
-        .with_name(next_task_session.session_context_name)
-        .add_processor_subjects()?
-        .state
-        .unwrap()
-        .into_iter()
-        .map(|t| t.get_name().to_string())
-        .collect::<Vec<_>>();
-        let subjects_session = SubjectsNumRowsSession::default();
-        let tables_subjects = SessionContextBuilder::from_mermaid_flowchart(
-            subjects_session.as_mermaid_flowchart(),
-            false,
-        )?
-        .with_state_from_mermaid_erdiagram(subjects_session.as_mermaid_erdiagram(), false, false)?
-        .with_name(subjects_session.session_context_name)
-        .add_processor_subjects()?
-        .state
-        .unwrap()
-        .into_iter()
-        .map(|t| t.get_name().to_string())
-        .collect::<Vec<_>>();
-        let next_superstep_session = NextSuperstepSession::default();
-        let tables_next_superstep = SessionContextBuilder::from_mermaid_flowchart(
-            next_superstep_session.as_mermaid_flowchart(),
-            false,
-        )?
-        .with_state_from_mermaid_erdiagram(next_superstep_session.as_mermaid_erdiagram(), false, false)?
-        .with_name(next_superstep_session.session_context_name)
-        .add_processor_subjects()?
-        .state
-        .unwrap()
-        .into_iter()
-        .map(|t| t.get_name().to_string())
-        .collect::<Vec<_>>();
-        let exclusion_set = tables_publish_subscribe
-            .into_iter()
-            .chain(tables_subjects)
-            .chain(tables_next_superstep)
-            .collect::<HashSet<_>>();
-
         // Create the table
+        let exclusion_set = Self::subjects_to_exclude()?;
         let (subject_names, num_rows): (Vec<String>, Vec<i64>) = self
             .state
             .as_ref()
@@ -651,30 +539,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             ));
         };
 
-        // Tasks to exclude
-        let next_task_session = NextTaskSession::default();
-        let tables_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
-            next_task_session.as_mermaid_flowchart(),
-            false,
-        )?
-        .tasks
-        .unwrap()
-        .into_iter()
-        .map(|t| t.task_name)
-        .collect::<Vec<_>>();
-        let next_superstep = NextSuperstepSession::default();
-        let tasks_next_superstep = SessionContextBuilder::from_mermaid_flowchart(
-            next_superstep.as_mermaid_flowchart(),
-            false,
-        )?
-        .tasks
-        .unwrap()
-        .into_iter()
-        .map(|t| t.task_name)
-        .collect::<Vec<_>>();
-        let exclusion_set = tables_publish_subscribe.into_iter().chain(tasks_next_superstep).collect::<HashSet<_>>();
-
         // Create the table
+        let exclusion_set = Self::tasks_to_exclude()?;
         let ((((subject_names, task_names), session_names), num_rows_delta), timestamps) = self
             .tasks
             .as_ref()
@@ -955,6 +821,201 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
 
         Ok(self.with_runtime_envs(runtime_envs))
+    }
+
+    fn subjects_to_exclude() -> Result<HashSet<String>> {
+        // Exclude subjects from `NextTaskSession`
+        let next_task_session = NextTaskSession::default();
+        let tables_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
+            next_task_session.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_state_from_mermaid_erdiagram(
+            next_task_session.as_mermaid_erdiagram(),
+            false,
+            false,
+        )?
+        .with_name(next_task_session.session_context_name)
+        .add_processor_subjects()?
+        .state
+        .unwrap()
+        .into_iter()
+        .map(|t| t.get_name().to_string())
+        .collect::<Vec<_>>();
+    
+        // Exclude subjects from `NextSuperstepSession`
+        let next_superstep = NextSuperstepSession::default();
+        let tables_next_superstep = SessionContextBuilder::from_mermaid_flowchart(
+            next_superstep.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_name(next_superstep.session_context_name)
+        .add_processor_subjects()?
+        .state
+        .unwrap()
+        .into_iter()
+        .map(|t| t.get_name().to_string())
+        .collect::<Vec<_>>();
+    
+        // Exclude subjects from `SubjectsNumRowsSession`
+        let subjects_session = CountSubjectRowsSession::default();
+        let tables_subjects = SessionContextBuilder::from_mermaid_flowchart(
+            subjects_session.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_state_from_mermaid_erdiagram(subjects_session.as_mermaid_erdiagram(), false, false)?
+        .with_name(subjects_session.session_context_name)
+        .add_processor_subjects()?
+        .state
+        .unwrap()
+        .into_iter()
+        .map(|t| t.get_name().to_string())
+        .collect::<Vec<_>>();
+
+        // Wrap into a HashSet
+        let exclusion_set = tables_publish_subscribe.into_iter()
+            .chain(tables_next_superstep)
+            .chain(tables_subjects)
+            .collect::<HashSet<_>>();
+        Ok(exclusion_set)
+    }
+
+    fn tasks_to_exclude() -> Result<HashSet<String>> {
+        // Exclude subjects from `NextTaskSession`
+        let next_task_session = NextTaskSession::default();
+        let tasks_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
+            next_task_session.as_mermaid_flowchart(),
+            false,
+        )?
+        .tasks
+        .unwrap()
+        .into_iter()
+        .map(|t| t.task_name)
+        .collect::<Vec<_>>();
+
+        // Exclude subjects from `NextSuperstepSession`
+        let next_superstep = NextSuperstepSession::default();
+        let tasks_next_superstep = SessionContextBuilder::from_mermaid_flowchart(
+            next_superstep.as_mermaid_flowchart(),
+            false,
+        )?
+        .tasks
+        .unwrap()
+        .into_iter()
+        .map(|t| t.task_name)
+        .collect::<Vec<_>>();
+    
+        // Exclude subjects from `SubjectsNumRowsSession`
+        let subjects_session = CountSubjectRowsSession::default();
+        let tasks_subjects = SessionContextBuilder::from_mermaid_flowchart(
+            subjects_session.as_mermaid_flowchart(),
+            false,
+        )?
+        .tasks
+        .unwrap()
+        .into_iter()
+        .map(|t| t.task_name)
+        .collect::<Vec<_>>();
+
+        // Wrap into a HashSet
+        let exclusion_set = tasks_publish_subscribe
+            .into_iter()
+            .chain(tasks_next_superstep)
+            .chain(tasks_subjects)
+            .collect::<HashSet<_>>();
+        Ok(exclusion_set)        
+    }
+
+    fn processors_to_exclude() -> Result<HashSet<String>> {
+        // Exclude subjects from `NextTaskSession`
+        let next_task_session = NextTaskSession::default();
+        let processors_task_session = SessionContextBuilder::from_mermaid_flowchart(
+            next_task_session.as_mermaid_flowchart(),
+            false,
+        )?
+        .processors
+        .unwrap()
+        .into_iter()
+        .map(|t| t.get_name().to_string())
+        .collect::<Vec<_>>();
+
+        // Exclude subjects from `NextSuperstepSession`
+        let next_superstep = NextSuperstepSession::default();
+        let processors_next_superstep = SessionContextBuilder::from_mermaid_flowchart(
+            next_superstep.as_mermaid_flowchart(),
+            false,
+        )?
+        .processors
+        .unwrap()
+        .into_iter()
+        .map(|t| t.get_name().to_string())
+        .collect::<Vec<_>>();
+    
+        // Exclude subjects from `SubjectsNumRowsSession`
+        let subjects_session = CountSubjectRowsSession::default();
+        let processors_subjects = SessionContextBuilder::from_mermaid_flowchart(
+            subjects_session.as_mermaid_flowchart(),
+            false,
+        )?
+        .processors
+        .unwrap()
+        .into_iter()
+        .map(|t| t.get_name().to_string())
+        .collect::<Vec<_>>();
+
+        // Wrap into a HashSet
+        let exclusion_set = processors_task_session
+            .into_iter()
+            .chain(processors_next_superstep)
+            .chain(processors_subjects)
+            .collect::<HashSet<_>>();
+        Ok(exclusion_set)        
+    }
+
+    fn runtime_envs_to_exclude() -> Result<HashSet<String>> {
+        // Exclude subjects from `NextTaskSession`
+        let next_task_session = NextTaskSession::default();
+        let tasks_publish_subscribe = SessionContextBuilder::from_mermaid_flowchart(
+            next_task_session.as_mermaid_flowchart(),
+            false,
+        )?
+        .runtime_envs
+        .unwrap()
+        .iter()
+        .map(|r| r.get_name().to_string())
+        .collect::<Vec<_>>();
+
+        // Exclude subjects from `NextSuperstepSession`
+        let next_superstep = NextSuperstepSession::default();
+        let tasks_next_superstep = SessionContextBuilder::from_mermaid_flowchart(
+            next_superstep.as_mermaid_flowchart(),
+            false,
+        )?
+        .runtime_envs
+        .unwrap()
+        .iter()
+        .map(|r| r.get_name().to_string())
+        .collect::<Vec<_>>();
+    
+        // Exclude subjects from `SubjectsNumRowsSession`
+        let subjects_session = CountSubjectRowsSession::default();
+        let tasks_subjects = SessionContextBuilder::from_mermaid_flowchart(
+            subjects_session.as_mermaid_flowchart(),
+            false,
+        )?
+        .runtime_envs
+        .unwrap()
+        .iter()
+        .map(|r| r.get_name().to_string())
+        .collect::<Vec<_>>();
+
+        // Wrap into a HashSet
+        let exclusion_set = tasks_publish_subscribe
+            .into_iter()
+            .chain(tasks_next_superstep)
+            .chain(tasks_subjects)
+            .collect::<HashSet<_>>();
+        Ok(exclusion_set)        
     }
 }
 

@@ -11,28 +11,28 @@
 /// 4. Updating the `SubjectsChangeLog` cache with the most recent updates and `TasksRunLog` cache with the most recent task runs
 ///
 /// * Caching is implemented to minimize memory and compute
-pub struct SubjectsNumRowsSession<'a> {
+pub struct CountSubjectRowsSession<'a> {
     /// Session
     pub session_context_name: &'a str,
 }
 
-impl Default for SubjectsNumRowsSession<'_> {
+impl Default for CountSubjectRowsSession<'_> {
     fn default() -> Self {
-        SubjectsNumRowsSession {
-            session_context_name: "subjects_num_rows_session",
+        CountSubjectRowsSession {
+            session_context_name: "count_subject_rows_session",
         }
     }
 }
 
-impl<'a> SubjectsNumRowsSession<'a> {
+impl<'a> CountSubjectRowsSession<'a> {
     pub fn new_with_session_name(session_context_name: &'a str) -> Self {
-        SubjectsNumRowsSession {
+        CountSubjectRowsSession {
             session_context_name,
         }
     }
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
-    default_runtime_env_name-rt@{shape: subproc, label: default_runtime_env_name}
+    CountSubjectRowsSession_runtime_env-rt@{shape: subproc, label: CountSubjectRowsSession_runtime_env}
 
 	subgraph group_by_subject_change_log_delta_t
 		SubjectsChangeLog-subject-.->|FullTable|group_by_subject_change_log_delta_p-subscribe
@@ -44,7 +44,7 @@ impl<'a> SubjectsNumRowsSession<'a> {
 		select_subject_change_log_delta_p-processor-->select_subject_change_log_delta_p-publish
 		select_subject_change_log_delta_p-publish-->|Replace|SubjectsNumRows-subject
 	end
-	default_runtime_env_name-rt-->group_by_subject_change_log_delta_t
+	CountSubjectRowsSession_runtime_env-rt-->group_by_subject_change_log_delta_t
 	SubjectsChangeLog-subject@{shape: doc, label: SubjectsChangeLog}
 	group_by_subject_change_log_delta_p-subscribe@{shape: diamond, label: All}
 	group_by_subject_change_log_delta_p-processor@{shape: rect, label: GroupBy}
@@ -106,9 +106,9 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_subjects_session() -> Result<()> {
+    async fn test_count_subject_rows_session() -> Result<()> {
         // Initialize the session
-        let subjects_session = SubjectsNumRowsSession::default();
+        let subjects_session = CountSubjectRowsSession::default();
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
             subjects_session.as_mermaid_flowchart(),
             false,

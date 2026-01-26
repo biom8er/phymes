@@ -124,7 +124,7 @@ impl<'a> NextSuperstepSession<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
-    default_runtime_env_name-rt@{shape: subproc, label: default_runtime_env_name}
+    NextSuperstepSession_runtime_env-rt@{shape: subproc, label: NextSuperstepSession_runtime_env}
 
 	subgraph max_superstep_t
 		SessionSupersteps-subject-.->|FullTable|group_by_session_superstep_p-subscribe
@@ -132,7 +132,7 @@ impl<'a> NextSuperstepSession<'a> {
 		group_by_session_superstep_p-processor-->group_by_session_superstep_p-publish
 		group_by_session_superstep_p-publish-->|Replace|SessionSuperstepMax-subject
 	end
-	default_runtime_env_name-rt-->max_superstep_t
+	NextSuperstepSession_runtime_env-rt-->max_superstep_t
 	SessionSupersteps-subject@{shape: doc, label: SessionSupersteps}
 	group_by_session_superstep_p-subscribe@{shape: diamond, label: All}
 	group_by_session_superstep_p-processor@{shape: rect, label: GroupBy}

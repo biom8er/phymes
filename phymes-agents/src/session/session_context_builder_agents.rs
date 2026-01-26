@@ -20,7 +20,7 @@ use crate::{
     AvailableInterfaceSubjects, AvailableProcessors, SessionContext, SessionContextBuilder,
     SessionContextBuilderMermaidTrait, SessionContextBuilderTabularTrait,
     SessionContextBuilderTrait,
-    plans::{NextSuperstepSession, NextTaskSession, SubjectsNumRowsSession},
+    plans::{NextSuperstepSession, NextTaskSession, CountSubjectRowsSession},
 };
 
 type SessionContextInput = (
@@ -957,7 +957,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         Self: Sized,
     {
         // Initialize the subjects num rows session
-        let subjects_session = SubjectsNumRowsSession::default();
+        let subjects_session = CountSubjectRowsSession::default();
         let other_builder = SessionContextBuilder::from_mermaid_flowchart(
             subjects_session.as_mermaid_flowchart(),
             false,
