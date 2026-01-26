@@ -1860,9 +1860,9 @@ mod tests {
     use phymes_diagnostics::{HashMap, HashSet};
 
     use crate::{
-        SessionContextBuilderAgentsTrait,
-        SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait,
-        create_message_map, test_session_context_builder,
+        SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream,
+        SessionStreamStep, SessionStreamStepTrait, create_message_map,
+        test_session_context_builder,
     };
 
     use super::*;
@@ -2711,10 +2711,6 @@ mod tests {
     async fn test_diagnostic_session() -> Result<()> {
         // initialize the session
         let diagnostic_session = DiagnosticSession::default();
-        // println!("{}",diagnostic_session
-        //     .build()
-        //     .with_name(diagnostic_session.session_context_name)
-        //     .to_mermaid_flowchart(false, false)?);
         let session_ctx = diagnostic_session
             .build()
             .with_name(diagnostic_session.session_context_name)
@@ -2747,23 +2743,21 @@ mod tests {
         // Run
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
+        // {
+        //     // Debug any errors
+        //     let subjects_reading = session_ctx_arc.read();
+        //     let table_reading = subjects_reading
+        //         .get_states()
+        //         .get(AvailableSubjects::SessionMetrics.to_string().as_str())
+        //         .unwrap()
+        //         .read();
+        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        // }
 
         // Check the response
         let keys = response
             .iter()
-            .flat_map(|m| {
-                m.keys().map(|k| k.to_string()).collect::<Vec<_>>()
-            })
+            .flat_map(|m| m.keys().map(|k| k.to_string()).collect::<Vec<_>>())
             .collect::<Vec<_>>();
         assert_eq!(keys.len(), 5);
         let keys_set = keys.into_iter().collect::<HashSet<_>>();

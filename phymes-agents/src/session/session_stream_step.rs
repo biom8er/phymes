@@ -634,8 +634,7 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
 
             // Spawn the future
             join_set.spawn(async move {
-                let result: Result<Vec<RecordBatch>> =
-                    resp.get_message_own().try_collect().await;
+                let result: Result<Vec<RecordBatch>> = resp.get_message_own().try_collect().await;
                 (resp_name, result)
             });
         });
