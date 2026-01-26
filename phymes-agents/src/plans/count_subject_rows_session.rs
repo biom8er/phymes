@@ -25,11 +25,6 @@ impl Default for CountSubjectRowsSession<'_> {
 }
 
 impl<'a> CountSubjectRowsSession<'a> {
-    pub fn new_with_session_name(session_context_name: &'a str) -> Self {
-        CountSubjectRowsSession {
-            session_context_name,
-        }
-    }
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
     CountSubjectRowsSession_runtime_env-rt@{shape: subproc, label: CountSubjectRowsSession_runtime_env}

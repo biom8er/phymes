@@ -22,13 +22,6 @@ impl Default for NextSuperstepSession<'_> {
 }
 
 impl<'a> NextSuperstepSession<'a> {
-    /// Create a new session with a name
-    pub fn new_with_session_name(session_context_name: &'a str) -> Self {
-        NextSuperstepSession {
-            session_context_name,
-        }
-    }
-
     /// Return the pre-compiled task subscriptions and publications as messages
     ///
     /// # Notes

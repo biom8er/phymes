@@ -290,7 +290,7 @@ pub trait SessionStreamStepTrait {
                 ),
             };
             if next {
-                Self::next_superstep(&session_context).await
+                Self::next_superstep(session_context).await
             } else {
                 step
             }
@@ -306,7 +306,7 @@ pub trait SessionStreamStepTrait {
                 .read()
                 .increment_superstep()
                 .unwrap_or_default();
-            Self::next_superstep(&session_context).await
+            Self::next_superstep(session_context).await
         }
     }
 
@@ -346,15 +346,13 @@ pub trait SessionStreamStepTrait {
                         if let Err(_err) = session_context.read().tasks_subscribe() {
                             return HashMap::<(String, String), ProcessorSubjectsMap>::new();
                         }
-                    } else {
-                        if let Err(_err) = SessionStreamStepMinimal::run_superstep(
-                            Arc::clone(session_context),
-                            messages,
-                        )
-                        .await
-                        {
-                            return HashMap::<(String, String), ProcessorSubjectsMap>::new();
-                        }
+                    } else if let Err(_err) = SessionStreamStepMinimal::run_superstep(
+                        Arc::clone(session_context),
+                        messages,
+                    )
+                    .await
+                    {
+                        return HashMap::<(String, String), ProcessorSubjectsMap>::new();
                     }
                 }
             }
@@ -619,57 +617,55 @@ pub struct SessionStreamStepMinimal {}
 
 impl SessionStreamStepTrait for SessionStreamStepMinimal {
     /// Minimal implementation of `join_message_streams` without intercepting Errors
-    fn join_message_streams(
+    async fn join_message_streams(
         messages: SendableRecordBatchStreamMessageMap,
-    ) -> impl std::future::Future<Output = Result<IPCMessageMap>> + Send {
-        async {
-            // Inspect each of the response futures
-            let mut response_builder = HashMap::<String, IPCMessageBuilder>::new();
-            let mut join_set = JoinSet::new();
-            messages.into_iter().for_each(|(resp_name, resp)| {
-                // Copy over name, source, destination for later building of the complete response
-                let message = IPCMessageBuilder::new()
-                    .with_name(resp_name.as_str())
-                    .with_subject(resp.get_subject())
-                    .with_publisher(resp.get_publisher())
-                    .with_update(resp.get_update());
-                let _ = response_builder.insert(resp_name.clone(), message);
+    ) -> Result<IPCMessageMap> {
+        // Inspect each of the response futures
+        let mut response_builder = HashMap::<String, IPCMessageBuilder>::new();
+        let mut join_set = JoinSet::new();
+        messages.into_iter().for_each(|(resp_name, resp)| {
+            // Copy over name, source, destination for later building of the complete response
+            let message = IPCMessageBuilder::new()
+                .with_name(resp_name.as_str())
+                .with_subject(resp.get_subject())
+                .with_publisher(resp.get_publisher())
+                .with_update(resp.get_update());
+            let _ = response_builder.insert(resp_name.clone(), message);
 
-                // Spawn the future
-                join_set.spawn(async move {
-                    let result: Result<Vec<RecordBatch>> =
-                        resp.get_message_own().try_collect().await;
-                    (resp_name, result)
-                });
+            // Spawn the future
+            join_set.spawn(async move {
+                let result: Result<Vec<RecordBatch>> =
+                    resp.get_message_own().try_collect().await;
+                (resp_name, result)
             });
+        });
 
-            // Collect each of the response RecordBatches
-            let mut response_batches = HashMap::<String, IPCMessage>::new();
-            // Note that currently this doesn't identify the thread that panicked
-            //
-            // TODO: Replace with [join_next_with_id](https://docs.rs/tokio/latest/tokio/task/struct.JoinSet.html#method.join_next_with_id
-            // once it is stable
-            while let Some(response) = join_set.join_next().await {
-                // Check the response
-                let (resp_name, resp) = response?;
-                let batches = resp?;
-                let table = TableBuilder::new()
-                    .with_name(resp_name.as_str())
-                    .with_record_batches(batches)?
-                    .build()?;
-                let message = response_builder
-                    .remove(resp_name.as_str())
-                    .unwrap()
-                    .with_message(table.to_ipc_stream()?)
-                    .build()?;
+        // Collect each of the response RecordBatches
+        let mut response_batches = HashMap::<String, IPCMessage>::new();
+        // Note that currently this doesn't identify the thread that panicked
+        //
+        // TODO: Replace with [join_next_with_id](https://docs.rs/tokio/latest/tokio/task/struct.JoinSet.html#method.join_next_with_id
+        // once it is stable
+        while let Some(response) = join_set.join_next().await {
+            // Check the response
+            let (resp_name, resp) = response?;
+            let batches = resp?;
+            let table = TableBuilder::new()
+                .with_name(resp_name.as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            let message = response_builder
+                .remove(resp_name.as_str())
+                .unwrap()
+                .with_message(table.to_ipc_stream()?)
+                .build()?;
 
-                // Add the message to the joined responses
-                let message_map = message.to_map()?;
-                response_batches.extend(message_map);
-            }
-
-            Ok(response_batches)
+            // Add the message to the joined responses
+            let message_map = message.to_map()?;
+            response_batches.extend(message_map);
         }
+
+        Ok(response_batches)
     }
 
     /// Minimal implementation of `run_superstep` without error handling and diagnostics

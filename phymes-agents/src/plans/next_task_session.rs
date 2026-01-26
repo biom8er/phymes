@@ -23,13 +23,6 @@ impl Default for NextTaskSession<'_> {
 }
 
 impl<'a> NextTaskSession<'a> {
-    /// Create a new session with a name
-    pub fn new_with_session_name(session_context_name: &'a str) -> Self {
-        NextTaskSession {
-            session_context_name,
-        }
-    }
-
     /// Return the pre-compiled task subscriptions and publications as messages
     ///
     /// # Notes

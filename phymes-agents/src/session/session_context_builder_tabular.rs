@@ -308,6 +308,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let exclusion_set = self.tasks_to_exclude()?;
 
         // extract the tasks in order
+        #[allow(clippy::type_complexity)]
         let (((session_names, task_names), processor_names), runtime_env_names): (
             ((Vec<String>, Vec<String>), Vec<String>),
             Vec<String>,
@@ -385,7 +386,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .flat_map(|p| {
                 let subs = p
                     .get_subscriptions()
-                    .into_iter()
+                    .iter()
                     .map(|s| {
                         (
                             (
@@ -413,7 +414,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                     .collect::<Vec<_>>();
                 let pubs = p
                     .get_publications()
-                    .into_iter()
+                    .iter()
                     .map(|s| {
                         (
                             (
