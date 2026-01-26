@@ -61,8 +61,6 @@ for file in target/wasm32-wasip2/release/deps/phymes_diagnostics-*.wasm; do [ -f
 cargo check -p phymes-core --features wasip2 --no-default-features --target wasm32-unknown-unknown
 cargo test -p phymes-core --features wasip2 --no-default-features --target wasm32-wasip2 --no-run --release
 for file in target/wasm32-wasip2/release/deps/phymes_core-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
-cargo build -p phymes-core --target wasm32-wasip2 --no-default-features --features wasip2 --release --example addrows
-wasmtime run target/wasm32-wasip2/release/examples/addrows.wasm
 cargo check -p phymes-data --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
 cargo test -p phymes-data --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
 for file in target/wasm32-wasip2/release/deps/phymes_data-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done

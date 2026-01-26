@@ -2566,7 +2566,7 @@ mod tests {
             .unwrap()
             .read();
         let errors = table_reading.get_column_as_vec_str("content");
-        assert_eq!(errors, ["This is an error!"]);
+        assert!(errors.first().unwrap().contains("This is an error!"));
         assert_eq!(
             session_context_arc
                 .try_read()

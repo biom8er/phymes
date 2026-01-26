@@ -30,18 +30,14 @@ impl TaskPlanBuilder {
         self
     }
     pub fn build(mut self) -> Result<TaskPlan> {
-        if self.name.is_none() {
+        if let Some(name) = self.name.as_ref() {
+            if self.runtime_env_name.as_ref().is_none() {
+                return Err(anyhow!("Missing runtime_env_name for task {name}",));
+            } else if self.processor_names.as_ref().is_none() {
+                return Err(anyhow!("Missing processor_names for task {name}",));
+            }
+        } else {
             return Err(anyhow!("Missing task name"));
-        } else if self.runtime_env_name.as_ref().is_none() {
-            return Err(anyhow!(
-                "Missing runtime_env_name for task {}",
-                self.name.as_ref().unwrap()
-            ));
-        } else if self.processor_names.as_ref().is_none() {
-            return Err(anyhow!(
-                "Missing processor_names for task {}",
-                self.name.as_ref().unwrap()
-            ));
         }
 
         let task_plan = TaskPlan {
