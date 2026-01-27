@@ -354,6 +354,7 @@ where
         DataColumnOperator::BroadcastMax => lhs_tensor.max_all()?.broadcast_as(shape)?,
         DataColumnOperator::BroadcastMean => lhs_tensor.mean_all()?.broadcast_as(shape)?,
         DataColumnOperator::BroadcastVar => lhs_tensor.var(0)?.broadcast_as(shape)?,
+        DataColumnOperator::CumSum => lhs_tensor.cumsum(0)?.broadcast_as(shape)?,
         _ => {
             return Err(anyhow!(
                 "Unsupported column operator {column_operator} for lhs column {lhs_column}.",
@@ -939,7 +940,8 @@ pub fn select(
             DataColumnOperator::BroadcastMax
             | DataColumnOperator::BroadcastMin
             | DataColumnOperator::BroadcastMean
-            | DataColumnOperator::BroadcastVar => match column_data_type {
+            | DataColumnOperator::BroadcastVar
+            | DataColumnOperator::CumSum => match column_data_type {
                 DataType::UInt8 => {
                     let tensor = column_unary_operator_tensor::<u8>(
                         column_name,
