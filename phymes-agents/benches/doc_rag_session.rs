@@ -138,6 +138,12 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 let session_ctx = config
                     .build()
                     .with_name(session_context_name.as_str())
+                    .add_session_interface(None)
+                    .unwrap()
+                    .add_next_tasks()
+                    .unwrap()
+                    .add_next_supersteps()
+                    .unwrap()
                     .build_with_tables()
                     .unwrap();
                 let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
