@@ -334,6 +334,8 @@ pub enum DataColumnOperator {
     BroadcastList,
     #[value(name = "BroadcastSet")]
     BroadcastSet,
+    #[value(name = "CumSum")]
+    CumSum,
 }
 
 impl DataColumnOperator {
@@ -369,7 +371,8 @@ impl DataColumnOperator {
             | Self::BroadcastVar
             | Self::BroadcastCount
             | Self::BroadcastList
-            | Self::BroadcastSet => false,
+            | Self::BroadcastSet
+            | Self::CumSum => false,
         }
     }
 
@@ -403,6 +406,7 @@ impl DataColumnOperator {
             | Self::BroadcastCount
             | Self::BroadcastList
             | Self::BroadcastSet
+            | Self::CumSum
             | Self::Not
             | Self::Len
             | Self::None => true,
@@ -437,6 +441,7 @@ impl DataColumnOperator {
             | Self::BroadcastCount
             | Self::BroadcastList
             | Self::BroadcastSet
+            | Self::CumSum
             | Self::None => false,
             Self::Zeros | Self::Ones | Self::String | Self::Value => true,
         }
@@ -476,6 +481,7 @@ impl Display for DataColumnOperator {
             Self::BroadcastCount => write!(f, "BroadcastCount"),
             Self::BroadcastList => write!(f, "BroadcastList"),
             Self::BroadcastSet => write!(f, "BroadcastSet"),
+            Self::CumSum => write!(f, "CumSum"),
         }
     }
 }
