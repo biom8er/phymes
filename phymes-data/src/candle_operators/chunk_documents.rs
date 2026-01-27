@@ -576,7 +576,7 @@ pub fn chunk_str(text: &str, chunk_size: usize, chunk_overlap: usize) -> Vec<Str
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::device;
+    use crate::device;
 
     use super::*;
 

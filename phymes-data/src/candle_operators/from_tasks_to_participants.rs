@@ -140,8 +140,8 @@ pub fn from_tasks_to_participants(
 mod tests {
     use std::sync::Arc;
 
+    use crate::device;
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::device;
 
     use super::*;
 

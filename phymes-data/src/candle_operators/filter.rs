@@ -564,7 +564,7 @@ pub fn filter(
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::device;
+    use crate::device;
 
     use super::*;
 

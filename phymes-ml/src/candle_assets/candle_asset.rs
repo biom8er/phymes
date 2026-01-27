@@ -4,9 +4,9 @@ use candle_core::{DType, Device, Tensor};
 use tokenizers::tokenizer::Tokenizer;
 
 /// phymes-core dependencies
-use phymes_core::{TensorProcessorTrait, TokenProcessorTrait, TokenWrapper, TokenizerConfig};
+use phymes_data::TensorProcessorTrait;
 
-use super::available_candle_assets::CandleModelWeights;
+use crate::{CandleModelWeights, TokenProcessorTrait, TokenWrapper, TokenizerConfig};
 
 /// The actual asset struct
 #[derive(Debug)]

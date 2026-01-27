@@ -6,21 +6,17 @@ use reqwest::{Client, header::CONTENT_TYPE};
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, EmbeddingRequest,
     EmbeddingResponse, EncodingFormat, MappableTrait, MessageBuilderTrait, MessageTrait,
-    ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait,
-    TablePublication, TableSubscribePolicyTrait, TableSubscription, TableTrait,
-    remove_message_by_subject,
+    ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
+    SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table,
+    TableBuilder, TableBuilderTrait, TableTrait, remove_message_by_subject,
 };
-use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
-};
+use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
 
 use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 
 use anyhow::{Result, anyhow};
 use futures::{FutureExt, Stream, StreamExt};
-use parking_lot::Mutex;
 use std::{
     pin::Pin,
     sync::Arc,
@@ -32,9 +28,6 @@ use tracing::{Level, event};
 pub struct OpenAIEmbedProcessor {
     name: String,
     r#type: String,
-    publications: Vec<TablePublication>,
-    subscriptions: Vec<TableSubscription>,
-    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for OpenAIEmbedProcessor {
@@ -43,112 +36,72 @@ impl MappableTrait for OpenAIEmbedProcessor {
     }
 }
 
-impl PublishAndSubscribeTrait for OpenAIEmbedProcessor {
-    fn get_publications(&self) -> Vec<&TablePublication> {
-        self.publications.iter().collect::<Vec<_>>()
-    }
-
-    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
-        self.subscriptions.iter().collect::<Vec<_>>()
-    }
-    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe_policy
-            .check_subscriptions(&self.subscriptions, updates, state)
-    }
-}
-
 impl ProcessorTrait for OpenAIEmbedProcessor {
-    fn new(
-        name: &str,
-        r#type: &str,
-        publications: &[TablePublication],
-        subscriptions: &[TableSubscription],
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-    ) -> Self {
+    fn new(name: &str, r#type: &str) -> Self {
         Self {
             name: name.to_string(),
             r#type: r#type.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            subscribe_policy,
         }
-    }
-
-    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
-        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {
         &self.r#type
     }
 
+    fn line_and_file(&self) -> (u32, String) {
+        (line!(), file!().to_string())
+    }
+
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<SendableRecordBatchStreamMessageMap> {
+        runtime_env: Arc<RuntimeEnv>,
+    ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
-        // Trace the inbox
-        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
-            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder
-                .clone()
-                .messages(line!(), file!(), self.get_name());
-            trace.enter(&message.values().collect::<Vec<_>>());
-            Some((trace, trace_builder))
-        } else {
-            None
-        };
-
-        // Extract out the documents and config
-        let documents = match remove_message_by_subject(
-            self.subscriptions.first().unwrap().get_table_name(),
-            &mut message,
-        ) {
-            Some(i) => i.get_message_own(),
-            None => return Err(anyhow!("Documents not provided for {}.", self.get_name())),
-        };
+        // Extract out the config
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
 
-        // Make the outbox and send
-        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
+        // Re-index the messages by the subject name which needs to be unique at this stage
+        let message = message
+            .into_iter()
+            .map(|(_k, v)| (v.get_subject().to_string(), v))
+            .collect::<HashMap<_, _>>();
+
+        // Run the embed stream
         let out = Box::pin(OpenAIEmbedStream::new(
-            documents,
+            message,
             config,
             Arc::clone(&runtime_env),
-            stream_diagnostic_builder,
+            diagnostic_builder.cloned(),
         )?);
-        let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_publisher(self.get_name())
-            .with_subject(self.publications.first().unwrap().get_table_name())
-            .with_message(out)
-            .with_update(self.publications.first().unwrap())
-            .make_name()?
-            .build()?;
-        let _ = message.insert(out_m.get_name().to_string(), out_m);
 
-        // Trace the outbox
-        if let Some(trace) = trace {
-            trace.0.exit(&message.values().collect::<Vec<_>>());
-        }
-        Ok(message)
+        // Prepare the message builder
+        let mut builder_map = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
+        let builder = SendableRecordBatchStreamMessage::get_builder()
+            .with_name(self.get_name())
+            .with_message(out);
+        let _ = builder_map.insert(self.get_name().to_string(), builder);
+
+        Ok(builder_map)
     }
 }
 
 pub struct OpenAIEmbedStream {
     /// Output schema (embeddings)
     schema: SchemaRef,
-    /// The input task to process.
-    document_stream: SendableRecordBatchStream,
+    /// The documents (or queries) to parse
+    messages: SendableRecordBatchStreamMessageMap,
+    /// Parameters for embed inference
+    documents_stream: Option<SendableRecordBatchStream>,
     /// Parameters for embed inference
     config_stream: SendableRecordBatchStream,
     /// The Candle model assets needed for inference
-    _runtime_env: Arc<Mutex<RuntimeEnv>>,
+    _runtime_env: Arc<RuntimeEnv>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for embed inference
@@ -163,14 +116,15 @@ pub struct OpenAIEmbedStream {
 
 impl OpenAIEmbedStream {
     pub fn new(
-        document_stream: SendableRecordBatchStream,
+        messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
             schema: AvailableSubjects::DocumentEmbeddings.to_schema(),
-            document_stream,
+            messages,
+            documents_stream: None,
             config_stream,
             diagnostic_builder,
             _runtime_env: runtime_env,
@@ -237,21 +191,36 @@ impl Stream for OpenAIEmbedStream {
             match &mut self.state {
                 HTTPClientRequestState::NotStarted => {
                     // Initialize the config
-                    let mut batches = Vec::new();
-                    while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
-                        batches.push(batch);
+                    if self.config.is_none() {
+                        let mut batches = Vec::new();
+                        while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
+                            batches.push(batch);
+                        }
+                        let config_table = TableBuilder::new()
+                            .with_name("config")
+                            .with_record_batches(batches)?
+                            .build()?;
+                        self.init_config(config_table)?;
                     }
-                    let config_table = TableBuilder::new()
-                        .with_name("config")
-                        .with_record_batches(batches)?
-                        .build()?;
-                    self.init_config(config_table)?;
 
                     // Collect the next batch of queries
-                    let batch = match ready!(self.document_stream.poll_next_unpin(cx)) {
-                        Some(Ok(batch)) => batch,
-                        _ => return Poll::Ready(None),
-                    };
+                    if self.documents_stream.is_none() {
+                        let docs_table = self.config.as_ref().unwrap().documents.clone();
+                        if let Some(s) = remove_message_by_subject(&docs_table, &mut self.messages)
+                        {
+                            self.documents_stream.replace(s.get_message_own())
+                        } else {
+                            return Poll::Ready(Some(Err(anyhow!(
+                                "Documents and queries subject was not found in the message stream. Available messages are {:?}",
+                                self.messages.keys()
+                            ))));
+                        };
+                    }
+                    let batch =
+                        match ready!(self.documents_stream.as_mut().unwrap().poll_next_unpin(cx)) {
+                            Some(Ok(batch)) => batch,
+                            _ => return Poll::Ready(None),
+                        };
 
                     // Convert to a list of queries
                     let table = TableBuilder::new()
@@ -363,10 +332,11 @@ impl Stream for OpenAIEmbedStream {
             match &mut self.state {
                 HTTPClientRequestState::NotStarted => {
                     // Collect the next batch of queries
-                    let batch = match ready!(self.document_stream.poll_next_unpin(cx)) {
-                        Some(Ok(batch)) => batch,
-                        _ => return Poll::Ready(None),
-                    };
+                    let batch =
+                        match ready!(self.documents_stream.as_mut().unwrap().poll_next_unpin(cx)) {
+                            Some(Ok(batch)) => batch,
+                            _ => return Poll::Ready(None),
+                        };
 
                     // Convert to a list of queries
                     let table = TableBuilder::new()
@@ -477,7 +447,7 @@ impl Stream for OpenAIEmbedStream {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.document_stream.size_hint()
+        (1, None)
     }
 }
 
@@ -493,6 +463,7 @@ mod tests {
     use arrow::array::{ArrayRef, FixedSizeListArray, Float32Array, StringArray};
     #[allow(unused_imports)]
     use futures::TryStreamExt;
+    use phymes_core::TablePublication;
 
     #[allow(unused_imports)]
     use super::*;
@@ -505,6 +476,7 @@ mod tests {
         use crate::AvailableOpenAIAssets;
 
         let config = CandleEmbedConfig {
+            documents: "text".to_string(),
             input_type: "passage".to_string(),
             api_url: Some("http://0.0.0.0:8001/v1".to_string()),
             openai_asset: Some(AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2),
@@ -518,7 +490,12 @@ mod tests {
             .build()?;
 
         // Make the runtime
-        let runtime_env = Arc::new(Mutex::new(RuntimeEnv::default()));
+        let runtime_env = RuntimeEnv {
+            name: "asset".to_string(),
+            memory_limit: None,
+            time_limit: None,
+        };
+        let runtime_env = Arc::new(runtime_env);
 
         // Case 1: streaming query
         // Make the query input stream
@@ -534,6 +511,15 @@ mod tests {
             .with_name("text")
             .with_record_batches(vec![batch])?
             .build()?;
+        let document_message = SendableRecordBatchStreamMessage::get_builder()
+            .with_publisher("")
+            .with_subject("text")
+            .with_update(&TablePublication::None)
+            .with_message(document_table.to_record_batch_stream())
+            .make_name()?
+            .build()?;
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = messages.insert(document_message.get_name().to_string(), document_message);
 
         // Make the metrics
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -542,7 +528,7 @@ mod tests {
 
         // Make and run the embeddings stream
         let embed_stream = OpenAIEmbedStream::new(
-            document_table.to_record_batch_stream(),
+            messages,
             config_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
             Some(diagnostic_builder),
@@ -609,6 +595,15 @@ mod tests {
             .with_name("text")
             .with_record_batches(vec![batch1, batch2])?
             .build()?;
+        let document_message = SendableRecordBatchStreamMessage::get_builder()
+            .with_publisher("")
+            .with_subject("text")
+            .with_update(&TablePublication::None)
+            .with_message(document_table.to_record_batch_stream())
+            .make_name()?
+            .build()?;
+        let mut messages = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = messages.insert(document_message.get_name().to_string(), document_message);
 
         // Make the metrics
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -617,7 +612,7 @@ mod tests {
 
         // Make and run the embeddings stream
         let embed_stream = OpenAIEmbedStream::new(
-            document_table.to_record_batch_stream(),
+            messages,
             config_table.to_record_batch_stream(),
             Arc::clone(&runtime_env),
             Some(diagnostic_builder),

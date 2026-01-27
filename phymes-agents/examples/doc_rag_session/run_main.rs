@@ -13,12 +13,12 @@ use std::sync::Arc;
 
 use phymes_agents::{
     AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DocumentRAGSession,
-    SessionContextBuilderAgentsTrait, create_message_map,
+    SessionContextBuilderAgentsTrait, SessionStream, create_message_map,
 };
 use phymes_core::{
     AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, ChatBuilderTraitExt,
-    IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait, SessionStream,
-    SessionStreamState, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
+    IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait, TableBuilder, TableBuilderTrait,
+    TablePublication, TableTrait,
 };
 
 pub async fn run_main() -> Result<()> {
@@ -33,7 +33,7 @@ pub async fn run_main() -> Result<()> {
         .with_name(doc_rag_session.session_context_name)
         .add_session_interface(None)?
         .build_with_tables()?;
-    let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
+    let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
     // Create the document message
     let document_texts = &[
@@ -62,7 +62,7 @@ pub async fn run_main() -> Result<()> {
         .build()?;
     let blob = AvailableInterfaceSubjects::UserPdf
         .to_table_builder(None)
-        .with_blob(None, Some(".pdf"), &bytes, None)?
+        .with_blob(None, Some("pdf"), &bytes, None)?
         .build()?;
     let blob_message = IPCMessage::get_builder()
         .with_message(blob.to_ipc_stream()?)
@@ -77,12 +77,12 @@ pub async fn run_main() -> Result<()> {
     // ----- Query #1 -----
     // Embed the documents
     let message_map = create_message_map(vec![blob_message]);
-    let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+    let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
     let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
     // Embed the query and invoke a response
     let message_map = create_message_map(vec![chat_message]);
-    let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+    let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
     let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
     // Update the chat history with the response

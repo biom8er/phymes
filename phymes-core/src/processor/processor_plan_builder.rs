@@ -1,0 +1,115 @@
+use std::sync::Arc;
+
+use crate::{
+    AvailableTableUpdatePolicies, ProcessorPlan, ProcessorSubjects, ProcessorTrait,
+    TablePublication, TableSubscribePolicyTrait, TableSubscription, TableUpdatePolicyTrait,
+};
+use anyhow::{Result, anyhow};
+
+/// The builder for the [ProcessorPlan]
+#[derive(Debug, Default)]
+pub struct ProcessorPlanBuilder {
+    pub publications: Option<Vec<TablePublication>>,
+    pub subscriptions: Option<Vec<TableSubscription>>,
+    pub subscribe_policy: Option<Box<dyn TableSubscribePolicyTrait>>,
+    pub update_policy: Option<Box<dyn TableUpdatePolicyTrait>>,
+    pub processor: Option<Arc<dyn ProcessorTrait>>,
+}
+
+impl ProcessorPlanBuilder {
+    pub fn with_publications(mut self, publications: &[TablePublication]) -> Self {
+        self.publications = Some(publications.to_vec());
+        self
+    }
+    pub fn with_subscriptions(mut self, subscriptions: &[TableSubscription]) -> Self {
+        self.subscriptions = Some(subscriptions.to_vec());
+        self
+    }
+    pub fn with_subscribe_policy(
+        mut self,
+        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
+    ) -> Self {
+        self.subscribe_policy = Some(subscribe_policy);
+        self
+    }
+    pub fn with_update_policy(mut self, update_policy: Box<dyn TableUpdatePolicyTrait>) -> Self {
+        self.update_policy = Some(update_policy);
+        self
+    }
+    pub fn with_processor(mut self, processor: Arc<dyn ProcessorTrait>) -> Self {
+        self.processor = Some(processor);
+        self
+    }
+    pub fn build(mut self) -> Result<ProcessorPlan> {
+        if self.processor.as_ref().is_none() {
+            return Err(anyhow!("Missing processor"));
+        } else if self.publications.as_ref().is_none() {
+            return Err(anyhow!(
+                "Missing publications for processor {}",
+                self.processor.as_ref().unwrap().get_name()
+            ));
+        } else if self.subscriptions.as_ref().is_none() {
+            return Err(anyhow!(
+                "Missing subscriptions for processor {}",
+                self.processor.as_ref().unwrap().get_name()
+            ));
+        } else if self.subscribe_policy.as_ref().is_none() {
+            return Err(anyhow!(
+                "Missing subscribe for processor {}",
+                self.processor.as_ref().unwrap().get_name()
+            ));
+        }
+        Ok(ProcessorPlan::new(
+            self.processor.take().unwrap(),
+            &self.publications.take().unwrap(),
+            &self.subscriptions.take().unwrap(),
+            self.subscribe_policy.take().unwrap(),
+            self.update_policy
+                .take()
+                .unwrap_or(AvailableTableUpdatePolicies::default().build()),
+        ))
+    }
+}
+
+/// The builder for the [ProcessorSubjects]
+#[derive(Debug, Default)]
+pub struct ProcessorSubjectsBuilder {
+    pub name: Option<String>,
+    pub publications: Option<Vec<TablePublication>>,
+    pub subscriptions: Option<Vec<TableSubscription>>,
+}
+
+impl ProcessorSubjectsBuilder {
+    pub fn with_publications(mut self, publications: &[TablePublication]) -> Self {
+        self.publications = Some(publications.to_vec());
+        self
+    }
+    pub fn with_subscriptions(mut self, subscriptions: &[TableSubscription]) -> Self {
+        self.subscriptions = Some(subscriptions.to_vec());
+        self
+    }
+    pub fn with_name(mut self, name: &str) -> Self {
+        self.name = Some(name.to_string());
+        self
+    }
+    pub fn build(mut self) -> Result<ProcessorSubjects> {
+        if self.name.as_ref().is_none() {
+            return Err(anyhow!("Missing processor name"));
+        } else if self.publications.as_ref().is_none() {
+            return Err(anyhow!(
+                "Missing publications for processor {}",
+                self.name.as_ref().unwrap()
+            ));
+        } else if self.subscriptions.as_ref().is_none() {
+            return Err(anyhow!(
+                "Missing subscriptions for processor {}",
+                self.name.as_ref().unwrap()
+            ));
+        }
+        Ok(ProcessorSubjects {
+            name: self.name.take().unwrap(),
+            publications: self.publications.take().unwrap(),
+            subscriptions: self.subscriptions.take().unwrap(),
+        })
+    }
+}

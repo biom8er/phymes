@@ -9,12 +9,12 @@ use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::{
     AvailableInterfaceSubjects, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait,
-    ToolAgentSession, create_message_map,
+    SessionStream, ToolAgentSession, create_message_map,
 };
 use phymes_core::{
     AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, ChatBuilderTraitExt,
-    CsvFormat, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait, SessionStream,
-    SessionStreamState, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
+    CsvFormat, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait, TableBuilder,
+    TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_data::test_extract_tabular_data::make_scores_table;
 use phymes_diagnostics::HashMap;
@@ -28,7 +28,7 @@ pub async fn run_main() -> Result<()> {
         .with_name(tool_agent_session.session_context_name)
         .add_session_interface(None)?
         .build_with_tables()?;
-    let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
+    let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
     // Make the tabular data
     let csv_format = CsvFormat::default();
@@ -50,7 +50,7 @@ pub async fn run_main() -> Result<()> {
         .build()?;
     let blob = AvailableInterfaceSubjects::UserCsv
         .to_table_builder(None)
-        .with_blob(None, Some(".csv"), &bytes, None)?
+        .with_blob(None, Some("csv"), &bytes, None)?
         .build()?;
     let blob_message = IPCMessage::get_builder()
         .with_message(blob.to_ipc_stream()?)
@@ -62,7 +62,7 @@ pub async fn run_main() -> Result<()> {
         .make_name()?
         .build()?;
     let message_map = create_message_map(vec![chat_message, blob_message]);
-    let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+    let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
     let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
     // Update the chat history with the response

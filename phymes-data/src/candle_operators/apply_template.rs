@@ -237,9 +237,9 @@ pub fn apply_template(
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{device, test_table::make_test_table_chat};
+    use phymes_core::test_table::make_test_table_chat;
 
-    use crate::jinja2_templates::test_minimal_html;
+    use crate::{device, jinja2_templates::test_minimal_html};
 
     use super::*;
 

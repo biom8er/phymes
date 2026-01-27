@@ -247,8 +247,8 @@ pub fn normalize_time(
 
 #[cfg(test)]
 mod tests {
+    use crate::device;
     use arrow::array::{Int64Array, StringArray};
-    use phymes_core::device;
 
     use super::*;
 

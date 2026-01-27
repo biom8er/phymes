@@ -27,9 +27,7 @@ use futures::StreamExt;
 #[cfg(feature = "mermaid_js")]
 use crate::state::MermaidJsObject;
 #[cfg(feature = "mermaid_js")]
-use phymes_agents::SessionContextBuilderMermaidTrait;
-#[cfg(feature = "mermaid_js")]
-use phymes_core::SessionContextBuilder;
+use phymes_agents::{SessionContextBuilder, SessionContextBuilderMermaidTrait};
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
@@ -297,14 +295,14 @@ pub fn apps_interface_view() -> Element {
 
         // Check for build warnings
         let builder_error = if is_flowchart_shown() {
-            match SessionContextBuilder::from_mermaid_flowchart(&diagram_code, true) {
+            match SessionContextBuilder::from_mermaid_flowchart(&diagram_code, false) {
                 Ok(_res) => None,
                 Err(err) => Some(err.to_string()),
             }
         } else {
             match SessionContextBuilder::default().with_state_from_mermaid_erdiagram(
                 &diagram_code,
-                true,
+                false,
                 true,
             ) {
                 Ok(_res) => None,

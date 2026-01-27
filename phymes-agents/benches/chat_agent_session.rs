@@ -5,12 +5,12 @@ use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::{
     AvailableInterfaceSubjects, ChatAgentSession, CustomAgentsBuilderTrait,
-    SessionContextBuilderAgentsTrait, create_message_map,
+    SessionContextBuilderAgentsTrait, SessionStream, create_message_map,
 };
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt,
-    IPCMessage, MappableTrait, MessageBuilderTrait, SessionStream, SessionStreamState, Table,
-    TableBuilderTrait, TablePublication, TableTrait,
+    IPCMessage, MappableTrait, MessageBuilderTrait, Table, TableBuilderTrait, TablePublication,
+    TableTrait,
 };
 use phymes_diagnostics::HashMap;
 
@@ -85,8 +85,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     .with_name(session_context_name.as_str())
                     .build_with_tables()
                     .unwrap();
-                let session_stream_state =
-                    Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
+                let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
                 let sample_id = format!("{id}_{iter}");
 
                 // Run the benchmark for the chat agent session with metrics
@@ -110,13 +109,12 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                         .build()?;
                     let incoming_message_map = create_message_map(vec![message]);
                     let session_stream =
-                        SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+                        SessionStream::new(incoming_message_map, Arc::clone(&session_ctx_arc));
                     session_stream
                         .try_collect::<Vec<HashMap<String, IPCMessage>>>()
                         .await
                 });
                 let _messages = rt.block_on(async {
-                    session_stream_state.try_write().unwrap().set_iter(0);
                     let chat = AvailableInterfaceSubjects::UserMessages
                         .to_table_builder(None)
                         .append_new_user_query_str(user_content.1, "user")?
@@ -132,17 +130,16 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                         .build()?;
                     let incoming_message_map = create_message_map(vec![message]);
                     let session_stream =
-                        SessionStream::new(incoming_message_map, Arc::clone(&session_stream_state));
+                        SessionStream::new(incoming_message_map, Arc::clone(&session_ctx_arc));
                     session_stream
                         .try_collect::<Vec<HashMap<String, IPCMessage>>>()
                         .await
                 });
 
                 // Extract out the metrics from the session
-                let metrics = Arc::try_unwrap(session_stream_state)
+                let metrics = Arc::try_unwrap(session_ctx_arc)
                     .unwrap()
                     .into_inner()
-                    .get_session_context_own()
                     .get_states_own()
                     .remove(AvailableSubjects::MetricPivot.to_string().as_str())
                     .unwrap();

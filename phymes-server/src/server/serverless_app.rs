@@ -253,11 +253,7 @@ mod tests {
             .with_publisher(session_name.as_str())
             .with_update(&TablePublication::None)
             .with_stream(false)
-            .with_subject(
-                AvailableSubjects::SessionSubjectsNumRows
-                    .to_string()
-                    .as_str(),
-            )
+            .with_subject(AvailableSubjects::SubjectsNumRows.to_string().as_str())
             .make_name()
             .unwrap()
             .build()

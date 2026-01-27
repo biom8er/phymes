@@ -1,46 +1,39 @@
-use crate::candle_assets::TokenOutputStream;
-
-use candle_core::DType;
-use candle_transformers::generation::{LogitsProcessor, Sampling};
-use phymes_data::DataConfigTrait;
-use tokenizers::Tokenizer;
-
-use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
-    BuilderTrait, ChatTraitExt, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
-    PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap, Table,
-    TableBuilder, TableBuilderTrait, TablePublication, TableSubscribePolicyTrait,
-    TableSubscription, TableTrait, TokenWrapper, Tool, create_chat_record_batch, device,
-    remove_message_by_subject,
-};
-use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
-    create_timestamp_micros,
-};
-
-use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
-
-use anyhow::{Result, anyhow};
-use futures::{Stream, StreamExt};
-use parking_lot::Mutex;
 use std::{
     pin::Pin,
     sync::Arc,
     task::{Context, Poll, ready},
 };
-use tracing::{Level, event, instrument};
 
-use super::chat_config::CandleChatConfig;
+use crate::{
+    CandleChatConfig, TokenOutputStream, TokenProcessorTrait, TokenProcessorTraitExt, TokenWrapper,
+};
+use anyhow::{Result, anyhow};
+use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
+use candle_core::DType;
+use candle_transformers::generation::{LogitsProcessor, Sampling};
+use futures::{Stream, StreamExt};
+use parking_lot::Mutex;
+use phymes_core::{
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatTraitExt,
+    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream,
+    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TablePublication,
+    TableTrait, Tool, create_chat_record_batch, remove_message_by_subject,
+};
+use phymes_data::{DataConfigTrait, device};
+use phymes_diagnostics::{
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
+};
+use tokenizers::Tokenizer;
+use tracing::{Level, event, instrument};
 
 /// Processor for text generation inference (TGI) using Candle models
 #[derive(Debug)]
 pub struct CandleChatProcessor {
     name: String,
     r#type: String,
-    publications: Vec<TablePublication>,
-    subscriptions: Vec<TableSubscription>,
-    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
+    token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
 }
 
 impl MappableTrait for CandleChatProcessor {
@@ -49,43 +42,21 @@ impl MappableTrait for CandleChatProcessor {
     }
 }
 
-impl PublishAndSubscribeTrait for CandleChatProcessor {
-    fn get_publications(&self) -> Vec<&TablePublication> {
-        self.publications.iter().collect()
-    }
-
-    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
-        self.subscriptions.iter().collect()
-    }
-    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe_policy
-            .check_subscriptions(&self.subscriptions, updates, state)
-    }
-}
-
 impl ProcessorTrait for CandleChatProcessor {
-    fn new(
-        name: &str,
-        r#type: &str,
-        publications: &[TablePublication],
-        subscriptions: &[TableSubscription],
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-    ) -> Self {
+    fn new(name: &str, r#type: &str) -> Self {
         Self {
             name: name.to_string(),
             r#type: r#type.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            subscribe_policy,
+            token_service: Arc::new(Mutex::new(None)),
         }
-    }
-
-    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
-        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {
         &self.r#type
+    }
+
+    fn line_and_file(&self) -> (u32, String) {
+        (line!(), file!().to_string())
     }
 
     #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
@@ -93,41 +64,11 @@ impl ProcessorTrait for CandleChatProcessor {
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<SendableRecordBatchStreamMessageMap> {
+        runtime_env: Arc<RuntimeEnv>,
+    ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
-        // Trace the inbox
-        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
-            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder
-                .clone()
-                .messages(line!(), file!(), self.get_name());
-            trace.enter(&message.values().collect::<Vec<_>>());
-            Some((trace, trace_builder))
-        } else {
-            None
-        };
-
-        // Extract out the messages, tools, and config
-        let messages = match remove_message_by_subject(
-            self.subscriptions.first().unwrap().get_table_name(),
-            &mut message,
-        ) {
-            Some(i) => i.get_message_own(),
-            None => {
-                return Err(anyhow!(
-                    "Messages not provided for {}. Available messages are {:?}",
-                    self.get_name(),
-                    message.keys()
-                ));
-            }
-        };
-        let tools = remove_message_by_subject(
-            self.subscriptions.get(1).unwrap().get_table_name(),
-            &mut message,
-        )
-        .map(|i| i.get_message_own());
+        // Extract out the config
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => {
@@ -139,45 +80,51 @@ impl ProcessorTrait for CandleChatProcessor {
             }
         };
 
+        // Re-index the messages by the subject name which needs to be unique at this stage
+        let message = message
+            .into_iter()
+            .map(|(_k, v)| (v.get_subject().to_string(), v))
+            .collect::<HashMap<_, _>>();
+
         // Run the chat stream
-        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(CandleChatStream::new(
-            messages,
-            tools,
+            message,
             config,
             Arc::clone(&runtime_env),
-            stream_diagnostic_builder,
+            Arc::clone(self.token_service()),
+            diagnostic_builder.cloned(),
         )?);
-        let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_publisher(self.get_name())
-            .with_subject(self.publications.first().unwrap().get_table_name())
-            .with_message(out)
-            .with_update(self.publications.first().unwrap())
-            .make_name()?
-            .build()?;
-        let _ = message.insert(out_m.get_name().to_string(), out_m);
 
-        // Trace the outbox
-        if let Some(trace) = trace {
-            trace.0.exit(&message.values().collect::<Vec<_>>());
-        }
-        Ok(message)
+        // Prepare the message builder
+        let mut builder_map = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
+        let builder = SendableRecordBatchStreamMessage::get_builder()
+            .with_name(self.get_name())
+            .with_message(out);
+        let _ = builder_map.insert(self.get_name().to_string(), builder);
+
+        Ok(builder_map)
+    }
+}
+
+impl TokenProcessorTraitExt for CandleChatProcessor {
+    fn token_service(&self) -> &Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>> {
+        &self.token_service
     }
 }
 
 pub struct CandleChatStream {
     /// Output schema (role and content)
     schema: SchemaRef,
-    /// The input message to process
-    message_stream: SendableRecordBatchStream,
-    /// Optional tools to add to the message
-    tools_stream: Option<SendableRecordBatchStream>,
+    /// The messages and optional tools
+    messages: SendableRecordBatchStreamMessageMap,
     /// Parameters for chat inference
     config_stream: SendableRecordBatchStream,
+    /// The runtime environment
+    _runtime_env: Arc<RuntimeEnv>,
     /// The candle asset needed for inference
     // DM: In a single thread environment, there is minimal to no penalty of using a mutex here
     // DM: in a mult-thread environment, we prevent copying the model assets each time we use it
-    runtime_env: Arc<Mutex<RuntimeEnv>>,
+    token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for chat inference
@@ -200,19 +147,19 @@ pub struct CandleChatStream {
 
 impl CandleChatStream {
     pub fn new(
-        message_stream: SendableRecordBatchStream,
-        tools_stream: Option<SendableRecordBatchStream>,
+        messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
+        token_service: Arc<Mutex<Option<Box<dyn TokenProcessorTrait>>>>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
             schema: AvailableSubjects::Messages.to_schema(),
-            message_stream,
-            tools_stream,
+            messages,
             diagnostic_builder,
             config_stream,
-            runtime_env,
+            _runtime_env: runtime_env,
+            token_service,
             tos: None,
             logits_processor: None,
             config: None,
@@ -237,7 +184,7 @@ impl CandleChatStream {
     fn init_token_service(&mut self) -> Result<()> {
         if let Some(ref config) = self.config {
             // Update the runtime if needed
-            if self.runtime_env.lock().token_service.is_none() {
+            if self.token_service.lock().is_none() {
                 let device = device(config.cpu)?;
                 let mut asset = config.candle_asset.unwrap().build(
                     config.weights_config_file.clone(),
@@ -255,11 +202,7 @@ impl CandleChatStream {
                     asset.tokenizer_config.eos_token_id = Some(151643);
                 }
 
-                let _ = self
-                    .runtime_env
-                    .lock()
-                    .token_service
-                    .replace(Box::new(asset));
+                let _ = self.token_service.lock().replace(Box::new(asset));
             }
         } else {
             return Err(anyhow!(
@@ -297,14 +240,12 @@ impl CandleChatStream {
             match prompt_tokens {
                 None => match self.tos.as_mut().unwrap().tokens().last() {
                     Some(t) => {
-                        let logits = self
-                            .runtime_env
-                            .try_lock()
-                            .unwrap()
-                            .token_service
-                            .as_mut()
-                            .unwrap()
-                            .forward(&TokenWrapper::D1(vec![*t]), self.index, None, true)?;
+                        let logits = self.token_service.lock().as_mut().unwrap().forward(
+                            &TokenWrapper::D1(vec![*t]),
+                            self.index,
+                            None,
+                            true,
+                        )?;
                         let logits = logits.squeeze(0)?;
                         let logits =
                             if self.config.as_ref().unwrap().repeat_penalty == 1. {
@@ -326,27 +267,23 @@ impl CandleChatStream {
                 },
                 Some(p) => {
                     if !self.config.as_ref().unwrap().split_prompt {
-                        let logits = self
-                            .runtime_env
-                            .try_lock()
-                            .unwrap()
-                            .token_service
-                            .as_mut()
-                            .unwrap()
-                            .forward(&TokenWrapper::D1(p.to_vec()), 0, None, true)?;
+                        let logits = self.token_service.lock().as_mut().unwrap().forward(
+                            &TokenWrapper::D1(p.to_vec()),
+                            0,
+                            None,
+                            true,
+                        )?;
                         let logits = logits.squeeze(0)?;
                         self.logits_processor.as_mut().unwrap().sample(&logits)?
                     } else {
                         let mut next_token = 0;
                         for (pos, token) in p.iter().enumerate() {
-                            let logits = self
-                                .runtime_env
-                                .try_lock()
-                                .unwrap()
-                                .token_service
-                                .as_mut()
-                                .unwrap()
-                                .forward(&TokenWrapper::D1(vec![*token]), pos, None, true)?;
+                            let logits = self.token_service.lock().as_mut().unwrap().forward(
+                                &TokenWrapper::D1(vec![*token]),
+                                pos,
+                                None,
+                                true,
+                            )?;
                             let logits = logits.squeeze(0)?;
                             next_token = self.logits_processor.as_mut().unwrap().sample(&logits)?
                         }
@@ -380,9 +317,31 @@ impl Stream for CandleChatStream {
                 .as_ref()
                 .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
-            // Collect the chat history
+            // initialize the config
             let mut batches = Vec::new();
-            while let Some(Ok(batch)) = ready!(self.message_stream.poll_next_unpin(cx)) {
+            while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
+                batches.push(batch);
+            }
+            let config_table = TableBuilder::new()
+                .with_name("config")
+                .with_record_batches(batches)?
+                .build()?;
+            self.init_config(config_table)?;
+
+            // Collect the chat history
+            let messages_table = self.config.as_ref().unwrap().messages.clone();
+            let mut message_stream = if let Some(s) =
+                remove_message_by_subject(&messages_table, &mut self.messages)
+            {
+                s.get_message_own()
+            } else {
+                return Poll::Ready(Some(Err(anyhow!(
+                    "Message history subject was not found in the message stream. Available messages are {:?}",
+                    self.messages.keys()
+                ))));
+            };
+            let mut batches = Vec::new();
+            while let Some(Ok(batch)) = ready!(message_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
             let messages = TableBuilder::new()
@@ -391,10 +350,18 @@ impl Stream for CandleChatStream {
                 .build()?;
 
             // Collect the tools
-            let tools = match self.tools_stream {
-                Some(ref mut tools) => {
+            let tools_table_name = self
+                .config
+                .as_ref()
+                .unwrap()
+                .tools
+                .as_ref()
+                .map(|tools_table_name| tools_table_name.to_string());
+            let tools = if let Some(tools_table_name) = tools_table_name {
+                if let Some(s) = remove_message_by_subject(&tools_table_name, &mut self.messages) {
+                    let mut tools_stream = s.get_message_own();
                     let mut batches = Vec::new();
-                    while let Some(Ok(batch)) = ready!(tools.poll_next_unpin(cx)) {
+                    while let Some(Ok(batch)) = ready!(tools_stream.poll_next_unpin(cx)) {
                         batches.push(batch);
                     }
                     let tool_table = TableBuilder::new()
@@ -410,20 +377,12 @@ impl Stream for CandleChatStream {
                         })
                         .collect::<Vec<_>>();
                     Some(tool_vec)
+                } else {
+                    None
                 }
-                None => None,
+            } else {
+                None
             };
-
-            // initialize the config
-            let mut batches = Vec::new();
-            while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
-                batches.push(batch);
-            }
-            let config_table = TableBuilder::new()
-                .with_name("config")
-                .with_record_batches(batches)?
-                .build()?;
-            self.init_config(config_table)?;
 
             // initialize the logits processor and candle token service
             self.init_logits_processor()?;
@@ -432,10 +391,8 @@ impl Stream for CandleChatStream {
 
             // Convert to a prompt
             let tokenizer_config = self
-                .runtime_env
-                .try_lock()
-                .unwrap()
                 .token_service
+                .lock()
                 .as_ref()
                 .unwrap()
                 .get_tokenizer_config()
@@ -455,13 +412,7 @@ impl Stream for CandleChatStream {
             let model_max_length = tokenizer_config.model_max_length;
             let (prompt_tokens, to_sample, tos) = process_prompt_chat(
                 prompt,
-                self.runtime_env
-                    .try_lock()
-                    .unwrap()
-                    .token_service
-                    .as_ref()
-                    .unwrap()
-                    .get_tokenizer(),
+                self.token_service.lock().as_ref().unwrap().get_tokenizer(),
                 self.config.as_ref().unwrap().max_tokens,
                 model_max_length,
             )?;
@@ -542,10 +493,8 @@ impl Stream for CandleChatStream {
                 .tokenizer()
                 .get_vocab(true)
                 .get(
-                    self.runtime_env
-                        .try_lock()
-                        .unwrap()
-                        .token_service
+                    self.token_service
+                        .lock()
                         .as_ref()
                         .unwrap()
                         .get_tokenizer_config()
@@ -705,8 +654,6 @@ pub mod bench_chat_processor {
         user_content: &str,
         name: &str,
     ) -> Result<Table> {
-        let messages = "messages";
-
         // State for the chat processor config
         let candle_chat_config_json = serde_json::to_vec(config)?;
         let candle_chat_config_table = TableBuilder::new()
@@ -716,18 +663,18 @@ pub mod bench_chat_processor {
 
         // Make the system prompt and add the user query
         let message_builder = TableBuilder::new()
-            .with_name(messages)
+            .with_name(&config.messages)
             .insert_system_template_str("You are a helpful assistant.")?
             .append_new_user_query_str(user_content, "user")?;
 
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message.insert(
-            messages.to_string(),
+            config.messages.to_string(),
             SendableRecordBatchStreamMessage::get_builder()
-                .with_name(messages)
+                .with_name(&config.messages)
                 .with_publisher("")
-                .with_subject(messages)
+                .with_subject(&config.messages)
                 .with_update(&TablePublication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
@@ -745,56 +692,19 @@ pub mod bench_chat_processor {
 
         // Build the chat task
         #[allow(unused_variables)]
-        let chat_processor = CandleChatProcessor::new(
-            name,
-            CandleChatProcessor::get_static_name(),
-            &[TablePublication::ExtendChunks {
-                table_name: messages.to_string(),
-                col_name: "content".to_string(),
-            }],
-            &[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: messages.to_string(),
-                },
-                TableSubscription::None,
-                TableSubscription::AlwaysFullTable {
-                    table_name: candle_chat_config_table.get_name().to_string(),
-                },
-            ],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let chat_processor = CandleChatProcessor::new(name, CandleChatProcessor::get_static_name());
         #[cfg(all(not(feature = "candle"), feature = "api"))]
-        let chat_processor = OpenAIChatProcessor::new(
-            name,
-            OpenAIChatProcessor::get_static_name(),
-            &[TablePublication::ExtendChunks {
-                table_name: messages.to_string(),
-                col_name: "content".to_string(),
-            }],
-            &[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: messages.to_string(),
-                },
-                TableSubscription::None,
-                TableSubscription::AlwaysFullTable {
-                    table_name: candle_chat_config_table.get_name().to_string(),
-                },
-            ],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let chat_processor = OpenAIChatProcessor::new(name, OpenAIChatProcessor::get_static_name());
         let mut stream = chat_processor.process(
             message,
             diagnostic_builder,
-            Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
+            Arc::new(RuntimeEnv::new().with_name("rt")),
         )?;
 
         // Update the chat history with the response
         let (message_builder, _stream) = message_builder
             .append_chat_response_sendable_record_batch_stream(
-                &mut stream
-                    .remove(format!("from_{name}_on_{messages}").as_str())
-                    .unwrap()
-                    .get_message_own(),
+                &mut stream.remove(name).unwrap().message.take().unwrap(),
                 1000,
             )
             .await?;
@@ -869,6 +779,7 @@ mod tests {
     fn test_build_candle_chat_asset() {
         // Setup the candle chat config
         let config = CandleChatConfig {
+            messages: "messages".to_string(),
             max_tokens: 1000,
             temperature: 0.8,
             seed: 299792458,
@@ -927,6 +838,7 @@ mod tests {
 
         // State for the chat processor config
         let candle_chat_config = CandleChatConfig {
+            messages: messages.to_string(),
             max_tokens: 1000,
             temperature: 0.8,
             seed: 299792458,
@@ -991,28 +903,11 @@ mod tests {
         );
 
         // Build the chat task
-        let chat_processor = CandleChatProcessor::new(
-            name,
-            "",
-            &[TablePublication::ExtendChunks {
-                table_name: messages.to_string(),
-                col_name: "content".to_string(),
-            }],
-            &[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: messages.to_string(),
-                },
-                TableSubscription::None,
-                TableSubscription::AlwaysFullTable {
-                    table_name: candle_chat_config_table.get_name().to_string(),
-                },
-            ],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let chat_processor = CandleChatProcessor::new(name, "");
         let mut stream = chat_processor.process(
             message,
             Some(&diagnostic_builder),
-            Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
+            Arc::new(RuntimeEnv::new().with_name("rt")),
         )?;
 
         // DM: Skip actually running the tests as they take too long on the CPU
@@ -1024,10 +919,7 @@ mod tests {
             // Update the chat history with the response
             let (message_builder, _stream) = message_builder
                 .append_chat_response_sendable_record_batch_stream(
-                    &mut stream
-                        .remove(format!("from_{name}_on_{messages}").as_str())
-                        .unwrap()
-                        .get_message_own(),
+                    &mut stream.remove(name).unwrap().message.take().unwrap(),
                     1000,
                 )
                 .await?;

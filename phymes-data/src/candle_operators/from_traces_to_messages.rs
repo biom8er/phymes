@@ -348,8 +348,8 @@ pub fn from_traces_to_messages(
 mod tests {
     use std::sync::Arc;
 
+    use crate::device;
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::device;
 
     use super::*;
 

@@ -374,12 +374,12 @@ pub fn sort(
 
 #[cfg(test)]
 mod tests {
+    use crate::device;
     use arrow::{
         array::{ArrayData, FixedSizeListArray},
         buffer::Buffer,
         datatypes::Field,
     };
-    use phymes_core::device;
 
     use super::*;
 

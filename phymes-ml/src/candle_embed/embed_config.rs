@@ -36,8 +36,7 @@ pub struct CandleEmbedConfig {
 
     /// list of queries formatted as a JSON string e.g., "['query1', 'query2']"
     #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub embed_queries: Option<String>,
+    pub documents: String,
 
     /// The tokenizer config in json format.
     #[arg(long)]
@@ -109,10 +108,11 @@ impl DataConfigTrait for CandleEmbedConfig {
         if !((column_names.contains("candle_asset") || column_names.contains("openai_asset"))
             && column_names.contains("encoding_format")
             && column_names.contains("input_type")
-            && column_names.contains("modality"))
+            && column_names.contains("modality")
+            && column_names.contains("documents"))
         {
             return Err(anyhow!(
-                "Table {} is missing required Field for `candle_asset`, `openai_asset`, `encoding_format`, `input_type`, or `modality` in CandleEmbedConfig.",
+                "Table {} is missing required Field for `candle_asset`, `openai_asset`, `encoding_format`, `input_type`, `documents`, or `modality` in CandleEmbedConfig.",
                 table.get_name()
             ));
         }

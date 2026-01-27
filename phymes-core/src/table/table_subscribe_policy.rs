@@ -1,15 +1,16 @@
 use phymes_diagnostics::HashMap;
 use std::fmt::Debug;
 
-use crate::{
-    AvailableSubjects, TableSubscription,
-    session::{MappableTrait, StateMap},
-};
-
-use super::table_trait::{Table, TableTrait};
+use crate::{MappableTrait, StateMap, Table, TableSubscription, TableTrait};
 
 /// Determine when all subscriptions are ready
 pub trait TableSubscribePolicyTrait: MappableTrait + Debug + Send + Sync {
+    /// Check if the subscriptions for a processor are ready to be subscribed to
+    ///
+    /// # Arguments
+    /// * `subscriptions` - Slice of `TableSubscription`s for the processors
+    /// * `updates` - `HashMap` of subscription subject names and if they were updated
+    /// * `state` - `HashMap` of the subject tables
     fn check_subscriptions(
         &self,
         subscriptions: &[TableSubscription],
@@ -267,12 +268,17 @@ impl TableSubscribePolicyTrait for ChatContentSubscribe {
         updates: &HashMap<String, bool>,
         _state: &StateMap,
     ) -> bool {
+        // DM: default to false to prevent unwanted subscriptions
         let user = updates.get(&self.user_message_table_name).unwrap_or(&false);
         let tool = updates.get(&self.tool_message_table_name).unwrap_or(&false);
         let error = updates
             .get(&self.error_message_table_name)
             .unwrap_or(&false);
-        *tool || *user || *error
+        // DM: assume the config is "other" which is always subscribed too
+        let config = !updates.contains_key(&self.user_message_table_name)
+            && !updates.contains_key(&self.tool_message_table_name)
+            && !updates.contains_key(&self.error_message_table_name);
+        *tool || *user || *error || config
     }
     fn new_box() -> Box<dyn TableSubscribePolicyTrait> {
         Box::new(Self {
@@ -280,7 +286,7 @@ impl TableSubscribePolicyTrait for ChatContentSubscribe {
             // in `AvailableinterfaceSubjects` and `AvailableinterfaceSubjects`
             user_message_table_name: "UserMessages".to_string(),
             tool_message_table_name: "ToolMessages".to_string(),
-            error_message_table_name: AvailableSubjects::SessionErrors.to_string(),
+            error_message_table_name: "SessionErrors".to_string(),
         })
     }
     fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {
@@ -294,7 +300,7 @@ impl MappableTrait for ChatContentSubscribe {
     }
 }
 
-mod test_subscribe {
+pub(crate) mod test_subscribe_policy {
     use std::sync::Arc;
 
     use parking_lot::RwLock;
@@ -370,54 +376,54 @@ mod tests {
 
     #[test]
     fn test_always_subscribe() {
-        let state = test_subscribe::make_test_state();
-        let subscriptions = test_subscribe::make_test_subscriptions(true);
-        let updates = test_subscribe::make_test_updates(true);
+        let state = test_subscribe_policy::make_test_state();
+        let subscriptions = test_subscribe_policy::make_test_subscriptions(true);
+        let updates = test_subscribe_policy::make_test_updates(true);
         let sub = AlwaysSubscribe::new_box();
         assert!(sub.check_subscriptions(&subscriptions, &updates, &state));
     }
 
     #[test]
     fn test_any_tablename_subscribe() {
-        let state = test_subscribe::make_test_state();
-        let subscriptions = test_subscribe::make_test_subscriptions(true);
-        let updates = test_subscribe::make_test_updates(true);
+        let state = test_subscribe_policy::make_test_state();
+        let subscriptions = test_subscribe_policy::make_test_subscriptions(true);
+        let updates = test_subscribe_policy::make_test_updates(true);
         let sub = AnyTableNameSubscribe::new_box();
         assert!(sub.check_subscriptions(&subscriptions, &updates, &state));
-        let updates = test_subscribe::make_test_updates(false);
+        let updates = test_subscribe_policy::make_test_updates(false);
         assert!(sub.check_subscriptions(&subscriptions, &updates, &state));
     }
 
     #[test]
     fn test_all_tablename_subscribe() {
-        let state = test_subscribe::make_test_state();
-        let subscriptions = test_subscribe::make_test_subscriptions(true);
-        let updates = test_subscribe::make_test_updates(true);
+        let state = test_subscribe_policy::make_test_state();
+        let subscriptions = test_subscribe_policy::make_test_subscriptions(true);
+        let updates = test_subscribe_policy::make_test_updates(true);
         let sub = AllTableNamesSubscribe::new_box();
         assert!(!sub.check_subscriptions(&subscriptions, &updates, &state));
-        let updates = test_subscribe::make_test_updates(false);
+        let updates = test_subscribe_policy::make_test_updates(false);
         assert!(sub.check_subscriptions(&subscriptions, &updates, &state));
     }
 
     #[test]
     fn test_any_schema_subscribe() {
-        let state = test_subscribe::make_test_state();
-        let subscriptions = test_subscribe::make_test_subscriptions(false);
-        let updates = test_subscribe::make_test_updates(true);
+        let state = test_subscribe_policy::make_test_state();
+        let subscriptions = test_subscribe_policy::make_test_subscriptions(false);
+        let updates = test_subscribe_policy::make_test_updates(true);
         let sub = AnyTableSchemaSubscribe::new_box();
         assert!(sub.check_subscriptions(&subscriptions, &updates, &state));
-        let updates = test_subscribe::make_test_updates(false);
+        let updates = test_subscribe_policy::make_test_updates(false);
         assert!(sub.check_subscriptions(&subscriptions, &updates, &state));
     }
 
     #[test]
     fn test_all_schema_subscribe() {
-        let state = test_subscribe::make_test_state();
-        let subscriptions = test_subscribe::make_test_subscriptions(false);
-        let updates = test_subscribe::make_test_updates(true);
+        let state = test_subscribe_policy::make_test_state();
+        let subscriptions = test_subscribe_policy::make_test_subscriptions(false);
+        let updates = test_subscribe_policy::make_test_updates(true);
         let sub = AllTableSchemasSubscribe::new_box();
         assert!(!sub.check_subscriptions(&subscriptions, &updates, &state));
-        let updates = test_subscribe::make_test_updates(false);
+        let updates = test_subscribe_policy::make_test_updates(false);
         assert!(!sub.check_subscriptions(&subscriptions, &updates, &state));
     }
 }

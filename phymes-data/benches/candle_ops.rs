@@ -2,16 +2,14 @@ use std::sync::Arc;
 
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
-use parking_lot::Mutex;
 use phymes_core::{
-    AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MessageBuilderTrait,
-    MessageTrait, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessage, Table,
-    TableBuilderTrait, TablePublication, TableSubscription, TableTrait, device,
+    BuildableTrait, BuilderTrait, MessageBuilderTrait, ProcessorTrait, RuntimeEnv,
+    SendableRecordBatchStreamMessage, Table, TableBuilderTrait, TablePublication, TableTrait,
     from_diagnostics_to_tables, test_table::TestTableSizes,
 };
 use phymes_data::{
-    AvailableCandleOperators, CandleDataProcessor, CandleTensorService, DataAggregatorOperator,
-    DataComparatorOperator, DataComparatorPredicate, DataConfig, DataStreamManager,
+    AvailableCandleOperators, CandleDataProcessor, DataAggregatorOperator, DataComparatorOperator,
+    DataComparatorPredicate, DataConfig, DataStreamManager,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap, MetricBuilderTrait,
@@ -133,16 +131,12 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
         for stream in stream_vec.iter() {
             for config in ops_configs_vec.iter() {
                 // Build the runtime environment
-                let device = device(false).unwrap();
-                let service = CandleTensorService::new(device);
                 let runtime_env = RuntimeEnv {
-                    token_service: None,
-                    tensor_service: Some(Box::new(service)),
                     name: "service".to_string(),
                     memory_limit: None,
                     time_limit: None,
                 };
-                let runtime_env = Arc::new(Mutex::new(runtime_env));
+                let runtime_env = Arc::new(runtime_env);
 
                 // Update the config
                 let mut config = config.clone();
@@ -249,29 +243,16 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
 
                         // Make the stream and run
                         let _result = rt.block_on(async {
-                            let ops_processor = CandleDataProcessor::new(
-                                name.as_str(),
-                                "",
-                                &[TablePublication::Replace {
-                                    table_name: "results".to_string(),
-                                }],
-                                &[
-                                    TableSubscription::AlwaysFullTable {
-                                        table_name: lhs_name.clone(),
-                                    },
-                                    TableSubscription::AlwaysFullTable {
-                                        table_name: rhs_name.clone(),
-                                    },
-                                ],
-                                AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-                            );
+                            let ops_processor = CandleDataProcessor::new(name.as_str(), "");
                             let mut ops_stream = ops_processor
                                 .process(messages, Some(&diagnostic_builder), runtime_env.clone())
                                 .unwrap();
                             ops_stream
                                 .remove("results")
                                 .unwrap()
-                                .get_message_own()
+                                .message
+                                .take()
+                                .unwrap()
                                 .try_collect::<Vec<_>>()
                                 .await
                                 .unwrap()

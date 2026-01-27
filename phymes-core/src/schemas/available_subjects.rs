@@ -1,4 +1,5 @@
 use crate::{
+    runtime_env::{BuildableTrait, BuilderTrait},
     schemas::{
         blob::create_blob_fields,
         chat::create_chat_fields,
@@ -22,17 +23,21 @@ use crate::{
         queries::create_queries_fields,
         session::{
             create_session_processors_fields, create_session_runtime_envs_fields,
-            create_session_subjects_fields, create_session_subjects_num_rows_fields,
-            create_session_tasks_fields,
+            create_session_subjects_fields, create_session_superstep_max_fields,
+            create_session_supersteps_fields, create_session_tasks_check_fields,
+            create_session_tasks_fields, create_session_tasks_publish_aggregate_fields,
+            create_session_tasks_publish_fields, create_session_tasks_run_log_fields,
+            create_session_tasks_subscribe_aggregate_fields, create_session_tasks_subscribe_fields,
+            create_session_tasks_subscribe_publish_fields,
         },
         set_data::{create_parse_owl_fields, create_parse_xml_fields},
+        subjects::{create_subjects_change_log_fields, create_subjects_num_rows_fields},
         user::{
             create_join_user_inbox_session_contexts_fields,
             create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields,
             create_user_inbox_fields, create_user_session_contexts_fields,
         },
     },
-    session::{BuildableTrait, BuilderTrait},
     table::{Table, TableBuilder, TableBuilderTrait},
 };
 
@@ -168,6 +173,8 @@ pub trait AvailableSubjectsTrait {
 /// The available subject schmeas
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
 pub enum AvailableSubjects {
+    #[value(name = "Empty")]
+    Empty,
     #[value(name = "Messages")]
     Messages,
     #[default]
@@ -227,8 +234,12 @@ pub enum AvailableSubjects {
     SessionProcessors,
     #[value(name = "SessionRuntimeEnvs")]
     SessionRuntimeEnvs,
-    #[value(name = "SessionSubjectsNumRows")]
-    SessionSubjectsNumRows,
+    #[value(name = "SessionTasksRunLog")]
+    SessionTasksRunLog,
+    #[value(name = "SubjectsNumRows")]
+    SubjectsNumRows,
+    #[value(name = "SubjectsChangeLog")]
+    SubjectsChangeLog,
     #[value(name = "MermaidContentTemplate")]
     MermaidContentTemplate,
     #[value(name = "MermaidXYChart")]
@@ -265,11 +276,28 @@ pub enum AvailableSubjects {
     ParseXml,
     #[value(name = "ParseOwl")]
     ParseOwl,
+    #[value(name = "SessionTasksCheck")]
+    SessionTasksCheck,
+    #[value(name = "SessionTasksSubscribe")]
+    SessionTasksSubscribe,
+    #[value(name = "SessionTasksPublish")]
+    SessionTasksPublish,
+    #[value(name = "SessionTasksSubscribeAggregate")]
+    SessionTasksSubscribeAggregate,
+    #[value(name = "SessionTasksPublishAggregate")]
+    SessionTasksPublishAggregate,
+    #[value(name = "SessionTasksSubscribePublish")]
+    SessionTasksSubscribePublish,
+    #[value(name = "SessionSupersteps")]
+    SessionSupersteps,
+    #[value(name = "SessionSuperstepMax")]
+    SessionSuperstepMax,
 }
 
 impl Display for AvailableSubjects {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            AvailableSubjects::Empty => write!(f, "Empty"),
             AvailableSubjects::Messages => write!(f, "Messages"),
             AvailableSubjects::Values => write!(f, "Values"),
             AvailableSubjects::Configs => write!(f, "Configs"),
@@ -303,7 +331,9 @@ impl Display for AvailableSubjects {
             AvailableSubjects::SessionTasks => write!(f, "SessionTasks"),
             AvailableSubjects::SessionProcessors => write!(f, "SessionProcessors"),
             AvailableSubjects::SessionRuntimeEnvs => write!(f, "SessionRuntimeEnvs"),
-            AvailableSubjects::SessionSubjectsNumRows => write!(f, "SessionSubjectsNumRows"),
+            AvailableSubjects::SessionTasksRunLog => write!(f, "SessionTasksRunLog"),
+            AvailableSubjects::SubjectsNumRows => write!(f, "SubjectsNumRows"),
+            AvailableSubjects::SubjectsChangeLog => write!(f, "SubjectsChangeLog"),
             AvailableSubjects::MermaidContentTemplate => write!(f, "MermaidContentTemplate"),
             AvailableSubjects::MermaidGanttTemplate => write!(f, "MermaidGanttTemplate"),
             AvailableSubjects::MermaidFlowchartNodesTemplate => {
@@ -334,6 +364,20 @@ impl Display for AvailableSubjects {
             }
             AvailableSubjects::ParseXml => write!(f, "ParseXml"),
             AvailableSubjects::ParseOwl => write!(f, "ParseOwl"),
+            AvailableSubjects::SessionTasksCheck => write!(f, "SessionTasksCheck"),
+            AvailableSubjects::SessionTasksSubscribe => write!(f, "SessionTasksSubscribe"),
+            AvailableSubjects::SessionTasksPublish => write!(f, "SessionTasksPublish"),
+            AvailableSubjects::SessionTasksSubscribeAggregate => {
+                write!(f, "SessionTasksSubscribeAggregate")
+            }
+            AvailableSubjects::SessionTasksPublishAggregate => {
+                write!(f, "SessionTasksPublishAggregate")
+            }
+            AvailableSubjects::SessionTasksSubscribePublish => {
+                write!(f, "SessionTasksSubscribePublish")
+            }
+            AvailableSubjects::SessionSupersteps => write!(f, "SessionSupersteps"),
+            AvailableSubjects::SessionSuperstepMax => write!(f, "SessionSuperstepMax"),
         }
     }
 }
@@ -355,6 +399,7 @@ impl AvailableSubjectsTrait for AvailableSubjects {
     }
     fn to_schema(&self) -> SchemaRef {
         match self {
+            AvailableSubjects::Empty => Arc::new(Schema::empty()),
             AvailableSubjects::Messages => create_schema_from_fields(&create_chat_fields),
             AvailableSubjects::Values => create_schema_from_fields(&create_values_fields),
             AvailableSubjects::Configs => create_schema_from_fields(&create_config_fields),
@@ -416,8 +461,14 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             AvailableSubjects::SessionRuntimeEnvs => {
                 create_schema_from_fields(&create_session_runtime_envs_fields)
             }
-            AvailableSubjects::SessionSubjectsNumRows => {
-                create_schema_from_fields(&create_session_subjects_num_rows_fields)
+            AvailableSubjects::SessionTasksRunLog => {
+                create_schema_from_fields(&create_session_tasks_run_log_fields)
+            }
+            AvailableSubjects::SubjectsNumRows => {
+                create_schema_from_fields(&create_subjects_num_rows_fields)
+            }
+            AvailableSubjects::SubjectsChangeLog => {
+                create_schema_from_fields(&create_subjects_change_log_fields)
             }
             AvailableSubjects::MermaidContentTemplate => {
                 create_schema_from_fields(&create_mermaid_content_template_fields)
@@ -465,6 +516,30 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             }
             AvailableSubjects::ParseXml => create_schema_from_fields(&create_parse_xml_fields),
             AvailableSubjects::ParseOwl => create_schema_from_fields(&create_parse_owl_fields),
+            AvailableSubjects::SessionTasksCheck => {
+                create_schema_from_fields(&create_session_tasks_check_fields)
+            }
+            AvailableSubjects::SessionTasksSubscribe => {
+                create_schema_from_fields(&create_session_tasks_subscribe_fields)
+            }
+            AvailableSubjects::SessionTasksPublish => {
+                create_schema_from_fields(&create_session_tasks_publish_fields)
+            }
+            AvailableSubjects::SessionTasksSubscribeAggregate => {
+                create_schema_from_fields(&create_session_tasks_subscribe_aggregate_fields)
+            }
+            AvailableSubjects::SessionTasksPublishAggregate => {
+                create_schema_from_fields(&create_session_tasks_publish_aggregate_fields)
+            }
+            AvailableSubjects::SessionTasksSubscribePublish => {
+                create_schema_from_fields(&create_session_tasks_subscribe_publish_fields)
+            }
+            AvailableSubjects::SessionSupersteps => {
+                create_schema_from_fields(&create_session_supersteps_fields)
+            }
+            AvailableSubjects::SessionSuperstepMax => {
+                create_schema_from_fields(&create_session_superstep_max_fields)
+            }
         }
     }
 }

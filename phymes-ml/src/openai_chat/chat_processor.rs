@@ -7,20 +7,18 @@ use std::{
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
-use parking_lot::Mutex;
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatCompletionRequest,
     ChatCompletionResponse, ChatTraitExt, FinishReason, MappableTrait, MessageBuilderTrait,
-    MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication,
-    TableSubscribePolicyTrait, TableSubscription, TableTrait, Tool, ToolChoiceType,
-    create_chat_record_batch, remove_message_by_subject,
+    MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
+    SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table,
+    TableBuilder, TableBuilderTrait, TableTrait, Tool, ToolChoiceType, create_chat_record_batch,
+    remove_message_by_subject,
 };
 use phymes_data::{DataConfigTrait, HTTPClientRequestState};
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
-    create_timestamp_micros,
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
 };
 use reqwest::{Client, header::CONTENT_TYPE};
 use tracing::{Level, event};
@@ -31,9 +29,6 @@ use crate::candle_chat::CandleChatConfig;
 pub struct OpenAIChatProcessor {
     name: String,
     r#type: String,
-    publications: Vec<TablePublication>,
-    subscriptions: Vec<TableSubscription>,
-    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for OpenAIChatProcessor {
@@ -42,84 +37,31 @@ impl MappableTrait for OpenAIChatProcessor {
     }
 }
 
-impl PublishAndSubscribeTrait for OpenAIChatProcessor {
-    fn get_publications(&self) -> Vec<&TablePublication> {
-        self.publications.iter().collect::<Vec<_>>()
-    }
-
-    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
-        self.subscriptions.iter().collect::<Vec<_>>()
-    }
-    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe_policy
-            .check_subscriptions(&self.subscriptions, updates, state)
-    }
-}
-
 impl ProcessorTrait for OpenAIChatProcessor {
-    fn new(
-        name: &str,
-        r#type: &str,
-        publications: &[TablePublication],
-        subscriptions: &[TableSubscription],
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-    ) -> Self {
+    fn new(name: &str, r#type: &str) -> Self {
         Self {
             name: name.to_string(),
             r#type: r#type.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            subscribe_policy,
         }
-    }
-
-    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
-        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {
         &self.r#type
     }
 
+    fn line_and_file(&self) -> (u32, String) {
+        (line!(), file!().to_string())
+    }
+
     fn process(
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<SendableRecordBatchStreamMessageMap> {
+        runtime_env: Arc<RuntimeEnv>,
+    ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
-        // Trace the inbox
-        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
-            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder
-                .clone()
-                .messages(line!(), file!(), self.get_name());
-            trace.enter(&message.values().collect::<Vec<_>>());
-            Some((trace, trace_builder))
-        } else {
-            None
-        };
-
-        // Extract out the messages, tools, and config
-        let messages = match remove_message_by_subject(
-            self.subscriptions.first().unwrap().get_table_name(),
-            &mut message,
-        ) {
-            Some(i) => i.get_message_own(),
-            None => {
-                return Err(anyhow!(
-                    "Messages not provided for {}. Available messages are {:?}",
-                    self.get_name(),
-                    message.keys()
-                ));
-            }
-        };
-        let tools = remove_message_by_subject(
-            self.subscriptions.get(1).unwrap().get_table_name(),
-            &mut message,
-        )
-        .map(|i| i.get_message_own());
+        // Extract out the config
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => {
@@ -131,43 +73,40 @@ impl ProcessorTrait for OpenAIChatProcessor {
             }
         };
 
+        // Re-index the messages by the subject name which needs to be unique at this stage
+        let message = message
+            .into_iter()
+            .map(|(_k, v)| (v.get_subject().to_string(), v))
+            .collect::<HashMap<_, _>>();
+
         // Run the chat stream
-        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(OpenAIChatStream::new(
-            messages,
-            tools,
+            message,
             config,
             Arc::clone(&runtime_env),
-            stream_diagnostic_builder,
+            diagnostic_builder.cloned(),
         )?);
-        let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_publisher(self.get_name())
-            .with_subject(self.publications.first().unwrap().get_table_name())
-            .with_message(out)
-            .with_update(self.publications.first().unwrap())
-            .make_name()?
-            .build()?;
-        let _ = message.insert(out_m.get_name().to_string(), out_m);
 
-        // Trace the outbox
-        if let Some(trace) = trace {
-            trace.0.exit(&message.values().collect::<Vec<_>>());
-        }
-        Ok(message)
+        // Prepare the message builder
+        let mut builder_map = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
+        let builder = SendableRecordBatchStreamMessage::get_builder()
+            .with_name(self.get_name())
+            .with_message(out);
+        let _ = builder_map.insert(self.get_name().to_string(), builder);
+
+        Ok(builder_map)
     }
 }
 
 pub struct OpenAIChatStream {
     /// Output schema (role and content)
     schema: SchemaRef,
-    /// The input message to process
-    message_stream: SendableRecordBatchStream,
-    /// Optional tools to add to the message
-    tools_stream: Option<SendableRecordBatchStream>,
+    /// The messages and optional tools
+    messages: SendableRecordBatchStreamMessageMap,
     /// Parameters for chat inference
     config_stream: SendableRecordBatchStream,
     /// The candle assets needed for inference
-    _runtime_env: Arc<Mutex<RuntimeEnv>>,
+    _runtime_env: Arc<RuntimeEnv>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for chat inference
@@ -178,16 +117,14 @@ pub struct OpenAIChatStream {
 
 impl OpenAIChatStream {
     pub fn new(
-        message_stream: SendableRecordBatchStream,
-        tools_stream: Option<SendableRecordBatchStream>,
+        messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
             schema: AvailableSubjects::Messages.to_schema(),
-            message_stream,
-            tools_stream,
+            messages,
             diagnostic_builder,
             config_stream,
             _runtime_env: runtime_env,
@@ -244,9 +181,31 @@ impl Stream for OpenAIChatStream {
         // Iterate through each state until the API request is completed
         match &mut self.state {
             HTTPClientRequestState::NotStarted => {
-                // Collect the chat history
+                // Initialize the config
                 let mut batches = Vec::new();
-                while let Some(Ok(batch)) = ready!(self.message_stream.poll_next_unpin(cx)) {
+                while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
+                    batches.push(batch);
+                }
+                let config_table = Table::get_builder()
+                    .with_name("config")
+                    .with_record_batches(batches)?
+                    .build()?;
+                self.init_config(config_table)?;
+
+                // Collect the chat history
+                let messages_table = self.config.as_ref().unwrap().messages.clone();
+                let mut message_stream = if let Some(s) =
+                    remove_message_by_subject(&messages_table, &mut self.messages)
+                {
+                    s.get_message_own()
+                } else {
+                    return Poll::Ready(Some(Err(anyhow!(
+                        "Message history subject was not found in the message stream. Available messages are {:?}",
+                        self.messages.keys()
+                    ))));
+                };
+                let mut batches = Vec::new();
+                while let Some(Ok(batch)) = ready!(message_stream.poll_next_unpin(cx)) {
                     batches.push(batch);
                 }
                 let messages = Table::get_builder()
@@ -255,13 +214,23 @@ impl Stream for OpenAIChatStream {
                     .build()?;
 
                 // Collect the tools
-                let tools = match self.tools_stream {
-                    Some(ref mut tools) => {
+                let tools_table_name = self
+                    .config
+                    .as_ref()
+                    .unwrap()
+                    .tools
+                    .as_ref()
+                    .map(|tools_table_name| tools_table_name.to_string());
+                let tools = if let Some(tools_table_name) = tools_table_name {
+                    if let Some(s) =
+                        remove_message_by_subject(&tools_table_name, &mut self.messages)
+                    {
+                        let mut tools_stream = s.get_message_own();
                         let mut batches = Vec::new();
-                        while let Some(Ok(batch)) = ready!(tools.poll_next_unpin(cx)) {
+                        while let Some(Ok(batch)) = ready!(tools_stream.poll_next_unpin(cx)) {
                             batches.push(batch);
                         }
-                        let tool_table = Table::get_builder()
+                        let tool_table = TableBuilder::new()
                             .with_name("messages")
                             .with_record_batches(batches)?
                             .build()?;
@@ -274,22 +243,14 @@ impl Stream for OpenAIChatStream {
                             })
                             .collect::<Vec<_>>();
                         Some(tool_vec)
+                    } else {
+                        None
                     }
-                    None => None,
+                } else {
+                    None
                 };
 
-                // initialize the config
-                let mut batches = Vec::new();
-                while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
-                    batches.push(batch);
-                }
-                let config_table = Table::get_builder()
-                    .with_name("config")
-                    .with_record_batches(batches)?
-                    .build()?;
-                self.init_config(config_table)?;
-
-                // make the request
+                // Make the request
                 let fut = Client::new()
                     .post(
                         self.config
@@ -411,18 +372,18 @@ impl RecordBatchStream for OpenAIChatStream {
 mod tests {
     #[allow(unused_imports)]
     use super::*;
+    use phymes_core::TablePublication;
     #[allow(unused_imports)]
     use phymes_core::{ChatBuilderTraitExt, TableBuilder};
     #[allow(unused_imports)]
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
 
+    use crate::AvailableOpenAIAssets;
+    use phymes_core::RuntimeEnvTrait;
+
     #[cfg(not(feature = "candle"))]
     #[tokio::test]
     async fn test_openai_chat_processor() -> Result<()> {
-        use phymes_core::{AvailableTableSubscribePolicies, RuntimeEnvTrait};
-
-        use crate::AvailableOpenAIAssets;
-
         let name = "OpenAIChatProcessor";
         let messages = "messages";
 
@@ -433,6 +394,7 @@ mod tests {
 
         // State for the chat processor config
         let candle_chat_config = CandleChatConfig {
+            messages: messages.to_string(),
             max_tokens: 1000,
             temperature: 0.8,
             seed: 299792458,
@@ -481,34 +443,17 @@ mod tests {
         );
 
         // Build the chat task
-        let chat_processor = OpenAIChatProcessor::new(
-            name,
-            OpenAIChatProcessor::get_static_name(),
-            &[TablePublication::ExtendChunks {
-                table_name: messages.to_string(),
-                col_name: "content".to_string(),
-            }],
-            &[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: messages.to_string(),
-                },
-                TableSubscription::None,
-                TableSubscription::AlwaysFullTable {
-                    table_name: candle_chat_config_table.get_name().to_string(),
-                },
-            ],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let chat_processor = OpenAIChatProcessor::new(name, OpenAIChatProcessor::get_static_name());
         let mut stream = chat_processor.process(
             message,
             Some(&diagnostic_builder),
-            Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
+            Arc::new(RuntimeEnv::new().with_name("rt")),
         )?;
 
         // Update the chat history with the response
         let (message_builder, _stream) = message_builder
             .append_chat_response_sendable_record_batch_stream(
-                &mut stream.remove(messages).unwrap().get_message_own(),
+                &mut stream.remove(messages).unwrap().message.take().unwrap(),
                 1000,
             )
             .await?;

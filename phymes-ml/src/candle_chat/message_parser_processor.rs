@@ -6,22 +6,20 @@ use std::{
 
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
-    MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream,
-    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilderTrait, TablePublication,
-    TableSubscribePolicyTrait, TableSubscription, TableTrait, ToolCall, create_chat_record_batch,
-    create_values_record_batch, remove_message_by_subject,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
+    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, ToolCall,
+    create_chat_record_batch, create_values_record_batch, remove_message_by_subject,
 };
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, TraceBuilderTrait,
-    create_timestamp_micros,
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
 };
 
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{Stream, StreamExt};
-use parking_lot::Mutex;
 use serde_json::json;
 use tracing::{Level, event, instrument};
 
@@ -48,9 +46,6 @@ use super::tool_parser::extract_tool_calls_str;
 pub struct MessageParserProcessor {
     name: String,
     r#type: String,
-    publications: Vec<TablePublication>,
-    subscriptions: Vec<TableSubscription>,
-    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for MessageParserProcessor {
@@ -59,42 +54,20 @@ impl MappableTrait for MessageParserProcessor {
     }
 }
 
-impl PublishAndSubscribeTrait for MessageParserProcessor {
-    fn get_publications(&self) -> Vec<&TablePublication> {
-        self.publications.iter().collect()
-    }
-    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
-        self.subscriptions.iter().collect()
-    }
-    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe_policy
-            .check_subscriptions(&self.subscriptions, updates, state)
-    }
-}
-
 impl ProcessorTrait for MessageParserProcessor {
-    fn new(
-        name: &str,
-        r#type: &str,
-        publications: &[TablePublication],
-        subscriptions: &[TableSubscription],
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-    ) -> Self {
+    fn new(name: &str, r#type: &str) -> Self {
         Self {
             name: name.to_string(),
             r#type: r#type.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            subscribe_policy,
         }
-    }
-
-    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
-        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {
         &self.r#type
+    }
+
+    fn line_and_file(&self) -> (u32, String) {
+        (line!(), file!().to_string())
     }
 
     #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
@@ -102,61 +75,32 @@ impl ProcessorTrait for MessageParserProcessor {
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<SendableRecordBatchStreamMessageMap> {
+        runtime_env: Arc<RuntimeEnv>,
+    ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
-        // Trace the inbox
-        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
-            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder
-                .clone()
-                .messages(line!(), file!(), self.get_name());
-            trace.enter(&message.values().collect::<Vec<_>>());
-            Some((trace, trace_builder))
-        } else {
-            None
-        };
-
-        // Extract out the messages and config
-        let messages = match remove_message_by_subject(
-            self.get_subscriptions().first().unwrap().get_table_name(),
-            &mut message,
-        ) {
-            Some(i) => i.get_message_own(),
-            None => return Err(anyhow!("Messages not provided for {}.", self.get_name())),
-        };
+        // Extract the config
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
 
         // Make the outbox and send
-        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
         let out = Box::pin(MessageParserStream::new(
-            messages,
+            message,
             config,
             Arc::clone(&runtime_env),
-            stream_diagnostic_builder,
+            diagnostic_builder.cloned(),
         )?);
 
-        // By default, we send back to the publisher in case of any errors which the publisher
-        //  can correct before moving on.
-        // DM: this is not rigorously tested yet...
-        let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_publisher(self.get_name())
-            .with_subject(self.get_publications().first().unwrap().get_table_name())
-            .with_message(out)
-            .with_update(self.get_publications().first().unwrap())
-            .make_name()?
-            .build()?;
-        let _ = message.insert(out_m.get_name().to_string(), out_m);
+        // Prepare the message builder
+        let mut builder_map = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
+        let builder = SendableRecordBatchStreamMessage::get_builder()
+            .with_name(self.get_name())
+            .with_message(out);
+        let _ = builder_map.insert(self.get_name().to_string(), builder);
 
-        // Trace the outbox
-        if let Some(trace) = trace {
-            trace.0.exit(&message.values().collect::<Vec<_>>());
-        }
-        Ok(message)
+        Ok(builder_map)
     }
 }
 
@@ -164,12 +108,12 @@ impl ProcessorTrait for MessageParserProcessor {
 pub struct MessageParserStream {
     /// Output schema (role and content)
     schema: SchemaRef,
-    /// The input message to process
-    message_stream: SendableRecordBatchStream,
+    /// The messages to parse
+    messages: SendableRecordBatchStreamMessageMap,
     /// Parameters for chat inference
     config_stream: SendableRecordBatchStream,
     /// The Candle model assets needed for inference
-    runtime_env: Arc<Mutex<RuntimeEnv>>,
+    runtime_env: Arc<RuntimeEnv>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for chat inference
@@ -178,14 +122,14 @@ pub struct MessageParserStream {
 
 impl MessageParserStream {
     pub fn new(
-        message_stream: SendableRecordBatchStream,
+        messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
             schema: AvailableSubjects::Values.to_schema(),
-            message_stream,
+            messages,
             config_stream,
             runtime_env,
             diagnostic_builder,
@@ -239,8 +183,19 @@ impl Stream for MessageParserStream {
             self.init_config(config_table)?;
 
             // Collect the messages
+            let messages_table = self.config.as_ref().unwrap().messages.clone();
+            let mut message_stream = if let Some(s) =
+                remove_message_by_subject(&messages_table, &mut self.messages)
+            {
+                s.get_message_own()
+            } else {
+                return Poll::Ready(Some(Err(anyhow!(
+                    "Message history subject was not found in the message stream. Available messages are {:?}",
+                    self.messages.keys()
+                ))));
+            };
             let mut batches = Vec::new();
-            while let Some(Ok(batch)) = ready!(self.message_stream.poll_next_unpin(cx)) {
+            while let Some(Ok(batch)) = ready!(message_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
 
@@ -408,7 +363,7 @@ impl RecordBatchStream for MessageParserStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{AvailableTableSubscribePolicies, TableBuilder, TablePublication};
+    use phymes_core::{TableBuilder, TablePublication};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use crate::AvailableCandleAssets;
@@ -458,6 +413,7 @@ mod tests {
                         .with_name("message_processor")
                         .with_json(
                             &serde_json::to_vec(&CandleChatConfig {
+                                messages: "messages".to_string(),
                                 max_tokens: 1000,
                                 temperature: 0.8,
                                 seed: 299792458,
@@ -478,35 +434,24 @@ mod tests {
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
-        let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
-            token_service: None,
-            tensor_service: None,
+        let runtime_env = Arc::new(RuntimeEnv {
             name: "service".to_string(),
             memory_limit: None,
             time_limit: None,
-        }));
+        });
 
         // Create the processor and run
-        let processor = MessageParserProcessor::new(
-            "message_processor",
-            "",
-            &[TablePublication::ExtendChunks {
-                table_name: "messages".to_string(),
-                col_name: "content".to_string(),
-            }],
-            &[TableSubscription::AlwaysFullTable {
-                table_name: "messages".to_string(),
-            }],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let processor = MessageParserProcessor::new("message_processor", "");
         let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             stream
-                .remove("from_message_processor_on_messages")
+                .remove("message_processor")
                 .unwrap()
-                .get_message_own(),
+                .message
+                .take()
+                .unwrap(),
         )
         .await?
         .with_name("")
@@ -572,6 +517,7 @@ mod tests {
                         .with_name("message_processor")
                         .with_json(
                             &serde_json::to_vec(&CandleChatConfig {
+                                messages: "messages".to_string(),
                                 max_tokens: 1000,
                                 temperature: 0.8,
                                 seed: 299792458,
@@ -592,35 +538,24 @@ mod tests {
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
-        let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
-            token_service: None,
-            tensor_service: None,
+        let runtime_env = Arc::new(RuntimeEnv {
             name: "service".to_string(),
             memory_limit: None,
             time_limit: None,
-        }));
+        });
 
         // Create the processor and run
-        let processor = MessageParserProcessor::new(
-            "message_processor",
-            "",
-            &[TablePublication::ExtendChunks {
-                table_name: "messages".to_string(),
-                col_name: "content".to_string(),
-            }],
-            &[TableSubscription::AlwaysFullTable {
-                table_name: "messages".to_string(),
-            }],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let processor = MessageParserProcessor::new("message_processor", "");
         let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             stream
-                .remove("from_message_processor_on_messages")
+                .remove("message_processor")
                 .unwrap()
-                .get_message_own(),
+                .message
+                .take()
+                .unwrap(),
         )
         .await?
         .with_name("")
@@ -686,6 +621,7 @@ mod tests {
                         .with_name("message_processor")
                         .with_json(
                             &serde_json::to_vec(&CandleChatConfig {
+                                messages: "messages".to_string(),
                                 max_tokens: 1000,
                                 temperature: 0.8,
                                 seed: 299792458,
@@ -706,35 +642,24 @@ mod tests {
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
-        let runtime_env = Arc::new(Mutex::new(RuntimeEnv {
-            token_service: None,
-            tensor_service: None,
+        let runtime_env = Arc::new(RuntimeEnv {
             name: "service".to_string(),
             memory_limit: None,
             time_limit: None,
-        }));
+        });
 
         // Create the processor and run
-        let processor = MessageParserProcessor::new(
-            "message_processor",
-            "",
-            &[TablePublication::ExtendChunks {
-                table_name: "messages".to_string(),
-                col_name: "content".to_string(),
-            }],
-            &[TableSubscription::AlwaysFullTable {
-                table_name: "messages".to_string(),
-            }],
-            AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
-        );
+        let processor = MessageParserProcessor::new("message_processor", "");
         let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
         // DM: this will result in an error because the schema is dynamically updated
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             stream
-                .remove("from_message_processor_on_messages")
+                .remove("message_processor")
                 .unwrap()
-                .get_message_own(),
+                .message
+                .take()
+                .unwrap(),
         )
         .await?
         .with_name("")

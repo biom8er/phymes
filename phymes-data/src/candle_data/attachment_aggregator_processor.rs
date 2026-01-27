@@ -6,17 +6,16 @@ use std::{
 
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
-    MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RecordBatchStream,
-    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageMap, StateMap, Table, TableBuilder, TableBuilderTrait,
-    TablePublication, TableSubscribePolicyTrait, TableSubscription, create_blob_fields, device,
-    remove_message_by_subject,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
+    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait,
+    create_blob_fields, remove_message_by_subject,
 };
 
 use crate::{
-    DataConfigTrait,
-    candle_data::{data_config::DataConfig, tensor_service::CandleTensorService},
-    candle_operators::DataOperatorTrait,
+    CandleTensorService, DataConfig, DataConfigTrait, DataOperatorTrait, TensorProcessorTrait,
+    device,
 };
 use anyhow::{Result, anyhow};
 use arrow::{
@@ -24,10 +23,8 @@ use arrow::{
     datatypes::{Fields, SchemaRef},
 };
 use futures::{Stream, StreamExt};
-use parking_lot::Mutex;
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, EventBuilderTrait, HashMap, MetricBuilderTrait,
-    TraceBuilderTrait,
 };
 use tracing::{Level, event, instrument};
 
@@ -60,9 +57,6 @@ pub fn collect_messages_by_schema(
 pub struct AttachmentAggregatorProcessor {
     name: String,
     r#type: String,
-    publications: Vec<TablePublication>,
-    subscriptions: Vec<TableSubscription>,
-    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for AttachmentAggregatorProcessor {
@@ -71,42 +65,20 @@ impl MappableTrait for AttachmentAggregatorProcessor {
     }
 }
 
-impl PublishAndSubscribeTrait for AttachmentAggregatorProcessor {
-    fn get_publications(&self) -> Vec<&TablePublication> {
-        self.publications.iter().collect()
-    }
-    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
-        self.subscriptions.iter().collect()
-    }
-    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe_policy
-            .check_subscriptions(&self.subscriptions, updates, state)
-    }
-}
-
 impl ProcessorTrait for AttachmentAggregatorProcessor {
-    fn new(
-        name: &str,
-        r#type: &str,
-        publications: &[TablePublication],
-        subscriptions: &[TableSubscription],
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-    ) -> Self {
+    fn new(name: &str, r#type: &str) -> Self {
         Self {
             name: name.to_string(),
             r#type: r#type.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            subscribe_policy,
         }
-    }
-
-    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
-        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {
         &self.r#type
+    }
+
+    fn line_and_file(&self) -> (u32, String) {
+        (line!(), file!().to_string())
     }
 
     #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
@@ -114,21 +86,9 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<SendableRecordBatchStreamMessageMap> {
+        runtime_env: Arc<RuntimeEnv>,
+    ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
-
-        // Trace the inbox
-        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
-            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder
-                .clone()
-                .messages(line!(), file!(), self.get_name());
-            trace.enter(&message.values().collect::<Vec<_>>());
-            Some((trace, trace_builder))
-        } else {
-            None
-        };
 
         // Collect the messages with the messages schema
         let input = collect_messages_by_schema(&mut message, &create_blob_fields());
@@ -139,40 +99,22 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
 
-        // Make the outbox and send
-        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
+        // Run the aggregator stream
         let out = Box::pin(AggregatorStream::new(
             AvailableSubjects::Blob.to_schema(),
             input,
             config,
             Arc::clone(&runtime_env),
-            stream_diagnostic_builder,
+            diagnostic_builder.cloned(),
         )?);
-        let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_publisher(self.get_name())
-            .with_subject(
-                self.get_publications()
-                    .first()
-                    .ok_or(anyhow!(
-                        "Missing publications for processor {}",
-                        self.get_name()
-                    ))?
-                    .get_table_name(),
-            )
-            .with_message(out)
-            .with_update(self.get_publications().first().ok_or(anyhow!(
-                "Missing publications for processor {}",
-                self.get_name()
-            ))?)
-            .make_name()?
-            .build()?;
-        let _ = message.insert(out_m.get_name().to_string(), out_m);
 
-        // Trace the outbox
-        if let Some(trace) = trace {
-            trace.0.exit(&message.values().collect::<Vec<_>>());
-        }
-        Ok(message)
+        // Prepare the message builder
+        let mut builder_map = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
+        let builder = SendableRecordBatchStreamMessage::get_builder()
+            .with_name(self.get_name())
+            .with_message(out);
+        let _ = builder_map.insert(self.get_name().to_string(), builder);
+        Ok(builder_map)
     }
 }
 
@@ -186,10 +128,12 @@ pub struct AggregatorStream {
     config_stream: SendableRecordBatchStream,
     /// Parameters for tensor operations
     config: Option<DataConfig>,
+    /// The service for operating over tensors
+    tensor_service: Option<Box<dyn TensorProcessorTrait>>,
     /// The data operator to run
     data_operator: Option<Box<dyn DataOperatorTrait>>,
     /// The Candle model assets needed for inference
-    runtime_env: Arc<Mutex<RuntimeEnv>>,
+    runtime_env: Arc<RuntimeEnv>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
 }
@@ -199,7 +143,7 @@ impl AggregatorStream {
         schema: SchemaRef,
         input: Vec<SendableRecordBatchStream>,
         config_stream: SendableRecordBatchStream,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
+        runtime_env: Arc<RuntimeEnv>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
@@ -207,6 +151,7 @@ impl AggregatorStream {
             input,
             config_stream,
             config: None,
+            tensor_service: None,
             data_operator: None,
             runtime_env,
             diagnostic_builder,
@@ -222,17 +167,12 @@ impl AggregatorStream {
         Ok(())
     }
 
-    #[instrument(skip(self))]
     fn init_tensor_service(&mut self) -> Result<()> {
         if let Some(ref config) = self.config {
-            if self.runtime_env.lock().tensor_service.is_none() {
+            if self.tensor_service.is_none() {
                 let device = device(config.cpu)?;
                 let service = CandleTensorService::new(device);
-                let _ = self
-                    .runtime_env
-                    .lock()
-                    .tensor_service
-                    .replace(Box::new(service));
+                let _ = self.tensor_service.replace(Box::new(service));
             }
         } else {
             return Err(anyhow!(
@@ -303,12 +243,7 @@ impl Stream for AggregatorStream {
             let batch = self.data_operator.as_ref().unwrap().forward(
                 &batches,
                 None,
-                self.runtime_env
-                    .lock()
-                    .tensor_service
-                    .as_ref()
-                    .unwrap()
-                    .get_device(),
+                self.tensor_service.as_ref().unwrap().get_device(),
             )?;
             if batch.num_rows() == 0
                 && let Some(diagnostic_builder) = &self.diagnostic_builder

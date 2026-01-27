@@ -51,7 +51,7 @@ impl Display for DataStreamManager {
 /// - `First` and `Last` can be applied to all [DataType]s.
 ///
 /// [DataType]: arrow::datatypes::DataType
-#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
 pub enum DataAggregatorOperator {
     #[value(name = "Max")]
     Max,
@@ -63,6 +63,7 @@ pub enum DataAggregatorOperator {
     Mean,
     #[value(name = "Var")]
     Var,
+    #[default]
     #[value(name = "Count")]
     Count,
     #[value(name = "Concat")]
@@ -217,7 +218,7 @@ impl Display for DataDistanceOperator {
 /// Casting allows for converting between DateTime strings and numeric Timestamps
 ///
 /// [arrow_cast]: <https://arrow.apache.org/rust/arrow_cast/index.html>
-#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
 pub enum DataCastOperator {
     // #[value(name = "Base64Encode")]
     // Base64Encode,
@@ -229,6 +230,7 @@ pub enum DataCastOperator {
     BytesToString,
     #[value(name = "Hash")]
     Hash,
+    #[default]
     #[value(name = "None")]
     None,
 }
@@ -246,20 +248,28 @@ impl Display for DataCastOperator {
     }
 }
 
-/// Data Column operators
+/// Data Column operators between one (unary) or two (binary) columns
 ///
-/// # Notes
+/// # Notes on binary operators
 /// - `Max`, `Min`, `Add`, `Sub`, `Mult`, `Div`, and `Var` can only be applied to non-nested primitive [DataType]s
-/// - `And`, `Or`, `XOr`, `Not`, `LeftShift`, and `RightShift` can only be applied to non-nested primitive [DataType]s
-/// - `Len` can be applied to all [DataType]s and generates a UInt32Array
+/// - `And`, `Or`, `XOr`, `LeftShift`, and `RightShift` can only be applied to non-nested primitive [DataType]s
 /// - `Concat` can only be applied to Utf8 [DataType] to generate a new Utf8 [DataType] by joining the [String]s together
 /// - `List` and `Set` can be applied to all primitive [DataType]s except floats.
 ///   Non-nested primitive and non-primitive [DataType]s will generate a nested primitive or non-primitive Array.
 ///   Nested primitive or non-primitive [DataType]s will maintain the nested primitive or non-primitive Array through extension of the list or set.
-/// - `First` and `Last` can be applied to all [DataType]s.
+///
+/// # Notes on unary operators
+/// - `Not`can only be applied to non-nested primitive [DataType]s
+/// - `Len` can be applied to all [DataType]s and generates a UInt32Array
+///
+/// # Notes on intialization operators
+/// - `Zeros` and `Ones` will create a new column filled with primitive zero's or one's
+/// - `String` will create a new column filled with an empty Utf8
+/// - `Value` will create a new column filled with a specified primitive or non-primitive value
+///  
 ///
 /// [DataType]: arrow::datatypes::DataType
-#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum)]
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
 pub enum DataColumnOperator {
     #[value(name = "And")]
     And,
@@ -297,8 +307,140 @@ pub enum DataColumnOperator {
     Concat,
     #[value(name = "Len")]
     Len,
+    #[default]
     #[value(name = "None")]
     None,
+    #[value(name = "Zeros")]
+    Zeros,
+    #[value(name = "Ones")]
+    Ones,
+    // #[value(name = "Rand")]
+    // Rand,
+    #[value(name = "String")]
+    String,
+    #[value(name = "Value")]
+    Value,
+    #[value(name = "BroadcastMax")]
+    BroadcastMax,
+    #[value(name = "BroadcastMin")]
+    BroadcastMin,
+    #[value(name = "BroadcastMean")]
+    BroadcastMean,
+    #[value(name = "BroadcastVar")]
+    BroadcastVar,
+    #[value(name = "BroadcastCount")]
+    BroadcastCount,
+    #[value(name = "BroadcastList")]
+    BroadcastList,
+    #[value(name = "BroadcastSet")]
+    BroadcastSet,
+}
+
+impl DataColumnOperator {
+    /// Can the operator be applied to two columns
+    pub fn is_binary(&self) -> bool {
+        match self {
+            Self::And
+            | Self::AndNot
+            | Self::Or
+            | Self::XOr
+            | Self::Not
+            | Self::LeftShift
+            | Self::RightShift
+            | Self::Max
+            | Self::Min
+            | Self::Add
+            | Self::Sub
+            | Self::Mult
+            | Self::Div
+            | Self::Rem
+            | Self::List
+            | Self::Set
+            | Self::Concat
+            | Self::Len
+            | Self::None => true,
+            Self::Zeros
+            | Self::Ones
+            | Self::String
+            | Self::Value
+            | Self::BroadcastMax
+            | Self::BroadcastMin
+            | Self::BroadcastMean
+            | Self::BroadcastVar
+            | Self::BroadcastCount
+            | Self::BroadcastList
+            | Self::BroadcastSet => false,
+        }
+    }
+
+    /// Can the operator be applied to one columns
+    pub fn is_unary(&self) -> bool {
+        match self {
+            Self::And
+            | Self::AndNot
+            | Self::Or
+            | Self::XOr
+            | Self::LeftShift
+            | Self::RightShift
+            | Self::Max
+            | Self::Min
+            | Self::Add
+            | Self::Sub
+            | Self::Mult
+            | Self::Div
+            | Self::Rem
+            | Self::List
+            | Self::Set
+            | Self::Concat
+            | Self::Zeros
+            | Self::Ones
+            | Self::String
+            | Self::Value => false,
+            Self::BroadcastMax
+            | Self::BroadcastMin
+            | Self::BroadcastMean
+            | Self::BroadcastVar
+            | Self::BroadcastCount
+            | Self::BroadcastList
+            | Self::BroadcastSet
+            | Self::Not
+            | Self::Len
+            | Self::None => true,
+        }
+    }
+
+    /// Can the operator initialize a new column
+    pub fn is_init(&self) -> bool {
+        match self {
+            Self::And
+            | Self::AndNot
+            | Self::Or
+            | Self::XOr
+            | Self::Not
+            | Self::LeftShift
+            | Self::RightShift
+            | Self::Max
+            | Self::Min
+            | Self::Add
+            | Self::Sub
+            | Self::Mult
+            | Self::Div
+            | Self::Rem
+            | Self::List
+            | Self::Set
+            | Self::Concat
+            | Self::Len
+            | Self::BroadcastMax
+            | Self::BroadcastMin
+            | Self::BroadcastMean
+            | Self::BroadcastVar
+            | Self::BroadcastCount
+            | Self::BroadcastList
+            | Self::BroadcastSet
+            | Self::None => false,
+            Self::Zeros | Self::Ones | Self::String | Self::Value => true,
+        }
+    }
 }
 
 impl Display for DataColumnOperator {
@@ -323,6 +465,17 @@ impl Display for DataColumnOperator {
             Self::Concat => write!(f, "Concat"),
             Self::Len => write!(f, "Len"),
             Self::None => write!(f, "None"),
+            Self::Zeros => write!(f, "Zeros"),
+            Self::Ones => write!(f, "Ones"),
+            Self::String => write!(f, "String"),
+            Self::Value => write!(f, "Value"),
+            Self::BroadcastMax => write!(f, "BroadcastMax"),
+            Self::BroadcastMin => write!(f, "BroadcastMin"),
+            Self::BroadcastMean => write!(f, "BroadcastMean"),
+            Self::BroadcastVar => write!(f, "BroadcastVar"),
+            Self::BroadcastCount => write!(f, "BroadcastCount"),
+            Self::BroadcastList => write!(f, "BroadcastList"),
+            Self::BroadcastSet => write!(f, "BroadcastSet"),
         }
     }
 }
@@ -480,6 +633,11 @@ pub struct DataConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub as_columns: Option<Vec<String>>,
 
+    /// Vec of [String]s for the columns to reorder and include in the schema
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reorder_columns: Option<Vec<String>>,
+
     /// Vec of of [DataColumnOperator]s specifying the column transformation operator to apply to each lhs_values and optionally rhs_values
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -553,6 +711,7 @@ impl Default for DataConfig {
             agg_columns: None,
             agg_operators: None,
             as_columns: None,
+            reorder_columns: None,
             column_operators: None,
             cast_operators: None,
             cast_datatypes: None,

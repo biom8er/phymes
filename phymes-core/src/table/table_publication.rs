@@ -10,7 +10,7 @@ use arrow::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::session::MappableTrait;
+use crate::runtime_env::MappableTrait;
 
 use super::table_trait::{Table, TableTrait};
 
@@ -83,16 +83,21 @@ impl TablePublication {
 
     /// New [TablePublication] from a short name identifying the variant and the `table_name`
     pub fn from_str_fuzzy(name: &str, subject: &str) -> Result<TablePublication> {
-        let publication = if name.contains("Extend") {
-            TablePublication::Extend {
+        let publication = if name.contains("ExtendChunks") {
+            TablePublication::ExtendChunks {
                 table_name: subject.to_string(),
+                col_name: "content".to_string(),
             }
-        } else if name.contains("Replace") {
-            TablePublication::Replace {
+        } else if name.contains("Extend") {
+            TablePublication::Extend {
                 table_name: subject.to_string(),
             }
         } else if name.contains("ReplaceLast") {
             TablePublication::ReplaceLast {
+                table_name: subject.to_string(),
+            }
+        } else if name.contains("Replace") {
+            TablePublication::Replace {
                 table_name: subject.to_string(),
             }
         } else if name.contains("None") {
@@ -159,14 +164,10 @@ impl MappableTrait for TablePublication {
 
 /// Update an arrow table with record batches coming from a new table
 pub trait TablePublicationTrait: TableTrait {
-    fn get_record_batches_mut(&mut self) -> &mut Vec<RecordBatch>;
     fn publish_to_table(&mut self, new: Vec<RecordBatch>, update: TablePublication) -> Result<()>;
 }
 
 impl TablePublicationTrait for Table {
-    fn get_record_batches_mut(&mut self) -> &mut Vec<RecordBatch> {
-        &mut self.record_batches
-    }
     fn publish_to_table(&mut self, new: Vec<RecordBatch>, update: TablePublication) -> Result<()> {
         match update {
             TablePublication::Extend { table_name: tn } => {
@@ -333,8 +334,7 @@ fn get_first_row(batch: &RecordBatch) -> Result<Vec<String>> {
     Ok(first_row)
 }
 
-/// Create a new record batch from the first row
-///   BUT replace the streamed chunks row
+/// Create a new record batch from the first row BUT replace the streamed chunks row
 fn create_record_batch_from_first_row(
     batch: &RecordBatch,
     name: &str,

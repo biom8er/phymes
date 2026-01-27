@@ -312,23 +312,15 @@ impl ChatBuilderTraitExt for TableBuilder {
 mod test_messages {
     use super::*;
     use crate::{
-        session::{
-            BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv,
-            SendableRecordBatchStreamMessageMap, StateMap,
-        },
-        table::{
-            RecordBatchStream, SendableRecordBatchStream, TablePublication,
-            TableSubscribePolicyTrait, TableSubscription,
-        },
-        task::{
-            MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait,
-            SendableRecordBatchStreamMessage,
-        },
+        BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait,
+        ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+        SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
+        SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
     };
     use anyhow::anyhow;
     use arrow::datatypes::SchemaRef;
     use futures::Stream;
-    use parking_lot::Mutex;
+
     use phymes_diagnostics::{DiagnosticBuilder, HashMap};
     use std::{
         pin::Pin,
@@ -341,9 +333,6 @@ mod test_messages {
     pub struct CandleChatMockProcessor {
         name: String,
         r#type: String,
-        publications: Vec<TablePublication>,
-        subscriptions: Vec<TableSubscription>,
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
     }
 
     impl MappableTrait for CandleChatMockProcessor {
@@ -352,51 +341,28 @@ mod test_messages {
         }
     }
 
-    impl PublishAndSubscribeTrait for CandleChatMockProcessor {
-        fn get_publications(&self) -> Vec<&TablePublication> {
-            self.publications.iter().collect::<Vec<_>>()
-        }
-
-        fn get_subscriptions(&self) -> Vec<&TableSubscription> {
-            self.subscriptions.iter().collect::<Vec<_>>()
-        }
-        fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-            self.subscribe_policy
-                .check_subscriptions(&self.subscriptions, updates, state)
-        }
-    }
-
     impl ProcessorTrait for CandleChatMockProcessor {
-        fn new(
-            name: &str,
-            r#type: &str,
-            publications: &[TablePublication],
-            subscriptions: &[TableSubscription],
-            subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-        ) -> Self {
+        fn new(name: &str, r#type: &str) -> Self {
             Self {
                 name: name.to_string(),
                 r#type: r#type.to_string(),
-                publications: publications.to_owned(),
-                subscriptions: subscriptions.to_owned(),
-                subscribe_policy,
             }
-        }
-
-        fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
-            self.subscribe_policy.as_ref()
         }
 
         fn get_type(&self) -> &str {
             &self.r#type
         }
 
+        fn line_and_file(&self) -> (u32, String) {
+            (line!(), file!().to_string())
+        }
+
         fn process(
             &self,
             mut message: SendableRecordBatchStreamMessageMap,
             _diagnostic_builder: Option<&DiagnosticBuilder>,
-            _runtime_env: Arc<Mutex<RuntimeEnv>>,
-        ) -> Result<SendableRecordBatchStreamMessageMap> {
+            _runtime_env: Arc<RuntimeEnv>,
+        ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
             // Create the stream response
             let input = match message.remove("messages") {
                 Some(i) => i,
@@ -417,15 +383,11 @@ mod test_messages {
             });
 
             // Prepare the outbox
-            let mut outbox = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+            let mut outbox = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
             let out_m = SendableRecordBatchStreamMessage::get_builder()
                 .with_name("messages")
-                .with_publisher(self.get_name())
-                .with_subject("messages")
-                .with_update(&TablePublication::None)
-                .with_message(out)
-                .build()?;
-            let _ = outbox.insert(out_m.get_name().to_string(), out_m);
+                .with_message(out);
+            let _ = outbox.insert("messages".to_string(), out_m);
             Ok(outbox)
         }
     }
@@ -545,18 +507,11 @@ mod tests {
 
     use super::chat_completion::Tool;
     use crate::{
-        AvailableTableSubscribePolicies,
-        session::{BuildableTrait, BuilderTrait, RuntimeEnv, RuntimeEnvTrait},
-        table::{
-            TablePublication,
-            test_table::{make_test_table_chat, make_test_table_tool},
-        },
-        task::{
-            MessageBuilderTrait, MessageTrait, ProcessorTrait, SendableRecordBatchStreamMessage,
-        },
+        BuildableTrait, BuilderTrait, MessageBuilderTrait, ProcessorTrait, RuntimeEnv,
+        RuntimeEnvTrait, SendableRecordBatchStreamMessage, TablePublication,
+        test_table::{make_test_table_chat, make_test_table_tool},
     };
     use futures::TryStreamExt;
-    use parking_lot::Mutex;
     use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap};
 
     use super::*;
@@ -693,23 +648,17 @@ mod tests {
         );
 
         // Build the chat task
-        let chat_processor = test_messages::CandleChatMockProcessor::new(
-            "ChatBot",
-            "",
-            &[],
-            &[],
-            AvailableTableSubscribePolicies::default().build(),
-        );
+        let chat_processor = test_messages::CandleChatMockProcessor::new("ChatBot", "");
         let mut stream = chat_processor.process(
             message,
             Some(&DiagnosticBuilder::new(&Diagnostics::new())),
-            Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
+            Arc::new(RuntimeEnv::new().with_name("rt")),
         )?;
 
         // Update the chat history with the response
         let (message_builder, stream) = message_builder
             .append_chat_response_sendable_record_batch_stream(
-                &mut stream.remove("messages").unwrap().get_message_own(),
+                &mut stream.remove("messages").unwrap().message.take().unwrap(),
                 10,
             )
             .await?;
@@ -786,23 +735,17 @@ mod tests {
         );
 
         // Build the chat task
-        let chat_processor = test_messages::CandleChatMockProcessor::new(
-            "ChatBot",
-            "",
-            &[],
-            &[],
-            AvailableTableSubscribePolicies::default().build(),
-        );
+        let chat_processor = test_messages::CandleChatMockProcessor::new("ChatBot", "");
         let mut stream = chat_processor.process(
             message,
             Some(&DiagnosticBuilder::new(&Diagnostics::new())),
-            Arc::new(Mutex::new(RuntimeEnv::new().with_name("rt"))),
+            Arc::new(RuntimeEnv::new().with_name("rt")),
         )?;
 
         // Update the chat history with the response
         let (message_builder, stream) = message_builder
             .append_chat_response_sendable_record_batch_stream(
-                &mut stream.remove("messages").unwrap().get_message_own(),
+                &mut stream.remove("messages").unwrap().message.take().unwrap(),
                 10,
             )
             .await?;

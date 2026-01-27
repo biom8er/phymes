@@ -56,6 +56,7 @@ pub struct Select {
     lhs_values: Vec<String>,
     rhs_values: Vec<String>,
     as_columns: Vec<String>,
+    reorder_columns: Vec<String>,
     column_operators: Vec<DataColumnOperator>,
     cast_operators: Vec<DataCastOperator>,
     cast_datatypes: Vec<DataType>,
@@ -146,6 +147,11 @@ impl DataOperatorTrait for Select {
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
+        let reorder_columns = self
+            .reorder_columns
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
         let cast_templates = self
             .cast_templates
             .iter()
@@ -156,6 +162,7 @@ impl DataOperatorTrait for Select {
             lhs_args,
             &rhs_values,
             &as_columns,
+            &reorder_columns,
             &self.column_operators,
             &self.cast_operators,
             &self.cast_datatypes,
@@ -168,36 +175,59 @@ impl DataOperatorTrait for Select {
             "Missing `lhs_values` for `{}`.",
             Self::get_static_name()
         ))?;
-        let rhs_values = config.rhs_values.as_ref().cloned().ok_or(anyhow!(
-            "Missing `rhs_values` for `{}`.",
-            Self::get_static_name()
-        ))?;
-        let as_columns = config.as_columns.clone().ok_or(anyhow!(
-            "Missing `as_columns` for `{}`.",
-            Self::get_static_name()
-        ))?;
-        let column_operators = config.column_operators.clone().ok_or(anyhow!(
-            "Missing `column_operators` for `{}`.",
-            Self::get_static_name()
-        ))?;
-        let cast_operators = config.cast_operators.clone().ok_or(anyhow!(
-            "Missing `cast_operators` for `{}`.",
-            Self::get_static_name()
-        ))?;
-        let cast_datatypes = config
-            .cast_datatypes
-            .clone()
-            .ok_or(anyhow!(
-                "Missing `cast_datatypes` for `{}`.",
-                Self::get_static_name()
-            ))?
+        let rhs_values = config
+            .rhs_values
+            .as_ref()
+            .cloned()
+            .unwrap_or(lhs_values.iter().map(|_| String::new()).collect::<Vec<_>>());
+        let as_columns = config
+            .as_columns
+            .as_ref()
+            .cloned()
+            .unwrap_or(lhs_values.iter().map(|_| String::new()).collect::<Vec<_>>());
+        let reorder_columns_default = lhs_values
             .iter()
-            .map(|s| from_str_to_data_type(s).unwrap())
+            .zip(as_columns.iter())
+            .map(|(v, a)| {
+                if a.is_empty() {
+                    v.to_string()
+                } else {
+                    a.to_string()
+                }
+            })
             .collect::<Vec<_>>();
-        let cast_templates = config.cast_templates.clone().ok_or(anyhow!(
-            "Missing `cast_templates` for `{}`.",
-            Self::get_static_name()
-        ))?;
+        let reorder_columns = config
+            .reorder_columns
+            .as_ref()
+            .cloned()
+            .unwrap_or(reorder_columns_default.clone());
+        let column_operators = config.column_operators.as_ref().cloned().unwrap_or(
+            lhs_values
+                .iter()
+                .map(|_| DataColumnOperator::default())
+                .collect::<Vec<_>>(),
+        );
+        let cast_operators = config.cast_operators.as_ref().cloned().unwrap_or(
+            lhs_values
+                .iter()
+                .map(|_| DataCastOperator::default())
+                .collect::<Vec<_>>(),
+        );
+        let cast_datatypes_str = config.cast_datatypes.as_ref().cloned().unwrap_or(
+            lhs_values
+                .iter()
+                .map(|_| "Utf8".to_string())
+                .collect::<Vec<_>>(),
+        );
+        let mut cast_datatypes = Vec::new();
+        for s in cast_datatypes_str.into_iter() {
+            cast_datatypes.push(from_str_to_data_type(&s)?);
+        }
+        let cast_templates = config
+            .cast_templates
+            .as_ref()
+            .cloned()
+            .unwrap_or(lhs_values.iter().map(|_| String::new()).collect::<Vec<_>>());
 
         // Ensure that the array lengths match
         if lhs_values.len() != as_columns.len() {
@@ -236,12 +266,36 @@ impl DataOperatorTrait for Select {
                 lhs_values.len(),
                 cast_templates.len()
             ));
+        } else if lhs_values.len() < reorder_columns.len() {
+            return Err(anyhow!(
+                "lhs_values length {} is less than the reorder_columns length {}",
+                lhs_values.len(),
+                cast_templates.len()
+            ));
+        }
+
+        {
+            // Check that the reorder_columns are in the as_columns and lhs_values
+            let as_columns_set = reorder_columns_default
+                .iter()
+                .map(|v| v.as_str())
+                .collect::<HashSet<&str>>();
+            let reorder_columns_set = reorder_columns
+                .iter()
+                .map(|v| v.as_str())
+                .collect::<HashSet<&str>>();
+            if !reorder_columns_set.is_subset(&as_columns_set) {
+                return Err(anyhow!(
+                    "reorder_columns {reorder_columns_set:?} is not a subset of as_columns and lhs_values {as_columns_set:?}",
+                ));
+            }
         }
 
         Ok(Select {
             lhs_values,
             rhs_values,
             as_columns,
+            reorder_columns,
             column_operators,
             cast_operators,
             cast_datatypes,
@@ -250,13 +304,13 @@ impl DataOperatorTrait for Select {
     }
 }
 
-/// Helper function to compute the column operator for tensors
-fn column_operator_tensor<T>(
+/// Helper function to compute the column binary operator for tensors
+fn column_binary_operator_tensor<T>(
     lhs_column: &str,
-    rhs_column: Option<&str>,
+    rhs_column: &str,
     column_operator: &DataColumnOperator,
     lhs_arr: &ArrayRef,
-    rhs_arr: Option<&ArrayRef>,
+    rhs_arr: &ArrayRef,
     device: &Device,
 ) -> Result<Tensor>
 where
@@ -264,44 +318,58 @@ where
 {
     let lhs_vec = Table::get_array_as_vec_primitive::<T>(lhs_arr, lhs_column)?;
     let lhs_tensor = Tensor::from_iter(lhs_vec, device)?;
-    let rhs_tensor = if let (Some(rhs_arr), Some(rhs_column)) = (rhs_arr, rhs_column) {
-        let rhs_vec = Table::get_array_as_vec_primitive::<T>(rhs_arr, rhs_column)?;
-        let rhs_tensor = Tensor::from_iter(rhs_vec, device)?;
-        Some(rhs_tensor)
-    } else {
-        match column_operator {
-            DataColumnOperator::Not => None,
-            _ => {
-                return Err(anyhow!(
-                    "rhs column cannot be None for column operator {column_operator} with lhs column {lhs_column}."
-                ));
-            }
-        }
-    };
+    let rhs_vec = Table::get_array_as_vec_primitive::<T>(rhs_arr, rhs_column)?;
+    let rhs_tensor = Tensor::from_iter(rhs_vec, device)?;
     let tensor = match column_operator {
-        DataColumnOperator::Add => (lhs_tensor + rhs_tensor.unwrap())?,
-        DataColumnOperator::Sub => (lhs_tensor - rhs_tensor.unwrap())?,
-        DataColumnOperator::Mult => (lhs_tensor * rhs_tensor.unwrap())?,
-        DataColumnOperator::Div => (lhs_tensor / rhs_tensor.unwrap())?,
-        DataColumnOperator::Min => lhs_tensor.minimum(&rhs_tensor.unwrap())?,
-        DataColumnOperator::Max => lhs_tensor.maximum(&rhs_tensor.unwrap())?,
+        DataColumnOperator::Add => (lhs_tensor + rhs_tensor)?,
+        DataColumnOperator::Sub => (lhs_tensor - rhs_tensor)?,
+        DataColumnOperator::Mult => (lhs_tensor * rhs_tensor)?,
+        DataColumnOperator::Div => (lhs_tensor / rhs_tensor)?,
+        DataColumnOperator::Min => lhs_tensor.minimum(&rhs_tensor)?,
+        DataColumnOperator::Max => lhs_tensor.maximum(&rhs_tensor)?,
         _ => {
             return Err(anyhow!(
-                "Unsupported column operator {column_operator} for lhs column {lhs_column} and rhs column {}",
-                rhs_column.unwrap_or("None")
+                "Unsupported column operator {column_operator} for lhs column {lhs_column} and rhs column {rhs_column}"
             ));
         }
     };
     Ok(tensor)
 }
 
-/// Helper function to compute the column operator for tensors
-fn column_operator_arrow<T, D>(
+/// Helper function to compute the column binary operator for tensors
+fn column_unary_operator_tensor<T>(
     lhs_column: &str,
-    rhs_column: Option<&str>,
     column_operator: &DataColumnOperator,
     lhs_arr: &ArrayRef,
-    rhs_arr: Option<&ArrayRef>,
+    device: &Device,
+) -> Result<Tensor>
+where
+    T: Num + Bounded + NumCast + Send + Sync + WithDType + 'static,
+{
+    let lhs_vec = Table::get_array_as_vec_primitive::<T>(lhs_arr, lhs_column)?;
+    let lhs_tensor = Tensor::from_iter(lhs_vec, device)?;
+    let shape = lhs_tensor.shape().to_owned();
+    let tensor = match column_operator {
+        DataColumnOperator::BroadcastMin => lhs_tensor.min_all()?.broadcast_as(shape)?,
+        DataColumnOperator::BroadcastMax => lhs_tensor.max_all()?.broadcast_as(shape)?,
+        DataColumnOperator::BroadcastMean => lhs_tensor.mean_all()?.broadcast_as(shape)?,
+        DataColumnOperator::BroadcastVar => lhs_tensor.var(0)?.broadcast_as(shape)?,
+        _ => {
+            return Err(anyhow!(
+                "Unsupported column operator {column_operator} for lhs column {lhs_column}.",
+            ));
+        }
+    };
+    Ok(tensor)
+}
+
+/// Helper function to compute the column binary operator for arrow
+fn column_binary_operator_arrow<T, D>(
+    lhs_column: &str,
+    rhs_column: &str,
+    column_operator: &DataColumnOperator,
+    lhs_arr: &ArrayRef,
+    rhs_arr: &ArrayRef,
 ) -> Result<ArrayRef>
 where
     T: ArrowNativeType + Num + Bounded + NumCast + Send + Sync + WithDType + 'static,
@@ -317,33 +385,51 @@ where
     let mut builder = PrimitiveBuilder::<D>::new();
     builder.append_slice(&lhs_vec);
     let lhs_arr = builder.finish();
-    let rhs_arr = if let (Some(rhs_arr), Some(rhs_column)) = (rhs_arr, rhs_column) {
-        let rhs_vec = Table::get_array_as_vec_primitive::<T>(rhs_arr, rhs_column)?;
-        let mut builder = PrimitiveBuilder::<D>::new();
-        builder.append_slice(&rhs_vec);
-        Some(builder.finish())
-    } else {
-        match column_operator {
-            DataColumnOperator::Not => None,
-            _ => {
-                return Err(anyhow!(
-                    "rhs column cannot be None for column operator {column_operator} with lhs column {lhs_column}."
-                ));
-            }
-        }
-    };
+    let rhs_vec = Table::get_array_as_vec_primitive::<T>(rhs_arr, rhs_column)?;
+    let mut builder = PrimitiveBuilder::<D>::new();
+    builder.append_slice(&rhs_vec);
+    let rhs_arr = builder.finish();
     let arr = match column_operator {
-        DataColumnOperator::And => bitwise_and::<D>(&lhs_arr, &rhs_arr.unwrap())?,
-        DataColumnOperator::AndNot => bitwise_and_not::<D>(&lhs_arr, &rhs_arr.unwrap())?,
-        DataColumnOperator::Or => bitwise_or::<D>(&lhs_arr, &rhs_arr.unwrap())?,
-        DataColumnOperator::XOr => bitwise_xor::<D>(&lhs_arr, &rhs_arr.unwrap())?,
-        DataColumnOperator::Not => bitwise_not::<D>(&lhs_arr)?,
-        DataColumnOperator::LeftShift => bitwise_shift_left::<D>(&lhs_arr, &rhs_arr.unwrap())?,
-        DataColumnOperator::RightShift => bitwise_shift_right::<D>(&lhs_arr, &rhs_arr.unwrap())?,
+        DataColumnOperator::And => bitwise_and::<D>(&lhs_arr, &rhs_arr)?,
+        DataColumnOperator::AndNot => bitwise_and_not::<D>(&lhs_arr, &rhs_arr)?,
+        DataColumnOperator::Or => bitwise_or::<D>(&lhs_arr, &rhs_arr)?,
+        DataColumnOperator::XOr => bitwise_xor::<D>(&lhs_arr, &rhs_arr)?,
+        DataColumnOperator::LeftShift => bitwise_shift_left::<D>(&lhs_arr, &rhs_arr)?,
+        DataColumnOperator::RightShift => bitwise_shift_right::<D>(&lhs_arr, &rhs_arr)?,
         _ => {
             return Err(anyhow!(
-                "Unsupported column operator {column_operator} for lhs column {lhs_column} and rhs column {}",
-                rhs_column.unwrap_or("None")
+                "Unsupported column operator {column_operator} for lhs column {lhs_column} and rhs column {rhs_column}"
+            ));
+        }
+    };
+    Ok(Arc::new(arr))
+}
+
+/// Helper function to compute the column unary operator for arrow
+fn column_unary_operator_arrow<T, D>(
+    lhs_column: &str,
+    column_operator: &DataColumnOperator,
+    lhs_arr: &ArrayRef,
+) -> Result<ArrayRef>
+where
+    T: ArrowNativeType + Num + Bounded + NumCast + Send + Sync + WithDType + 'static,
+    D: ArrowPrimitiveType<Native = T> + 'static,
+    <D as ArrowPrimitiveType>::Native: Not<Output = <D as ArrowPrimitiveType>::Native>,
+    <D as ArrowPrimitiveType>::Native: BitAnd<Output = <D as ArrowPrimitiveType>::Native>,
+    <D as ArrowPrimitiveType>::Native: BitXor<Output = <D as ArrowPrimitiveType>::Native>,
+    <D as ArrowPrimitiveType>::Native: BitOr<Output = <D as ArrowPrimitiveType>::Native>,
+    <D as ArrowPrimitiveType>::Native: WrappingShl<Output = <D as ArrowPrimitiveType>::Native>,
+    <D as ArrowPrimitiveType>::Native: WrappingShr<Output = <D as ArrowPrimitiveType>::Native>,
+{
+    let lhs_vec = Table::get_array_as_vec_primitive::<T>(lhs_arr, lhs_column)?;
+    let mut builder = PrimitiveBuilder::<D>::new();
+    builder.append_slice(&lhs_vec);
+    let lhs_arr = builder.finish();
+    let arr = match column_operator {
+        DataColumnOperator::Not => bitwise_not::<D>(&lhs_arr)?,
+        _ => {
+            return Err(anyhow!(
+                "Unsupported column operator {column_operator} for lhs column {lhs_column}."
             ));
         }
     };
@@ -462,6 +548,8 @@ where
 /// * `lhs_args` - Slice of [RecordBatch]es
 /// * `rhs_values` - Optional Slice of Strings for the right-hand side columns to apply the binary transformation to
 /// * `as_columns` - Slice of [String]s for the columns to rename to
+/// * `reorder_columns` - Slice of [String]s for designating the order of columns as they will appear in the generated schema
+///   omitting column names will remove the column from inclusion in the batch
 /// * `column_operators` - Slice of [DataColumnOperator]s specifying the transformation between two columns
 /// * `cast_operators` - Slice of [DataCastOperator]s specifying the cast operator to apply to each lhs_values
 /// * `cast_datatypes` - Slice of [DataType]s specifying the data type to cast each lhs_values to
@@ -475,6 +563,7 @@ where
     lhs_args,
     rhs_values,
     as_columns,
+    reorder_columns,
     column_operators,
     cast_operators,
     cast_datatypes,
@@ -486,6 +575,7 @@ pub fn select(
     lhs_args: &[RecordBatch],
     rhs_values: &[&str],
     as_columns: &[&str],
+    reorder_columns: &[&str],
     column_operators: &[DataColumnOperator],
     cast_operators: &[DataCastOperator],
     cast_datatypes: &[DataType],
@@ -514,108 +604,215 @@ pub fn select(
             &batch_vec.iter().collect::<Vec<_>>(),
             column_name,
         ) {
-            match cast_datatypes.get(index).unwrap() {
-                DataType::UInt8 => {
-                    let value = if let Some(template) = cast_templates.get_mut(index) {
-                        if template.is_empty() {
-                            Default::default()
+            match column_operators.get(index).unwrap() {
+                DataColumnOperator::Value => match cast_datatypes.get(index).unwrap() {
+                    DataType::UInt8 => {
+                        let value = if let Some(template) = cast_templates.get_mut(index) {
+                            if template.is_empty() {
+                                Default::default()
+                            } else {
+                                let value = template.parse::<u8>()?;
+                                *template = String::new();
+                                value
+                            }
                         } else {
-                            let value = template.parse::<u8>()?;
-                            *template = String::new();
-                            value
-                        }
-                    } else {
-                        Default::default()
-                    };
-                    let default_vec = (0..lhs_table.count_rows())
-                        .map(|_| value)
-                        .collect::<Vec<u8>>();
-                    let arr: ArrayRef = Arc::new(UInt8Array::from_iter_values(default_vec));
-                    missing_vec.push((column_name, arr));
-                }
-                DataType::UInt32 => {
-                    let value = if let Some(template) = cast_templates.get_mut(index) {
-                        if template.is_empty() {
                             Default::default()
+                        };
+                        let default_vec = (0..lhs_table.count_rows())
+                            .map(|_| value)
+                            .collect::<Vec<u8>>();
+                        let arr: ArrayRef = Arc::new(UInt8Array::from_iter_values(default_vec));
+                        missing_vec.push((column_name, arr));
+                    }
+                    DataType::UInt32 => {
+                        let value = if let Some(template) = cast_templates.get_mut(index) {
+                            if template.is_empty() {
+                                Default::default()
+                            } else {
+                                let value = template.parse::<u32>()?;
+                                *template = String::new();
+                                value
+                            }
                         } else {
-                            let value = template.parse::<u32>()?;
-                            *template = String::new();
-                            value
-                        }
-                    } else {
-                        Default::default()
-                    };
-                    let default_vec = (0..lhs_table.count_rows())
-                        .map(|_| value)
-                        .collect::<Vec<u32>>();
-                    let arr: ArrayRef = Arc::new(UInt32Array::from_iter_values(default_vec));
-                    missing_vec.push((column_name, arr));
-                }
-                DataType::Int64 => {
-                    let value = if let Some(template) = cast_templates.get_mut(index) {
-                        if template.is_empty() {
                             Default::default()
+                        };
+                        let default_vec = (0..lhs_table.count_rows())
+                            .map(|_| value)
+                            .collect::<Vec<u32>>();
+                        let arr: ArrayRef = Arc::new(UInt32Array::from_iter_values(default_vec));
+                        missing_vec.push((column_name, arr));
+                    }
+                    DataType::Int64 => {
+                        let value = if let Some(template) = cast_templates.get_mut(index) {
+                            if template.is_empty() {
+                                Default::default()
+                            } else {
+                                let value = template.parse::<i64>()?;
+                                *template = String::new();
+                                value
+                            }
                         } else {
-                            let value = template.parse::<i64>()?;
-                            *template = String::new();
-                            value
-                        }
-                    } else {
-                        Default::default()
-                    };
-                    let default_vec = (0..lhs_table.count_rows())
-                        .map(|_| value)
-                        .collect::<Vec<i64>>();
-                    let arr: ArrayRef = Arc::new(Int64Array::from_iter_values(default_vec));
-                    missing_vec.push((column_name, arr));
-                }
-                DataType::Float32 => {
-                    let value = if let Some(template) = cast_templates.get_mut(index) {
-                        if template.is_empty() {
                             Default::default()
+                        };
+                        let default_vec = (0..lhs_table.count_rows())
+                            .map(|_| value)
+                            .collect::<Vec<i64>>();
+                        let arr: ArrayRef = Arc::new(Int64Array::from_iter_values(default_vec));
+                        missing_vec.push((column_name, arr));
+                    }
+                    DataType::Float32 => {
+                        let value = if let Some(template) = cast_templates.get_mut(index) {
+                            if template.is_empty() {
+                                Default::default()
+                            } else {
+                                let value = template.parse::<f32>()?;
+                                *template = String::new();
+                                value
+                            }
                         } else {
-                            let value = template.parse::<f32>()?;
-                            *template = String::new();
-                            value
-                        }
-                    } else {
-                        Default::default()
-                    };
-                    let default_vec = (0..lhs_table.count_rows())
-                        .map(|_| value)
-                        .collect::<Vec<f32>>();
-                    let arr: ArrayRef = Arc::new(Float32Array::from_iter_values(default_vec));
-                    missing_vec.push((column_name, arr));
-                }
-                DataType::Float64 => {
-                    let value = if let Some(template) = cast_templates.get_mut(index) {
-                        if template.is_empty() {
                             Default::default()
+                        };
+                        let default_vec = (0..lhs_table.count_rows())
+                            .map(|_| value)
+                            .collect::<Vec<f32>>();
+                        let arr: ArrayRef = Arc::new(Float32Array::from_iter_values(default_vec));
+                        missing_vec.push((column_name, arr));
+                    }
+                    DataType::Float64 => {
+                        let value = if let Some(template) = cast_templates.get_mut(index) {
+                            if template.is_empty() {
+                                Default::default()
+                            } else {
+                                let value = template.parse::<f64>()?;
+                                *template = String::new();
+                                value
+                            }
                         } else {
-                            let value = template.parse::<f64>()?;
-                            *template = String::new();
-                            value
-                        }
-                    } else {
-                        Default::default()
-                    };
-                    let default_vec = (0..lhs_table.count_rows())
-                        .map(|_| value)
-                        .collect::<Vec<f64>>();
-                    let arr: ArrayRef = Arc::new(Float64Array::from_iter_values(default_vec));
-                    missing_vec.push((column_name, arr));
-                }
-                DataType::Utf8 => {
-                    let default_vec = (0..lhs_table.count_rows())
-                        .map(|_| String::new())
-                        .collect::<Vec<String>>();
-                    let arr: ArrayRef = Arc::new(StringArray::from(default_vec));
-                    missing_vec.push((column_name, arr));
-                }
+                            Default::default()
+                        };
+                        let default_vec = (0..lhs_table.count_rows())
+                            .map(|_| value)
+                            .collect::<Vec<f64>>();
+                        let arr: ArrayRef = Arc::new(Float64Array::from_iter_values(default_vec));
+                        missing_vec.push((column_name, arr));
+                    }
+                    DataType::Utf8 => {
+                        let default_vec = (0..lhs_table.count_rows())
+                            .map(|_| String::new())
+                            .collect::<Vec<String>>();
+                        let arr: ArrayRef = Arc::new(StringArray::from(default_vec));
+                        missing_vec.push((column_name, arr));
+                    }
+                    _ => {
+                        return Err(anyhow!(
+                            "Unsupported column operator {} and data type {} for missing column {column_name}",
+                            column_operators.get(index).unwrap(),
+                            cast_datatypes.get(index).unwrap()
+                        ));
+                    }
+                },
+                DataColumnOperator::Zeros => match cast_datatypes.get(index).unwrap() {
+                    DataType::UInt8 => {
+                        let default_vec =
+                            (0..lhs_table.count_rows()).map(|_| 0).collect::<Vec<u8>>();
+                        let arr: ArrayRef = Arc::new(UInt8Array::from_iter_values(default_vec));
+                        missing_vec.push((column_name, arr));
+                    }
+                    DataType::UInt32 => {
+                        let default_vec =
+                            (0..lhs_table.count_rows()).map(|_| 0).collect::<Vec<u32>>();
+                        let arr: ArrayRef = Arc::new(UInt32Array::from_iter_values(default_vec));
+                        missing_vec.push((column_name, arr));
+                    }
+                    DataType::Int64 => {
+                        let default_vec =
+                            (0..lhs_table.count_rows()).map(|_| 0).collect::<Vec<i64>>();
+                        let arr: ArrayRef = Arc::new(Int64Array::from_iter_values(default_vec));
+                        missing_vec.push((column_name, arr));
+                    }
+                    DataType::Float32 => {
+                        let default_vec = (0..lhs_table.count_rows())
+                            .map(|_| 0f32)
+                            .collect::<Vec<f32>>();
+                        let arr: ArrayRef = Arc::new(Float32Array::from_iter_values(default_vec));
+                        missing_vec.push((column_name, arr));
+                    }
+                    DataType::Float64 => {
+                        let default_vec = (0..lhs_table.count_rows())
+                            .map(|_| 0f64)
+                            .collect::<Vec<f64>>();
+                        let arr: ArrayRef = Arc::new(Float64Array::from_iter_values(default_vec));
+                        missing_vec.push((column_name, arr));
+                    }
+                    _ => {
+                        return Err(anyhow!(
+                            "Unsupported column operator {} and data type {} for missing column {column_name}",
+                            column_operators.get(index).unwrap(),
+                            cast_datatypes.get(index).unwrap()
+                        ));
+                    }
+                },
+                DataColumnOperator::Ones => match cast_datatypes.get(index).unwrap() {
+                    DataType::UInt8 => {
+                        let default_vec =
+                            (0..lhs_table.count_rows()).map(|_| 1).collect::<Vec<u8>>();
+                        let arr: ArrayRef = Arc::new(UInt8Array::from_iter_values(default_vec));
+                        missing_vec.push((column_name, arr));
+                    }
+                    DataType::UInt32 => {
+                        let default_vec =
+                            (0..lhs_table.count_rows()).map(|_| 1).collect::<Vec<u32>>();
+                        let arr: ArrayRef = Arc::new(UInt32Array::from_iter_values(default_vec));
+                        missing_vec.push((column_name, arr));
+                    }
+                    DataType::Int64 => {
+                        let default_vec =
+                            (0..lhs_table.count_rows()).map(|_| 1).collect::<Vec<i64>>();
+                        let arr: ArrayRef = Arc::new(Int64Array::from_iter_values(default_vec));
+                        missing_vec.push((column_name, arr));
+                    }
+                    DataType::Float32 => {
+                        let default_vec = (0..lhs_table.count_rows())
+                            .map(|_| 1f32)
+                            .collect::<Vec<f32>>();
+                        let arr: ArrayRef = Arc::new(Float32Array::from_iter_values(default_vec));
+                        missing_vec.push((column_name, arr));
+                    }
+                    DataType::Float64 => {
+                        let default_vec = (0..lhs_table.count_rows())
+                            .map(|_| 1f64)
+                            .collect::<Vec<f64>>();
+                        let arr: ArrayRef = Arc::new(Float64Array::from_iter_values(default_vec));
+                        missing_vec.push((column_name, arr));
+                    }
+                    _ => {
+                        return Err(anyhow!(
+                            "Unsupported column operator {} and data type {} for missing column {column_name}",
+                            column_operators.get(index).unwrap(),
+                            cast_datatypes.get(index).unwrap()
+                        ));
+                    }
+                },
+                DataColumnOperator::String => match cast_datatypes.get(index).unwrap() {
+                    DataType::Utf8 => {
+                        let default_vec = (0..lhs_table.count_rows())
+                            .map(|_| String::new())
+                            .collect::<Vec<String>>();
+                        let arr: ArrayRef = Arc::new(StringArray::from(default_vec));
+                        missing_vec.push((column_name, arr));
+                    }
+                    _ => {
+                        return Err(anyhow!(
+                            "Unsupported column operator {} and data type {} for missing column {column_name}",
+                            column_operators.get(index).unwrap(),
+                            cast_datatypes.get(index).unwrap()
+                        ));
+                    }
+                },
                 _ => {
                     return Err(anyhow!(
-                        "Unsupported data type {} for missing column {column_name}",
-                        cast_datatypes.get(index).unwrap()
+                        "Unsupported column operator {} for missing column {column_name}",
+                        column_operators.get(index).unwrap()
                     ));
                 }
             }
@@ -640,12 +837,18 @@ pub fn select(
                 DataType::UInt8 => {
                     let (rhs_column, rhs_arr) =
                         rhs_helper(rhs_values, &lhs_table, &batch_missing_vec, index)?;
-                    let tensor = column_operator_tensor::<u8>(
+                    if rhs_column.is_none() && rhs_arr.is_none() {
+                        return Err(anyhow!(
+                            "rhs column cannot be None for column operator {} with lhs column {column_name}.",
+                            column_operators.get(index).unwrap()
+                        ));
+                    }
+                    let tensor = column_binary_operator_tensor::<u8>(
                         column_name,
-                        rhs_column.as_deref(),
+                        &rhs_column.unwrap(),
                         column_operators.get(index).unwrap(),
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
-                        rhs_arr.as_ref(),
+                        &rhs_arr.unwrap(),
                         device,
                     )?;
                     Arc::new(UInt8Array::from_iter_values(tensor.to_vec1::<u8>()?))
@@ -653,12 +856,18 @@ pub fn select(
                 DataType::UInt32 => {
                     let (rhs_column, rhs_arr) =
                         rhs_helper(rhs_values, &lhs_table, &batch_missing_vec, index)?;
-                    let tensor = column_operator_tensor::<u32>(
+                    if rhs_column.is_none() && rhs_arr.is_none() {
+                        return Err(anyhow!(
+                            "rhs column cannot be None for column operator {} with lhs column {column_name}.",
+                            column_operators.get(index).unwrap()
+                        ));
+                    }
+                    let tensor = column_binary_operator_tensor::<u32>(
                         column_name,
-                        rhs_column.as_deref(),
+                        &rhs_column.unwrap(),
                         column_operators.get(index).unwrap(),
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
-                        rhs_arr.as_ref(),
+                        &rhs_arr.unwrap(),
                         device,
                     )?;
                     Arc::new(UInt32Array::from_iter_values(tensor.to_vec1::<u32>()?))
@@ -666,12 +875,18 @@ pub fn select(
                 DataType::Int64 => {
                     let (rhs_column, rhs_arr) =
                         rhs_helper(rhs_values, &lhs_table, &batch_missing_vec, index)?;
-                    let tensor = column_operator_tensor::<i64>(
+                    if rhs_column.is_none() && rhs_arr.is_none() {
+                        return Err(anyhow!(
+                            "rhs column cannot be None for column operator {} with lhs column {column_name}.",
+                            column_operators.get(index).unwrap()
+                        ));
+                    }
+                    let tensor = column_binary_operator_tensor::<i64>(
                         column_name,
-                        rhs_column.as_deref(),
+                        &rhs_column.unwrap(),
                         column_operators.get(index).unwrap(),
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
-                        rhs_arr.as_ref(),
+                        &rhs_arr.unwrap(),
                         device,
                     )?;
                     Arc::new(Int64Array::from_iter_values(tensor.to_vec1::<i64>()?))
@@ -679,12 +894,18 @@ pub fn select(
                 DataType::Float32 => {
                     let (rhs_column, rhs_arr) =
                         rhs_helper(rhs_values, &lhs_table, &batch_missing_vec, index)?;
-                    let tensor = column_operator_tensor::<f32>(
+                    if rhs_column.is_none() && rhs_arr.is_none() {
+                        return Err(anyhow!(
+                            "rhs column cannot be None for column operator {} with lhs column {column_name}.",
+                            column_operators.get(index).unwrap()
+                        ));
+                    }
+                    let tensor = column_binary_operator_tensor::<f32>(
                         column_name,
-                        rhs_column.as_deref(),
+                        &rhs_column.unwrap(),
                         column_operators.get(index).unwrap(),
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
-                        rhs_arr.as_ref(),
+                        &rhs_arr.unwrap(),
                         device,
                     )?;
                     Arc::new(Float32Array::from_iter_values(tensor.to_vec1::<f32>()?))
@@ -692,12 +913,74 @@ pub fn select(
                 DataType::Float64 => {
                     let (rhs_column, rhs_arr) =
                         rhs_helper(rhs_values, &lhs_table, &batch_missing_vec, index)?;
-                    let tensor = column_operator_tensor::<f64>(
+                    if rhs_column.is_none() && rhs_arr.is_none() {
+                        return Err(anyhow!(
+                            "rhs column cannot be None for column operator {} with lhs column {column_name}.",
+                            column_operators.get(index).unwrap()
+                        ));
+                    }
+                    let tensor = column_binary_operator_tensor::<f64>(
                         column_name,
-                        rhs_column.as_deref(),
+                        &rhs_column.unwrap(),
                         column_operators.get(index).unwrap(),
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
-                        rhs_arr.as_ref(),
+                        &rhs_arr.unwrap(),
+                        device,
+                    )?;
+                    Arc::new(Float64Array::from_iter_values(tensor.to_vec1::<f64>()?))
+                }
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
+                        column_operators.get(index).unwrap()
+                    ));
+                }
+            },
+            DataColumnOperator::BroadcastMax
+            | DataColumnOperator::BroadcastMin
+            | DataColumnOperator::BroadcastMean
+            | DataColumnOperator::BroadcastVar => match column_data_type {
+                DataType::UInt8 => {
+                    let tensor = column_unary_operator_tensor::<u8>(
+                        column_name,
+                        column_operators.get(index).unwrap(),
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                        device,
+                    )?;
+                    Arc::new(UInt8Array::from_iter_values(tensor.to_vec1::<u8>()?))
+                }
+                DataType::UInt32 => {
+                    let tensor = column_unary_operator_tensor::<u32>(
+                        column_name,
+                        column_operators.get(index).unwrap(),
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                        device,
+                    )?;
+                    Arc::new(UInt32Array::from_iter_values(tensor.to_vec1::<u32>()?))
+                }
+                DataType::Int64 => {
+                    let tensor = column_unary_operator_tensor::<i64>(
+                        column_name,
+                        column_operators.get(index).unwrap(),
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                        device,
+                    )?;
+                    Arc::new(Int64Array::from_iter_values(tensor.to_vec1::<i64>()?))
+                }
+                DataType::Float32 => {
+                    let tensor = column_unary_operator_tensor::<f32>(
+                        column_name,
+                        column_operators.get(index).unwrap(),
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                        device,
+                    )?;
+                    Arc::new(Float32Array::from_iter_values(tensor.to_vec1::<f32>()?))
+                }
+                DataType::Float64 => {
+                    let tensor = column_unary_operator_tensor::<f64>(
+                        column_name,
+                        column_operators.get(index).unwrap(),
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         device,
                     )?;
                     Arc::new(Float64Array::from_iter_values(tensor.to_vec1::<f64>()?))
@@ -1976,42 +2259,82 @@ pub fn select(
             | DataColumnOperator::AndNot
             | DataColumnOperator::Or
             | DataColumnOperator::XOr
-            | DataColumnOperator::Not
             | DataColumnOperator::LeftShift
             | DataColumnOperator::RightShift => match column_data_type {
                 DataType::UInt8 => {
                     let (rhs_column, rhs_arr) =
                         rhs_helper(rhs_values, &lhs_table, &batch_missing_vec, index)?;
-                    column_operator_arrow::<u8, UInt8Type>(
+                    if rhs_column.is_none() && rhs_arr.is_none() {
+                        return Err(anyhow!(
+                            "rhs column cannot be None for column operator {} with lhs column {column_name}.",
+                            column_operators.get(index).unwrap()
+                        ));
+                    }
+                    column_binary_operator_arrow::<u8, UInt8Type>(
                         column_name,
-                        rhs_column.as_deref(),
+                        &rhs_column.unwrap(),
                         column_operators.get(index).unwrap(),
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
-                        rhs_arr.as_ref(),
+                        &rhs_arr.unwrap(),
                     )?
                 }
                 DataType::UInt32 => {
                     let (rhs_column, rhs_arr) =
                         rhs_helper(rhs_values, &lhs_table, &batch_missing_vec, index)?;
-                    column_operator_arrow::<u32, UInt32Type>(
+                    if rhs_column.is_none() && rhs_arr.is_none() {
+                        return Err(anyhow!(
+                            "rhs column cannot be None for column operator {} with lhs column {column_name}.",
+                            column_operators.get(index).unwrap()
+                        ));
+                    }
+                    column_binary_operator_arrow::<u32, UInt32Type>(
                         column_name,
-                        rhs_column.as_deref(),
+                        &rhs_column.unwrap(),
                         column_operators.get(index).unwrap(),
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
-                        rhs_arr.as_ref(),
+                        &rhs_arr.unwrap(),
                     )?
                 }
                 DataType::Int64 => {
                     let (rhs_column, rhs_arr) =
                         rhs_helper(rhs_values, &lhs_table, &batch_missing_vec, index)?;
-                    column_operator_arrow::<i64, Int64Type>(
+                    if rhs_column.is_none() && rhs_arr.is_none() {
+                        return Err(anyhow!(
+                            "rhs column cannot be None for column operator {} with lhs column {column_name}.",
+                            column_operators.get(index).unwrap()
+                        ));
+                    }
+                    column_binary_operator_arrow::<i64, Int64Type>(
                         column_name,
-                        rhs_column.as_deref(),
+                        &rhs_column.unwrap(),
                         column_operators.get(index).unwrap(),
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
-                        rhs_arr.as_ref(),
+                        &rhs_arr.unwrap(),
                     )?
                 }
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
+                        column_operators.get(index).unwrap()
+                    ));
+                }
+            },
+            DataColumnOperator::Not => match column_data_type {
+                DataType::UInt8 => column_unary_operator_arrow::<u8, UInt8Type>(
+                    column_name,
+                    column_operators.get(index).unwrap(),
+                    &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                )?,
+                DataType::UInt32 => column_unary_operator_arrow::<u32, UInt32Type>(
+                    column_name,
+                    column_operators.get(index).unwrap(),
+                    &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                )?,
+                DataType::Int64 => column_unary_operator_arrow::<i64, Int64Type>(
+                    column_name,
+                    column_operators.get(index).unwrap(),
+                    &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                )?,
                 _ => {
                     return Err(anyhow!(
                         "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
@@ -2022,7 +2345,632 @@ pub fn select(
             DataColumnOperator::Len => {
                 todo!()
             }
-            DataColumnOperator::None => find_column(&lhs_table, &batch_missing_vec, column_name)?,
+            DataColumnOperator::BroadcastCount => {
+                let num_rows = lhs_table.count_rows();
+                let agg_vec = (0..num_rows).map(|v| v as u32).collect::<Vec<_>>();
+                Arc::new(UInt32Array::from(agg_vec))
+            }
+            DataColumnOperator::BroadcastList => match column_data_type {
+                DataType::UInt8 => {
+                    let lhs_vec = Table::get_array_as_vec_primitive::<u8>(
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                        column_name,
+                    )?;
+                    let agg_values = lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
+                    build_aggregator_column_list_primitive::<u8, UInt8Type>(
+                        agg_values,
+                        column_data_type.clone(),
+                    )
+                }
+                DataType::UInt32 => {
+                    let lhs_vec = Table::get_array_as_vec_primitive::<u32>(
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                        column_name,
+                    )?;
+                    let agg_values = lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
+                    build_aggregator_column_list_primitive::<u32, UInt32Type>(
+                        agg_values,
+                        column_data_type.clone(),
+                    )
+                }
+                DataType::Int64 => {
+                    let lhs_vec = Table::get_array_as_vec_primitive::<i64>(
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                        column_name,
+                    )?;
+                    let agg_values = lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
+                    build_aggregator_column_list_primitive::<i64, Int64Type>(
+                        agg_values,
+                        column_data_type.clone(),
+                    )
+                }
+                DataType::Float32 => {
+                    let lhs_vec = Table::get_array_as_vec_primitive::<f32>(
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                        column_name,
+                    )?;
+                    let agg_values = lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
+                    build_aggregator_column_list_primitive::<f32, Float32Type>(
+                        agg_values,
+                        column_data_type.clone(),
+                    )
+                }
+                DataType::Float64 => {
+                    let lhs_vec = Table::get_array_as_vec_primitive::<f64>(
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                        column_name,
+                    )?;
+                    let agg_values = lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
+                    build_aggregator_column_list_primitive::<f64, Float64Type>(
+                        agg_values,
+                        column_data_type.clone(),
+                    )
+                }
+                DataType::Utf8 => {
+                    let lhs_vec = Table::get_array_as_vec_nonprimitive::<String>(
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                        column_name,
+                    )?;
+                    let agg_values = lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
+                    build_aggregator_column_list_nonprimitive::<String>(
+                        agg_values,
+                        column_data_type.clone(),
+                    )
+                }
+                DataType::FixedSizeList(f, _) => match f.data_type() {
+                    DataType::UInt8 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<FixedSizeListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
+                        build_aggregator_column_fixed_size_list::<u8>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::UInt32 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<FixedSizeListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
+                        build_aggregator_column_fixed_size_list::<u32>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::Int64 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<FixedSizeListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
+                        build_aggregator_column_fixed_size_list::<i64>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::Float32 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<FixedSizeListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<f32>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
+                        build_aggregator_column_fixed_size_list::<f32>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::Float64 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<FixedSizeListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<f64>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
+                        build_aggregator_column_fixed_size_list::<f64>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::Utf8 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<FixedSizeListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_nonprimitive::<String>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
+                        build_aggregator_column_list_nonprimitive::<String>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    _ => {
+                        return Err(anyhow!(
+                            "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
+                            column_operators.get(index).unwrap()
+                        ));
+                    }
+                },
+                DataType::List(f) => match f.data_type() {
+                    DataType::UInt8 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<ListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<u8, UInt8Type>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::UInt32 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<ListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<u32, UInt32Type>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::Int64 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<ListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<i64, Int64Type>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::Float32 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<ListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<f32>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<f32, Float32Type>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::Float64 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<ListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<f64>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<f64, Float64Type>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::Utf8 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<ListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_nonprimitive::<String>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<Vec<_>>();
+                        let agg_values =
+                            lhs_vec.iter().map(|_| lhs_vec.clone()).collect::<Vec<_>>();
+                        build_aggregator_column_list_nonprimitive::<String>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    _ => {
+                        return Err(anyhow!(
+                            "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
+                            column_operators.get(index).unwrap()
+                        ));
+                    }
+                },
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
+                        column_operators.get(index).unwrap()
+                    ));
+                }
+            },
+            DataColumnOperator::BroadcastSet => match column_data_type {
+                DataType::UInt8 => {
+                    let lhs_vec = Table::get_array_as_vec_primitive::<u8>(
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                        column_name,
+                    )?
+                    .into_iter()
+                    .collect::<HashSet<_>>();
+                    let agg_values = lhs_vec
+                        .iter()
+                        .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_list_primitive::<u8, UInt8Type>(
+                        agg_values,
+                        column_data_type.clone(),
+                    )
+                }
+                DataType::UInt32 => {
+                    let lhs_vec = Table::get_array_as_vec_primitive::<u32>(
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                        column_name,
+                    )?
+                    .into_iter()
+                    .collect::<HashSet<_>>();
+                    let agg_values = lhs_vec
+                        .iter()
+                        .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_list_primitive::<u32, UInt32Type>(
+                        agg_values,
+                        column_data_type.clone(),
+                    )
+                }
+                DataType::Int64 => {
+                    let lhs_vec = Table::get_array_as_vec_primitive::<i64>(
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                        column_name,
+                    )?
+                    .into_iter()
+                    .collect::<HashSet<_>>();
+                    let agg_values = lhs_vec
+                        .iter()
+                        .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_list_primitive::<i64, Int64Type>(
+                        agg_values,
+                        column_data_type.clone(),
+                    )
+                }
+                DataType::Utf8 => {
+                    let lhs_vec = Table::get_array_as_vec_nonprimitive::<String>(
+                        &find_column(&lhs_table, &batch_missing_vec, column_name)?,
+                        column_name,
+                    )?
+                    .into_iter()
+                    .collect::<HashSet<_>>();
+                    let agg_values = lhs_vec
+                        .iter()
+                        .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                        .collect::<Vec<_>>();
+                    build_aggregator_column_list_nonprimitive::<String>(
+                        agg_values,
+                        column_data_type.clone(),
+                    )
+                }
+                DataType::FixedSizeList(f, _) => match f.data_type() {
+                    DataType::UInt8 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<FixedSizeListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<HashSet<_>>();
+                        let agg_values = lhs_vec
+                            .iter()
+                            .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<u8, UInt8Type>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::UInt32 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<FixedSizeListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<HashSet<_>>();
+                        let agg_values = lhs_vec
+                            .iter()
+                            .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<u32, UInt32Type>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::Int64 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<FixedSizeListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<HashSet<_>>();
+                        let agg_values = lhs_vec
+                            .iter()
+                            .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<i64, Int64Type>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::Utf8 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<FixedSizeListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_nonprimitive::<String>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<HashSet<_>>();
+                        let agg_values = lhs_vec
+                            .iter()
+                            .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_nonprimitive::<String>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    _ => {
+                        return Err(anyhow!(
+                            "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
+                            column_operators.get(index).unwrap()
+                        ));
+                    }
+                },
+                DataType::List(f) => match f.data_type() {
+                    DataType::UInt8 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<ListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<HashSet<_>>();
+                        let agg_values = lhs_vec
+                            .iter()
+                            .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<u8, UInt8Type>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::UInt32 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<ListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<HashSet<_>>();
+                        let agg_values = lhs_vec
+                            .iter()
+                            .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<u32, UInt32Type>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::Int64 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<ListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<HashSet<_>>();
+                        let agg_values = lhs_vec
+                            .iter()
+                            .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_primitive::<i64, Int64Type>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    DataType::Utf8 => {
+                        let lhs_vec = find_column(&lhs_table, &batch_missing_vec, column_name)?
+                            .as_any()
+                            .downcast_ref::<ListArray>()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|s| {
+                                s.map(|s| {
+                                    Table::get_array_as_vec_nonprimitive::<String>(&s, column_name)
+                                        .unwrap_or_default()
+                                })
+                            })
+                            .flatten()
+                            .collect::<HashSet<_>>();
+                        let agg_values = lhs_vec
+                            .iter()
+                            .map(|_| lhs_vec.iter().cloned().collect::<Vec<_>>())
+                            .collect::<Vec<_>>();
+                        build_aggregator_column_list_nonprimitive::<String>(
+                            agg_values,
+                            column_data_type.clone(),
+                        )
+                    }
+                    _ => {
+                        return Err(anyhow!(
+                            "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
+                            column_operators.get(index).unwrap()
+                        ));
+                    }
+                },
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported data type {column_data_type} for column operator {} and column {column_name}",
+                        column_operators.get(index).unwrap()
+                    ));
+                }
+            },
+            DataColumnOperator::None
+            | DataColumnOperator::Zeros
+            | DataColumnOperator::Ones
+            | DataColumnOperator::String
+            | DataColumnOperator::Value => {
+                find_column(&lhs_table, &batch_missing_vec, column_name)?
+            }
         };
 
         // Try casting if possible
@@ -2352,13 +3300,29 @@ pub fn select(
         }
     }
 
+    // Reorder the columns
+    let mut batch_vec_index = Vec::with_capacity(reorder_columns.len());
+    for (column, arr) in batch_vec.into_iter() {
+        for (iter, reorder) in reorder_columns.iter().enumerate() {
+            if column == reorder {
+                batch_vec_index.push((iter, column, arr));
+                break;
+            }
+        }
+    }
+    batch_vec_index.sort_by_key(|k| k.0);
+    let batch_vec = batch_vec_index
+        .into_iter()
+        .map(|(_iter, col, arr)| (col, arr))
+        .collect::<Vec<_>>();
+
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Ok(batch)
 }
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::device;
+    use crate::device;
 
     use super::*;
 
@@ -2397,6 +3361,7 @@ mod tests {
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
             &["", "", ""],
             &["new_pk", "", "new_metadata"],
+            &["new_pk", "lhs_text", "new_metadata"],
             &[
                 DataColumnOperator::None,
                 DataColumnOperator::None,
@@ -2431,29 +3396,45 @@ mod tests {
         let metadata = result_table.get_column_as_vec_primitive::<f32>("new_metadata")?;
         assert_eq!(metadata, [1., 2., 3., 4.]);
 
-        // ------ String, UInt32, Cast, Operator ------
+        // ------ String, UInt32, Cast, Operator, reorder ------
         let result = select(
-            &["lhs_pk", "lhs_text", "lhs_metadata", "new_text"],
+            &[
+                "lhs_pk",
+                "lhs_text",
+                "lhs_metadata",
+                "new_text",
+                "lhs_metadata",
+            ],
             &[lhs_batch_1.clone(), lhs_batch_2.clone()],
-            &["", "lhs_text", "new_pk", "lhs_text"],
-            &["new_pk", "new_text", "new_metadata", "newer_text"],
+            &["", "lhs_text", "new_pk", "lhs_text", "new_pk"],
+            &[
+                "new_pk",
+                "new_text",
+                "new_metadata",
+                "newer_text",
+                "new_metadata2",
+            ],
+            &["new_pk", "new_text", "newer_text", "new_metadata"],
             &[
                 DataColumnOperator::None,
                 DataColumnOperator::Concat,
                 DataColumnOperator::Add,
                 DataColumnOperator::List,
+                DataColumnOperator::Add,
             ],
             &[
                 DataCastOperator::Cast,
                 DataCastOperator::None,
                 DataCastOperator::None,
                 DataCastOperator::None,
+                DataCastOperator::None,
             ],
             &[
                 DataType::UInt32,
                 DataType::Utf8,
                 DataType::UInt32,
                 DataType::Utf8,
+                DataType::UInt32,
             ],
             &["", "Into template {{ lhs_text }}", "", ""],
             &device,
@@ -2485,35 +3466,70 @@ mod tests {
             ]
         );
         let lhs_id = result_table.get_column_as_vec_primitive::<u32>("new_pk")?;
-        assert_eq!(lhs_id, vec![0, 1, 2, 3]);
+        assert_eq!(lhs_id, [0, 1, 2, 3]);
         let metadata = result_table.get_column_as_vec_primitive::<u32>("new_metadata")?;
-        assert_eq!(metadata, vec![1, 3, 5, 7]);
+        assert_eq!(metadata, [1, 3, 5, 7]);
+        let fields = result_table
+            .get_schema()
+            .fields()
+            .iter()
+            .map(|f| f.name().to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(fields, ["new_pk", "new_text", "newer_text", "new_metadata"]);
 
         // ------ String, UInt32, Float32, Missing column ------
         let result = select(
-            &["new_pk", "default_metadata", "broadcast_metadata", "lhs_pk"],
-            &[lhs_batch_1.clone(), lhs_batch_2.clone()],
-            &["", "", "", ""],
-            &["new_pk1", "", "", "hash_pk"],
             &[
+                "new_pk",
+                "default_metadata",
+                "broadcast_metadata",
+                "lhs_pk",
+                "lhs_metadata",
+                "lhs_metadata",
+            ],
+            &[lhs_batch_1.clone(), lhs_batch_2.clone()],
+            &["", "", "", "", "", ""],
+            &[
+                "new_pk1",
+                "",
+                "",
+                "hash_pk",
+                "min_metadata",
+                "list_metadata",
+            ],
+            &[
+                "new_pk1",
+                "default_metadata",
+                "broadcast_metadata",
+                "hash_pk",
+                "min_metadata",
+                "list_metadata",
+            ],
+            &[
+                DataColumnOperator::String,
+                DataColumnOperator::Zeros,
+                DataColumnOperator::Value,
                 DataColumnOperator::None,
-                DataColumnOperator::None,
-                DataColumnOperator::None,
-                DataColumnOperator::None,
+                DataColumnOperator::BroadcastMin,
+                DataColumnOperator::BroadcastList,
             ],
             &[
                 DataCastOperator::None,
                 DataCastOperator::None,
                 DataCastOperator::None,
                 DataCastOperator::Hash,
+                DataCastOperator::None,
+                DataCastOperator::None,
             ],
             &[
                 DataType::Utf8,
                 DataType::UInt32,
                 DataType::Float32,
                 DataType::UInt32,
+                DataType::UInt32,
+                DataType::UInt32,
             ],
-            &["", "", "0.75", ""],
+            &["", "", "0.75", "", "", ""],
             &device,
         )?;
         let result_table = Table::get_builder()
@@ -2536,6 +3552,13 @@ mod tests {
             .map(|f| f.name().to_string())
             .collect::<Vec<_>>();
         assert!(!column_names.contains(&"new_pk".to_string()));
+        let lhs_id = result_table.get_column_as_vec_primitive::<u32>("min_metadata")?;
+        assert_eq!(lhs_id, [1, 1, 1, 1]);
+        let lhs_id = result_table.get_column_as_vec_nested_primitive::<u32>("list_metadata")?;
+        assert_eq!(
+            lhs_id,
+            [[1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4]]
+        );
 
         Ok(())
     }

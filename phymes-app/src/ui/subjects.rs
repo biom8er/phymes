@@ -179,11 +179,7 @@ pub fn subjects_interface_view() -> Element {
         let route = "/app/v1/get_state";
         let data_serialized = serde_json::to_string(
             &get_session_state()
-                .with_subject(
-                    AvailableSubjects::SessionSubjectsNumRows
-                        .to_string()
-                        .as_str(),
-                )
+                .with_subject(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .make_name()
                 .unwrap()
                 .build()
@@ -218,7 +214,7 @@ pub fn subjects_interface_view() -> Element {
                         );
                         subject_num_rows.set(
                             table
-                                .get_column_as_vec_primitive::<u64>("num_rows")
+                                .get_column_as_vec_primitive::<i64>("num_rows")
                                 .unwrap()
                                 .into_iter()
                                 .map(|n| n as usize)
@@ -261,7 +257,7 @@ pub fn subjects_interface_view() -> Element {
                         );
                         subject_num_rows.set(
                             table
-                                .get_column_as_vec_primitive::<u64>("num_rows")
+                                .get_column_as_vec_primitive::<i64>("num_rows")
                                 .unwrap()
                                 .into_iter()
                                 .map(|n| n as usize)

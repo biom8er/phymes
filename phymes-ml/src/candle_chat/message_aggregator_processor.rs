@@ -2,16 +2,15 @@ use std::sync::Arc;
 
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
-    MessageBuilderTrait, MessageTrait, ProcessorTrait, PublishAndSubscribeTrait, RuntimeEnv,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap,
-    TablePublication, TableSubscribePolicyTrait, TableSubscription, create_chat_fields,
-    remove_message_by_subject,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, RuntimeEnv,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
+    SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
+    create_chat_fields, remove_message_by_subject,
 };
 
 use anyhow::{Result, anyhow};
-use parking_lot::Mutex;
 use phymes_data::{AggregatorStream, collect_messages_by_schema};
-use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
+use phymes_diagnostics::{DiagnosticBuilder, HashMap};
 use tracing::{Level, event, instrument};
 
 /// Processor that aggregates messages
@@ -25,9 +24,6 @@ use tracing::{Level, event, instrument};
 pub struct MessageAggregatorProcessor {
     name: String,
     r#type: String,
-    publications: Vec<TablePublication>,
-    subscriptions: Vec<TableSubscription>,
-    subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
 }
 
 impl MappableTrait for MessageAggregatorProcessor {
@@ -36,42 +32,20 @@ impl MappableTrait for MessageAggregatorProcessor {
     }
 }
 
-impl PublishAndSubscribeTrait for MessageAggregatorProcessor {
-    fn get_publications(&self) -> Vec<&TablePublication> {
-        self.publications.iter().collect()
-    }
-    fn get_subscriptions(&self) -> Vec<&TableSubscription> {
-        self.subscriptions.iter().collect()
-    }
-    fn check_subscriptions(&self, updates: &HashMap<String, bool>, state: &StateMap) -> bool {
-        self.subscribe_policy
-            .check_subscriptions(&self.subscriptions, updates, state)
-    }
-}
-
 impl ProcessorTrait for MessageAggregatorProcessor {
-    fn new(
-        name: &str,
-        r#type: &str,
-        publications: &[TablePublication],
-        subscriptions: &[TableSubscription],
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
-    ) -> Self {
+    fn new(name: &str, r#type: &str) -> Self {
         Self {
             name: name.to_string(),
             r#type: r#type.to_string(),
-            publications: publications.to_owned(),
-            subscriptions: subscriptions.to_owned(),
-            subscribe_policy,
         }
-    }
-
-    fn get_subscribe_policy(&self) -> &dyn TableSubscribePolicyTrait {
-        self.subscribe_policy.as_ref()
     }
 
     fn get_type(&self) -> &str {
         &self.r#type
+    }
+
+    fn line_and_file(&self) -> (u32, String) {
+        (line!(), file!().to_string())
     }
 
     #[instrument(skip(self, message, diagnostic_builder, runtime_env))]
@@ -79,23 +53,11 @@ impl ProcessorTrait for MessageAggregatorProcessor {
         &self,
         mut message: SendableRecordBatchStreamMessageMap,
         diagnostic_builder: Option<&DiagnosticBuilder>,
-        runtime_env: Arc<Mutex<RuntimeEnv>>,
-    ) -> Result<SendableRecordBatchStreamMessageMap> {
+        runtime_env: Arc<RuntimeEnv>,
+    ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
-        // Trace the inbox
-        let trace = if let Some(diagnostic_builder) = diagnostic_builder {
-            let trace_builder = diagnostic_builder.clone().to_child(self.get_name())?;
-            let trace = trace_builder
-                .clone()
-                .messages(line!(), file!(), self.get_name());
-            trace.enter(&message.values().collect::<Vec<_>>());
-            Some((trace, trace_builder))
-        } else {
-            None
-        };
-
-        // Collect the messages with the messages schema
+        // Extract the messages with the messages schema
         let input = collect_messages_by_schema(&mut message, &create_chat_fields());
 
         // Extract out the config
@@ -104,40 +66,34 @@ impl ProcessorTrait for MessageAggregatorProcessor {
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
 
-        // Make the outbox and send
-        let stream_diagnostic_builder = trace.as_ref().map(|trace| trace.1.clone());
+        // Run the aggregator stream
         let out = Box::pin(AggregatorStream::new(
             AvailableSubjects::Messages.to_schema(),
             input,
             config,
             Arc::clone(&runtime_env),
-            stream_diagnostic_builder,
+            diagnostic_builder.cloned(),
         )?);
-        let out_m = SendableRecordBatchStreamMessage::get_builder()
-            .with_publisher(self.get_name())
-            .with_subject(self.get_publications().first().unwrap().get_table_name())
-            .with_message(out)
-            .with_update(self.get_publications().first().unwrap())
-            .make_name()?
-            .build()?;
-        let _ = message.insert(out_m.get_name().to_string(), out_m);
 
-        // Trace the outbox
-        if let Some(trace) = trace {
-            trace.0.exit(&message.values().collect::<Vec<_>>());
-        }
-        Ok(message)
+        // Prepare the message builder
+        let mut builder_map = HashMap::<String, SendableRecordBatchStreamMessageBuilder>::new();
+        let builder = SendableRecordBatchStreamMessage::get_builder()
+            .with_name(self.get_name())
+            .with_message(out);
+        let _ = builder_map.insert(self.get_name().to_string(), builder);
+
+        Ok(builder_map)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use phymes_core::{
-        AvailableTableSubscribePolicies, TableBuilder, TableBuilderTrait, TableTrait, device,
+        TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
         test_table::{make_test_table, make_test_table_chat},
     };
-    use phymes_data::{AvailableCandleOperators, CandleTensorService, DataConfig};
-    use phymes_diagnostics::{Diagnostics, SpanBuilder};
+    use phymes_data::{AvailableCandleOperators, DataConfig};
+    use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
 
     use super::*;
 
@@ -204,43 +160,28 @@ mod tests {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make the runtime environment
-        let device = device(config.cpu)?;
-        let service = CandleTensorService::new(device);
         let runtime_env = RuntimeEnv {
-            token_service: None,
-            tensor_service: Some(Box::new(service)),
             name: "service".to_string(),
             memory_limit: None,
             time_limit: None,
         };
-        let runtime_env = Arc::new(Mutex::new(runtime_env));
+        let runtime_env = Arc::new(runtime_env);
 
         // Create the aggregator and run
-        let agg_arc_1 = MessageAggregatorProcessor::new(
-            "aggregator_processor",
-            "",
-            &[TablePublication::Extend {
-                table_name: "messages".to_string(),
-            }],
-            &[TableSubscription::None],
-            AvailableTableSubscribePolicies::default().build(),
-        );
+        let agg_arc_1 = MessageAggregatorProcessor::new("aggregator_processor", "");
         let mut agg_stream =
             agg_arc_1.process(message_1, Some(&diagnostic_builder), runtime_env)?;
-        assert_eq!(agg_stream.len(), 2);
-        assert!(
-            agg_stream
-                .get("from_aggregator_processor_on_messages")
-                .is_some()
-        );
-        assert!(agg_stream.get("m3").is_some());
+        assert_eq!(agg_stream.len(), 1);
+        assert!(agg_stream.get("aggregator_processor").is_some());
 
         // Wrap the results in a table
         let partitions = TableBuilder::new_from_sendable_record_batch_stream(
             agg_stream
-                .remove("from_aggregator_processor_on_messages")
+                .remove("aggregator_processor")
                 .unwrap()
-                .get_message_own(),
+                .message
+                .take()
+                .unwrap(),
         )
         .await?
         .with_name("")

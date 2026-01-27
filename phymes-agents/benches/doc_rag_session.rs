@@ -5,12 +5,12 @@ use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::{
     AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DocumentRAGSession,
-    SessionContextBuilderAgentsTrait, create_message_map,
+    SessionContextBuilderAgentsTrait, SessionStream, create_message_map,
 };
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait,
-    ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, QueriesBuilderTraitExt,
-    SessionStream, SessionStreamState, Table, TableBuilderTrait, TablePublication, TableTrait,
+    ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, Table, TableBuilderTrait,
+    TablePublication, TableTrait,
 };
 use phymes_data::make_pdf_document;
 use phymes_diagnostics::HashMap;
@@ -140,8 +140,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     .with_name(session_context_name.as_str())
                     .build_with_tables()
                     .unwrap();
-                let session_stream_state =
-                    Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
+                let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
                 let sample_id = format!("{id}_{iter}");
 
                 // Run the benchmark for the chat agent session with metrics
@@ -152,7 +151,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 let _messages = rt.block_on(async {
                     let blob = AvailableInterfaceSubjects::UserPdf
                         .to_table_builder(None)
-                        .with_blob(None, Some(".pdf"), bytes, None)?
+                        .with_blob(None, Some("pdf"), bytes, None)?
                         .build()?;
                     let blob_message = IPCMessage::get_builder()
                         .with_message(blob.to_ipc_stream()?)
@@ -165,7 +164,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                         .build()?;
                     let message_map = create_message_map(vec![blob_message]);
                     let session_stream =
-                        SessionStream::new(message_map, Arc::clone(&session_stream_state));
+                        SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
                     session_stream
                         .try_collect::<Vec<HashMap<String, IPCMessage>>>()
                         .await
@@ -184,32 +183,18 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                         .with_publisher(session_context_name.as_str())
                         .make_name()?
                         .build()?;
-                    let query = AvailableInterfaceSubjects::UserQueries
-                        .to_table_builder(None)
-                        .with_text(user_query)?
-                        .build()?;
-                    let query_message = IPCMessage::get_builder()
-                        .with_message(query.to_ipc_stream()?)
-                        .with_subject(query.get_name())
-                        .with_update(&TablePublication::Extend {
-                            table_name: query.get_name().to_string(),
-                        })
-                        .with_publisher(session_context_name.as_str())
-                        .make_name()?
-                        .build()?;
-                    let message_map = create_message_map(vec![chat_message, query_message]);
+                    let message_map = create_message_map(vec![chat_message]);
                     let session_stream =
-                        SessionStream::new(message_map, Arc::clone(&session_stream_state));
+                        SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
                     session_stream
                         .try_collect::<Vec<HashMap<String, IPCMessage>>>()
                         .await
                 });
 
                 // Extract out the metrics from the session
-                let metrics = Arc::try_unwrap(session_stream_state)
+                let metrics = Arc::try_unwrap(session_ctx_arc)
                     .unwrap()
                     .into_inner()
-                    .get_session_context_own()
                     .get_states_own()
                     .remove(AvailableSubjects::MetricPivot.to_string().as_str())
                     .unwrap();

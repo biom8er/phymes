@@ -13,14 +13,14 @@ use futures::prelude::*;
 use parking_lot::RwLock;
 use phymes_agents::{
     AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DiagnosticSession,
-    SessionContextBuilderAgentsTrait, create_message_map,
+    SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream,
+    create_message_map,
 };
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, IPCMessage,
-    JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait,
-    SessionContextBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait,
-    SessionStream, SessionStreamState, TableBuilder, TableBuilderTrait, TablePublication,
-    TableTrait,
+    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, DiagnosticsVisualizations,
+    IPCMessage, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait,
+    MessageTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait, TableBuilder,
+    TableBuilderTrait, TablePublication, TableTrait,
 };
 
 // General imports
@@ -88,7 +88,7 @@ pub async fn session_diagnostics(
 
             // Get the diagnostic information from the session stream state
             let message_map = {
-                let session_stream_state = match state
+                let session_ctx_arc = match state
                     .session_contexts
                     .try_write()
                     .unwrap()
@@ -107,9 +107,8 @@ pub async fn session_diagnostics(
                         .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 };
-                let sss = session_stream_state.read();
+                let sss = session_ctx_arc.read();
                 let table = sss
-                    .get_session_context()
                     .get_states()
                     .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                     .unwrap()
@@ -126,7 +125,6 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let table = sss
-                    .get_session_context()
                     .get_states()
                     .get(AvailableSubjects::SessionTraces.to_string().as_str())
                     .unwrap()
@@ -143,7 +141,6 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let table = sss
-                    .get_session_context()
                     .get_states()
                     .get(AvailableSubjects::SessionEvents.to_string().as_str())
                     .unwrap()
@@ -160,7 +157,6 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let table = sss
-                    .get_session_context()
                     .get_states()
                     .get(AvailableSubjects::SessionTasks.to_string().as_str())
                     .unwrap()
@@ -177,7 +173,6 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let table = sss
-                    .get_session_context()
                     .get_states()
                     .get(AvailableSubjects::SessionErrors.to_string().as_str())
                     .unwrap()
@@ -216,15 +211,33 @@ pub async fn session_diagnostics(
             let session_ctx = diagnostic_session
                 .build()
                 .with_name(diagnostic_session.session_context_name)
-                .with_diagnostics(true)
-                .add_session_interface(Some(&[AvailableInterfaceSubjects::AggregatedAttachments
-                    .to_string()
-                    .as_str()]))
+                .with_max_iter(25)
+                .with_diagnostics(true) // Debugging
+                .add_session_interface(Some(&[
+                    DiagnosticsVisualizations::MetricProcessorTracesGantt
+                        .to_string()
+                        .as_str(),
+                    DiagnosticsVisualizations::MetricElapsedComputeGantt
+                        .to_string()
+                        .as_str(),
+                    DiagnosticsVisualizations::MetricOutputRowsGantt
+                        .to_string()
+                        .as_str(),
+                    DiagnosticsVisualizations::TraceSequenceDiagram
+                        .to_string()
+                        .as_str(),
+                    DiagnosticsVisualizations::EventKanban.to_string().as_str(),
+                    DiagnosticsVisualizations::ErrorKanban.to_string().as_str(),
+                ]))
+                .unwrap()
+                .add_next_tasks()
+                .unwrap()
+                .add_next_supersteps()
                 .unwrap()
                 .build_with_tables()
                 .unwrap();
-            let session_stream_state = Arc::new(RwLock::new(SessionStreamState::new(session_ctx)));
-            let session_stream = SessionStream::new(message_map, Arc::clone(&session_stream_state));
+            let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+            let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
 
             // Run and update the session and convert the output to the user specified format
             match (&payload.get_format(), payload.get_stream()) {
@@ -298,54 +311,47 @@ pub async fn session_diagnostics(
                     // Convert the output to IPC messages
                     // DM: the bytes cannot be flattened and then read as a single table
                     //  because the reader will break at the end of the first batch encountered!
-                    let mut response: Vec<HashMap<String, IPCMessage>> =
+                    let response: Vec<HashMap<String, IPCMessage>> =
                         session_stream.try_collect().await.unwrap();
                     let batches = response
-                        .iter_mut()
-                        .filter_map(|map| {
-                            map.remove(&format!(
-                                "from_{}_on_{}",
-                                diagnostic_session.session_context_name,
-                                AvailableInterfaceSubjects::AggregatedAttachments
-                            ))
-                            .map(|v| {
-                                TableBuilder::new_from_ipc_stream(&v.get_message_own())
-                                    .unwrap()
-                                    .with_name("")
-                                    .build()
-                                    .unwrap()
-                                    .get_record_batches_own()
-                            })
+                        .into_iter()
+                        .flat_map(|map| {
+                            map.into_iter()
+                                .filter_map(|(k, v)| {
+                                    if k.contains(diagnostic_session.session_context_name) {
+                                        let table_name = v.get_subject().to_string();
+                                        Some((
+                                            k,
+                                            TableBuilder::new_from_ipc_stream(&v.get_message_own())
+                                                .unwrap()
+                                                .with_name(table_name.as_str())
+                                                .build()
+                                                .unwrap(),
+                                        ))
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<HashMap<_, _>>()
                         })
-                        .flatten()
+                        .collect::<HashMap<_, _>>()
+                        .into_iter()
+                        .flat_map(|(_k, v)| v.get_record_batches_own())
                         .collect::<Vec<_>>();
                     let response = TableBuilder::new()
                         .with_record_batches(batches)
                         .unwrap()
-                        .with_name("")
+                        .with_name(
+                            AvailableInterfaceSubjects::AggregatedAttachments
+                                .to_string()
+                                .as_str(),
+                        )
                         .build()
                         .unwrap()
                         .concat_record_batches()
                         .unwrap()
                         .to_ipc_stream()
                         .unwrap();
-
-                    // // DM: debugging...
-                    // let sss = session_stream_state.read();
-                    // let table = sss
-                    //     .get_session_context()
-                    //     .get_states()
-                    //     .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                    //     .unwrap()
-                    //     .read();
-                    // tracing::debug!("Errors in diagnostic session: {}", String::from_utf8(table.to_csv(b',', true).unwrap()).unwrap());
-                    // let table = sss
-                    //     .get_session_context()
-                    //     .get_states()
-                    //     .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                    //     .unwrap()
-                    //     .read();
-                    // tracing::debug!("Traces in diagnostic session: {}", String::from_utf8(table.to_csv(b',', true).unwrap()).unwrap());
 
                     // Send the stream
                     Body::from(response).into_response()

@@ -16,6 +16,7 @@ fn benchmark_chat_processor(c: &mut Criterion) {
 
     // Cases for different configurations
     let config_template = CandleChatConfig {
+        messages: "messages".to_string(),
         max_tokens: 1000,
         temperature: 0.8,
         seed: 299792458,

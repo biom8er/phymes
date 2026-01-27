@@ -9,7 +9,7 @@ pub use candle_data::{
     CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator,
     DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait,
     DataDistanceOperator, DataStreamManager, DataSummaryConfig, DataSummaryProcessor,
-    LimitProcessor, collect_messages_by_schema,
+    LimitProcessor, TensorProcessorTrait, collect_messages_by_schema, device,
 };
 pub use candle_operators::{
     ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait, ExtractPDF,

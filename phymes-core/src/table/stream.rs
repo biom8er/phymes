@@ -1,5 +1,3 @@
-// See https://docs.rs/datafusion-execution/43.0.0/src/datafusion_execution/stream.rs.html
-
 use anyhow::Result;
 use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 use futures::Stream;
