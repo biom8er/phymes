@@ -26,7 +26,7 @@ pub use stream_adapter::{
 };
 pub use table_builder::{TableBuilder, TableBuilderTrait};
 pub use table_publication::{TablePublication, TablePublicationTrait};
-pub use table_script::TableScript;
+pub use table_script::{TableScript, items_to_list};
 pub use table_subscribe_policy::TableSubscribePolicyTrait;
 pub(crate) use table_subscribe_policy::{
     AllTableNamesSubscribe, AllTableSchemasSubscribe, AlwaysSubscribe, AnyTableNameSubscribe,

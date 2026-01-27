@@ -9,7 +9,7 @@ pub use message::{
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
     SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
     SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-    SessionInterfaceMessageTrait, remove_message_by_subject,
+    SessionInterfaceMessageTrait, remove_message_by_subject, make_random_id
 };
 pub use processor::{
     ProcessorBuilder, ProcessorEcho, ProcessorMap, ProcessorPlan, ProcessorPlanBuilder,
@@ -48,7 +48,7 @@ pub use table::{
     TableBuilderTrait, TableChangedSinceLastRunUpdate, TableExistsUpdate, TableHasBatchesUpdate,
     TablePublication, TablePublicationTrait, TableScript, TableSubscribePolicyTrait,
     TableSubscription, TableSubscriptionTrait, TableTrait, TableUpdatePolicyTrait,
-    from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type, test_table,
+    from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type, test_table, items_to_list
 };
 pub use task::{
     Task, TaskBuilder, TaskBuilderTrait, TaskMap, TaskPlan, TaskPlanBuilder, TaskTrait,
