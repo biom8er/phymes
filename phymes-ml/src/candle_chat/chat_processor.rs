@@ -654,8 +654,6 @@ pub mod bench_chat_processor {
         user_content: &str,
         name: &str,
     ) -> Result<Table> {
-        let messages = "messages";
-
         // State for the chat processor config
         let candle_chat_config_json = serde_json::to_vec(config)?;
         let candle_chat_config_table = TableBuilder::new()
@@ -665,18 +663,18 @@ pub mod bench_chat_processor {
 
         // Make the system prompt and add the user query
         let message_builder = TableBuilder::new()
-            .with_name(messages)
+            .with_name(&config.messages)
             .insert_system_template_str("You are a helpful assistant.")?
             .append_new_user_query_str(user_content, "user")?;
 
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message.insert(
-            messages.to_string(),
+            config.messages.to_string(),
             SendableRecordBatchStreamMessage::get_builder()
-                .with_name(messages)
+                .with_name(&config.messages)
                 .with_publisher("")
-                .with_subject(messages)
+                .with_subject(&config.messages)
                 .with_update(&TablePublication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
@@ -781,6 +779,7 @@ mod tests {
     fn test_build_candle_chat_asset() {
         // Setup the candle chat config
         let config = CandleChatConfig {
+            messages: "messages".to_string(),
             max_tokens: 1000,
             temperature: 0.8,
             seed: 299792458,
