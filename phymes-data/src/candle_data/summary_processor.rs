@@ -249,12 +249,7 @@ pub fn table_and_data_format_to_record_batch(
         DataFormat::Pdf
         | DataFormat::Ipc
         | DataFormat::Xml
-        | DataFormat::Owl(_)
-        | DataFormat::OwlDefault
-        | DataFormat::OwlOntology
-        | DataFormat::OwlClass
-        | DataFormat::OwlObjectProperty
-        | DataFormat::OwlNamedIndividual => Err(anyhow!("{format} format is not yet supported.")),
+        | DataFormat::Owl => Err(anyhow!("{format} format is not yet supported.")),
     }
 }
 

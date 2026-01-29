@@ -255,7 +255,7 @@ impl DataConfigTrait for AvailableProcessors {
             Self::ExtractXML => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
-                format: Some(DataFormat::OwlDefault),
+                format: Some(DataFormat::Owl),
                 cpu: false,
                 operator: AvailableCandleOperators::ExtractXML,
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,

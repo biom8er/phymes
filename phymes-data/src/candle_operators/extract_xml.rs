@@ -5,13 +5,11 @@ use arrow::array::RecordBatch;
 use candle_core::Device;
 use clap::ValueEnum;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine,
-    JSONSchemaType, MappableTrait, OwlFormat, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
-    create_n_triples_batch, create_parse_xml_batch,
+    BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, OwlFormat, Table, TableBuilderTrait, TableTrait, Tool, ToolType, create_n_triples_batch, create_parse_owl_batch, create_parse_xml_batch
 };
 use quick_xml::{
-    Reader,
-    events::{BytesStart, Event},
+    NsReader, Reader,
+    events::{BytesStart, Event}, name::{Namespace, ResolveResult},
 };
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -157,9 +155,15 @@ impl Display for XMLType {
 }
 
 /// Parse XML tag
-fn parse_xml_tag<'a>(e: &BytesStart<'a>) -> String {
-    let start_tag = std::str::from_utf8(e.name().into_inner()).unwrap_or_default();
-    start_tag.to_string()
+fn parse_xml_tag<'a>(reader: &NsReader<&[u8]>, e: &BytesStart<'a>) -> String {
+    let (ns, local) = reader.resolver().resolve_element(e.name());
+    let ns = match ns {
+        ResolveResult::Bound(s) => std::str::from_utf8(s.into_inner()).unwrap_or_default().to_string(),
+        ResolveResult::Unbound => String::new(),
+        ResolveResult::Unknown(s) => std::str::from_utf8(&s).unwrap_or_default().to_string(),
+    };
+    let local = std::str::from_utf8(local.into_inner()).unwrap_or_default();
+    format!("{ns}{local}")
 }
 
 /// Parse XML Attributes
@@ -179,8 +183,8 @@ fn parse_xml_attrs<'a>(e: &BytesStart<'a>, attrs: &[&str]) -> HashMap<String, St
 }
 
 /// Helper function to parse the attributes of the XML tag into a serialized [XMLElement]
-fn serialize_xml_tag<'a>(index: usize, e: &BytesStart<'a>) -> Result<String> {
-    let start_tag = parse_xml_tag(e);
+fn serialize_xml_tag<'a>(reader: &NsReader<&[u8]>,index: usize, e: &BytesStart<'a>) -> Result<String> {
+    let start_tag = parse_xml_tag(reader, e);
     let attributes = parse_xml_attrs(e, &[]);
 
     // Serialize the element
@@ -193,9 +197,10 @@ fn serialize_xml_tag<'a>(index: usize, e: &BytesStart<'a>) -> Result<String> {
     Ok(serialized)
 }
 
-fn parse_xml(lhs_name: &str, bytes: &[u8], device: &Device) -> Result<RecordBatch> {
+/// Parse the XML document into a HashMap of serialized elements and their children
+fn parse_xml(bytes: &[u8]) -> Result<HashMap<String, Vec<(XMLType, String)>>> {
     let cursor = Cursor::new(bytes);
-    let mut reader = Reader::from_reader(cursor);
+    let mut reader = NsReader::from_reader(cursor);
 
     // buffer for reading
     let mut buf = Vec::new();
@@ -281,6 +286,40 @@ fn parse_xml(lhs_name: &str, bytes: &[u8], device: &Device) -> Result<RecordBatc
         buf.clear();
     }
 
+    Ok(relations)
+}
+
+/// Helper function to join multi-line text children
+fn join_text_children(children: Vec<(XMLType, String)>) -> (Vec<XMLType>, Vec<String>){
+    
+    // Preview the children
+    let mut type_tmp = Vec::new();
+    let mut children_tmp = Vec::new();
+    for (t, c) in children {
+        type_tmp.push(t);
+        children_tmp.push(c);
+    }
+
+    // Join all text children for the case of multi-line text
+    if type_tmp
+        .iter()
+        .filter(|t| *t != &XMLType::Text)
+        .collect::<Vec<_>>()
+        .is_empty()
+    {
+        let children = children_tmp.join("");
+        type_tmp.clear();
+        children_tmp.clear();
+        type_tmp.push(XMLType::Text);
+        children_tmp.push(children);
+    }
+
+    (type_tmp, children_tmp)
+}
+
+
+/// Convert the parsed xml relations to a parsed xml schema
+fn xml_to_parsed_xml_record_batch(relations: HashMap<String, Vec<(XMLType, String)>>, lhs_name: &str, device: &Device) -> Result<RecordBatch> {
     // Initialize the columns
     let mut document_id_vec = Vec::new();
     let mut element_index_vec = Vec::new();
@@ -291,27 +330,8 @@ fn parse_xml(lhs_name: &str, bytes: &[u8], device: &Device) -> Result<RecordBatc
     let mut child_tag_vec = Vec::new();
     let mut child_attr_vec = Vec::new();
     for (element, children) in relations {
-        // Preview the children
-        let mut type_tmp = Vec::new();
-        let mut children_tmp = Vec::new();
-        for (t, c) in children {
-            type_tmp.push(t);
-            children_tmp.push(c);
-        }
-
         // Join all text children for the case of multi-line text
-        if type_tmp
-            .iter()
-            .filter(|t| *t != &XMLType::Text)
-            .collect::<Vec<_>>()
-            .is_empty()
-        {
-            let children = children_tmp.join("");
-            type_tmp.clear();
-            children_tmp.clear();
-            type_tmp.push(XMLType::Text);
-            children_tmp.push(children);
-        }
+        let (type_tmp, children_tmp) = join_text_children(children);
 
         // Deserialize XML elements
         let xml_element: XMLElement = serde_json::from_str(&element)?;
@@ -361,7 +381,245 @@ fn parse_xml(lhs_name: &str, bytes: &[u8], device: &Device) -> Result<RecordBatc
     Ok(batch)
 }
 
-fn parse_owl(lhs_name: &str, bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<RecordBatch> {
+// /// Helper function to map between a prefixed name and the fully qualified URI
+// fn qname_from_prefixed_name(map: &HashMap<String, String>, prefixed_name: &str) -> Result<String> {
+//     let split = prefixed_name.split(":").collect::<Vec<_>>();
+//     let (prefix, local) = (split.first().unwrap(), split.get(1).unwrap());
+//     let attr_key = format!("xmlns:{prefix}");
+//     let qname = format!("{}{local}", map.get(&attr_key).ok_or(anyhow!("Attr `{attr_key}` not found in available prefixes `{:?}`.", map.keys()))?);
+//     Ok(qname)
+// }
+
+// fn expand_qname<'a>(
+//     qname: QName<'a>,
+//     ns_map: &HashMap<&'a [u8], &'a [u8]>,
+// ) -> String {
+//     // Convert QName to &str
+//     let raw_name = str::from_utf8(qname.as_ref())
+//         .expect("Invalid UTF-8 in QName");
+
+//     // Split into prefix and local name
+//     if let Some((prefix, local)) = raw_name.split_once(':') {
+//         if let Some(ns_uri) = ns_map.get(prefix.as_bytes()) {
+//             let ns_str = str::from_utf8(ns_uri).unwrap_or("");
+//             return format!("{}{}", ns_str, local);
+//         }
+//     } else if let Some(ns_uri) = ns_map.get(b"") {
+//         // Default namespace
+//         let ns_str = str::from_utf8(ns_uri).unwrap_or("");
+//         return format!("{}{}", ns_str, raw_name);
+//     }
+
+//     // No namespace found
+//     raw_name.to_string()
+// }
+
+/// Helper function to parse OWL children
+fn parse_owl_children(relations: &HashMap<String, Vec<(XMLType, String)>>, children: &[(XMLType, String)]) -> Result<(Vec<String>, Vec<String>)> {
+    // Join all text children for the case of multi-line text
+    let (type_tmp, children_tmp) = join_text_children(children.to_vec());
+
+    // Parse out the predicates and objects
+    let mut predicate_vec = Vec::new();
+    let mut object_vec = Vec::new();
+    for (t, c) in type_tmp.into_iter().zip(children_tmp) {
+        match t {
+            XMLType::Text => unreachable!(),
+            XMLType::Element => {
+                if let Some((predicate, object)) = children_to_po(relations, &c)? {
+                    predicate_vec.push(predicate);
+                    object_vec.push(object);
+                }
+            },
+        };
+    };
+    Ok((predicate_vec, object_vec))
+}
+
+/// Helper function to lookup and extract out the children of an XML child element
+fn children_to_po(relations: &HashMap<String, Vec<(XMLType, String)>>, child: &String) -> Result<Option<(String, String)>> {
+    let child_element: XMLElement = serde_json::from_str(&child)?;
+    let po = if let Some(resource) = child_element.attributes.get("rdf:resource") {
+        Some((child_element.tag, resource.to_string()))
+    } else {
+        // Retrieve the child element from the relations
+        let element = relations.get(child).ok_or(anyhow!("Child `{child}` not found in parsed relations `{:?}`.", relations.keys()))?;
+        
+        // Join all text children for the case of multi-line text
+        let (mut type_tmp, mut children_tmp) = join_text_children(element.clone());
+
+        // Hierarchical objects are not yet supported (e.g., EquivalentClass, ChainedAxioms, etc.)
+        if type_tmp.len() == 1 {
+            if let (Some(t), Some(c)) = (type_tmp.pop(), children_tmp.pop()) { 
+                match t {
+                    XMLType::Text => Some((child_element.tag, c)),
+                    XMLType::Element => None,
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    };
+    Ok(po)
+}
+
+/// Convert the parsed xml relations to a parsed owl schema
+fn xml_to_parsed_owl_record_batch(relations: HashMap<String, Vec<(XMLType, String)>>, lhs_name: &str, device: &Device) -> Result<RecordBatch> {
+    // Initialize the columns
+    let mut dataset_vec = Vec::new();
+    let mut entity_vec = Vec::new();
+    let mut subject_vec = Vec::new();
+    let mut predicate_vec = Vec::new();
+    let mut object_vec = Vec::new();
+    let mut graph_vec = Vec::new();
+
+    // Initialize the qname map
+    for (element, children) in relations.iter() {
+        // Deserialize XML elements
+        let xml_element: XMLElement = serde_json::from_str(&element)?;
+
+        // Parse the primary OWL Entities
+        if xml_element.tag == "owl:Ontology"{
+            if let Some(subject) = xml_element.attributes.get("rdf:about") {
+                let (predicates, objects) = parse_owl_children(&relations, children)?;
+                    for (predicate, object) in predicates.into_iter().zip(objects) {
+                        dataset_vec.push(lhs_name.to_string());
+                        entity_vec.push("Ontology".to_string());
+                        let graph = format!("{subject}-{predicate}-{object}");
+                        graph_vec.push(graph.to_string());
+                        subject_vec.push(subject.to_string());
+                        predicate_vec.push(predicate);
+                        object_vec.push(object);
+                    }
+            }
+            
+        } else if xml_element.tag == "owl:AnnotationProperty" {
+            if let Some(subject) = xml_element.attributes.get("rdf:about") {
+                let (predicates, objects) = parse_owl_children(&relations, children)?;
+                for (predicate, object) in predicates.into_iter().zip(objects) {
+                    dataset_vec.push(lhs_name.to_string());
+                    entity_vec.push("AnnotationProperty".to_string());
+                    let graph = format!("{subject}-{predicate}-{object}");
+                    graph_vec.push(graph.to_string());
+                    subject_vec.push(subject.to_string());
+                    predicate_vec.push(predicate);
+                    object_vec.push(object);
+                }
+            }
+        } else if xml_element.tag == "owl:DatatypeProperty" {
+            if let Some(subject) = xml_element.attributes.get("rdf:about") {
+                let (predicates, objects) = parse_owl_children(&relations, children)?;
+                for (predicate, object) in predicates.into_iter().zip(objects) {
+                    dataset_vec.push(lhs_name.to_string());
+                    entity_vec.push("DatatypeProperty".to_string());
+                    let graph = format!("{subject}-{predicate}-{object}");
+                    graph_vec.push(graph.to_string());
+                    subject_vec.push(subject.to_string());
+                    predicate_vec.push(predicate);
+                    object_vec.push(object);
+                }
+            } 
+        } else if xml_element.tag == "owl:Class" {
+            if let Some(subject) = xml_element.attributes.get("rdf:about") {
+                let (predicates, objects) = parse_owl_children(&relations, children)?;
+                for (predicate, object) in predicates.into_iter().zip(objects) {
+                    dataset_vec.push(lhs_name.to_string());
+                    entity_vec.push("Class".to_string());
+                    let graph = format!("{subject}-{predicate}-{object}");
+                    graph_vec.push(graph.to_string());
+                    subject_vec.push(subject.to_string());
+                    predicate_vec.push(predicate);
+                    object_vec.push(object);
+                }
+            }
+        } else if xml_element.tag == "owl:ObjectProperty" {
+            if let Some(subject) = xml_element.attributes.get("rdf:about") {
+                let (predicates, objects) = parse_owl_children(&relations, children)?;
+                for (predicate, object) in predicates.into_iter().zip(objects) {
+                    dataset_vec.push(lhs_name.to_string());
+                    entity_vec.push("ObjectProperty".to_string());
+                    let graph = format!("{subject}-{predicate}-{object}");
+                    graph_vec.push(graph.to_string());
+                    subject_vec.push(subject.to_string());
+                    predicate_vec.push(predicate);
+                    object_vec.push(object);
+                }
+            }
+        } else if xml_element.tag == "owl:NamedIndividual" {
+            if let Some(subject) = xml_element.attributes.get("rdf:about") {
+                let (predicates, objects) = parse_owl_children(&relations, children)?;
+                for (predicate, object) in predicates.into_iter().zip(objects) {
+                    dataset_vec.push(lhs_name.to_string());
+                    entity_vec.push("NamedIndividual".to_string());
+                    let graph = format!("{subject}-{predicate}-{object}");
+                    graph_vec.push(graph.to_string());
+                    subject_vec.push(subject.to_string());
+                    predicate_vec.push(predicate);
+                    object_vec.push(object);
+                }
+            }
+        } else if xml_element.tag == "owl:Axiom" {
+            // Determine the subject of the axium
+            let subject_triple = children.into_iter()
+                .filter_map(|(t, c)| if t == &XMLType::Element {
+                    let xml_element: XMLElement = serde_json::from_str(c).unwrap();
+                    if xml_element.tag == "owl:annotatedSource" {
+                        let resource = xml_element.attributes
+                            .get("rdf:resource")
+                            .ok_or(anyhow!("Attribute `rdf:resource` not found for XML element `{c}`."))
+                            .unwrap();
+                        Some(("source", resource.to_string()))
+                    } else if xml_element.tag == "owl:annotatedProperty" {
+                        let resource = xml_element.attributes
+                            .get("rdf:resource")
+                            .ok_or(anyhow!("Attribute `rdf:resource` not found for XML element `{c}`."))
+                            .unwrap();
+                        Some(("property", resource.to_string()))
+                    } else if xml_element.tag == "owl:annotatedTarget" {
+                        let resource = xml_element.attributes
+                            .get("rdf:resource")
+                            .ok_or(anyhow!("Attribute `rdf:resource` not found for XML element `{c}`."))
+                            .unwrap();
+                        Some(("target", resource.to_string()))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }).collect::<HashMap<_, _>>();            
+            let subject = format!("{}-{}-{}",
+                subject_triple.get("source").ok_or(anyhow!("Key `source` missing from Owl:Axiom extracted annotation triples `{:?}`.", subject_triple.keys()))?,
+                subject_triple.get("property").ok_or(anyhow!("Key `property` missing from Owl:Axiom extracted annotation triples `{:?}`.", subject_triple.keys()))?,
+                subject_triple.get("target").ok_or(anyhow!("Key `target` missing from Owl:Axiom extracted annotation triples `{:?}`.", subject_triple.keys()))?
+            );
+
+            // Parse the children
+            let (predicates, objects) = parse_owl_children(&relations, children)?;
+            for (predicate, object) in predicates.into_iter().zip(objects) {
+                dataset_vec.push(lhs_name.to_string());
+                entity_vec.push("Axiom".to_string());
+                let graph = format!("{subject}-{predicate}-{object}");
+                graph_vec.push(graph.to_string());
+                subject_vec.push(subject.to_string());
+                predicate_vec.push(predicate);
+                object_vec.push(object);
+            }     
+        }
+    }
+
+    // Build the batch
+    let mut batch = create_parse_owl_batch(entity_vec, subject_vec, predicate_vec, object_vec, graph_vec, dataset_vec)?;
+
+    // Sort by the element index
+    for column_name in ["entity", "subject"] {
+        batch = sort(column_name, &[batch], true, device)?;
+    }
+    Ok(batch)
+}
+
+fn parse_owl_v1(lhs_name: &str, bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<RecordBatch> {
     let cursor = Cursor::new(bytes);
     let mut reader = Reader::from_reader(cursor);
 
@@ -583,27 +841,11 @@ pub fn extract_xml(
         .collect::<Vec<_>>();
 
     // Read the XML document
+    let parsed = parse_xml(&values_vec)?;
     match format {
-        DataFormat::Html | DataFormat::Xml | DataFormat::OwlDefault => {
-            parse_xml(lhs_name, &values_vec, device)
-        }
-        DataFormat::Owl(format) => parse_owl(lhs_name, &values_vec, format, device),
-        DataFormat::OwlClass => parse_owl(lhs_name, &values_vec, &OwlFormat::owl_format_class(), device),
-        DataFormat::OwlObjectProperty => parse_owl(
-            lhs_name, 
-            &values_vec,
-            &OwlFormat::owl_format_object_property(),
-            device,
-        ),
-        DataFormat::OwlNamedIndividual => parse_owl(
-            lhs_name, 
-            &values_vec,
-            &OwlFormat::owl_format_named_individual(),
-            device,
-        ),
-        DataFormat::OwlOntology => {
-            parse_owl(lhs_name, &values_vec, &OwlFormat::owl_format_ontology(), device)
-        }
+        DataFormat::Html
+        | DataFormat::Xml => xml_to_parsed_xml_record_batch(parsed, lhs_name, device),
+        DataFormat::Owl => xml_to_parsed_owl_record_batch(parsed, lhs_name, device),
         _ => Err(anyhow!(
             "Unsupported format {format:?} for extract_set_data operator."
         )),
@@ -622,11 +864,63 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_parse_xml() {
+        // Test owl file
+        let owl = r#"<?xml version="1.0"?>
+<rdf:RDF xmlns="http://www.example.com/iri#"
+     xml:base="http://www.example.com/iri"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+    <owl:Ontology rdf:about="http://www.example.com/iri">
+        <owl:versionIRI rdf:resource="http://www.example.com/viri"/>
+    </owl:Ontology>  
+
+    <!-- http://purl.obolibrary.org/obo/GO_0010958 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/GO_0010958">
+        <owl:equivalentClass>
+            <owl:Class>
+                <owl:intersectionOf rdf:parseType="Collection">
+                    <rdf:Description rdf:about="http://purl.obolibrary.org/obo/GO_0065007"/>
+                    <owl:Restriction>
+                        <owl:onProperty rdf:resource="http://purl.obolibrary.org/obo/RO_0002211"/>
+                        <owl:someValuesFrom rdf:resource="http://purl.obolibrary.org/obo/GO_0089718"/>
+                    </owl:Restriction>
+                </owl:intersectionOf>
+            </owl:Class>
+        </owl:equivalentClass>
+        <rdfs:label>regulation of amino acid import across plasma membrane</rdfs:label>
+    </owl:Class>
+</rdf:RDF>"#;
+
+        // Extract the xml tags
+        let bytes: Vec<u8> = owl.into();
+        let extracted = parse_xml(&bytes).unwrap();
+        let keys = extracted.keys().collect::<Vec<_>>();
+        assert_eq!(keys, [
+            "{\"index\":0,\"tag\":\"rdf:RDF\",\"attributes\":{\"xmlns\":\"http://www.example.com/iri#\",\"xmlns:owl\":\"http://www.w3.org/2002/07/owl#\",\"xmlns:rdfs\":\"http://www.w3.org/2000/01/rdf-schema#\",\"xml:base\":\"http://www.example.com/iri\"}}}",
+            "{{\"index\":10,\"tag\":\"owl:someValuesFrom\",\"attributes\":{\"rdf:resource\":\"http://purl.obolibrary.org/obo/GO_0089718\"}}}",
+            "{{\"index\":11,\"tag\":\"rdfs:label\",\"attributes\":{}}}",
+            "{{\"index\":1,\"tag\":\"owl:Ontology\",\"attributes\":{\"rdf:about\":\"http://www.example.com/iri\"}}}",
+            "{{\"index\":6,\"tag\":\"owl:intersectionOf\",\"attributes\":{\"rdf:parseType\":\"Collection\"}}}",
+            "{{\"index\":4,\"tag\":\"owl:equivalentClass\",\"attributes\":{}}}",
+            "{{\"index\":2,\"tag\":\"owl:versionIRI\",\"attributes\":{\"rdf:resource\":\"http://www.example.com/viri\"}}}",
+            "{{\"index\":7,\"tag\":\"rdf:Description\",\"attributes\":{\"rdf:about\":\"http://purl.obolibrary.org/obo/GO_0065007\"}}}",
+            "{{\"index\":3,\"tag\":\"owl:Class\",\"attributes\":{\"rdf:about\":\"http://purl.obolibrary.org/obo/GO_0010958\"}}}",
+            "{{\"index\":8,\"tag\":\"owl:Restriction\",\"attributes\":{}}}",
+            "{{\"index\":9,\"tag\":\"owl:onProperty\",\"attributes\":{\"rdf:resource\":\"http://purl.obolibrary.org/obo/RO_0002211\"}}}",
+            "{{\"index\":5,\"tag\":\"owl:Class\",\"attributes\":{}}"
+        ]);
+        
+    }
+
+    #[test]
     fn test_extract_xml() {
         // Test owl file
         let owl = r#"<?xml version="1.0"?>
 <rdf:RDF xmlns="http://www.example.com/iri#"
      xml:base="http://www.example.com/iri"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
      xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
     <owl:Ontology rdf:about="http://www.example.com/iri">
         <owl:versionIRI rdf:resource="http://www.example.com/viri"/>
@@ -664,11 +958,7 @@ mod tests {
         let device = device(false).unwrap();
 
         // Extract the xml tags
-        let extracted = extract_xml("test", "bytes", &[batch], &DataFormat::OwlDefault, &device).unwrap();
-
-        // Check the dimensions of the extracted data
-        assert_eq!(extracted.num_columns(), 7);
-        assert_eq!(extracted.num_rows(), 16);
+        let extracted = extract_xml("test", "bytes", &[batch], &DataFormat::Xml, &device).unwrap();
 
         // Check the contents of the extracted data
         let table = Table::get_builder()
@@ -810,11 +1100,7 @@ mod tests {
         let owl = r#"<?xml version="1.0"?>
 <rdf:RDF xmlns="http://www.example.com/iri#"
      xml:base="http://www.example.com/iri"
-     xmlns:o="http://www.example.com/iri#"
      xmlns:owl="http://www.w3.org/2002/07/owl#"
-     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-     xmlns:xml="http://www.w3.org/XML/1998/namespace"
-     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
      xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
     <owl:Ontology rdf:about="http://www.example.com/iri">
         <owl:versionIRI rdf:resource="http://www.example.com/viri"/>
@@ -834,66 +1120,8 @@ mod tests {
                 </owl:intersectionOf>
             </owl:Class>
         </owl:equivalentClass>
-        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/GO_1903789"/>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="http://purl.obolibrary.org/obo/RO_0002211"/>
-                <owl:someValuesFrom rdf:resource="http://purl.obolibrary.org/obo/GO_0089718"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
-        <obo:IAO_0000115>Any process that modulates the frequency, rate or extent of amino acid import into a cell.</obo:IAO_0000115>
-        <oboInOwl:created_by>tb</oboInOwl:created_by>
-        <oboInOwl:creation_date>2009-05-06T11:33:12Z</oboInOwl:creation_date>
-        <oboInOwl:hasBroadSynonym>regulation of amino acid import</oboInOwl:hasBroadSynonym>
-        <oboInOwl:hasOBONamespace>biological_process</oboInOwl:hasOBONamespace>
-        <oboInOwl:id>GO:0010958</oboInOwl:id>
         <rdfs:label>regulation of amino acid import across plasma membrane</rdfs:label>
     </owl:Class>
-
-    <owl:Axiom>
-        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/GO_0010958"/>
-        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
-        <owl:annotatedTarget>Any process that modulates the frequency, rate or extent of amino acid import into a cell.</owl:annotatedTarget>
-        <oboInOwl:hasDbXref>GOC:dph</oboInOwl:hasDbXref>
-        <oboInOwl:hasDbXref>GOC:tb</oboInOwl:hasDbXref>
-    </owl:Axiom>
-
-    <!-- http://purl.obolibrary.org/obo/GO_0010968 -->
-
-    <owl:Class rdf:about="http://purl.obolibrary.org/obo/GO_0010968">
-        <owl:equivalentClass>
-            <owl:Class>
-                <owl:intersectionOf rdf:parseType="Collection">
-                    <rdf:Description rdf:about="http://purl.obolibrary.org/obo/GO_0065007"/>
-                    <owl:Restriction>
-                        <owl:onProperty rdf:resource="http://purl.obolibrary.org/obo/RO_0002211"/>
-                        <owl:someValuesFrom rdf:resource="http://purl.obolibrary.org/obo/GO_0007020"/>
-                    </owl:Restriction>
-                </owl:intersectionOf>
-            </owl:Class>
-        </owl:equivalentClass>
-        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/GO_0031113"/>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="http://purl.obolibrary.org/obo/RO_0002211"/>
-                <owl:someValuesFrom rdf:resource="http://purl.obolibrary.org/obo/GO_0007020"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
-        <obo:IAO_0000115>Any process that modulates the rate, frequency or extent of microtubule nucleation. Microtubule nucleation is the &apos;de novo&apos; formation of a microtubule, in which tubulin heterodimers form metastable oligomeric aggregates, some of which go on to support formation of a complete microtubule. Microtubule nucleation usually occurs from a specific site within a cell.</obo:IAO_0000115>
-        <oboInOwl:created_by>tb</oboInOwl:created_by>
-        <oboInOwl:creation_date>2009-05-20T11:51:21Z</oboInOwl:creation_date>
-        <oboInOwl:hasOBONamespace>biological_process</oboInOwl:hasOBONamespace>
-        <oboInOwl:id>GO:0010968</oboInOwl:id>
-        <rdfs:label>regulation of microtubule nucleation</rdfs:label>
-    </owl:Class>
-
-    <owl:Axiom>
-        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/GO_0010968"/>
-        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
-        <owl:annotatedTarget>Any process that modulates the rate, frequency or extent of microtubule nucleation. Microtubule nucleation is the &apos;de novo&apos; formation of a microtubule, in which tubulin heterodimers form metastable oligomeric aggregates, some of which go on to support formation of a complete microtubule. Microtubule nucleation usually occurs from a specific site within a cell.</owl:annotatedTarget>
-        <oboInOwl:hasDbXref>GOC:dph</oboInOwl:hasDbXref>
-        <oboInOwl:hasDbXref>GOC:tb</oboInOwl:hasDbXref>
-    </owl:Axiom>
 </rdf:RDF>"#;
 
         // Make the xml data
@@ -910,7 +1138,242 @@ mod tests {
         let device = device(false).unwrap();
 
         // Extract the xml tags
-        let extracted = extract_xml("test", "bytes", &[batch], &DataFormat::OwlClass, &device).unwrap();
+        let extracted = extract_xml("test", "bytes", &[batch], &DataFormat::Owl, &device).unwrap();
+
+        // Check the contents of the extracted data
+        let table = Table::get_builder()
+            .with_name("extracted")
+            .with_record_batches(vec![extracted])
+            .unwrap()
+            .build()
+            .unwrap();
+        println!("{}", String::from_utf8(table.to_csv(b',', true).unwrap()).unwrap());
+        let result = table.get_column_as_vec_str("dataset");
+        assert_eq!(
+            result,
+            [
+                ""
+            ]
+        );
+        let result = table.get_column_as_vec_str("graph");
+        assert_eq!(
+            result,
+            [
+                ""
+            ]
+        );
+        let result = table.get_column_as_vec_str("entity");
+        assert_eq!(
+            result,
+            [
+                ""
+            ]
+        );
+        let result = table.get_column_as_vec_str("subject");
+        assert_eq!(
+            result,
+            [
+                ""
+            ]
+        );
+        let result = table.get_column_as_vec_str("predicate");
+        assert_eq!(
+            result,
+            [
+                ""
+            ]
+        );
+        let result = table.get_column_as_vec_str("object");
+        assert_eq!(
+            result,
+            [
+                ""
+            ]
+        );
+    }
+
+    #[test]
+    fn test_extract_owl_all() {
+        // Test owl file
+        let owl = r#"<?xml version="1.0"?>
+<rdf:RDF xmlns="http://purl.obolibrary.org/obo/ro.owl#"
+     xml:base="http://purl.obolibrary.org/obo/ro.owl"
+     xmlns:dc="http://purl.org/dc/elements/1.1/"
+     xmlns:obo="http://purl.obolibrary.org/obo/"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:xml="http://www.w3.org/XML/1998/namespace"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:cito="http://purl.org/spar/cito/"
+     xmlns:core="http://purl.obolibrary.org/obo/uberon/core#"
+     xmlns:foaf="http://xmlns.com/foaf/0.1/"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+     xmlns:skos="http://www.w3.org/2004/02/skos/core#"
+     xmlns:swrl="http://www.w3.org/2003/11/swrl#"
+     xmlns:swrla="http://swrl.stanford.edu/ontologies/3.3/swrla.owl#"
+     xmlns:swrlb="http://www.w3.org/2003/11/swrlb#"
+     xmlns:terms="http://purl.org/dc/terms/"
+     xmlns:subsets="http://purl.obolibrary.org/obo/ro/subsets#"
+     xmlns:oboInOwl="http://www.geneontology.org/formats/oboInOwl#">
+    <owl:Ontology rdf:about="http://purl.obolibrary.org/obo/ro.owl">
+        <owl:versionIRI rdf:resource="http://purl.obolibrary.org/obo/ro/releases/2025-06-24/ro.owl"/>
+        <terms:description xml:lang="en">The OBO Relations Ontology (RO) is a collection of OWL relations (ObjectProperties) intended for use across a wide variety of biological ontologies.</terms:description>
+        <terms:license rdf:resource="https://creativecommons.org/publicdomain/zero/1.0/"/>
+        <terms:title xml:lang="en">OBO Relations Ontology</terms:title>
+        <owl:versionInfo>2025-06-24</owl:versionInfo>
+        <foaf:homepage rdf:datatype="http://www.w3.org/2001/XMLSchema#anyURI"> https://github.com/oborel/obo-relations/</foaf:homepage>
+    </owl:Ontology>
+    
+    <!-- http://purl.obolibrary.org/obo/RO_0002161 -->
+
+    <owl:AnnotationProperty rdf:about="http://purl.obolibrary.org/obo/RO_0002161">
+        <obo:IAO_0000112>tooth SubClassOf &apos;never in taxon&apos; value &apos;Aves&apos;</obo:IAO_0000112>
+        <obo:IAO_0000115>x never in taxon T if and only if T is a class, and x does not instantiate the class expression &quot;in taxon some T&quot;. Note that this is a shortcut relation, and should be used as a hasValue restriction in OWL.</obo:IAO_0000115>
+        <obo:IAO_0000117 rdf:resource="https://orcid.org/0000-0002-6601-2165"/>
+        <obo:IAO_0000119 rdf:resource="http://www.ncbi.nlm.nih.gov/pubmed/17921072"/>
+        <obo:IAO_0000119 rdf:resource="http://www.ncbi.nlm.nih.gov/pubmed/20973947"/>
+        <obo:IAO_0000425>Class: ?X DisjointWith: RO_0002162 some ?Y </obo:IAO_0000425>
+        <obo:OMO_0002000>PREFIX rdfs: &lt;http://www.w3.org/2000/01/rdf-schema#&gt;
+PREFIX owl: &lt;http://www.w3.org/2002/07/owl#&gt;
+PREFIX in_taxon: &lt;http://purl.obolibrary.org/obo/RO_0002162&gt;
+PREFIX never_in_taxon: &lt;http://purl.obolibrary.org/obo/RO_0002161&gt;
+CONSTRUCT {
+  in_taxon: a owl:ObjectProperty .
+  ?x owl:disjointWith [
+    a owl:Restriction ;
+    owl:onProperty in_taxon: ;
+    owl:someValuesFrom ?taxon
+  ] .
+  ?x rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty in_taxon: ;
+    owl:someValuesFrom [
+      a owl:Class ;
+      owl:complementOf ?taxon
+    ]
+  ] .
+}
+WHERE {
+  ?x never_in_taxon: ?taxon .
+}</obo:OMO_0002000>
+        <rdfs:label>never in taxon</rdfs:label>
+        <rdfs:seeAlso rdf:resource="https://github.com/obophenotype/uberon/wiki/Taxon-constraints"/>
+        <rdfs:subPropertyOf rdf:resource="http://purl.obolibrary.org/obo/RO_0002172"/>
+    </owl:AnnotationProperty>
+
+    <!-- http://purl.obolibrary.org/obo/RO_0009501 -->
+
+    <owl:ObjectProperty rdf:about="http://purl.obolibrary.org/obo/RO_0009501">
+        <rdfs:subPropertyOf rdf:resource="http://purl.obolibrary.org/obo/RO_0002410"/>
+        <rdfs:domain rdf:resource="http://purl.obolibrary.org/obo/BFO_0000017"/>
+        <rdfs:range rdf:resource="http://purl.obolibrary.org/obo/BFO_0000015"/>
+        <owl:propertyChainAxiom rdf:parseType="Collection">
+            <rdf:Description rdf:about="http://purl.obolibrary.org/obo/BFO_0000054"/>
+            <rdf:Description rdf:about="http://purl.obolibrary.org/obo/RO_0002404"/>
+        </owl:propertyChainAxiom>
+        <obo:IAO_0000112>A drought sensitivity trait that inheres in a whole plant is realized in a systemic response process in response to exposure to drought conditions.</obo:IAO_0000112>
+        <obo:IAO_0000112>An inflammatory disease that is realized in response to an inflammatory process occurring in the gut (which is itself the realization of a process realized in response to harmful stimuli in the mucosal lining of th gut)</obo:IAO_0000112>
+        <obo:IAO_0000112>Environmental polymorphism in butterflies: These butterflies have a &apos;responsivity to day length trait&apos; that is realized in response to the duration of the day, and is realized in developmental processes that lead to increased or decreased pigmentation in the adult morph.</obo:IAO_0000112>
+        <obo:IAO_0000115>r &apos;realized in response to&apos; s iff, r is a realizable (e.g. a plant trait such as responsivity to drought), s is an environmental stimulus (a process), and s directly causes the realization of r.</obo:IAO_0000115>
+        <terms:contributor rdf:resource="https://orcid.org/0000-0001-6996-0040"/>
+        <terms:contributor rdf:resource="https://orcid.org/0000-0002-6601-2165"/>
+        <terms:contributor rdf:resource="https://orcid.org/0000-0002-7073-9172"/>
+        <terms:contributor rdf:resource="https://orcid.org/0000-0002-8461-9745"/>
+        <oboInOwl:hasExactSynonym>triggered by process</oboInOwl:hasExactSynonym>
+        <rdfs:label xml:lang="en">realized in response to</rdfs:label>
+        <rdfs:seeAlso rdf:datatype="http://www.w3.org/2001/XMLSchema#anyURI">https://docs.google.com/document/d/1KWhZxVBhIPkV6_daHta0h6UyHbjY2eIrnON1WIRGgdY/edit</rdfs:seeAlso>
+    </owl:ObjectProperty>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/RO_0009501"/>
+        <owl:annotatedProperty rdf:resource="http://www.geneontology.org/formats/oboInOwl#hasExactSynonym"/>
+        <owl:annotatedTarget>triggered by process</owl:annotatedTarget>
+        <oboInOwl:hasDbXref rdf:resource="https://orcid.org/0000-0002-6601-2165"/>
+    </owl:Axiom>
+
+    <!-- http://purl.obolibrary.org/obo/CL_0000000 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/CL_0000000">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/UBERON_0000061"/>
+        <obo:IAO_0000115>A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.</obo:IAO_0000115>
+        <obo:IAO_0000116 xml:lang="en">CL and GO definitions of cell differ based on inclusive or exclusive of cell wall, etc.</obo:IAO_0000116>
+        <obo:IAO_0000116 xml:lang="en">We struggled with this definition. We are worried about circularity. We also considered requiring the capability of metabolism.</obo:IAO_0000116>
+        <oboInOwl:hasDbXref>CALOHA:TS-2035</oboInOwl:hasDbXref>
+        <oboInOwl:hasDbXref>FMA:68646</oboInOwl:hasDbXref>
+        <oboInOwl:hasDbXref>GO:0005623</oboInOwl:hasDbXref>
+        <oboInOwl:hasDbXref>KUPO:0000002</oboInOwl:hasDbXref>
+        <oboInOwl:hasDbXref>MESH:D002477</oboInOwl:hasDbXref>
+        <oboInOwl:hasDbXref>VHOG:0001533</oboInOwl:hasDbXref>
+        <oboInOwl:hasDbXref>WBbt:0004017</oboInOwl:hasDbXref>
+        <oboInOwl:hasDbXref>XAO:0003012</oboInOwl:hasDbXref>
+        <rdfs:comment>The definition of cell is intended to represent all cells, and thus a cell is defined as a material entity and not an anatomical structure, which implies that it is part of an organism (or the entirety of one).</rdfs:comment>
+        <rdfs:label>cell</rdfs:label>
+    </owl:Class>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/CL_0000000"/>
+        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
+        <owl:annotatedTarget>A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.</owl:annotatedTarget>
+        <oboInOwl:hasDbXref>CARO:mah</oboInOwl:hasDbXref>
+    </owl:Axiom>
+
+    <!-- http://purl.obolibrary.org/obo/ENVO_01001569 -->
+
+    <owl:NamedIndividual rdf:about="http://purl.obolibrary.org/obo/ENVO_01001569">
+        <obo:BFO_0000050 rdf:resource="http://purl.obolibrary.org/obo/ENVO_01001571"/>
+        <oboInOwl:created_by rdf:resource="https://orcid.org/0000-0002-4366-3088"/>
+        <oboInOwl:creation_date rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2019-03-05T17:25:21Z</oboInOwl:creation_date>
+        <oboInOwl:hasBroadSynonym>Western Australia Ecoregion</oboInOwl:hasBroadSynonym>
+        <oboInOwl:hasDbXref>WWF:AA1310</oboInOwl:hasDbXref>
+        <oboInOwl:hasDbXref>https://www.worldwildlife.org/ecoregions/aa1310</oboInOwl:hasDbXref>
+        <rdfs:label xml:lang="en">Western Australian Mulga Shrublands Ecoregion</rdfs:label>
+    </owl:NamedIndividual>
+
+    <!-- http://purl.obolibrary.org/obo/RO_0002029 -->
+
+    <owl:DatatypeProperty rdf:about="http://purl.obolibrary.org/obo/RO_0002029">
+        <rdfs:range>
+            <rdfs:Datatype>
+                <owl:onDatatype rdf:resource="http://www.w3.org/2001/XMLSchema#short"/>
+                <owl:withRestrictions rdf:parseType="Collection">
+                    <rdf:Description>
+                        <xsd:minInclusive rdf:datatype="http://www.w3.org/2001/XMLSchema#short">0</xsd:minInclusive>
+                    </rdf:Description>
+                    <rdf:Description>
+                        <xsd:maxInclusive rdf:datatype="http://www.w3.org/2001/XMLSchema#short">100</xsd:maxInclusive>
+                    </rdf:Description>
+                </owl:withRestrictions>
+            </rdfs:Datatype>
+        </rdfs:range>
+        <obo:IAO_0000115>Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.</obo:IAO_0000115>
+        <oboInOwl:created_by rdf:resource="https://orcid.org/0000-0002-7073-9172"/>
+        <oboInOwl:creation_date rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2018-05-22T16:43:28Z</oboInOwl:creation_date>
+        <rdfs:comment>This could be used to record the increased infant morality rate in some population compared to wild-type.  For examples of usage see http://purl.obolibrary.org/obo/FBcv_0000351 and subclasses.</rdfs:comment>
+        <rdfs:label xml:lang="en">has increased age-specific mortality rate</rdfs:label>
+    </owl:DatatypeProperty>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/RO_0002029"/>
+        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
+        <owl:annotatedTarget>Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.</owl:annotatedTarget>
+        <oboInOwl:hasDbXref>PMID:24138933</oboInOwl:hasDbXref>
+        <oboInOwl:hasDbXref>Wikipedia:Infant_mortality</oboInOwl:hasDbXref>
+    </owl:Axiom>
+
+</rdf:RDF>"#;
+
+        // Make the xml data
+        let batch = create_blob_batch(
+            vec!["attachment".to_string()],
+            vec!["owl".to_string()],
+            vec![owl.into()],
+            vec!["".to_string()],
+            vec![create_timestamp_micros()],
+        )
+        .unwrap();
+
+        // Make the device
+        let device = device(false).unwrap();
+
+        // Extract the xml tags
+        let extracted = extract_xml("test", "bytes", &[batch], &DataFormat::Owl, &device).unwrap();
 
         // Check the dimensions of the extracted data
         assert_eq!(extracted.num_columns(), 3);
@@ -923,182 +1386,46 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
+        let result = table.get_column_as_vec_str("dataset");
+        assert_eq!(
+            result,
+            [
+                ""
+            ]
+        );
+        let result = table.get_column_as_vec_str("graph");
+        assert_eq!(
+            result,
+            [
+                ""
+            ]
+        );
+        let result = table.get_column_as_vec_str("entity");
+        assert_eq!(
+            result,
+            [
+                ""
+            ]
+        );
         let result = table.get_column_as_vec_str("subject");
         assert_eq!(
             result,
             [
-                "http://purl.obolibrary.org/obo/GO_0010958",
-                "http://purl.obolibrary.org/obo/GO_0010958",
-                "http://purl.obolibrary.org/obo/GO_0010958",
-                "http://purl.obolibrary.org/obo/GO_0010958",
-                "http://purl.obolibrary.org/obo/GO_0010958",
-                "http://purl.obolibrary.org/obo/GO_0010968",
-                "http://purl.obolibrary.org/obo/GO_0010968",
-                "http://purl.obolibrary.org/obo/GO_0010968",
-                "http://purl.obolibrary.org/obo/GO_0010968"
+                ""
             ]
         );
         let result = table.get_column_as_vec_str("predicate");
         assert_eq!(
             result,
             [
-                "obo:IAO_0000115",
-                "oboInOwl:hasBroadSynonym",
-                "oboInOwl:hasOBONamespace",
-                "oboInOwl:id",
-                "rdfs:label",
-                "obo:IAO_0000115",
-                "oboInOwl:hasOBONamespace",
-                "oboInOwl:id",
-                "rdfs:label"
+                ""
             ]
         );
         let result = table.get_column_as_vec_str("object");
         assert_eq!(
             result,
             [
-                "Any process that modulates the frequency, rate or extent of amino acid import into a cell.",
-                "regulation of amino acid import",
-                "biological_process",
-                "GO:0010958",
-                "regulation of amino acid import across plasma membrane",
-                "Any process that modulates the rate, frequency or extent of microtubule nucleation. Microtubule nucleation is thede novoformation of a microtubule, in which tubulin heterodimers form metastable oligomeric aggregates, some of which go on to support formation of a complete microtubule. Microtubule nucleation usually occurs from a specific site within a cell.",
-                "biological_process",
-                "GO:0010968",
-                "regulation of microtubule nucleation"
-            ]
-        );
-    }
-
-    #[test]
-    fn test_extract_owl_properties() {
-        // Test owl file
-        let owl = r#"<?xml version="1.0"?>
-<rdf:RDF xmlns="http://www.example.com/iri#"
-     xml:base="http://www.example.com/iri"
-     xmlns:o="http://www.example.com/iri#"
-     xmlns:owl="http://www.w3.org/2002/07/owl#"
-     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-     xmlns:xml="http://www.w3.org/XML/1998/namespace"
-     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
-     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
-    <owl:Ontology rdf:about="http://www.example.com/iri">
-        <owl:versionIRI rdf:resource="http://www.example.com/viri"/>
-    </owl:Ontology>
-
-    <!-- http://purl.obolibrary.org/obo/RO_0002437 -->
-
-    <owl:ObjectProperty rdf:about="http://purl.obolibrary.org/obo/RO_0002437">
-        <rdfs:subPropertyOf rdf:resource="http://purl.obolibrary.org/obo/RO_0002321"/>
-        <rdfs:subPropertyOf rdf:resource="http://purl.obolibrary.org/obo/RO_0002434"/>
-        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#SymmetricProperty"/>
-        <rdfs:domain rdf:resource="http://purl.obolibrary.org/obo/BFO_0000040"/>
-        <rdfs:range rdf:resource="http://purl.obolibrary.org/obo/BFO_0000040"/>
-        <obo:IAO_0000115>An interaction relationship in which at least one of the partners is an organism and the other is either an organism or an abiotic entity with which the organism interacts.</obo:IAO_0000115>
-        <obo:IAO_0000117 rdf:resource="https://orcid.org/0000-0002-6601-2165"/>
-        <obo:IAO_0000118>interacts with on organism level</obo:IAO_0000118>
-        <oboInOwl:inSubset rdf:resource="http://purl.obolibrary.org/obo/ro/subsets#ro-eco"/>
-        <rdfs:label>biotically interacts with</rdfs:label>
-        <rdfs:seeAlso rdf:resource="http://dx.doi.org/10.1016/j.ecoinf.2014.08.005"/>
-        <rdfs:seeAlso>http://eol.org/schema/terms/interactsWith</rdfs:seeAlso>
-    </owl:ObjectProperty>
-
-    <!-- http://purl.obolibrary.org/obo/RO_0002438 -->
-
-    <owl:ObjectProperty rdf:about="http://purl.obolibrary.org/obo/RO_0002438">
-        <rdfs:subPropertyOf rdf:resource="http://purl.obolibrary.org/obo/RO_0002574"/>
-        <obo:IAO_0000112>lions trophically interact with the zebras that they eat</obo:IAO_0000112>
-        <obo:IAO_0000115>An interaction relationship in which the partners are related via a feeding relationship.</obo:IAO_0000115>
-        <obo:IAO_0000117 rdf:resource="https://orcid.org/0000-0002-6601-2165"/>
-        <oboInOwl:inSubset rdf:resource="http://purl.obolibrary.org/obo/ro/subsets#ro-eco"/>
-        <rdfs:label>trophically interacts with</rdfs:label>
-        <rdfs:seeAlso rdf:resource="http://dx.doi.org/10.1016/j.ecoinf.2014.08.005"/>
-    </owl:ObjectProperty>
-</rdf:RDF>"#;
-
-        // Make the xml data
-        let batch = create_blob_batch(
-            vec!["attachment".to_string()],
-            vec!["owl".to_string()],
-            vec![owl.into()],
-            vec!["".to_string()],
-            vec![create_timestamp_micros()],
-        )
-        .unwrap();
-
-        // Make the device
-        let device = device(false).unwrap();
-
-        // Extract the xml tags
-        let extracted =
-            extract_xml("test", "bytes", &[batch], &DataFormat::OwlObjectProperty, &device).unwrap();
-
-        // Check the dimensions of the extracted data
-        assert_eq!(extracted.num_columns(), 3);
-        assert_eq!(extracted.num_rows(), 13);
-
-        // Check the contents of the extracted data
-        let table = Table::get_builder()
-            .with_name("extracted")
-            .with_record_batches(vec![extracted])
-            .unwrap()
-            .build()
-            .unwrap();
-        let result = table.get_column_as_vec_str("subject");
-        assert_eq!(
-            result,
-            [
-                "http://purl.obolibrary.org/obo/RO_0002437",
-                "http://purl.obolibrary.org/obo/RO_0002437",
-                "http://purl.obolibrary.org/obo/RO_0002437",
-                "http://purl.obolibrary.org/obo/RO_0002437",
-                "http://purl.obolibrary.org/obo/RO_0002437",
-                "http://purl.obolibrary.org/obo/RO_0002437",
-                "http://purl.obolibrary.org/obo/RO_0002437",
-                "http://purl.obolibrary.org/obo/RO_0002437",
-                "http://purl.obolibrary.org/obo/RO_0002437",
-                "http://purl.obolibrary.org/obo/RO_0002438",
-                "http://purl.obolibrary.org/obo/RO_0002438",
-                "http://purl.obolibrary.org/obo/RO_0002438",
-                "http://purl.obolibrary.org/obo/RO_0002438"
-            ]
-        );
-        let result = table.get_column_as_vec_str("predicate");
-        assert_eq!(
-            result,
-            [
-                "obo:IAO_0000115",
-                "rdf:type",
-                "rdfs:domain",
-                "rdfs:label",
-                "rdfs:range",
-                "rdfs:seeAlso",
-                "rdfs:seeAlso",
-                "rdfs:subPropertyOf",
-                "rdfs:subPropertyOf",
-                "obo:IAO_0000115",
-                "rdfs:label",
-                "rdfs:seeAlso",
-                "rdfs:subPropertyOf"
-            ]
-        );
-        let result = table.get_column_as_vec_str("object");
-        assert_eq!(
-            result,
-            [
-                "An interaction relationship in which at least one of the partners is an organism and the other is either an organism or an abiotic entity with which the organism interacts.",
-                "http://www.w3.org/2002/07/owl#SymmetricProperty",
-                "http://purl.obolibrary.org/obo/BFO_0000040",
-                "biotically interacts with",
-                "http://purl.obolibrary.org/obo/BFO_0000040",
-                "http://dx.doi.org/10.1016/j.ecoinf.2014.08.005",
-                "http://eol.org/schema/terms/interactsWith",
-                "http://purl.obolibrary.org/obo/RO_0002321",
-                "http://purl.obolibrary.org/obo/RO_0002434",
-                "An interaction relationship in which the partners are related via a feeding relationship.",
-                "trophically interacts with",
-                "http://dx.doi.org/10.1016/j.ecoinf.2014.08.005",
-                "http://purl.obolibrary.org/obo/RO_0002574"
+                ""
             ]
         );
     }

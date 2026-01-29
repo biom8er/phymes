@@ -311,21 +311,8 @@ pub enum DataFormat {
     #[value(name = "Xml")]
     Xml,
     /// OWL format
-    #[value(name = "OwlDefault")]
-    OwlDefault,
-    /// OWL format
-    #[value(name = "OwlOntology")]
-    OwlOntology,
-    #[value(name = "OwlClass")]
-    OwlClass,
-    #[value(name = "OwlObjectProperty")]
-    OwlObjectProperty,
-    #[value(name = "OwlNamedIndividual")]
-    OwlNamedIndividual,
-    /// OWL format
-    #[clap(skip)]
     #[value(name = "Owl")]
-    Owl(OwlFormat),
+    Owl,
 }
 
 impl DataFormat {
@@ -340,7 +327,7 @@ impl DataFormat {
             "html" => DataFormat::Html,
             "txt" => DataFormat::Txt,
             "xml" => DataFormat::Xml,
-            "owl" => DataFormat::OwlDefault,
+            "owl" => DataFormat::Owl,
             _ => {
                 return Err(anyhow!(
                     "File extension {extension} was not recognized. Supported extensions are .csv, .json, .pdf, .bytes, .ipc, .txt, .xml,, .owl, and .html"
@@ -361,12 +348,7 @@ impl DataFormat {
             Self::Html => "html",
             Self::Txt => "txt",
             Self::Xml => "xml",
-            Self::Owl(_)
-            | Self::OwlDefault
-            | Self::OwlOntology
-            | Self::OwlClass
-            | Self::OwlObjectProperty
-            | Self::OwlNamedIndividual => "owl",
+            Self::Owl => "owl",
             Self::None => "",
         }
     }
@@ -385,12 +367,7 @@ impl Display for DataFormat {
             Self::Html => write!(f, "Html"),
             Self::Txt => write!(f, "Txt"),
             Self::Xml => write!(f, "Xml"),
-            Self::Owl(_) => write!(f, "Owl"),
-            Self::OwlDefault => write!(f, "OwlDefault"),
-            Self::OwlOntology => write!(f, "OwlOntology"),
-            Self::OwlClass => write!(f, "OwlClass"),
-            Self::OwlObjectProperty => write!(f, "OwlObjectProperty"),
-            Self::OwlNamedIndividual => write!(f, "OwlNamedIndividual"),
+            Self::Owl => write!(f, "Owl"),
             Self::None => write!(f, "None"),
         }
     }
