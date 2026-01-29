@@ -155,12 +155,20 @@ impl Display for XMLType {
 }
 
 /// Parse XML tag
-fn parse_xml_tag<'a>(reader: &NsReader<&[u8]>, e: &BytesStart<'a>) -> String {
+fn parse_xml_tag<'a>(reader: &NsReader<Cursor<&[u8]>>, e: &BytesStart<'a>) -> String {
+    // Resolve the namespace and add it to the tag
     let (ns, local) = reader.resolver().resolve_element(e.name());
     let ns = match ns {
         ResolveResult::Bound(s) => std::str::from_utf8(s.into_inner()).unwrap_or_default().to_string(),
         ResolveResult::Unbound => String::new(),
         ResolveResult::Unknown(s) => std::str::from_utf8(&s).unwrap_or_default().to_string(),
+    };
+
+    // If the namespace was not resolved, then use the prefixed name
+    let ns = if !ns.contains("http:://") || !ns.contains("https:://") {
+        format!("{ns}:")
+    } else {
+        ns
     };
     let local = std::str::from_utf8(local.into_inner()).unwrap_or_default();
     format!("{ns}{local}")
@@ -183,7 +191,7 @@ fn parse_xml_attrs<'a>(e: &BytesStart<'a>, attrs: &[&str]) -> HashMap<String, St
 }
 
 /// Helper function to parse the attributes of the XML tag into a serialized [XMLElement]
-fn serialize_xml_tag<'a>(reader: &NsReader<&[u8]>,index: usize, e: &BytesStart<'a>) -> Result<String> {
+fn serialize_xml_tag<'a>(reader: &NsReader<Cursor<&[u8]>>,index: usize, e: &BytesStart<'a>) -> Result<String> {
     let start_tag = parse_xml_tag(reader, e);
     let attributes = parse_xml_attrs(e, &[]);
 
@@ -215,7 +223,7 @@ fn parse_xml(bytes: &[u8]) -> Result<HashMap<String, Vec<(XMLType, String)>>> {
         match event {
             Event::Empty(ref e) => {
                 // Parse the tag
-                let serialized = serialize_xml_tag(index, e)?;
+                let serialized = serialize_xml_tag(&reader, index, e)?;
 
                 // Update the relations children
                 if let Some(last_element) = elements.last() {
@@ -256,7 +264,7 @@ fn parse_xml(bytes: &[u8]) -> Result<HashMap<String, Vec<(XMLType, String)>>> {
             }
             Event::Start(ref e) => {
                 // Parse the tag
-                let serialized = serialize_xml_tag(index, e)?;
+                let serialized = serialize_xml_tag(&reader, index, e)?;
 
                 // Update the relations children
                 if let Some(last_element) = elements.last() {
@@ -619,196 +627,6 @@ fn xml_to_parsed_owl_record_batch(relations: HashMap<String, Vec<(XMLType, Strin
     Ok(batch)
 }
 
-fn parse_owl_v1(lhs_name: &str, bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<RecordBatch> {
-    let cursor = Cursor::new(bytes);
-    let mut reader = Reader::from_reader(cursor);
-
-    // buffer for reading
-    let mut buf = Vec::new();
-    // The current subject in scope
-    let mut s_tag: Vec<String> = Vec::new();
-    let mut subject: Vec<String> = Vec::new();
-    let mut predicate: Option<String> = None;
-    let mut xml_type: Option<XMLType> = Some(XMLType::Element);
-    // The extracted triples
-    let mut subjects = Vec::new();
-    let mut predicates = Vec::new();
-    let mut objects = Vec::new();
-
-    // Extract out the tags
-    while let Ok(event) = reader.read_event_into(&mut buf) {
-        match event {
-            Event::Empty(ref e) => {
-                let tag = parse_xml_tag(e);
-                if format.subject_tags.contains(&tag) {
-                    // do nothing
-                } else if format.predicate_tags.contains(&tag) {
-                    let attributes = parse_xml_attrs(
-                        e,
-                        &format
-                            .predicate_attributes
-                            .iter()
-                            .map(|s| s.as_str())
-                            .collect::<Vec<_>>(),
-                    );
-                    if !attributes.is_empty() {
-                        if let Some(s) = subject.last() {
-                            if let Some(_p) = predicate.as_ref() {
-                                // do nothing
-                            } else {
-                                // Create the triple
-                                let v = if let Some(v) =
-                                    attributes.get(format.predicate_attributes.first().unwrap())
-                                {
-                                    v
-                                } else {
-                                    return Err(anyhow!(
-                                        "Predicate attribute `{}` was not found in XML parsed attributes {:?}",
-                                        format.predicate_attributes.first().unwrap(),
-                                        attributes.keys()
-                                    ));
-                                };
-                                subjects.push(s.to_owned());
-                                predicates.push(tag);
-                                objects.push(v.to_string());
-                                xml_type.replace(XMLType::Element);
-                            }
-                        } else {
-                            // ignore
-                            // return Err(anyhow!(
-                            //     "Found a predicate tag `{tag}` when there is no current subject."
-                            // ));
-                        }
-                    } else {
-                        // ignore recursive predicates for now
-                    }
-                }
-            }
-            Event::Text(ref e) => {
-                let text = String::from_utf8_lossy(e as &[u8]);
-                let text = text.trim();
-                if !text.is_empty()
-                    && let Some(s) = subject.last()
-                    && let Some(p) = predicate.as_ref()
-                {
-                    // Handle the case of multi-line text
-                    if let Some(t) = xml_type.as_ref() {
-                        match t {
-                            XMLType::Element => {
-                                subjects.push(s.to_string());
-                                predicates.push(p.to_string());
-                                objects.push(text.to_string());
-                                xml_type.replace(XMLType::Text);
-                            }
-                            XMLType::Text => {
-                                if let Some(mut o) = objects.pop() {
-                                    o.push_str(text);
-                                    objects.push(o);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            Event::Start(ref e) => {
-                let tag = parse_xml_tag(e);
-                if format.subject_tags.contains(&tag) {
-                    let attributes = parse_xml_attrs(
-                        e,
-                        &format
-                            .subject_attributes
-                            .iter()
-                            .map(|s| s.as_str())
-                            .collect::<Vec<_>>(),
-                    );
-                    if !attributes.is_empty() {
-                        if let Some(s) = subject.last() {
-                            if let Some(p) = predicate.as_ref() {
-                                // Create triple where the object is another element
-                                subjects.push(s.to_owned());
-                                predicates.push(p.to_owned());
-                                objects.push(tag);
-                                xml_type.replace(XMLType::Element);
-                            } else {
-                                return Err(anyhow!(
-                                    "Found another subject tag `{tag}` for current subject `{s}` when there was no predicate"
-                                ));
-                            }
-                        } else {
-                            // Create the new subject
-                            let s = if let Some(v) =
-                                attributes.get(format.subject_attributes.first().unwrap())
-                            {
-                                v
-                            } else {
-                                return Err(anyhow!(
-                                    "Subject attribute `{}` was not found in XML parsed attributes {:?}",
-                                    format.subject_attributes.first().unwrap(),
-                                    attributes.keys()
-                                ));
-                            };
-                            subject.push(s.to_string());
-                            s_tag.push(tag);
-                        }
-                    } else {
-                        // Buffer the subjects when the same subject tag is found
-                        // since we are ignoring recursive predicates
-                        if let Some(s) = s_tag.last()
-                            && s == &tag
-                        {
-                            subject.push(tag.clone());
-                            s_tag.push(tag);
-                        }
-                    }
-                } else if format.predicate_tags.contains(&tag) {
-                    if subject.len() == 1 {
-                        if let Some(_p) = predicate.as_ref() {
-                            // nothing todo
-                        } else {
-                            // Create the new predicate
-                            predicate.replace(tag);
-                            xml_type.replace(XMLType::Element);
-                        }
-                    } else {
-                        // ignore
-                        // return Err(anyhow!(
-                        //     "Found a predicate tag `{tag}` when there is no current subject."
-                        // ));
-                    }
-                }
-            }
-            Event::End(ref e) => {
-                let tag = std::str::from_utf8(e.name().into_inner()).unwrap_or_default();
-                if let Some(p) = predicate.take() {
-                    if tag != p {
-                        predicate.replace(p);
-                    } else {
-                        xml_type.replace(XMLType::Element);
-                    }
-                } else if let Some(s) = s_tag.last()
-                    && tag == s
-                {
-                    subject.pop();
-                    s_tag.pop();
-                    xml_type.replace(XMLType::Element);
-                }
-            }
-            Event::Eof => break,
-            _ => {}
-        }
-        buf.clear();
-    }
-
-    // Build the batch
-    let mut batch = create_n_triples_batch(subjects, predicates, objects)?;
-
-    // Sorty by the subject and predicate
-    for column_name in ["predicate", "subject"] {
-        batch = sort(column_name, &[batch], true, device)?;
-    }
-    Ok(batch)
-}
-
 /// Extract Set (or Graph data) in XML, HTML, or OWL format from Bytes
 ///
 /// # Arguments
@@ -898,18 +716,18 @@ mod tests {
         let extracted = parse_xml(&bytes).unwrap();
         let keys = extracted.keys().collect::<Vec<_>>();
         assert_eq!(keys, [
-            "{\"index\":0,\"tag\":\"rdf:RDF\",\"attributes\":{\"xmlns\":\"http://www.example.com/iri#\",\"xmlns:owl\":\"http://www.w3.org/2002/07/owl#\",\"xmlns:rdfs\":\"http://www.w3.org/2000/01/rdf-schema#\",\"xml:base\":\"http://www.example.com/iri\"}}}",
-            "{{\"index\":10,\"tag\":\"owl:someValuesFrom\",\"attributes\":{\"rdf:resource\":\"http://purl.obolibrary.org/obo/GO_0089718\"}}}",
-            "{{\"index\":11,\"tag\":\"rdfs:label\",\"attributes\":{}}}",
-            "{{\"index\":1,\"tag\":\"owl:Ontology\",\"attributes\":{\"rdf:about\":\"http://www.example.com/iri\"}}}",
-            "{{\"index\":6,\"tag\":\"owl:intersectionOf\",\"attributes\":{\"rdf:parseType\":\"Collection\"}}}",
-            "{{\"index\":4,\"tag\":\"owl:equivalentClass\",\"attributes\":{}}}",
-            "{{\"index\":2,\"tag\":\"owl:versionIRI\",\"attributes\":{\"rdf:resource\":\"http://www.example.com/viri\"}}}",
+            "{\"index\":4,\"tag\":\"http://www.w3.org/2002/07/owl#:equivalentClass\",\"attributes\":{}}}",
+            "{{\"index\":1,\"tag\":\"http://www.w3.org/2002/07/owl#:Ontology\",\"attributes\":{\"rdf:about\":\"http://www.example.com/iri\"}}}",
+            "{{\"index\":5,\"tag\":\"http://www.w3.org/2002/07/owl#:Class\",\"attributes\":{}}}",
+            "{{\"index\":6,\"tag\":\"http://www.w3.org/2002/07/owl#:intersectionOf\",\"attributes\":{\"rdf:parseType\":\"Collection\"}}}",
+            "{{\"index\":3,\"tag\":\"http://www.w3.org/2002/07/owl#:Class\",\"attributes\":{\"rdf:about\":\"http://purl.obolibrary.org/obo/GO_0010958\"}}}",
+            "{{\"index\":2,\"tag\":\"http://www.w3.org/2002/07/owl#:versionIRI\",\"attributes\":{\"rdf:resource\":\"http://www.example.com/viri\"}}}",
+            "{{\"index\":10,\"tag\":\"http://www.w3.org/2002/07/owl#:someValuesFrom\",\"attributes\":{\"rdf:resource\":\"http://purl.obolibrary.org/obo/GO_0089718\"}}}",
+            "{{\"index\":11,\"tag\":\"http://www.w3.org/2000/01/rdf-schema#:label\",\"attributes\":{}}}",
+            "{{\"index\":0,\"tag\":\"rdf:RDF\",\"attributes\":{\"xmlns\":\"http://www.example.com/iri#\",\"xmlns:rdfs\":\"http://www.w3.org/2000/01/rdf-schema#\",\"xmlns:owl\":\"http://www.w3.org/2002/07/owl#\",\"xml:base\":\"http://www.example.com/iri\"}}}",
             "{{\"index\":7,\"tag\":\"rdf:Description\",\"attributes\":{\"rdf:about\":\"http://purl.obolibrary.org/obo/GO_0065007\"}}}",
-            "{{\"index\":3,\"tag\":\"owl:Class\",\"attributes\":{\"rdf:about\":\"http://purl.obolibrary.org/obo/GO_0010958\"}}}",
-            "{{\"index\":8,\"tag\":\"owl:Restriction\",\"attributes\":{}}}",
-            "{{\"index\":9,\"tag\":\"owl:onProperty\",\"attributes\":{\"rdf:resource\":\"http://purl.obolibrary.org/obo/RO_0002211\"}}}",
-            "{{\"index\":5,\"tag\":\"owl:Class\",\"attributes\":{}}"
+            "{{\"index\":9,\"tag\":\"http://www.w3.org/2002/07/owl#:onProperty\",\"attributes\":{\"rdf:resource\":\"http://purl.obolibrary.org/obo/RO_0002211\"}}}",
+            "{{\"index\":8,\"tag\":\"http://www.w3.org/2002/07/owl#:Restriction\",\"attributes\":{}}"
         ]);
         
     }
@@ -997,22 +815,7 @@ mod tests {
         assert_eq!(
             result,
             [
-                "rdf:RDF",
-                "rdf:RDF",
-                "owl:Ontology",
-                "owl:versionIRI",
-                "owl:Class",
-                "owl:Class",
-                "owl:equivalentClass",
-                "owl:Class",
-                "owl:intersectionOf",
-                "owl:intersectionOf",
-                "rdf:Description",
-                "owl:Restriction",
-                "owl:Restriction",
-                "owl:onProperty",
-                "owl:someValuesFrom",
-                "rdfs:label"
+                "rdf:RDF", "rdf:RDF", "http://www.w3.org/2002/07/owl#:Ontology", "http://www.w3.org/2002/07/owl#:versionIRI", "http://www.w3.org/2002/07/owl#:Class", "http://www.w3.org/2002/07/owl#:Class", "http://www.w3.org/2002/07/owl#:equivalentClass", "http://www.w3.org/2002/07/owl#:Class", "http://www.w3.org/2002/07/owl#:intersectionOf", "http://www.w3.org/2002/07/owl#:intersectionOf", "rdf:Description", "http://www.w3.org/2002/07/owl#:Restriction", "http://www.w3.org/2002/07/owl#:Restriction", "http://www.w3.org/2002/07/owl#:onProperty", "http://www.w3.org/2002/07/owl#:someValuesFrom", "http://www.w3.org/2000/01/rdf-schema#:label"
             ]
         );
         let _result = table.get_column_as_vec_str("element_attr");
@@ -1068,14 +871,7 @@ mod tests {
         assert_eq!(
             result[..8],
             [
-                "owl:Ontology",
-                "owl:Class",
-                "owl:versionIRI",
-                "",
-                "owl:equivalentClass",
-                "rdfs:label",
-                "owl:Class",
-                "owl:intersectionOf"
+                "http://www.w3.org/2002/07/owl#:Ontology", "http://www.w3.org/2002/07/owl#:Class", "http://www.w3.org/2002/07/owl#:versionIRI", "", "http://www.w3.org/2002/07/owl#:equivalentClass", "http://www.w3.org/2000/01/rdf-schema#:label", "http://www.w3.org/2002/07/owl#:Class", "http://www.w3.org/2002/07/owl#:intersectionOf"
             ]
         );
         let result = table.get_column_as_vec_str("child_attr");
