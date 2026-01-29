@@ -143,7 +143,9 @@ pub(crate) struct Paper {
     #[serde(rename = "referenceCount")]
     pub reference_count: Option<u32>,
     #[serde(rename = "fieldsOfStudy")]
-    pub fields_of_study: Option<Vec<FieldOfStudy>>,
+    pub fields_of_study: Option<Vec<String>>,
+    #[serde(rename = "s2FieldsOfStudy")]
+    pub s2_fields_of_study: Option<Vec<FieldOfStudy>>,
     pub authors: Option<Vec<Author>>,
     pub tldr: Option<Tldr>,
     #[serde(rename = "externalIds")]

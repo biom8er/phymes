@@ -7,7 +7,7 @@ use clap::ValueEnum;
 use phymes_core::{
     BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine,
     JSONSchemaType, MappableTrait, OwlFormat, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
-    create_parse_owl_batch, create_parse_xml_batch,
+    create_n_triples_batch, create_parse_xml_batch,
 };
 use quick_xml::{
     Reader,
@@ -21,6 +21,7 @@ use crate::{ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTr
 /// Extract xml tags in either XML or OWL format from Bytes
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ExtractXML {
+    lhs_name: String,
     lhs_values: String,
     format: DataFormat,
 }
@@ -90,6 +91,10 @@ impl DataOperatorTrait for ExtractXML {
         Self: Sized,
     {
         // Extract the members from the DataConfig
+        let lhs_name = config.lhs_name.clone().ok_or(anyhow!(
+            "Missing `lhs_name` for `{}`.",
+            Self::get_static_name()
+        ))?;
         let lhs_values = config
             .lhs_values
             .as_ref()
@@ -109,7 +114,7 @@ impl DataOperatorTrait for ExtractXML {
             Self::get_static_name()
         ))?;
 
-        Ok(ExtractXML { lhs_values, format })
+        Ok(ExtractXML { lhs_name, lhs_values, format })
     }
     fn forward(
         &self,
@@ -117,7 +122,7 @@ impl DataOperatorTrait for ExtractXML {
         _rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        extract_xml(&self.lhs_values, lhs_args, &self.format, device)
+        extract_xml(&self.lhs_name, &self.lhs_values, lhs_args, &self.format, device)
     }
 }
 
@@ -188,7 +193,7 @@ fn serialize_xml_tag<'a>(index: usize, e: &BytesStart<'a>) -> Result<String> {
     Ok(serialized)
 }
 
-fn parse_xml(bytes: &[u8], device: &Device) -> Result<RecordBatch> {
+fn parse_xml(lhs_name: &str, bytes: &[u8], device: &Device) -> Result<RecordBatch> {
     let cursor = Cursor::new(bytes);
     let mut reader = Reader::from_reader(cursor);
 
@@ -277,6 +282,7 @@ fn parse_xml(bytes: &[u8], device: &Device) -> Result<RecordBatch> {
     }
 
     // Initialize the columns
+    let mut document_id_vec = Vec::new();
     let mut element_index_vec = Vec::new();
     let mut element_tag_vec = Vec::new();
     let mut element_attr_vec = Vec::new();
@@ -312,6 +318,7 @@ fn parse_xml(bytes: &[u8], device: &Device) -> Result<RecordBatch> {
         for (t, c) in type_tmp.into_iter().zip(children_tmp) {
             match t {
                 XMLType::Text => {
+                    document_id_vec.push(lhs_name.to_string());
                     element_index_vec.push(xml_element.index.to_owned() as u32);
                     element_attr_vec.push(serde_json::to_string(&xml_element.attributes)?);
                     element_tag_vec.push(xml_element.tag.to_owned());
@@ -321,6 +328,7 @@ fn parse_xml(bytes: &[u8], device: &Device) -> Result<RecordBatch> {
                     child_tag_vec.push(String::new());
                 }
                 XMLType::Element => {
+                    document_id_vec.push(lhs_name.to_string());
                     element_index_vec.push(xml_element.index.to_owned() as u32);
                     element_attr_vec.push(serde_json::to_string(&xml_element.attributes)?);
                     element_tag_vec.push(xml_element.tag.to_owned());
@@ -336,6 +344,7 @@ fn parse_xml(bytes: &[u8], device: &Device) -> Result<RecordBatch> {
 
     // Build the batch
     let mut batch = create_parse_xml_batch(
+        document_id_vec,
         element_tag_vec,
         element_attr_vec,
         text_vec,
@@ -352,7 +361,7 @@ fn parse_xml(bytes: &[u8], device: &Device) -> Result<RecordBatch> {
     Ok(batch)
 }
 
-fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<RecordBatch> {
+fn parse_owl(lhs_name: &str, bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<RecordBatch> {
     let cursor = Cursor::new(bytes);
     let mut reader = Reader::from_reader(cursor);
 
@@ -533,7 +542,7 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
     }
 
     // Build the batch
-    let mut batch = create_parse_owl_batch(subjects, predicates, objects)?;
+    let mut batch = create_n_triples_batch(subjects, predicates, objects)?;
 
     // Sorty by the subject and predicate
     for column_name in ["predicate", "subject"] {
@@ -545,6 +554,7 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
 /// Extract Set (or Graph data) in XML, HTML, or OWL format from Bytes
 ///
 /// # Arguments
+/// * `lhs_name` - The name of the XML document
 /// * `lhs_values` - The column to extract data from (i.e., `bytes`)
 /// * `lhs_args` - Slice of [RecordBatch]es
 /// * `format` - The format of the bytes
@@ -555,6 +565,7 @@ fn parse_owl(bytes: &[u8], format: &OwlFormat, device: &Device) -> Result<Record
 /// * See <https://github.com/phillord/horned-owl> for a full-fledged OWL parser
 #[instrument(skip(lhs_values, lhs_args, format, device))]
 pub fn extract_xml(
+    lhs_name: &str,
     lhs_values: &str,
     lhs_args: &[RecordBatch],
     format: &DataFormat,
@@ -574,22 +585,24 @@ pub fn extract_xml(
     // Read the XML document
     match format {
         DataFormat::Html | DataFormat::Xml | DataFormat::OwlDefault => {
-            parse_xml(&values_vec, device)
+            parse_xml(lhs_name, &values_vec, device)
         }
-        DataFormat::Owl(format) => parse_owl(&values_vec, format, device),
-        DataFormat::OwlClass => parse_owl(&values_vec, &OwlFormat::owl_format_class(), device),
+        DataFormat::Owl(format) => parse_owl(lhs_name, &values_vec, format, device),
+        DataFormat::OwlClass => parse_owl(lhs_name, &values_vec, &OwlFormat::owl_format_class(), device),
         DataFormat::OwlObjectProperty => parse_owl(
+            lhs_name, 
             &values_vec,
             &OwlFormat::owl_format_object_property(),
             device,
         ),
         DataFormat::OwlNamedIndividual => parse_owl(
+            lhs_name, 
             &values_vec,
             &OwlFormat::owl_format_named_individual(),
             device,
         ),
         DataFormat::OwlOntology => {
-            parse_owl(&values_vec, &OwlFormat::owl_format_ontology(), device)
+            parse_owl(lhs_name, &values_vec, &OwlFormat::owl_format_ontology(), device)
         }
         _ => Err(anyhow!(
             "Unsupported format {format:?} for extract_set_data operator."
@@ -651,7 +664,7 @@ mod tests {
         let device = device(false).unwrap();
 
         // Extract the xml tags
-        let extracted = extract_xml("bytes", &[batch], &DataFormat::OwlDefault, &device).unwrap();
+        let extracted = extract_xml("test", "bytes", &[batch], &DataFormat::OwlDefault, &device).unwrap();
 
         // Check the dimensions of the extracted data
         assert_eq!(extracted.num_columns(), 7);
@@ -664,6 +677,28 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
+        let result = table.get_column_as_vec_str("document_id");
+        assert_eq!(
+            result,
+            [
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+            ]
+        );
         let result = table
             .get_column_as_vec_primitive::<u32>("element_index")
             .unwrap();
@@ -691,6 +726,28 @@ mod tests {
             ]
         );
         let _result = table.get_column_as_vec_str("element_attr");
+        // DM: HashMap sorting of keys is stochastic
+        // assert_eq!(
+        //     result,
+        //     [
+        //         "{\"xmlns:rdfs\":\"http://www.w3.org/2000/01/rdf-schema#\",\"xmlns\":\"http://www.example.com/iri#\",\"xml:base\":\"http://www.example.com/iri\"}",
+        //         "{\"xmlns:rdfs\":\"http://www.w3.org/2000/01/rdf-schema#\",\"xmlns\":\"http://www.example.com/iri#\",\"xml:base\":\"http://www.example.com/iri\"}",
+        //         "{\"rdf:about\":\"http://www.example.com/iri\"}",
+        //         "{\"rdf:resource\":\"http://www.example.com/viri\"}",
+        //         "{\"rdf:about\":\"http://purl.obolibrary.org/obo/GO_0010958\"}",
+        //         "{\"rdf:about\":\"http://purl.obolibrary.org/obo/GO_0010958\"}",
+        //         "{}",
+        //         "{}",
+        //         "{\"rdf:parseType\":\"Collection\"}",
+        //         "{\"rdf:parseType\":\"Collection\"}",
+        //         "{\"rdf:about\":\"http://purl.obolibrary.org/obo/GO_0065007\"}",
+        //         "{}",
+        //         "{}",
+        //         "{\"rdf:resource\":\"http://purl.obolibrary.org/obo/RO_0002211\"}",
+        //         "{\"rdf:resource\":\"http://purl.obolibrary.org/obo/GO_0089718\"}",
+        //         "{}"
+        //     ]
+        // );
         let result = table.get_column_as_vec_str("text");
         assert_eq!(
             result,
@@ -731,7 +788,20 @@ mod tests {
                 "owl:intersectionOf"
             ]
         );
-        let _result = table.get_column_as_vec_str("child_attr");
+        let result = table.get_column_as_vec_str("child_attr");
+        assert_eq!(
+            result[..8],
+            [
+                "{\"rdf:about\":\"http://www.example.com/iri\"}",
+                "{\"rdf:about\":\"http://purl.obolibrary.org/obo/GO_0010958\"}",
+                "{\"rdf:resource\":\"http://www.example.com/viri\"}",
+                "", 
+                "{}", 
+                "{}", 
+                "{}",
+                "{\"rdf:parseType\":\"Collection\"}"
+            ]
+        );
     }
 
     #[test]
@@ -840,7 +910,7 @@ mod tests {
         let device = device(false).unwrap();
 
         // Extract the xml tags
-        let extracted = extract_xml("bytes", &[batch], &DataFormat::OwlClass, &device).unwrap();
+        let extracted = extract_xml("test", "bytes", &[batch], &DataFormat::OwlClass, &device).unwrap();
 
         // Check the dimensions of the extracted data
         assert_eq!(extracted.num_columns(), 3);
@@ -961,7 +1031,7 @@ mod tests {
 
         // Extract the xml tags
         let extracted =
-            extract_xml("bytes", &[batch], &DataFormat::OwlObjectProperty, &device).unwrap();
+            extract_xml("test", "bytes", &[batch], &DataFormat::OwlObjectProperty, &device).unwrap();
 
         // Check the dimensions of the extracted data
         assert_eq!(extracted.num_columns(), 3);

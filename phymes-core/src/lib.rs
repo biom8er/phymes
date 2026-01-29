@@ -29,7 +29,7 @@ pub use schemas::{
     create_chat_fields, create_chat_record_batch, create_documents_batch, create_error_message_map,
     create_error_message_map_stream, create_mermaid_content_template_batch,
     create_mermaid_sequence_diagram_participants_template_batch,
-    create_metrics_mermaid_gantt_batch, create_parse_owl_batch, create_parse_xml_batch,
+    create_metrics_mermaid_gantt_batch, create_n_triples_batch, create_parse_xml_batch,
     create_queries_batch, create_schema_from_fields, create_session_mermaid_batch,
     create_session_processors_batch, create_session_runtime_envs_batch,
     create_session_subjects_batch, create_session_supersteps_batch, create_session_tasks_batch,

@@ -3,33 +3,27 @@ use std::fmt::Display;
 use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
-use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageMap,
-    MessageBuilderTrait, Table, TableBuilderTrait, TablePublication, TableTrait,
-    create_session_tasks_subscribe_publish_batch, items_to_list, make_random_id,
-};
+use phymes_core::{items_to_list, make_random_id};
 use serde::{Deserialize, Serialize};
 
-use crate::create_message_map;
+/// Sample types
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
+pub enum SampleType {
+    #[default]
+    #[value(name = "Physical")]
+    Physical,
+    #[value(name = "Digital")]
+    Digital
+}
 
-// /// Sample types
-// #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
-// pub enum SampleType {
-//     #[default]
-//     #[value(name = "Physical")]
-//     Physical,
-//     #[value(name = "Digital")]
-//     Digital
-// }
-
-// impl Display for SampleType {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         match self {
-//             Self::Physical => write!(f, "Physical"),
-//             Self::Digital => write!(f, "Digital"),
-//         }
-//     }
-// }
+impl Display for SampleType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Physical => write!(f, "Physical"),
+            Self::Digital => write!(f, "Digital"),
+        }
+    }
+}
 
 /// A session for melting a `Study Dataset` from a single workflow step
 /// 
@@ -113,79 +107,6 @@ impl<'a> MeltStudyDataSession<'a> {
     fn column_operators_columns(&self) -> Result<String> {
         let items = self.data_types.iter().map(|_| "None".to_string()).collect::<Vec<_>>();
         items_to_list(&items.iter().map(|s| s.as_str()).collect::<Vec<_>>())
-    }
-
-    /// Return the pre-compiled task subscriptions and publications as messages
-    pub fn as_task_messages(&self) -> Result<Vec<IPCMessageMap>> {
-        // 1. Message to trigger the first superstep
-        let task_names = vec!["max_superstep_t"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
-        let processor_names = vec!["group_by_session_superstep_p"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
-        let processor_types = vec!["GroupBy"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
-        let subscription_names = vec![vec!["OnUpdateFullTable", "AlwaysFullTable"]]
-            .into_iter()
-            .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
-            .collect::<Vec<_>>();
-        let subscription_table_names =
-            vec![vec!["SessionSupersteps", "group_by_session_superstep_p"]]
-                .into_iter()
-                .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
-                .collect::<Vec<_>>();
-        let publication_names = vec![vec!["Replace"]]
-            .into_iter()
-            .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
-            .collect::<Vec<_>>();
-        let publication_table_names = vec![vec!["SessionSuperstepMax"]]
-            .into_iter()
-            .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
-            .collect::<Vec<_>>();
-        let session_names = task_names
-            .iter()
-            .map(|_| self.session_context_name.to_string())
-            .collect::<Vec<_>>();
-
-        let batch = create_session_tasks_subscribe_publish_batch(
-            session_names,
-            task_names,
-            processor_names,
-            processor_types,
-            subscription_names,
-            subscription_table_names,
-            publication_names,
-            publication_table_names,
-        )?;
-        let table = Table::get_builder()
-            .with_name(
-                AvailableSubjects::SessionTasksSubscribePublish
-                    .to_string()
-                    .as_str(),
-            )
-            .with_record_batches(vec![batch])?
-            .build()?;
-        let tasks_publish_subscribe_message = IPCMessage::get_builder()
-            .with_message(table.to_ipc_stream()?)
-            .with_subject(
-                AvailableSubjects::SessionTasksSubscribePublish
-                    .to_string()
-                    .as_str(),
-            )
-            .with_update(&TablePublication::Replace {
-                table_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
-            })
-            .with_publisher(self.session_context_name)
-            .make_name()?
-            .build()?;
-        let messages_1 = create_message_map(vec![tasks_publish_subscribe_message]);
-
-        Ok(vec![messages_1])
     }
 
     /// Return the Mermaid.js flowchart representation of the session
@@ -398,7 +319,7 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, CsvFormat, IPCMessage, MappableTrait, MessageBuilderTrait, TablePublication, TableTrait, create_session_supersteps_batch
+        AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, CsvFormat, IPCMessage, MappableTrait, MessageBuilderTrait, Table, TableBuilderTrait, TablePublication, TableTrait, create_session_supersteps_batch
     };
     use phymes_diagnostics::HashMap;
 
