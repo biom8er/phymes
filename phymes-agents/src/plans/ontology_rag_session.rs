@@ -19,6 +19,636 @@ impl<'a> Default for OntologyRAGSession<'a> {
 impl<'a> OntologyRAGSession<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> &str {
+        r#"flowchart TD
+	%% ------------------------------------------------------------------------------
+	%% OWL ontology extraction
+	%% ------------------------------------------------------------------------------
+	subgraph owl_extract_pion
+	    UserScript-subject-.->|FullTable|owl_extract_p-subscribe
+	    owl_extract_p-subscribe-->owl_extract_p-processor
+	    owl_extract_p-processor-->owl_extract_p-publish
+	    owl_extract_p-publish-->|Extend|owl_extract_s-subject
+	end
+	owl_extract_rt_env-rt@{shape: subproc, label: owl_extract_rt_env}
+	owl_extract_rt_env-rt-->owl_extract_pion
+	UserScript-subject@{shape: doc, label: UserScript}
+	owl_extract_p-processor@{shape: rect, label: ExtractXML}
+	owl_extract_p-publish@{shape: fork}
+	owl_extract_p-subscribe@{shape: diamond, label: All}
+	owl_extract_s-subject@{shape: doc, label: owl_extract_s}
+	%% ------------------------------------------------------------------------------
+	%% Filter on Owl:Ontology entities
+	%% ------------------------------------------------------------------------------
+	subgraph filter_ontology_entity_t
+	    owl_extract_s-subject-.->|LastRecordBatch|filter_ontology_entity_p-subscribe
+	    filter_ontology_entity_p-subscribe-->filter_ontology_entity_p-processor
+	    filter_ontology_entity_p-processor-->filter_ontology_entity_p-publish
+	    filter_ontology_entity_p-publish-->|Extend|filter_ontology_entity_s-subject
+	end
+	owl_extract_rt_env-rt-->filter_ontology_entity_t
+	filter_ontology_entity_p-processor@{shape: rect, label: Filter}
+	filter_ontology_entity_p-publish@{shape: fork}
+	filter_ontology_entity_p-subscribe@{shape: diamond, label: All}
+	filter_ontology_entity_s-subject@{shape: doc, label: filter_ontology_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Filter on Owl:AnnotationProperty entities
+	%% ------------------------------------------------------------------------------
+	subgraph filter_annotation_property_entity_t
+	    owl_extract_s-subject-.->|LastRecordBatch|filter_annotation_property_entity_p-subscribe
+	    filter_annotation_property_entity_p-subscribe-->filter_annotation_property_entity_p-processor
+	    filter_annotation_property_entity_p-processor-->filter_annotation_property_entity_p-publish
+	    filter_annotation_property_entity_p-publish-->|Extend|filter_annotation_property_entity_s-subject
+	end
+	owl_extract_rt_env-rt-->filter_annotation_property_entity_t
+	filter_annotation_property_entity_p-processor@{shape: rect, label: Filter}
+	filter_annotation_property_entity_p-publish@{shape: fork}
+	filter_annotation_property_entity_p-subscribe@{shape: diamond, label: All}
+	filter_annotation_property_entity_s-subject@{shape: doc, label: filter_annotation_property_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Filter on Owl:DatatypeProperty entities
+	%% ------------------------------------------------------------------------------
+	subgraph filter_datatype_property_entity_t
+	    owl_extract_s-subject-.->|LastRecordBatch|filter_datatype_property_entity_p-subscribe
+	    filter_datatype_property_entity_p-subscribe-->filter_datatype_property_entity_p-processor
+	    filter_datatype_property_entity_p-processor-->filter_datatype_property_entity_p-publish
+	    filter_datatype_property_entity_p-publish-->|Extend|filter_datatype_property_entity_s-subject
+	end
+	owl_extract_rt_env-rt-->filter_datatype_property_entity_t
+	filter_datatype_property_entity_p-processor@{shape: rect, label: Filter}
+	filter_datatype_property_entity_p-publish@{shape: fork}
+	filter_datatype_property_entity_p-subscribe@{shape: diamond, label: All}
+	filter_datatype_property_entity_s-subject@{shape: doc, label: filter_datatype_property_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Filter on Owl:Class entities
+	%% ------------------------------------------------------------------------------
+	subgraph filter_class_entity_t
+	    owl_extract_s-subject-.->|LastRecordBatch|filter_class_entity_p-subscribe
+	    filter_class_entity_p-subscribe-->filter_class_entity_p-processor
+	    filter_class_entity_p-processor-->filter_class_entity_p-publish
+	    filter_class_entity_p-publish-->|Extend|filter_class_entity_s-subject
+	end
+	owl_extract_rt_env-rt-->filter_class_entity_t
+	filter_class_entity_p-processor@{shape: rect, label: Filter}
+	filter_class_entity_p-publish@{shape: fork}
+	filter_class_entity_p-subscribe@{shape: diamond, label: All}
+	filter_class_entity_s-subject@{shape: doc, label: filter_class_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Filter on Owl:ObjectProperty entities
+	%% ------------------------------------------------------------------------------
+	subgraph filter_object_property_entity_t
+	    owl_extract_s-subject-.->|LastRecordBatch|filter_object_property_entity_p-subscribe
+	    filter_object_property_entity_p-subscribe-->filter_object_property_entity_p-processor
+	    filter_object_property_entity_p-processor-->filter_object_property_entity_p-publish
+	    filter_object_property_entity_p-publish-->|Extend|filter_object_property_entity_s-subject
+	end
+	owl_extract_rt_env-rt-->filter_object_property_entity_t
+	filter_object_property_entity_p-processor@{shape: rect, label: Filter}
+	filter_object_property_entity_p-publish@{shape: fork}
+	filter_object_property_entity_p-subscribe@{shape: diamond, label: All}
+	filter_object_property_entity_s-subject@{shape: doc, label: filter_object_property_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Filter on Owl:NamedIndividual entities
+	%% ------------------------------------------------------------------------------
+	subgraph filter_named_individual_entity_t
+	    owl_extract_s-subject-.->|LastRecordBatch|filter_named_individual_entity_p-subscribe
+	    filter_named_individual_entity_p-subscribe-->filter_named_individual_entity_p-processor
+	    filter_named_individual_entity_p-processor-->filter_named_individual_entity_p-publish
+	    filter_named_individual_entity_p-publish-->|Extend|filter_named_individual_entity_s-subject
+	end
+	owl_extract_rt_env-rt-->filter_named_individual_entity_t
+	filter_named_individual_entity_p-processor@{shape: rect, label: Filter}
+	filter_named_individual_entity_p-publish@{shape: fork}
+	filter_named_individual_entity_p-subscribe@{shape: diamond, label: All}
+	filter_named_individual_entity_s-subject@{shape: doc, label: filter_named_individual_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Filter on Owl:Axiom entities
+	%% ------------------------------------------------------------------------------
+	subgraph filter_axiom_entity_t
+	    owl_extract_s-subject-.->|LastRecordBatch|filter_axiom_entity_p-subscribe
+	    filter_axiom_entity_p-subscribe-->filter_axiom_entity_p-processor
+	    filter_axiom_entity_p-processor-->filter_axiom_entity_p-publish
+	    filter_axiom_entity_p-publish-->|Extend|filter_axiom_entity_s-subject
+	end
+	owl_extract_rt_env-rt-->filter_axiom_entity_t
+	filter_axiom_entity_p-processor@{shape: rect, label: Filter}
+	filter_axiom_entity_p-publish@{shape: fork}
+	filter_axiom_entity_p-subscribe@{shape: diamond, label: All}
+	filter_axiom_entity_s-subject@{shape: doc, label: filter_axiom_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Pivot Owl:AnnotationProperty on rdfs:label (or skos:prefLabel)
+	%% ------------------------------------------------------------------------------
+	subgraph pivot_annotation_property_t
+	    filter_annotation_property_entity_s-subject-.->|LastRecordBatch|coalesce_annotation_property_owl_extract_p-subscribe
+	    coalesce_annotation_property_owl_extract_p-subscribe-->coalesce_annotation_property_owl_extract_p-processor
+	    coalesce_annotation_property_owl_extract_p-processor-->coalesce_annotation_property_owl_extract_p-publish
+	    coalesce_annotation_property_owl_extract_p-publish-->|Replace|coalesce_annotation_property_owl_extract_s-subject
+	    coalesce_annotation_property_owl_extract_s-subject-->|FullTable|new_cols_annotation_property_owl_extract_p-subscribe
+	    new_cols_annotation_property_owl_extract_p-subscribe-->new_cols_annotation_property_owl_extract_p-processor
+	    new_cols_annotation_property_owl_extract_p-processor-->new_cols_annotation_property_owl_extract_p-publish
+	    new_cols_annotation_property_owl_extract_p-publish-->|Replace|new_cols_annotation_property_owl_extract_s-subject
+	    new_cols_annotation_property_owl_extract_s-subject-->|FullTable|filter_cols_annotation_property_owl_extract_p-subscribe
+	    filter_cols_annotation_property_owl_extract_p-subscribe-->filter_cols_annotation_property_owl_extract_p-processor
+	    filter_cols_annotation_property_owl_extract_p-processor-->filter_cols_annotation_property_owl_extract_p-publish
+	    filter_cols_annotation_property_owl_extract_p-publish-->|Replace|filter_cols_annotation_property_owl_extract_s-subject
+	    filter_cols_annotation_property_owl_extract_s-subject-->|FullTable|select_cols_annotation_property_owl_extract_p-subscribe
+	    select_cols_annotation_property_owl_extract_p-subscribe-->select_cols_annotation_property_owl_extract_p-processor
+	    select_cols_annotation_property_owl_extract_p-processor-->select_cols_annotation_property_owl_extract_p-publish
+	    select_cols_annotation_property_owl_extract_p-publish-->|Replace|select_cols_annotation_property_owl_extract_s-subject
+	    select_cols_annotation_property_owl_extract_s-subject-->|FullTable|pivot_annotation_property_owl_extract_p-subscribe
+	    pivot_annotation_property_owl_extract_p-subscribe-->pivot_annotation_property_owl_extract_p-processor
+	    pivot_annotation_property_owl_extract_p-processor-->pivot_annotation_property_owl_extract_p-publish
+	    pivot_annotation_property_owl_extract_p-publish-->|Replace|pivot_annotation_property_owl_extract_s-subject
+	end
+	owl_extract_rt_env-rt-->pivot_annotation_property_t
+	coalesce_annotation_property_owl_extract_p-processor@{shape: rect, label: CoalesceProcessor}
+	coalesce_annotation_property_owl_extract_p-publish@{shape: fork}
+	coalesce_annotation_property_owl_extract_p-subscribe@{shape: diamond, label: All}
+	coalesce_annotation_property_owl_extract_s-subject@{shape: doc, label: coalesce_annotation_property_owl_extract_s}
+	new_cols_annotation_property_owl_extract_p-processor@{shape: rect, label: Select}
+	new_cols_annotation_property_owl_extract_p-publish@{shape: fork}
+	new_cols_annotation_property_owl_extract_p-subscribe@{shape: diamond, label: All}
+	new_cols_annotation_property_owl_extract_s-subject@{shape: doc, label: new_cols_annotation_property_owl_extract_s}
+	filter_cols_annotation_property_owl_extract_p-processor@{shape: rect, label: Filter}
+	filter_cols_annotation_property_owl_extract_p-publish@{shape: fork}
+	filter_cols_annotation_property_owl_extract_p-subscribe@{shape: diamond, label: All}
+	filter_cols_annotation_property_owl_extract_s-subject@{shape: doc, label: filter_cols_annotation_property_owl_extract_s}
+	select_cols_annotation_property_owl_extract_p-processor@{shape: rect, label: Select}
+	select_cols_annotation_property_owl_extract_p-publish@{shape: fork}
+	select_cols_annotation_property_owl_extract_p-subscribe@{shape: diamond, label: All}
+	select_cols_annotation_property_owl_extract_s-subject@{shape: doc, label: select_cols_annotation_property_owl_extract_s}
+	pivot_annotation_property_owl_extract_p-processor@{shape: rect, label: Pivot}
+	pivot_annotation_property_owl_extract_p-publish@{shape: fork}
+	pivot_annotation_property_owl_extract_p-subscribe@{shape: diamond, label: All}
+	pivot_annotation_property_owl_extract_s-subject@{shape: doc, label: pivot_annotation_property_owl_extract_s}
+	%% ------------------------------------------------------------------------------
+	%% Owl:AnnotationProperty post-pivot cleanup
+	%% ------------------------------------------------------------------------------
+	subgraph post_pivot_annotation_property_t
+	    pivot_annotation_property_owl_extract_s-subject-.->|FullTable|coalesce_annotation_property_pivot_p-subscribe
+	    coalesce_annotation_property_pivot_p-subscribe-->coalesce_annotation_property_pivot_p-processor
+	    coalesce_annotation_property_pivot_p-processor-->coalesce_annotation_property_pivot_p-publish
+	    coalesce_annotation_property_pivot_p-publish-->|Replace|coalesce_annotation_property_pivot_s-subject
+	    coalesce_annotation_property_pivot_s-subject-->|FullTable|group_by_annotation_property_pivot_p-subscribe
+	    group_by_annotation_property_pivot_p-subscribe-->group_by_annotation_property_pivot_p-processor
+	    group_by_annotation_property_pivot_p-processor-->group_by_annotation_property_pivot_p-publish
+	    group_by_annotation_property_pivot_p-publish-->|Replace|group_by_annotation_property_pivot_s-subject
+	end
+	owl_extract_rt_env-rt-->post_pivot_annotation_property_t
+	coalesce_annotation_property_pivot_p-processor@{shape: rect, label: CoalesceProcessor}
+	coalesce_annotation_property_pivot_p-publish@{shape: fork}
+	coalesce_annotation_property_pivot_p-subscribe@{shape: diamond, label: All}
+	coalesce_annotation_property_pivot_s-subject@{shape: doc, label: coalesce_annotation_property_pivot_s}
+	group_by_annotation_property_pivot_p-processor@{shape: rect, label: GroupBy}
+	group_by_annotation_property_pivot_p-publish@{shape: fork}
+	group_by_annotation_property_pivot_p-subscribe@{shape: diamond, label: All}
+	group_by_annotation_property_pivot_s-subject@{shape: doc, label: group_by_annotation_property_pivot_s}
+	%% ------------------------------------------------------------------------------
+	%% Pivot Owl:Class on rdfs:label (or skos:prefLabel)
+	%% ------------------------------------------------------------------------------
+	subgraph pivot_class_t
+	    filter_class_entity_s-subject-.->|LastRecordBatch|coalesce_class_owl_extract_p-subscribe
+	    coalesce_class_owl_extract_p-subscribe-->coalesce_class_owl_extract_p-processor
+	    coalesce_class_owl_extract_p-processor-->coalesce_class_owl_extract_p-publish
+	    coalesce_class_owl_extract_p-publish-->|Replace|coalesce_class_owl_extract_s-subject
+	    coalesce_class_owl_extract_s-subject-->|FullTable|new_cols_class_owl_extract_p-subscribe
+	    new_cols_class_owl_extract_p-subscribe-->new_cols_class_owl_extract_p-processor
+	    new_cols_class_owl_extract_p-processor-->new_cols_class_owl_extract_p-publish
+	    new_cols_class_owl_extract_p-publish-->|Replace|new_cols_class_owl_extract_s-subject
+	    new_cols_class_owl_extract_s-subject-->|FullTable|filter_cols_class_owl_extract_p-subscribe
+	    filter_cols_class_owl_extract_p-subscribe-->filter_cols_class_owl_extract_p-processor
+	    filter_cols_class_owl_extract_p-processor-->filter_cols_class_owl_extract_p-publish
+	    filter_cols_class_owl_extract_p-publish-->|Replace|filter_cols_class_owl_extract_s-subject
+	    filter_cols_class_owl_extract_s-subject-->|FullTable|select_cols_class_owl_extract_p-subscribe
+	    select_cols_class_owl_extract_p-subscribe-->select_cols_class_owl_extract_p-processor
+	    select_cols_class_owl_extract_p-processor-->select_cols_class_owl_extract_p-publish
+	    select_cols_class_owl_extract_p-publish-->|Replace|select_cols_class_owl_extract_s-subject
+	    select_cols_class_owl_extract_s-subject-->|FullTable|pivot_class_owl_extract_p-subscribe
+	    pivot_class_owl_extract_p-subscribe-->pivot_class_owl_extract_p-processor
+	    pivot_class_owl_extract_p-processor-->pivot_class_owl_extract_p-publish
+	    pivot_class_owl_extract_p-publish-->|Replace|pivot_class_owl_extract_s-subject
+	end
+	owl_extract_rt_env-rt-->pivot_class_t
+	coalesce_class_owl_extract_p-processor@{shape: rect, label: CoalesceProcessor}
+	coalesce_class_owl_extract_p-publish@{shape: fork}
+	coalesce_class_owl_extract_p-subscribe@{shape: diamond, label: All}
+	coalesce_class_owl_extract_s-subject@{shape: doc, label: coalesce_class_owl_extract_s}
+	new_cols_class_owl_extract_p-processor@{shape: rect, label: Select}
+	new_cols_class_owl_extract_p-publish@{shape: fork}
+	new_cols_class_owl_extract_p-subscribe@{shape: diamond, label: All}
+	new_cols_class_owl_extract_s-subject@{shape: doc, label: new_cols_class_owl_extract_s}
+	filter_cols_class_owl_extract_p-processor@{shape: rect, label: Filter}
+	filter_cols_class_owl_extract_p-publish@{shape: fork}
+	filter_cols_class_owl_extract_p-subscribe@{shape: diamond, label: All}
+	filter_cols_class_owl_extract_s-subject@{shape: doc, label: filter_cols_class_owl_extract_s}
+	select_cols_class_owl_extract_p-processor@{shape: rect, label: Select}
+	select_cols_class_owl_extract_p-publish@{shape: fork}
+	select_cols_class_owl_extract_p-subscribe@{shape: diamond, label: All}
+	select_cols_class_owl_extract_s-subject@{shape: doc, label: select_cols_class_owl_extract_s}
+	pivot_class_owl_extract_p-processor@{shape: rect, label: Pivot}
+	pivot_class_owl_extract_p-publish@{shape: fork}
+	pivot_class_owl_extract_p-subscribe@{shape: diamond, label: All}
+	pivot_class_owl_extract_s-subject@{shape: doc, label: pivot_class_owl_extract_s}
+	%% ------------------------------------------------------------------------------
+	%% Owl:Class post-pivot cleanup
+	%% ------------------------------------------------------------------------------
+	subgraph post_pivot_class_t
+	    pivot_class_owl_extract_s-subject-.->|FullTable|coalesce_class_pivot_p-subscribe
+	    coalesce_class_pivot_p-subscribe-->coalesce_class_pivot_p-processor
+	    coalesce_class_pivot_p-processor-->coalesce_class_pivot_p-publish
+	    coalesce_class_pivot_p-publish-->|Replace|coalesce_class_pivot_s-subject
+	    coalesce_class_pivot_s-subject-->|FullTable|group_by_class_pivot_p-subscribe
+	    group_by_class_pivot_p-subscribe-->group_by_class_pivot_p-processor
+	    group_by_class_pivot_p-processor-->group_by_class_pivot_p-publish
+	    group_by_class_pivot_p-publish-->|Replace|group_by_class_pivot_s-subject
+	end
+	owl_extract_rt_env-rt-->post_pivot_class_t
+	coalesce_class_pivot_p-processor@{shape: rect, label: CoalesceProcessor}
+	coalesce_class_pivot_p-publish@{shape: fork}
+	coalesce_class_pivot_p-subscribe@{shape: diamond, label: All}
+	coalesce_class_pivot_s-subject@{shape: doc, label: coalesce_class_pivot_s}
+	group_by_class_pivot_p-processor@{shape: rect, label: GroupBy}
+	group_by_class_pivot_p-publish@{shape: fork}
+	group_by_class_pivot_p-subscribe@{shape: diamond, label: All}
+	group_by_class_pivot_s-subject@{shape: doc, label: group_by_class_pivot_s}
+	%% ------------------------------------------------------------------------------
+	%% Join Owl:AnnotationProperty with Owl:Class on predicates
+	%% ------------------------------------------------------------------------------
+	subgraph join_class_on_predicates_t
+	    filter_class_entity_s-subject-.->|FullTable|join_on_predicates_class_owl_extract_p-subscribe
+	    group_by_annotation_property_pivot_s-subject-.->|FullTable|join_on_predicates_class_owl_extract_p-subscribe
+	    join_on_predicates_class_owl_extract_p-subscribe-->join_on_predicates_class_owl_extract_p-processor
+	    join_on_predicates_class_owl_extract_p-processor-->join_on_predicates_class_owl_extract_p-publish
+	    join_on_predicates_class_owl_extract_p-publish-->|Replace|join_on_predicates_class_owl_extract_s-subject
+	    join_on_predicates_class_owl_extract_s-subject-->|FullTable|select_predicates_class_owl_extract_p-subscribe
+	    select_predicates_class_owl_extract_p-subscribe-->select_predicates_class_owl_extract_p-processor
+	    select_predicates_class_owl_extract_p-processor-->select_predicates_class_owl_extract_p-publish
+	    select_predicates_class_owl_extract_p-publish-->|Replace|select_predicates_class_owl_extract_s-subject
+	end
+	owl_extract_rt_env-rt-->join_class_on_predicates_t
+	join_on_predicates_class_owl_extract_p-processor@{shape: rect, label: Join}
+	join_on_predicates_class_owl_extract_p-publish@{shape: fork}
+	join_on_predicates_class_owl_extract_p-subscribe@{shape: diamond, label: All}
+	join_on_predicates_class_owl_extract_s-subject@{shape: doc, label: join_on_predicates_class_owl_extract_s}
+	select_predicates_class_owl_extract_p-processor@{shape: rect, label: Select}
+	select_predicates_class_owl_extract_p-publish@{shape: fork}
+	select_predicates_class_owl_extract_p-subscribe@{shape: diamond, label: All}
+	select_predicates_class_owl_extract_s-subject@{shape: doc, label: select_predicates_class_owl_extract_s}
+	%% ------------------------------------------------------------------------------
+	%% Join Owl:Class with Owl:Class on objects
+	%% ------------------------------------------------------------------------------
+	subgraph join_class_on_objects_t
+	    select_predicates_class_owl_extract_s-subject-.->|FullTable|join_on_objects_class_owl_extract_p-subscribe
+	    group_by_class_pivot_s-subject-.->|FullTable|join_on_objects_class_owl_extract_p-subscribe
+	    join_on_objects_class_owl_extract_p-subscribe-->join_on_objects_class_owl_extract_p-processor
+	    join_on_objects_class_owl_extract_p-processor-->join_on_objects_class_owl_extract_p-publish
+	    join_on_objects_class_owl_extract_p-publish-->|Replace|join_on_objects_class_owl_extract_s-subject
+	    join_on_objects_class_owl_extract_s-subject-->|FullTable|select_objects_class_owl_extract_p-subscribe
+	    select_objects_class_owl_extract_p-subscribe-->select_objects_class_owl_extract_p-processor
+	    select_objects_class_owl_extract_p-processor-->select_objects_class_owl_extract_p-publish
+	    select_objects_class_owl_extract_p-publish-->|Replace|select_objects_class_owl_extract_s-subject
+	end
+	owl_extract_rt_env-rt-->join_class_on_objects_t
+	join_on_objects_class_owl_extract_p-processor@{shape: rect, label: Join}
+	join_on_objects_class_owl_extract_p-publish@{shape: fork}
+	join_on_objects_class_owl_extract_p-subscribe@{shape: diamond, label: All}
+	join_on_objects_class_owl_extract_s-subject@{shape: doc, label: join_on_objects_class_owl_extract_s}
+	select_objects_class_owl_extract_p-processor@{shape: rect, label: Select}
+	select_objects_class_owl_extract_p-publish@{shape: fork}
+	select_objects_class_owl_extract_p-subscribe@{shape: diamond, label: All}
+	select_objects_class_owl_extract_s-subject@{shape: doc, label: select_objects_class_owl_extract_s}
+	%% ------------------------------------------------------------------------------
+	%% Join Owl:AnnotationProperty with Owl:ObjectProperty on predicates
+	%% ------------------------------------------------------------------------------
+	subgraph join_object_property_on_predicates_t
+	    filter_object_property_entity_s-subject-.->|FullTable|join_on_predicates_object_property_owl_extract_p-subscribe
+	    group_by_annotation_property_pivot_s-subject-.->|FullTable|join_on_predicates_object_property_owl_extract_p-subscribe
+	    join_on_predicates_object_property_owl_extract_p-subscribe-->join_on_predicates_object_property_owl_extract_p-processor
+	    join_on_predicates_object_property_owl_extract_p-processor-->join_on_predicates_object_property_owl_extract_p-publish
+	    join_on_predicates_object_property_owl_extract_p-publish-->|Replace|join_on_predicates_object_property_owl_extract_s-subject
+	    join_on_predicates_object_property_owl_extract_s-subject-->|FullTable|select_predicates_object_property_owl_extract_p-subscribe
+	    select_predicates_object_property_owl_extract_p-subscribe-->select_predicates_object_property_owl_extract_p-processor
+	    select_predicates_object_property_owl_extract_p-processor-->select_predicates_object_property_owl_extract_p-publish
+	    select_predicates_object_property_owl_extract_p-publish-->|Replace|select_predicates_object_property_owl_extract_s-subject
+	end
+	owl_extract_rt_env-rt-->join_object_property_on_predicates_t
+	join_on_predicates_object_property_owl_extract_p-processor@{shape: rect, label: Join}
+	join_on_predicates_object_property_owl_extract_p-publish@{shape: fork}
+	join_on_predicates_object_property_owl_extract_p-subscribe@{shape: diamond, label: All}
+	join_on_predicates_object_property_owl_extract_s-subject@{shape: doc, label: join_on_predicates_object_property_owl_extract_s}
+	select_predicates_object_property_owl_extract_p-processor@{shape: rect, label: Select}
+	select_predicates_object_property_owl_extract_p-publish@{shape: fork}
+	select_predicates_object_property_owl_extract_p-subscribe@{shape: diamond, label: All}
+	select_predicates_object_property_owl_extract_s-subject@{shape: doc, label: select_predicates_object_property_owl_extract_s}
+	%% ------------------------------------------------------------------------------
+	%% Join Owl:Class with Owl:ObjectProperty on objects
+	%% ------------------------------------------------------------------------------
+	subgraph join_object_property_on_objects_t
+	    select_predicates_object_property_owl_extract_s-subject-.->|FullTable|join_on_objects_object_property_owl_extract_p-subscribe
+	    group_by_class_pivot_s-subject-.->|FullTable|join_on_objects_object_property_owl_extract_p-subscribe
+	    join_on_objects_object_property_owl_extract_p-subscribe-->join_on_objects_object_property_owl_extract_p-processor
+	    join_on_objects_object_property_owl_extract_p-processor-->join_on_objects_object_property_owl_extract_p-publish
+	    join_on_objects_object_property_owl_extract_p-publish-->|Replace|join_on_objects_object_property_owl_extract_s-subject
+	    join_on_objects_object_property_owl_extract_s-subject-->|FullTable|select_objects_object_property_owl_extract_p-subscribe
+	    select_objects_object_property_owl_extract_p-subscribe-->select_objects_object_property_owl_extract_p-processor
+	    select_objects_object_property_owl_extract_p-processor-->select_objects_object_property_owl_extract_p-publish
+	    select_objects_object_property_owl_extract_p-publish-->|Replace|select_objects_object_property_owl_extract_s-subject
+	end
+	owl_extract_rt_env-rt-->join_object_property_on_objects_t
+	join_on_objects_object_property_owl_extract_p-processor@{shape: rect, label: Join}
+	join_on_objects_object_property_owl_extract_p-publish@{shape: fork}
+	join_on_objects_object_property_owl_extract_p-subscribe@{shape: diamond, label: All}
+	join_on_objects_object_property_owl_extract_s-subject@{shape: doc, label: join_on_objects_object_property_owl_extract_s}
+	select_objects_object_property_owl_extract_p-processor@{shape: rect, label: Select}
+	select_objects_object_property_owl_extract_p-publish@{shape: fork}
+	select_objects_object_property_owl_extract_p-subscribe@{shape: diamond, label: All}
+	select_objects_object_property_owl_extract_s-subject@{shape: doc, label: select_objects_object_property_owl_extract_s}
+	%% ------------------------------------------------------------------------------
+	%% Apply embedding template to Owl:Class
+	%% ------------------------------------------------------------------------------
+	subgraph apply_embedding_template_class_t
+	    select_objects_class_owl_extract_s-subject-.->|FullTable|concat_cols_class_owl_extract_p-subscribe
+	    concat_cols_class_owl_extract_p-subscribe-->concat_cols_class_owl_extract_p-processor
+	    concat_cols_class_owl_extract_p-processor-->concat_cols_class_owl_extract_p-publish
+	    concat_cols_class_owl_extract_p-publish-->|Replace|concat_cols_class_owl_extract_s-subject
+	    concat_cols_class_owl_extract_s-subject-->|FullTable|list_rows_class_owl_extract_p-subscribe
+	    list_rows_class_owl_extract_p-subscribe-->list_rows_class_owl_extract_p-processor
+	    list_rows_class_owl_extract_p-processor-->list_rows_class_owl_extract_p-publish
+	    list_rows_class_owl_extract_p-publish-->|Replace|list_rows_class_owl_extract_s-subject
+	    list_rows_class_owl_extract_s-subject-->|FullTable|apply_template_class_owl_extract_p-subscribe
+	    apply_template_class_owl_extract_p-subscribe-->apply_template_class_owl_extract_p-processor
+	    apply_template_class_owl_extract_p-processor-->apply_template_class_owl_extract_p-publish
+	    apply_template_class_owl_extract_p-publish-->|Replace|apply_template_class_owl_extract_s-subject
+	    apply_template_class_owl_extract_s-subject-->|FullTable|doc_chunk_class_owl_extract_p-subscribe
+	    doc_chunk_class_owl_extract_p-subscribe-->doc_chunk_class_owl_extract_p-processor
+	    doc_chunk_class_owl_extract_p-processor-->doc_chunk_class_owl_extract_p-publish
+	    doc_chunk_class_owl_extract_p-publish-->|Replace|doc_chunk_class_owl_extract_s-subject
+	end
+	owl_extract_rt_env-rt-->apply_embedding_template_class_t
+	concat_cols_class_owl_extract_p-processor@{shape: rect, label: Select}
+	concat_cols_class_owl_extract_p-publish@{shape: fork}
+	concat_cols_class_owl_extract_p-subscribe@{shape: diamond, label: All}
+	concat_cols_class_owl_extract_s-subject@{shape: doc, label: concat_cols_class_owl_extract_s}
+	list_rows_class_owl_extract_p-processor@{shape: rect, label: GroupBy}
+	list_rows_class_owl_extract_p-publish@{shape: fork}
+	list_rows_class_owl_extract_p-subscribe@{shape: diamond, label: All}
+	list_rows_class_owl_extract_s-subject@{shape: doc, label: list_rows_class_owl_extract_s}
+	apply_template_class_owl_extract_p-processor@{shape: rect, label: Select}
+	apply_template_class_owl_extract_p-publish@{shape: fork}
+	apply_template_class_owl_extract_p-subscribe@{shape: diamond, label: All}
+	apply_template_class_owl_extract_s-subject@{shape: doc, label: apply_template_class_owl_extract_s}
+	doc_chunk_class_owl_extract_p-processor@{shape: rect, label: ChunkDocuments}
+	doc_chunk_class_owl_extract_p-publish@{shape: fork}
+	doc_chunk_class_owl_extract_p-subscribe@{shape: diamond, label: All}
+	doc_chunk_class_owl_extract_s-subject@{shape: doc, label: doc_chunk_class_owl_extract_s}
+	%% ------------------------------------------------------------------------------
+	%% Apply embedding template to Owl:ObjectProperty 
+	%% ------------------------------------------------------------------------------
+	subgraph apply_embedding_template_object_property_t
+	    select_objects_object_property_owl_extract_s-subject-.->|FullTable|concat_cols_object_property_owl_extract_p-subscribe
+	    concat_cols_object_property_owl_extract_p-subscribe-->concat_cols_object_property_owl_extract_p-processor
+	    concat_cols_object_property_owl_extract_p-processor-->concat_cols_object_property_owl_extract_p-publish
+	    concat_cols_object_property_owl_extract_p-publish-->|Replace|concat_cols_object_property_owl_extract_s-subject
+	    concat_cols_object_property_owl_extract_s-subject-->|FullTable|list_rows_object_property_owl_extract_p-subscribe
+	    list_rows_object_property_owl_extract_p-subscribe-->list_rows_object_property_owl_extract_p-processor
+	    list_rows_object_property_owl_extract_p-processor-->list_rows_object_property_owl_extract_p-publish
+	    list_rows_object_property_owl_extract_p-publish-->|Replace|list_rows_object_property_owl_extract_s-subject
+	    list_rows_object_property_owl_extract_s-subject-->|FullTable|apply_template_object_property_owl_extract_p-subscribe
+	    apply_template_object_property_owl_extract_p-subscribe-->apply_template_object_property_owl_extract_p-processor
+	    apply_template_object_property_owl_extract_p-processor-->apply_template_object_property_owl_extract_p-publish
+	    apply_template_object_property_owl_extract_p-publish-->|Replace|apply_template_object_property_owl_extract_s-subject
+	    apply_template_object_property_owl_extract_s-subject-->|FullTable|doc_chunk_object_property_owl_extract_p-subscribe
+	    doc_chunk_object_property_owl_extract_p-subscribe-->doc_chunk_object_property_owl_extract_p-processor
+	    doc_chunk_object_property_owl_extract_p-processor-->doc_chunk_object_property_owl_extract_p-publish
+	    doc_chunk_object_property_owl_extract_p-publish-->|Replace|doc_chunk_object_property_owl_extract_s-subject
+	end
+	owl_extract_rt_env-rt-->apply_embedding_template_object_property_t
+	concat_cols_object_property_owl_extract_p-processor@{shape: rect, label: Select}
+	concat_cols_object_property_owl_extract_p-publish@{shape: fork}
+	concat_cols_object_property_owl_extract_p-subscribe@{shape: diamond, label: All}
+	concat_cols_object_property_owl_extract_s-subject@{shape: doc, label: concat_cols_object_property_owl_extract_s}
+	list_rows_object_property_owl_extract_p-processor@{shape: rect, label: GroupBy}
+	list_rows_object_property_owl_extract_p-publish@{shape: fork}
+	list_rows_object_property_owl_extract_p-subscribe@{shape: diamond, label: All}
+	list_rows_object_property_owl_extract_s-subject@{shape: doc, label: list_rows_object_property_owl_extract_s}
+	apply_template_object_property_owl_extract_p-processor@{shape: rect, label: Select}
+	apply_template_object_property_owl_extract_p-publish@{shape: fork}
+	apply_template_object_property_owl_extract_p-subscribe@{shape: diamond, label: All}
+	apply_template_object_property_owl_extract_s-subject@{shape: doc, label: apply_template_object_property_owl_extract_s}
+	doc_chunk_object_property_owl_extract_p-processor@{shape: rect, label: ChunkDocuments}
+	doc_chunk_object_property_owl_extract_p-publish@{shape: fork}
+	doc_chunk_object_property_owl_extract_p-subscribe@{shape: diamond, label: All}
+	doc_chunk_object_property_owl_extract_s-subject@{shape: doc, label: doc_chunk_object_property_owl_extract_s}
+	%% ------------------------------------------------------------------------------
+	%% Embed Owl:Class
+	%% ------------------------------------------------------------------------------
+	subgraph embed_class_t
+	    doc_chunk_class_owl_extract_s-subject-.->|FullTable|coalesce_docs_class_owl_extract_p-subscribe
+	    coalesce_docs_class_owl_extract_p-subscribe-->coalesce_docs_class_owl_extract_p-processor
+	    coalesce_docs_class_owl_extract_p-processor-->coalesce_docs_class_owl_extract_p-publish
+	    coalesce_docs_class_owl_extract_p-publish-->|Extend|coalesce_docs_class_owl_extract_s-subject
+	    coalesce_docs_class_owl_extract_s-subject-->|FullTable|embed_docs_class_owl_extract_p-subscribe
+	    embed_docs_class_owl_extract_p-subscribe-->embed_docs_class_owl_extract_p-processor
+	    embed_docs_class_owl_extract_p-processor-->embed_docs_class_owl_extract_p-publish
+	    embed_docs_class_owl_extract_p-publish-->|Extend|embed_docs_class_owl_extract_s-subject
+	end
+	embed_class_r-rt@{shape: subproc, label: embed_class_r}
+	embed_class_r-rt-->embed_class_t
+	coalesce_docs_class_owl_extract_p-processor@{shape: rect, label: CoalesceProcessor}
+	coalesce_docs_class_owl_extract_p-publish@{shape: fork}
+	coalesce_docs_class_owl_extract_p-subscribe@{shape: diamond, label: All}
+	coalesce_docs_class_owl_extract_s-subject@{shape: doc, label: coalesce_docs_class_owl_extract_s}
+	embed_docs_class_owl_extract_p-processor@{shape: rect, label: CandleEmbedProcessor}
+	embed_docs_class_owl_extract_p-publish@{shape: fork}
+	embed_docs_class_owl_extract_p-subscribe@{shape: diamond, label: All}
+	embed_docs_class_owl_extract_s-subject@{shape: doc, label: embed_docs_class_owl_extract_s}
+	%% ------------------------------------------------------------------------------
+	%% Embed Owl:ObjectProperty
+	%% ------------------------------------------------------------------------------
+	subgraph embed_object_property_t
+	    doc_chunk_object_property_owl_extract_s-subject-.->|FullTable|coalesce_docs_object_property_owl_extract_p-subscribe
+	    coalesce_docs_object_property_owl_extract_p-subscribe-->coalesce_docs_object_property_owl_extract_p-processor
+	    coalesce_docs_object_property_owl_extract_p-processor-->coalesce_docs_object_property_owl_extract_p-publish
+	    coalesce_docs_object_property_owl_extract_p-publish-->|Extend|coalesce_docs_object_property_owl_extract_s-subject
+	    coalesce_docs_object_property_owl_extract_s-subject-->|FullTable|embed_docs_object_property_owl_extract_p-subscribe
+	    embed_docs_object_property_owl_extract_p-subscribe-->embed_docs_object_property_owl_extract_p-processor
+	    embed_docs_object_property_owl_extract_p-processor-->embed_docs_object_property_owl_extract_p-publish
+	    embed_docs_object_property_owl_extract_p-publish-->|Extend|embed_docs_object_property_owl_extract_s-subject
+	end
+	embed_object_property_r-rt@{shape: subproc, label: embed_object_property_r}
+	embed_object_property_r-rt-->embed_object_property_t
+	coalesce_docs_object_property_owl_extract_p-processor@{shape: rect, label: CoalesceProcessor}
+	coalesce_docs_object_property_owl_extract_p-publish@{shape: fork}
+	coalesce_docs_object_property_owl_extract_p-subscribe@{shape: diamond, label: All}
+	coalesce_docs_object_property_owl_extract_s-subject@{shape: doc, label: coalesce_docs_object_property_owl_extract_s}
+	embed_docs_object_property_owl_extract_p-processor@{shape: rect, label: CandleEmbedProcessor}
+	embed_docs_object_property_owl_extract_p-publish@{shape: fork}
+	embed_docs_object_property_owl_extract_p-subscribe@{shape: diamond, label: All}
+	embed_docs_object_property_owl_extract_s-subject@{shape: doc, label: embed_docs_object_property_owl_extract_s}
+	%% ------------------------------------------------------------------------------
+	%% Embed Query
+	%% ------------------------------------------------------------------------------
+	subgraph embed_query_t
+	    UserQueries-subject-.->|LastRecordBatch|embed_query_p-subscribe
+	    embed_query_p-subscribe-->embed_query_p-processor
+	    embed_query_p-processor-->embed_query_p-publish
+	    embed_query_p-publish-->|Replace|QueryEmbeddings-subject
+	end
+	embed_query_r-rt@{shape: subproc, label: embed_query_r}
+	embed_query_r-rt-->embed_query_t
+	UserQueries-subject@{shape: doc, label: UserQueries}
+	embed_query_p-processor@{shape: rect, label: CandleEmbedProcessor}
+	embed_query_p-publish@{shape: fork}
+	embed_query_p-subscribe@{shape: diamond, label: All}
+	QueryEmbeddings-subject@{shape: doc, label: QueryEmbeddings}
+	%% ------------------------------------------------------------------------------
+	%%  Vector Search Owl:Class
+	%% ------------------------------------------------------------------------------
+	subgraph vector_search_query_class_t
+	    embed_docs_class_owl_extract_s-subject-->|FullTable|vector_distance_query_class_p-subscribe
+	    QueryEmbeddings-subject-.->|FullTable|vector_distance_query_class_p-subscribe
+	    vector_distance_query_class_p-subscribe-->vector_distance_query_class_p-processor
+	    vector_distance_query_class_p-processor-->vector_distance_query_class_p-publish
+	    vector_distance_query_class_p-publish-->|Replace|vector_distance_query_class_s-subject
+	    vector_distance_query_class_s-subject-->|FullTable|threshold_col_distance_query_class_p-subscribe
+	    threshold_col_distance_query_class_p-subscribe-->threshold_col_distance_query_class_p-processor
+	    threshold_col_distance_query_class_p-processor-->threshold_col_distance_query_class_p-publish
+	    threshold_col_distance_query_class_p-publish-->|Replace|threshold_col_distance_query_class_s-subject
+	    threshold_col_distance_query_class_s-subject-->|FullTable|filter_score_query_class_p-subscribe
+	    filter_score_query_class_p-subscribe-->filter_score_query_class_p-processor
+	    filter_score_query_class_p-processor-->filter_score_query_class_p-publish
+	    filter_score_query_class_p-publish-->|Replace|filter_score_query_class_s-subject
+	    filter_score_query_class_s-subject-->|FullTable|sort_score_query_class_p-subscribe
+	    sort_score_query_class_p-subscribe-->sort_score_query_class_p-processor
+	    sort_score_query_class_p-processor-->sort_score_query_class_p-publish
+	    sort_score_query_class_p-publish-->|Replace|sort_score_query_class_s-subject
+	    sort_score_query_class_s-subject-->|FullTable|limit_score_query_class_p-subscribe
+	    limit_score_query_class_p-subscribe-->limit_score_query_class_p-processor
+	    limit_score_query_class_p-processor-->limit_score_query_class_p-publish
+	    limit_score_query_class_p-publish-->|Replace|limit_score_query_class_s-subject
+	    doc_chunk_class_owl_extract_s-subject-->|FullTable|join_doc_chunks_query_class_p-subscribe
+	    limit_score_query_class_s-subject-->|FullTable|join_doc_chunks_query_class_p-subscribe
+	    join_doc_chunks_query_class_p-subscribe-->join_doc_chunks_query_class_p-processor
+	    join_doc_chunks_query_class_p-processor-->join_doc_chunks_query_class_p-publish
+	    join_doc_chunks_query_class_p-publish-->|Replace|join_doc_chunks_query_class_s-subject
+	    join_doc_chunks_query_class_s-subject-->|FullTable|select_doc_chunks_query_class_p-subscribe
+	    select_doc_chunks_query_class_p-subscribe-->select_doc_chunks_query_class_p-processor
+	    select_doc_chunks_query_class_p-processor-->select_doc_chunks_query_class_p-publish
+	    select_doc_chunks_query_class_p-publish-->|Extend|select_doc_chunks_query_class_s-subject		
+	    select_doc_chunks_query_class_s-subject-->|FullTable|summarize_doc_chunks_query_class_p-subscribe
+	    summarize_doc_chunks_query_class_p-subscribe-->summarize_doc_chunks_query_class_p-processor
+	    summarize_doc_chunks_query_class_p-processor-->summarize_doc_chunks_query_class_p-publish
+	    summarize_doc_chunks_query_class_p-publish-->|Extend|ToolMessages-subject
+	end
+	owl_extract_rt_env-rt-->vector_search_query_class_t
+	vector_distance_query_class_p-processor@{shape: rect, label: VectorDistance}
+	vector_distance_query_class_p-subscribe@{shape: diamond, label: All}
+	vector_distance_query_class_p-publish@{shape: fork}
+	vector_distance_query_class_s-subject@{shape: doc, label: vector_distance_query_class_s}
+	threshold_col_distance_query_class_p-processor@{shape: rect, label: Select}
+	threshold_col_distance_query_class_p-subscribe@{shape: diamond, label: All}
+	threshold_col_distance_query_class_p-publish@{shape: fork}
+	threshold_col_distance_query_class_s-subject@{shape: doc, label: threshold_col_distance_query_class_s}
+	filter_score_query_class_p-processor@{shape: rect, label: Filter}
+	filter_score_query_class_p-subscribe@{shape: diamond, label: All}
+	filter_score_query_class_p-publish@{shape: fork}
+	filter_score_query_class_s-subject@{shape: doc, label: filter_score_query_class_s}
+	sort_score_query_class_p-processor@{shape: rect, label: Sort}
+	sort_score_query_class_p-subscribe@{shape: diamond, label: All}
+	sort_score_query_class_p-publish@{shape: fork}
+	sort_score_query_class_s-subject@{shape: doc, label: sort_score_query_class_s}
+	limit_score_query_class_p-processor@{shape: rect, label: LimitProcessor}
+	limit_score_query_class_p-subscribe@{shape: diamond, label: All}
+	limit_score_query_class_p-publish@{shape: fork}
+	limit_score_query_class_s-subject@{shape: doc, label: limit_score_query_class_s}
+	join_doc_chunks_query_class_p-processor@{shape: rect, label: Join}
+	join_doc_chunks_query_class_p-subscribe@{shape: diamond, label: All}
+	join_doc_chunks_query_class_p-publish@{shape: fork}
+	join_doc_chunks_query_class_s-subject@{shape: doc, label: join_doc_chunks_query_class_s}
+	select_doc_chunks_query_class_p-processor@{shape: rect, label: Select}
+	select_doc_chunks_query_class_p-subscribe@{shape: diamond, label: All}
+	select_doc_chunks_query_class_p-publish@{shape: fork}
+	select_doc_chunks_query_class_s-subject@{shape: doc, label: select_doc_chunks_query_class_s}	
+	summarize_doc_chunks_query_class_p-processor@{shape: rect, label: DataSummaryProcessor}
+	summarize_doc_chunks_query_class_p-subscribe@{shape: diamond, label: All}
+	summarize_doc_chunks_query_class_p-publish@{shape: fork}
+	ToolMessages-subject@{shape: doc, label: ToolMessages}
+	%% ------------------------------------------------------------------------------
+	%%  Vector Search Owl:ObjectProperty
+	%% ------------------------------------------------------------------------------
+	subgraph vector_search_query_object_property_t
+	    embed_docs_object_property_owl_extract_s-subject-->|FullTable|vector_distance_query_object_property_p-subscribe
+	    QueryEmbeddings-subject-.->|FullTable|vector_distance_query_object_property_p-subscribe
+	    vector_distance_query_object_property_p-subscribe-->vector_distance_query_object_property_p-processor
+	    vector_distance_query_object_property_p-processor-->vector_distance_query_object_property_p-publish
+	    vector_distance_query_object_property_p-publish-->|Replace|vector_distance_query_object_property_s-subject
+	    vector_distance_query_object_property_s-subject-->|FullTable|threshold_col_distance_query_object_property_p-subscribe
+	    threshold_col_distance_query_object_property_p-subscribe-->threshold_col_distance_query_object_property_p-processor
+	    threshold_col_distance_query_object_property_p-processor-->threshold_col_distance_query_object_property_p-publish
+	    threshold_col_distance_query_object_property_p-publish-->|Replace|threshold_col_distance_query_object_property_s-subject
+	    threshold_col_distance_query_object_property_s-subject-->|FullTable|filter_score_query_object_property_p-subscribe
+	    filter_score_query_object_property_p-subscribe-->filter_score_query_object_property_p-processor
+	    filter_score_query_object_property_p-processor-->filter_score_query_object_property_p-publish
+	    filter_score_query_object_property_p-publish-->|Replace|filter_score_query_object_property_s-subject
+	    filter_score_query_object_property_s-subject-->|FullTable|sort_score_query_object_property_p-subscribe
+	    sort_score_query_object_property_p-subscribe-->sort_score_query_object_property_p-processor
+	    sort_score_query_object_property_p-processor-->sort_score_query_object_property_p-publish
+	    sort_score_query_object_property_p-publish-->|Replace|sort_score_query_object_property_s-subject
+	    sort_score_query_object_property_s-subject-->|FullTable|limit_score_query_object_property_p-subscribe
+	    limit_score_query_object_property_p-subscribe-->limit_score_query_object_property_p-processor
+	    limit_score_query_object_property_p-processor-->limit_score_query_object_property_p-publish
+	    limit_score_query_object_property_p-publish-->|Replace|limit_score_query_object_property_s-subject
+	    doc_chunk_object_property_owl_extract_s-subject-->|FullTable|join_doc_chunks_query_object_property_p-subscribe
+	    limit_score_query_object_property_s-subject-->|FullTable|join_doc_chunks_query_object_property_p-subscribe
+	    join_doc_chunks_query_object_property_p-subscribe-->join_doc_chunks_query_object_property_p-processor
+	    join_doc_chunks_query_object_property_p-processor-->join_doc_chunks_query_object_property_p-publish
+	    join_doc_chunks_query_object_property_p-publish-->|Replace|join_doc_chunks_query_object_property_s-subject
+	    join_doc_chunks_query_object_property_s-subject-->|FullTable|select_doc_chunks_query_object_property_p-subscribe
+	    select_doc_chunks_query_object_property_p-subscribe-->select_doc_chunks_query_object_property_p-processor
+	    select_doc_chunks_query_object_property_p-processor-->select_doc_chunks_query_object_property_p-publish
+	    select_doc_chunks_query_object_property_p-publish-->|Extend|select_doc_chunks_query_object_property_s-subject		
+	    select_doc_chunks_query_object_property_s-subject-->|FullTable|summarize_doc_chunks_query_object_property_p-subscribe
+	    summarize_doc_chunks_query_object_property_p-subscribe-->summarize_doc_chunks_query_object_property_p-processor
+	    summarize_doc_chunks_query_object_property_p-processor-->summarize_doc_chunks_query_object_property_p-publish
+	    summarize_doc_chunks_query_object_property_p-publish-->|Extend|ToolMessages-subject
+	end
+	owl_extract_rt_env-rt-->vector_search_query_object_property_t
+	vector_distance_query_object_property_p-processor@{shape: rect, label: VectorDistance}
+	vector_distance_query_object_property_p-subscribe@{shape: diamond, label: All}
+	vector_distance_query_object_property_p-publish@{shape: fork}
+	vector_distance_query_object_property_s-subject@{shape: doc, label: vector_distance_query_object_property_s}
+	threshold_col_distance_query_object_property_p-processor@{shape: rect, label: Select}
+	threshold_col_distance_query_object_property_p-subscribe@{shape: diamond, label: All}
+	threshold_col_distance_query_object_property_p-publish@{shape: fork}
+	threshold_col_distance_query_object_property_s-subject@{shape: doc, label: threshold_col_distance_query_object_property_s}
+	filter_score_query_object_property_p-processor@{shape: rect, label: Filter}
+	filter_score_query_object_property_p-subscribe@{shape: diamond, label: All}
+	filter_score_query_object_property_p-publish@{shape: fork}
+	filter_score_query_object_property_s-subject@{shape: doc, label: filter_score_query_object_property_s}
+	sort_score_query_object_property_p-processor@{shape: rect, label: Sort}
+	sort_score_query_object_property_p-subscribe@{shape: diamond, label: All}
+	sort_score_query_object_property_p-publish@{shape: fork}
+	sort_score_query_object_property_s-subject@{shape: doc, label: sort_score_query_object_property_s}
+	limit_score_query_object_property_p-processor@{shape: rect, label: LimitProcessor}
+	limit_score_query_object_property_p-subscribe@{shape: diamond, label: All}
+	limit_score_query_object_property_p-publish@{shape: fork}
+	limit_score_query_object_property_s-subject@{shape: doc, label: limit_score_query_object_property_s}
+	join_doc_chunks_query_object_property_p-processor@{shape: rect, label: Join}
+	join_doc_chunks_query_object_property_p-subscribe@{shape: diamond, label: All}
+	join_doc_chunks_query_object_property_p-publish@{shape: fork}
+	join_doc_chunks_query_object_property_s-subject@{shape: doc, label: join_doc_chunks_query_object_property_s}
+	select_doc_chunks_query_object_property_p-processor@{shape: rect, label: Select}
+	select_doc_chunks_query_object_property_p-subscribe@{shape: diamond, label: All}
+	select_doc_chunks_query_object_property_p-publish@{shape: fork}
+	select_doc_chunks_query_object_property_s-subject@{shape: doc, label: select_doc_chunks_query_object_property_s}	
+	summarize_doc_chunks_query_object_property_p-processor@{shape: rect, label: DataSummaryProcessor}
+	summarize_doc_chunks_query_object_property_p-subscribe@{shape: diamond, label: All}
+	summarize_doc_chunks_query_object_property_p-publish@{shape: fork}
+	%% ------------------------------------------------------------------------------"#
+	}
+    pub fn as_mermaid_erdiagram(&self) -> &str {
+        r#""#
+	}
+    pub fn as_mermaid_flowchart_v1(&self) -> &str {
         r#"flowchart TD	
 	%% -------------------------------------
 	%% ontologies attachments and extraction
@@ -549,7 +1179,7 @@ impl<'a> OntologyRAGSession<'a> {
     }
 
     /// Return the Mermaid.js ER Diagram representation of the session
-    pub fn as_mermaid_erdiagram(&self) -> &str {
+    pub fn as_mermaid_erdiagram_v1(&self) -> &str {
         r#"erDiagram
 	ONTOLOGIES["ONTOLOGIES"] {
 	    Utf8 name "OBO Relations Ontology"
