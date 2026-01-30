@@ -5,11 +5,14 @@ use arrow::array::RecordBatch;
 use candle_core::Device;
 use clap::ValueEnum;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, OwlFormat, Table, TableBuilderTrait, TableTrait, Tool, ToolType, create_n_triples_batch, create_parse_owl_batch, create_parse_xml_batch
+    BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine,
+    JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+    create_parse_owl_batch, create_parse_xml_batch,
 };
 use quick_xml::{
-    NsReader, Reader,
-    events::{BytesStart, Event}, name::{Namespace, ResolveResult},
+    NsReader,
+    events::{BytesStart, Event},
+    name::ResolveResult,
 };
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -112,7 +115,11 @@ impl DataOperatorTrait for ExtractXML {
             Self::get_static_name()
         ))?;
 
-        Ok(ExtractXML { lhs_name, lhs_values, format })
+        Ok(ExtractXML {
+            lhs_name,
+            lhs_values,
+            format,
+        })
     }
     fn forward(
         &self,
@@ -120,7 +127,13 @@ impl DataOperatorTrait for ExtractXML {
         _rhs_args: Option<&[RecordBatch]>,
         device: &Device,
     ) -> Result<RecordBatch> {
-        extract_xml(&self.lhs_name, &self.lhs_values, lhs_args, &self.format, device)
+        extract_xml(
+            &self.lhs_name,
+            &self.lhs_values,
+            lhs_args,
+            &self.format,
+            device,
+        )
     }
 }
 
@@ -159,7 +172,9 @@ fn parse_xml_tag<'a>(reader: &NsReader<Cursor<&[u8]>>, e: &BytesStart<'a>) -> St
     // Resolve the namespace and add it to the tag
     let (ns, local) = reader.resolver().resolve_element(e.name());
     let ns = match ns {
-        ResolveResult::Bound(s) => std::str::from_utf8(s.into_inner()).unwrap_or_default().to_string(),
+        ResolveResult::Bound(s) => std::str::from_utf8(s.into_inner())
+            .unwrap_or_default()
+            .to_string(),
         ResolveResult::Unbound => String::new(),
         ResolveResult::Unknown(s) => std::str::from_utf8(&s).unwrap_or_default().to_string(),
     };
@@ -191,7 +206,11 @@ fn parse_xml_attrs<'a>(e: &BytesStart<'a>, attrs: &[&str]) -> HashMap<String, St
 }
 
 /// Helper function to parse the attributes of the XML tag into a serialized [XMLElement]
-fn serialize_xml_tag<'a>(reader: &NsReader<Cursor<&[u8]>>,index: usize, e: &BytesStart<'a>) -> Result<String> {
+fn serialize_xml_tag<'a>(
+    reader: &NsReader<Cursor<&[u8]>>,
+    index: usize,
+    e: &BytesStart<'a>,
+) -> Result<String> {
     let start_tag = parse_xml_tag(reader, e);
     let attributes = parse_xml_attrs(e, &[]);
 
@@ -298,8 +317,7 @@ fn parse_xml(bytes: &[u8]) -> Result<HashMap<String, Vec<(XMLType, String)>>> {
 }
 
 /// Helper function to join multi-line text children
-fn join_text_children(children: Vec<(XMLType, String)>) -> (Vec<XMLType>, Vec<String>){
-    
+fn join_text_children(children: Vec<(XMLType, String)>) -> (Vec<XMLType>, Vec<String>) {
     // Preview the children
     let mut type_tmp = Vec::new();
     let mut children_tmp = Vec::new();
@@ -325,9 +343,12 @@ fn join_text_children(children: Vec<(XMLType, String)>) -> (Vec<XMLType>, Vec<St
     (type_tmp, children_tmp)
 }
 
-
 /// Convert the parsed xml relations to a parsed xml schema
-fn xml_to_parsed_xml_record_batch(relations: HashMap<String, Vec<(XMLType, String)>>, lhs_name: &str, device: &Device) -> Result<RecordBatch> {
+fn xml_to_parsed_xml_record_batch(
+    relations: HashMap<String, Vec<(XMLType, String)>>,
+    lhs_name: &str,
+    device: &Device,
+) -> Result<RecordBatch> {
     // Initialize the columns
     let mut document_id_vec = Vec::new();
     let mut element_index_vec = Vec::new();
@@ -390,7 +411,10 @@ fn xml_to_parsed_xml_record_batch(relations: HashMap<String, Vec<(XMLType, Strin
 }
 
 /// Helper function to parse OWL children
-fn parse_owl_children(relations: &HashMap<String, Vec<(XMLType, String)>>, children: &[(XMLType, String)]) -> Result<(Vec<String>, Vec<String>)> {
+fn parse_owl_children(
+    relations: &HashMap<String, Vec<(XMLType, String)>>,
+    children: &[(XMLType, String)],
+) -> Result<(Vec<String>, Vec<String>)> {
     // Join all text children for the case of multi-line text
     let (type_tmp, children_tmp) = join_text_children(children.to_vec());
 
@@ -405,27 +429,33 @@ fn parse_owl_children(relations: &HashMap<String, Vec<(XMLType, String)>>, child
                     predicate_vec.push(predicate);
                     object_vec.push(object);
                 }
-            },
+            }
         };
-    };
+    }
     Ok((predicate_vec, object_vec))
 }
 
 /// Helper function to lookup and extract out the children of an XML child element
-fn children_to_po(relations: &HashMap<String, Vec<(XMLType, String)>>, child: &String) -> Result<Option<(String, String)>> {
+fn children_to_po(
+    relations: &HashMap<String, Vec<(XMLType, String)>>,
+    child: &String,
+) -> Result<Option<(String, String)>> {
     let child_element: XMLElement = serde_json::from_str(&child)?;
     let po = if let Some(resource) = child_element.attributes.get("rdf:resource") {
         Some((child_element.tag, resource.to_string()))
     } else {
         // Retrieve the child element from the relations
-        let element = relations.get(child).ok_or(anyhow!("Child `{child}` not found in parsed relations `{:?}`.", relations.keys()))?;
-        
+        let element = relations.get(child).ok_or(anyhow!(
+            "Child `{child}` not found in parsed relations `{:?}`.",
+            relations.keys()
+        ))?;
+
         // Join all text children for the case of multi-line text
         let (mut type_tmp, mut children_tmp) = join_text_children(element.clone());
 
         // Hierarchical objects are not yet supported (e.g., EquivalentClass, ChainedAxioms, etc.)
         if type_tmp.len() == 1 {
-            if let (Some(t), Some(c)) = (type_tmp.pop(), children_tmp.pop()) { 
+            if let (Some(t), Some(c)) = (type_tmp.pop(), children_tmp.pop()) {
                 match t {
                     XMLType::Text => Some((child_element.tag, c)),
                     XMLType::Element => None,
@@ -441,7 +471,11 @@ fn children_to_po(relations: &HashMap<String, Vec<(XMLType, String)>>, child: &S
 }
 
 /// Convert the parsed xml relations to a parsed owl schema
-fn xml_to_parsed_owl_record_batch(relations: HashMap<String, Vec<(XMLType, String)>>, lhs_name: &str, device: &Device) -> Result<RecordBatch> {
+fn xml_to_parsed_owl_record_batch(
+    relations: HashMap<String, Vec<(XMLType, String)>>,
+    lhs_name: &str,
+    device: &Device,
+) -> Result<RecordBatch> {
     // Initialize the columns
     let mut dataset_vec = Vec::new();
     let mut entity_vec = Vec::new();
@@ -456,20 +490,19 @@ fn xml_to_parsed_owl_record_batch(relations: HashMap<String, Vec<(XMLType, Strin
         let xml_element: XMLElement = serde_json::from_str(&element)?;
 
         // Parse the primary OWL Entities
-        if xml_element.tag == "http://www.w3.org/2002/07/owl#Ontology"{
+        if xml_element.tag == "http://www.w3.org/2002/07/owl#Ontology" {
             if let Some(subject) = xml_element.attributes.get("rdf:about") {
                 let (predicates, objects) = parse_owl_children(&relations, children)?;
-                    for (predicate, object) in predicates.into_iter().zip(objects) {
-                        dataset_vec.push(lhs_name.to_string());
-                        entity_vec.push("Ontology".to_string());
-                        let graph = format!("{subject}-{predicate}-{object}");
-                        graph_vec.push(graph.to_string());
-                        subject_vec.push(subject.to_string());
-                        predicate_vec.push(predicate);
-                        object_vec.push(object);
-                    }
+                for (predicate, object) in predicates.into_iter().zip(objects) {
+                    dataset_vec.push(lhs_name.to_string());
+                    entity_vec.push("Ontology".to_string());
+                    let graph = format!("{subject}-{predicate}-{object}");
+                    graph_vec.push(graph.to_string());
+                    subject_vec.push(subject.to_string());
+                    predicate_vec.push(predicate);
+                    object_vec.push(object);
+                }
             }
-            
         } else if xml_element.tag == "http://www.w3.org/2002/07/owl#AnnotationProperty" {
             if let Some(subject) = xml_element.attributes.get("rdf:about") {
                 let (predicates, objects) = parse_owl_children(&relations, children)?;
@@ -495,7 +528,7 @@ fn xml_to_parsed_owl_record_batch(relations: HashMap<String, Vec<(XMLType, Strin
                     predicate_vec.push(predicate);
                     object_vec.push(object);
                 }
-            } 
+            }
         } else if xml_element.tag == "http://www.w3.org/2002/07/owl#Class" {
             if let Some(subject) = xml_element.attributes.get("rdf:about") {
                 let (predicates, objects) = parse_owl_children(&relations, children)?;
@@ -539,16 +572,21 @@ fn xml_to_parsed_owl_record_batch(relations: HashMap<String, Vec<(XMLType, Strin
             let (predicates, objects) = parse_owl_children(&relations, children)?;
 
             // Determine the subject of the axium
-            let subject_triple = predicates.iter().zip(objects.iter())
-                .filter_map(|(t, c)| if t == "http://www.w3.org/2002/07/owl#annotatedSource" {
-                    Some((t.to_string(), c.to_string()))
-                } else if t == "http://www.w3.org/2002/07/owl#annotatedProperty" {
-                    Some((t.to_string(), c.to_string()))
-                } else if t == "http://www.w3.org/2002/07/owl#annotatedTarget" {
-                    Some((t.to_string(), c.to_string()))
-                } else {
-                    None
-                }).collect::<HashMap<_, _>>();            
+            let subject_triple = predicates
+                .iter()
+                .zip(objects.iter())
+                .filter_map(|(t, c)| {
+                    if t == "http://www.w3.org/2002/07/owl#annotatedSource" {
+                        Some((t.to_string(), c.to_string()))
+                    } else if t == "http://www.w3.org/2002/07/owl#annotatedProperty" {
+                        Some((t.to_string(), c.to_string()))
+                    } else if t == "http://www.w3.org/2002/07/owl#annotatedTarget" {
+                        Some((t.to_string(), c.to_string()))
+                    } else {
+                        None
+                    }
+                })
+                .collect::<HashMap<_, _>>();
             let subject = format!("{}-{}-{}",
                 subject_triple.get("http://www.w3.org/2002/07/owl#annotatedSource").ok_or(anyhow!("Key `source` missing from Owl:Axiom extracted annotation triples `{:?}`.", subject_triple.keys()))?,
                 subject_triple.get("http://www.w3.org/2002/07/owl#annotatedProperty").ok_or(anyhow!("Key `property` missing from Owl:Axiom extracted annotation triples `{:?}`.", subject_triple.keys()))?,
@@ -557,7 +595,6 @@ fn xml_to_parsed_owl_record_batch(relations: HashMap<String, Vec<(XMLType, Strin
 
             // Continue extracting the predicate/object pairs
             for (predicate, object) in predicates.into_iter().zip(objects) {
-
                 dataset_vec.push(lhs_name.to_string());
                 entity_vec.push("Axiom".to_string());
                 let graph = format!("{subject}-{predicate}-{object}");
@@ -570,7 +607,14 @@ fn xml_to_parsed_owl_record_batch(relations: HashMap<String, Vec<(XMLType, Strin
     }
 
     // Build the batch
-    let mut batch = create_parse_owl_batch(entity_vec, subject_vec, predicate_vec, object_vec, graph_vec, dataset_vec)?;
+    let mut batch = create_parse_owl_batch(
+        entity_vec,
+        subject_vec,
+        predicate_vec,
+        object_vec,
+        graph_vec,
+        dataset_vec,
+    )?;
 
     // Sort by the element index
     for column_name in ["graph", "object", "predicate", "subject", "entity"] {
@@ -613,8 +657,9 @@ pub fn extract_xml(
     // Read the XML document
     let parsed = parse_xml(&values_vec)?;
     match format {
-        DataFormat::Html
-        | DataFormat::Xml => xml_to_parsed_xml_record_batch(parsed, lhs_name, device),
+        DataFormat::Html | DataFormat::Xml => {
+            xml_to_parsed_xml_record_batch(parsed, lhs_name, device)
+        }
         DataFormat::Owl => xml_to_parsed_owl_record_batch(parsed, lhs_name, device),
         _ => Err(anyhow!(
             "Unsupported format {format:?} for extract_set_data operator."
@@ -667,20 +712,23 @@ mod tests {
         let bytes: Vec<u8> = owl.into();
         let extracted = parse_xml(&bytes).unwrap();
         let keys = extracted.keys().collect::<Vec<_>>();
-        assert_eq!(keys, [
-            "{\"index\":3,\"tag\":\"http://www.w3.org/2002/07/owl#Class\",\"attributes\":{\"rdf:about\":\"http://purl.obolibrary.org/obo/GO_0010958\"}}}",
-            "{{\"index\":1,\"tag\":\"http://www.w3.org/2002/07/owl#Ontology\",\"attributes\":{\"rdf:about\":\"http://www.example.com/iri\"}}}",
-            "{{\"index\":0,\"tag\":\"rdf:RDF\",\"attributes\":{\"xmlns:owl\":\"http://www.w3.org/2002/07/owl#\",\"xmlns\":\"http://www.example.com/iri#\",\"xmlns:rdfs\":\"http://www.w3.org/2000/01/rdf-schema#\",\"xml:base\":\"http://www.example.com/iri\"}}}",
-            "{{\"index\":8,\"tag\":\"http://www.w3.org/2002/07/owl#Restriction\",\"attributes\":{}}}",
-            "{{\"index\":6,\"tag\":\"http://www.w3.org/2002/07/owl#intersectionOf\",\"attributes\":{\"rdf:parseType\":\"Collection\"}}}",
-            "{{\"index\":7,\"tag\":\"rdf:Description\",\"attributes\":{\"rdf:about\":\"http://purl.obolibrary.org/obo/GO_0065007\"}}}",
-            "{{\"index\":9,\"tag\":\"http://www.w3.org/2002/07/owl#onProperty\",\"attributes\":{\"rdf:resource\":\"http://purl.obolibrary.org/obo/RO_0002211\"}}}",
-            "{{\"index\":11,\"tag\":\"http://www.w3.org/2000/01/rdf-schema#label\",\"attributes\":{}}}",
-            "{{\"index\":5,\"tag\":\"http://www.w3.org/2002/07/owl#Class\",\"attributes\":{}}}",
-            "{{\"index\":10,\"tag\":\"http://www.w3.org/2002/07/owl#someValuesFrom\",\"attributes\":{\"rdf:resource\":\"http://purl.obolibrary.org/obo/GO_0089718\"}}}",
-            "{{\"index\":2,\"tag\":\"http://www.w3.org/2002/07/owl#versionIRI\",\"attributes\":{\"rdf:resource\":\"http://www.example.com/viri\"}}}",
-            "{{\"index\":4,\"tag\":\"http://www.w3.org/2002/07/owl#equivalentClass\",\"attributes\":{}}"
-        ]);
+        assert_eq!(
+            keys,
+            [
+                "{\"index\":3,\"tag\":\"http://www.w3.org/2002/07/owl#Class\",\"attributes\":{\"rdf:about\":\"http://purl.obolibrary.org/obo/GO_0010958\"}}}",
+                "{{\"index\":1,\"tag\":\"http://www.w3.org/2002/07/owl#Ontology\",\"attributes\":{\"rdf:about\":\"http://www.example.com/iri\"}}}",
+                "{{\"index\":0,\"tag\":\"rdf:RDF\",\"attributes\":{\"xmlns:owl\":\"http://www.w3.org/2002/07/owl#\",\"xmlns\":\"http://www.example.com/iri#\",\"xmlns:rdfs\":\"http://www.w3.org/2000/01/rdf-schema#\",\"xml:base\":\"http://www.example.com/iri\"}}}",
+                "{{\"index\":8,\"tag\":\"http://www.w3.org/2002/07/owl#Restriction\",\"attributes\":{}}}",
+                "{{\"index\":6,\"tag\":\"http://www.w3.org/2002/07/owl#intersectionOf\",\"attributes\":{\"rdf:parseType\":\"Collection\"}}}",
+                "{{\"index\":7,\"tag\":\"rdf:Description\",\"attributes\":{\"rdf:about\":\"http://purl.obolibrary.org/obo/GO_0065007\"}}}",
+                "{{\"index\":9,\"tag\":\"http://www.w3.org/2002/07/owl#onProperty\",\"attributes\":{\"rdf:resource\":\"http://purl.obolibrary.org/obo/RO_0002211\"}}}",
+                "{{\"index\":11,\"tag\":\"http://www.w3.org/2000/01/rdf-schema#label\",\"attributes\":{}}}",
+                "{{\"index\":5,\"tag\":\"http://www.w3.org/2002/07/owl#Class\",\"attributes\":{}}}",
+                "{{\"index\":10,\"tag\":\"http://www.w3.org/2002/07/owl#someValuesFrom\",\"attributes\":{\"rdf:resource\":\"http://purl.obolibrary.org/obo/GO_0089718\"}}}",
+                "{{\"index\":2,\"tag\":\"http://www.w3.org/2002/07/owl#versionIRI\",\"attributes\":{\"rdf:resource\":\"http://www.example.com/viri\"}}}",
+                "{{\"index\":4,\"tag\":\"http://www.w3.org/2002/07/owl#equivalentClass\",\"attributes\":{}}"
+            ]
+        );
     }
 
     #[test]
@@ -740,22 +788,8 @@ mod tests {
         assert_eq!(
             result,
             [
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
+                "test", "test", "test", "test", "test", "test", "test", "test", "test", "test",
+                "test", "test", "test", "test", "test", "test",
             ]
         );
         let result = table
@@ -766,7 +800,22 @@ mod tests {
         assert_eq!(
             result,
             [
-                "rdf:RDF", "rdf:RDF", "http://www.w3.org/2002/07/owl#Ontology", "http://www.w3.org/2002/07/owl#versionIRI", "http://www.w3.org/2002/07/owl#Class", "http://www.w3.org/2002/07/owl#Class", "http://www.w3.org/2002/07/owl#equivalentClass", "http://www.w3.org/2002/07/owl#Class", "http://www.w3.org/2002/07/owl#intersectionOf", "http://www.w3.org/2002/07/owl#intersectionOf", "rdf:Description", "http://www.w3.org/2002/07/owl#Restriction", "http://www.w3.org/2002/07/owl#Restriction", "http://www.w3.org/2002/07/owl#onProperty", "http://www.w3.org/2002/07/owl#someValuesFrom", "http://www.w3.org/2000/01/rdf-schema#label"
+                "rdf:RDF",
+                "rdf:RDF",
+                "http://www.w3.org/2002/07/owl#Ontology",
+                "http://www.w3.org/2002/07/owl#versionIRI",
+                "http://www.w3.org/2002/07/owl#Class",
+                "http://www.w3.org/2002/07/owl#Class",
+                "http://www.w3.org/2002/07/owl#equivalentClass",
+                "http://www.w3.org/2002/07/owl#Class",
+                "http://www.w3.org/2002/07/owl#intersectionOf",
+                "http://www.w3.org/2002/07/owl#intersectionOf",
+                "rdf:Description",
+                "http://www.w3.org/2002/07/owl#Restriction",
+                "http://www.w3.org/2002/07/owl#Restriction",
+                "http://www.w3.org/2002/07/owl#onProperty",
+                "http://www.w3.org/2002/07/owl#someValuesFrom",
+                "http://www.w3.org/2000/01/rdf-schema#label"
             ]
         );
         let _result = table.get_column_as_vec_str("element_attr");
@@ -822,7 +871,14 @@ mod tests {
         assert_eq!(
             result[..8],
             [
-                "http://www.w3.org/2002/07/owl#Ontology", "http://www.w3.org/2002/07/owl#Class", "http://www.w3.org/2002/07/owl#versionIRI", "", "http://www.w3.org/2002/07/owl#equivalentClass", "http://www.w3.org/2000/01/rdf-schema#label", "http://www.w3.org/2002/07/owl#Class", "http://www.w3.org/2002/07/owl#intersectionOf"
+                "http://www.w3.org/2002/07/owl#Ontology",
+                "http://www.w3.org/2002/07/owl#Class",
+                "http://www.w3.org/2002/07/owl#versionIRI",
+                "",
+                "http://www.w3.org/2002/07/owl#equivalentClass",
+                "http://www.w3.org/2000/01/rdf-schema#label",
+                "http://www.w3.org/2002/07/owl#Class",
+                "http://www.w3.org/2002/07/owl#intersectionOf"
             ]
         );
         let result = table.get_column_as_vec_str("child_attr");
@@ -832,9 +888,9 @@ mod tests {
                 "{\"rdf:about\":\"http://www.example.com/iri\"}",
                 "{\"rdf:about\":\"http://purl.obolibrary.org/obo/GO_0010958\"}",
                 "{\"rdf:resource\":\"http://www.example.com/viri\"}",
-                "", 
-                "{}", 
-                "{}", 
+                "",
+                "{}",
+                "{}",
                 "{}",
                 "{\"rdf:parseType\":\"Collection\"}"
             ]
@@ -1035,42 +1091,388 @@ WHERE {
         assert_eq!(
             result,
             [
-                "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test", "test"
+                "test", "test", "test", "test", "test", "test", "test", "test", "test", "test",
+                "test", "test", "test", "test", "test", "test", "test", "test", "test", "test",
+                "test", "test", "test", "test", "test", "test", "test", "test", "test", "test",
+                "test", "test", "test", "test", "test", "test", "test", "test", "test", "test",
+                "test", "test", "test", "test", "test", "test", "test", "test", "test", "test",
+                "test", "test", "test", "test", "test", "test", "test", "test", "test", "test",
+                "test", "test", "test", "test", "test", "test", "test", "test", "test"
             ]
         );
         let result = table.get_column_as_vec_str("graph");
         assert_eq!(
             result,
             [
-                "http://purl.obolibrary.org/obo/RO_0002161-http://purl.obolibrary.org/obo/IAO_0000112-tooth SubClassOf never in taxon value Aves", "http://purl.obolibrary.org/obo/RO_0002161-http://purl.obolibrary.org/obo/IAO_0000115-x never in taxon T if and only if T is a class, and x does not instantiate the class expression in taxon some T. Note that this is a shortcut relation, and should be used as a hasValue restriction in OWL.", "http://purl.obolibrary.org/obo/RO_0002161-http://purl.obolibrary.org/obo/IAO_0000117-https://orcid.org/0000-0002-6601-2165", "http://purl.obolibrary.org/obo/RO_0002161-http://purl.obolibrary.org/obo/IAO_0000119-http://www.ncbi.nlm.nih.gov/pubmed/17921072", "http://purl.obolibrary.org/obo/RO_0002161-http://purl.obolibrary.org/obo/IAO_0000119-http://www.ncbi.nlm.nih.gov/pubmed/20973947", "http://purl.obolibrary.org/obo/RO_0002161-http://purl.obolibrary.org/obo/IAO_0000425-Class: ?X DisjointWith: RO_0002162 some ?Y ", "http://purl.obolibrary.org/obo/RO_0002161-http://purl.obolibrary.org/obo/OMO_0002000-PREFIX rdfs: http://www.w3.org/2000/01/rdf-schema#\nPREFIX owl: http://www.w3.org/2002/07/owl#\nPREFIX in_taxon: http://purl.obolibrary.org/obo/RO_0002162\nPREFIX never_in_taxon: http://purl.obolibrary.org/obo/RO_0002161\nCONSTRUCT {\n  in_taxon: a owl:ObjectProperty .\n  ?x owl:disjointWith [\n    a owl:Restriction ;\n    owl:onProperty in_taxon: ;\n    owl:someValuesFrom ?taxon\n  ] .\n  ?x rdfs:subClassOf [\n    a owl:Restriction ;\n    owl:onProperty in_taxon: ;\n    owl:someValuesFrom [\n      a owl:Class ;\n      owl:complementOf ?taxon\n    ]\n  ] .\n}\nWHERE {\n  ?x never_in_taxon: ?taxon .\n}", "http://purl.obolibrary.org/obo/RO_0002161-http://www.w3.org/2000/01/rdf-schema#label-never in taxon", "http://purl.obolibrary.org/obo/RO_0002161-http://www.w3.org/2000/01/rdf-schema#seeAlso-https://github.com/obophenotype/uberon/wiki/Taxon-constraints", "http://purl.obolibrary.org/obo/RO_0002161-http://www.w3.org/2000/01/rdf-schema#subPropertyOf-http://purl.obolibrary.org/obo/RO_0002172", "http://purl.obolibrary.org/obo/RO_0009501-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym-triggered by process-http://www.w3.org/2002/07/owl#annotatedTarget-triggered by process", "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000115-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.-http://www.w3.org/2002/07/owl#annotatedTarget-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.", "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000115-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.-http://www.geneontology.org/formats/oboInOwl#hasDbXref-CARO:mah", "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000115-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.-http://www.w3.org/2002/07/owl#annotatedProperty-http://purl.obolibrary.org/obo/IAO_0000115", "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000115-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.-http://www.w3.org/2002/07/owl#annotatedSource-http://purl.obolibrary.org/obo/CL_0000000", "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.-http://www.w3.org/2002/07/owl#annotatedTarget-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.", "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.-http://www.geneontology.org/formats/oboInOwl#hasDbXref-PMID:24138933", "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.-http://www.geneontology.org/formats/oboInOwl#hasDbXref-Wikipedia:Infant_mortality", "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.-http://www.w3.org/2002/07/owl#annotatedProperty-http://purl.obolibrary.org/obo/IAO_0000115", "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.-http://www.w3.org/2002/07/owl#annotatedSource-http://purl.obolibrary.org/obo/RO_0002029", "http://purl.obolibrary.org/obo/RO_0009501-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym-triggered by process-http://www.w3.org/2002/07/owl#annotatedProperty-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym", "http://purl.obolibrary.org/obo/RO_0009501-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym-triggered by process-http://www.w3.org/2002/07/owl#annotatedSource-http://purl.obolibrary.org/obo/RO_0009501", "http://purl.obolibrary.org/obo/RO_0009501-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym-triggered by process-http://www.geneontology.org/formats/oboInOwl#hasDbXref-https://orcid.org/0000-0002-6601-2165", "http://purl.obolibrary.org/obo/CL_0000000-http://www.geneontology.org/formats/oboInOwl#hasDbXref-XAO:0003012", "http://purl.obolibrary.org/obo/CL_0000000-http://www.geneontology.org/formats/oboInOwl#hasDbXref-CALOHA:TS-2035", "http://purl.obolibrary.org/obo/CL_0000000-http://www.geneontology.org/formats/oboInOwl#hasDbXref-GO:0005623", "http://purl.obolibrary.org/obo/CL_0000000-http://www.geneontology.org/formats/oboInOwl#hasDbXref-VHOG:0001533", "http://purl.obolibrary.org/obo/CL_0000000-http://www.geneontology.org/formats/oboInOwl#hasDbXref-KUPO:0000002", "http://purl.obolibrary.org/obo/CL_0000000-http://www.geneontology.org/formats/oboInOwl#hasDbXref-MESH:D002477", "http://purl.obolibrary.org/obo/CL_0000000-http://www.w3.org/2000/01/rdf-schema#comment-The definition of cell is intended to represent all cells, and thus a cell is defined as a material entity and not an anatomical structure, which implies that it is part of an organism (or the entirety of one).", "http://purl.obolibrary.org/obo/CL_0000000-http://www.w3.org/2000/01/rdf-schema#label-cell", "http://purl.obolibrary.org/obo/CL_0000000-http://www.w3.org/2000/01/rdf-schema#subClassOf-http://purl.obolibrary.org/obo/UBERON_0000061", "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000116-We struggled with this definition. We are worried about circularity. We also considered requiring the capability of metabolism.", "http://purl.obolibrary.org/obo/CL_0000000-http://www.geneontology.org/formats/oboInOwl#hasDbXref-WBbt:0004017", "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000115-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.", "http://purl.obolibrary.org/obo/CL_0000000-http://www.geneontology.org/formats/oboInOwl#hasDbXref-FMA:68646", "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000116-CL and GO definitions of cell differ based on inclusive or exclusive of cell wall, etc.", "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.", "http://purl.obolibrary.org/obo/RO_0002029-http://www.w3.org/2000/01/rdf-schema#comment-This could be used to record the increased infant morality rate in some population compared to wild-type.  For examples of usage see http://purl.obolibrary.org/obo/FBcv_0000351 and subclasses.", "http://purl.obolibrary.org/obo/RO_0002029-http://www.w3.org/2000/01/rdf-schema#label-has increased age-specific mortality rate", "http://purl.obolibrary.org/obo/RO_0002029-http://www.geneontology.org/formats/oboInOwl#created_by-https://orcid.org/0000-0002-7073-9172", "http://purl.obolibrary.org/obo/RO_0002029-http://www.geneontology.org/formats/oboInOwl#creation_date-2018-05-22T16:43:28Z", "http://purl.obolibrary.org/obo/ENVO_01001569-http://www.geneontology.org/formats/oboInOwl#hasBroadSynonym-Western Australia Ecoregion", "http://purl.obolibrary.org/obo/ENVO_01001569-http://www.geneontology.org/formats/oboInOwl#created_by-https://orcid.org/0000-0002-4366-3088", "http://purl.obolibrary.org/obo/ENVO_01001569-http://www.geneontology.org/formats/oboInOwl#creation_date-2019-03-05T17:25:21Z", "http://purl.obolibrary.org/obo/ENVO_01001569-http://purl.obolibrary.org/obo/BFO_0000050-http://purl.obolibrary.org/obo/ENVO_01001571", "http://purl.obolibrary.org/obo/ENVO_01001569-http://www.geneontology.org/formats/oboInOwl#hasDbXref-https://www.worldwildlife.org/ecoregions/aa1310", "http://purl.obolibrary.org/obo/ENVO_01001569-http://www.geneontology.org/formats/oboInOwl#hasDbXref-WWF:AA1310", "http://purl.obolibrary.org/obo/ENVO_01001569-http://www.w3.org/2000/01/rdf-schema#label-Western Australian Mulga Shrublands Ecoregion", "http://purl.obolibrary.org/obo/RO_0009501-http://purl.obolibrary.org/obo/IAO_0000112-A drought sensitivity trait that inheres in a whole plant is realized in a systemic response process in response to exposure to drought conditions.", "http://purl.obolibrary.org/obo/RO_0009501-http://purl.obolibrary.org/obo/IAO_0000115-r realized in response to s iff, r is a realizable (e.g. a plant trait such as responsivity to drought), s is an environmental stimulus (a process), and s directly causes the realization of r.", "http://purl.obolibrary.org/obo/RO_0009501-http://purl.org/dc/terms/contributor-https://orcid.org/0000-0002-8461-9745", "http://purl.obolibrary.org/obo/RO_0009501-http://purl.org/dc/terms/contributor-https://orcid.org/0000-0001-6996-0040", "http://purl.obolibrary.org/obo/RO_0009501-http://www.w3.org/2000/01/rdf-schema#label-realized in response to", "http://purl.obolibrary.org/obo/RO_0009501-http://www.w3.org/2000/01/rdf-schema#range-http://purl.obolibrary.org/obo/BFO_0000015", "http://purl.obolibrary.org/obo/RO_0009501-http://www.w3.org/2000/01/rdf-schema#seeAlso-https://docs.google.com/document/d/1KWhZxVBhIPkV6_daHta0h6UyHbjY2eIrnON1WIRGgdY/edit", "http://purl.obolibrary.org/obo/RO_0009501-http://purl.org/dc/terms/contributor-https://orcid.org/0000-0002-6601-2165", "http://purl.obolibrary.org/obo/RO_0009501-http://purl.obolibrary.org/obo/IAO_0000112-An inflammatory disease that is realized in response to an inflammatory process occurring in the gut (which is itself the realization of a process realized in response to harmful stimuli in the mucosal lining of th gut)", "http://purl.obolibrary.org/obo/RO_0009501-http://www.w3.org/2000/01/rdf-schema#subPropertyOf-http://purl.obolibrary.org/obo/RO_0002410", "http://purl.obolibrary.org/obo/RO_0009501-http://purl.org/dc/terms/contributor-https://orcid.org/0000-0002-7073-9172", "http://purl.obolibrary.org/obo/RO_0009501-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym-triggered by process", "http://purl.obolibrary.org/obo/RO_0009501-http://www.w3.org/2000/01/rdf-schema#domain-http://purl.obolibrary.org/obo/BFO_0000017", "http://purl.obolibrary.org/obo/RO_0009501-http://purl.obolibrary.org/obo/IAO_0000112-Environmental polymorphism in butterflies: These butterflies have a responsivity to day length trait that is realized in response to the duration of the day, and is realized in developmental processes that lead to increased or decreased pigmentation in the adult morph.", "http://purl.obolibrary.org/obo/ro.owl-http://purl.org/dc/terms/title-OBO Relations Ontology", "http://purl.obolibrary.org/obo/ro.owl-http://purl.org/dc/terms/description-The OBO Relations Ontology (RO) is a collection of OWL relations (ObjectProperties) intended for use across a wide variety of biological ontologies.", "http://purl.obolibrary.org/obo/ro.owl-http://purl.org/dc/terms/license-https://creativecommons.org/publicdomain/zero/1.0/", "http://purl.obolibrary.org/obo/ro.owl-http://www.w3.org/2002/07/owl#versionIRI-http://purl.obolibrary.org/obo/ro/releases/2025-06-24/ro.owl", "http://purl.obolibrary.org/obo/ro.owl-http://www.w3.org/2002/07/owl#versionInfo-2025-06-24", "http://purl.obolibrary.org/obo/ro.owl-http://xmlns.com/foaf/0.1/homepage- https://github.com/oborel/obo-relations/"
+                "http://purl.obolibrary.org/obo/RO_0002161-http://purl.obolibrary.org/obo/IAO_0000112-tooth SubClassOf never in taxon value Aves",
+                "http://purl.obolibrary.org/obo/RO_0002161-http://purl.obolibrary.org/obo/IAO_0000115-x never in taxon T if and only if T is a class, and x does not instantiate the class expression in taxon some T. Note that this is a shortcut relation, and should be used as a hasValue restriction in OWL.",
+                "http://purl.obolibrary.org/obo/RO_0002161-http://purl.obolibrary.org/obo/IAO_0000117-https://orcid.org/0000-0002-6601-2165",
+                "http://purl.obolibrary.org/obo/RO_0002161-http://purl.obolibrary.org/obo/IAO_0000119-http://www.ncbi.nlm.nih.gov/pubmed/17921072",
+                "http://purl.obolibrary.org/obo/RO_0002161-http://purl.obolibrary.org/obo/IAO_0000119-http://www.ncbi.nlm.nih.gov/pubmed/20973947",
+                "http://purl.obolibrary.org/obo/RO_0002161-http://purl.obolibrary.org/obo/IAO_0000425-Class: ?X DisjointWith: RO_0002162 some ?Y ",
+                "http://purl.obolibrary.org/obo/RO_0002161-http://purl.obolibrary.org/obo/OMO_0002000-PREFIX rdfs: http://www.w3.org/2000/01/rdf-schema#\nPREFIX owl: http://www.w3.org/2002/07/owl#\nPREFIX in_taxon: http://purl.obolibrary.org/obo/RO_0002162\nPREFIX never_in_taxon: http://purl.obolibrary.org/obo/RO_0002161\nCONSTRUCT {\n  in_taxon: a owl:ObjectProperty .\n  ?x owl:disjointWith [\n    a owl:Restriction ;\n    owl:onProperty in_taxon: ;\n    owl:someValuesFrom ?taxon\n  ] .\n  ?x rdfs:subClassOf [\n    a owl:Restriction ;\n    owl:onProperty in_taxon: ;\n    owl:someValuesFrom [\n      a owl:Class ;\n      owl:complementOf ?taxon\n    ]\n  ] .\n}\nWHERE {\n  ?x never_in_taxon: ?taxon .\n}",
+                "http://purl.obolibrary.org/obo/RO_0002161-http://www.w3.org/2000/01/rdf-schema#label-never in taxon",
+                "http://purl.obolibrary.org/obo/RO_0002161-http://www.w3.org/2000/01/rdf-schema#seeAlso-https://github.com/obophenotype/uberon/wiki/Taxon-constraints",
+                "http://purl.obolibrary.org/obo/RO_0002161-http://www.w3.org/2000/01/rdf-schema#subPropertyOf-http://purl.obolibrary.org/obo/RO_0002172",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym-triggered by process-http://www.w3.org/2002/07/owl#annotatedTarget-triggered by process",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000115-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.-http://www.w3.org/2002/07/owl#annotatedTarget-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000115-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.-http://www.geneontology.org/formats/oboInOwl#hasDbXref-CARO:mah",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000115-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.-http://www.w3.org/2002/07/owl#annotatedProperty-http://purl.obolibrary.org/obo/IAO_0000115",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000115-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.-http://www.w3.org/2002/07/owl#annotatedSource-http://purl.obolibrary.org/obo/CL_0000000",
+                "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.-http://www.w3.org/2002/07/owl#annotatedTarget-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.",
+                "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.-http://www.geneontology.org/formats/oboInOwl#hasDbXref-PMID:24138933",
+                "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.-http://www.geneontology.org/formats/oboInOwl#hasDbXref-Wikipedia:Infant_mortality",
+                "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.-http://www.w3.org/2002/07/owl#annotatedProperty-http://purl.obolibrary.org/obo/IAO_0000115",
+                "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.-http://www.w3.org/2002/07/owl#annotatedSource-http://purl.obolibrary.org/obo/RO_0002029",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym-triggered by process-http://www.w3.org/2002/07/owl#annotatedProperty-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym-triggered by process-http://www.w3.org/2002/07/owl#annotatedSource-http://purl.obolibrary.org/obo/RO_0009501",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym-triggered by process-http://www.geneontology.org/formats/oboInOwl#hasDbXref-https://orcid.org/0000-0002-6601-2165",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://www.geneontology.org/formats/oboInOwl#hasDbXref-XAO:0003012",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://www.geneontology.org/formats/oboInOwl#hasDbXref-CALOHA:TS-2035",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://www.geneontology.org/formats/oboInOwl#hasDbXref-GO:0005623",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://www.geneontology.org/formats/oboInOwl#hasDbXref-VHOG:0001533",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://www.geneontology.org/formats/oboInOwl#hasDbXref-KUPO:0000002",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://www.geneontology.org/formats/oboInOwl#hasDbXref-MESH:D002477",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://www.w3.org/2000/01/rdf-schema#comment-The definition of cell is intended to represent all cells, and thus a cell is defined as a material entity and not an anatomical structure, which implies that it is part of an organism (or the entirety of one).",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://www.w3.org/2000/01/rdf-schema#label-cell",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://www.w3.org/2000/01/rdf-schema#subClassOf-http://purl.obolibrary.org/obo/UBERON_0000061",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000116-We struggled with this definition. We are worried about circularity. We also considered requiring the capability of metabolism.",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://www.geneontology.org/formats/oboInOwl#hasDbXref-WBbt:0004017",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000115-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://www.geneontology.org/formats/oboInOwl#hasDbXref-FMA:68646",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000116-CL and GO definitions of cell differ based on inclusive or exclusive of cell wall, etc.",
+                "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.",
+                "http://purl.obolibrary.org/obo/RO_0002029-http://www.w3.org/2000/01/rdf-schema#comment-This could be used to record the increased infant morality rate in some population compared to wild-type.  For examples of usage see http://purl.obolibrary.org/obo/FBcv_0000351 and subclasses.",
+                "http://purl.obolibrary.org/obo/RO_0002029-http://www.w3.org/2000/01/rdf-schema#label-has increased age-specific mortality rate",
+                "http://purl.obolibrary.org/obo/RO_0002029-http://www.geneontology.org/formats/oboInOwl#created_by-https://orcid.org/0000-0002-7073-9172",
+                "http://purl.obolibrary.org/obo/RO_0002029-http://www.geneontology.org/formats/oboInOwl#creation_date-2018-05-22T16:43:28Z",
+                "http://purl.obolibrary.org/obo/ENVO_01001569-http://www.geneontology.org/formats/oboInOwl#hasBroadSynonym-Western Australia Ecoregion",
+                "http://purl.obolibrary.org/obo/ENVO_01001569-http://www.geneontology.org/formats/oboInOwl#created_by-https://orcid.org/0000-0002-4366-3088",
+                "http://purl.obolibrary.org/obo/ENVO_01001569-http://www.geneontology.org/formats/oboInOwl#creation_date-2019-03-05T17:25:21Z",
+                "http://purl.obolibrary.org/obo/ENVO_01001569-http://purl.obolibrary.org/obo/BFO_0000050-http://purl.obolibrary.org/obo/ENVO_01001571",
+                "http://purl.obolibrary.org/obo/ENVO_01001569-http://www.geneontology.org/formats/oboInOwl#hasDbXref-https://www.worldwildlife.org/ecoregions/aa1310",
+                "http://purl.obolibrary.org/obo/ENVO_01001569-http://www.geneontology.org/formats/oboInOwl#hasDbXref-WWF:AA1310",
+                "http://purl.obolibrary.org/obo/ENVO_01001569-http://www.w3.org/2000/01/rdf-schema#label-Western Australian Mulga Shrublands Ecoregion",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://purl.obolibrary.org/obo/IAO_0000112-A drought sensitivity trait that inheres in a whole plant is realized in a systemic response process in response to exposure to drought conditions.",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://purl.obolibrary.org/obo/IAO_0000115-r realized in response to s iff, r is a realizable (e.g. a plant trait such as responsivity to drought), s is an environmental stimulus (a process), and s directly causes the realization of r.",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://purl.org/dc/terms/contributor-https://orcid.org/0000-0002-8461-9745",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://purl.org/dc/terms/contributor-https://orcid.org/0000-0001-6996-0040",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://www.w3.org/2000/01/rdf-schema#label-realized in response to",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://www.w3.org/2000/01/rdf-schema#range-http://purl.obolibrary.org/obo/BFO_0000015",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://www.w3.org/2000/01/rdf-schema#seeAlso-https://docs.google.com/document/d/1KWhZxVBhIPkV6_daHta0h6UyHbjY2eIrnON1WIRGgdY/edit",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://purl.org/dc/terms/contributor-https://orcid.org/0000-0002-6601-2165",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://purl.obolibrary.org/obo/IAO_0000112-An inflammatory disease that is realized in response to an inflammatory process occurring in the gut (which is itself the realization of a process realized in response to harmful stimuli in the mucosal lining of th gut)",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://www.w3.org/2000/01/rdf-schema#subPropertyOf-http://purl.obolibrary.org/obo/RO_0002410",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://purl.org/dc/terms/contributor-https://orcid.org/0000-0002-7073-9172",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym-triggered by process",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://www.w3.org/2000/01/rdf-schema#domain-http://purl.obolibrary.org/obo/BFO_0000017",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://purl.obolibrary.org/obo/IAO_0000112-Environmental polymorphism in butterflies: These butterflies have a responsivity to day length trait that is realized in response to the duration of the day, and is realized in developmental processes that lead to increased or decreased pigmentation in the adult morph.",
+                "http://purl.obolibrary.org/obo/ro.owl-http://purl.org/dc/terms/title-OBO Relations Ontology",
+                "http://purl.obolibrary.org/obo/ro.owl-http://purl.org/dc/terms/description-The OBO Relations Ontology (RO) is a collection of OWL relations (ObjectProperties) intended for use across a wide variety of biological ontologies.",
+                "http://purl.obolibrary.org/obo/ro.owl-http://purl.org/dc/terms/license-https://creativecommons.org/publicdomain/zero/1.0/",
+                "http://purl.obolibrary.org/obo/ro.owl-http://www.w3.org/2002/07/owl#versionIRI-http://purl.obolibrary.org/obo/ro/releases/2025-06-24/ro.owl",
+                "http://purl.obolibrary.org/obo/ro.owl-http://www.w3.org/2002/07/owl#versionInfo-2025-06-24",
+                "http://purl.obolibrary.org/obo/ro.owl-http://xmlns.com/foaf/0.1/homepage- https://github.com/oborel/obo-relations/"
             ]
         );
         let result = table.get_column_as_vec_str("entity");
         assert_eq!(
             result,
             [
-                "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "Axiom", "Axiom", "Axiom", "Axiom", "Axiom", "Axiom", "Axiom", "Axiom", "Axiom", "Axiom", "Axiom", "Axiom", "Axiom", "Class", "Class", "Class", "Class", "Class", "Class", "Class", "Class", "Class", "Class", "Class", "Class", "Class", "Class", "DatatypeProperty", "DatatypeProperty", "DatatypeProperty", "DatatypeProperty", "DatatypeProperty", "NamedIndividual", "NamedIndividual", "NamedIndividual", "NamedIndividual", "NamedIndividual", "NamedIndividual", "NamedIndividual", "ObjectProperty", "ObjectProperty", "ObjectProperty", "ObjectProperty", "ObjectProperty", "ObjectProperty", "ObjectProperty", "ObjectProperty", "ObjectProperty", "ObjectProperty", "ObjectProperty", "ObjectProperty", "ObjectProperty", "ObjectProperty", "Ontology", "Ontology", "Ontology", "Ontology", "Ontology", "Ontology"
+                "AnnotationProperty",
+                "AnnotationProperty",
+                "AnnotationProperty",
+                "AnnotationProperty",
+                "AnnotationProperty",
+                "AnnotationProperty",
+                "AnnotationProperty",
+                "AnnotationProperty",
+                "AnnotationProperty",
+                "AnnotationProperty",
+                "Axiom",
+                "Axiom",
+                "Axiom",
+                "Axiom",
+                "Axiom",
+                "Axiom",
+                "Axiom",
+                "Axiom",
+                "Axiom",
+                "Axiom",
+                "Axiom",
+                "Axiom",
+                "Axiom",
+                "Class",
+                "Class",
+                "Class",
+                "Class",
+                "Class",
+                "Class",
+                "Class",
+                "Class",
+                "Class",
+                "Class",
+                "Class",
+                "Class",
+                "Class",
+                "Class",
+                "DatatypeProperty",
+                "DatatypeProperty",
+                "DatatypeProperty",
+                "DatatypeProperty",
+                "DatatypeProperty",
+                "NamedIndividual",
+                "NamedIndividual",
+                "NamedIndividual",
+                "NamedIndividual",
+                "NamedIndividual",
+                "NamedIndividual",
+                "NamedIndividual",
+                "ObjectProperty",
+                "ObjectProperty",
+                "ObjectProperty",
+                "ObjectProperty",
+                "ObjectProperty",
+                "ObjectProperty",
+                "ObjectProperty",
+                "ObjectProperty",
+                "ObjectProperty",
+                "ObjectProperty",
+                "ObjectProperty",
+                "ObjectProperty",
+                "ObjectProperty",
+                "ObjectProperty",
+                "Ontology",
+                "Ontology",
+                "Ontology",
+                "Ontology",
+                "Ontology",
+                "Ontology"
             ]
         );
         let result = table.get_column_as_vec_str("subject");
         assert_eq!(
             result,
             [
-                "http://purl.obolibrary.org/obo/RO_0002161", "http://purl.obolibrary.org/obo/RO_0002161", "http://purl.obolibrary.org/obo/RO_0002161", "http://purl.obolibrary.org/obo/RO_0002161", "http://purl.obolibrary.org/obo/RO_0002161", "http://purl.obolibrary.org/obo/RO_0002161", "http://purl.obolibrary.org/obo/RO_0002161", "http://purl.obolibrary.org/obo/RO_0002161", "http://purl.obolibrary.org/obo/RO_0002161", "http://purl.obolibrary.org/obo/RO_0002161", "http://purl.obolibrary.org/obo/RO_0009501-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym-triggered by process", "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000115-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.", "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000115-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.", "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000115-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.", "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000115-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.", "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.", "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.", "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.", "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.", "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.", "http://purl.obolibrary.org/obo/RO_0009501-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym-triggered by process", "http://purl.obolibrary.org/obo/RO_0009501-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym-triggered by process", "http://purl.obolibrary.org/obo/RO_0009501-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym-triggered by process", "http://purl.obolibrary.org/obo/CL_0000000", "http://purl.obolibrary.org/obo/CL_0000000", "http://purl.obolibrary.org/obo/CL_0000000", "http://purl.obolibrary.org/obo/CL_0000000", "http://purl.obolibrary.org/obo/CL_0000000", "http://purl.obolibrary.org/obo/CL_0000000", "http://purl.obolibrary.org/obo/CL_0000000", "http://purl.obolibrary.org/obo/CL_0000000", "http://purl.obolibrary.org/obo/CL_0000000", "http://purl.obolibrary.org/obo/CL_0000000", "http://purl.obolibrary.org/obo/CL_0000000", "http://purl.obolibrary.org/obo/CL_0000000", "http://purl.obolibrary.org/obo/CL_0000000", "http://purl.obolibrary.org/obo/CL_0000000", "http://purl.obolibrary.org/obo/RO_0002029", "http://purl.obolibrary.org/obo/RO_0002029", "http://purl.obolibrary.org/obo/RO_0002029", "http://purl.obolibrary.org/obo/RO_0002029", "http://purl.obolibrary.org/obo/RO_0002029", "http://purl.obolibrary.org/obo/ENVO_01001569", "http://purl.obolibrary.org/obo/ENVO_01001569", "http://purl.obolibrary.org/obo/ENVO_01001569", "http://purl.obolibrary.org/obo/ENVO_01001569", "http://purl.obolibrary.org/obo/ENVO_01001569", "http://purl.obolibrary.org/obo/ENVO_01001569", "http://purl.obolibrary.org/obo/ENVO_01001569", "http://purl.obolibrary.org/obo/RO_0009501", "http://purl.obolibrary.org/obo/RO_0009501", "http://purl.obolibrary.org/obo/RO_0009501", "http://purl.obolibrary.org/obo/RO_0009501", "http://purl.obolibrary.org/obo/RO_0009501", "http://purl.obolibrary.org/obo/RO_0009501", "http://purl.obolibrary.org/obo/RO_0009501", "http://purl.obolibrary.org/obo/RO_0009501", "http://purl.obolibrary.org/obo/RO_0009501", "http://purl.obolibrary.org/obo/RO_0009501", "http://purl.obolibrary.org/obo/RO_0009501", "http://purl.obolibrary.org/obo/RO_0009501", "http://purl.obolibrary.org/obo/RO_0009501", "http://purl.obolibrary.org/obo/RO_0009501", "http://purl.obolibrary.org/obo/ro.owl", "http://purl.obolibrary.org/obo/ro.owl", "http://purl.obolibrary.org/obo/ro.owl", "http://purl.obolibrary.org/obo/ro.owl", "http://purl.obolibrary.org/obo/ro.owl", "http://purl.obolibrary.org/obo/ro.owl"
+                "http://purl.obolibrary.org/obo/RO_0002161",
+                "http://purl.obolibrary.org/obo/RO_0002161",
+                "http://purl.obolibrary.org/obo/RO_0002161",
+                "http://purl.obolibrary.org/obo/RO_0002161",
+                "http://purl.obolibrary.org/obo/RO_0002161",
+                "http://purl.obolibrary.org/obo/RO_0002161",
+                "http://purl.obolibrary.org/obo/RO_0002161",
+                "http://purl.obolibrary.org/obo/RO_0002161",
+                "http://purl.obolibrary.org/obo/RO_0002161",
+                "http://purl.obolibrary.org/obo/RO_0002161",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym-triggered by process",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000115-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000115-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000115-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.",
+                "http://purl.obolibrary.org/obo/CL_0000000-http://purl.obolibrary.org/obo/IAO_0000115-A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.",
+                "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.",
+                "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.",
+                "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.",
+                "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.",
+                "http://purl.obolibrary.org/obo/RO_0002029-http://purl.obolibrary.org/obo/IAO_0000115-Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym-triggered by process",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym-triggered by process",
+                "http://purl.obolibrary.org/obo/RO_0009501-http://www.geneontology.org/formats/oboInOwl#hasExactSynonym-triggered by process",
+                "http://purl.obolibrary.org/obo/CL_0000000",
+                "http://purl.obolibrary.org/obo/CL_0000000",
+                "http://purl.obolibrary.org/obo/CL_0000000",
+                "http://purl.obolibrary.org/obo/CL_0000000",
+                "http://purl.obolibrary.org/obo/CL_0000000",
+                "http://purl.obolibrary.org/obo/CL_0000000",
+                "http://purl.obolibrary.org/obo/CL_0000000",
+                "http://purl.obolibrary.org/obo/CL_0000000",
+                "http://purl.obolibrary.org/obo/CL_0000000",
+                "http://purl.obolibrary.org/obo/CL_0000000",
+                "http://purl.obolibrary.org/obo/CL_0000000",
+                "http://purl.obolibrary.org/obo/CL_0000000",
+                "http://purl.obolibrary.org/obo/CL_0000000",
+                "http://purl.obolibrary.org/obo/CL_0000000",
+                "http://purl.obolibrary.org/obo/RO_0002029",
+                "http://purl.obolibrary.org/obo/RO_0002029",
+                "http://purl.obolibrary.org/obo/RO_0002029",
+                "http://purl.obolibrary.org/obo/RO_0002029",
+                "http://purl.obolibrary.org/obo/RO_0002029",
+                "http://purl.obolibrary.org/obo/ENVO_01001569",
+                "http://purl.obolibrary.org/obo/ENVO_01001569",
+                "http://purl.obolibrary.org/obo/ENVO_01001569",
+                "http://purl.obolibrary.org/obo/ENVO_01001569",
+                "http://purl.obolibrary.org/obo/ENVO_01001569",
+                "http://purl.obolibrary.org/obo/ENVO_01001569",
+                "http://purl.obolibrary.org/obo/ENVO_01001569",
+                "http://purl.obolibrary.org/obo/RO_0009501",
+                "http://purl.obolibrary.org/obo/RO_0009501",
+                "http://purl.obolibrary.org/obo/RO_0009501",
+                "http://purl.obolibrary.org/obo/RO_0009501",
+                "http://purl.obolibrary.org/obo/RO_0009501",
+                "http://purl.obolibrary.org/obo/RO_0009501",
+                "http://purl.obolibrary.org/obo/RO_0009501",
+                "http://purl.obolibrary.org/obo/RO_0009501",
+                "http://purl.obolibrary.org/obo/RO_0009501",
+                "http://purl.obolibrary.org/obo/RO_0009501",
+                "http://purl.obolibrary.org/obo/RO_0009501",
+                "http://purl.obolibrary.org/obo/RO_0009501",
+                "http://purl.obolibrary.org/obo/RO_0009501",
+                "http://purl.obolibrary.org/obo/RO_0009501",
+                "http://purl.obolibrary.org/obo/ro.owl",
+                "http://purl.obolibrary.org/obo/ro.owl",
+                "http://purl.obolibrary.org/obo/ro.owl",
+                "http://purl.obolibrary.org/obo/ro.owl",
+                "http://purl.obolibrary.org/obo/ro.owl",
+                "http://purl.obolibrary.org/obo/ro.owl"
             ]
         );
         let result = table.get_column_as_vec_str("predicate");
         assert_eq!(
             result,
             [
-                "http://purl.obolibrary.org/obo/IAO_0000112", "http://purl.obolibrary.org/obo/IAO_0000115", "http://purl.obolibrary.org/obo/IAO_0000117", "http://purl.obolibrary.org/obo/IAO_0000119", "http://purl.obolibrary.org/obo/IAO_0000119", "http://purl.obolibrary.org/obo/IAO_0000425", "http://purl.obolibrary.org/obo/OMO_0002000", "http://www.w3.org/2000/01/rdf-schema#label", "http://www.w3.org/2000/01/rdf-schema#seeAlso", "http://www.w3.org/2000/01/rdf-schema#subPropertyOf", "http://www.w3.org/2002/07/owl#annotatedTarget", "http://www.w3.org/2002/07/owl#annotatedTarget", "http://www.geneontology.org/formats/oboInOwl#hasDbXref", "http://www.w3.org/2002/07/owl#annotatedProperty", "http://www.w3.org/2002/07/owl#annotatedSource", "http://www.w3.org/2002/07/owl#annotatedTarget", "http://www.geneontology.org/formats/oboInOwl#hasDbXref", "http://www.geneontology.org/formats/oboInOwl#hasDbXref", "http://www.w3.org/2002/07/owl#annotatedProperty", "http://www.w3.org/2002/07/owl#annotatedSource", "http://www.w3.org/2002/07/owl#annotatedProperty", "http://www.w3.org/2002/07/owl#annotatedSource", "http://www.geneontology.org/formats/oboInOwl#hasDbXref", "http://www.geneontology.org/formats/oboInOwl#hasDbXref", "http://www.geneontology.org/formats/oboInOwl#hasDbXref", "http://www.geneontology.org/formats/oboInOwl#hasDbXref", "http://www.geneontology.org/formats/oboInOwl#hasDbXref", "http://www.geneontology.org/formats/oboInOwl#hasDbXref", "http://www.geneontology.org/formats/oboInOwl#hasDbXref", "http://www.w3.org/2000/01/rdf-schema#comment", "http://www.w3.org/2000/01/rdf-schema#label", "http://www.w3.org/2000/01/rdf-schema#subClassOf", "http://purl.obolibrary.org/obo/IAO_0000116", "http://www.geneontology.org/formats/oboInOwl#hasDbXref", "http://purl.obolibrary.org/obo/IAO_0000115", "http://www.geneontology.org/formats/oboInOwl#hasDbXref", "http://purl.obolibrary.org/obo/IAO_0000116", "http://purl.obolibrary.org/obo/IAO_0000115", "http://www.w3.org/2000/01/rdf-schema#comment", "http://www.w3.org/2000/01/rdf-schema#label", "http://www.geneontology.org/formats/oboInOwl#created_by", "http://www.geneontology.org/formats/oboInOwl#creation_date", "http://www.geneontology.org/formats/oboInOwl#hasBroadSynonym", "http://www.geneontology.org/formats/oboInOwl#created_by", "http://www.geneontology.org/formats/oboInOwl#creation_date", "http://purl.obolibrary.org/obo/BFO_0000050", "http://www.geneontology.org/formats/oboInOwl#hasDbXref", "http://www.geneontology.org/formats/oboInOwl#hasDbXref", "http://www.w3.org/2000/01/rdf-schema#label", "http://purl.obolibrary.org/obo/IAO_0000112", "http://purl.obolibrary.org/obo/IAO_0000115", "http://purl.org/dc/terms/contributor", "http://purl.org/dc/terms/contributor", "http://www.w3.org/2000/01/rdf-schema#label", "http://www.w3.org/2000/01/rdf-schema#range", "http://www.w3.org/2000/01/rdf-schema#seeAlso", "http://purl.org/dc/terms/contributor", "http://purl.obolibrary.org/obo/IAO_0000112", "http://www.w3.org/2000/01/rdf-schema#subPropertyOf", "http://purl.org/dc/terms/contributor", "http://www.geneontology.org/formats/oboInOwl#hasExactSynonym", "http://www.w3.org/2000/01/rdf-schema#domain", "http://purl.obolibrary.org/obo/IAO_0000112", "http://purl.org/dc/terms/title", "http://purl.org/dc/terms/description", "http://purl.org/dc/terms/license", "http://www.w3.org/2002/07/owl#versionIRI", "http://www.w3.org/2002/07/owl#versionInfo", "http://xmlns.com/foaf/0.1/homepage"
+                "http://purl.obolibrary.org/obo/IAO_0000112",
+                "http://purl.obolibrary.org/obo/IAO_0000115",
+                "http://purl.obolibrary.org/obo/IAO_0000117",
+                "http://purl.obolibrary.org/obo/IAO_0000119",
+                "http://purl.obolibrary.org/obo/IAO_0000119",
+                "http://purl.obolibrary.org/obo/IAO_0000425",
+                "http://purl.obolibrary.org/obo/OMO_0002000",
+                "http://www.w3.org/2000/01/rdf-schema#label",
+                "http://www.w3.org/2000/01/rdf-schema#seeAlso",
+                "http://www.w3.org/2000/01/rdf-schema#subPropertyOf",
+                "http://www.w3.org/2002/07/owl#annotatedTarget",
+                "http://www.w3.org/2002/07/owl#annotatedTarget",
+                "http://www.geneontology.org/formats/oboInOwl#hasDbXref",
+                "http://www.w3.org/2002/07/owl#annotatedProperty",
+                "http://www.w3.org/2002/07/owl#annotatedSource",
+                "http://www.w3.org/2002/07/owl#annotatedTarget",
+                "http://www.geneontology.org/formats/oboInOwl#hasDbXref",
+                "http://www.geneontology.org/formats/oboInOwl#hasDbXref",
+                "http://www.w3.org/2002/07/owl#annotatedProperty",
+                "http://www.w3.org/2002/07/owl#annotatedSource",
+                "http://www.w3.org/2002/07/owl#annotatedProperty",
+                "http://www.w3.org/2002/07/owl#annotatedSource",
+                "http://www.geneontology.org/formats/oboInOwl#hasDbXref",
+                "http://www.geneontology.org/formats/oboInOwl#hasDbXref",
+                "http://www.geneontology.org/formats/oboInOwl#hasDbXref",
+                "http://www.geneontology.org/formats/oboInOwl#hasDbXref",
+                "http://www.geneontology.org/formats/oboInOwl#hasDbXref",
+                "http://www.geneontology.org/formats/oboInOwl#hasDbXref",
+                "http://www.geneontology.org/formats/oboInOwl#hasDbXref",
+                "http://www.w3.org/2000/01/rdf-schema#comment",
+                "http://www.w3.org/2000/01/rdf-schema#label",
+                "http://www.w3.org/2000/01/rdf-schema#subClassOf",
+                "http://purl.obolibrary.org/obo/IAO_0000116",
+                "http://www.geneontology.org/formats/oboInOwl#hasDbXref",
+                "http://purl.obolibrary.org/obo/IAO_0000115",
+                "http://www.geneontology.org/formats/oboInOwl#hasDbXref",
+                "http://purl.obolibrary.org/obo/IAO_0000116",
+                "http://purl.obolibrary.org/obo/IAO_0000115",
+                "http://www.w3.org/2000/01/rdf-schema#comment",
+                "http://www.w3.org/2000/01/rdf-schema#label",
+                "http://www.geneontology.org/formats/oboInOwl#created_by",
+                "http://www.geneontology.org/formats/oboInOwl#creation_date",
+                "http://www.geneontology.org/formats/oboInOwl#hasBroadSynonym",
+                "http://www.geneontology.org/formats/oboInOwl#created_by",
+                "http://www.geneontology.org/formats/oboInOwl#creation_date",
+                "http://purl.obolibrary.org/obo/BFO_0000050",
+                "http://www.geneontology.org/formats/oboInOwl#hasDbXref",
+                "http://www.geneontology.org/formats/oboInOwl#hasDbXref",
+                "http://www.w3.org/2000/01/rdf-schema#label",
+                "http://purl.obolibrary.org/obo/IAO_0000112",
+                "http://purl.obolibrary.org/obo/IAO_0000115",
+                "http://purl.org/dc/terms/contributor",
+                "http://purl.org/dc/terms/contributor",
+                "http://www.w3.org/2000/01/rdf-schema#label",
+                "http://www.w3.org/2000/01/rdf-schema#range",
+                "http://www.w3.org/2000/01/rdf-schema#seeAlso",
+                "http://purl.org/dc/terms/contributor",
+                "http://purl.obolibrary.org/obo/IAO_0000112",
+                "http://www.w3.org/2000/01/rdf-schema#subPropertyOf",
+                "http://purl.org/dc/terms/contributor",
+                "http://www.geneontology.org/formats/oboInOwl#hasExactSynonym",
+                "http://www.w3.org/2000/01/rdf-schema#domain",
+                "http://purl.obolibrary.org/obo/IAO_0000112",
+                "http://purl.org/dc/terms/title",
+                "http://purl.org/dc/terms/description",
+                "http://purl.org/dc/terms/license",
+                "http://www.w3.org/2002/07/owl#versionIRI",
+                "http://www.w3.org/2002/07/owl#versionInfo",
+                "http://xmlns.com/foaf/0.1/homepage"
             ]
         );
         let result = table.get_column_as_vec_str("object");
         assert_eq!(
             result,
             [
-                "tooth SubClassOf never in taxon value Aves", "x never in taxon T if and only if T is a class, and x does not instantiate the class expression in taxon some T. Note that this is a shortcut relation, and should be used as a hasValue restriction in OWL.", "https://orcid.org/0000-0002-6601-2165", "http://www.ncbi.nlm.nih.gov/pubmed/17921072", "http://www.ncbi.nlm.nih.gov/pubmed/20973947", "Class: ?X DisjointWith: RO_0002162 some ?Y ", "PREFIX rdfs: http://www.w3.org/2000/01/rdf-schema#\nPREFIX owl: http://www.w3.org/2002/07/owl#\nPREFIX in_taxon: http://purl.obolibrary.org/obo/RO_0002162\nPREFIX never_in_taxon: http://purl.obolibrary.org/obo/RO_0002161\nCONSTRUCT {\n  in_taxon: a owl:ObjectProperty .\n  ?x owl:disjointWith [\n    a owl:Restriction ;\n    owl:onProperty in_taxon: ;\n    owl:someValuesFrom ?taxon\n  ] .\n  ?x rdfs:subClassOf [\n    a owl:Restriction ;\n    owl:onProperty in_taxon: ;\n    owl:someValuesFrom [\n      a owl:Class ;\n      owl:complementOf ?taxon\n    ]\n  ] .\n}\nWHERE {\n  ?x never_in_taxon: ?taxon .\n}", "never in taxon", "https://github.com/obophenotype/uberon/wiki/Taxon-constraints", "http://purl.obolibrary.org/obo/RO_0002172", "triggered by process", "A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.", "CARO:mah", "http://purl.obolibrary.org/obo/IAO_0000115", "http://purl.obolibrary.org/obo/CL_0000000", "Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.", "PMID:24138933", "Wikipedia:Infant_mortality", "http://purl.obolibrary.org/obo/IAO_0000115", "http://purl.obolibrary.org/obo/RO_0002029", "http://www.geneontology.org/formats/oboInOwl#hasExactSynonym", "http://purl.obolibrary.org/obo/RO_0009501", "https://orcid.org/0000-0002-6601-2165", "XAO:0003012", "CALOHA:TS-2035", "GO:0005623", "VHOG:0001533", "KUPO:0000002", "MESH:D002477", "The definition of cell is intended to represent all cells, and thus a cell is defined as a material entity and not an anatomical structure, which implies that it is part of an organism (or the entirety of one).", "cell", "http://purl.obolibrary.org/obo/UBERON_0000061", "We struggled with this definition. We are worried about circularity. We also considered requiring the capability of metabolism.", "WBbt:0004017", "A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.", "FMA:68646", "CL and GO definitions of cell differ based on inclusive or exclusive of cell wall, etc.", "Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.", "This could be used to record the increased infant morality rate in some population compared to wild-type.  For examples of usage see http://purl.obolibrary.org/obo/FBcv_0000351 and subclasses.", "has increased age-specific mortality rate", "https://orcid.org/0000-0002-7073-9172", "2018-05-22T16:43:28Z", "Western Australia Ecoregion", "https://orcid.org/0000-0002-4366-3088", "2019-03-05T17:25:21Z", "http://purl.obolibrary.org/obo/ENVO_01001571", "https://www.worldwildlife.org/ecoregions/aa1310", "WWF:AA1310", "Western Australian Mulga Shrublands Ecoregion", "A drought sensitivity trait that inheres in a whole plant is realized in a systemic response process in response to exposure to drought conditions.", "r realized in response to s iff, r is a realizable (e.g. a plant trait such as responsivity to drought), s is an environmental stimulus (a process), and s directly causes the realization of r.", "https://orcid.org/0000-0002-8461-9745", "https://orcid.org/0000-0001-6996-0040", "realized in response to", "http://purl.obolibrary.org/obo/BFO_0000015", "https://docs.google.com/document/d/1KWhZxVBhIPkV6_daHta0h6UyHbjY2eIrnON1WIRGgdY/edit", "https://orcid.org/0000-0002-6601-2165", "An inflammatory disease that is realized in response to an inflammatory process occurring in the gut (which is itself the realization of a process realized in response to harmful stimuli in the mucosal lining of th gut)", "http://purl.obolibrary.org/obo/RO_0002410", "https://orcid.org/0000-0002-7073-9172", "triggered by process", "http://purl.obolibrary.org/obo/BFO_0000017", "Environmental polymorphism in butterflies: These butterflies have a responsivity to day length trait that is realized in response to the duration of the day, and is realized in developmental processes that lead to increased or decreased pigmentation in the adult morph.", "OBO Relations Ontology", "The OBO Relations Ontology (RO) is a collection of OWL relations (ObjectProperties) intended for use across a wide variety of biological ontologies.", "https://creativecommons.org/publicdomain/zero/1.0/", "http://purl.obolibrary.org/obo/ro/releases/2025-06-24/ro.owl", "2025-06-24", " https://github.com/oborel/obo-relations/"
+                "tooth SubClassOf never in taxon value Aves",
+                "x never in taxon T if and only if T is a class, and x does not instantiate the class expression in taxon some T. Note that this is a shortcut relation, and should be used as a hasValue restriction in OWL.",
+                "https://orcid.org/0000-0002-6601-2165",
+                "http://www.ncbi.nlm.nih.gov/pubmed/17921072",
+                "http://www.ncbi.nlm.nih.gov/pubmed/20973947",
+                "Class: ?X DisjointWith: RO_0002162 some ?Y ",
+                "PREFIX rdfs: http://www.w3.org/2000/01/rdf-schema#\nPREFIX owl: http://www.w3.org/2002/07/owl#\nPREFIX in_taxon: http://purl.obolibrary.org/obo/RO_0002162\nPREFIX never_in_taxon: http://purl.obolibrary.org/obo/RO_0002161\nCONSTRUCT {\n  in_taxon: a owl:ObjectProperty .\n  ?x owl:disjointWith [\n    a owl:Restriction ;\n    owl:onProperty in_taxon: ;\n    owl:someValuesFrom ?taxon\n  ] .\n  ?x rdfs:subClassOf [\n    a owl:Restriction ;\n    owl:onProperty in_taxon: ;\n    owl:someValuesFrom [\n      a owl:Class ;\n      owl:complementOf ?taxon\n    ]\n  ] .\n}\nWHERE {\n  ?x never_in_taxon: ?taxon .\n}",
+                "never in taxon",
+                "https://github.com/obophenotype/uberon/wiki/Taxon-constraints",
+                "http://purl.obolibrary.org/obo/RO_0002172",
+                "triggered by process",
+                "A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.",
+                "CARO:mah",
+                "http://purl.obolibrary.org/obo/IAO_0000115",
+                "http://purl.obolibrary.org/obo/CL_0000000",
+                "Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.",
+                "PMID:24138933",
+                "Wikipedia:Infant_mortality",
+                "http://purl.obolibrary.org/obo/IAO_0000115",
+                "http://purl.obolibrary.org/obo/RO_0002029",
+                "http://www.geneontology.org/formats/oboInOwl#hasExactSynonym",
+                "http://purl.obolibrary.org/obo/RO_0009501",
+                "https://orcid.org/0000-0002-6601-2165",
+                "XAO:0003012",
+                "CALOHA:TS-2035",
+                "GO:0005623",
+                "VHOG:0001533",
+                "KUPO:0000002",
+                "MESH:D002477",
+                "The definition of cell is intended to represent all cells, and thus a cell is defined as a material entity and not an anatomical structure, which implies that it is part of an organism (or the entirety of one).",
+                "cell",
+                "http://purl.obolibrary.org/obo/UBERON_0000061",
+                "We struggled with this definition. We are worried about circularity. We also considered requiring the capability of metabolism.",
+                "WBbt:0004017",
+                "A material entity of anatomical origin (part of or deriving from an organism) that has as its parts a maximally connected cell compartment surrounded by a plasma membrane.",
+                "FMA:68646",
+                "CL and GO definitions of cell differ based on inclusive or exclusive of cell wall, etc.",
+                "Then percentage of organisms in a population that die during some specified age range (age-specific mortality rate), minus the percentage that die in during the same age range in a wild-type population.",
+                "This could be used to record the increased infant morality rate in some population compared to wild-type.  For examples of usage see http://purl.obolibrary.org/obo/FBcv_0000351 and subclasses.",
+                "has increased age-specific mortality rate",
+                "https://orcid.org/0000-0002-7073-9172",
+                "2018-05-22T16:43:28Z",
+                "Western Australia Ecoregion",
+                "https://orcid.org/0000-0002-4366-3088",
+                "2019-03-05T17:25:21Z",
+                "http://purl.obolibrary.org/obo/ENVO_01001571",
+                "https://www.worldwildlife.org/ecoregions/aa1310",
+                "WWF:AA1310",
+                "Western Australian Mulga Shrublands Ecoregion",
+                "A drought sensitivity trait that inheres in a whole plant is realized in a systemic response process in response to exposure to drought conditions.",
+                "r realized in response to s iff, r is a realizable (e.g. a plant trait such as responsivity to drought), s is an environmental stimulus (a process), and s directly causes the realization of r.",
+                "https://orcid.org/0000-0002-8461-9745",
+                "https://orcid.org/0000-0001-6996-0040",
+                "realized in response to",
+                "http://purl.obolibrary.org/obo/BFO_0000015",
+                "https://docs.google.com/document/d/1KWhZxVBhIPkV6_daHta0h6UyHbjY2eIrnON1WIRGgdY/edit",
+                "https://orcid.org/0000-0002-6601-2165",
+                "An inflammatory disease that is realized in response to an inflammatory process occurring in the gut (which is itself the realization of a process realized in response to harmful stimuli in the mucosal lining of th gut)",
+                "http://purl.obolibrary.org/obo/RO_0002410",
+                "https://orcid.org/0000-0002-7073-9172",
+                "triggered by process",
+                "http://purl.obolibrary.org/obo/BFO_0000017",
+                "Environmental polymorphism in butterflies: These butterflies have a responsivity to day length trait that is realized in response to the duration of the day, and is realized in developmental processes that lead to increased or decreased pigmentation in the adult morph.",
+                "OBO Relations Ontology",
+                "The OBO Relations Ontology (RO) is a collection of OWL relations (ObjectProperties) intended for use across a wide variety of biological ontologies.",
+                "https://creativecommons.org/publicdomain/zero/1.0/",
+                "http://purl.obolibrary.org/obo/ro/releases/2025-06-24/ro.owl",
+                "2025-06-24",
+                " https://github.com/oborel/obo-relations/"
             ]
         );
     }

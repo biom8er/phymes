@@ -13,7 +13,7 @@ pub enum SampleType {
     #[value(name = "Physical")]
     Physical,
     #[value(name = "Digital")]
-    Digital
+    Digital,
 }
 
 impl Display for SampleType {
@@ -26,16 +26,21 @@ impl Display for SampleType {
 }
 
 /// A session for melting a `Study Dataset` from a single workflow step
-/// 
+///
 /// # Notes
-/// 
-/// * Intended to be used with a single workflow step: 
+///
+/// * Intended to be used with a single workflow step:
 ///   i.e., usually involving just a single `protocol_id` and `operator_id`
-/// * Only the minimal study data is extracted: 
+/// * Only the minimal study data is extracted:
 ///   i.e., Joins between `variable_name` with `ontology_uri` and `units_uri` along along with
 ///   Joins between `sample_name` and `protocol_id` and `operator_id` are omitted
 /// * The `sample_type` is not specified
 /// * Adding a unique UUID for samples and variables i.e., `sample_id` and `variable_id` is omitted
+///
+/// # Todo
+///
+/// * Support for melting a `Study Dataset` from `StudySamplesMelt` and `StudyVariableMelt` input tables
+///   instead of as struct parameters
 pub struct MeltStudyDataSession<'a> {
     /// Session
     pub session_context_name: &'a str,
@@ -45,18 +50,19 @@ pub struct MeltStudyDataSession<'a> {
     /// `study_id`, if None then a unique UInt32 ID will be provided
     pub study_id: u32,
     /// Variable or Feature names
-    pub variable_names: &'a[&'a str],
+    pub variable_names: &'a [&'a str],
     /// Variable or Feature data types
-    pub data_types: &'a[DataType],
+    pub data_types: &'a [DataType],
 }
 
 impl<'a> MeltStudyDataSession<'a> {
     /// New [MeltStudyDataSession]
-    pub fn new(session_context_name: Option<&'a str>, 
-        sample_name_col: &'a str, 
-        study_id: Option<u32>, 
-        variable_names: &'a[&'a str], 
-        data_types: &'a[DataType],
+    pub fn new(
+        session_context_name: Option<&'a str>,
+        sample_name_col: &'a str,
+        study_id: Option<u32>,
+        variable_names: &'a [&'a str],
+        data_types: &'a [DataType],
     ) -> Result<Self> {
         let session_context_name = if let Some(name) = session_context_name {
             name
@@ -64,7 +70,9 @@ impl<'a> MeltStudyDataSession<'a> {
             "melt_study_data_session"
         };
         if variable_names.len() != data_types.len() {
-            return Err(anyhow!("variable_names `{variable_names:?}` length does not match data_types `{data_types:?}` length."))
+            return Err(anyhow!(
+                "variable_names `{variable_names:?}` length does not match data_types `{data_types:?}` length."
+            ));
         }
         let study_id = if let Some(study_id) = study_id {
             study_id
@@ -87,25 +95,41 @@ impl<'a> MeltStudyDataSession<'a> {
 
     /// Make the datatype columns
     fn data_type_columns(&self) -> Result<String> {
-        let items = self.data_types.into_iter().map(|d| d.to_string()).collect::<Vec<_>>();
+        let items = self
+            .data_types
+            .into_iter()
+            .map(|d| d.to_string())
+            .collect::<Vec<_>>();
         items_to_list(&items.iter().map(|s| s.as_str()).collect::<Vec<_>>())
     }
 
     /// Make cast operator columns for variables
     fn cast_operator_columns(&self) -> Result<String> {
-        let items = self.data_types.iter().map(|_| "Cast".to_string()).collect::<Vec<_>>();
+        let items = self
+            .data_types
+            .iter()
+            .map(|_| "Cast".to_string())
+            .collect::<Vec<_>>();
         items_to_list(&items.iter().map(|s| s.as_str()).collect::<Vec<_>>())
     }
 
     /// Make cast template columns for variables
     fn cast_templates_columns(&self) -> Result<String> {
-        let items = self.data_types.iter().map(|_| "".to_string()).collect::<Vec<_>>();
+        let items = self
+            .data_types
+            .iter()
+            .map(|_| "".to_string())
+            .collect::<Vec<_>>();
         items_to_list(&items.iter().map(|s| s.as_str()).collect::<Vec<_>>())
     }
 
     /// make column operator columns for variables
     fn column_operators_columns(&self) -> Result<String> {
-        let items = self.data_types.iter().map(|_| "None".to_string()).collect::<Vec<_>>();
+        let items = self
+            .data_types
+            .iter()
+            .map(|_| "None".to_string())
+            .collect::<Vec<_>>();
         items_to_list(&items.iter().map(|s| s.as_str()).collect::<Vec<_>>())
     }
 
@@ -207,7 +231,8 @@ impl<'a> MeltStudyDataSession<'a> {
 
     /// Return the Mermaid.js ER Diagram representation of the session
     pub fn as_mermaid_erdiagram(&self) -> Result<String> {
-        let erdiagram = format!(r#"erDiagram
+        let erdiagram = format!(
+            r#"erDiagram
 	study_data_cast["study_data_cast"] {{
 	    List-Utf8 as_columns "['sample_name',{},'study_id']"
 	    List-Utf8 cast_datatypes "['Utf8',{},'UInt32']"
@@ -302,9 +327,18 @@ impl<'a> MeltStudyDataSession<'a> {
 	    List-Utf8 lhs_values "['bytes']"
 	    Utf8 operator "ExtractTabular"
 	    Utf8 stream "AccumulateLHSAccumulateRHS"
-	}}"#, self.cast_templates_columns()?, self.data_type_columns()?, self.cast_operator_columns()?, self.cast_templates_columns()?, self.study_id, self.column_operators_columns()?, self.sample_name_col, self.variable_columns()?,
+	}}"#,
+            self.cast_templates_columns()?,
+            self.data_type_columns()?,
+            self.cast_operator_columns()?,
+            self.cast_templates_columns()?,
+            self.study_id,
+            self.column_operators_columns()?,
+            self.sample_name_col,
             self.variable_columns()?,
-            self.study_id, self.sample_name_col,
+            self.variable_columns()?,
+            self.study_id,
+            self.sample_name_col,
         );
         Ok(erdiagram)
     }
@@ -319,12 +353,16 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, CsvFormat, IPCMessage, MappableTrait, MessageBuilderTrait, Table, TableBuilderTrait, TablePublication, TableTrait, create_session_supersteps_batch
+        AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, CsvFormat,
+        IPCMessage, MappableTrait, MessageBuilderTrait, Table, TableBuilderTrait, TablePublication,
+        TableTrait, create_session_supersteps_batch,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, create_message_map
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
+        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
+        create_message_map,
     };
 
     use super::*;
@@ -332,15 +370,20 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_melt_study_data_session() -> Result<()> {
         // Make the anticipated pivot table values
-        let variable_names = &["Age","Gender","Ethnicity","RFFT","VAT","BMI","Statin"];
-        let data_types = &[DataType::Int64,DataType::Int64,DataType::Int64,DataType::Int64,DataType::Int64,DataType::Float64,DataType::Int64];
+        let variable_names = &["Age", "Gender", "Ethnicity", "RFFT", "VAT", "BMI", "Statin"];
+        let data_types = &[
+            DataType::Int64,
+            DataType::Int64,
+            DataType::Int64,
+            DataType::Int64,
+            DataType::Int64,
+            DataType::Float64,
+            DataType::Int64,
+        ];
 
         // Initialize the session
-        let melt_study_data_session = MeltStudyDataSession::new(None,
-            "Casenr",
-            None,
-            variable_names,
-            data_types)?;
+        let melt_study_data_session =
+            MeltStudyDataSession::new(None, "Casenr", None, variable_names, data_types)?;
         // dbg!(&melt_study_data_session.as_mermaid_erdiagram()?);
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
             melt_study_data_session.as_mermaid_flowchart(),
@@ -361,17 +404,28 @@ mod tests {
 
         // Make the tabular data
         let csv_format = CsvFormat::default();
-        let sample_names = ["4088","4089","4090","4091","4092","4093","4094","4095"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
-        let ages = vec![82,82,82,82,82,82,82,82];
-        let genders = vec![0,0,0,0,1,1,1,1];
-        let ethnicities = vec![0,0,0,0,0,0,0,0];
-        let rffs = vec![52,40,53,33,47,35,67,25];
-        let vats = vec![9,11,4,10,11,7,6,10];
-        let bmis = vec![31.8734311,24.25867407,26.0932752,26.3958034,23.70110632,30.54380794,26.0261749,26.72929708];
-        let statins = vec![1,1,0,1,1,1,0,0];
+        let sample_names = [
+            "4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+        let ages = vec![82, 82, 82, 82, 82, 82, 82, 82];
+        let genders = vec![0, 0, 0, 0, 1, 1, 1, 1];
+        let ethnicities = vec![0, 0, 0, 0, 0, 0, 0, 0];
+        let rffs = vec![52, 40, 53, 33, 47, 35, 67, 25];
+        let vats = vec![9, 11, 4, 10, 11, 7, 6, 10];
+        let bmis = vec![
+            31.8734311,
+            24.25867407,
+            26.0932752,
+            26.3958034,
+            23.70110632,
+            30.54380794,
+            26.0261749,
+            26.72929708,
+        ];
+        let statins = vec![1, 1, 0, 1, 1, 1, 0, 0];
         let sample_names: ArrayRef = Arc::new(StringArray::from(sample_names));
         let ages: ArrayRef = Arc::new(Int64Array::from(ages));
         let genders: ArrayRef = Arc::new(Int64Array::from(genders));
@@ -380,14 +434,16 @@ mod tests {
         let vats: ArrayRef = Arc::new(Int64Array::from(vats));
         let bmis: ArrayRef = Arc::new(Float64Array::from(bmis));
         let statins: ArrayRef = Arc::new(Int64Array::from(statins));
-        let batch = RecordBatch::try_from_iter(vec![("Casenr",sample_names),
-            ("Age",ages),
-            ("Gender",genders),
-            ("Ethnicity",ethnicities),
-            ("RFFT",rffs),
-            ("VAT",vats),
-            ("BMI",bmis),
-            ("Statin",statins)])?;
+        let batch = RecordBatch::try_from_iter(vec![
+            ("Casenr", sample_names),
+            ("Age", ages),
+            ("Gender", genders),
+            ("Ethnicity", ethnicities),
+            ("RFFT", rffs),
+            ("VAT", vats),
+            ("BMI", bmis),
+            ("Statin", statins),
+        ])?;
         let table = Table::get_builder()
             .with_name("PivotTable")
             .with_record_batches(vec![batch])?
@@ -423,7 +479,12 @@ mod tests {
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("sample_name");
-            assert_eq!(column, ["4088","4089","4090","4091","4092","4093","4094","4095"]);
+            assert_eq!(
+                column,
+                [
+                    "4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095"
+                ]
+            );
             let column = table_reading.get_column_as_vec_primitive::<u32>("study_id")?;
             assert!(!column.is_empty());
 
@@ -433,11 +494,141 @@ mod tests {
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("sample_name");
-            assert_eq!(column, ["4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095", "4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095", "4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095", "4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095", "4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095", "4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095", "4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095"]);
+            assert_eq!(
+                column,
+                [
+                    "4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095", "4088", "4089",
+                    "4090", "4091", "4092", "4093", "4094", "4095", "4088", "4089", "4090", "4091",
+                    "4092", "4093", "4094", "4095", "4088", "4089", "4090", "4091", "4092", "4093",
+                    "4094", "4095", "4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095",
+                    "4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095", "4088", "4089",
+                    "4090", "4091", "4092", "4093", "4094", "4095"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("variable_name");
-            assert_eq!(column, ["Age", "Age", "Age", "Age", "Age", "Age", "Age", "Age", "Gender", "Gender", "Gender", "Gender", "Gender", "Gender", "Gender", "Gender", "Ethnicity", "Ethnicity", "Ethnicity", "Ethnicity", "Ethnicity", "Ethnicity", "Ethnicity", "Ethnicity", "RFFT", "RFFT", "RFFT", "RFFT", "RFFT", "RFFT", "RFFT", "RFFT", "VAT", "VAT", "VAT", "VAT", "VAT", "VAT", "VAT", "VAT", "BMI", "BMI", "BMI", "BMI", "BMI", "BMI", "BMI", "BMI", "Statin", "Statin", "Statin", "Statin", "Statin", "Statin", "Statin", "Statin"]);
+            assert_eq!(
+                column,
+                [
+                    "Age",
+                    "Age",
+                    "Age",
+                    "Age",
+                    "Age",
+                    "Age",
+                    "Age",
+                    "Age",
+                    "Gender",
+                    "Gender",
+                    "Gender",
+                    "Gender",
+                    "Gender",
+                    "Gender",
+                    "Gender",
+                    "Gender",
+                    "Ethnicity",
+                    "Ethnicity",
+                    "Ethnicity",
+                    "Ethnicity",
+                    "Ethnicity",
+                    "Ethnicity",
+                    "Ethnicity",
+                    "Ethnicity",
+                    "RFFT",
+                    "RFFT",
+                    "RFFT",
+                    "RFFT",
+                    "RFFT",
+                    "RFFT",
+                    "RFFT",
+                    "RFFT",
+                    "VAT",
+                    "VAT",
+                    "VAT",
+                    "VAT",
+                    "VAT",
+                    "VAT",
+                    "VAT",
+                    "VAT",
+                    "BMI",
+                    "BMI",
+                    "BMI",
+                    "BMI",
+                    "BMI",
+                    "BMI",
+                    "BMI",
+                    "BMI",
+                    "Statin",
+                    "Statin",
+                    "Statin",
+                    "Statin",
+                    "Statin",
+                    "Statin",
+                    "Statin",
+                    "Statin"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("value");
-            assert_eq!(column, ["82", "82", "82", "82", "82", "82", "82", "82", "0", "0", "0", "0", "1", "1", "1", "1", "0", "0", "0", "0", "0", "0", "0", "0", "52", "40", "53", "33", "47", "35", "67", "25", "9", "11", "4", "10", "11", "7", "6", "10", "31.8734311", "24.25867407", "26.0932752", "26.3958034", "23.70110632", "30.54380794", "26.0261749", "26.72929708", "1", "1", "0", "1", "1", "1", "0", "0"]);
+            assert_eq!(
+                column,
+                [
+                    "82",
+                    "82",
+                    "82",
+                    "82",
+                    "82",
+                    "82",
+                    "82",
+                    "82",
+                    "0",
+                    "0",
+                    "0",
+                    "0",
+                    "1",
+                    "1",
+                    "1",
+                    "1",
+                    "0",
+                    "0",
+                    "0",
+                    "0",
+                    "0",
+                    "0",
+                    "0",
+                    "0",
+                    "52",
+                    "40",
+                    "53",
+                    "33",
+                    "47",
+                    "35",
+                    "67",
+                    "25",
+                    "9",
+                    "11",
+                    "4",
+                    "10",
+                    "11",
+                    "7",
+                    "6",
+                    "10",
+                    "31.8734311",
+                    "24.25867407",
+                    "26.0932752",
+                    "26.3958034",
+                    "23.70110632",
+                    "30.54380794",
+                    "26.0261749",
+                    "26.72929708",
+                    "1",
+                    "1",
+                    "0",
+                    "1",
+                    "1",
+                    "1",
+                    "0",
+                    "0"
+                ]
+            );
             let column = table_reading.get_column_as_vec_primitive::<u32>("study_id")?;
             assert!(!column.is_empty());
 
@@ -447,9 +638,17 @@ mod tests {
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("variable_name");
-            assert_eq!(column, ["Age", "BMI", "Ethnicity", "Gender", "RFFT", "Statin", "VAT"]);
+            assert_eq!(
+                column,
+                ["Age", "BMI", "Ethnicity", "Gender", "RFFT", "Statin", "VAT"]
+            );
             let column = table_reading.get_column_as_vec_str("data_type");
-            assert_eq!(column, ["Int64","Float64","Int64","Int64","Int64","Int64","Int64"]);
+            assert_eq!(
+                column,
+                [
+                    "Int64", "Float64", "Int64", "Int64", "Int64", "Int64", "Int64"
+                ]
+            );
             let column = table_reading.get_column_as_vec_primitive::<u32>("study_id")?;
             assert!(!column.is_empty());
         }

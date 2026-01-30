@@ -53,7 +53,7 @@ impl TableScript {
         Ok(rendered_template)
     }
 }
-    
+
 /// Utility function to create ER Diagram safe columns
 pub fn items_to_list(items: &[&str]) -> Result<String> {
     let mut env = Environment::new();
@@ -63,7 +63,7 @@ pub fn items_to_list(items: &[&str]) -> Result<String> {
 {%- endfor %}"#;
     env.add_template("list", template)?;
     let tmpl = env.get_template("list")?;
-    let rendered = tmpl.render(context!{items => items})?;
+    let rendered = tmpl.render(context! {items => items})?;
     Ok(rendered)
 }
 
@@ -74,7 +74,7 @@ mod tests {
 
     #[test]
     fn test_items_to_list() -> Result<()> {
-        let items = &["Casenr","Age','Gender","Ethnicity","Education"];
+        let items = &["Casenr", "Age','Gender", "Ethnicity", "Education"];
         let rendered = items_to_list(items)?;
         assert_eq!(rendered, "'Casenr','Age','Gender','Ethnicity','Education'");
         Ok(())

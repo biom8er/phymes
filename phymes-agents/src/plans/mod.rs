@@ -6,12 +6,12 @@ mod chat_agent_session;
 mod count_subject_rows_session;
 mod diagnostic_session;
 mod document_rag_session;
+mod melt_study_data_session;
 mod next_superstep_session;
 mod next_task_session;
+mod ontology_rag_session;
 mod tool_agent_session;
 mod user_session;
-mod melt_study_data_session;
-mod ontology_rag_session;
 
 pub use available_interface_subjects::{
     AvailableInterfaceSubjects, check_agent_subjects, create_message_map,

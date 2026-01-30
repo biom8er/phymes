@@ -1,95 +1,22 @@
-use std::fmt::Display;
-
-use anyhow::{Result, anyhow};
-use arrow::datatypes::DataType;
-use clap::ValueEnum;
-use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageMap, MessageBuilderTrait, OwlFormat, Table, TableBuilderTrait, TablePublication, TableTrait, create_session_tasks_subscribe_publish_batch, items_to_list, make_random_id
-};
-use serde::{Deserialize, Serialize};
-
-use crate::create_message_map;
-
 /// A session for melting a `Study Dataset` from a single workflow step
-/// 
+///
 /// # Notes
-/// 
+///
 /// * Does not consider pre-filtering by ontology before vector search
 pub struct OntologyRAGSession<'a> {
     /// Session
     pub session_context_name: &'a str,
-    /// The ontology predicate tags to extract
-    pub ontology_predicate_tags: Vec<String>,
-    /// The ontology properties predicate tags to extract
-    pub properties_predicate_tags: Vec<String>,
-    /// The ontology classes predicate tags to extract
-    pub classes_predicate_tags: Vec<String>,
+}
+
+impl<'a> Default for OntologyRAGSession<'a> {
+    fn default() -> Self {
+        Self {
+            session_context_name: "ontology_rag_session",
+        }
+    }
 }
 
 impl<'a> OntologyRAGSession<'a> {
-    /// New [OntologyRAGSession]
-    pub fn new(session_context_name: Option<&'a str>,
-        ontology_predicate_tags: Option<&[&str]>,
-        properties_predicate_tags: Option<&[&str]>,
-        classes_predicate_tags: Option<&[&str]>,
-    ) -> Result<Self> {
-        let session_context_name = if let Some(name) = session_context_name {
-            name
-        } else {
-            "ontology_rag_session"
-        };
-        let ontology_predicate_tags = if let Some(tags) = ontology_predicate_tags {
-            tags.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()
-        } else {
-            OwlFormat::owl_format_ontology().predicate_tags
-        };
-        let properties_predicate_tags = if let Some(tags) = properties_predicate_tags {
-            tags.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()
-        } else {
-            OwlFormat::owl_format_object_property().predicate_tags
-        };
-        let classes_predicate_tags = if let Some(tags) = classes_predicate_tags {
-            tags.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()
-        } else {
-            OwlFormat::owl_format_class().predicate_tags
-        };
-        Ok(Self {
-            session_context_name,
-            ontology_predicate_tags,
-            properties_predicate_tags,
-            classes_predicate_tags,
-        })
-    }
-
-    /// Make the variable columns
-    fn variable_columns(&self) -> Result<String> {
-        items_to_list(self.variable_names)
-    }
-
-    /// Make the datatype columns
-    fn data_type_columns(&self) -> Result<String> {
-        let items = self.data_types.into_iter().map(|d| d.to_string()).collect::<Vec<_>>();
-        items_to_list(&items.iter().map(|s| s.as_str()).collect::<Vec<_>>())
-    }
-
-    /// Make cast operator columns for variables
-    fn cast_operator_columns(&self) -> Result<String> {
-        let items = self.data_types.iter().map(|_| "Cast".to_string()).collect::<Vec<_>>();
-        items_to_list(&items.iter().map(|s| s.as_str()).collect::<Vec<_>>())
-    }
-
-    /// Make cast template columns for variables
-    fn cast_templates_columns(&self) -> Result<String> {
-        let items = self.data_types.iter().map(|_| "".to_string()).collect::<Vec<_>>();
-        items_to_list(&items.iter().map(|s| s.as_str()).collect::<Vec<_>>())
-    }
-
-    /// make column operator columns for variables
-    fn column_operators_columns(&self) -> Result<String> {
-        let items = self.data_types.iter().map(|_| "None".to_string()).collect::<Vec<_>>();
-        items_to_list(&items.iter().map(|s| s.as_str()).collect::<Vec<_>>())
-    }
-
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD	
@@ -1181,145 +1108,104 @@ mod tests {
     use std::sync::Arc;
 
     use anyhow::Result;
-    use arrow::array::{ArrayRef, Float64Array, Int64Array, RecordBatch, StringArray};
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, CsvFormat, IPCMessage, MappableTrait, MessageBuilderTrait, TablePublication, TableTrait, create_session_supersteps_batch
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Table,
+        TableBuilderTrait, TablePublication, TableTrait, create_session_supersteps_batch,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, create_message_map
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream, create_message_map,
     };
 
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_melt_study_data_session() -> Result<()> {
-        // Make the anticipated pivot table values
-        let variable_names = &["Age","Gender","Ethnicity","RFFT","VAT","BMI","Statin"];
-        let data_types = &[DataType::Int64,DataType::Int64,DataType::Int64,DataType::Int64,DataType::Int64,DataType::Float64,DataType::Int64];
-
+    async fn test_ontology_rag_session() -> Result<()> {
         // Initialize the session
-        let ontology_rag_session = OntologyRAGSession::new(None,
-            "Casenr",
-            None,
-            variable_names,
-            data_types)?;
-        // dbg!(&ontology_rag_session.as_mermaid_erdiagram()?);
+        let onto_rag_session = OntologyRAGSession::default();
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
-            ontology_rag_session.as_mermaid_flowchart(),
+            onto_rag_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
-            ontology_rag_session.as_mermaid_erdiagram(),
-            false,
-            true,
-        )?
-        .with_name(ontology_rag_session.session_context_name)
+        .with_state_from_mermaid_erdiagram(onto_rag_session.as_mermaid_erdiagram(), false, true)?
+        .with_name(onto_rag_session.session_context_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
-        .add_next_supersteps()?
         .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
-        // Make the tabular data
-        let csv_format = CsvFormat::default();
-        let sample_names = ["4088","4089","4090","4091","4092","4093","4094","4095"]
+        // Make the test data
+        // --- DM: Placeholder ---
+        let session_names = ["session_1", "session_1", "session_1", "session_1"]
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let ages = vec![82,82,82,82,82,82,82,82];
-        let genders = vec![0,0,0,0,1,1,1,1];
-        let ethnicities = vec![0,0,0,0,0,0,0,0];
-        let rffs = vec![52,40,53,33,47,35,67,25];
-        let vats = vec![9,11,4,10,11,7,6,10];
-        let bmis = vec![31.8734311,24.25867407,26.0932752,26.3958034,23.70110632,30.54380794,26.0261749,26.72929708];
-        let statins = vec![1,1,0,1,1,1,0,0];
-        let sample_names: ArrayRef = Arc::new(StringArray::from(sample_names));
-        let ages: ArrayRef = Arc::new(Int64Array::from(ages));
-        let genders: ArrayRef = Arc::new(Int64Array::from(genders));
-        let ethnicities: ArrayRef = Arc::new(Int64Array::from(ethnicities));
-        let rffs: ArrayRef = Arc::new(Int64Array::from(rffs));
-        let vats: ArrayRef = Arc::new(Int64Array::from(vats));
-        let bmis: ArrayRef = Arc::new(Float64Array::from(bmis));
-        let statins: ArrayRef = Arc::new(Int64Array::from(statins));
-        let batch = RecordBatch::try_from_iter(vec![("Casenr",sample_names),
-            ("Age",ages),
-            ("Gender",genders),
-            ("Ethnicity",ethnicities),
-            ("RFFT",rffs),
-            ("VAT",vats),
-            ("BMI",bmis),
-            ("Statin",statins)])?;
+        let supersteps = vec![0, 1, 2, 3];
+        let batch = create_session_supersteps_batch(session_names, supersteps)?;
         let table = Table::get_builder()
-            .with_name("PivotTable")
+            .with_name(AvailableSubjects::SessionSupersteps.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
-        let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
-        let blob = AvailableInterfaceSubjects::UserCsv
-            .to_table_builder(None)
-            .with_blob(None, Some("csv"), &bytes, None)?
-            .build()?;
-        let blob_message = IPCMessage::get_builder()
-            .with_message(blob.to_ipc_stream()?)
-            .with_subject(blob.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: blob.get_name().to_string(),
+        let superstep_message = IPCMessage::get_builder()
+            .with_message(table.to_ipc_stream()?)
+            .with_subject(AvailableSubjects::SessionSupersteps.to_string().as_str())
+            .with_update(&TablePublication::Replace {
+                table_name: AvailableSubjects::SessionSupersteps.to_string(),
             })
-            .with_publisher(ontology_rag_session.session_context_name)
+            .with_publisher(onto_rag_session.session_context_name)
             .make_name()?
             .build()?;
-        let message_map = create_message_map(vec![blob_message]);
+        // --- DM: Placeholder ---
+        let message_map = create_message_map(vec![superstep_message]);
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
+        // {
+        //     // Debug any errors
+        //     let subjects_reading = session_ctx_arc.read();
+        //     let table_reading = subjects_reading
+        //         .get_states()
+        //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
+        //         .unwrap()
+        //         .read();
+        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        //     let subjects_reading = session_ctx_arc.read();
+        //     let table_reading = subjects_reading
+        //         .get_states()
+        //         .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
+        //         .unwrap()
+        //         .read();
+        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        //     let table_reading = subjects_reading
+        //         .get_states()
+        //         .get(AvailableSubjects::SessionSuperstepMax.to_string().as_str())
+        //         .unwrap()
+        //         .read();
+        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        // }
+
         assert_eq!(response.len(), 0);
 
         {
-            // Test session context
+            // Test supsersteps
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
                 .get_states()
-                .get("StudySamplesMelt")
+                .get(AvailableSubjects::SessionSuperstepMax.to_string().as_str())
                 .unwrap()
                 .read();
-            let column = table_reading.get_column_as_vec_str("sample_name");
-            assert_eq!(column, ["4088","4089","4090","4091","4092","4093","4094","4095"]);
-            let column = table_reading.get_column_as_vec_primitive::<u32>("study_id")?;
-            assert!(!column.is_empty());
-
-            let table_reading = session_reading
-                .get_states()
-                .get("SamplesVariablesMelt")
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("sample_name");
-            assert_eq!(column, ["4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095", "4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095", "4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095", "4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095", "4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095", "4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095", "4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095"]);
-            let column = table_reading.get_column_as_vec_str("variable_name");
-            assert_eq!(column, ["Age", "Age", "Age", "Age", "Age", "Age", "Age", "Age", "Gender", "Gender", "Gender", "Gender", "Gender", "Gender", "Gender", "Gender", "Ethnicity", "Ethnicity", "Ethnicity", "Ethnicity", "Ethnicity", "Ethnicity", "Ethnicity", "Ethnicity", "RFFT", "RFFT", "RFFT", "RFFT", "RFFT", "RFFT", "RFFT", "RFFT", "VAT", "VAT", "VAT", "VAT", "VAT", "VAT", "VAT", "VAT", "BMI", "BMI", "BMI", "BMI", "BMI", "BMI", "BMI", "BMI", "Statin", "Statin", "Statin", "Statin", "Statin", "Statin", "Statin", "Statin"]);
-            let column = table_reading.get_column_as_vec_str("value");
-            assert_eq!(column, ["82", "82", "82", "82", "82", "82", "82", "82", "0", "0", "0", "0", "1", "1", "1", "1", "0", "0", "0", "0", "0", "0", "0", "0", "52", "40", "53", "33", "47", "35", "67", "25", "9", "11", "4", "10", "11", "7", "6", "10", "31.8734311", "24.25867407", "26.0932752", "26.3958034", "23.70110632", "30.54380794", "26.0261749", "26.72929708", "1", "1", "0", "1", "1", "1", "0", "0"]);
-            let column = table_reading.get_column_as_vec_primitive::<u32>("study_id")?;
-            assert!(!column.is_empty());
-
-            let table_reading = session_reading
-                .get_states()
-                .get("StudyVariablesMelt")
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("variable_name");
-            assert_eq!(column, ["Age", "BMI", "Ethnicity", "Gender", "RFFT", "Statin", "VAT"]);
-            let column = table_reading.get_column_as_vec_str("data_type");
-            assert_eq!(column, ["Int64","Float64","Int64","Int64","Int64","Int64","Int64"]);
-            let column = table_reading.get_column_as_vec_primitive::<u32>("study_id")?;
-            assert!(!column.is_empty());
+            let column = table_reading.get_column_as_vec_str("session_name");
+            assert_eq!(column, ["session_1"]);
+            let column = table_reading.get_column_as_vec_primitive::<u32>("superstep-Max")?;
+            assert_eq!(column, [3]);
         }
-
         Ok(())
     }
 }

@@ -46,7 +46,10 @@ mod subjects;
 pub use subjects::{create_subjects_change_log_batch, create_subjects_num_rows_batch};
 
 mod graph;
-pub use graph::{create_n_triples_batch, create_n_quads_batch, create_parse_xml_batch, create_parse_owl_batch, create_parse_n_quads_batch};
+pub use graph::{
+    create_n_quads_batch, create_n_triples_batch, create_parse_n_quads_batch,
+    create_parse_owl_batch, create_parse_xml_batch,
+};
 
 // Based on openai-api-rs <https://github.com/dongri/openai-api-rs>
 mod chat_completion;

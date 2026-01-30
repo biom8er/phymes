@@ -246,10 +246,9 @@ pub fn table_and_data_format_to_record_batch(
                 vec![create_timestamp_micros()],
             )
         }
-        DataFormat::Pdf
-        | DataFormat::Ipc
-        | DataFormat::Xml
-        | DataFormat::Owl => Err(anyhow!("{format} format is not yet supported.")),
+        DataFormat::Pdf | DataFormat::Ipc | DataFormat::Xml | DataFormat::Owl => {
+            Err(anyhow!("{format} format is not yet supported."))
+        }
     }
 }
 
