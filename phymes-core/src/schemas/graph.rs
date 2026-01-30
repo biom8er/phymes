@@ -29,7 +29,7 @@ pub(crate) fn create_parse_xml_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-#[warn(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 pub fn create_parse_xml_batch(
     document_id: Vec<String>,
     element_tag: Vec<String>,
@@ -63,11 +63,10 @@ pub fn create_parse_xml_batch(
 
 fn create_n_triples_vec_fields() -> Vec<Field> {
     let field_names = ["subject", "predicate", "object"];
-    let fields_vec = field_names
+    field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    fields_vec
+        .collect::<Vec<_>>()
 }
 
 pub(crate) fn create_n_triples_fields() -> Fields {
@@ -92,14 +91,15 @@ pub fn create_n_triples_batch(
 
 fn create_n_quads_vec_fields() -> Vec<Field> {
     let field_names = ["graph"];
-    let fields_vec = create_n_triples_vec_fields()
+    create_n_triples_vec_fields()
         .into_iter()
-        .chain(field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::Utf8, false))
-            .collect::<Vec<_>>())
-        .collect::<Vec<_>>();
-    fields_vec
+        .chain(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Utf8, false))
+                .collect::<Vec<_>>(),
+        )
+        .collect::<Vec<_>>()
 }
 
 pub(crate) fn create_n_quads_fields() -> Fields {
@@ -127,14 +127,15 @@ pub fn create_n_quads_batch(
 
 fn create_parse_n_quads_vec_fields() -> Vec<Field> {
     let field_names = ["dataset"];
-    let fields_vec = create_n_quads_vec_fields()
+    create_n_quads_vec_fields()
         .into_iter()
-        .chain(field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::Utf8, false))
-            .collect::<Vec<_>>())
-        .collect::<Vec<_>>();
-    fields_vec
+        .chain(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Utf8, false))
+                .collect::<Vec<_>>(),
+        )
+        .collect::<Vec<_>>()
 }
 
 #[allow(dead_code)]
@@ -175,16 +176,10 @@ pub(crate) fn create_dataset_graph_fields() -> Fields {
 }
 
 #[allow(dead_code)]
-pub fn create_dataset_graph_batch(
-    graph: Vec<String>,
-    dataset: Vec<String>,
-) -> Result<RecordBatch> {
+pub fn create_dataset_graph_batch(graph: Vec<String>, dataset: Vec<String>) -> Result<RecordBatch> {
     let graph: ArrayRef = Arc::new(StringArray::from(graph));
     let dataset: ArrayRef = Arc::new(StringArray::from(dataset));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("graph", graph),
-        ("dataset", dataset),
-    ])?;
+    let batch = RecordBatch::try_from_iter(vec![("graph", graph), ("dataset", dataset)])?;
     Ok(batch)
 }
 

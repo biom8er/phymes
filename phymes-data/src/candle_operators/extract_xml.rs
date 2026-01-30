@@ -440,7 +440,7 @@ fn children_to_po(
     relations: &HashMap<String, Vec<(XMLType, String)>>,
     child: &String,
 ) -> Result<Option<(String, String)>> {
-    let child_element: XMLElement = serde_json::from_str(&child)?;
+    let child_element: XMLElement = serde_json::from_str(child)?;
     let po = if let Some(resource) = child_element.attributes.get("rdf:resource") {
         Some((child_element.tag, resource.to_string()))
     } else {
@@ -487,7 +487,7 @@ fn xml_to_parsed_owl_record_batch(
     // Initialize the qname map
     for (element, children) in relations.iter() {
         // Deserialize XML elements
-        let xml_element: XMLElement = serde_json::from_str(&element)?;
+        let xml_element: XMLElement = serde_json::from_str(element)?;
 
         // Parse the primary OWL Entities
         if xml_element.tag == "http://www.w3.org/2002/07/owl#Ontology" {
@@ -576,11 +576,10 @@ fn xml_to_parsed_owl_record_batch(
                 .iter()
                 .zip(objects.iter())
                 .filter_map(|(t, c)| {
-                    if t == "http://www.w3.org/2002/07/owl#annotatedSource" {
-                        Some((t.to_string(), c.to_string()))
-                    } else if t == "http://www.w3.org/2002/07/owl#annotatedProperty" {
-                        Some((t.to_string(), c.to_string()))
-                    } else if t == "http://www.w3.org/2002/07/owl#annotatedTarget" {
+                    if t == "http://www.w3.org/2002/07/owl#annotatedSource"
+                        || t == "http://www.w3.org/2002/07/owl#annotatedProperty"
+                        || t == "http://www.w3.org/2002/07/owl#annotatedTarget"
+                    {
                         Some((t.to_string(), c.to_string()))
                     } else {
                         None
