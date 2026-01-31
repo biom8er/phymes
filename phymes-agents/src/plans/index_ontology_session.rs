@@ -928,15 +928,15 @@ impl<'a> OntologyRAGSession<'a> {
 	}
 	pivot_annotation_property_entity_s["pivot_annotation_property_entity_s"] {
 	    Utf8 subject
-	    List-Utf8 rdfs-label-List
-	    List-Utf8 obo-IAO_0000115-List
+	    List-Utf8 rdfs:label-List
+	    List-Utf8 obo:IAO_0000115-List
 	}
     coalesce_annotation_property_pivot_p["coalesce_annotation_property_pivot_p"] {
         Int64 fetch "512"
         Utf8 summary_format "None"
     }
 	group_by_annotation_property_pivot_p["group_by_annotation_property_pivot_p"] {
-	    List-Utf8 agg_columns "['rdfs-label-List','obo-IAO_0000115-List']"
+	    List-Utf8 agg_columns "['rdfs:label-List','obo:IAO_0000115-List']"
 	    List-Utf8 agg_operators "['List','List']"
 	    Boolean cpu "false"
 	    Utf8 lhs_name "coalesce_annotation_property_pivot_s"
@@ -946,21 +946,21 @@ impl<'a> OntologyRAGSession<'a> {
 	}
 	group_by_annotation_property_pivot_s["group_by_annotation_property_pivot_s"] {
 	    Utf8 subject
-	    List-Utf8 rdfs-label-List-List
-	    List-Utf8 obo-IAO_0000115-List-List
+	    List-Utf8 rdfs:label-List-List
+	    List-Utf8 obo:IAO_0000115-List-List
 	}
     select_annotation_property_pivot_p["select_annotation_property_pivot_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "group_by_annotation_property_pivot_s"
         List-Utf8 as_columns "['uri','','']"
-        List-Utf8 lhs_values "['subject','rdfs-label-List-List','obo-IAO_0000115-List-List']"
+        List-Utf8 lhs_values "['subject','rdfs:label-List-List','obo:IAO_0000115-List-List']"
         Utf8 operator "Select"
         Utf8 stream "StreamLHSStreamRHS"
     }
 	select_annotation_property_pivot_s["select_annotation_property_pivot_s"] {
 	    Utf8 uri
-	    List-Utf8 rdfs-label-List-List
-	    List-Utf8 obo-IAO_0000115-List-List
+	    List-Utf8 rdfs:label-List-List
+	    List-Utf8 obo:IAO_0000115-List-List
 	}
     comparator_predicate_class_entity_p["comparator_predicate_class_entity_p"] {
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
@@ -1002,15 +1002,15 @@ impl<'a> OntologyRAGSession<'a> {
 	}
 	pivot_class_entity_s["pivot_class_entity_s"] {
 	    Utf8 subject
-	    List-Utf8 rdfs-label-List
-	    List-Utf8 obo-IAO_0000115-List
+	    List-Utf8 rdfs:label-List
+	    List-Utf8 obo:IAO_0000115-List
 	}
     coalesce_class_pivot_p["coalesce_class_pivot_p"] {
         Int64 fetch "512"
         Utf8 summary_format "None"
     }
 	group_by_class_pivot_p["group_by_class_pivot_p"] {
-	    List-Utf8 agg_columns "['rdfs-label-List','obo-IAO_0000115-List']"
+	    List-Utf8 agg_columns "['rdfs:label-List','obo:IAO_0000115-List']"
 	    List-Utf8 agg_operators "['List','List']"
 	    Boolean cpu "false"
 	    Utf8 lhs_name "coalesce_class_pivot_s"
@@ -1020,21 +1020,21 @@ impl<'a> OntologyRAGSession<'a> {
 	}
 	group_by_class_pivot_s["group_by_class_pivot_s"] {
 	    Utf8 subject
-	    List-Utf8 rdfs-label-List-List
-	    List-Utf8 obo-IAO_0000115-List-List
+	    List-Utf8 rdfs:label-List-List
+	    List-Utf8 obo:IAO_0000115-List-List
 	}
     select_class_entity_p["select_class_entity_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "group_by_class_pivot_s"
         List-Utf8 as_columns "['uri','','']"
-        List-Utf8 lhs_values "['subject','rdfs-label-List-List','obo-IAO_0000115-List-List']"
+        List-Utf8 lhs_values "['subject','rdfs:label-List-List','obo:IAO_0000115-List-List']"
         Utf8 operator "Select"
         Utf8 stream "StreamLHSStreamRHS"
     }
 	select_class_pivot_s["select_class_pivot_s"] {
 	    Utf8 uri
-	    List-Utf8 rdfs-label-List-List
-	    List-Utf8 obo-IAO_0000115-List-List
+	    List-Utf8 rdfs:label-List-List
+	    List-Utf8 obo:IAO_0000115-List-List
 	}
 	join_predicates_class_entity_p["join_predicates_class_entity_p"] {
 	    Boolean cpu "false"
@@ -1046,6 +1046,115 @@ impl<'a> OntologyRAGSession<'a> {
 	    Utf8 rhs_fk "uri"
 	    Utf8 rhs_pk "uri"
 	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	}
+    select_predicates_class_entity_p["select_predicates_class_entity_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_name "join_predicates_class_entity_s"
+        List-Utf8 as_columns "['','','','','','','predicate-rdfs:label-List-List','predicate-obo:IAO_0000115-List-List']"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs:label-List-List','obo:IAO_0000115-List-List']"
+        Utf8 operator "Select"
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+	select_predicates_class_entity_s["select_predicates_class_entity_s"] {
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+	    List-Utf8 predicate-rdfs:label-List-List
+	    List-Utf8 predicate-obo:IAO_0000115-List-List
+	}
+	join_on_objects_class_entity_p["join_on_objects_class_entity_p"] {
+	    Boolean cpu "false"
+	    Utf8 operator "Join"
+	    Utf8 lhs_name "select_predicates_class_entity_s"
+	    Utf8 lhs_fk "object"
+	    Utf8 lhs_pk "object"
+	    Utf8 rhs_name "select_class_pivot_s"
+	    Utf8 rhs_fk "uri"
+	    Utf8 rhs_pk "uri"
+	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	}
+    select_objects_class_entity_p["select_objects_class_entity_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_name "join_on_objects_class_entity_s"
+        List-Utf8 as_columns "['','','','','','','','','object-rdfs:label-List-List','object-obo:IAO_0000115-List-List']"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate-rdfs:label-List-List','predicate-obo:IAO_0000115-List-List','rdfs:label-List-List','obo:IAO_0000115-List-List']"
+        Utf8 operator "Select"
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+	select_objects_class_entity_s["select_objects_class_entity_s"] {
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+	    List-Utf8 predicate-rdfs:label-List-List
+	    List-Utf8 predicate-obo:IAO_0000115-List-List
+	    List-Utf8 object-rdfs:label-List-List
+	    List-Utf8 object-obo:IAO_0000115-List-List
+	}
+	join_predicates_object_property_entity_p["join_predicates_object_property_entity_p"] {
+	    Boolean cpu "false"
+	    Utf8 operator "Join"
+	    Utf8 lhs_name "select_object_property_entity_s"
+	    Utf8 lhs_fk "predicate"
+	    Utf8 lhs_pk "predicate"
+	    Utf8 rhs_name "select_annotation_property_pivot_s"
+	    Utf8 rhs_fk "uri"
+	    Utf8 rhs_pk "uri"
+	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	}
+    select_predicates_object_property_entity_p["select_predicates_object_property_entity_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_name "join_predicates_object_property_entity_s"
+        List-Utf8 as_columns "['','','','','','','predicate-rdfs:label-List-List','predicate-obo:IAO_0000115-List-List']"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs:label-List-List','obo:IAO_0000115-List-List']"
+        Utf8 operator "Select"
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+	select_predicates_object_property_entity_s["select_predicates_object_property_entity_s"] {
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+	    List-Utf8 predicate-rdfs:label-List-List
+	    List-Utf8 predicate-obo:IAO_0000115-List-List
+	}
+	join_on_objects_object_property_entity_p["join_on_objects_object_property_entity_p"] {
+	    Boolean cpu "false"
+	    Utf8 operator "Join"
+	    Utf8 lhs_name "select_predicates_object_property_entity_s"
+	    Utf8 lhs_fk "object"
+	    Utf8 lhs_pk "object"
+	    Utf8 rhs_name "select_object_property_pivot_s"
+	    Utf8 rhs_fk "uri"
+	    Utf8 rhs_pk "uri"
+	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	}
+    select_objects_object_property_entity_p["select_objects_object_property_entity_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_name "join_on_objects_object_property_entity_s"
+        List-Utf8 as_columns "['','','','','','','','','object-rdfs:label-List-List','object-obo:IAO_0000115-List-List']"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate-rdfs:label-List-List','predicate-obo:IAO_0000115-List-List','rdfs:label-List-List','obo:IAO_0000115-List-List']"
+        Utf8 operator "Select"
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+	select_objects_object_property_entity_s["select_objects_object_property_entity_s"] {
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+	    List-Utf8 predicate-rdfs:label-List-List
+	    List-Utf8 predicate-obo:IAO_0000115-List-List
+	    List-Utf8 object-rdfs:label-List-List
+	    List-Utf8 object-obo:IAO_0000115-List-List
 	}"#
 	}
 }
