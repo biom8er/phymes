@@ -478,16 +478,16 @@ pub fn builds_dropdown_view(
                         class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         onclick: move |_| async move {
                             // Generate defaults if possible
-                            match SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), true) {
+                            match SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), false) {
                                 // Read in what information is available and update the rest
                                 Ok(builder) => {
                                     let builder = if active_er_diagram().is_empty() {
                                         builder
-                                    } else if let Ok(builder) = builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), true, true) {
+                                    } else if let Ok(builder) = builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), false, true) {
                                         builder
                                     } else {
                                         // Revert
-                                        SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), true).unwrap()
+                                        SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), false).unwrap()
                                     };
                                     match builder.with_name(&active_session_name()).add_processor_subjects() {
                                         // Include the last row of data during the prototyping stage

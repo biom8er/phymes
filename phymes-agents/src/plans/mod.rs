@@ -10,6 +10,7 @@ mod melt_study_data_session;
 mod next_superstep_session;
 mod next_task_session;
 mod ontology_rag_session;
+mod index_ontology_session;
 mod tool_agent_session;
 mod user_session;
 

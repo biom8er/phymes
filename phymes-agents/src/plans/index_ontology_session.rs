@@ -1,0 +1,1158 @@
+/// A session for melting a `Study Dataset` from a single workflow step
+///
+/// # Notes
+///
+/// * Does not consider pre-filtering by ontology before vector search
+pub struct OntologyRAGSession<'a> {
+    /// Session
+    pub session_context_name: &'a str,
+}
+
+impl<'a> Default for OntologyRAGSession<'a> {
+    fn default() -> Self {
+        Self {
+            session_context_name: "ontology_rag_session",
+        }
+    }
+}
+
+impl<'a> OntologyRAGSession<'a> {
+    /// Return the Mermaid.js flowchart representation of the session
+    pub fn as_mermaid_flowchart(&self) -> &str {
+        r#"flowchart TD
+	%% ------------------------------------------------------------------------------
+	%% OWL ontology extraction
+	%% ------------------------------------------------------------------------------
+	subgraph extract_owl_t
+	    UserScript-subject-.->|FullTable|extract_owl_p-subscribe
+	    extract_owl_p-subscribe-->extract_owl_p-processor
+	    extract_owl_p-processor-->extract_owl_p-publish
+	    extract_owl_p-publish-->|Extend|ParseOwl-subject
+	end
+	extract_owl_r-rt@{shape: subproc, label: extract_owl_r}
+	extract_owl_r-rt-->extract_owl_t
+	UserScript-subject@{shape: doc, label: UserScript}
+	extract_owl_p-processor@{shape: rect, label: ExtractXML}
+	extract_owl_p-publish@{shape: fork}
+	extract_owl_p-subscribe@{shape: diamond, label: All}
+	ParseOwl-subject@{shape: doc, label: ParseOwl}
+	%% ------------------------------------------------------------------------------
+	%% Filter on Owl:Ontology entities
+	%% ------------------------------------------------------------------------------
+	subgraph filter_ontology_entity_t
+	    ParseOwl-subject-.->|LastRecordBatch|comparator_ontology_entity_p-subscribe
+	    comparator_ontology_entity_p-subscribe-->comparator_ontology_entity_p-processor
+	    comparator_ontology_entity_p-processor-->comparator_ontology_entity_p-publish
+	    comparator_ontology_entity_p-publish-->|Replace|comparator_ontology_entity_s-subject
+	    comparator_ontology_entity_s-subject-->|FullTable|filter_ontology_entity_p-subscribe
+	    filter_ontology_entity_p-subscribe-->filter_ontology_entity_p-processor
+	    filter_ontology_entity_p-processor-->filter_ontology_entity_p-publish
+	    filter_ontology_entity_p-publish-->|Replace|filter_ontology_entity_s-subject
+	    filter_ontology_entity_s-subject-->|FullTable|select_ontology_entity_p-subscribe
+	    select_ontology_entity_p-subscribe-->select_ontology_entity_p-processor
+	    select_ontology_entity_p-processor-->select_ontology_entity_p-publish
+	    select_ontology_entity_p-publish-->|Extend|select_ontology_entity_s-subject
+	end
+	extract_owl_r-rt-->filter_ontology_entity_t
+	comparator_ontology_entity_p-processor@{shape: rect, label: Select}
+	comparator_ontology_entity_p-publish@{shape: fork}
+	comparator_ontology_entity_p-subscribe@{shape: diamond, label: All}
+	comparator_ontology_entity_s-subject@{shape: doc, label: comparator_ontology_entity_s}
+	filter_ontology_entity_p-processor@{shape: rect, label: Filter}
+	filter_ontology_entity_p-publish@{shape: fork}
+	filter_ontology_entity_p-subscribe@{shape: diamond, label: All}
+	filter_ontology_entity_s-subject@{shape: doc, label: filter_ontology_entity_s}
+	select_ontology_entity_p-processor@{shape: rect, label: Select}
+	select_ontology_entity_p-publish@{shape: fork}
+	select_ontology_entity_p-subscribe@{shape: diamond, label: All}
+	select_ontology_entity_s-subject@{shape: doc, label: select_ontology_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Filter on Owl:AnnotationProperty entities
+	%% ------------------------------------------------------------------------------
+	subgraph filter_annotation_property_entity_t
+	    ParseOwl-subject-.->|LastRecordBatch|comparator_annotation_property_entity_p-subscribe
+	    comparator_annotation_property_entity_p-subscribe-->comparator_annotation_property_entity_p-processor
+	    comparator_annotation_property_entity_p-processor-->comparator_annotation_property_entity_p-publish
+	    comparator_annotation_property_entity_p-publish-->|Replace|comparator_annotation_property_entity_s-subject
+	    comparator_annotation_property_entity_s-subject-->|FullTable|filter_annotation_property_entity_p-subscribe
+	    filter_annotation_property_entity_p-subscribe-->filter_annotation_property_entity_p-processor
+	    filter_annotation_property_entity_p-processor-->filter_annotation_property_entity_p-publish
+	    filter_annotation_property_entity_p-publish-->|Replace|filter_annotation_property_entity_s-subject
+	    filter_annotation_property_entity_s-subject-->|FullTable|select_annotation_property_entity_p-subscribe
+	    select_annotation_property_entity_p-subscribe-->select_annotation_property_entity_p-processor
+	    select_annotation_property_entity_p-processor-->select_annotation_property_entity_p-publish
+	    select_annotation_property_entity_p-publish-->|Extend|select_annotation_property_entity_s-subject
+	end
+	extract_owl_r-rt-->filter_annotation_property_entity_t
+	comparator_annotation_property_entity_p-processor@{shape: rect, label: Select}
+	comparator_annotation_property_entity_p-publish@{shape: fork}
+	comparator_annotation_property_entity_p-subscribe@{shape: diamond, label: All}
+	comparator_annotation_property_entity_s-subject@{shape: doc, label: comparator_annotation_property_entity_s}
+	filter_annotation_property_entity_p-processor@{shape: rect, label: Filter}
+	filter_annotation_property_entity_p-publish@{shape: fork}
+	filter_annotation_property_entity_p-subscribe@{shape: diamond, label: All}
+	filter_annotation_property_entity_s-subject@{shape: doc, label: filter_annotation_property_entity_s}
+	select_annotation_property_entity_p-processor@{shape: rect, label: Select}
+	select_annotation_property_entity_p-publish@{shape: fork}
+	select_annotation_property_entity_p-subscribe@{shape: diamond, label: All}
+	select_annotation_property_entity_s-subject@{shape: doc, label: select_annotation_property_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Filter on Owl:DatatypeProperty entities
+	%% ------------------------------------------------------------------------------
+	subgraph filter_datatype_property_entity_t
+	    ParseOwl-subject-.->|LastRecordBatch|comparator_datatype_property_entity_p-subscribe
+	    comparator_datatype_property_entity_p-subscribe-->comparator_datatype_property_entity_p-processor
+	    comparator_datatype_property_entity_p-processor-->comparator_datatype_property_entity_p-publish
+	    comparator_datatype_property_entity_p-publish-->|Replace|comparator_datatype_property_entity_s-subject
+	    comparator_datatype_property_entity_s-subject-->|FullTable|filter_datatype_property_entity_p-subscribe
+	    filter_datatype_property_entity_p-subscribe-->filter_datatype_property_entity_p-processor
+	    filter_datatype_property_entity_p-processor-->filter_datatype_property_entity_p-publish
+	    filter_datatype_property_entity_p-publish-->|Replace|filter_datatype_property_entity_s-subject
+	    filter_datatype_property_entity_s-subject-->|FullTable|select_datatype_property_entity_p-subscribe
+	    select_datatype_property_entity_p-subscribe-->select_datatype_property_entity_p-processor
+	    select_datatype_property_entity_p-processor-->select_datatype_property_entity_p-publish
+	    select_datatype_property_entity_p-publish-->|Extend|select_datatype_property_entity_s-subject
+	end
+	extract_owl_r-rt-->filter_datatype_property_entity_t
+	comparator_datatype_property_entity_p-processor@{shape: rect, label: Select}
+	comparator_datatype_property_entity_p-publish@{shape: fork}
+	comparator_datatype_property_entity_p-subscribe@{shape: diamond, label: All}
+	comparator_datatype_property_entity_s-subject@{shape: doc, label: comparator_datatype_property_entity_s}
+	filter_datatype_property_entity_p-processor@{shape: rect, label: Filter}
+	filter_datatype_property_entity_p-publish@{shape: fork}
+	filter_datatype_property_entity_p-subscribe@{shape: diamond, label: All}
+	filter_datatype_property_entity_s-subject@{shape: doc, label: filter_datatype_property_entity_s}
+	select_datatype_property_entity_p-processor@{shape: rect, label: Select}
+	select_datatype_property_entity_p-publish@{shape: fork}
+	select_datatype_property_entity_p-subscribe@{shape: diamond, label: All}
+	select_datatype_property_entity_s-subject@{shape: doc, label: select_datatype_property_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Filter on Owl:Class entities
+	%% ------------------------------------------------------------------------------
+	subgraph filter_class_entity_t
+	    ParseOwl-subject-.->|LastRecordBatch|comparator_class_entity_p-subscribe
+	    comparator_class_entity_p-subscribe-->comparator_class_entity_p-processor
+	    comparator_class_entity_p-processor-->comparator_class_entity_p-publish
+	    comparator_class_entity_p-publish-->|Replace|comparator_class_entity_s-subject
+	    comparator_class_entity_s-subject-->|FullTable|filter_class_entity_p-subscribe
+	    filter_class_entity_p-subscribe-->filter_class_entity_p-processor
+	    filter_class_entity_p-processor-->filter_class_entity_p-publish
+	    filter_class_entity_p-publish-->|Replace|filter_class_entity_s-subject
+	    filter_class_entity_s-subject-->|FullTable|select_class_entity_p-subscribe
+	    select_class_entity_p-subscribe-->select_class_entity_p-processor
+	    select_class_entity_p-processor-->select_class_entity_p-publish
+	    select_class_entity_p-publish-->|Extend|select_class_entity_s-subject
+	end
+	extract_owl_r-rt-->filter_class_entity_t
+	comparator_class_entity_p-processor@{shape: rect, label: Select}
+	comparator_class_entity_p-publish@{shape: fork}
+	comparator_class_entity_p-subscribe@{shape: diamond, label: All}
+	comparator_class_entity_s-subject@{shape: doc, label: comparator_class_entity_s}
+	filter_class_entity_p-processor@{shape: rect, label: Filter}
+	filter_class_entity_p-publish@{shape: fork}
+	filter_class_entity_p-subscribe@{shape: diamond, label: All}
+	filter_class_entity_s-subject@{shape: doc, label: filter_class_entity_s}
+	select_class_entity_p-processor@{shape: rect, label: Select}
+	select_class_entity_p-publish@{shape: fork}
+	select_class_entity_p-subscribe@{shape: diamond, label: All}
+	select_class_entity_s-subject@{shape: doc, label: select_class_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Filter on Owl:ObjectProperty entities
+	%% ------------------------------------------------------------------------------
+	subgraph filter_object_property_entity_t
+	    ParseOwl-subject-.->|LastRecordBatch|comparator_object_property_entity_p-subscribe
+	    comparator_object_property_entity_p-subscribe-->comparator_object_property_entity_p-processor
+	    comparator_object_property_entity_p-processor-->comparator_object_property_entity_p-publish
+	    comparator_object_property_entity_p-publish-->|Replace|comparator_object_property_entity_s-subject
+	    comparator_object_property_entity_s-subject-->|FullTable|filter_object_property_entity_p-subscribe
+	    filter_object_property_entity_p-subscribe-->filter_object_property_entity_p-processor
+	    filter_object_property_entity_p-processor-->filter_object_property_entity_p-publish
+	    filter_object_property_entity_p-publish-->|Replace|filter_object_property_entity_s-subject
+	    filter_object_property_entity_s-subject-->|FullTable|select_object_property_entity_p-subscribe
+	    select_object_property_entity_p-subscribe-->select_object_property_entity_p-processor
+	    select_object_property_entity_p-processor-->select_object_property_entity_p-publish
+	    select_object_property_entity_p-publish-->|Extend|select_object_property_entity_s-subject
+	end
+	extract_owl_r-rt-->filter_object_property_entity_t
+	comparator_object_property_entity_p-processor@{shape: rect, label: Select}
+	comparator_object_property_entity_p-publish@{shape: fork}
+	comparator_object_property_entity_p-subscribe@{shape: diamond, label: All}
+	comparator_object_property_entity_s-subject@{shape: doc, label: comparator_object_property_entity_s}
+	filter_object_property_entity_p-processor@{shape: rect, label: Filter}
+	filter_object_property_entity_p-publish@{shape: fork}
+	filter_object_property_entity_p-subscribe@{shape: diamond, label: All}
+	filter_object_property_entity_s-subject@{shape: doc, label: filter_object_property_entity_s}
+	select_object_property_entity_p-processor@{shape: rect, label: Select}
+	select_object_property_entity_p-publish@{shape: fork}
+	select_object_property_entity_p-subscribe@{shape: diamond, label: All}
+	select_object_property_entity_s-subject@{shape: doc, label: select_object_property_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Filter on Owl:NamedIndividual entities
+	%% ------------------------------------------------------------------------------
+	subgraph filter_named_individual_entity_t
+	    ParseOwl-subject-.->|LastRecordBatch|comparator_named_individual_entity_p-subscribe
+	    comparator_named_individual_entity_p-subscribe-->comparator_named_individual_entity_p-processor
+	    comparator_named_individual_entity_p-processor-->comparator_named_individual_entity_p-publish
+	    comparator_named_individual_entity_p-publish-->|Replace|comparator_named_individual_entity_s-subject
+	    comparator_named_individual_entity_s-subject-->|FullTable|filter_named_individual_entity_p-subscribe
+	    filter_named_individual_entity_p-subscribe-->filter_named_individual_entity_p-processor
+	    filter_named_individual_entity_p-processor-->filter_named_individual_entity_p-publish
+	    filter_named_individual_entity_p-publish-->|Replace|filter_named_individual_entity_s-subject
+	    filter_named_individual_entity_s-subject-->|FullTable|select_named_individual_entity_p-subscribe
+	    select_named_individual_entity_p-subscribe-->select_named_individual_entity_p-processor
+	    select_named_individual_entity_p-processor-->select_named_individual_entity_p-publish
+	    select_named_individual_entity_p-publish-->|Extend|select_named_individual_entity_s-subject
+	end
+	extract_owl_r-rt-->filter_named_individual_entity_t
+	comparator_named_individual_entity_p-processor@{shape: rect, label: Select}
+	comparator_named_individual_entity_p-publish@{shape: fork}
+	comparator_named_individual_entity_p-subscribe@{shape: diamond, label: All}
+	comparator_named_individual_entity_s-subject@{shape: doc, label: comparator_named_individual_entity_s}
+	filter_named_individual_entity_p-processor@{shape: rect, label: Filter}
+	filter_named_individual_entity_p-publish@{shape: fork}
+	filter_named_individual_entity_p-subscribe@{shape: diamond, label: All}
+	filter_named_individual_entity_s-subject@{shape: doc, label: filter_named_individual_entity_s}
+	select_named_individual_entity_p-processor@{shape: rect, label: Select}
+	select_named_individual_entity_p-publish@{shape: fork}
+	select_named_individual_entity_p-subscribe@{shape: diamond, label: All}
+	select_named_individual_entity_s-subject@{shape: doc, label: select_named_individual_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Filter on Owl:Axiom entities
+	%% ------------------------------------------------------------------------------
+	subgraph filter_axiom_entity_t
+	    ParseOwl-subject-.->|LastRecordBatch|comparator_axiom_entity_p-subscribe
+	    comparator_axiom_entity_p-subscribe-->comparator_axiom_entity_p-processor
+	    comparator_axiom_entity_p-processor-->comparator_axiom_entity_p-publish
+	    comparator_axiom_entity_p-publish-->|Replace|comparator_axiom_entity_s-subject
+	    comparator_axiom_entity_s-subject-->|FullTable|filter_axiom_entity_p-subscribe
+	    filter_axiom_entity_p-subscribe-->filter_axiom_entity_p-processor
+	    filter_axiom_entity_p-processor-->filter_axiom_entity_p-publish
+	    filter_axiom_entity_p-publish-->|Replace|filter_axiom_entity_s-subject
+	    filter_axiom_entity_s-subject-->|FullTable|select_axiom_entity_p-subscribe
+	    select_axiom_entity_p-subscribe-->select_axiom_entity_p-processor
+	    select_axiom_entity_p-processor-->select_axiom_entity_p-publish
+	    select_axiom_entity_p-publish-->|Extend|select_axiom_entity_s-subject
+	end
+	extract_owl_r-rt-->filter_axiom_entity_t
+	comparator_axiom_entity_p-processor@{shape: rect, label: Select}
+	comparator_axiom_entity_p-publish@{shape: fork}
+	comparator_axiom_entity_p-subscribe@{shape: diamond, label: All}
+	comparator_axiom_entity_s-subject@{shape: doc, label: comparator_axiom_entity_s}
+	filter_axiom_entity_p-processor@{shape: rect, label: Filter}
+	filter_axiom_entity_p-publish@{shape: fork}
+	filter_axiom_entity_p-subscribe@{shape: diamond, label: All}
+	filter_axiom_entity_s-subject@{shape: doc, label: filter_axiom_entity_s}
+	select_axiom_entity_p-processor@{shape: rect, label: Select}
+	select_axiom_entity_p-publish@{shape: fork}
+	select_axiom_entity_p-subscribe@{shape: diamond, label: All}
+	select_axiom_entity_s-subject@{shape: doc, label: select_axiom_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Pivot Owl:AnnotationProperty on rdfs:label (or skos:prefLabel)
+	%% ------------------------------------------------------------------------------
+	subgraph pivot_annotation_property_t
+	    select_annotation_property_entity_s-subject-.->|LastRecordBatch|coalesce_annotation_property_entity_p-subscribe
+	    coalesce_annotation_property_entity_p-subscribe-->coalesce_annotation_property_entity_p-processor
+	    coalesce_annotation_property_entity_p-processor-->coalesce_annotation_property_entity_p-publish
+	    coalesce_annotation_property_entity_p-publish-->|Replace|coalesce_annotation_property_entity_s-subject
+	    coalesce_annotation_property_entity_s-subject-->|FullTable|comparator_predicate_annotation_property_entity_p-subscribe
+	    comparator_predicate_annotation_property_entity_p-subscribe-->comparator_predicate_annotation_property_entity_p-processor
+	    comparator_predicate_annotation_property_entity_p-processor-->comparator_predicate_annotation_property_entity_p-publish
+	    comparator_predicate_annotation_property_entity_p-publish-->|Replace|comparator_predicate_annotation_property_entity_s-subject
+	    comparator_predicate_annotation_property_entity_s-subject-->|FullTable|filter_predicate_annotation_property_entity_p-subscribe
+	    filter_predicate_annotation_property_entity_p-subscribe-->filter_predicate_annotation_property_entity_p-processor
+	    filter_predicate_annotation_property_entity_p-processor-->filter_predicate_annotation_property_entity_p-publish
+	    filter_predicate_annotation_property_entity_p-publish-->|Replace|filter_predicate_annotation_property_entity_s-subject
+	    filter_predicate_annotation_property_entity_s-subject-->|FullTable|select_predicate_annotation_property_entity_p-subscribe
+	    select_predicate_annotation_property_entity_p-subscribe-->select_predicate_annotation_property_entity_p-processor
+	    select_predicate_annotation_property_entity_p-processor-->select_predicate_annotation_property_entity_p-publish
+	    select_predicate_annotation_property_entity_p-publish-->|Replace|select_predicate_annotation_property_entity_s-subject
+	    select_predicate_annotation_property_entity_s-subject-->|FullTable|pivot_annotation_property_entity_p-subscribe
+	    pivot_annotation_property_entity_p-subscribe-->pivot_annotation_property_entity_p-processor
+	    pivot_annotation_property_entity_p-processor-->pivot_annotation_property_entity_p-publish
+	    pivot_annotation_property_entity_p-publish-->|Replace|pivot_annotation_property_entity_s-subject
+	end
+	extract_owl_r-rt-->pivot_annotation_property_t
+	coalesce_annotation_property_entity_p-processor@{shape: rect, label: CoalesceProcessor}
+	coalesce_annotation_property_entity_p-publish@{shape: fork}
+	coalesce_annotation_property_entity_p-subscribe@{shape: diamond, label: All}
+	coalesce_annotation_property_entity_s-subject@{shape: doc, label: coalesce_annotation_property_entity_s}
+	comparator_predicate_annotation_property_entity_p-processor@{shape: rect, label: Select}
+	comparator_predicate_annotation_property_entity_p-publish@{shape: fork}
+	comparator_predicate_annotation_property_entity_p-subscribe@{shape: diamond, label: All}
+	comparator_predicate_annotation_property_entity_s-subject@{shape: doc, label: comparator_predicate_annotation_property_entity_s}
+	filter_predicate_annotation_property_entity_p-processor@{shape: rect, label: Filter}
+	filter_predicate_annotation_property_entity_p-publish@{shape: fork}
+	filter_predicate_annotation_property_entity_p-subscribe@{shape: diamond, label: All}
+	filter_predicate_annotation_property_entity_s-subject@{shape: doc, label: filter_predicate_annotation_property_entity_s}
+	select_predicate_annotation_property_entity_p-processor@{shape: rect, label: Select}
+	select_predicate_annotation_property_entity_p-publish@{shape: fork}
+	select_predicate_annotation_property_entity_p-subscribe@{shape: diamond, label: All}
+	select_predicate_annotation_property_entity_s-subject@{shape: doc, label: select_predicate_annotation_property_entity_s}
+	pivot_annotation_property_entity_p-processor@{shape: rect, label: Pivot}
+	pivot_annotation_property_entity_p-publish@{shape: fork}
+	pivot_annotation_property_entity_p-subscribe@{shape: diamond, label: All}
+	pivot_annotation_property_entity_s-subject@{shape: doc, label: pivot_annotation_property_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Owl:AnnotationProperty post-pivot cleanup
+	%% ------------------------------------------------------------------------------
+	subgraph post_pivot_annotation_property_t
+	    pivot_annotation_property_entity_s-subject-.->|FullTable|coalesce_annotation_property_pivot_p-subscribe
+	    coalesce_annotation_property_pivot_p-subscribe-->coalesce_annotation_property_pivot_p-processor
+	    coalesce_annotation_property_pivot_p-processor-->coalesce_annotation_property_pivot_p-publish
+	    coalesce_annotation_property_pivot_p-publish-->|Replace|coalesce_annotation_property_pivot_s-subject
+	    coalesce_annotation_property_pivot_s-subject-->|FullTable|group_by_annotation_property_pivot_p-subscribe
+	    group_by_annotation_property_pivot_p-subscribe-->group_by_annotation_property_pivot_p-processor
+	    group_by_annotation_property_pivot_p-processor-->group_by_annotation_property_pivot_p-publish
+	    group_by_annotation_property_pivot_p-publish-->|Replace|group_by_annotation_property_pivot_s-subject
+	    group_by_annotation_property_pivot_s-subject-->|FullTable|select_annotation_property_pivot_p-subscribe
+	    select_annotation_property_pivot_p-subscribe-->select_annotation_property_pivot_p-processor
+	    select_annotation_property_pivot_p-processor-->select_annotation_property_pivot_p-publish
+	    select_annotation_property_pivot_p-publish-->|Replace|select_annotation_property_pivot_s-subject
+	end
+	extract_owl_r-rt-->post_pivot_annotation_property_t
+	coalesce_annotation_property_pivot_p-processor@{shape: rect, label: CoalesceProcessor}
+	coalesce_annotation_property_pivot_p-publish@{shape: fork}
+	coalesce_annotation_property_pivot_p-subscribe@{shape: diamond, label: All}
+	coalesce_annotation_property_pivot_s-subject@{shape: doc, label: coalesce_annotation_property_pivot_s}
+	group_by_annotation_property_pivot_p-processor@{shape: rect, label: GroupBy}
+	group_by_annotation_property_pivot_p-publish@{shape: fork}
+	group_by_annotation_property_pivot_p-subscribe@{shape: diamond, label: All}
+	group_by_annotation_property_pivot_s-subject@{shape: doc, label: group_by_annotation_property_pivot_s}
+	select_annotation_property_pivot_p-processor@{shape: rect, label: Select}
+	select_annotation_property_pivot_p-publish@{shape: fork}
+	select_annotation_property_pivot_p-subscribe@{shape: diamond, label: All}
+	select_annotation_property_pivot_s-subject@{shape: doc, label: select_annotation_property_pivot_s}
+	%% ------------------------------------------------------------------------------
+	%% Pivot Owl:Class on rdfs:label (or skos:prefLabel)
+	%% ------------------------------------------------------------------------------
+	subgraph pivot_class_entity_t
+	    select_class_entity_s-subject-.->|LastRecordBatch|coalesce_class_entity_p-subscribe
+	    coalesce_class_entity_p-subscribe-->coalesce_class_entity_p-processor
+	    coalesce_class_entity_p-processor-->coalesce_class_entity_p-publish
+	    coalesce_class_entity_p-publish-->|Replace|coalesce_class_entity_s-subject
+	    coalesce_class_entity_s-subject-->|FullTable|comparator_predicate_class_entity_p-subscribe
+	    comparator_predicate_class_entity_p-subscribe-->comparator_predicate_class_entity_p-processor
+	    comparator_predicate_class_entity_p-processor-->comparator_predicate_class_entity_p-publish
+	    comparator_predicate_class_entity_p-publish-->|Replace|comparator_predicate_class_entity_s-subject
+	    comparator_predicate_class_entity_s-subject-->|FullTable|filter_predicate_class_entity_p-subscribe
+	    filter_predicate_class_entity_p-subscribe-->filter_predicate_class_entity_p-processor
+	    filter_predicate_class_entity_p-processor-->filter_predicate_class_entity_p-publish
+	    filter_predicate_class_entity_p-publish-->|Replace|filter_predicate_class_entity_s-subject
+	    filter_predicate_class_entity_s-subject-->|FullTable|select_predicate_class_entity_p-subscribe
+	    select_predicate_class_entity_p-subscribe-->select_predicate_class_entity_p-processor
+	    select_predicate_class_entity_p-processor-->select_predicate_class_entity_p-publish
+	    select_predicate_class_entity_p-publish-->|Replace|select_predicate_class_entity_s-subject
+	    select_predicate_class_entity_s-subject-->|FullTable|pivot_class_entity_p-subscribe
+	    pivot_class_entity_p-subscribe-->pivot_class_entity_p-processor
+	    pivot_class_entity_p-processor-->pivot_class_entity_p-publish
+	    pivot_class_entity_p-publish-->|Replace|pivot_class_entity_s-subject
+	end
+	extract_owl_r-rt-->pivot_class_entity_t
+	coalesce_class_entity_p-processor@{shape: rect, label: CoalesceProcessor}
+	coalesce_class_entity_p-publish@{shape: fork}
+	coalesce_class_entity_p-subscribe@{shape: diamond, label: All}
+	coalesce_class_entity_s-subject@{shape: doc, label: coalesce_class_entity_s}
+	comparator_predicate_class_entity_p-processor@{shape: rect, label: Select}
+	comparator_predicate_class_entity_p-publish@{shape: fork}
+	comparator_predicate_class_entity_p-subscribe@{shape: diamond, label: All}
+	comparator_predicate_class_entity_s-subject@{shape: doc, label: comparator_predicate_class_entity_s}
+	filter_predicate_class_entity_p-processor@{shape: rect, label: Filter}
+	filter_predicate_class_entity_p-publish@{shape: fork}
+	filter_predicate_class_entity_p-subscribe@{shape: diamond, label: All}
+	filter_predicate_class_entity_s-subject@{shape: doc, label: filter_predicate_class_entity_s}
+	select_predicate_class_entity_p-processor@{shape: rect, label: Select}
+	select_predicate_class_entity_p-publish@{shape: fork}
+	select_predicate_class_entity_p-subscribe@{shape: diamond, label: All}
+	select_predicate_class_entity_s-subject@{shape: doc, label: select_predicate_class_entity_s}
+	pivot_class_entity_p-processor@{shape: rect, label: Pivot}
+	pivot_class_entity_p-publish@{shape: fork}
+	pivot_class_entity_p-subscribe@{shape: diamond, label: All}
+	pivot_class_entity_s-subject@{shape: doc, label: pivot_class_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Owl:Class post-pivot cleanup
+	%% ------------------------------------------------------------------------------
+	subgraph post_pivot_class_entity_t
+	    pivot_class_entity_s-subject-.->|FullTable|coalesce_class_pivot_p-subscribe
+	    coalesce_class_pivot_p-subscribe-->coalesce_class_pivot_p-processor
+	    coalesce_class_pivot_p-processor-->coalesce_class_pivot_p-publish
+	    coalesce_class_pivot_p-publish-->|Replace|coalesce_class_pivot_s-subject
+	    coalesce_class_pivot_s-subject-->|FullTable|group_by_class_pivot_p-subscribe
+	    group_by_class_pivot_p-subscribe-->group_by_class_pivot_p-processor
+	    group_by_class_pivot_p-processor-->group_by_class_pivot_p-publish
+	    group_by_class_pivot_p-publish-->|Replace|group_by_class_pivot_s-subject
+	    group_by_class_pivot_s-subject-->|FullTable|select_class_pivot_p-subscribe
+	    select_class_pivot_p-subscribe-->select_class_pivot_p-processor
+	    select_class_pivot_p-processor-->select_class_pivot_p-publish
+	    select_class_pivot_p-publish-->|Replace|select_class_pivot_s-subject
+	end
+	extract_owl_r-rt-->post_pivot_class_entity_t
+	coalesce_class_pivot_p-processor@{shape: rect, label: CoalesceProcessor}
+	coalesce_class_pivot_p-publish@{shape: fork}
+	coalesce_class_pivot_p-subscribe@{shape: diamond, label: All}
+	coalesce_class_pivot_s-subject@{shape: doc, label: coalesce_class_pivot_s}
+	group_by_class_pivot_p-processor@{shape: rect, label: GroupBy}
+	group_by_class_pivot_p-publish@{shape: fork}
+	group_by_class_pivot_p-subscribe@{shape: diamond, label: All}
+	group_by_class_pivot_s-subject@{shape: doc, label: group_by_class_pivot_s}
+	select_class_pivot_p-processor@{shape: rect, label: Select}
+	select_class_pivot_p-publish@{shape: fork}
+	select_class_pivot_p-subscribe@{shape: diamond, label: All}
+	select_class_pivot_s-subject@{shape: doc, label: select_class_pivot_s}
+	%% ------------------------------------------------------------------------------
+	%% Join Owl:AnnotationProperty with Owl:Class on predicates
+	%% ------------------------------------------------------------------------------
+	subgraph join_class_on_predicates_t
+	    select_class_entity_s-subject-.->|FullTable|join_predicates_class_entity_p-subscribe
+	    select_annotation_property_pivot_s-subject-.->|FullTable|join_predicates_class_entity_p-subscribe
+	    join_predicates_class_entity_p-subscribe-->join_predicates_class_entity_p-processor
+	    join_predicates_class_entity_p-processor-->join_predicates_class_entity_p-publish
+	    join_predicates_class_entity_p-publish-->|Replace|join_predicates_class_entity_s-subject
+	    join_predicates_class_entity_s-subject-->|FullTable|select_predicates_class_entity_p-subscribe
+	    select_predicates_class_entity_p-subscribe-->select_predicates_class_entity_p-processor
+	    select_predicates_class_entity_p-processor-->select_predicates_class_entity_p-publish
+	    select_predicates_class_entity_p-publish-->|Replace|select_predicates_class_entity_s-subject
+	end
+	extract_owl_r-rt-->join_class_on_predicates_t
+	join_predicates_class_entity_p-processor@{shape: rect, label: Join}
+	join_predicates_class_entity_p-publish@{shape: fork}
+	join_predicates_class_entity_p-subscribe@{shape: diamond, label: All}
+	join_predicates_class_entity_s-subject@{shape: doc, label: join_predicates_class_entity_s}
+	select_predicates_class_entity_p-processor@{shape: rect, label: Select}
+	select_predicates_class_entity_p-publish@{shape: fork}
+	select_predicates_class_entity_p-subscribe@{shape: diamond, label: All}
+	select_predicates_class_entity_s-subject@{shape: doc, label: select_predicates_class_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Join Owl:Class with Owl:Class on objects
+	%% ------------------------------------------------------------------------------
+	subgraph join_class_on_objects_t
+	    select_predicates_class_entity_s-subject-.->|FullTable|join_objects_class_entity_p-subscribe
+	    select_class_pivot_s-subject-.->|FullTable|join_objects_class_entity_p-subscribe
+	    join_objects_class_entity_p-subscribe-->join_objects_class_entity_p-processor
+	    join_objects_class_entity_p-processor-->join_objects_class_entity_p-publish
+	    join_objects_class_entity_p-publish-->|Replace|join_objects_class_entity_s-subject
+	    join_objects_class_entity_s-subject-->|FullTable|select_objects_class_entity_p-subscribe
+	    select_objects_class_entity_p-subscribe-->select_objects_class_entity_p-processor
+	    select_objects_class_entity_p-processor-->select_objects_class_entity_p-publish
+	    select_objects_class_entity_p-publish-->|Replace|select_objects_class_entity_s-subject
+	end
+	extract_owl_r-rt-->join_class_on_objects_t
+	join_objects_class_entity_p-processor@{shape: rect, label: Join}
+	join_objects_class_entity_p-publish@{shape: fork}
+	join_objects_class_entity_p-subscribe@{shape: diamond, label: All}
+	join_objects_class_entity_s-subject@{shape: doc, label: join_objects_class_entity_s}
+	select_objects_class_entity_p-processor@{shape: rect, label: Select}
+	select_objects_class_entity_p-publish@{shape: fork}
+	select_objects_class_entity_p-subscribe@{shape: diamond, label: All}
+	select_objects_class_entity_s-subject@{shape: doc, label: select_objects_class_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Join Owl:AnnotationProperty with Owl:ObjectProperty on predicates
+	%% ------------------------------------------------------------------------------
+	subgraph join_object_property_on_predicates_t
+	    select_object_property_entity_s-subject-.->|FullTable|join_predicates_object_property_entity_p-subscribe
+	    select_annotation_property_pivot_s-subject-.->|FullTable|join_predicates_object_property_entity_p-subscribe
+	    join_predicates_object_property_entity_p-subscribe-->join_predicates_object_property_entity_p-processor
+	    join_predicates_object_property_entity_p-processor-->join_predicates_object_property_entity_p-publish
+	    join_predicates_object_property_entity_p-publish-->|Replace|join_predicates_object_property_entity_s-subject
+	    join_predicates_object_property_entity_s-subject-->|FullTable|select_predicates_object_property_entity_p-subscribe
+	    select_predicates_object_property_entity_p-subscribe-->select_predicates_object_property_entity_p-processor
+	    select_predicates_object_property_entity_p-processor-->select_predicates_object_property_entity_p-publish
+	    select_predicates_object_property_entity_p-publish-->|Replace|select_predicates_object_property_entity_s-subject
+	end
+	extract_owl_r-rt-->join_object_property_on_predicates_t
+	join_predicates_object_property_entity_p-processor@{shape: rect, label: Join}
+	join_predicates_object_property_entity_p-publish@{shape: fork}
+	join_predicates_object_property_entity_p-subscribe@{shape: diamond, label: All}
+	join_predicates_object_property_entity_s-subject@{shape: doc, label: join_predicates_object_property_entity_s}
+	select_predicates_object_property_entity_p-processor@{shape: rect, label: Select}
+	select_predicates_object_property_entity_p-publish@{shape: fork}
+	select_predicates_object_property_entity_p-subscribe@{shape: diamond, label: All}
+	select_predicates_object_property_entity_s-subject@{shape: doc, label: select_predicates_object_property_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Join Owl:Class with Owl:ObjectProperty on objects
+	%% ------------------------------------------------------------------------------
+	subgraph join_object_property_on_objects_t
+	    select_predicates_object_property_entity_s-subject-.->|FullTable|join_objects_object_property_entity_p-subscribe
+	    select_class_pivot_s-subject-.->|FullTable|join_objects_object_property_entity_p-subscribe
+	    join_objects_object_property_entity_p-subscribe-->join_objects_object_property_entity_p-processor
+	    join_objects_object_property_entity_p-processor-->join_objects_object_property_entity_p-publish
+	    join_objects_object_property_entity_p-publish-->|Replace|join_objects_object_property_entity_s-subject
+	    join_objects_object_property_entity_s-subject-->|FullTable|select_objects_object_property_entity_p-subscribe
+	    select_objects_object_property_entity_p-subscribe-->select_objects_object_property_entity_p-processor
+	    select_objects_object_property_entity_p-processor-->select_objects_object_property_entity_p-publish
+	    select_objects_object_property_entity_p-publish-->|Replace|select_objects_object_property_entity_s-subject
+	end
+	extract_owl_r-rt-->join_object_property_on_objects_t
+	join_objects_object_property_entity_p-processor@{shape: rect, label: Join}
+	join_objects_object_property_entity_p-publish@{shape: fork}
+	join_objects_object_property_entity_p-subscribe@{shape: diamond, label: All}
+	join_objects_object_property_entity_s-subject@{shape: doc, label: join_objects_object_property_entity_s}
+	select_objects_object_property_entity_p-processor@{shape: rect, label: Select}
+	select_objects_object_property_entity_p-publish@{shape: fork}
+	select_objects_object_property_entity_p-subscribe@{shape: diamond, label: All}
+	select_objects_object_property_entity_s-subject@{shape: doc, label: select_objects_object_property_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Apply embedding template to Owl:Class
+	%% ------------------------------------------------------------------------------
+	subgraph apply_embedding_template_class_t
+	    select_objects_class_entity_s-subject-.->|FullTable|concat_cols_class_entity_p-subscribe
+	    concat_cols_class_entity_p-subscribe-->concat_cols_class_entity_p-processor
+	    concat_cols_class_entity_p-processor-->concat_cols_class_entity_p-publish
+	    concat_cols_class_entity_p-publish-->|Replace|concat_cols_class_entity_s-subject
+	    concat_cols_class_entity_s-subject-->|FullTable|list_rows_class_entity_p-subscribe
+	    list_rows_class_entity_p-subscribe-->list_rows_class_entity_p-processor
+	    list_rows_class_entity_p-processor-->list_rows_class_entity_p-publish
+	    list_rows_class_entity_p-publish-->|Replace|list_rows_class_entity_s-subject
+	    list_rows_class_entity_s-subject-->|FullTable|apply_template_class_entity_p-subscribe
+	    apply_template_class_entity_p-subscribe-->apply_template_class_entity_p-processor
+	    apply_template_class_entity_p-processor-->apply_template_class_entity_p-publish
+	    apply_template_class_entity_p-publish-->|Replace|apply_template_class_entity_s-subject
+	    apply_template_class_entity_s-subject-->|FullTable|doc_chunk_class_entity_p-subscribe
+	    doc_chunk_class_entity_p-subscribe-->doc_chunk_class_entity_p-processor
+	    doc_chunk_class_entity_p-processor-->doc_chunk_class_entity_p-publish
+	    doc_chunk_class_entity_p-publish-->|Replace|doc_chunk_class_entity_s-subject
+	end
+	extract_owl_r-rt-->apply_embedding_template_class_t
+	concat_cols_class_entity_p-processor@{shape: rect, label: Select}
+	concat_cols_class_entity_p-publish@{shape: fork}
+	concat_cols_class_entity_p-subscribe@{shape: diamond, label: All}
+	concat_cols_class_entity_s-subject@{shape: doc, label: concat_cols_class_entity_s}
+	list_rows_class_entity_p-processor@{shape: rect, label: GroupBy}
+	list_rows_class_entity_p-publish@{shape: fork}
+	list_rows_class_entity_p-subscribe@{shape: diamond, label: All}
+	list_rows_class_entity_s-subject@{shape: doc, label: list_rows_class_entity_s}
+	apply_template_class_entity_p-processor@{shape: rect, label: Select}
+	apply_template_class_entity_p-publish@{shape: fork}
+	apply_template_class_entity_p-subscribe@{shape: diamond, label: All}
+	apply_template_class_entity_s-subject@{shape: doc, label: apply_template_class_entity_s}
+	doc_chunk_class_entity_p-processor@{shape: rect, label: ChunkDocuments}
+	doc_chunk_class_entity_p-publish@{shape: fork}
+	doc_chunk_class_entity_p-subscribe@{shape: diamond, label: All}
+	doc_chunk_class_entity_s-subject@{shape: doc, label: doc_chunk_class_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Apply embedding template to Owl:ObjectProperty 
+	%% ------------------------------------------------------------------------------
+	subgraph apply_embedding_template_object_property_t
+	    select_objects_object_property_entity_s-subject-.->|FullTable|concat_cols_object_property_entity_p-subscribe
+	    concat_cols_object_property_entity_p-subscribe-->concat_cols_object_property_entity_p-processor
+	    concat_cols_object_property_entity_p-processor-->concat_cols_object_property_entity_p-publish
+	    concat_cols_object_property_entity_p-publish-->|Replace|concat_cols_object_property_entity_s-subject
+	    concat_cols_object_property_entity_s-subject-->|FullTable|list_rows_object_property_entity_p-subscribe
+	    list_rows_object_property_entity_p-subscribe-->list_rows_object_property_entity_p-processor
+	    list_rows_object_property_entity_p-processor-->list_rows_object_property_entity_p-publish
+	    list_rows_object_property_entity_p-publish-->|Replace|list_rows_object_property_entity_s-subject
+	    list_rows_object_property_entity_s-subject-->|FullTable|apply_template_object_property_entity_p-subscribe
+	    apply_template_object_property_entity_p-subscribe-->apply_template_object_property_entity_p-processor
+	    apply_template_object_property_entity_p-processor-->apply_template_object_property_entity_p-publish
+	    apply_template_object_property_entity_p-publish-->|Replace|apply_template_object_property_entity_s-subject
+	    apply_template_object_property_entity_s-subject-->|FullTable|doc_chunk_object_property_entity_p-subscribe
+	    doc_chunk_object_property_entity_p-subscribe-->doc_chunk_object_property_entity_p-processor
+	    doc_chunk_object_property_entity_p-processor-->doc_chunk_object_property_entity_p-publish
+	    doc_chunk_object_property_entity_p-publish-->|Replace|doc_chunk_object_property_entity_s-subject
+	end
+	extract_owl_r-rt-->apply_embedding_template_object_property_t
+	concat_cols_object_property_entity_p-processor@{shape: rect, label: Select}
+	concat_cols_object_property_entity_p-publish@{shape: fork}
+	concat_cols_object_property_entity_p-subscribe@{shape: diamond, label: All}
+	concat_cols_object_property_entity_s-subject@{shape: doc, label: concat_cols_object_property_entity_s}
+	list_rows_object_property_entity_p-processor@{shape: rect, label: GroupBy}
+	list_rows_object_property_entity_p-publish@{shape: fork}
+	list_rows_object_property_entity_p-subscribe@{shape: diamond, label: All}
+	list_rows_object_property_entity_s-subject@{shape: doc, label: list_rows_object_property_entity_s}
+	apply_template_object_property_entity_p-processor@{shape: rect, label: Select}
+	apply_template_object_property_entity_p-publish@{shape: fork}
+	apply_template_object_property_entity_p-subscribe@{shape: diamond, label: All}
+	apply_template_object_property_entity_s-subject@{shape: doc, label: apply_template_object_property_entity_s}
+	doc_chunk_object_property_entity_p-processor@{shape: rect, label: ChunkDocuments}
+	doc_chunk_object_property_entity_p-publish@{shape: fork}
+	doc_chunk_object_property_entity_p-subscribe@{shape: diamond, label: All}
+	doc_chunk_object_property_entity_s-subject@{shape: doc, label: doc_chunk_object_property_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Embed Owl:Class
+	%% ------------------------------------------------------------------------------
+	subgraph embed_class_t
+	    doc_chunk_class_entity_s-subject-.->|FullTable|coalesce_docs_class_entity_p-subscribe
+	    coalesce_docs_class_entity_p-subscribe-->coalesce_docs_class_entity_p-processor
+	    coalesce_docs_class_entity_p-processor-->coalesce_docs_class_entity_p-publish
+	    coalesce_docs_class_entity_p-publish-->|Extend|coalesce_docs_class_entity_s-subject
+	    coalesce_docs_class_entity_s-subject-->|FullTable|embed_docs_class_entity_p-subscribe
+	    embed_docs_class_entity_p-subscribe-->embed_docs_class_entity_p-processor
+	    embed_docs_class_entity_p-processor-->embed_docs_class_entity_p-publish
+	    embed_docs_class_entity_p-publish-->|Extend|embed_docs_class_entity_s-subject
+	end
+	embed_class_r-rt@{shape: subproc, label: embed_class_r}
+	embed_class_r-rt-->embed_class_t
+	coalesce_docs_class_entity_p-processor@{shape: rect, label: CoalesceProcessor}
+	coalesce_docs_class_entity_p-publish@{shape: fork}
+	coalesce_docs_class_entity_p-subscribe@{shape: diamond, label: All}
+	coalesce_docs_class_entity_s-subject@{shape: doc, label: coalesce_docs_class_entity_s}
+	embed_docs_class_entity_p-processor@{shape: rect, label: CandleEmbedProcessor}
+	embed_docs_class_entity_p-publish@{shape: fork}
+	embed_docs_class_entity_p-subscribe@{shape: diamond, label: All}
+	embed_docs_class_entity_s-subject@{shape: doc, label: embed_docs_class_entity_s}
+	%% ------------------------------------------------------------------------------
+	%% Embed Owl:ObjectProperty
+	%% ------------------------------------------------------------------------------
+	subgraph embed_object_property_t
+	    doc_chunk_object_property_entity_s-subject-.->|FullTable|coalesce_docs_object_property_entity_p-subscribe
+	    coalesce_docs_object_property_entity_p-subscribe-->coalesce_docs_object_property_entity_p-processor
+	    coalesce_docs_object_property_entity_p-processor-->coalesce_docs_object_property_entity_p-publish
+	    coalesce_docs_object_property_entity_p-publish-->|Extend|coalesce_docs_object_property_entity_s-subject
+	    coalesce_docs_object_property_entity_s-subject-->|FullTable|embed_docs_object_property_entity_p-subscribe
+	    embed_docs_object_property_entity_p-subscribe-->embed_docs_object_property_entity_p-processor
+	    embed_docs_object_property_entity_p-processor-->embed_docs_object_property_entity_p-publish
+	    embed_docs_object_property_entity_p-publish-->|Extend|embed_docs_object_property_entity_s-subject
+	end
+	embed_object_property_r-rt@{shape: subproc, label: embed_object_property_r}
+	embed_object_property_r-rt-->embed_object_property_t
+	coalesce_docs_object_property_entity_p-processor@{shape: rect, label: CoalesceProcessor}
+	coalesce_docs_object_property_entity_p-publish@{shape: fork}
+	coalesce_docs_object_property_entity_p-subscribe@{shape: diamond, label: All}
+	coalesce_docs_object_property_entity_s-subject@{shape: doc, label: coalesce_docs_object_property_entity_s}
+	embed_docs_object_property_entity_p-processor@{shape: rect, label: CandleEmbedProcessor}
+	embed_docs_object_property_entity_p-publish@{shape: fork}
+	embed_docs_object_property_entity_p-subscribe@{shape: diamond, label: All}
+	embed_docs_object_property_entity_s-subject@{shape: doc, label: embed_docs_object_property_entity_s}
+	%% ------------------------------------------------------------------------------"#
+	}
+    pub fn as_mermaid_erdiagram(&self) -> &str {
+        r#"erDiagram
+    UserScript["UserScript"] {
+        Utf8 filename
+        Utf8 extension
+        List-UInt8 bytes
+        Utf8 metadata
+        Int64 timestamp
+    }
+    ParseOwl["ParseOwl"] {
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+    }
+    extract_owl_p["extract_owl_p"] {
+        Boolean cpu "false"
+        Utf8 format "Owl"
+        Utf8 lhs_name "UserScript"
+        List-Utf8 lhs_values "['bytes']"
+        Utf8 operator "ExtractXML"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    comparator_ontology_entity_p["comparator_ontology_entity_p"] {
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#Ontology']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
+        Boolean cpu "false"
+        Utf8 lhs_name "ParseOwl"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    filter_ontology_entity_p["filter_ontology_entity_p"] {
+        List-Utf8 cmp_columns "['cmp']"
+        List-Utf8 cmp_operators "['Like']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_ontology_entity_s"
+        List-Utf8 lhs_values "['entity']"
+        Utf8 operator "Filter"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_ontology_entity_p["select_ontology_entity_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_ontology_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_ontology_entity_s["select_ontology_entity_s"] {
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+    }
+    comparator_annotation_property_entity_p["comparator_annotation_property_entity_p"] {
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#AnnotationProperty']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
+        Boolean cpu "false"
+        Utf8 lhs_name "ParseOwl"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    filter_annotation_property_entity_p["filter_annotation_property_entity_p"] {
+        List-Utf8 cmp_columns "['cmp']"
+        List-Utf8 cmp_operators "['Like']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_annotation_property_entity_s"
+        List-Utf8 lhs_values "['entity']"
+        Utf8 operator "Filter"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_annotation_property_entity_p["select_annotation_property_entity_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_annotation_property_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_annotation_property_entity_s["select_annotation_property_entity_s"] {
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+    }
+    comparator_datatype_property_entity_p["comparator_datatype_property_entity_p"] {
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#DatatypeProperty']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
+        Boolean cpu "false"
+        Utf8 lhs_name "ParseOwl"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    filter_datatype_property_entity_p["filter_datatype_property_entity_p"] {
+        List-Utf8 cmp_columns "['cmp']"
+        List-Utf8 cmp_operators "['Like']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_datatype_property_entity_s"
+        List-Utf8 lhs_values "['entity']"
+        Utf8 operator "Filter"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_datatype_property_entity_p["select_datatype_property_entity_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_datatype_property_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_datatype_property_entity_s["select_datatype_property_entity_s"] {
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+    }
+    comparator_class_entity_p["comparator_class_entity_p"] {
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#Class']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
+        Boolean cpu "false"
+        Utf8 lhs_name "ParseOwl"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    filter_class_entity_p["filter_class_entity_p"] {
+        List-Utf8 cmp_columns "['cmp']"
+        List-Utf8 cmp_operators "['Like']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_class_entity_s"
+        List-Utf8 lhs_values "['entity']"
+        Utf8 operator "Filter"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_class_entity_p["select_class_entity_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_class_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_class_entity_s["select_class_entity_s"] {
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+    }
+    comparator_object_property_entity_p["comparator_object_property_entity_p"] {
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#ObjectProperty']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
+        Boolean cpu "false"
+        Utf8 lhs_name "ParseOwl"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    filter_object_property_entity_p["filter_object_property_entity_p"] {
+        List-Utf8 cmp_columns "['cmp']"
+        List-Utf8 cmp_operators "['Like']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_object_property_entity_s"
+        List-Utf8 lhs_values "['entity']"
+        Utf8 operator "Filter"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_object_property_entity_p["select_object_property_entity_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_object_property_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_object_property_entity_s["select_object_property_entity_s"] {
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+    }
+    comparator_named_individual_entity_p["comparator_named_individual_entity_p"] {
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#NamedIndividual']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
+        Boolean cpu "false"
+        Utf8 lhs_name "ParseOwl"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    filter_named_individual_entity_p["filter_named_individual_entity_p"] {
+        List-Utf8 cmp_columns "['cmp']"
+        List-Utf8 cmp_operators "['Like']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_named_individual_entity_s"
+        List-Utf8 lhs_values "['entity']"
+        Utf8 operator "Filter"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_named_individual_entity_p["select_named_individual_entity_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_named_individual_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_named_individual_entity_s["select_named_individual_entity_s"] {
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+    }
+    comparator_axiom_entity_p["comparator_axiom_entity_p"] {
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#Axiom']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','cmp']"
+        Boolean cpu "false"
+        Utf8 lhs_name "ParseOwl"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    filter_axiom_entity_p["filter_axiom_entity_p"] {
+        List-Utf8 cmp_columns "['cmp']"
+        List-Utf8 cmp_operators "['Like']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_axiom_entity_s"
+        List-Utf8 lhs_values "['entity']"
+        Utf8 operator "Filter"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_axiom_entity_p["select_axiom_entity_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_axiom_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_axiom_entity_s["select_axiom_entity_s"] {
+        Utf8 entity
+        Utf8 subject
+        Utf8 predicate
+        Utf8 object
+        Utf8 graph
+        Utf8 dataset
+    }
+    coalesce_annotation_property_entity_p["coalesce_annotation_property_entity_p"] {
+        Int64 fetch "512"
+        Utf8 summary_format "None"
+    }
+    comparator_predicate_annotation_property_entity_p["comparator_predicate_annotation_property_entity_p"] {
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2000/01/rdf-schema#label','http://purl.obolibrary.org/obo/IAO_0000115']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs:label','obo:IAO_0000115']"
+        Boolean cpu "false"
+        Utf8 lhs_name "coalesce_annotation_property_entity_s"
+        Utf8 operator "Select"
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+    filter_predicate_annotation_property_entity_p["filter_predicate_annotation_property_entity_p"] {
+        List-Utf8 cmp_columns "['rdfs:label','obo:IAO_0000115']"
+        List-Utf8 cmp_operators "['Like','Like']"
+        Utf8 cmp_predicate "Any"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_axiom_entity_s"
+        List-Utf8 lhs_values "['predicate','predicate']"
+        Utf8 operator "Filter"
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+    select_predicate_annotation_property_entity_p["select_predicate_annotation_property_entity_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_axiom_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+	pivot_annotation_property_entity_p["pivot_annotation_property_entity_p"] {
+	    List-Utf8 agg_columns "['object']"
+	    List-Utf8 agg_operators "['List']"
+	    Boolean cpu "false"
+	    List-Utf8 default_values "['']"
+	    Utf8 lhs_name "select_predicate_annotation_property_entity_s"
+	    List-Utf8 lhs_values "['subject']"
+	    Utf8 operator "Pivot"
+	    List-Utf8 pvt_columns "['predicate']"
+	    Utf8 stream "StreamLHSStreamRHS"
+	}
+	pivot_annotation_property_entity_s["pivot_annotation_property_entity_s"] {
+	    Utf8 subject
+	    List-Utf8 rdfs-label-List
+	    List-Utf8 obo-IAO_0000115-List
+	}
+    coalesce_annotation_property_pivot_p["coalesce_annotation_property_pivot_p"] {
+        Int64 fetch "512"
+        Utf8 summary_format "None"
+    }
+	group_by_annotation_property_pivot_p["group_by_annotation_property_pivot_p"] {
+	    List-Utf8 agg_columns "['rdfs-label-List','obo-IAO_0000115-List']"
+	    List-Utf8 agg_operators "['List','List']"
+	    Boolean cpu "false"
+	    Utf8 lhs_name "coalesce_annotation_property_pivot_s"
+	    List-Utf8 lhs_values "['subject']"
+	    Utf8 operator "GroupBy"
+	    Utf8 stream "StreamLHSStreamRHS"
+	}
+	group_by_annotation_property_pivot_s["group_by_annotation_property_pivot_s"] {
+	    Utf8 subject
+	    List-Utf8 rdfs-label-List-List
+	    List-Utf8 obo-IAO_0000115-List-List
+	}
+    select_annotation_property_pivot_p["select_annotation_property_pivot_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_name "group_by_annotation_property_pivot_s"
+        List-Utf8 as_columns "['uri','','']"
+        List-Utf8 lhs_values "['subject','rdfs-label-List-List','obo-IAO_0000115-List-List']"
+        Utf8 operator "Select"
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+	select_annotation_property_pivot_s["select_annotation_property_pivot_s"] {
+	    Utf8 uri
+	    List-Utf8 rdfs-label-List-List
+	    List-Utf8 obo-IAO_0000115-List-List
+	}
+    comparator_predicate_class_entity_p["comparator_predicate_class_entity_p"] {
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2000/01/rdf-schema#label','http://purl.obolibrary.org/obo/IAO_0000115']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','Value','Value']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs:label','obo:IAO_0000115']"
+        Boolean cpu "false"
+        Utf8 lhs_name "coalesce_class_entity_s"
+        Utf8 operator "Select"
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+    filter_predicate_class_entity_p["filter_predicate_class_entity_p"] {
+        List-Utf8 cmp_columns "['rdfs:label','obo:IAO_0000115']"
+        List-Utf8 cmp_operators "['Like','Like']"
+        Utf8 cmp_predicate "Any"
+        Boolean cpu "false"
+        Utf8 lhs_name "comparator_axiom_entity_s"
+        List-Utf8 lhs_values "['predicate','predicate']"
+        Utf8 operator "Filter"
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+    select_predicate_class_entity_p["select_predicate_class_entity_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_axiom_entity_s"
+        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
+        Utf8 operator "Select"
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+	pivot_class_entity_p["pivot_class_entity_p"] {
+	    List-Utf8 agg_columns "['object']"
+	    List-Utf8 agg_operators "['List']"
+	    Boolean cpu "false"
+	    List-Utf8 default_values "['']"
+	    Utf8 lhs_name "select_predicate_class_entity_s"
+	    List-Utf8 lhs_values "['subject']"
+	    Utf8 operator "Pivot"
+	    List-Utf8 pvt_columns "['predicate']"
+	    Utf8 stream "StreamLHSStreamRHS"
+	}
+	pivot_class_entity_s["pivot_class_entity_s"] {
+	    Utf8 subject
+	    List-Utf8 rdfs-label-List
+	    List-Utf8 obo-IAO_0000115-List
+	}
+    coalesce_class_pivot_p["coalesce_class_pivot_p"] {
+        Int64 fetch "512"
+        Utf8 summary_format "None"
+    }
+	group_by_class_pivot_p["group_by_class_pivot_p"] {
+	    List-Utf8 agg_columns "['rdfs-label-List','obo-IAO_0000115-List']"
+	    List-Utf8 agg_operators "['List','List']"
+	    Boolean cpu "false"
+	    Utf8 lhs_name "coalesce_class_pivot_s"
+	    List-Utf8 lhs_values "['subject']"
+	    Utf8 operator "GroupBy"
+	    Utf8 stream "StreamLHSStreamRHS"
+	}
+	group_by_class_pivot_s["group_by_class_pivot_s"] {
+	    Utf8 subject
+	    List-Utf8 rdfs-label-List-List
+	    List-Utf8 obo-IAO_0000115-List-List
+	}
+    select_class_entity_p["select_class_entity_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_name "group_by_class_pivot_s"
+        List-Utf8 as_columns "['uri','','']"
+        List-Utf8 lhs_values "['subject','rdfs-label-List-List','obo-IAO_0000115-List-List']"
+        Utf8 operator "Select"
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+	select_class_pivot_s["select_class_pivot_s"] {
+	    Utf8 uri
+	    List-Utf8 rdfs-label-List-List
+	    List-Utf8 obo-IAO_0000115-List-List
+	}
+	join_predicates_class_entity_p["join_predicates_class_entity_p"] {
+	    Boolean cpu "false"
+	    Utf8 operator "Join"
+	    Utf8 lhs_name "select_class_entity_s"
+	    Utf8 lhs_fk "predicate"
+	    Utf8 lhs_pk "predicate"
+	    Utf8 rhs_name "select_annotation_property_pivot_s"
+	    Utf8 rhs_fk "uri"
+	    Utf8 rhs_pk "uri"
+	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	}"#
+	}
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use anyhow::Result;
+    use futures::TryStreamExt;
+    use parking_lot::RwLock;
+    use phymes_core::{
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Table,
+        TableBuilderTrait, TablePublication, TableTrait, create_session_supersteps_batch,
+    };
+    use phymes_diagnostics::HashMap;
+
+    use crate::{
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream, create_message_map,
+    };
+
+    use super::*;
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_ontology_rag_session() -> Result<()> {
+        // Initialize the session
+        let onto_rag_session = OntologyRAGSession::default();
+        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+            onto_rag_session.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_state_from_mermaid_erdiagram(onto_rag_session.as_mermaid_erdiagram(), false, true)?
+        .with_name(onto_rag_session.session_context_name)
+        .with_diagnostics(true)
+        .add_processor_subjects()?
+        .add_next_tasks()?
+        .build_with_tables()?;
+        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+
+        // Make the test data
+        // --- DM: Placeholder ---
+        let session_names = ["session_1", "session_1", "session_1", "session_1"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let supersteps = vec![0, 1, 2, 3];
+        let batch = create_session_supersteps_batch(session_names, supersteps)?;
+        let table = Table::get_builder()
+            .with_name(AvailableSubjects::SessionSupersteps.to_string().as_str())
+            .with_record_batches(vec![batch])?
+            .build()?;
+        let superstep_message = IPCMessage::get_builder()
+            .with_message(table.to_ipc_stream()?)
+            .with_subject(AvailableSubjects::SessionSupersteps.to_string().as_str())
+            .with_update(&TablePublication::Replace {
+                table_name: AvailableSubjects::SessionSupersteps.to_string(),
+            })
+            .with_publisher(onto_rag_session.session_context_name)
+            .make_name()?
+            .build()?;
+        // --- DM: Placeholder ---
+        let message_map = create_message_map(vec![superstep_message]);
+
+        // Run the session
+        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+
+        // {
+        //     // Debug any errors
+        //     let subjects_reading = session_ctx_arc.read();
+        //     let table_reading = subjects_reading
+        //         .get_states()
+        //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
+        //         .unwrap()
+        //         .read();
+        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        //     let subjects_reading = session_ctx_arc.read();
+        //     let table_reading = subjects_reading
+        //         .get_states()
+        //         .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
+        //         .unwrap()
+        //         .read();
+        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        //     let table_reading = subjects_reading
+        //         .get_states()
+        //         .get(AvailableSubjects::SessionSuperstepMax.to_string().as_str())
+        //         .unwrap()
+        //         .read();
+        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        // }
+
+        assert_eq!(response.len(), 0);
+
+        {
+            // Test supsersteps
+            let session_reading = session_ctx_arc.read();
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableSubjects::SessionSuperstepMax.to_string().as_str())
+                .unwrap()
+                .read();
+            let column = table_reading.get_column_as_vec_str("session_name");
+            assert_eq!(column, ["session_1"]);
+            let column = table_reading.get_column_as_vec_primitive::<u32>("superstep-Max")?;
+            assert_eq!(column, [3]);
+        }
+        Ok(())
+    }
+}

@@ -326,6 +326,7 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             Self::CandleChatProcessor => serde_json::to_vec(&CandleChatConfig {
+                messages: "messages".to_string(),
                 max_tokens: 1000,
                 temperature: 0.8,
                 seed: 299792458,
@@ -359,6 +360,7 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             Self::MessageParserProcessor => serde_json::to_vec(&CandleChatConfig {
+                messages: "messages".to_string(),
                 max_tokens: 1000,
                 temperature: 0.8,
                 seed: 299792458,
@@ -384,6 +386,10 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             Self::CandleEmbedProcessor => serde_json::to_vec(&CandleEmbedConfig {
+                documents: "documents".to_string(),
+                encoding_format: "float".to_string(),
+                modality: "text".to_string(),
+                input_type: "query".to_string(),
                 weights_config_file: Some(format!(
                     "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",
                     std::env::var("HOME").unwrap_or("".to_string())
@@ -405,6 +411,7 @@ impl DataConfigTrait for AvailableProcessors {
             }),
             #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => serde_json::to_vec(&CandleChatConfig {
+                messages: "messages",
                 max_tokens: 1000,
                 temperature: 0.8,
                 seed: 299792458,
@@ -421,6 +428,10 @@ impl DataConfigTrait for AvailableProcessors {
             }),
             #[cfg(feature = "api")]
             Self::OpenAIEmbedProcessor => serde_json::to_vec(&CandleEmbedConfig {
+                documents: "documents".to_string(),
+                encoding_format: "float".to_string(),
+                modality: "text".to_string(),
+                input_type: "query".to_string(),
                 openai_asset: Some(AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2),
                 api_url: Some("http://0.0.0.0:8001/v1".to_string()),
                 input_type: "query".to_string(),
