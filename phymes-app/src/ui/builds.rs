@@ -283,14 +283,14 @@ pub fn builds_dropdown_view(
                             build_errors.set(String::new());
 
                             // Check if the current session can be built
-                            let mut builder = match SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), true) {
+                            let mut builder = match SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), false) {
                                 Ok(builder) => builder,
                                 Err(err) => {
                                     build_errors.write().push_str(format!("{err:?}").as_str());
                                     return;
                                 },
                             };
-                            builder = match builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), true, true) {
+                            builder = match builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), false, true) {
                                 Ok(builder) => builder,
                                 Err(err) => {
                                     build_errors.write().push_str(format!("{err:?}").as_str());

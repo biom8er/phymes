@@ -630,10 +630,17 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 }
                 data_config_vec.push((config, table.get_name().to_string()));
             } else {
-                return Err(anyhow!(
-                    "Config could not be built for subject {}.",
-                    table.get_name()
-                ));
+                if let Err(err) = DataConfig::from_table(table) {
+                    return Err(anyhow!(
+                        "Config could not be built for subject `{}` and Error `{err}` when trying to build for DataConfig with table `{table:?}`.",
+                        table.get_name()
+                    ));
+                } else {                    
+                    return Err(anyhow!(
+                        "Config could not be built for subject `{}` and table `{table:?}`.",
+                        table.get_name()
+                    ));
+                }
             }
         }
 

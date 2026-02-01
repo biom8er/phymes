@@ -616,24 +616,28 @@ impl<'a> OntologyRAGSession<'a> {
 	    concat_cols_class_entity_p-subscribe-->concat_cols_class_entity_p-processor
 	    concat_cols_class_entity_p-processor-->concat_cols_class_entity_p-publish
 	    concat_cols_class_entity_p-publish-->|Replace|concat_cols_class_entity_s-subject
-	    concat_cols_class_entity_s-subject-->|FullTable|list_rows_class_entity_p-subscribe
+	    concat_cols_class_entity_s-subject-->|FullTable|select_cols_class_entity_p-subscribe
+	    select_cols_class_entity_p-subscribe-->select_cols_class_entity_p-processor
+	    select_cols_class_entity_p-processor-->select_cols_class_entity_p-publish
+	    select_cols_class_entity_p-publish-->|Replace|select_cols_class_entity_s-subject
+	    select_cols_class_entity_s-subject-->|FullTable|list_rows_class_entity_p-subscribe
 	    list_rows_class_entity_p-subscribe-->list_rows_class_entity_p-processor
 	    list_rows_class_entity_p-processor-->list_rows_class_entity_p-publish
 	    list_rows_class_entity_p-publish-->|Replace|list_rows_class_entity_s-subject
 	    list_rows_class_entity_s-subject-->|FullTable|apply_template_class_entity_p-subscribe
 	    apply_template_class_entity_p-subscribe-->apply_template_class_entity_p-processor
 	    apply_template_class_entity_p-processor-->apply_template_class_entity_p-publish
-	    apply_template_class_entity_p-publish-->|Replace|apply_template_class_entity_s-subject
-	    apply_template_class_entity_s-subject-->|FullTable|doc_chunk_class_entity_p-subscribe
-	    doc_chunk_class_entity_p-subscribe-->doc_chunk_class_entity_p-processor
-	    doc_chunk_class_entity_p-processor-->doc_chunk_class_entity_p-publish
-	    doc_chunk_class_entity_p-publish-->|Replace|doc_chunk_class_entity_s-subject
+	    apply_template_class_entity_p-publish-->|Extend|Documents-subject
 	end
 	extract_owl_r-rt-->apply_embedding_template_class_t
 	concat_cols_class_entity_p-processor@{shape: rect, label: Select}
 	concat_cols_class_entity_p-publish@{shape: fork}
 	concat_cols_class_entity_p-subscribe@{shape: diamond, label: All}
 	concat_cols_class_entity_s-subject@{shape: doc, label: concat_cols_class_entity_s}
+	select_cols_class_entity_p-processor@{shape: rect, label: Select}
+	select_cols_class_entity_p-publish@{shape: fork}
+	select_cols_class_entity_p-subscribe@{shape: diamond, label: All}
+	select_cols_class_entity_s-subject@{shape: doc, label: select_cols_class_entity_s}
 	list_rows_class_entity_p-processor@{shape: rect, label: GroupBy}
 	list_rows_class_entity_p-publish@{shape: fork}
 	list_rows_class_entity_p-subscribe@{shape: diamond, label: All}
@@ -641,11 +645,7 @@ impl<'a> OntologyRAGSession<'a> {
 	apply_template_class_entity_p-processor@{shape: rect, label: Select}
 	apply_template_class_entity_p-publish@{shape: fork}
 	apply_template_class_entity_p-subscribe@{shape: diamond, label: All}
-	apply_template_class_entity_s-subject@{shape: doc, label: apply_template_class_entity_s}
-	doc_chunk_class_entity_p-processor@{shape: rect, label: ChunkDocuments}
-	doc_chunk_class_entity_p-publish@{shape: fork}
-	doc_chunk_class_entity_p-subscribe@{shape: diamond, label: All}
-	doc_chunk_class_entity_s-subject@{shape: doc, label: doc_chunk_class_entity_s}
+	Documents-subject@{shape: doc, label: Documents}
 	%% ------------------------------------------------------------------------------
 	%% Apply embedding template to Owl:ObjectProperty 
 	%% ------------------------------------------------------------------------------
@@ -654,24 +654,28 @@ impl<'a> OntologyRAGSession<'a> {
 	    concat_cols_object_property_entity_p-subscribe-->concat_cols_object_property_entity_p-processor
 	    concat_cols_object_property_entity_p-processor-->concat_cols_object_property_entity_p-publish
 	    concat_cols_object_property_entity_p-publish-->|Replace|concat_cols_object_property_entity_s-subject
-	    concat_cols_object_property_entity_s-subject-->|FullTable|list_rows_object_property_entity_p-subscribe
+	    concat_cols_object_property_entity_s-subject-->|FullTable|select_cols_object_property_entity_p-subscribe
+	    select_cols_object_property_entity_p-subscribe-->select_cols_object_property_entity_p-processor
+	    select_cols_object_property_entity_p-processor-->select_cols_object_property_entity_p-publish
+	    select_cols_object_property_entity_p-publish-->|Replace|select_cols_object_property_entity_s-subject
+	    select_cols_object_property_entity_s-subject-->|FullTable|list_rows_object_property_entity_p-subscribe
 	    list_rows_object_property_entity_p-subscribe-->list_rows_object_property_entity_p-processor
 	    list_rows_object_property_entity_p-processor-->list_rows_object_property_entity_p-publish
 	    list_rows_object_property_entity_p-publish-->|Replace|list_rows_object_property_entity_s-subject
 	    list_rows_object_property_entity_s-subject-->|FullTable|apply_template_object_property_entity_p-subscribe
 	    apply_template_object_property_entity_p-subscribe-->apply_template_object_property_entity_p-processor
 	    apply_template_object_property_entity_p-processor-->apply_template_object_property_entity_p-publish
-	    apply_template_object_property_entity_p-publish-->|Replace|apply_template_object_property_entity_s-subject
-	    apply_template_object_property_entity_s-subject-->|FullTable|doc_chunk_object_property_entity_p-subscribe
-	    doc_chunk_object_property_entity_p-subscribe-->doc_chunk_object_property_entity_p-processor
-	    doc_chunk_object_property_entity_p-processor-->doc_chunk_object_property_entity_p-publish
-	    doc_chunk_object_property_entity_p-publish-->|Replace|doc_chunk_object_property_entity_s-subject
+	    apply_template_object_property_entity_p-publish-->|Extend|Documents-subject
 	end
 	extract_owl_r-rt-->apply_embedding_template_object_property_t
 	concat_cols_object_property_entity_p-processor@{shape: rect, label: Select}
 	concat_cols_object_property_entity_p-publish@{shape: fork}
 	concat_cols_object_property_entity_p-subscribe@{shape: diamond, label: All}
 	concat_cols_object_property_entity_s-subject@{shape: doc, label: concat_cols_object_property_entity_s}
+	select_cols_object_property_entity_p-processor@{shape: rect, label: Select}
+	select_cols_object_property_entity_p-publish@{shape: fork}
+	select_cols_object_property_entity_p-subscribe@{shape: diamond, label: All}
+	select_cols_object_property_entity_s-subject@{shape: doc, label: select_cols_object_property_entity_s}
 	list_rows_object_property_entity_p-processor@{shape: rect, label: GroupBy}
 	list_rows_object_property_entity_p-publish@{shape: fork}
 	list_rows_object_property_entity_p-subscribe@{shape: diamond, label: All}
@@ -679,59 +683,7 @@ impl<'a> OntologyRAGSession<'a> {
 	apply_template_object_property_entity_p-processor@{shape: rect, label: Select}
 	apply_template_object_property_entity_p-publish@{shape: fork}
 	apply_template_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	apply_template_object_property_entity_s-subject@{shape: doc, label: apply_template_object_property_entity_s}
-	doc_chunk_object_property_entity_p-processor@{shape: rect, label: ChunkDocuments}
-	doc_chunk_object_property_entity_p-publish@{shape: fork}
-	doc_chunk_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	doc_chunk_object_property_entity_s-subject@{shape: doc, label: doc_chunk_object_property_entity_s}
-	%% ------------------------------------------------------------------------------
-	%% Embed Owl:Class
-	%% ------------------------------------------------------------------------------
-	subgraph embed_class_t
-	    doc_chunk_class_entity_s-subject-.->|FullTable|coalesce_docs_class_entity_p-subscribe
-	    coalesce_docs_class_entity_p-subscribe-->coalesce_docs_class_entity_p-processor
-	    coalesce_docs_class_entity_p-processor-->coalesce_docs_class_entity_p-publish
-	    coalesce_docs_class_entity_p-publish-->|Extend|coalesce_docs_class_entity_s-subject
-	    coalesce_docs_class_entity_s-subject-->|FullTable|embed_docs_class_entity_p-subscribe
-	    embed_docs_class_entity_p-subscribe-->embed_docs_class_entity_p-processor
-	    embed_docs_class_entity_p-processor-->embed_docs_class_entity_p-publish
-	    embed_docs_class_entity_p-publish-->|Extend|embed_docs_class_entity_s-subject
-	end
-	embed_class_r-rt@{shape: subproc, label: embed_class_r}
-	embed_class_r-rt-->embed_class_t
-	coalesce_docs_class_entity_p-processor@{shape: rect, label: CoalesceProcessor}
-	coalesce_docs_class_entity_p-publish@{shape: fork}
-	coalesce_docs_class_entity_p-subscribe@{shape: diamond, label: All}
-	coalesce_docs_class_entity_s-subject@{shape: doc, label: coalesce_docs_class_entity_s}
-	embed_docs_class_entity_p-processor@{shape: rect, label: CandleEmbedProcessor}
-	embed_docs_class_entity_p-publish@{shape: fork}
-	embed_docs_class_entity_p-subscribe@{shape: diamond, label: All}
-	embed_docs_class_entity_s-subject@{shape: doc, label: embed_docs_class_entity_s}
-	%% ------------------------------------------------------------------------------
-	%% Embed Owl:ObjectProperty
-	%% ------------------------------------------------------------------------------
-	subgraph embed_object_property_t
-	    doc_chunk_object_property_entity_s-subject-.->|FullTable|coalesce_docs_object_property_entity_p-subscribe
-	    coalesce_docs_object_property_entity_p-subscribe-->coalesce_docs_object_property_entity_p-processor
-	    coalesce_docs_object_property_entity_p-processor-->coalesce_docs_object_property_entity_p-publish
-	    coalesce_docs_object_property_entity_p-publish-->|Extend|coalesce_docs_object_property_entity_s-subject
-	    coalesce_docs_object_property_entity_s-subject-->|FullTable|embed_docs_object_property_entity_p-subscribe
-	    embed_docs_object_property_entity_p-subscribe-->embed_docs_object_property_entity_p-processor
-	    embed_docs_object_property_entity_p-processor-->embed_docs_object_property_entity_p-publish
-	    embed_docs_object_property_entity_p-publish-->|Extend|embed_docs_object_property_entity_s-subject
-	end
-	embed_object_property_r-rt@{shape: subproc, label: embed_object_property_r}
-	embed_object_property_r-rt-->embed_object_property_t
-	coalesce_docs_object_property_entity_p-processor@{shape: rect, label: CoalesceProcessor}
-	coalesce_docs_object_property_entity_p-publish@{shape: fork}
-	coalesce_docs_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	coalesce_docs_object_property_entity_s-subject@{shape: doc, label: coalesce_docs_object_property_entity_s}
-	embed_docs_object_property_entity_p-processor@{shape: rect, label: CandleEmbedProcessor}
-	embed_docs_object_property_entity_p-publish@{shape: fork}
-	embed_docs_object_property_entity_p-subscribe@{shape: diamond, label: All}
-	embed_docs_object_property_entity_s-subject@{shape: doc, label: embed_docs_object_property_entity_s}
-	%% ------------------------------------------------------------------------------
-	"#
+	%% ------------------------------------------------------------------------------"#
 	}
     pub fn as_mermaid_erdiagram(&self) -> &str {
         r#"erDiagram
@@ -759,6 +711,7 @@ impl<'a> OntologyRAGSession<'a> {
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     comparator_ontology_entity_p["comparator_ontology_entity_p"] {
+	    List-Utf8 as_columns "['','','','','','','cmp']"
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#Ontology']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
@@ -794,6 +747,7 @@ impl<'a> OntologyRAGSession<'a> {
         Utf8 dataset
     }
     comparator_annotation_property_entity_p["comparator_annotation_property_entity_p"] {
+	    List-Utf8 as_columns "['','','','','','','cmp']"
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#AnnotationProperty']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
@@ -829,6 +783,7 @@ impl<'a> OntologyRAGSession<'a> {
         Utf8 dataset
     }
     comparator_datatype_property_entity_p["comparator_datatype_property_entity_p"] {
+	    List-Utf8 as_columns "['','','','','','','cmp']"
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#DatatypeProperty']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
@@ -864,6 +819,7 @@ impl<'a> OntologyRAGSession<'a> {
         Utf8 dataset
     }
     comparator_class_entity_p["comparator_class_entity_p"] {
+	    List-Utf8 as_columns "['','','','','','','cmp']"
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#Class']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
@@ -899,6 +855,7 @@ impl<'a> OntologyRAGSession<'a> {
         Utf8 dataset
     }
     comparator_object_property_entity_p["comparator_object_property_entity_p"] {
+	    List-Utf8 as_columns "['','','','','','','cmp']"
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#ObjectProperty']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
@@ -934,6 +891,7 @@ impl<'a> OntologyRAGSession<'a> {
         Utf8 dataset
     }
     comparator_named_individual_entity_p["comparator_named_individual_entity_p"] {
+	    List-Utf8 as_columns "['','','','','','','cmp']"
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#NamedIndividual']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
@@ -969,6 +927,7 @@ impl<'a> OntologyRAGSession<'a> {
         Utf8 dataset
     }
     comparator_axiom_entity_p["comparator_axiom_entity_p"] {
+	    List-Utf8 as_columns "['','','','','','','cmp']"
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2002/07/owl#Axiom']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value']"
@@ -1008,6 +967,7 @@ impl<'a> OntologyRAGSession<'a> {
         Utf8 summary_format "None"
     }
     comparator_predicate_annotation_property_entity_p["comparator_predicate_annotation_property_entity_p"] {
+	    List-Utf8 as_columns "['','','','','','','rdfs_label','obo_IAO_0000115']"
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2000/01/rdf-schema#label','http://purl.obolibrary.org/obo/IAO_0000115']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value','Value']"
@@ -1022,21 +982,21 @@ impl<'a> OntologyRAGSession<'a> {
         List-Utf8 cmp_operators "['Like','Like']"
         Utf8 cmp_predicate "Any"
         Boolean cpu "false"
-        Utf8 lhs_name "comparator_axiom_entity_s"
+        Utf8 lhs_name "comparator_predicate_annotation_property_entity_s"
         List-Utf8 lhs_values "['predicate','predicate']"
         Utf8 operator "Filter"
         Utf8 stream "StreamLHSStreamRHS"
     }
     select_predicate_annotation_property_entity_p["select_predicate_annotation_property_entity_p"] {
         Boolean cpu "false"
-        Utf8 lhs_name "filter_axiom_entity_s"
+        Utf8 lhs_name "filter_predicate_annotation_property_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
         Utf8 stream "StreamLHSStreamRHS"
     }
 	pivot_annotation_property_entity_p["pivot_annotation_property_entity_p"] {
 	    List-Utf8 agg_columns "['object']"
-	    List-Utf8 agg_operators "['List']"
+	    List-Utf8 agg_operators "['First']"
 	    Boolean cpu "false"
 	    List-Utf8 default_values "['']"
 	    Utf8 lhs_name "select_predicate_annotation_property_entity_s"
@@ -1047,16 +1007,16 @@ impl<'a> OntologyRAGSession<'a> {
 	}
 	pivot_annotation_property_entity_s["pivot_annotation_property_entity_s"] {
 	    Utf8 subject
-	    List-Utf8 rdfs_label-List
-	    List-Utf8 obo_IAO_0000115-List
+	    Utf8 rdfs_label-First
+	    Utf8 obo_IAO_0000115-First
 	}
     coalesce_annotation_property_pivot_p["coalesce_annotation_property_pivot_p"] {
         Int64 fetch "512"
         Utf8 summary_format "None"
     }
 	group_by_annotation_property_pivot_p["group_by_annotation_property_pivot_p"] {
-	    List-Utf8 agg_columns "['rdfs_label-List','obo_IAO_0000115-List']"
-	    List-Utf8 agg_operators "['List','List']"
+	    List-Utf8 agg_columns "['rdfs_label-First','obo_IAO_0000115-First']"
+	    List-Utf8 agg_operators "['First','First']"
 	    Boolean cpu "false"
 	    Utf8 lhs_name "coalesce_annotation_property_pivot_s"
 	    List-Utf8 lhs_values "['subject']"
@@ -1065,23 +1025,24 @@ impl<'a> OntologyRAGSession<'a> {
 	}
 	group_by_annotation_property_pivot_s["group_by_annotation_property_pivot_s"] {
 	    Utf8 subject
-	    List-Utf8 rdfs_label-List-List
-	    List-Utf8 obo_IAO_0000115-List-List
+	    Utf8 rdfs_label-First-First
+	    Utf8 obo_IAO_0000115-First-First
 	}
     select_annotation_property_pivot_p["select_annotation_property_pivot_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "group_by_annotation_property_pivot_s"
         List-Utf8 as_columns "['uri','rdfs_label','obo_IAO_0000115']"
-        List-Utf8 lhs_values "['subject','rdfs_label-List-List','obo_IAO_0000115-List-List']"
+        List-Utf8 lhs_values "['subject','rdfs_label-First-First','obo_IAO_0000115-First-First']"
         Utf8 operator "Select"
         Utf8 stream "StreamLHSStreamRHS"
     }
 	select_annotation_property_pivot_s["select_annotation_property_pivot_s"] {
 	    Utf8 uri
-	    List-Utf8 rdfs_label
-	    List-Utf8 obo_IAO_0000115
+	    Utf8 rdfs_label
+	    Utf8 obo_IAO_0000115
 	}
     comparator_predicate_class_entity_p["comparator_predicate_class_entity_p"] {
+	    List-Utf8 as_columns "['','','','','','','rdfs_label','obo_IAO_0000115']"
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
 	    List-Utf8 cast_templates "['','','','','','','http://www.w3.org/2000/01/rdf-schema#label','http://purl.obolibrary.org/obo/IAO_0000115']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','Value','Value']"
@@ -1096,21 +1057,21 @@ impl<'a> OntologyRAGSession<'a> {
         List-Utf8 cmp_operators "['Like','Like']"
         Utf8 cmp_predicate "Any"
         Boolean cpu "false"
-        Utf8 lhs_name "comparator_axiom_entity_s"
+        Utf8 lhs_name "comparator_predicate_class_entity_s"
         List-Utf8 lhs_values "['predicate','predicate']"
         Utf8 operator "Filter"
         Utf8 stream "StreamLHSStreamRHS"
     }
     select_predicate_class_entity_p["select_predicate_class_entity_p"] {
         Boolean cpu "false"
-        Utf8 lhs_name "filter_axiom_entity_s"
+        Utf8 lhs_name "filter_predicate_class_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
         Utf8 stream "StreamLHSStreamRHS"
     }
 	pivot_class_entity_p["pivot_class_entity_p"] {
 	    List-Utf8 agg_columns "['object']"
-	    List-Utf8 agg_operators "['List']"
+	    List-Utf8 agg_operators "['First']"
 	    Boolean cpu "false"
 	    List-Utf8 default_values "['']"
 	    Utf8 lhs_name "select_predicate_class_entity_s"
@@ -1121,16 +1082,16 @@ impl<'a> OntologyRAGSession<'a> {
 	}
 	pivot_class_entity_s["pivot_class_entity_s"] {
 	    Utf8 subject
-	    List-Utf8 rdfs_label-List
-	    List-Utf8 obo_IAO_0000115-List
+	    Utf8 rdfs_label-First
+	    Utf8 obo_IAO_0000115-First
 	}
     coalesce_class_pivot_p["coalesce_class_pivot_p"] {
         Int64 fetch "512"
         Utf8 summary_format "None"
     }
 	group_by_class_pivot_p["group_by_class_pivot_p"] {
-	    List-Utf8 agg_columns "['rdfs_label-List','obo_IAO_0000115-List']"
-	    List-Utf8 agg_operators "['List','List']"
+	    List-Utf8 agg_columns "['rdfs_label-First','obo_IAO_0000115-First']"
+	    List-Utf8 agg_operators "['First','First']"
 	    Boolean cpu "false"
 	    Utf8 lhs_name "coalesce_class_pivot_s"
 	    List-Utf8 lhs_values "['subject']"
@@ -1139,21 +1100,21 @@ impl<'a> OntologyRAGSession<'a> {
 	}
 	group_by_class_pivot_s["group_by_class_pivot_s"] {
 	    Utf8 subject
-	    List-Utf8 rdfs_label-List-List
-	    List-Utf8 obo_IAO_0000115-List-List
+	    Utf8 rdfs_label-First-First
+	    Utf8 obo_IAO_0000115-First-First
 	}
     select_class_pivot_p["select_class_pivot_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "group_by_class_pivot_s"
         List-Utf8 as_columns "['uri','rdfs_label','obo_IAO_0000115']"
-        List-Utf8 lhs_values "['subject','rdfs_label-List-List','obo_IAO_0000115-List-List']"
+        List-Utf8 lhs_values "['subject','rdfs_label-First-First','obo_IAO_0000115-First-First']"
         Utf8 operator "Select"
         Utf8 stream "StreamLHSStreamRHS"
     }
 	select_class_pivot_s["select_class_pivot_s"] {
 	    Utf8 uri
-	    List-Utf8 rdfs_label
-	    List-Utf8 obo_IAO_0000115
+	    Utf8 rdfs_label
+	    Utf8 obo_IAO_0000115
 	}
 	join_predicates_class_entity_p["join_predicates_class_entity_p"] {
 	    Boolean cpu "false"
@@ -1181,10 +1142,11 @@ impl<'a> OntologyRAGSession<'a> {
         Utf8 object
         Utf8 graph
         Utf8 dataset
-	    List-Utf8 predicate_rdfs_label
-	    List-Utf8 predicate_obo_IAO_0000115
+	    Utf8 predicate_rdfs_label
+	    Utf8 predicate_obo_IAO_0000115
 	}
     comparator_resource_class_entity_p["comparator_resource_class_entity_p"] {
+	    List-Utf8 as_columns "['','','','','','','','','resource']"
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
 	    List-Utf8 cast_templates "['','','','','','','','','http://%']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Value']"
@@ -1218,10 +1180,10 @@ impl<'a> OntologyRAGSession<'a> {
         Utf8 object
         Utf8 graph
         Utf8 dataset
-	    List-Utf8 predicate_rdfs_label
-	    List-Utf8 predicate_obo_IAO_0000115
+	    Utf8 predicate_rdfs_label
+	    Utf8 predicate_obo_IAO_0000115
 	}
-	join_on_objects_class_entity_p["join_on_objects_class_entity_p"] {
+	join_objects_class_entity_p["join_objects_class_entity_p"] {
 	    Boolean cpu "false"
 	    Utf8 operator "Join"
 	    Utf8 lhs_name "select_resource_class_entity_s"
@@ -1234,7 +1196,7 @@ impl<'a> OntologyRAGSession<'a> {
 	}
     select_objects_class_entity_p["select_objects_class_entity_p"] {
         Boolean cpu "false"
-        Utf8 lhs_name "join_on_objects_class_entity_s"
+        Utf8 lhs_name "join_objects_class_entity_s"
         List-Utf8 as_columns "['','','','','','','object_rdfs_label','object_obo_IAO_0000115']"
         List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','rdfs_label','obo_IAO_0000115']"
         Utf8 operator "Select"
@@ -1245,16 +1207,17 @@ impl<'a> OntologyRAGSession<'a> {
         Utf8 subject
         Utf8 graph
         Utf8 dataset
-	    List-Utf8 predicate_rdfs_label
-	    List-Utf8 predicate_obo_IAO_0000115
-	    List-Utf8 object_rdfs_label
-	    List-Utf8 object_obo_IAO_0000115
+	    Utf8 predicate_rdfs_label
+	    Utf8 predicate_obo_IAO_0000115
+	    Utf8 object_rdfs_label
+	    Utf8 object_obo_IAO_0000115
 	}
     comparator_literal_class_entity_p["comparator_literal_class_entity_p"] {
+	    List-Utf8 as_columns "['','','','','','','','','resource']"
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
 	    List-Utf8 cast_templates "['','','','','','','','','http://%']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Value']"
-	    List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','object_rdfs_label','object_obo_IAO_0000115','resource']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','resource']"
         Boolean cpu "false"
         Utf8 lhs_name "select_predicates_class_entity_s"
         Utf8 operator "Select"
@@ -1273,7 +1236,9 @@ impl<'a> OntologyRAGSession<'a> {
     select_literal_class_entity_p["select_literal_class_entity_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "filter_literal_class_entity_s"
-        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','object_rdfs_label','object_obo_IAO_0000115']"
+        List-Utf8 as_columns "['','','','','','','object_rdfs_label','']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','None','String']"
+        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','object','object_obo_IAO_0000115']"
         Utf8 operator "Select"
         Utf8 stream "StreamLHSStreamRHS"
     }
@@ -1303,10 +1268,11 @@ impl<'a> OntologyRAGSession<'a> {
         Utf8 object
         Utf8 graph
         Utf8 dataset
-	    List-Utf8 predicate_rdfs_label
-	    List-Utf8 predicate_obo_IAO_0000115
+	    Utf8 predicate_rdfs_label
+	    Utf8 predicate_obo_IAO_0000115
 	}
     comparator_resource_object_property_entity_p["comparator_resource_object_property_entity_p"] {
+	    List-Utf8 as_columns "['','','','','','','','','resource']"
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
 	    List-Utf8 cast_templates "['','','','','','','','','http://%']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Value']"
@@ -1340,23 +1306,23 @@ impl<'a> OntologyRAGSession<'a> {
         Utf8 object
         Utf8 graph
         Utf8 dataset
-	    List-Utf8 predicate_rdfs_label
-	    List-Utf8 predicate_obo_IAO_0000115
+	    Utf8 predicate_rdfs_label
+	    Utf8 predicate_obo_IAO_0000115
 	}
-	join_on_objects_object_property_entity_p["join_on_objects_object_property_entity_p"] {
+	join_objects_object_property_entity_p["join_objects_object_property_entity_p"] {
 	    Boolean cpu "false"
 	    Utf8 operator "Join"
 	    Utf8 lhs_name "select_resource_object_property_entity_s"
 	    Utf8 lhs_fk "object"
 	    Utf8 lhs_pk "object"
-	    Utf8 rhs_name "select_object_property_pivot_s"
+	    Utf8 rhs_name "select_class_pivot_s"
 	    Utf8 rhs_fk "uri"
 	    Utf8 rhs_pk "uri"
 	    Utf8 stream "AccumulateLHSAccumulateRHS"
 	}
     select_objects_object_property_entity_p["select_objects_object_property_entity_p"] {
         Boolean cpu "false"
-        Utf8 lhs_name "join_on_objects_object_property_entity_s"
+        Utf8 lhs_name "join_objects_object_property_entity_s"
         List-Utf8 as_columns "['','','','','','','object_rdfs_label','object_obo_IAO_0000115']"
         List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','rdfs_label','obo_IAO_0000115']"
         Utf8 operator "Select"
@@ -1367,16 +1333,17 @@ impl<'a> OntologyRAGSession<'a> {
         Utf8 subject
         Utf8 graph
         Utf8 dataset
-	    List-Utf8 predicate_rdfs_label
-	    List-Utf8 predicate_obo_IAO_0000115
-	    List-Utf8 object_rdfs_label
-	    List-Utf8 object_obo_IAO_0000115
+	    Utf8 predicate_rdfs_label
+	    Utf8 predicate_obo_IAO_0000115
+	    Utf8 object_rdfs_label
+	    Utf8 object_obo_IAO_0000115
 	}
     comparator_literal_object_property_entity_p["comparator_literal_object_property_entity_p"] {
+	    List-Utf8 as_columns "['','','','','','','','','resource']"
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
 	    List-Utf8 cast_templates "['','','','','','','','','http://%']"
 	    List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Value']"
-	    List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','object_rdfs_label','object_obo_IAO_0000115','resource']"
+	    List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','resource']"
         Boolean cpu "false"
         Utf8 lhs_name "select_predicates_object_property_entity_s"
         Utf8 operator "Select"
@@ -1395,23 +1362,97 @@ impl<'a> OntologyRAGSession<'a> {
     select_literal_object_property_entity_p["select_literal_object_property_entity_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "filter_literal_object_property_entity_s"
-        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','object_rdfs_label','object_obo_IAO_0000115']"
+        List-Utf8 as_columns "['','','','','','','object_rdfs_label','']"
+	    List-Utf8 column_operators "['None','None','None','None','None','None','None','String']"
+        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','object','object_obo_IAO_0000115']"
         Utf8 operator "Select"
         Utf8 stream "StreamLHSStreamRHS"
     }
     concat_cols_class_entity_p["concat_cols_class_entity_p"] {
-        List-Utf8 as_columns "['as_columns']"
-        List-Utf8 cast_datatypes "['Utf8']"
-        List-Utf8 cast_operators "['None']"
-        List-Utf8 cast_templates "['','','','','','','{%- for item in predicate_rdfs_label %}# {{ item }}{% if not loop.last %},{% endif %}{%- endfor %}']"
-        List-Utf8 column_operators "['None']"
-        List-Utf8 rhs_values "['rhs_values']"
-        List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','object_rdfs_label','object_obo_IAO_0000115']"
+        List-Utf8 as_columns "['','','','','predicate_rdfs_label-Cast','object_obo_IAO_0000115-Cast','object-Concat','text']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+        List-Utf8 cast_templates "['','','','','**{{ predicate_rdfs_label }}** ','{% if object_obo_IAO_0000115 %} with definition {{ object_obo_IAO_0000115 }}{% endif %}','','']"
+        List-Utf8 cast_operators "['None','None','None','None','Cast','Cast','None','None']"
+        List-Utf8 column_operators "['None','None','None','None','None','None','Concat','Concat']"
+        List-Utf8 rhs_values "['','','','','','','object_obo_IAO_0000115-Cast','object-Concat']"
+        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','object_obo_IAO_0000115','object_rdfs_label','predicate_rdfs_label']"
         Boolean cpu "false"
         Utf8 lhs_name "select_objects_class_entity_s"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }"#
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+    select_cols_class_entity_p["select_cols_class_entity_p"] {
+        List-Utf8 lhs_values "['entity','subject','graph','dataset','text']"
+        Boolean cpu "false"
+        Utf8 lhs_name "concat_cols_class_entity_s"
+        Utf8 operator "Select"
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+    list_rows_class_entity_p["list_rows_class_entity_p"] {
+	    List-Utf8 agg_columns "['text']"
+	    List-Utf8 agg_operators "['List']"
+	    List-Utf8 lhs_values "['subject','dataset']"
+        Boolean cpu "false"
+        Utf8 lhs_name "select_cols_class_entity_s"
+        Utf8 operator "GroupBy"
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+    apply_template_class_entity_p["apply_template_class_entity_p"] {
+        List-Utf8 as_columns "['chunk_id','document_id','text']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8']"
+        List-Utf8 cast_templates "['','','{%- for item in text-List -%}{{ item }}{% if not loop.last %}\n{% endif %}{%- endfor %}']"
+        List-Utf8 cast_operators "['None','None','Cast']"
+        List-Utf8 lhs_values "['subject','dataset','text-List']"
+        Boolean cpu "false"
+        Utf8 lhs_name "list_rows_class_entity_s"
+        Utf8 operator "Select"
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+    concat_cols_object_property_entity_p["concat_cols_object_property_entity_p"] {
+        List-Utf8 as_columns "['','','','','predicate_rdfs_label-Cast','object_obo_IAO_0000115-Cast','object-Concat','text']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
+        List-Utf8 cast_templates "['','','','','**{{ predicate_rdfs_label }}** ','{% if object_obo_IAO_0000115 %} with definition {{ object_obo_IAO_0000115 }}{% endif %}','','']"
+        List-Utf8 cast_operators "['None','None','None','None','Cast','Cast','None','None']"
+        List-Utf8 column_operators "['None','None','None','None','None','None','Concat','Concat']"
+        List-Utf8 rhs_values "['','','','','','','object_obo_IAO_0000115-Cast','object-Concat']"
+        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','object_obo_IAO_0000115','object_rdfs_label','predicate_rdfs_label']"
+        Boolean cpu "false"
+        Utf8 lhs_name "select_objects_object_property_entity_s"
+        Utf8 operator "Select"
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+    select_cols_object_property_entity_p["select_cols_object_property_entity_p"] {
+        List-Utf8 lhs_values "['entity','subject','graph','dataset','text']"
+        Boolean cpu "false"
+        Utf8 lhs_name "concat_cols_object_property_entity_s"
+        Utf8 operator "Select"
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+    list_rows_object_property_entity_p["list_rows_object_property_entity_p"] {
+	    List-Utf8 agg_columns "['text']"
+	    List-Utf8 agg_operators "['List']"
+	    List-Utf8 lhs_values "['subject','dataset']"
+        Boolean cpu "false"
+        Utf8 lhs_name "select_cols_object_property_entity_s"
+        Utf8 operator "GroupBy"
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+    apply_template_object_property_entity_p["apply_template_object_property_entity_p"] {
+        List-Utf8 as_columns "['chunk_id','document_id','text']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8']"
+        List-Utf8 cast_templates "['','','{%- for item in text-List -%}{{ item }}{% if not loop.last %}\n{% endif %}{%- endfor %}']"
+        List-Utf8 cast_operators "['None','None','Cast']"
+        List-Utf8 lhs_values "['subject','dataset','text-List']"
+        Boolean cpu "false"
+        Utf8 lhs_name "list_rows_object_property_entity_s"
+        Utf8 operator "Select"
+        Utf8 stream "StreamLHSStreamRHS"
+    }
+	Documents["Documents"] {
+        Utf8 chunk_id
+        Utf8 document_id
+        Utf8 text
+	}"#
 	}
 }
 
@@ -1428,13 +1469,13 @@ mod tests {
     use phymes_diagnostics::{HashMap, create_timestamp_micros};
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, create_message_map
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, create_message_map
     };
 
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_ontology_rag_session() -> Result<()> {
+    async fn test_index_ontology_session() -> Result<()> {
         // Initialize the session
         let onto_rag_session = OntologyRAGSession::default();
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
@@ -1446,6 +1487,7 @@ mod tests {
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
+		.add_next_supersteps()?
         .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
@@ -1467,13 +1509,30 @@ mod tests {
         <terms:title xml:lang="en">OBO Relations Ontology</terms:title>
     </owl:Ontology>
 
-    <owl:AnnotationProperty rdf:about="http://purl.org/dc/terms/description"/>
+    <owl:AnnotationProperty rdf:about="http://purl.org/dc/terms/description">
+        <terms:description>An account of the resource.</terms:description>
+        <rdfs:label xml:lang="en">Description</rdfs:label>
+    </owl:AnnotationProperty>
 	
-    <owl:AnnotationProperty rdf:about="http://purl.org/dc/terms/title"/>
+    <owl:AnnotationProperty rdf:about="http://purl.org/dc/terms/title">
+        <terms:description>A name given to the resource.</terms:description>
+        <rdfs:label xml:lang="en">Title</rdfs:label>
+    </owl:AnnotationProperty>
 	
-    <owl:AnnotationProperty rdf:about="http://www.w3.org/2000/01/rdf-schema#label"/>
+    <owl:AnnotationProperty rdf:about="http://www.w3.org/2000/01/rdf-schema#label">
+        <rdfs:comment>A human-readable name for the subject.</rdfs:comment>
+        <rdfs:label>label</rdfs:label>
+    </owl:AnnotationProperty>
 
-    <owl:AnnotationProperty rdf:about="http://www.w3.org/2000/01/rdf-schema#subPropertyOf"/>
+    <owl:AnnotationProperty rdf:about="http://www.w3.org/2000/01/rdf-schema#subPropertyOf">
+        <rdfs:comment>The subject is a subclass of a class.</rdfs:comment>
+        <rdfs:label>subPropertyOf</rdfs:label>
+    </owl:AnnotationProperty>
+
+    <owl:AnnotationProperty rdf:about="http://www.w3.org/2000/01/rdf-schema#comment">
+        <rdfs:comment>A description of the subject resource.</rdfs:comment>
+        <rdfs:label>comment</rdfs:label>
+    </owl:AnnotationProperty>
 
     <owl:AnnotationProperty rdf:about="http://purl.obolibrary.org/obo/IAO_0000115">
         <obo:IAO_0000115 xml:lang="en">The official definition, explaining the meaning of a class or property. Shall be Aristotelian, formalized and normalized. Can be augmented with colloquial definitions.</obo:IAO_0000115>
@@ -1536,33 +1595,19 @@ mod tests {
             .build()?;
         let message_map = create_message_map(vec![owl_message]);
 
-        // Run the session
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        // Run the first superstep
+        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map).await?.unwrap();
 
-        // {
-        //     // Debug any errors
-        //     let subjects_reading = session_ctx_arc.read();
-        //     let table_reading = subjects_reading
-        //         .get_states()
-        //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
-        //         .unwrap()
-        //         .read();
-        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        //     let subjects_reading = session_ctx_arc.read();
-        //     let table_reading = subjects_reading
-        //         .get_states()
-        //         .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
-        //         .unwrap()
-        //         .read();
-        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        //     let table_reading = subjects_reading
-        //         .get_states()
-        //         .get(AvailableSubjects::SessionSuperstepMax.to_string().as_str())
-        //         .unwrap()
-        //         .read();
-        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        // }
+        {
+            // Debug any errors
+            let subjects_reading = session_ctx_arc.read();
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        }
 
         assert_eq!(response.len(), 0);
 
@@ -1571,13 +1616,283 @@ mod tests {
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
                 .get_states()
-                .get(AvailableSubjects::SessionSuperstepMax.to_string().as_str())
+                .get(AvailableSubjects::ParseOwl.to_string().as_str())
                 .unwrap()
                 .read();
-            let column = table_reading.get_column_as_vec_str("session_name");
-            assert_eq!(column, ["session_1"]);
-            let column = table_reading.get_column_as_vec_primitive::<u32>("superstep-Max")?;
-            assert_eq!(column, [3]);
+            // println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            // let column = table_reading.get_column_as_vec_str("entity");
+            // assert_eq!(column, ["AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "AnnotationProperty", "Class", "Class", "Class", "Class", "Class", "NamedIndividual", "ObjectProperty", "ObjectProperty", "ObjectProperty", "ObjectProperty", "ObjectProperty", "Ontology", "Ontology"]);
+            // let column = table_reading.get_column_as_vec_str("subject");
+            // assert_eq!(column, ["http://purl.obolibrary.org/obo/IAO_0000115", "http://purl.obolibrary.org/obo/IAO_0000115", "http://purl.obolibrary.org/obo/IAO_0000115", "http://purl.org/dc/terms/description", "http://purl.org/dc/terms/description", "http://purl.org/dc/terms/title", "http://purl.org/dc/terms/title", "http://www.geneontology.org/formats/oboInOwl#hasExactSynonym", "http://www.geneontology.org/formats/oboInOwl#hasExactSynonym", "http://www.geneontology.org/formats/oboInOwl#hasExactSynonym", "http://www.geneontology.org/formats/oboInOwl#hasExactSynonym", "http://www.w3.org/2000/01/rdf-schema#comment", "http://www.w3.org/2000/01/rdf-schema#comment", "http://www.w3.org/2000/01/rdf-schema#label", "http://www.w3.org/2000/01/rdf-schema#label", "http://www.w3.org/2000/01/rdf-schema#subPropertyOf", "http://www.w3.org/2000/01/rdf-schema#subPropertyOf", "http://purl.obolibrary.org/obo/BFO_0000003", "http://purl.obolibrary.org/obo/BFO_0000003", "http://purl.obolibrary.org/obo/BFO_0000003", "http://purl.obolibrary.org/obo/BFO_0000003", "http://purl.obolibrary.org/obo/BFO_0000003", "http://purl.obolibrary.org/obo/ENVO_01001569", "http://purl.obolibrary.org/obo/BFO_0000050", "http://purl.obolibrary.org/obo/BFO_0000050", "http://purl.obolibrary.org/obo/BFO_0000050", "http://purl.obolibrary.org/obo/RO_0002131", "http://purl.obolibrary.org/obo/RO_0002131", "http://purl.obolibrary.org/obo/ro.owl", "http://purl.obolibrary.org/obo/ro.owl"]);
+            // let column = table_reading.get_column_as_vec_str("predicate");
+            // assert_eq!(column, [""]);
+            // let column = table_reading.get_column_as_vec_str("object");
+            // assert_eq!(column, [""]);
+            // let column = table_reading.get_column_as_vec_str("graph");
+            // assert_eq!(column, [""]);
+            // let column = table_reading.get_column_as_vec_str("dataset");
+            // assert_eq!(column, [""]);
+        }
+
+        // Run the second superstep
+        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), HashMap::<String, IPCMessage>::new()).await?.unwrap();
+
+        {
+            // Debug any errors
+            let subjects_reading = session_ctx_arc.read();
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        }
+
+        assert_eq!(response.len(), 0);
+
+        {
+            // Test supsersteps
+            let session_reading = session_ctx_arc.read();
+            let table_reading = session_reading
+                .get_states()
+                .get("select_ontology_entity_s")
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let column = table_reading.get_column_as_vec_str("entity");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("subject");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("predicate");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("object");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("graph");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("dataset");
+            assert_eq!(column, [""]);
+            let table_reading = session_reading
+                .get_states()
+                .get("select_annotation_property_entity_s")
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let column = table_reading.get_column_as_vec_str("entity");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("subject");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("predicate");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("object");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("graph");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("dataset");
+            assert_eq!(column, [""]);
+            let table_reading = session_reading
+                .get_states()
+                .get("select_datatype_property_entity_s")
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let column = table_reading.get_column_as_vec_str("entity");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("subject");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("predicate");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("object");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("graph");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("dataset");
+            assert_eq!(column, [""]);
+            let table_reading = session_reading
+                .get_states()
+                .get("select_class_entity_s")
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let column = table_reading.get_column_as_vec_str("entity");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("subject");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("predicate");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("object");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("graph");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("dataset");
+            assert_eq!(column, [""]);
+            let table_reading = session_reading
+                .get_states()
+                .get("select_object_property_entity_s")
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let column = table_reading.get_column_as_vec_str("entity");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("subject");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("predicate");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("object");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("graph");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("dataset");
+            assert_eq!(column, [""]);
+            let table_reading = session_reading
+                .get_states()
+                .get("select_named_individual_entity_s")
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let column = table_reading.get_column_as_vec_str("entity");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("subject");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("predicate");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("object");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("graph");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("dataset");
+            assert_eq!(column, [""]);
+            let table_reading = session_reading
+                .get_states()
+                .get("select_axiom_entity_s")
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let column = table_reading.get_column_as_vec_str("entity");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("subject");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("predicate");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("object");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("graph");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("dataset");
+            assert_eq!(column, [""]);
+        }
+
+        // Run the third superstep
+        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), HashMap::<String, IPCMessage>::new()).await?.unwrap();
+
+        {
+            // Debug any errors
+            let subjects_reading = session_ctx_arc.read();
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        }
+
+        assert_eq!(response.len(), 0);
+
+        {
+            // Test supsersteps
+            let session_reading = session_ctx_arc.read();
+            let table_reading = session_reading
+                .get_states()
+                .get("pivot_annotation_property_entity_s")
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let column = table_reading.get_column_as_vec_str("entity");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("subject");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("predicate");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("object");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("graph");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("dataset");
+            assert_eq!(column, [""]);
+            let table_reading = session_reading
+                .get_states()
+                .get("pivot_class_entity_s")
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let column = table_reading.get_column_as_vec_str("entity");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("subject");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("predicate");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("object");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("graph");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("dataset");
+            assert_eq!(column, [""]);
+        }
+
+        // Run the fourth superstep
+        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), HashMap::<String, IPCMessage>::new()).await?.unwrap();
+
+        {
+            // Debug any errors
+            let subjects_reading = session_ctx_arc.read();
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        }
+
+        assert_eq!(response.len(), 0);
+
+        {
+            // Test supsersteps
+            let session_reading = session_ctx_arc.read();
+            let table_reading = session_reading
+                .get_states()
+                .get("select_annotation_property_pivot_s")
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let column = table_reading.get_column_as_vec_str("entity");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("subject");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("predicate");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("object");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("graph");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("dataset");
+            assert_eq!(column, [""]);
+            let table_reading = session_reading
+                .get_states()
+                .get("select_class_pivot_s")
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let column = table_reading.get_column_as_vec_str("entity");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("subject");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("predicate");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("object");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("graph");
+            assert_eq!(column, [""]);
+            let column = table_reading.get_column_as_vec_str("dataset");
+            assert_eq!(column, [""]);
         }
         Ok(())
     }
