@@ -478,6 +478,11 @@ impl<'a> OntologyRAGSession<'a> {
 	%% Filter Owl:Class for rdf:literal objects (NEW)
 	%% ------------------------------------------------------------------------------
 	subgraph filter_literals_class_entity_t
+	    select_resource_class_entity_s-subject-.->|Empty|pause_filter_literals_class_entity_p-subscribe
+	    select_resource_object_property_entity_s-subject-.->|Empty|pause_filter_literals_class_entity_p-subscribe
+	    pause_filter_literals_class_entity_p-subscribe-->pause_filter_literals_class_entity_p-processor
+	    pause_filter_literals_class_entity_p-processor-->pause_filter_literals_class_entity_p-publish
+	    pause_filter_literals_class_entity_p-publish-->|None|pause_filter_literals_class_entity_s-subject
 	    select_predicates_class_entity_s-subject-.->|FullTable|comparator_literal_class_entity_p-subscribe
 	    comparator_literal_class_entity_p-subscribe-->comparator_literal_class_entity_p-processor
 	    comparator_literal_class_entity_p-processor-->comparator_literal_class_entity_p-publish
@@ -492,6 +497,10 @@ impl<'a> OntologyRAGSession<'a> {
 	    select_literal_class_entity_p-publish-->|Extend|select_objects_class_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_literals_class_entity_t
+	pause_filter_literals_class_entity_p-processor@{shape: rect, label: ProcessorEcho}
+	pause_filter_literals_class_entity_p-publish@{shape: fork}
+	pause_filter_literals_class_entity_p-subscribe@{shape: diamond, label: Any}
+	pause_filter_literals_class_entity_s-subject@{shape: doc, label: pause_filter_literals_class_entity_s}
 	comparator_literal_class_entity_p-processor@{shape: rect, label: Select}
 	comparator_literal_class_entity_p-publish@{shape: fork}
 	comparator_literal_class_entity_p-subscribe@{shape: diamond, label: All}
@@ -583,6 +592,11 @@ impl<'a> OntologyRAGSession<'a> {
 	%% Merge Owl:OjectProperty rdf:literal and rdf:resource tables (NEW)
 	%% ------------------------------------------------------------------------------
 	subgraph filter_literals_object_property_entity_t
+	    select_resource_class_entity_s-subject-.->|Empty|pause_filter_literals_object_property_entity_p-subscribe
+	    select_resource_object_property_entity_s-subject-.->|Empty|pause_filter_literals_object_property_entity_p-subscribe
+	    pause_filter_literals_object_property_entity_p-subscribe-->pause_filter_literals_object_property_entity_p-processor
+	    pause_filter_literals_object_property_entity_p-processor-->pause_filter_literals_object_property_entity_p-publish
+	    pause_filter_literals_object_property_entity_p-publish-->|None|pause_filter_literals_object_property_entity_s-subject
 	    select_predicates_object_property_entity_s-subject-.->|FullTable|comparator_literal_object_property_entity_p-subscribe
 	    comparator_literal_object_property_entity_p-subscribe-->comparator_literal_object_property_entity_p-processor
 	    comparator_literal_object_property_entity_p-processor-->comparator_literal_object_property_entity_p-publish
@@ -597,6 +611,10 @@ impl<'a> OntologyRAGSession<'a> {
 	    select_literal_object_property_entity_p-publish-->|Extend|select_objects_object_property_entity_s-subject
 	end
 	extract_owl_r-rt-->filter_literals_object_property_entity_t
+	pause_filter_literals_object_property_entity_p-processor@{shape: rect, label: ProcessorEcho}
+	pause_filter_literals_object_property_entity_p-publish@{shape: fork}
+	pause_filter_literals_object_property_entity_p-subscribe@{shape: diamond, label: Any}
+	pause_filter_literals_object_property_entity_s-subject@{shape: doc, label: pause_filter_literals_object_property_entity_s}
 	comparator_literal_object_property_entity_p-processor@{shape: rect, label: Select}
 	comparator_literal_object_property_entity_p-publish@{shape: fork}
 	comparator_literal_object_property_entity_p-subscribe@{shape: diamond, label: All}
@@ -1386,12 +1404,10 @@ impl<'a> OntologyRAGSession<'a> {
     }
     concat_cols_class_entity_p["concat_cols_class_entity_p"] {
         List-Utf8 as_columns "['','','','','predicate_rdfs_label-Cast','object_obo_IAO_0000115-Cast','object-Concat','text']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
         List-Utf8 cast_templates "['','','','','**{{ predicate_rdfs_label }}** ','{% if object_obo_IAO_0000115 %} with definition {{ object_obo_IAO_0000115 }}{% endif %}','','']"
-        List-Utf8 cast_operators "['None','None','None','None','Cast','Cast','None','None']"
         List-Utf8 column_operators "['None','None','None','None','None','None','Concat','Concat']"
         List-Utf8 rhs_values "['','','','','','','object_obo_IAO_0000115-Cast','object-Concat']"
-        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','object_obo_IAO_0000115','object_rdfs_label','predicate_rdfs_label']"
+        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','object_obo_IAO_0000115','object_rdfs_label','predicate_rdfs_label-Cast']"
         Boolean cpu "false"
         Utf8 lhs_name "select_objects_class_entity_s"
         Utf8 operator "Select"
@@ -1414,7 +1430,7 @@ impl<'a> OntologyRAGSession<'a> {
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     select_rows_class_entity_p["select_rows_class_entity_p"] {
-        List-Utf8 as_columns "['chunk_id','document_id','text_List']"
+        List-Utf8 as_columns "['subject','dataset','text_List']"
         List-Utf8 lhs_values "['subject','dataset','text-List']"
         Boolean cpu "false"
         Utf8 lhs_name "list_rows_class_entity_s"
@@ -1423,9 +1439,7 @@ impl<'a> OntologyRAGSession<'a> {
     }
     apply_template_class_entity_p["apply_template_class_entity_p"] {
         List-Utf8 as_columns "['chunk_id','document_id','text']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8']"
-        List-Utf8 cast_templates "['','','{%- for item in text_List -%}{{ item }}{% if not loop.last %}\n{% endif %}{%- endfor %}']"
-        List-Utf8 cast_operators "['None','None','Cast']"
+        List-Utf8 cast_templates "['','','{% for item in text_List %}{{ item }}{% if not loop.last %}\n{% endif %}{% endfor %}']"
         List-Utf8 lhs_values "['subject','dataset','text_List']"
         Boolean cpu "false"
         Utf8 lhs_name "select_rows_class_entity_s"
@@ -1434,12 +1448,10 @@ impl<'a> OntologyRAGSession<'a> {
     }
     concat_cols_object_property_entity_p["concat_cols_object_property_entity_p"] {
         List-Utf8 as_columns "['','','','','predicate_rdfs_label-Cast','object_obo_IAO_0000115-Cast','object-Concat','text']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8']"
         List-Utf8 cast_templates "['','','','','**{{ predicate_rdfs_label }}** ','{% if object_obo_IAO_0000115 %} with definition {{ object_obo_IAO_0000115 }}{% endif %}','','']"
-        List-Utf8 cast_operators "['None','None','None','None','Cast','Cast','None','None']"
         List-Utf8 column_operators "['None','None','None','None','None','None','Concat','Concat']"
         List-Utf8 rhs_values "['','','','','','','object_obo_IAO_0000115-Cast','object-Concat']"
-        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','object_obo_IAO_0000115','object_rdfs_label','predicate_rdfs_label']"
+        List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','object_obo_IAO_0000115','object_rdfs_label','predicate_rdfs_label-Cast']"
         Boolean cpu "false"
         Utf8 lhs_name "select_objects_object_property_entity_s"
         Utf8 operator "Select"
@@ -1462,7 +1474,7 @@ impl<'a> OntologyRAGSession<'a> {
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     select_rows_object_property_entity_p["select_rows_object_property_entity_p"] {
-        List-Utf8 as_columns "['chunk_id','document_id','text_List']"
+        List-Utf8 as_columns "['subject','dataset','text_List']"
         List-Utf8 lhs_values "['subject','dataset','text-List']"
         Boolean cpu "false"
         Utf8 lhs_name "list_rows_object_property_entity_s"
@@ -1471,9 +1483,7 @@ impl<'a> OntologyRAGSession<'a> {
     }
     apply_template_object_property_entity_p["apply_template_object_property_entity_p"] {
         List-Utf8 as_columns "['chunk_id','document_id','text']"
-	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8']"
-        List-Utf8 cast_templates "['','','{%- for item in text_List -%}{{ item }}{% if not loop.last %}\n{% endif %}{%- endfor %}']"
-        List-Utf8 cast_operators "['None','None','Cast']"
+        List-Utf8 cast_templates "['','','{% for item in text_List %}{{ item }}{% if not loop.last %}\n{% endif %}{% endfor %}']"
         List-Utf8 lhs_values "['subject','dataset','text_List']"
         Boolean cpu "false"
         Utf8 lhs_name "select_rows_object_property_entity_s"
@@ -2049,37 +2059,6 @@ mod tests {
 			assert_eq!(table_reading.count_rows(), 0);
             let table_reading = session_reading
                 .get_states()
-                .get("select_objects_class_entity_s")
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 5);
-            let column = table_reading.get_column_as_vec_str("entity");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            let column = table_reading.get_column_as_vec_str("subject");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            let column = table_reading.get_column_as_vec_str("graph");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            let column = table_reading.get_column_as_vec_str("dataset");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            let column = table_reading.get_column_as_vec_str("predicate_rdfs_label");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            let column = table_reading.get_column_as_vec_str("predicate_obo_IAO_0000115");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            let column = table_reading.get_column_as_vec_str("object_rdfs_label");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            let column = table_reading.get_column_as_vec_str("object_obo_IAO_0000115");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            let table_reading = session_reading
-                .get_states()
                 .get("select_resource_object_property_entity_s")
                 .unwrap()
                 .read();
@@ -2107,37 +2086,6 @@ mod tests {
             // assert_eq!(column.first().unwrap(), "");
             // assert_eq!(column.last().unwrap(), "");
             let column = table_reading.get_column_as_vec_str("predicate_obo_IAO_0000115");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            let table_reading = session_reading
-                .get_states()
-                .get("select_objects_object_property_entity_s")
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 4);
-            let column = table_reading.get_column_as_vec_str("entity");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            let column = table_reading.get_column_as_vec_str("subject");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            let column = table_reading.get_column_as_vec_str("graph");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            let column = table_reading.get_column_as_vec_str("dataset");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            let column = table_reading.get_column_as_vec_str("predicate_rdfs_label");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            let column = table_reading.get_column_as_vec_str("predicate_obo_IAO_0000115");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            let column = table_reading.get_column_as_vec_str("object_rdfs_label");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            let column = table_reading.get_column_as_vec_str("object_obo_IAO_0000115");
             // assert_eq!(column.first().unwrap(), "");
             // assert_eq!(column.last().unwrap(), "");
         }
@@ -2198,7 +2146,7 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 4);
+			assert_eq!(table_reading.count_rows(), 5);
             let column = table_reading.get_column_as_vec_str("entity");
             // assert_eq!(column.first().unwrap(), "");
             // assert_eq!(column.last().unwrap(), "");
@@ -2221,6 +2169,43 @@ mod tests {
             // assert_eq!(column.first().unwrap(), "");
             // assert_eq!(column.last().unwrap(), "");
             let column = table_reading.get_column_as_vec_str("object_obo_IAO_0000115");
+            // assert_eq!(column.first().unwrap(), "");
+            // assert_eq!(column.last().unwrap(), "");
+        }
+
+        // Run the eigth superstep
+        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), HashMap::<String, IPCMessage>::new()).await?.unwrap();
+
+        {
+            // Debug any errors
+            let subjects_reading = session_ctx_arc.read();
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        }
+
+        assert_eq!(response.len(), 0);
+
+        {
+            // Test supsersteps
+            let session_reading = session_ctx_arc.read();
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableSubjects::Documents.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+			assert_eq!(table_reading.count_rows(), 4);
+            let column = table_reading.get_column_as_vec_str("chunk_id");
+            // assert_eq!(column.first().unwrap(), "");
+            // assert_eq!(column.last().unwrap(), "");
+            let column = table_reading.get_column_as_vec_str("document_id");
+            // assert_eq!(column.first().unwrap(), "");
+            // assert_eq!(column.last().unwrap(), "");
+            let column = table_reading.get_column_as_vec_str("text");
             // assert_eq!(column.first().unwrap(), "");
             // assert_eq!(column.last().unwrap(), "");
         }

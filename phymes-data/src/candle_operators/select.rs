@@ -3279,6 +3279,272 @@ pub fn select(
                             .collect::<Vec<_>>();
                         Arc::new(StringArray::from(arr_vec))
                     }
+                    DataType::FixedSizeList(f, _) => match f.data_type() {
+                        DataType::UInt8 => {
+                            let template = TableScript::new_from_template(template.to_string());
+                            let arr_vec = column_cast
+                                .as_any()
+                                .downcast_ref::<FixedSizeListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        let s_vec = Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                            .unwrap_or_default();
+                                        template
+                                            .apply_template(
+                                                &json!({column_name.to_string(): s_vec}),
+                                            )
+                                            .unwrap()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            Arc::new(StringArray::from(arr_vec))
+                        }
+                        DataType::UInt32 => {
+                            let template = TableScript::new_from_template(template.to_string());
+                            let arr_vec = column_cast
+                                .as_any()
+                                .downcast_ref::<FixedSizeListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        let s_vec = Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                            .unwrap_or_default();
+                                        template
+                                            .apply_template(
+                                                &json!({column_name.to_string(): s_vec}),
+                                            )
+                                            .unwrap()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            Arc::new(StringArray::from(arr_vec))
+                        }
+                        DataType::Int64 => {
+                            let template = TableScript::new_from_template(template.to_string());
+                            let arr_vec = column_cast
+                                .as_any()
+                                .downcast_ref::<FixedSizeListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        let s_vec = Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                            .unwrap_or_default();
+                                        template
+                                            .apply_template(
+                                                &json!({column_name.to_string(): s_vec}),
+                                            )
+                                            .unwrap()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            Arc::new(StringArray::from(arr_vec))
+                        }
+                        DataType::Float32 => {
+                            let template = TableScript::new_from_template(template.to_string());
+                            let arr_vec = column_cast
+                                .as_any()
+                                .downcast_ref::<FixedSizeListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        let s_vec = Table::get_array_as_vec_primitive::<f32>(&s, column_name)
+                                            .unwrap_or_default();
+                                        template
+                                            .apply_template(
+                                                &json!({column_name.to_string(): s_vec}),
+                                            )
+                                            .unwrap()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            Arc::new(StringArray::from(arr_vec))
+                        }
+                        DataType::Float64 => {
+                            let template = TableScript::new_from_template(template.to_string());
+                            let arr_vec = column_cast
+                                .as_any()
+                                .downcast_ref::<FixedSizeListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        let s_vec = Table::get_array_as_vec_primitive::<f64>(&s, column_name)
+                                            .unwrap_or_default();
+                                        template
+                                            .apply_template(
+                                                &json!({column_name.to_string(): s_vec}),
+                                            )
+                                            .unwrap()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            Arc::new(StringArray::from(arr_vec))
+                        }
+                        DataType::Utf8 => {
+                            let template = TableScript::new_from_template(template.to_string());
+                            let arr_vec = column_cast
+                                .as_any()
+                                .downcast_ref::<FixedSizeListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        let s_vec = Table::get_array_as_vec_nonprimitive::<String>(&s, column_name)
+                                            .unwrap_or_default();
+                                        template
+                                            .apply_template(
+                                                &json!({column_name.to_string(): s_vec}),
+                                            )
+                                            .unwrap()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            Arc::new(StringArray::from(arr_vec))
+                        }
+                        _ => {
+                            return Err(anyhow!(
+                                "Unsupported data type {column_data_type} for injecting into a String template for column {column_name}.",
+                            ));
+                        }
+                    },
+                    DataType::List(f) => match f.data_type() {
+                        DataType::UInt8 => {
+                            let template = TableScript::new_from_template(template.to_string());
+                            let arr_vec = column_cast
+                                .as_any()
+                                .downcast_ref::<ListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        let s_vec = Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                            .unwrap_or_default();
+                                        template
+                                            .apply_template(
+                                                &json!({column_name.to_string(): s_vec}),
+                                            )
+                                            .unwrap()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            Arc::new(StringArray::from(arr_vec))
+                        }
+                        DataType::UInt32 => {
+                            let template = TableScript::new_from_template(template.to_string());
+                            let arr_vec = column_cast
+                                .as_any()
+                                .downcast_ref::<ListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        let s_vec = Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                            .unwrap_or_default();
+                                        template
+                                            .apply_template(
+                                                &json!({column_name.to_string(): s_vec}),
+                                            )
+                                            .unwrap()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            Arc::new(StringArray::from(arr_vec))
+                        }
+                        DataType::Int64 => {
+                            let template = TableScript::new_from_template(template.to_string());
+                            let arr_vec = column_cast
+                                .as_any()
+                                .downcast_ref::<ListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        let s_vec = Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                            .unwrap_or_default();
+                                        template
+                                            .apply_template(
+                                                &json!({column_name.to_string(): s_vec}),
+                                            )
+                                            .unwrap()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            Arc::new(StringArray::from(arr_vec))
+                        }
+                        DataType::Float32 => {
+                            let template = TableScript::new_from_template(template.to_string());
+                            let arr_vec = column_cast
+                                .as_any()
+                                .downcast_ref::<ListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        let s_vec = Table::get_array_as_vec_primitive::<f32>(&s, column_name)
+                                            .unwrap_or_default();
+                                        template
+                                            .apply_template(
+                                                &json!({column_name.to_string(): s_vec}),
+                                            )
+                                            .unwrap()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            Arc::new(StringArray::from(arr_vec))
+                        }
+                        DataType::Float64 => {
+                            let template = TableScript::new_from_template(template.to_string());
+                            let arr_vec = column_cast
+                                .as_any()
+                                .downcast_ref::<ListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        let s_vec = Table::get_array_as_vec_primitive::<f64>(&s, column_name)
+                                            .unwrap_or_default();
+                                        template
+                                            .apply_template(
+                                                &json!({column_name.to_string(): s_vec}),
+                                            )
+                                            .unwrap()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            Arc::new(StringArray::from(arr_vec))
+                        }
+                        DataType::Utf8 => {
+                            let template = TableScript::new_from_template(template.to_string());
+                            let arr_vec = column_cast
+                                .as_any()
+                                .downcast_ref::<ListArray>()
+                                .unwrap()
+                                .iter()
+                                .filter_map(|s| {
+                                    s.map(|s| {
+                                        let s_vec = Table::get_array_as_vec_nonprimitive::<String>(&s, column_name)
+                                            .unwrap_or_default();
+                                        template
+                                            .apply_template(
+                                                &json!({column_name.to_string(): s_vec}),
+                                            )
+                                            .unwrap()
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            Arc::new(StringArray::from(arr_vec))
+                        }
+                        _ => {
+                            return Err(anyhow!(
+                                "Unsupported data type {column_data_type} for injecting into a String template for column {column_name}.",
+                            ));
+                        }
+                    },
                     _ => {
                         return Err(anyhow!(
                             "Unsupported data type {column_data_type} for injecting into a String template for column {column_name}"

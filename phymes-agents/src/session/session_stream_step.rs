@@ -548,7 +548,6 @@ impl SessionStreamStepTrait for SessionStreamStep {
 
         // Retrieve the task subscriptions and corresponding publications
         let tasks = Self::next_tasks(&session_context).await;
-        dbg!(&tasks);
 
         // Break if there is nothing to update
         if tasks.is_empty() {
