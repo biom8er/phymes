@@ -109,6 +109,7 @@ impl SessionContext {
             )
             .with_record_batches(batches)?
             .build()?;
+        println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
 
         // Extract out the columns
         let session_names = table.get_column_as_vec_str("session_name");
@@ -817,25 +818,28 @@ impl SessionContext {
             if let Some(state) = self.get_states().get(table_name.as_str()) {
                 let publisher = message.get_publisher().to_string();
 
-                // Check for any inconsistencies in the message and intercept any errors
-                let table = TableBuilder::new_from_ipc_stream(&message.get_message_own())?
-                    .with_name(table_name.as_str())
-                    .build()?;
-                let _num_rows = table.count_rows(); // DM: not used currently...
-                let batches = table.get_record_batches_own();
+                // Handleany inconsistencies in the message
+                // DM, todo!(): Mostly an issue with empty batches which should be ignored anyway
+                if let Ok(builder) = TableBuilder::new_from_ipc_stream(&message.get_message_own()) {
+                    let table = builder
+                        .with_name(table_name.as_str())
+                        .build()?;
+                    let _num_rows = table.count_rows(); // DM: not used currently...
+                    let batches = table.get_record_batches_own();
 
-                // Update the state
-                // Check for a mismatch in the schema and intercept any errors
-                let num_rows_old = state.read().count_rows();
-                state.write().publish_to_table(batches, update)?;
-                let num_rows_new = state.read().count_rows();
+                    // Update the state
+                    // Check for a mismatch in the schema and intercept any errors
+                    let num_rows_old = state.read().count_rows();
+                    state.write().publish_to_table(batches, update)?;
+                    let num_rows_new = state.read().count_rows();
 
-                // Record the table name that was updated and the pubisher who updated it
-                subject_names.push(state.read().get_name().to_string());
-                task_names.push(publisher);
-                session_names.push(self.get_name().to_string());
-                num_rows_deltas.push(num_rows_new as i64 - num_rows_old as i64);
-                timestamps.push(step as i64);
+                    // Record the table name that was updated and the pubisher who updated it
+                    subject_names.push(state.read().get_name().to_string());
+                    task_names.push(publisher);
+                    session_names.push(self.get_name().to_string());
+                    num_rows_deltas.push(num_rows_new as i64 - num_rows_old as i64);
+                    timestamps.push(step as i64);
+                }                
             } else {
                 // Mismatch in table names of the update and state
                 return Err(anyhow!(

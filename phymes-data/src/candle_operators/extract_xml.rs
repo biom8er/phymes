@@ -495,7 +495,7 @@ fn xml_to_parsed_owl_record_batch(
                 let (predicates, objects) = parse_owl_children(&relations, children)?;
                 for (predicate, object) in predicates.into_iter().zip(objects) {
                     dataset_vec.push(lhs_name.to_string());
-                    entity_vec.push("Ontology".to_string());
+                    entity_vec.push("http://www.w3.org/2002/07/owl#Ontology".to_string());
                     let graph = format!("{subject}-{predicate}-{object}");
                     graph_vec.push(graph.to_string());
                     subject_vec.push(subject.to_string());
@@ -508,7 +508,7 @@ fn xml_to_parsed_owl_record_batch(
                 let (predicates, objects) = parse_owl_children(&relations, children)?;
                 for (predicate, object) in predicates.into_iter().zip(objects) {
                     dataset_vec.push(lhs_name.to_string());
-                    entity_vec.push("AnnotationProperty".to_string());
+                    entity_vec.push("http://www.w3.org/2002/07/owl#AnnotationProperty".to_string());
                     let graph = format!("{subject}-{predicate}-{object}");
                     graph_vec.push(graph.to_string());
                     subject_vec.push(subject.to_string());
@@ -521,7 +521,7 @@ fn xml_to_parsed_owl_record_batch(
                 let (predicates, objects) = parse_owl_children(&relations, children)?;
                 for (predicate, object) in predicates.into_iter().zip(objects) {
                     dataset_vec.push(lhs_name.to_string());
-                    entity_vec.push("DatatypeProperty".to_string());
+                    entity_vec.push("http://www.w3.org/2002/07/owl#DatatypeProperty".to_string());
                     let graph = format!("{subject}-{predicate}-{object}");
                     graph_vec.push(graph.to_string());
                     subject_vec.push(subject.to_string());
@@ -534,7 +534,7 @@ fn xml_to_parsed_owl_record_batch(
                 let (predicates, objects) = parse_owl_children(&relations, children)?;
                 for (predicate, object) in predicates.into_iter().zip(objects) {
                     dataset_vec.push(lhs_name.to_string());
-                    entity_vec.push("Class".to_string());
+                    entity_vec.push("http://www.w3.org/2002/07/owl#Class".to_string());
                     let graph = format!("{subject}-{predicate}-{object}");
                     graph_vec.push(graph.to_string());
                     subject_vec.push(subject.to_string());
@@ -547,7 +547,7 @@ fn xml_to_parsed_owl_record_batch(
                 let (predicates, objects) = parse_owl_children(&relations, children)?;
                 for (predicate, object) in predicates.into_iter().zip(objects) {
                     dataset_vec.push(lhs_name.to_string());
-                    entity_vec.push("ObjectProperty".to_string());
+                    entity_vec.push("http://www.w3.org/2002/07/owl#ObjectProperty".to_string());
                     let graph = format!("{subject}-{predicate}-{object}");
                     graph_vec.push(graph.to_string());
                     subject_vec.push(subject.to_string());
@@ -560,7 +560,7 @@ fn xml_to_parsed_owl_record_batch(
                 let (predicates, objects) = parse_owl_children(&relations, children)?;
                 for (predicate, object) in predicates.into_iter().zip(objects) {
                     dataset_vec.push(lhs_name.to_string());
-                    entity_vec.push("NamedIndividual".to_string());
+                    entity_vec.push("http://www.w3.org/2002/07/owl#NamedIndividual".to_string());
                     let graph = format!("{subject}-{predicate}-{object}");
                     graph_vec.push(graph.to_string());
                     subject_vec.push(subject.to_string());
