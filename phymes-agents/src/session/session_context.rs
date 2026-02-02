@@ -109,7 +109,6 @@ impl SessionContext {
             )
             .with_record_batches(batches)?
             .build()?;
-        println!("{}", String::from_utf8(table.to_csv(b',', true)?)?);
 
         // Extract out the columns
         let session_names = table.get_column_as_vec_str("session_name");

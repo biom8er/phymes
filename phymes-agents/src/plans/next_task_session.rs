@@ -786,15 +786,15 @@ impl<'a> NextTaskSession<'a> {
         List-Utf8 agg_operators "['List','List','Last','Last','List','List']"
         Boolean cpu "false"
         Utf8 lhs_name "select_tasks_processors_subscriptions_subjects_t"
-        List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type']"
+        List-Utf8 lhs_values "['session_name','task_name','processor_type','processor_name']"
         Utf8 operator "GroupBy"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     SessionTasksSubscribeAggregate["SessionTasksSubscribeAggregate"] {
         Utf8 session_name
         Utf8 task_name
-        Utf8 processor_name
         Utf8 processor_type
+        Utf8 processor_name
         List-Utf8 subscription_name-List
         List-Utf8 subscription_table_name-List
         Utf8 subscribe_type-Last
@@ -815,7 +815,7 @@ impl<'a> NextTaskSession<'a> {
         List-Utf8 agg_operators "['List','List']"
         Boolean cpu "false"
         Utf8 lhs_name "SessionTasksSubscribe"
-        List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type']"
+        List-Utf8 lhs_values "['session_name','task_name','processor_type','processor_name']"
         Utf8 operator "GroupBy"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
@@ -824,7 +824,7 @@ impl<'a> NextTaskSession<'a> {
         List-Utf8 agg_operators "['List','List']"
         Boolean cpu "false"
         Utf8 lhs_name "select_processors_publications_t"
-        List-Utf8 lhs_values "['session_name','processor_name','processor_type']"
+        List-Utf8 lhs_values "['session_name','processor_type','processor_name']"
         Utf8 operator "GroupBy"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
@@ -1174,20 +1174,20 @@ mod tests {
             let column = table_reading.get_column_as_vec_str("session_name");
             assert_eq!(column, ["session_1", "session_1", "session_1", "session_1"]);
             let column = table_reading.get_column_as_vec_str("task_name");
-            assert_eq!(column, ["session_1", "task_1", "task_1", "task_1"]);
+            assert_eq!(column, ["task_1", "task_1", "task_1", "session_1"]);
             let column = table_reading.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
-                ["session_1", "processor_1", "processor_2", "processor_3"]
+                ["processor_1", "processor_2", "processor_3", "session_1"]
             );
             let column = table_reading.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
                 [
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
                     "ProcessorEcho",
-                    "ProcessorMock",
-                    "ProcessorMock",
-                    "ProcessorMock"
                 ]
             );
             let column = table_reading
@@ -1196,13 +1196,13 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
                     "OnUpdateLastRecordBatch",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable"
                 ]
             );
             let column = table_reading
@@ -1211,17 +1211,17 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
-                    "state_1",
                     "processor_1",
                     "state_1",
                     "processor_2",
                     "state_1",
                     "processor_3",
-                    "state_1"
+                    "state_1",
+                    "state_1",
                 ]
             );
             let column = table_reading.get_column_as_vec_str("subscribe_type-Last");
-            assert_eq!(column, ["Any", "All", "All", "All"]);
+            assert_eq!(column, ["All", "All", "All", "Any"]);
             let column = table_reading.get_column_as_vec_str("update_type-Last");
             assert_eq!(
                 column,
@@ -1301,65 +1301,65 @@ mod tests {
             assert_eq!(
                 column,
                 [
+                    "task_1",
+                    "task_1",
+                    "task_1",
+                    "task_1",
+                    "task_1",
+                    "task_1",
                     "session_1",
-                    "task_1",
-                    "task_1",
-                    "task_1",
-                    "task_1",
-                    "task_1",
-                    "task_1"
                 ]
             );
             let column = table_reading.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
                 [
-                    "session_1",
                     "processor_1",
                     "processor_1",
                     "processor_2",
                     "processor_2",
                     "processor_3",
-                    "processor_3"
+                    "processor_3",
+                    "session_1",
                 ]
             );
             let column = table_reading.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
                 [
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
                     "ProcessorEcho",
-                    "ProcessorMock",
-                    "ProcessorMock",
-                    "ProcessorMock",
-                    "ProcessorMock",
-                    "ProcessorMock",
-                    "ProcessorMock"
                 ]
             );
             let column = table_reading.get_column_as_vec_str("subscription_name");
             assert_eq!(
                 column,
                 [
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
                     "OnUpdateLastRecordBatch",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable"
                 ]
             );
             let column = table_reading.get_column_as_vec_str("subscription_table_name");
             assert_eq!(
                 column,
                 [
-                    "state_1",
                     "processor_1",
                     "state_1",
                     "processor_2",
                     "state_1",
                     "processor_3",
-                    "state_1"
+                    "state_1",
+                    "state_1",
                 ]
             );
         }
