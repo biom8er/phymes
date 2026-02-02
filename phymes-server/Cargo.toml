@@ -54,7 +54,7 @@ serde_path_to_error = "0.1.17"
 jsonwebtoken = { version = "9.3.1" }
 reqwest = { version = "0.12.22", features = ["json", "stream"], default-features = false, optional = true }
 bcrypt = { version = "0.17.0", default-features = false, features = ["alloc"]}
-chrono = { version = "0.4.41", features = ["wasmbind"] }
+chrono = { version = "0.4.43", features = ["wasmbind"] }
 phymes-diagnostics = { path = "../phymes-diagnostics", default-features = false, optional = true }
 phymes-core = { path = "../phymes-core", default-features = false, optional = true }
 phymes-agents = { path = "../phymes-agents", default-features = false, optional = true  }

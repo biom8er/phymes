@@ -27,6 +27,6 @@ serde_json = "1.0.135"
 parking_lot = "0.12.3"
 web-time = "1.1.0"
 hashbrown = "0.15.4"
-chrono = { version = "0.4.41", features = ["wasmbind"] }
+chrono = { version = "0.4.43", features = ["wasmbind"] }
 bytes = "1.10.1"
 getrandom = { version = "0.3.1", features = ["wasm_js"] }
