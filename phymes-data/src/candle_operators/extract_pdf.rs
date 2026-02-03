@@ -174,8 +174,8 @@ pub fn extract_pdf(docs: &[(String, Document)]) -> Result<RecordBatch> {
     for page in pages {
         match page {
             Ok((id, page_num, lines)) => {
+                chunk_id_vec.push(format!("{id}_{page_num}"));
                 document_id_vec.push(id);
-                chunk_id_vec.push(format!("{page_num}"));
                 // Join the lines of text into a single string for each page
                 text_vec.push(lines.join(" "));
             }
@@ -410,7 +410,7 @@ mod tests {
         );
         assert_eq!(
             table.get_column_as_vec_str("chunk_id"),
-            ["1", "2", "1", "2"]
+            ["doc_1_1", "doc_1_2", "doc_2_1", "doc_2_2"]
         );
         assert_eq!(
             table.get_column_as_vec_str("text"),

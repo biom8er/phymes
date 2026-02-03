@@ -3,20 +3,20 @@
 /// # Notes
 ///
 /// * Does not consider pre-filtering by ontology before vector search
-pub struct OntologyRAGSession<'a> {
+pub struct ExtractOntologySession<'a> {
     /// Session
     pub session_context_name: &'a str,
 }
 
-impl<'a> Default for OntologyRAGSession<'a> {
+impl<'a> Default for ExtractOntologySession<'a> {
     fn default() -> Self {
         Self {
-            session_context_name: "ontology_rag_session",
+            session_context_name: "extract_ontology_session",
         }
     }
 }
 
-impl<'a> OntologyRAGSession<'a> {
+impl<'a> ExtractOntologySession<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
@@ -1801,29 +1801,28 @@ mod tests {
     use std::sync::Arc;
 
     use anyhow::Result;
-    use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Table, TableBuilderTrait, TablePublication, TableTrait, create_blob_batch, create_session_supersteps_batch
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Table, TableBuilderTrait, TablePublication, TableTrait, create_blob_batch
     };
     use phymes_diagnostics::{HashMap, create_timestamp_micros};
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, create_message_map
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep, SessionStreamStepTrait, create_message_map
     };
 
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_index_ontology_session() -> Result<()> {
+    async fn test_extract_ontology_session() -> Result<()> {
         // Initialize the session
-        let onto_rag_session = OntologyRAGSession::default();
+        let extract_onto_session = ExtractOntologySession::default();
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
-            onto_rag_session.as_mermaid_flowchart(),
+            extract_onto_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(onto_rag_session.as_mermaid_erdiagram(), false, true)?
-        .with_name(onto_rag_session.session_context_name)
+        .with_state_from_mermaid_erdiagram(extract_onto_session.as_mermaid_erdiagram(), false, true)?
+        .with_name(extract_onto_session.session_context_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
@@ -1930,7 +1929,7 @@ mod tests {
             .with_update(&TablePublication::Replace {
                 table_name: AvailableInterfaceSubjects::UserScript.to_string(),
             })
-            .with_publisher(onto_rag_session.session_context_name)
+            .with_publisher(extract_onto_session.session_context_name)
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![owl_message]);
@@ -1960,25 +1959,25 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			// assert_eq!(table_reading.count_rows(), 0);
-            // let column = table_reading.get_column_as_vec_str("entity");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            // let column = table_reading.get_column_as_vec_str("subject");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            // let column = table_reading.get_column_as_vec_str("predicate");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            // let column = table_reading.get_column_as_vec_str("object");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            // let column = table_reading.get_column_as_vec_str("graph");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            // let column = table_reading.get_column_as_vec_str("dataset");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+			assert_eq!(table_reading.count_rows(), 30);
+            let column = table_reading.get_column_as_vec_str("entity");
+            assert_eq!(column.first().unwrap(), &"http://www.w3.org/2002/07/owl#AnnotationProperty");
+            assert_eq!(column.last().unwrap(), &"http://www.w3.org/2002/07/owl#Ontology");
+            let column = table_reading.get_column_as_vec_str("subject");
+            assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/IAO_0000115");
+            assert_eq!(column.last().unwrap(), &"");
+            let column = table_reading.get_column_as_vec_str("predicate");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
+            let column = table_reading.get_column_as_vec_str("object");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
+            let column = table_reading.get_column_as_vec_str("graph");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
+            let column = table_reading.get_column_as_vec_str("dataset");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
         }
 
         // Run the second superstep
@@ -2008,24 +2007,24 @@ mod tests {
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
 			assert_eq!(table_reading.count_rows(), 2);
-            // let column = table_reading.get_column_as_vec_str("entity");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            // let column = table_reading.get_column_as_vec_str("subject");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            // let column = table_reading.get_column_as_vec_str("predicate");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            // let column = table_reading.get_column_as_vec_str("object");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            // let column = table_reading.get_column_as_vec_str("graph");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            // let column = table_reading.get_column_as_vec_str("dataset");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            let column = table_reading.get_column_as_vec_str("entity");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
+            let column = table_reading.get_column_as_vec_str("subject");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
+            let column = table_reading.get_column_as_vec_str("predicate");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
+            let column = table_reading.get_column_as_vec_str("object");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
+            let column = table_reading.get_column_as_vec_str("graph");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
+            let column = table_reading.get_column_as_vec_str("dataset");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let table_reading = session_reading
                 .get_states()
                 .get("select_annotation_property_entity_s")
@@ -2033,24 +2032,24 @@ mod tests {
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
 			assert_eq!(table_reading.count_rows(), 17);
-            // let column = table_reading.get_column_as_vec_str("entity");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            // let column = table_reading.get_column_as_vec_str("subject");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            // let column = table_reading.get_column_as_vec_str("predicate");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            // let column = table_reading.get_column_as_vec_str("object");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            // let column = table_reading.get_column_as_vec_str("graph");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
-            // let column = table_reading.get_column_as_vec_str("dataset");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            let column = table_reading.get_column_as_vec_str("entity");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
+            let column = table_reading.get_column_as_vec_str("subject");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
+            let column = table_reading.get_column_as_vec_str("predicate");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
+            let column = table_reading.get_column_as_vec_str("object");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
+            let column = table_reading.get_column_as_vec_str("graph");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
+            let column = table_reading.get_column_as_vec_str("dataset");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let table_reading = session_reading
                 .get_states()
                 .get("select_datatype_property_entity_s")
@@ -2065,23 +2064,23 @@ mod tests {
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
 			assert_eq!(table_reading.count_rows(), 5);
             let column = table_reading.get_column_as_vec_str("entity");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("subject");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("predicate");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("object");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("graph");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("dataset");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let table_reading = session_reading
                 .get_states()
                 .get("select_object_property_entity_s")
@@ -2090,23 +2089,23 @@ mod tests {
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
 			assert_eq!(table_reading.count_rows(), 5);
             let column = table_reading.get_column_as_vec_str("entity");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("subject");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("predicate");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("object");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("graph");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("dataset");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let table_reading = session_reading
                 .get_states()
                 .get("select_named_individual_entity_s")
@@ -2115,23 +2114,23 @@ mod tests {
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
 			assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("entity");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("subject");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("predicate");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("object");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("graph");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("dataset");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let table_reading = session_reading
                 .get_states()
                 .get("select_axiom_entity_s")
@@ -2167,14 +2166,14 @@ mod tests {
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
 			assert_eq!(table_reading.count_rows(), 7);
             let column = table_reading.get_column_as_vec_str("subject");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("http://purl.obolibrary.org/obo/IAO_0000115-object-First");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let table_reading = session_reading
                 .get_states()
                 .get("pivot_class_entity_s")
@@ -2183,14 +2182,14 @@ mod tests {
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
 			assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("subject");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("http://purl.obolibrary.org/obo/IAO_0000115-object-First");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let table_reading = session_reading
                 .get_states()
                 .get("pivot_object_property_entity_s")
@@ -2199,14 +2198,14 @@ mod tests {
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
 			assert_eq!(table_reading.count_rows(), 2);
             let column = table_reading.get_column_as_vec_str("subject");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("http://purl.obolibrary.org/obo/IAO_0000115-object-First");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let table_reading = session_reading
                 .get_states()
                 .get("pivot_named_individual_entity_s")
@@ -2215,11 +2214,11 @@ mod tests {
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
 			assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("subject");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
         }
 
         // Run the fourth superstep
@@ -2249,14 +2248,14 @@ mod tests {
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
 			assert_eq!(table_reading.count_rows(), 7);
             let column = table_reading.get_column_as_vec_str("uri");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("rdfs_label");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("obo_IAO_0000115");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let table_reading = session_reading
                 .get_states()
                 .get("merge_object_property_class_named_individual_pivot_s")
@@ -2265,14 +2264,14 @@ mod tests {
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
 			assert_eq!(table_reading.count_rows(), 4);
             let column = table_reading.get_column_as_vec_str("uri");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("rdfs_label");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("obo_IAO_0000115");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
         }
 
         // Run the fifth superstep
@@ -2302,29 +2301,29 @@ mod tests {
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
 			assert_eq!(table_reading.count_rows(), 5);
             let column = table_reading.get_column_as_vec_str("entity");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("subject");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("predicate");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("object");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("graph");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("dataset");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("predicate_rdfs_label");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("predicate_obo_IAO_0000115");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let table_reading = session_reading
                 .get_states()
                 .get("select_predicates_class_entity_s")
@@ -2333,29 +2332,29 @@ mod tests {
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
 			assert_eq!(table_reading.count_rows(), 5);
             let column = table_reading.get_column_as_vec_str("entity");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("subject");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("predicate");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("object");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("graph");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("dataset");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("predicate_rdfs_label");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("predicate_obo_IAO_0000115");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
         }
 
         // Run the sixth superstep
@@ -2392,29 +2391,29 @@ mod tests {
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
 			assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("entity");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("subject");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("predicate");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("object");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("graph");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("dataset");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("predicate_rdfs_label");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("predicate_obo_IAO_0000115");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
         }
 
         // Run the seventh superstep
@@ -2444,29 +2443,29 @@ mod tests {
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
 			assert_eq!(table_reading.count_rows(), 5);
             let column = table_reading.get_column_as_vec_str("entity");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("subject");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("graph");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("dataset");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("predicate_rdfs_label");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("predicate_obo_IAO_0000115");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("object_rdfs_label");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("object_obo_IAO_0000115");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let table_reading = session_reading
                 .get_states()
                 .get("select_objects_object_property_entity_s")
@@ -2475,29 +2474,29 @@ mod tests {
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
 			assert_eq!(table_reading.count_rows(), 5);
             let column = table_reading.get_column_as_vec_str("entity");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("subject");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("graph");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("dataset");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("predicate_rdfs_label");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("predicate_obo_IAO_0000115");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("object_rdfs_label");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("object_obo_IAO_0000115");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
         }
 
         // Run the eigth superstep
@@ -2527,14 +2526,14 @@ mod tests {
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
 			assert_eq!(table_reading.count_rows(), 3);
             let column = table_reading.get_column_as_vec_str("chunk_id");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("document_id");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("text");
-            // assert_eq!(column.first().unwrap(), "");
-            // assert_eq!(column.last().unwrap(), "");
+            assert_eq!(column.first().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"");
         }
         Ok(())
     }
