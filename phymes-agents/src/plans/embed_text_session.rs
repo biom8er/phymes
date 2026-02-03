@@ -1,8 +1,6 @@
-/// A session for extracting and chunking PDF documents
+/// A session for embedding text querries and documents
 ///
 /// # Notes
-///
-/// * Does not yet include image and table extraction
 pub struct EmbedTextSession<'a> {
     /// Session
     pub session_context_name: &'a str,
@@ -81,19 +79,7 @@ impl<'a> EmbedTextSession<'a> {
     /// 
     /// # Note
     /// * for QWEN, the following cast template should be used
-    // select_query_from_messages_p["select_query_from_messages_p"] {
-    //     List-Utf8 as_columns "['query_id','text']"
-    //     List-Utf8 cast_datatypes "['Utf8','Utf8']"
-    //     List-Utf8 cast_operators "['Cast','None']"
-    //     List-Utf8 cast_templates "['','Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: {{ content }}']"
-    //     List-Utf8 column_operators "['None','None']"
-    //     Boolean cpu "false"
-    //     Utf8 lhs_name "UserMessages"
-    //     List-Utf8 lhs_values "['timestamp','content']"
-    //     Utf8 operator "Select"
-    //     List-Utf8 rhs_values "['','']"
-    //     Utf8 stream "AccumulateLHSAccumulateRHS"
-    // }
+    ///   List-Utf8 cast_templates "['','Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: {{ content }}']"
     pub fn as_mermaid_erdiagram(&self) -> &str {
         r#"erDiagram
     UserMessages["UserMessages"] {

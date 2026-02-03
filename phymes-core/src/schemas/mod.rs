@@ -1,7 +1,7 @@
 mod available_subjects;
 pub use available_subjects::{
     AvailableSubjects, AvailableSubjectsTrait, create_documents_batch, create_schema_from_fields,
-    create_tools_record_batch, create_values_record_batch,
+    create_tools_record_batch, create_values_record_batch, create_documents_embeddings_batch, create_query_embeddings_batch
 };
 
 mod blob;

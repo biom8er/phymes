@@ -39,7 +39,7 @@ pub use schemas::{
     create_session_tasks_subscribe_batch, create_session_tasks_subscribe_publish_batch,
     create_subjects_change_log_batch, create_subjects_num_rows_batch, create_tools_record_batch,
     create_user_batch, create_user_inbox_batch, create_user_session_contexts_batch,
-    create_values_record_batch, from_diagnostics_to_tables,
+    create_values_record_batch, from_diagnostics_to_tables, create_documents_embeddings_batch, create_query_embeddings_batch
 };
 pub use table::{
     AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, CsvFormat, DataFormat,
