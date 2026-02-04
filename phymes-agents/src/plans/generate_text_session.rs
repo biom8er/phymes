@@ -201,7 +201,7 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_generate_text_session_notools() -> Result<()> {
+    async fn test_generate_text_session_no_tools() -> Result<()> {
         // Initialize the session
         let generate_text_session = GenerateTextSession::default();
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
@@ -237,16 +237,16 @@ mod tests {
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
+        // {
+        //     // Debug any errors
+        //     let subjects_reading = session_ctx_arc.read();
+        //     let table_reading = subjects_reading
+        //         .get_states()
+        //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
+        //         .unwrap()
+        //         .read();
+        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        // }
 
         assert_eq!(response.len(), 0);
 
@@ -321,7 +321,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_generate_text_session_toolcall() -> Result<()> {
+    async fn test_generate_text_session_tool_call() -> Result<()> {
         // Initialize the session
         let generate_text_session = GenerateTextSession::default();
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
@@ -391,16 +391,16 @@ mod tests {
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
+        // {
+        //     // Debug any errors
+        //     let subjects_reading = session_ctx_arc.read();
+        //     let table_reading = subjects_reading
+        //         .get_states()
+        //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
+        //         .unwrap()
+        //         .read();
+        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        // }
 
         assert_eq!(response.len(), 0);
 
@@ -413,15 +413,6 @@ mod tests {
                 .unwrap()
                 .read();
 			assert_eq!(table_reading.count_rows(), 0);
-			// assert_eq!(table_reading.count_rows(), 1);
-            // let column = table_reading.get_column_as_vec_str("role");
-            // assert_eq!(column.first().unwrap(), &"assistant");
-            // let column = table_reading.get_column_as_vec_str("content");
-            // assert_eq!(column.first().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-			// for t in column {
-			// 	assert!(t > 0);
-			// }
             let table_reading = session_reading
                 .get_states()
                 .get(AvailableInterfaceSubjects::ToolMessages.to_string().as_str())
@@ -488,7 +479,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_generate_text_session_toolresponse() -> Result<()> {
+    async fn test_generate_text_session_tool_response() -> Result<()> {
         // Initialize the session
         let generate_text_session = GenerateTextSession::default();
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
@@ -572,16 +563,16 @@ mod tests {
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
+        // {
+        //     // Debug any errors
+        //     let subjects_reading = session_ctx_arc.read();
+        //     let table_reading = subjects_reading
+        //         .get_states()
+        //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
+        //         .unwrap()
+        //         .read();
+        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        // }
 
         assert_eq!(response.len(), 0);
 
@@ -659,6 +650,190 @@ mod tests {
                 .unwrap()
                 .read();
 			assert_eq!(table_reading.count_rows(), 0);
+        }
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_generate_text_session_error_response() -> Result<()> {
+        // Initialize the session
+        let generate_text_session = GenerateTextSession::default();
+        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+            generate_text_session.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_state_from_mermaid_erdiagram(generate_text_session.as_mermaid_erdiagram(), false, true)?
+        .with_name(generate_text_session.session_context_name)
+        .add_processor_subjects()?
+        .with_diagnostics(true)
+        .add_next_tasks()?
+		.add_next_supersteps()?
+		.build_with_tables()?;
+        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+
+		// Add the target tool subjects to the session for testing
+		let _ = session_ctx_arc.write().state.insert(
+			AvailableCandleOperators::Sort.to_string(), 
+			Arc::new(RwLock::new(AvailableSubjects::Configs.to_table(Some(AvailableCandleOperators::Sort.to_string().as_str()), None)?))
+		);
+		let _ = session_ctx_arc.write().state.insert(
+			AvailableCandleOperators::HumanInTheLoop.to_string(), 
+			Arc::new(RwLock::new(AvailableSubjects::Configs.to_table(Some(AvailableCandleOperators::HumanInTheLoop.to_string().as_str()), None)?))
+		);
+
+		// Tools data
+        let tool_ids = vec![
+            AvailableCandleOperators::Sort.to_string(),
+            AvailableCandleOperators::HumanInTheLoop.to_string(),
+        ];
+        let tools = vec![
+            AvailableCandleOperators::Sort.to_json_tool_schema(),
+            AvailableCandleOperators::HumanInTheLoop.to_json_tool_schema(),
+        ];
+        let batch = create_tools_record_batch(tool_ids, tools)?;
+        let table = TableBuilder::new()
+            .with_name(AvailableSubjects::Tools.to_string().as_str())
+            .with_record_batches(vec![batch])?
+            .build()?;
+        let tool_message = IPCMessage::get_builder()
+            .with_message(table.to_ipc_stream()?)
+            .with_subject(table.get_name())
+            .with_update(&TablePublication::Extend {
+                table_name: table.get_name().to_string(),
+            })
+            .with_publisher(generate_text_session.session_context_name)
+            .make_name()?
+            .build()?;
+
+		// User message
+        let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+            .append_new_user_query_str("Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.", "user")?
+            .build()?;
+        let chat_message = IPCMessage::get_builder()
+            .with_message(chat.to_ipc_stream()?)
+            .with_subject(chat.get_name())
+            .with_update(&TablePublication::Extend {
+                table_name: chat.get_name().to_string(),
+            })
+            .with_publisher(generate_text_session.session_context_name)
+            .make_name()?
+            .build()?;
+
+		// Error response
+        let tool = AvailableSubjects::SessionErrors.to_table_builder(None)
+            .append_new_user_query_str("lhs_name `available_data_1` was not found. Available options are [`available_data_0`, `available_data_2`, `available_data_3`].", "tool")?
+            .build()?;
+        let tool_response = IPCMessage::get_builder()
+            .with_message(tool.to_ipc_stream()?)
+            .with_subject(tool.get_name())
+            .with_update(&TablePublication::Extend {
+                table_name: tool.get_name().to_string(),
+            })
+            .with_publisher(generate_text_session.session_context_name)
+            .make_name()?
+            .build()?;
+		
+        let message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
+
+        // Run the session
+        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+
+        // {
+        //     // Debug any errors
+        //     let subjects_reading = session_ctx_arc.read();
+        //     let table_reading = subjects_reading
+        //         .get_states()
+        //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
+        //         .unwrap()
+        //         .read();
+        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        // }
+
+        assert_eq!(response.len(), 0);
+
+        {
+            // Test supsersteps
+            let session_reading = session_ctx_arc.read();
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableInterfaceSubjects::AssistantMessages.to_string().as_str())
+                .unwrap()
+                .read();
+			assert_eq!(table_reading.count_rows(), 1);
+            let column = table_reading.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"assistant");
+            let column = table_reading.get_column_as_vec_str("content");
+			let assistant_content = column.first().unwrap();
+            assert!(assistant_content.contains("available_data_0"));
+            assert!(assistant_content.contains("available_data_1"));
+            assert!(assistant_content.contains("available_data_2"));
+            assert!(assistant_content.contains("available_data_3"));
+            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+			for t in column {
+				assert!(t > 0);
+			}
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableInterfaceSubjects::AggregatedMessages.to_string().as_str())
+                .unwrap()
+                .read();
+			assert_eq!(table_reading.count_rows(), 2);
+            let column = table_reading.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"user");
+            assert_eq!(column.last().unwrap(), &"assistant");
+            let column = table_reading.get_column_as_vec_str("content");
+            assert_eq!(column.first().unwrap(), &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.");
+            assert_eq!(column.last().unwrap(), assistant_content);
+            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+			for t in column {
+				assert!(t > 0);
+			}
+            let table_reading = session_reading
+                .get_states()
+                .get("aggregate_messages_generate_text_s")
+                .unwrap()
+                .read();
+			assert_eq!(table_reading.count_rows(), 2);
+            let column = table_reading.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"user");
+            assert_eq!(column.last().unwrap(), &"tool");
+            let column = table_reading.get_column_as_vec_str("content");
+            assert_eq!(column.first().unwrap(), &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.");
+            assert_eq!(column.last().unwrap(), &"lhs_name `available_data_1` was not found. Available options are [`available_data_0`, `available_data_2`, `available_data_3`].");
+            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+			for t in column {
+				assert!(t > 0);
+			}
+            let table_reading = session_reading
+                .get_states()
+                .get("generate_text_inference_s")
+                .unwrap()
+                .read();
+			assert!(table_reading.count_rows() > 1);
+            let column = table_reading.get_column_as_vec_str("role");
+            assert_eq!(column.first().unwrap(), &"assistant");
+            assert_eq!(column.last().unwrap(), &"assistant");
+            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+			for t in column {
+				assert!(t > 0);
+			}
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableCandleOperators::Sort.to_string().as_str())
+                .unwrap()
+                .read();
+			assert_eq!(table_reading.count_rows(), 0);
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableCandleOperators::HumanInTheLoop.to_string().as_str())
+                .unwrap()
+                .read();
+			assert_eq!(table_reading.count_rows(), 0);
+			// assert_eq!(table_reading.count_rows(), 1);
+			// let column = table_reading.get_column_as_vec_str("values");
+            // assert_eq!(column.first().unwrap(), &"");
+
         }
         Ok(())
     }
