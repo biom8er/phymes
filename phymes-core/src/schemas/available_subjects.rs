@@ -95,6 +95,16 @@ pub fn create_config_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
+pub fn create_config_record_batch(
+    values: Vec<String>,
+) -> Result<RecordBatch> {
+    let values: ArrayRef = Arc::new(StringArray::from(values));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("values", values),
+    ])?;
+    Ok(batch)
+}
+
 pub fn create_tools_fields() -> Fields {
     let field_names = ["tool_id", "tool"];
     let fields_vec = field_names

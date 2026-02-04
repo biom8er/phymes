@@ -1,5 +1,4 @@
-use std::sync::Arc;
-
+use crate::schemas::{create_config_record_batch, create_values_fields};
 use crate::{
     BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait,
     MessageBuilderTrait, SendableRecordBatchStream, SendableRecordBatchStreamMessageBuilder,
@@ -7,8 +6,6 @@ use crate::{
 };
 
 use anyhow::Result;
-use arrow::array::{ArrayRef, RecordBatch, StringArray};
-use arrow::datatypes::{DataType, Field, Fields};
 use phymes_diagnostics::{HashMap, TraceableTrait, Tracer};
 
 /// An [RecordBatch], `IPCStream`, or [SendableRecordBatch] with additional
@@ -73,12 +70,7 @@ impl IPCMessage {
         let mut map = HashMap::<String, IPCMessage>::new();
 
         // Expected fields if it is an aggregated message
-        let field_names = ["name", "publisher", "subject", "values"];
-        let fields_vec = field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::Utf8, false))
-            .collect::<Vec<_>>();
-        let fields = Fields::from(fields_vec);
+        let fields = create_values_fields();
 
         // Wrap the message in a table
         let table = TableBuilder::new_from_ipc_stream(&self.message)?
@@ -87,9 +79,9 @@ impl IPCMessage {
 
         if table.get_schema().fields().contains(&fields) {
             // Each row is a new message
-            let data = field_names
+            let data = fields
                 .iter()
-                .map(|f| table.get_column_as_vec_str(f))
+                .map(|f| table.get_column_as_vec_str(f.name()))
                 .collect::<Vec<_>>();
             let n_rows: usize = table
                 .get_record_batches()
@@ -98,19 +90,19 @@ impl IPCMessage {
                 .sum::<usize>();
             for row in 0..n_rows {
                 let name = data.first().unwrap().get(row).unwrap();
-                let values: ArrayRef = Arc::new(StringArray::from(vec![
+                let values = vec![
                     data.get(3).unwrap().get(row).unwrap().to_string(),
-                ]));
-                let batch = RecordBatch::try_from_iter(vec![("values", values)])?;
+                ];
+                let batch = create_config_record_batch(values)?;
                 let bytes = TableBuilder::new()
                     .with_name(name)
                     .with_record_batches(vec![batch])?
                     .build()?
                     .to_ipc_stream()?;
                 let message = IPCMessageBuilder::new()
-                    // .with_name(name)
                     .with_publisher(data.get(1).unwrap().get(row).unwrap())
                     .with_subject(data.get(2).unwrap().get(row).unwrap())
+                    // With configs we can assume that the last record batch is the one that will be used
                     .with_update(&TablePublication::Extend {
                         table_name: data.get(2).unwrap().get(row).unwrap().to_string(),
                     })

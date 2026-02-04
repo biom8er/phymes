@@ -9,6 +9,7 @@ mod document_rag_session;
 mod embed_text_session;
 mod extract_ontology_session;
 mod extract_pdf_session;
+mod generate_text_session;
 mod melt_study_data_session;
 mod next_superstep_session;
 mod next_task_session;

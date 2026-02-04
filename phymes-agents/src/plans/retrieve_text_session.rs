@@ -1,4 +1,4 @@
-/// A session for embedding text querries and documents
+/// A session for retrieving text via vector search
 ///
 /// # Notes
 pub struct RetrieveTextSession<'a> {
