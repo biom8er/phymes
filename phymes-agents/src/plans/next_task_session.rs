@@ -1281,7 +1281,7 @@ mod tests {
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
                 .get_states()
-                .get("SessionTasksSubscribe")
+                .get(AvailableSubjects::SessionTasksSubscribe.to_string().as_str())
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("session_name");
@@ -1378,7 +1378,7 @@ mod tests {
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
                 .get_states()
-                .get("SessionTasksSubscribePublish")
+                .get(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("session_name");

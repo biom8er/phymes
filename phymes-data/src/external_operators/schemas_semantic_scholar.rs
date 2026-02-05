@@ -66,12 +66,24 @@ pub(crate) struct Tldr {
 /// External identifiers for a paper (DOI, ArXiv, DBLP, MAG, etc.)
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct ExternalIds {
+    #[serde(rename = "DOI")]
     pub doi: Option<String>,
+    #[serde(rename = "DBLP")]
     pub dblp: Option<String>,
+    #[serde(rename = "MAG")]
     pub mag: Option<String>,
+    #[serde(rename = "ArXiv")]
     pub arxiv: Option<String>,
+    #[serde(rename = "ACL")]
     pub acl: Option<String>,
+    #[serde(rename = "CorpusId")]
     pub corpus_id: Option<String>,
+    #[serde(rename = "PubMed")]
+    pub pubmed: Option<String>,
+    #[serde(rename = "Medline")]
+    pub medline: Option<String>,
+    #[serde(rename = "PubMedCentral")]
+    pub pubmedcentral: Option<String>,
 }
 
 /// Publication venue metadata (conference, journal, etc.)
@@ -79,12 +91,9 @@ pub(crate) struct ExternalIds {
 pub(crate) struct PublicationVenue {
     pub id: Option<String>,
     pub name: Option<String>,
-    pub conference: Option<String>,
-    pub url: Option<String>,
+    pub r#type: Option<String>,
     pub alternate_names: Option<Vec<String>>,
-    pub issn: Option<String>,
-    pub is_open_access: Option<bool>,
-    pub publisher: Option<String>,
+    pub url: Option<String>,
 }
 
 /// Field of study classification
@@ -113,6 +122,12 @@ pub(crate) struct OpenAccessPdf {
     pub version: Option<String>, // e.g. "publishedVersion"
 }
 
+/// Citation styles
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct CitationStyle {
+    pub bibtex: Option<String>,
+}
+
 /// Paper metadata model with extended fields
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct Paper {
@@ -126,9 +141,6 @@ pub(crate) struct Paper {
     pub publication_types: Option<Vec<String>>,
     #[serde(rename = "publicationDate")]
     pub publication_date: Option<String>,
-    pub doi: Option<String>,
-    #[serde(rename = "arxivId")]
-    pub arxiv_id: Option<String>,
     pub url: Option<String>,
     #[serde(rename = "isOpenAccess")]
     pub is_open_access: Option<bool>,
@@ -138,8 +150,6 @@ pub(crate) struct Paper {
     pub citation_count: Option<u32>,
     #[serde(rename = "influentialCitationCount")]
     pub influential_citation_count: Option<u32>,
-    #[serde(rename = "isHighlyCited")]
-    pub is_highly_cited: Option<bool>,
     #[serde(rename = "referenceCount")]
     pub reference_count: Option<u32>,
     #[serde(rename = "fieldsOfStudy")]
@@ -153,6 +163,8 @@ pub(crate) struct Paper {
     #[serde(rename = "publicationVenue")]
     pub publication_venue: Option<PublicationVenue>,
     pub journal: Option<Journal>,
+    #[serde(rename = "CitationStyles")]
+    pub citation_styles: Option<CitationStyle>,
 }
 
 /// Author search response
