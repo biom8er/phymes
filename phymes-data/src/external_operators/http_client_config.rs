@@ -15,8 +15,15 @@ pub enum HTTPClientRequestSchemas {
     #[default]
     #[value(name = "None")]
     None,
-    #[value(name = "OpenAlex")]
-    OpenAlex,
+    /// `works` OpenAlex API endpoint
+    #[value(name = "OpenAlexWorks")]
+    OpenAlexWorks,
+    /// `find/works` OpenAlex API endpoint
+    #[value(name = "OpenAlexFind")]
+    OpenAlexFind,
+    /// `group_by` OpenAlex API endpoint
+    #[value(name = "OpenAlexGroupBy")]
+    OpenAlexGroupBy,
     /// EUtils ESearch utility
     ///
     /// MUST use `retmode=json`
@@ -37,7 +44,9 @@ impl Display for HTTPClientRequestSchemas {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::None => write!(f, "None"),
-            Self::OpenAlex => write!(f, "OpenAlex"),
+            Self::OpenAlexWorks => write!(f, "OpenAlexWorks"),
+            Self::OpenAlexFind => write!(f, "OpenAlexFind"),
+            Self::OpenAlexGroupBy => write!(f, "OpenAlexGroupBy"),
             Self::ESearch => write!(f, "ESearch"),
             Self::EFetch => write!(f, "EFetch"),
             Self::SemanticScholarRecomendations => write!(f, "SemanticScholarRecomendations"),

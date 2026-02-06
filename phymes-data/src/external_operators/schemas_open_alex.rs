@@ -1,7 +1,9 @@
+use std::fmt::Display;
+
 /// Collection of structs for parsing OpenAlex data
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use phymes_diagnostics::HashMap;
+use serde_json::{Map, Value};
 
 // OpenAlex API Base URL
 const OPENALEX_API: &str = "https://api.openalex.org/";
@@ -380,7 +382,7 @@ pub struct WorkIds {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Author {
-    pub id: String,
+    pub id: Option<String>, // DM: Optional for dehydrated responses
     pub orcid: Option<String>,
     pub display_name: Option<String>,
     pub display_name_alternatives: Option<Vec<String>>,
@@ -584,19 +586,19 @@ pub struct Topic {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TopicDomain {
-    pub id: u64,
+    pub id: String,
     pub display_name: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TopicField {
-    pub id: u64,
+    pub id: String,
     pub display_name: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TopicSubfield {
-    pub id: u64,
+    pub id: String,
     pub display_name: String,
 }
 
@@ -702,18 +704,18 @@ pub struct FunderIds {
 /// - see sample entities <https://docs.openalex.org/how-to-use-the-api/get-lists-of-entities/sample-entity-lists>
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct OpenAlexRequest {
-    page: Option<u32>,
-    per_page: Option<u32>,
-    cursor: Option<String>,
-    filter: Option<HashMap<String, String>>,
-    search: Option<String>,
-    query: Option<String>,
-    api_key: Option<String>,
-    entity: OpenAlexRequestEntity,
-    sort: Option<HashMap<String, String>>,
-    select: Option<Vec<String>>,
-    sample: Option<u32>,
-    seed: Option<u32>,
+    pub page: Option<u32>,
+    pub per_page: Option<u32>,
+    pub cursor: Option<String>,
+    pub filter: Option<Map<String, Value>>,
+    pub search: Option<String>,
+    pub query: Option<String>,
+    pub api_key: Option<String>,
+    pub entity: OpenAlexRequestEntity,
+    pub sort: Option<Map<String, Value>>,
+    pub select: Option<Vec<String>>,
+    pub sample: Option<u32>,
+    pub seed: Option<u32>,
 }
 
 impl OpenAlexRequest {
@@ -734,29 +736,29 @@ impl OpenAlexRequest {
             let query = format!("per-page={per_page}");
             query_list.push(query);
         }
-        if let Some(cursor) = self.cursor {
+        if let Some(cursor) = self.cursor.as_ref() {
             let query = format!("cursor={cursor}");
             query_list.push(query);
         }
-        if let Some(filter) = self.filter {
-            let query = filter.iter().map(|(k,v)| format!("k:v")).collect::<Vec<_>>().join(",");
+        if let Some(filter) = self.filter.as_ref() {
+            let query = filter.iter().map(|(k,v)| format!("{k}:{v}")).collect::<Vec<_>>().join(",");
             let query = format!("filter={query}");
             query_list.push(query);
         }
-        if let Some(search) = self.search {
+        if let Some(search) = self.search.as_ref() {
             let query = format!("search={search}");
             query_list.push(query);
         }
-        if let Some(api_key) = self.api_key {
+        if let Some(api_key) = self.api_key.as_ref() {
             let query = format!("api_key={api_key}");
             query_list.push(query);
         }
-        if let Some(sort) = self.sort {
-            let query = sort.iter().map(|(k,v)| format!("k:v")).collect::<Vec<_>>().join(",");
+        if let Some(sort) = self.sort.as_ref() {
+            let query = sort.iter().map(|(k,v)| format!("{k}:{v}")).collect::<Vec<_>>().join(",");
             let query = format!("sort={query}");
             query_list.push(query);
         }
-        if let Some(select) = self.select {
+        if let Some(select) = self.select.as_ref() {
             let query = select.join(",");
             let query = format!("select={query}");
             query_list.push(query);
@@ -779,7 +781,7 @@ impl OpenAlexRequest {
 
     /// OpenAlex Base URL
     pub fn to_base_url(&self) -> String {
-        format!("{OPENALEX_API}/{}", self.entitity)
+        format!("{OPENALEX_API}/{}", self.entity)
     }
 }
 
@@ -805,21 +807,55 @@ pub enum OpenAlexRequestEntity {
     Text,
 }
 
+impl Display for OpenAlexRequestEntity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Works => write!(f, "works"),
+            Self::Authors => write!(f, "authors"),
+            Self::Sources => write!(f, "sources"),
+            Self::Institutions => write!(f, "institutions"),
+            Self::Topics => write!(f, "topics"),
+            Self::Keywords => write!(f, "keywords"),
+            Self::Publishers => write!(f, "publishers"),
+            Self::Funders => write!(f, "funders"),
+            Self::Awards => write!(f, "awards"),
+            Self::Geo => write!(f, "geo"),
+            Self::Concepts => write!(f, "concepts"),
+            Self::FindWorks => write!(f, "find/works"),
+            Self::Autocomplete => write!(f, "autocomplete"),
+            Self::Text => write!(f, "text"),
+        }
+    }
+}
+
 /// Struct for API response
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct OpenAlexResponse {
-    pub(crate) results: Vec<OpenAlexEntity>,
-    #[serde(rename = "results")]
-    pub(crate) query: Vec<SemanticSearchResponse>,
-    pub(crate) group_by: Vec<GroupByResponse>,
+pub(crate) struct OpenAlexResponseWorks {
+    pub(crate) results: Vec<Work>,
     pub(crate) meta: Meta,
 }
 
-pub(crate) struct SemanticSearchResponse {
+// todo!(): OpenAlexResponseAuthors, ...
+
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct OpenAlexResponseFind {
+    pub(crate) results: Vec<FindResponse>,
+    pub(crate) meta: Meta,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct FindResponse {
     pub(crate) score: Option<f32>,
     pub(crate) entity: OpenAlexEntity,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct OpenAlexResponseGroupBy {
+    pub(crate) group_by: Vec<GroupByResponse>,
+    pub(crate) meta: Meta,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct GroupByResponse {
     pub(crate) key: String,
     pub(crate) key_display_name: String,
@@ -835,7 +871,7 @@ pub(crate) struct Meta {
     pub(crate) per_page: u32,
     pub(crate) next_cursor: Option<String>,
     pub(crate) query: Option<String>,
-    pub(crate) filters_applied: Option<HashMap<String, String>>,
+    pub(crate) filters_applied: Option<Map<String, Value>>,
     pub(crate) timing: Option<Timing>,
 }
 

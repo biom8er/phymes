@@ -331,9 +331,9 @@ impl Stream for HTTPClientRequestStream {
                             vec![text],
                             vec![create_timestamp_micros()],
                         )?,
-                        HTTPClientRequestSchemas::OpenAlex => {
+                        HTTPClientRequestSchemas::OpenAlexWorks => {
                             let parsed = match serde_json::from_str::<
-                                schemas_open_alex::OpenAlexResponse,
+                                schemas_open_alex::OpenAlexResponseWorks,
                             >(&text)
                             {
                                 Ok(parsed) => parsed,
@@ -515,14 +515,14 @@ mod tests {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // OpenAlex request filters
-        let mut filter = HashMap::<String, String>::new();
-        let _ = filter.insert("publication_year".to_string(), "2020".to_string());
-        let open_alex_request = OpenAlexRequest {
+        let mut filter = Map::<String, Value>::new();
+        let _ = filter.insert("publication_year".to_string(), Value::String("2020".to_string()));
+        let open_alex_request = schemas_open_alex::OpenAlexRequest {
             page: Some(1),
             per_page: Some(5),
             filter: Some(filter),
-            entity: Some(OpenAlexRequestEntity::Works)
-            ..Default::default(),
+            entity: schemas_open_alex::OpenAlexRequestEntity::Works,
+            ..Default::default()
         };
         // let year = "2020";
         // let per_page = 5; // 50 Max allowed by OpenAlex
@@ -536,7 +536,7 @@ mod tests {
             content_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: open_alex_request.to_base_url(),
             // json: Some(open_alex_request.to_get_query()?),
-            request_schema: HTTPClientRequestSchemas::OpenAlex,
+            request_schema: HTTPClientRequestSchemas::OpenAlexWorks,
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
