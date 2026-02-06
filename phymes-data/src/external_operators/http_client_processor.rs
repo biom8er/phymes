@@ -502,6 +502,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_http_client_processor_open_alex() -> Result<()> {
+        // Case 1: GET from messages
         let name = "HTTPClientRequestProcessor";
         let messages = "messages";
 
@@ -513,17 +514,28 @@ mod tests {
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
-        // State for the http client processor config
-        let year = "2020";
-        let per_page = 5; // 50 Max allowed by OpenAlex
-        let page = 1;
-        let query_url = format!("filter=publication_year:{year}&per-page={per_page}&page={page}");
+        // OpenAlex request filters
+        let mut filter = HashMap::<String, String>::new();
+        let _ = filter.insert("publication_year".to_string(), "2020".to_string());
+        let open_alex_request = OpenAlexRequest {
+            page: Some(1),
+            per_page: Some(5),
+            filter: Some(filter),
+            entity: Some(OpenAlexRequestEntity::Works)
+            ..Default::default(),
+        };
+        // let year = "2020";
+        // let per_page = 5; // 50 Max allowed by OpenAlex
+        // let page = 1;
+        // let query_url = format!("filter=publication_year:{year}&per-page={per_page}&page={page}");
+
+        // Config for the HTTP Processor
         let http_client_config = HTTPClientConfig {
             timeout: 5,
             request_type: HTTPClientRequestType::Get,
             content_type: Some("rust-openalex-client/2.0".to_string()),
-            base_url: "https://api.openalex.org/works".to_string(),
-            // json: Some(query_url),
+            base_url: open_alex_request.to_base_url(),
+            // json: Some(open_alex_request.to_get_query()?),
             request_schema: HTTPClientRequestSchemas::OpenAlex,
             ..Default::default()
         };
@@ -536,7 +548,7 @@ mod tests {
         // Make the system prompt and add the user query
         let message_builder = TableBuilder::new()
             .with_name(messages)
-            .append_new_user_query_str(&query_url, "user")?;
+            .append_new_user_query_str(&open_alex_request.to_get_query()?, "user")?;
 
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -588,6 +600,12 @@ mod tests {
             snippet[..50],
             *"{\"id\":\"https://openalex.org/W3038568908\",\"display_"
         );
+
+        // Case 2: GET from config
+
+        // Case 3: POST from messages
+
+        // Case 4: POST from config
 
         Ok(())
     }
