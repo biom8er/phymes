@@ -320,6 +320,7 @@ impl Stream for OpenAIEmbedStream {
                         Poll::Ready(Some(Err(anyhow!(err.to_string()))))
                     }
                 },
+                HTTPClientRequestState::ToBytes(fut) => Poll::Ready(None),
                 HTTPClientRequestState::Done => {
                     // Increase the sample count
                     self.sample += 1;
@@ -436,6 +437,7 @@ impl Stream for OpenAIEmbedStream {
                         Poll::Ready(Some(Err(anyhow!(err.to_string()))))
                     }
                 },
+                HTTPClientRequestState::ToBytes(fut) => Poll::Ready(None),
                 HTTPClientRequestState::Done => {
                     // Increase the sample count
                     self.sample += 1;

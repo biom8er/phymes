@@ -117,6 +117,9 @@ pub struct HTTPClientConfig {
     pub bearer_auth: Option<String>,
 
     /// The base URL of the request
+    /// 
+    /// # Notes
+    /// - Can range from just scheme to the port number and all the way to the query string separator or fragment 
     #[arg(long)]
     pub base_url: String,
 
@@ -146,9 +149,9 @@ impl HTTPClientConfig {
     /// Make the full url for GET requests
     pub fn url(&self, query_url: Option<&str>) -> String {
         if let Some(query_url) = query_url {
-            format!("{}?{query_url}", &self.base_url)
+            format!("{}{query_url}", &self.base_url)
         } else if let Some(query_url) = &self.json {
-            format!("{}?{query_url}", &self.base_url)
+            format!("{}{query_url}", &self.base_url)
         } else {
             self.base_url.to_string()
         }

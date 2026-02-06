@@ -244,9 +244,6 @@ impl Stream for HTTPClientRequestStream {
                         if let Ok(token) = self.config.as_ref().unwrap().api_key() {
                             client = client.bearer_auth(token);
                         }
-                        if let Some(content_type) = self.config.as_ref().unwrap().content_type.as_ref() {
-                            client = client.header(CONTENT_TYPE, content_type.to_string());
-                        }
                         client.header(USER_AGENT, self.config.as_ref().unwrap().user_agent_type.clone().ok_or(anyhow!("User Agent type (header value) needs to be specified for GET requests."))?)
                             .send()
                     }
@@ -270,7 +267,6 @@ impl Stream for HTTPClientRequestStream {
                                 "POST json data was not found in the messages nor in the config."
                             ))));
                         };
-                        dbg!(&json_data);
 
                         // Make the request
                         let mut client = client.post(url);
@@ -314,11 +310,35 @@ impl Stream for HTTPClientRequestStream {
                         .and_then(|ct| ct.to_str().ok())
                         .unwrap_or("");
 
-                    // DM: need to match the content type
-                    // let fut = response.bytes();
-                    let fut = response.text();
-                    self.state = HTTPClientRequestState::ToText(Box::pin(fut));
-                    self.poll_next(cx)
+                    match content_type {
+                        ct if ct.contains("application/json") => {
+                            // DM: treat JSON as Text to apply custom parsing
+                            // let json: Value = response.json()?;
+                            let text = response.text();
+                            self.state = HTTPClientRequestState::ToText(Box::pin(text));
+                            self.poll_next(cx)
+                        } 
+                        ct if ct.contains("application/xml")
+                        || ct.contains("text/xml")
+                        || ct.contains("text/html")
+                        || ct.contains("text/plain")
+                        || ct.contains("application/x-www-form-urlencoded") => {
+                            let text = response.text();
+                            self.state = HTTPClientRequestState::ToText(Box::pin(text));
+                            self.poll_next(cx)
+                        }
+                        ct if ct.contains("image/")
+                        || ct.contains("application/octet-stream") => {
+                            let bytes = response.bytes();
+                            self.state = HTTPClientRequestState::ToBytes(Box::pin(bytes));
+                            self.poll_next(cx)
+                        }
+                        _ => {
+                            let bytes = response.bytes();
+                            self.state = HTTPClientRequestState::ToBytes(Box::pin(bytes));
+                            self.poll_next(cx)
+                        }
+                    }
                 }
                 Err(err) => {
                     self.state = HTTPClientRequestState::Done;
@@ -525,7 +545,6 @@ impl Stream for HTTPClientRequestStream {
                             vec![create_timestamp_micros()],
                         )?,
                         HTTPClientRequestSchemas::PDF => {
-                            dbg!(&bytes);
                             let pdf = filter_pdf(load_pdf_document(&bytes)?);
                             let docs = [(self.query_str.take().unwrap(), pdf)];
                             match extract_pdf(&docs)
@@ -617,8 +636,7 @@ mod tests {
             timeout: 5,
             request_type: HTTPClientRequestType::Get,
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-            base_url: open_alex_request.to_base_url(),
-            // json: Some(open_alex_request.to_get_query()?),
+            base_url: format!("{}?", open_alex_request.to_base_url()),
             request_schema: HTTPClientRequestSchemas::OpenAlexWorks,
             ..Default::default()
         };
@@ -715,7 +733,7 @@ mod tests {
             timeout: 5,
             request_type: HTTPClientRequestType::Get,
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-            base_url: open_alex_request.to_base_url(),
+            base_url: format!("{}?", open_alex_request.to_base_url()),
             json: Some(open_alex_request.to_get_query()?),
             request_schema: HTTPClientRequestSchemas::OpenAlexWorks,
             ..Default::default()
@@ -805,7 +823,7 @@ mod tests {
             timeout: 5,
             request_type: HTTPClientRequestType::Get,
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-            base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi".to_string(),
+            base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?".to_string(),
             request_schema: HTTPClientRequestSchemas::ESearch,
             ..Default::default()
         };
@@ -895,7 +913,7 @@ mod tests {
             timeout: 5,
             request_type: HTTPClientRequestType::Get,
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-            base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi".to_string(),
+            base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?".to_string(),
             request_schema: HTTPClientRequestSchemas::EFetch,
             ..Default::default()
         };
@@ -977,17 +995,17 @@ mod tests {
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
-        // Build EFetch query
-        let id = "PMC12069674";
-        let download_url = format!("{id}/pdf/44319_2025_Article_436.pdf");
+        // Build pathname for download
+        let id = "2508.18700";
+        let download_url = format!("pdf/{id}");
 
         // State for the http client processor config
         let http_client_config = HTTPClientConfig {
             timeout: 5,
             request_type: HTTPClientRequestType::Get,
-            content_type: Some("application/pdf".to_string()),
+            // content_type: Some("application/pdf".to_string()),
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-            base_url: "https://pmc.ncbi.nlm.nih.gov/articles/".to_string(),
+            base_url: "https://arxiv.org/".to_string(),
             request_schema: HTTPClientRequestSchemas::PDF,
             ..Default::default()
         };
@@ -1045,15 +1063,14 @@ mod tests {
             .build()?;
 
         let result = table.get_column_as_vec_str("chunk_id");
-        assert_eq!(result, ["tool"]);
+        assert_eq!(result, ["pdf/2508.18700_1", "pdf/2508.18700_2", "pdf/2508.18700_3"]);
         let result = table.get_column_as_vec_str("document_id");
-        assert_eq!(result, ["tool"]);
+        assert_eq!(result, ["pdf/2508.18700", "pdf/2508.18700", "pdf/2508.18700"]);
         let result = table.get_column_as_vec_str("text");
         let snippet = result.first().unwrap().to_string();
-        dbg!(&snippet);
         assert_eq!(
             snippet[..100],
-            *"{\"MedlineCitation\":{\"Article\":{\"ArticleTitle\":\"Eff"
+            *"Taming the One-Epoch Phenomenon in Online Recommendation System by Two-stage Contrastive ID Pre-trai"
         );
 
         Ok(())
@@ -1078,7 +1095,7 @@ mod tests {
             request_type: HTTPClientRequestType::Post,
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             content_type: Some("application/json".to_string()),
-            base_url: "https://api.semanticscholar.org/recommendations/v1/papers/".to_string(),
+            base_url: "https://api.semanticscholar.org/recommendations/v1/papers/?".to_string(),
             json: Some("fields=title,url,authors&limit=3".to_string()),
             request_schema: HTTPClientRequestSchemas::SemanticScholarRecomendations,
             ..Default::default()

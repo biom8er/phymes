@@ -353,6 +353,7 @@ impl Stream for OpenAIChatStream {
                     Poll::Ready(Some(Err(anyhow!(err.to_string()))))
                 }
             },
+            HTTPClientRequestState::ToBytes(fut) => Poll::Ready(None),
             HTTPClientRequestState::Done => Poll::Ready(None),
         }
     }
