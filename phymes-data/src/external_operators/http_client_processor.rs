@@ -8,14 +8,10 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
+use bytes::Bytes;
 use futures::{FutureExt, Stream, StreamExt};
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
-    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait,
-    create_chat_record_batch, remove_message_by_subject,
+    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, create_blob_batch, create_chat_record_batch, remove_message_by_subject
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
@@ -27,11 +23,10 @@ use reqwest::{
 use serde_json::{Map, Value};
 
 use crate::{
-    DataConfigTrait,
-    external_operators::{
+    DataConfigTrait, external_operators::{
         http_client_config::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType},
         schemas_e_utils, schemas_open_alex, schemas_semantic_scholar,
-    },
+    }, extract_pdf, filter_pdf, load_pdf_document
 };
 
 /// The state of the HTTP Client API request
@@ -43,6 +38,7 @@ pub enum HTTPClientRequestState {
     NotStarted,
     Connecting(Pin<Box<dyn Future<Output = Result<Response, reqwest::Error>> + Send + 'static>>),
     ToText(Pin<Box<dyn Future<Output = Result<String, reqwest::Error>> + Send + 'static>>),
+    ToBytes(Pin<Box<dyn Future<Output = Result<Bytes, reqwest::Error>> + Send + 'static>>),
     Done,
 }
 
@@ -144,6 +140,8 @@ pub struct HTTPClientRequestStream {
     config: Option<HTTPClientConfig>,
     /// State of the OpenAI API request
     state: HTTPClientRequestState,
+    /// Optional copy of the query string which is needed for downloading PDFs and other data assets
+    query_str: Option<String>
 }
 
 impl HTTPClientRequestStream {
@@ -161,6 +159,7 @@ impl HTTPClientRequestStream {
             _runtime_env: runtime_env,
             config: None,
             state: HTTPClientRequestState::NotStarted,
+            query_str: None,
         })
     }
 
@@ -235,12 +234,20 @@ impl Stream for HTTPClientRequestStream {
                         };
                         let url = self.config.as_ref().unwrap().url(query_url.as_deref());
 
+                        // Stash the query for later
+                        if let Some(query) = query_url {
+                            self.query_str.replace(query);
+                        }                        
+
                         // Make the request
                         let mut client = client.get(url);
                         if let Ok(token) = self.config.as_ref().unwrap().api_key() {
-                            client = client.bearer_auth(token)
+                            client = client.bearer_auth(token);
                         }
-                        client.header(USER_AGENT, self.config.as_ref().unwrap().content_type.clone().ok_or(anyhow!("Content type (header value) needs to be specified for GET requests."))?)
+                        if let Some(content_type) = self.config.as_ref().unwrap().content_type.as_ref() {
+                            client = client.header(CONTENT_TYPE, content_type.to_string());
+                        }
+                        client.header(USER_AGENT, self.config.as_ref().unwrap().user_agent_type.clone().ok_or(anyhow!("User Agent type (header value) needs to be specified for GET requests."))?)
                             .send()
                     }
                     HTTPClientRequestType::Post => {
@@ -270,6 +277,9 @@ impl Stream for HTTPClientRequestStream {
                         if let Ok(token) = self.config.as_ref().unwrap().api_key() {
                             client = client.bearer_auth(token)
                         }
+                        if let Some(user_agent) = self.config.as_ref().unwrap().user_agent_type.as_ref() {
+                            client = client.header(USER_AGENT, user_agent.to_string());
+                        }
                         client
                             .header(
                                 CONTENT_TYPE,
@@ -297,6 +307,15 @@ impl Stream for HTTPClientRequestStream {
             }
             HTTPClientRequestState::Connecting(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                 Ok(response) => {
+                    // Determine the content type and parse accordingly
+                    let content_type = response
+                        .headers()
+                        .get(CONTENT_TYPE)
+                        .and_then(|ct| ct.to_str().ok())
+                        .unwrap_or("");
+
+                    // DM: need to match the content type
+                    // let fut = response.bytes();
                     let fut = response.text();
                     self.state = HTTPClientRequestState::ToText(Box::pin(fut));
                     self.poll_next(cx)
@@ -478,6 +497,74 @@ impl Stream for HTTPClientRequestStream {
                     Poll::Ready(Some(Err(anyhow!(error_report(&err)))))
                 }
             },
+            HTTPClientRequestState::ToBytes(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
+                Ok(bytes) => {
+                    // Initialize the metrics
+                    let baseline_metrics =
+                        if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                            Some(
+                                diagnostic_builder
+                                    .clone()
+                                    .to_child("HTTPClientRequestStream")?
+                                    .baseline_metrics(line!(), file!(), "poll_next"),
+                            )
+                        } else {
+                            None
+                        };
+                    let _timer = baseline_metrics
+                        .as_ref()
+                        .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
+
+                    // Parse the response
+                    let batch = match self.config.as_ref().unwrap().request_schema {
+                        HTTPClientRequestSchemas::None => create_blob_batch(
+                            vec![self.query_str.take().unwrap()],
+                            vec!["".to_string()],
+                            vec![bytes.to_vec()],
+                            vec!["tool".to_string()],
+                            vec![create_timestamp_micros()],
+                        )?,
+                        HTTPClientRequestSchemas::PDF => {
+                            dbg!(&bytes);
+                            let pdf = filter_pdf(load_pdf_document(&bytes)?);
+                            let docs = [(self.query_str.take().unwrap(), pdf)];
+                            match extract_pdf(&docs)
+                            {
+                                Ok(parsed) => parsed,
+                                Err(err) => {
+                                    self.state = HTTPClientRequestState::Done;
+                                    return Poll::Ready(Some(Err(anyhow!(
+                                        "A parsing error {err:?} was encountered when parsing response for schema {}.",
+                                        self.config.as_ref().unwrap().request_schema,
+                                    ))));
+                                }
+                            }
+                        }
+                        _ => {
+                            self.state = HTTPClientRequestState::Done;
+                            return Poll::Ready(Some(Err(anyhow!(
+                                "Request schema {} is not supported yet.",
+                                self.config.as_ref().unwrap().request_schema
+                            ))));
+                        }
+                    };
+
+                    // Reset the state to poll the next batch
+                    self.state = HTTPClientRequestState::NotStarted;
+
+                    // record the poll
+                    let poll = Poll::Ready(Some(Ok(batch)));
+                    if let Some(baseline_metrics) = &baseline_metrics {
+                        baseline_metrics.record_poll(poll)
+                    } else {
+                        poll
+                    }
+                }
+                Err(err) => {
+                    self.state = HTTPClientRequestState::Done;
+                    Poll::Ready(Some(Err(anyhow!(error_report(&err)))))
+                }
+            },
             HTTPClientRequestState::Done => Poll::Ready(None),
         }
     }
@@ -501,7 +588,7 @@ mod tests {
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
 
     #[tokio::test]
-    async fn test_http_client_processor_open_alex() -> Result<()> {
+    async fn test_http_client_processor_open_alex_get_message() -> Result<()> {
         // Case 1: GET from messages
         let name = "HTTPClientRequestProcessor";
         let messages = "messages";
@@ -524,16 +611,12 @@ mod tests {
             entity: schemas_open_alex::OpenAlexRequestEntity::Works,
             ..Default::default()
         };
-        // let year = "2020";
-        // let per_page = 5; // 50 Max allowed by OpenAlex
-        // let page = 1;
-        // let query_url = format!("filter=publication_year:{year}&per-page={per_page}&page={page}");
 
         // Config for the HTTP Processor
         let http_client_config = HTTPClientConfig {
             timeout: 5,
             request_type: HTTPClientRequestType::Get,
-            content_type: Some("rust-openalex-client/2.0".to_string()),
+            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: open_alex_request.to_base_url(),
             // json: Some(open_alex_request.to_get_query()?),
             request_schema: HTTPClientRequestSchemas::OpenAlexWorks,
@@ -601,17 +684,94 @@ mod tests {
             *"{\"id\":\"https://openalex.org/W3038568908\",\"display_"
         );
 
-        // Case 2: GET from config
+        Ok(())
+    }
+    #[tokio::test]
+    async fn test_http_client_processor_open_alex_get_config() -> Result<()> {
+        // Case 1: GET from messages
+        let name = "HTTPClientRequestProcessor";
 
-        // Case 3: POST from messages
+        // Runtime env
+        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
 
-        // Case 4: POST from config
+        // Metrics to compute time and rows
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
+        // OpenAlex request filters
+        let mut filter = Map::<String, Value>::new();
+        let _ = filter.insert("publication_year".to_string(), Value::String("2020".to_string()));
+        let open_alex_request = schemas_open_alex::OpenAlexRequest {
+            page: Some(1),
+            per_page: Some(5),
+            filter: Some(filter),
+            entity: schemas_open_alex::OpenAlexRequestEntity::Works,
+            ..Default::default()
+        };
+
+        // Config for the HTTP Processor
+        let http_client_config = HTTPClientConfig {
+            timeout: 5,
+            request_type: HTTPClientRequestType::Get,
+            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
+            base_url: open_alex_request.to_base_url(),
+            json: Some(open_alex_request.to_get_query()?),
+            request_schema: HTTPClientRequestSchemas::OpenAlexWorks,
+            ..Default::default()
+        };
+        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
+        let http_client_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&http_client_config_json, 1)?
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            http_client_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(http_client_config_table.get_name())
+                .with_publisher("")
+                .with_subject(http_client_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(http_client_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the http client processor
+        let processor =
+            HTTPClientRequestProcessor::new(name, HTTPClientRequestProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("role");
+        assert_eq!(result, ["tool", "tool", "tool", "tool", "tool"]);
+        let result = table.get_column_as_vec_string("content")?;
+        let snippet = result.first().unwrap().to_string();
+        assert_eq!(
+            snippet[..50],
+            *"{\"id\":\"https://openalex.org/W3038568908\",\"display_"
+        );
 
         Ok(())
     }
 
     #[tokio::test]
-    async fn test_http_client_processor_e_utils() -> Result<()> {
+    async fn test_http_client_processor_e_utils_e_search() -> Result<()> {
         let name = "HTTPClientRequestProcessor";
         let messages = "messages";
 
@@ -644,7 +804,7 @@ mod tests {
         let http_client_config = HTTPClientConfig {
             timeout: 5,
             request_type: HTTPClientRequestType::Get,
-            content_type: Some("rust-openalex-client/2.0".to_string()),
+            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi".to_string(),
             request_schema: HTTPClientRequestSchemas::ESearch,
             ..Default::default()
@@ -710,15 +870,31 @@ mod tests {
             ["37997144", "37997132", "37997130", "37997120", "37997092"]
         );
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_http_client_processor_e_utils_e_fetch() -> Result<()> {
+        let name = "HTTPClientRequestProcessor";
+        let messages = "messages";
+
+        // Runtime env
+        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+
+        // Metrics to compute time and rows
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
         // Build EFetch query
-        let ids = table.get_column_as_vec_str("content").join(",");
+        let ids = ["37997144", "37997132", "37997130", "37997120", "37997092"].join(",");
         let efetch_url = format!("db=pubmed&id={ids}&retmode=xml");
 
         // State for the http client processor config
         let http_client_config = HTTPClientConfig {
             timeout: 5,
             request_type: HTTPClientRequestType::Get,
-            content_type: Some("rust-openalex-client/2.0".to_string()),
+            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi".to_string(),
             request_schema: HTTPClientRequestSchemas::EFetch,
             ..Default::default()
@@ -789,6 +965,101 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_http_client_processor_pdf_download() -> Result<()> {
+        let name = "HTTPClientRequestProcessor";
+        let messages = "messages";
+
+        // Runtime env
+        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+
+        // Metrics to compute time and rows
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
+        // Build EFetch query
+        let id = "PMC12069674";
+        let download_url = format!("{id}/pdf/44319_2025_Article_436.pdf");
+
+        // State for the http client processor config
+        let http_client_config = HTTPClientConfig {
+            timeout: 5,
+            request_type: HTTPClientRequestType::Get,
+            content_type: Some("application/pdf".to_string()),
+            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
+            base_url: "https://pmc.ncbi.nlm.nih.gov/articles/".to_string(),
+            request_schema: HTTPClientRequestSchemas::PDF,
+            ..Default::default()
+        };
+        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
+        let http_client_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&http_client_config_json, 1)?
+            .build()?;
+
+        // Make the system prompt and add the user query
+        let message_builder = TableBuilder::new()
+            .with_name(messages)
+            .append_new_user_query_str(&download_url, "user")?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            messages.to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(messages)
+                .with_publisher("")
+                .with_subject(messages)
+                .with_update(&TablePublication::None)
+                .with_message(message_builder.clone().build()?.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            http_client_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(http_client_config_table.get_name())
+                .with_publisher("")
+                .with_subject(http_client_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(http_client_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the http client processor
+        let processor =
+            HTTPClientRequestProcessor::new(name, HTTPClientRequestProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("chunk_id");
+        assert_eq!(result, ["tool"]);
+        let result = table.get_column_as_vec_str("document_id");
+        assert_eq!(result, ["tool"]);
+        let result = table.get_column_as_vec_str("text");
+        let snippet = result.first().unwrap().to_string();
+        dbg!(&snippet);
+        assert_eq!(
+            snippet[..100],
+            *"{\"MedlineCitation\":{\"Article\":{\"ArticleTitle\":\"Eff"
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn test_http_client_processor_semantic_scholar() -> Result<()> {
         let name = "HTTPClientRequestProcessor";
         let messages = "messages";
@@ -805,7 +1076,8 @@ mod tests {
         let http_client_config = HTTPClientConfig {
             timeout: 30,
             request_type: HTTPClientRequestType::Post,
-            content_type: Some("rust-openalex-client/2.0".to_string()),
+            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
+            content_type: Some("application/json".to_string()),
             base_url: "https://api.semanticscholar.org/recommendations/v1/papers/".to_string(),
             json: Some("fields=title,url,authors&limit=3".to_string()),
             request_schema: HTTPClientRequestSchemas::SemanticScholarRecomendations,

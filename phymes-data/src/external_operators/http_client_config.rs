@@ -37,6 +37,9 @@ pub enum HTTPClientRequestSchemas {
     /// Semantic Scholar Recomendations API
     #[value(name = "SemanticScholarRecomendations")]
     SemanticScholarRecomendations,
+    /// A general API endpoint for PDFs
+    #[value(name = "PDF")]
+    PDF,
     #[value(skip)]
     Custom(String),
 }
@@ -50,6 +53,7 @@ impl Display for HTTPClientRequestSchemas {
             Self::ESearch => write!(f, "ESearch"),
             Self::EFetch => write!(f, "EFetch"),
             Self::SemanticScholarRecomendations => write!(f, "SemanticScholarRecomendations"),
+            Self::PDF => write!(f, "PDF"),
             Self::Custom(s) => write!(f, "{s}"),
         }
     }
@@ -96,6 +100,11 @@ pub struct HTTPClientConfig {
     /// The request type to the URL
     #[arg(long, default_value_t = HTTPClientRequestType::Get)]
     pub request_type: HTTPClientRequestType,
+
+    /// The request header user agent type
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_agent_type: Option<String>,
 
     /// The request header content type or header value
     #[arg(long)]
@@ -151,6 +160,7 @@ impl Default for HTTPClientConfig {
         Self {
             timeout: 15,
             request_type: HTTPClientRequestType::Get,
+            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             content_type: Some("application/json".to_string()),
             bearer_auth: None,
             base_url: "".to_string(),
