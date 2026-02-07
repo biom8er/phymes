@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::DataConfigTrait;
 
 /// The HTTP client request types
-#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default, PartialEq)]
 pub enum HTTPClientRequestSchemas {
     /// No parsing of the response
     #[default]
@@ -129,6 +129,12 @@ pub struct HTTPClientConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub json: Option<String>,
 
+    /// The name of the streaming subject with the JSON application data to send in the request if POST
+    /// or the query URL to join with the base URL if GET
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject_name: Option<String>,
+
     /// The request schema to try and parse responses into
     #[arg(long, default_value_t = HTTPClientRequestSchemas::None)]
     pub request_schema: HTTPClientRequestSchemas,
@@ -150,8 +156,6 @@ impl HTTPClientConfig {
     pub fn url(&self, query_url: Option<&str>) -> String {
         if let Some(query_url) = query_url {
             format!("{}{query_url}", &self.base_url)
-        } else if let Some(query_url) = &self.json {
-            format!("{}{query_url}", &self.base_url)
         } else {
             self.base_url.to_string()
         }
@@ -167,6 +171,7 @@ impl Default for HTTPClientConfig {
             content_type: Some("application/json".to_string()),
             bearer_auth: None,
             base_url: "".to_string(),
+            subject_name: None,
             json: None,
             request_schema: HTTPClientRequestSchemas::None,
         }

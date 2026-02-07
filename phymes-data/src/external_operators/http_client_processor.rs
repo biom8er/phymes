@@ -92,23 +92,9 @@ impl ProcessorTrait for HTTPClientRequestProcessor {
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
 
-        // Extract out the message
-        let mut subscriptions = message.into_values().collect::<Vec<_>>();
-        if subscriptions.len() > 1 {
-            return Err(anyhow!(
-                "More than one subscription was found for {}.",
-                self.get_name()
-            ));
-        } else if subscriptions.is_empty() {
-            return Err(anyhow!(
-                "No subscriptions were found for {}.",
-                self.get_name()
-            ));
-        }
-
         // Run the stream
         let out = Box::pin(HTTPClientRequestStream::new(
-            subscriptions.swap_remove(0).get_message_own(),
+            message,
             config,
             Arc::clone(&runtime_env),
             diagnostic_builder.cloned(),
@@ -128,8 +114,9 @@ impl ProcessorTrait for HTTPClientRequestProcessor {
 pub struct HTTPClientRequestStream {
     /// Output schema
     schema: SchemaRef,
-    /// The input message to process
-    message_stream: SendableRecordBatchStream,
+    /// The messages containing the lhs and rhs
+    /// which we cannot determine until we intialize the config
+    messages: SendableRecordBatchStreamMessageMap,
     /// Parameters for chat inference
     config_stream: SendableRecordBatchStream,
     /// The candle assets needed for inference
@@ -140,26 +127,32 @@ pub struct HTTPClientRequestStream {
     config: Option<HTTPClientConfig>,
     /// State of the OpenAI API request
     state: HTTPClientRequestState,
+    /// The polled record batches from the input
+    record_batches: Option<RecordBatch>,
+    /// The record batches or url from the config
+    json_str: Option<String>,
     /// Optional copy of the query string which is needed for downloading PDFs and other data assets
-    query_str: Option<String>
+    url: Option<String>,
 }
 
 impl HTTPClientRequestStream {
     pub fn new(
-        message_stream: SendableRecordBatchStream,
+        messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<RuntimeEnv>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
             schema: AvailableSubjects::Messages.to_schema(),
-            message_stream,
+            messages,
             diagnostic_builder,
             config_stream,
             _runtime_env: runtime_env,
             config: None,
             state: HTTPClientRequestState::NotStarted,
-            query_str: None,
+            record_batches: None,
+            json_str: None,
+            url: None,
         })
     }
 
@@ -193,24 +186,43 @@ impl Stream for HTTPClientRequestStream {
                     self.init_config(config_table)?;
                 }
 
-                // Collect the message data in a streaming fashion
-                let mut batches = Vec::new();
-                while let Some(Ok(batch)) = ready!(self.message_stream.poll_next_unpin(cx)) {
-                    if batch.num_rows() > 0 {
-                        batches.push(batch);
-                        break;
+                // Collect the request data
+                if self.record_batches.is_none() && self.json_str.is_none() 
+                && let Some(subject_name) = self.config.as_ref().unwrap().subject_name.clone() {
+                    match self.messages.get_mut(subject_name.as_str()) {
+                        // Poll the next batches in a streaming fashion
+                        Some(fut) => {
+                            while let Some(Ok(batch)) = ready!(fut.get_message_mut().poll_next_unpin(cx)) {
+                                self.record_batches.replace(batch);
+                                break;
+                            }
+                        }
+                        // Extract the data from the config
+                        None => if let Some(json) = self.config.as_ref().unwrap().json.clone() {
+                            self.json_str.replace(json.to_string());
+                        } else {
+                            self.state = HTTPClientRequestState::Done;
+                            return Poll::Ready(Some(Err(anyhow!(
+                                "subject_name `{subject_name}` does not exist. Available options are {:?}",
+                                self.messages.keys()
+                            ))));
+                        },
                     }
-                }
-
-                // The poll ends when there are no more batches
-                if batches.is_empty() {
+                } else if self.record_batches.is_none() && self.json_str.is_none() 
+                && let Some(json) = self.config.as_ref().unwrap().json.clone() {
+                    // Extract the data from the config
+                    self.json_str.replace(json.to_string());
+                } else if self.json_str.is_some() {
+                    // The config has already been "polled"
                     self.state = HTTPClientRequestState::Done;
                     return Poll::Ready(None);
                 }
-                let messages = Table::get_builder()
-                    .with_name("messages")
-                    .with_record_batches(batches)?
-                    .build()?;
+
+                // The poll ends when there are no more batches
+                if self.record_batches.is_none() && self.json_str.is_none()  {
+                    self.state = HTTPClientRequestState::Done;
+                    return Poll::Ready(None);
+                }
 
                 // Create HTTP client with timeout
                 let client = Client::builder()
@@ -223,21 +235,27 @@ impl Stream for HTTPClientRequestStream {
                 // DM: A future optimization maybe to treat each row as a parallel API request
                 let fut = match self.config.as_ref().unwrap().request_type {
                     HTTPClientRequestType::Get => {
-                        // Join the `content` fields together for the case of multiple rows
-                        let query_str = messages.get_column_as_vec_str("content").join("");
 
                         // Prioritize the message data over the config when building the url
-                        let query_url = if query_str.is_empty() {
-                            None
-                        } else {
+                        let query_url = if let Some(batches) = self.record_batches.take() {
+                            let messages = Table::get_builder()
+                                .with_name("messages")
+                                .with_record_batches(vec![batches])?
+                                .build()?;
+                            
+                            // Join the `content` fields together for the case of multiple rows
+                            let query_str = messages.get_column_as_vec_str("content").join("");
+
                             Some(query_str)
+                        } else {
+                            self.json_str.clone()
                         };
                         let url = self.config.as_ref().unwrap().url(query_url.as_deref());
 
-                        // Stash the query for later
-                        if let Some(query) = query_url {
-                            self.query_str.replace(query);
-                        }                        
+                        // Save the URL when downloading data
+                        if self.config.as_ref().unwrap().request_schema == HTTPClientRequestSchemas::PDF {
+                            self.url.replace(url.to_owned());
+                        }                    
 
                         // Make the request
                         let mut client = client.get(url);
@@ -248,16 +266,28 @@ impl Stream for HTTPClientRequestStream {
                             .send()
                     }
                     HTTPClientRequestType::Post => {
-                        // Extract the table as a JSON object
-                        // DM: currently, only the last row is used similar to configs...
-                        let mut json_object = messages.to_json_object()?;
 
                         // Prioritize the message data over the config when building the JSON body and url
-                        let (json_data, url) = if !json_object.is_empty() {
+                        let (json_data, url) = if let Some(batches) = self.record_batches.take() {
+                            // Extract the table as a JSON object
+                            let messages = Table::get_builder()
+                                .with_name("messages")
+                                .with_record_batches(vec![batches])?
+                                .build()?;
+                            let mut json_object = messages.to_json_object()?;
+
+                            // DM: currently, only the last row is used similar to configs...
                             let json_data = json_object.pop().unwrap();
-                            let url = self.config.as_ref().unwrap().url(None);
+
+                            // Build the url
+                            let url = if let Some(json_str) = self.config.as_ref().unwrap().json.as_ref() {
+                                self.config.as_ref().unwrap().url(Some(json_str))
+                            } else {
+                                self.config.as_ref().unwrap().url(None)
+                            };
+
                             (json_data, url)
-                        } else if let Some(json_str) = self.config.as_ref().unwrap().json.as_ref() {
+                        } else if let Some(json_str) = self.json_str.as_ref() {
                             let json_data = serde_json::from_str::<Map<String, Value>>(json_str)?;
                             let url = self.config.as_ref().unwrap().base_url.clone();
                             (json_data, url)
@@ -267,6 +297,11 @@ impl Stream for HTTPClientRequestStream {
                                 "POST json data was not found in the messages nor in the config."
                             ))));
                         };
+
+                        // Save the URL when downloading data
+                        if self.config.as_ref().unwrap().request_schema == HTTPClientRequestSchemas::PDF {
+                            self.json_str.replace(url.to_owned());
+                        }
 
                         // Make the request
                         let mut client = client.post(url);
@@ -535,18 +570,38 @@ impl Stream for HTTPClientRequestStream {
                         .as_ref()
                         .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
+                    // Determine the filename
+                    let filename = if let Some(url) = self.url.take() {
+                        let mut f_vec = url.split("/").into_iter().collect::<Vec<_>>();
+                        f_vec.pop().unwrap_or_default().to_string()
+                    } else {
+                        String::new()
+                    };
+
                     // Parse the response
                     let batch = match self.config.as_ref().unwrap().request_schema {
                         HTTPClientRequestSchemas::None => create_blob_batch(
-                            vec![self.query_str.take().unwrap()],
+                            vec![filename],
                             vec!["".to_string()],
                             vec![bytes.to_vec()],
                             vec!["tool".to_string()],
                             vec![create_timestamp_micros()],
                         )?,
                         HTTPClientRequestSchemas::PDF => {
-                            let pdf = filter_pdf(load_pdf_document(&bytes)?);
-                            let docs = [(self.query_str.take().unwrap(), pdf)];
+                            // Parse the PDF
+                            let pdf = match load_pdf_document(&bytes) {
+                                Ok(pdf) => filter_pdf(pdf),
+                                Err(err) => {
+                                    self.state = HTTPClientRequestState::Done;
+                                    return Poll::Ready(Some(Err(anyhow!(
+                                        "A parsing error {err:?} was encountered when loading PDF for schema {}.",
+                                        self.config.as_ref().unwrap().request_schema,
+                                    ))));
+                                }
+                            };
+
+                            // Extract the PDF
+                            let docs = [(filename, pdf)];
                             match extract_pdf(&docs)
                             {
                                 Ok(parsed) => parsed,
@@ -637,6 +692,7 @@ mod tests {
             request_type: HTTPClientRequestType::Get,
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: format!("{}?", open_alex_request.to_base_url()),
+            subject_name: Some(messages.to_string()),
             request_schema: HTTPClientRequestSchemas::OpenAlexWorks,
             ..Default::default()
         };
@@ -772,8 +828,8 @@ mod tests {
             .try_collect::<Vec<_>>()
             .await?;
         let table = TableBuilder::new()
+            .with_name("test_http_client_processor_open_alex_get_config")
             .with_record_batches(result)?
-            .with_name("")
             .build()?;
 
         let result = table.get_column_as_vec_str("role");
@@ -824,6 +880,7 @@ mod tests {
             request_type: HTTPClientRequestType::Get,
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?".to_string(),
+            subject_name: Some(messages.to_string()),
             request_schema: HTTPClientRequestSchemas::ESearch,
             ..Default::default()
         };
@@ -914,6 +971,7 @@ mod tests {
             request_type: HTTPClientRequestType::Get,
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?".to_string(),
+            subject_name: Some(messages.to_string()),
             request_schema: HTTPClientRequestSchemas::EFetch,
             ..Default::default()
         };
@@ -1003,9 +1061,9 @@ mod tests {
         let http_client_config = HTTPClientConfig {
             timeout: 5,
             request_type: HTTPClientRequestType::Get,
-            // content_type: Some("application/pdf".to_string()),
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: "https://arxiv.org/".to_string(),
+            subject_name: Some(messages.to_string()),
             request_schema: HTTPClientRequestSchemas::PDF,
             ..Default::default()
         };
@@ -1063,9 +1121,9 @@ mod tests {
             .build()?;
 
         let result = table.get_column_as_vec_str("chunk_id");
-        assert_eq!(result, ["pdf/2508.18700_1", "pdf/2508.18700_2", "pdf/2508.18700_3"]);
+        assert_eq!(result, ["2508.18700_1", "2508.18700_2", "2508.18700_3"]);
         let result = table.get_column_as_vec_str("document_id");
-        assert_eq!(result, ["pdf/2508.18700", "pdf/2508.18700", "pdf/2508.18700"]);
+        assert_eq!(result, ["2508.18700", "2508.18700", "2508.18700"]);
         let result = table.get_column_as_vec_str("text");
         let snippet = result.first().unwrap().to_string();
         assert_eq!(
@@ -1097,6 +1155,7 @@ mod tests {
             content_type: Some("application/json".to_string()),
             base_url: "https://api.semanticscholar.org/recommendations/v1/papers/?".to_string(),
             json: Some("fields=title,url,authors&limit=3".to_string()),
+            subject_name: Some(messages.to_string()),
             request_schema: HTTPClientRequestSchemas::SemanticScholarRecomendations,
             ..Default::default()
         };
@@ -1162,9 +1221,10 @@ mod tests {
         let result = table.get_column_as_vec_str("role");
         assert_eq!(result, ["tool", "tool", "tool"]);
         let result = table.get_column_as_vec_str("content");
+        let snippet = result.first().unwrap().to_string();
         assert_eq!(
-            *result.first().unwrap(),
-            "{\"paperId\":\"5bc7d8dfad3f164cbc37fbf45b94b69b4154ae5d\",\"title\":\"SciNER: Extracting Named Entities From Scientiﬁc Literature (cid:63)\",\"abstract\":null,\"year\":null,\"venue\":null,\"publicationTypes\":null,\"publicationDate\":null,\"doi\":null,\"arxivId\":null,\"url\":\"https://www.semanticscholar.org/paper/5bc7d8dfad3f164cbc37fbf45b94b69b4154ae5d\",\"isOpenAccess\":null,\"openAccessPdf\":null,\"citationCount\":null,\"influentialCitationCount\":null,\"isHighlyCited\":null,\"referenceCount\":null,\"fieldsOfStudy\":null,\"authors\":[{\"authorId\":\"2112933368\",\"name\":\"Zhi Hong\",\"aliases\":null,\"affiliations\":null,\"homepage\":null,\"paperCount\":null,\"citationCount\":null,\"hIndex\":null,\"url\":null},{\"authorId\":\"2275124737\",\"name\":\"Roselyne Tchoua\",\"aliases\":null,\"affiliations\":null,\"homepage\":null,\"paperCount\":null,\"citationCount\":null,\"hIndex\":null,\"url\":null},{\"authorId\":\"2267696593\",\"name\":\"Kyle Chard\",\"aliases\":null,\"affiliations\":null,\"homepage\":null,\"paperCount\":null,\"citationCount\":null,\"hIndex\":null,\"url\":null},{\"authorId\":\"2270007050\",\"name\":\"Ian T. Foster\",\"aliases\":null,\"affiliations\":null,\"homepage\":null,\"paperCount\":null,\"citationCount\":null,\"hIndex\":null,\"url\":null}],\"tldr\":null,\"externalIds\":null,\"publicationVenue\":null,\"journal\":null}"
+            snippet[..11],
+            *"{\"paperId\":"
         );
 
         Ok(())
