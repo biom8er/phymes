@@ -1,7 +1,8 @@
-use std::fmt::Display;
+use std::{fmt::Display, sync::Arc};
 
-/// Collection of structs for parsing OpenAlex data
 use anyhow::{anyhow, Result};
+use arrow::{array::{ArrayRef, RecordBatch, StringArray}, datatypes::{DataType, Field, Fields}};
+use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -9,7 +10,7 @@ use serde_json::{Map, Value};
 const OPENALEX_API: &str = "https://api.openalex.org/";
 
 /// OpenAlex Entities
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum OpenAlexEntity {
     Work(Work),
@@ -23,6 +24,7 @@ pub enum OpenAlexEntity {
     Award(Award),
     Geo(Geo),
     Concept(Concept),
+    #[default]
     #[serde(other)]
     Unknown,
 }
@@ -31,7 +33,7 @@ pub enum OpenAlexEntity {
 // ===== Shared enums =====
 //
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum CountryCode {
     US,
@@ -44,11 +46,12 @@ pub enum CountryCode {
     IN,
     ES,
     IT,
+    #[default]
     #[serde(other)]
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum Currency {
     USD,
@@ -58,32 +61,35 @@ pub enum Currency {
     CNY,
     AUD,
     CAD,
+    #[default]
     #[serde(other)]
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ConceptLevel {
     Domain,
     Field,
     Subfield,
     Topic,
+    #[default]
     #[serde(other)]
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum InstitutionRelationship {
     Parent,
     Child,
     Related,
+    #[default]
     #[serde(other)]
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum InstitutionType {
     Education,
@@ -94,21 +100,23 @@ pub enum InstitutionType {
     Government,
     Facility,
     Other,
+    #[default]
     #[serde(other)]
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum RoleType {
     Institution,
     Funder,
     Publisher,
+    #[default]
     #[serde(other)]
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum SourceType {
     Journal,
@@ -118,20 +126,22 @@ pub enum SourceType {
     BookSeries,
     Metadata,
     Other,
+    #[default]
     #[serde(other)]
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum KeywordType {
     Phrase,
     Term,
+    #[default]
     #[serde(other)]
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum WorkType {
     Article,
@@ -143,11 +153,12 @@ pub enum WorkType {
     Dissertation,
     Report,
     Other,
+    #[default]
     #[serde(other)]
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum OaStatus {
     Gold,
@@ -155,11 +166,12 @@ pub enum OaStatus {
     Green,
     Bronze,
     Closed,
+    #[default]
     #[serde(other)]
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum LanguageCode {
     En,
@@ -170,17 +182,19 @@ pub enum LanguageCode {
     Ja,
     Ru,
     Pt,
+    #[default]
     #[serde(other)]
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum AuthorPosition {
     First,
     Middle,
     Last,
     Solo,
+    #[default]
     #[serde(other)]
     Unknown,
 }
@@ -227,7 +241,7 @@ pub struct Work {
     #[serde(rename = "type")]
     pub type_: Option<WorkType>,
     pub publication_date: Option<String>,
-    pub publication_year: Option<i32>,
+    pub publication_year: Option<u32>,
     pub created_date: Option<String>,
     pub updated_date: Option<String>,
     pub abstract_inverted_index: Option<serde_json::Value>, // Raw JSON for abstracts
@@ -247,9 +261,9 @@ pub struct Work {
     pub cited_by_count: Option<u32>,
     pub cited_by_percentile_year: Option<CitedByPercentileYear>,
     pub counts_by_year: Option<Vec<CountsByYear>>,
-    pub concepts: Option<Vec<Concept>>,
-    pub topics: Option<Vec<Topic>>,
-    pub primary_topic: Option<Topic>,
+    pub concepts: Option<Vec<WorkConcept>>,
+    pub topics: Option<Vec<WorkTopic>>,
+    pub primary_topic: Option<WorkTopic>,
     pub keywords: Option<Vec<Keyword>>,
     pub mesh: Option<Vec<MeshTag>>,
     pub sustainable_development_goals: Option<Vec<SdgTag>>,
@@ -268,23 +282,269 @@ pub struct Work {
     pub language: Option<LanguageCode>,
 }
 
+impl Work {
+    pub fn to_tables(self) -> () {
+        // WorkTable
+        let abstract_ = if let Some(abstract_inverted_index) = self.abstract_inverted_index {
+            let abstract_inverted_index = serde_json::from_value::<Map<String, Value>>(abstract_inverted_index).unwrap()
+                .into_iter()
+                .map(|(k,v)| (k, serde_json::from_value::<Vec<usize>>(v).unwrap()))
+                .collect::<HashMap<_, _>>();
+            abstract_from_inverted_index(&abstract_inverted_index)
+        } else {
+            String::new()
+        };
+        
+
+        // WorkAuthorshipTable
+    
+        // WorkAwardTable
+
+        // WorkFunderTable
+
+        // WorkApcInfoTable
+
+        // WorkLocationTable
+
+        // WorkOpenAccessTable
+
+        // WorkBiblioTable
+
+        // WorkCitationPercentileTable
+
+        // WorkCitedByPercentileYearTable
+
+        // WorkCountsByYearTable
+
+        // WorkConceptTable
+
+        // WorkTopicTable
+
+        // WorkKeywordTable
+
+        // WorkMeshTagTable
+
+        // WorkSdgTagTable
+
+        // WorkCorrespondingAuthorTable
+
+        // WorkCorrespondingInstitutionTable
+
+        // WorkIdsTable
+
+        // WorkReferenceWorksTable
+
+        // WorkRelatedWorksTable
+        todo!()
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkTable {
+    pub id: String,
+    pub display_name: String,
+    pub title: String,
+    pub doi: String,
+    pub type_: WorkType,
+    pub publication_date: String,
+    pub publication_year: u32,
+    pub created_date: String,
+    pub updated_date: String,
+    pub abstract_: String, // todo: conversion from inverse abstract
+    // pub authorships: Vec<Authorship>, // todo: WorkAuthorshipTable
+    // pub awards: Option<Vec<Award>>, // todo: WorkAwardTable
+    // pub funders: Option<Vec<Funder>>, // todo: WorkFunderTable
+    // pub apc_list: Option<ApcInfo>, // todo: WorkApcInfoTable
+    pub apc_list_id: String,
+    pub apc_paid: Option<ApcInfo>, // todo: WorkApcInfoTable
+    pub apc_paid_id: String,
+    // pub best_oa_location: Option<Location>, // todo: WorkLocationTable
+    pub best_oa_location_id: String,
+    // pub primary_location: Option<Location>, // todo: WorkLocationTable
+    pub primary_location_id: String,
+    // pub locations: Option<Vec<Location>>, // todo: WorkLocationTable
+    pub locations_count: u32,
+    // pub open_access: OpenAccess, // todo: WorkOpenAccessTable
+    // pub biblio: Option<Biblio>, // todo: WorkBiblioTable
+    // pub citation_normalized_percentile: Option<CitationPercentile>, // todo: WorkCitationPercentileTable
+    pub cited_by_count: u32,
+    // pub cited_by_percentile_year: Option<CitedByPercentileYear>, // todo: WorkCitedByPercentileYearTable
+    // pub counts_by_year: Option<Vec<CountsByYear>>, // todo: WorkCountsByYearTable
+    // pub concepts: Option<Vec<WorkConcept>>, // todo: WorkConceptTable
+    // pub topics: Option<Vec<WorkTopic>>, // todo: WorkTopicTable
+    // pub primary_topic: Option<WorkTopic>, // todo: WorkTopicTable
+    pub primary_topic_id: String,
+    // pub keywords: Option<Vec<Keyword>>, // todo: WorkKeywordTable
+    // pub mesh: Option<Vec<MeshTag>>, // todo: WorkMeshTagTable
+    // pub sustainable_development_goals: Option<Vec<SdgTag>>, // todo: WorkSdgTagTable
+    // pub corresponding_author_ids: Vec<String>, // todo: WorkCorrespondingAuthorTable
+    // pub corresponding_institution_ids: Vec<String>, // todo: WorkCorrespondingInstitutionTable
+    pub countries_distinct_count: Option<u32>,
+    pub institutions_distinct_count: Option<u32>,
+    pub indexed_in: Vec<String>,
+    // pub ids: Option<WorkIds>, // todo: WorkIdsTable
+    pub is_paratext: bool,
+    pub is_retracted: bool,
+    pub is_xpac: bool,
+    pub referenced_works: Option<Vec<String>>, // todo: WorkReferenceWorksTable
+    pub referenced_works_count: Option<u32>,
+    pub related_works: Option<Vec<String>>, // todo: WorkRelatedWorksTable
+    pub language: Option<LanguageCode>,
+}
+
+// DM: Vec -> new table, object -> id that references a table
+pub fn create_open_alex_work_fields() -> Fields {
+    let field_names = ["work_id", 
+        "display_name", 
+        "title", 
+        "doi", 
+        "type_", 
+        "publication_date", 
+        "created_date", 
+        "updated_date", 
+        "abstract", 
+        "work_authorship_id", // new table `WorkAuthorship`
+        "work_award_id",  // new table `WorkAward`
+        "work_funder_id",  // new table `WorkFunder`
+        "work_apc_list_id",  // new table `WorkApcInfo`
+        "work_apc_paid_id",  // new table (same as work_apc_list_id)
+        "work_best_oa_location_id", // new table (same as work_apc_list_id)
+        "work_primary_location", 
+        "type_", 
+        "type_", 
+        "type_", 
+        "type_", 
+        "type_", 
+        "type_", 
+        "type_", 
+        "type_", 
+        "type_", 
+        "type_", 
+        "type_"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let field_names = ["publication_year", 
+        "doi", "type_", 
+        "publication_date", 
+        "locations_count", 
+        "type_", 
+        "type_", 
+        "type_", 
+        "type_", 
+        "type_", 
+        "type_", 
+        "type_"];
+    fields_vec.extend(field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::UInt32, false))
+        .collect::<Vec<_>>());
+    Fields::from(fields_vec)
+}
+
+pub fn create_open_alex_work_record_batch(
+    names: Vec<String>,
+    publishers: Vec<String>,
+    subjects: Vec<String>,
+    values: Vec<String>,
+) -> Result<RecordBatch> {
+    let names: ArrayRef = Arc::new(StringArray::from(names));
+    let publishers: ArrayRef = Arc::new(StringArray::from(publishers));
+    let subjects: ArrayRef = Arc::new(StringArray::from(subjects));
+    let values: ArrayRef = Arc::new(StringArray::from(values));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("name", names),
+        ("publisher", publishers),
+        ("subject", subjects),
+        ("values", values),
+    ])?;
+    Ok(batch)
+}
+
+/// The Authorship object represents a single author and her institutional affiliations in the context of a given work
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Authorship {
     pub author_position: Option<AuthorPosition>,
     pub author: Option<Author>,
     pub institutions: Option<Vec<Institution>>,
     pub is_corresponding: Option<bool>,
+    pub countries: Option<Vec<CountryCode>>,
+    pub raw_affiliation_strings: Option<Vec<String>>,
+    pub raw_author_name: Option<Vec<String>>,
+}
+
+impl Authorship {
+    pub fn to_work_authorship_table(self, work_id: &str) -> WorkAuthorshipTable {
+        let author_id = if let Some(author) = self.author {
+            author.id.unwrap_or_default()
+        } else {
+            String::new()
+        };
+        let institution_ids = if let Some(institutions) = self.institutions {
+            institutions.into_iter().map(|i| i.id).collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
+        WorkAuthorshipTable { 
+            work_id: work_id.to_string(), 
+            author_position: self.author_position.unwrap_or_default(), 
+            author_id, 
+            institution_ids,
+            is_corresponding: self.is_corresponding.unwrap_or_default(), 
+            countries: self.countries.unwrap_or_default(), 
+            raw_affiliation_strings: self.raw_affiliation_strings.unwrap_or_default(), 
+            raw_author_name: self.raw_author_name.unwrap_or_default() 
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Award {
-    pub id: Option<String>,
-    pub display_name: Option<String>,
-    pub funder_award_id: Option<String>,
-    pub funder_id: Option<String>,
-    pub funder_display_name: Option<String>,
-    pub doi: Option<String>,
+pub struct WorkAuthorshipTable {
+    pub work_id: String,
+    pub author_position: AuthorPosition,
+    pub author_id: String,
+    pub institution_ids: Vec<String>,
+    pub is_corresponding: bool,
+    pub countries: Vec<CountryCode>,
+    pub raw_affiliation_strings: Vec<String>,
+    pub raw_author_name: Vec<String>,
 }
+
+/// WorkAuthorship
+pub fn create_work_authorship_fields() -> Fields {
+    let field_names = ["work_id", 
+        "author_position", 
+        "author_id"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Utf8, false)));
+    let field_names = [
+        "institutions",
+        "countries",
+        "raw_affiliation_strings",
+        "raw_author_name",
+    ];
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, list_data_type.clone(), false))
+            .collect::<Vec<_>>(),
+    );
+    let field_names = [
+        "is_corresponding",
+    ];
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Boolean, false))
+            .collect::<Vec<_>>(),
+    );
+    Fields::from(fields_vec)
+}
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ApcInfo {
@@ -334,19 +594,19 @@ pub struct CitedByPercentileYear {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Subfield {
+pub struct TopicSubfield {
     pub id: Option<String>,
     pub display_name: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Field {
+pub struct TopicField {
     pub id: Option<String>,
     pub display_name: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Domain {
+pub struct TopicDomain {
     pub id: Option<String>,
     pub display_name: Option<String>,
 }
@@ -375,6 +635,23 @@ pub struct WorkIds {
     pub pmid: Option<String>,
     pub pmcid: Option<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkTopic {
+    // work_id in SQL
+    // topic_id in SQL
+    pub id: Option<String>,
+    pub score: Option<f64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkConcept {
+    // work_id in SQL
+    // topic_id in SQL
+    pub id: Option<String>,
+    pub score: Option<f64>,
+}
+
 
 //
 // ===== Author and related =====
@@ -585,24 +862,6 @@ pub struct Topic {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TopicDomain {
-    pub id: String,
-    pub display_name: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TopicField {
-    pub id: String,
-    pub display_name: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TopicSubfield {
-    pub id: String,
-    pub display_name: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct TopicIds {
     pub openalex: Option<String>,
     pub wikipedia: Option<String>,
@@ -690,6 +949,47 @@ pub struct FunderIds {
     pub wikidata: Option<String>,
     pub crossref: Option<String>,
     pub doi: Option<String>,
+}
+
+//
+// ===== Award and related =====
+//
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Award {
+    pub id: Option<String>,
+    pub display_name: Option<String>,
+    pub description: Option<String>,
+    pub funder_award_id: Option<String>,
+    pub funder: Option<Funder>,
+    pub funded_outputs: Option<Vec<String>>,
+    pub funded_outputs_count: Option<u32>,
+    pub amount: Option<f32>,
+    pub currency: Option<Currency>,
+    pub funding_type: Option<String>,
+    pub funder_scheme: Option<String>,
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+    pub start_year: Option<u32>,
+    pub end_year: Option<u32>,
+    pub landing_page_url: Option<String>,
+    pub doi: Option<String>,
+    pub provenance: Option<String>,
+    pub lead_investigator: Option<Investigator>,
+    pub co_lead_investigator: Option<Investigator>,
+    pub investigators: Option<Vec<Investigator>>,
+    pub works_api_url: Option<String>,
+    pub created_date: Option<String>,
+    pub updated_date: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Investigator {
+    pub given_name: Option<String>,
+    pub family_name: Option<String>,
+    pub orcid: Option<String>,
+    pub role_start: Option<String>,
+    pub affiliation: Option<Affiliation>,
 }
 
 /// Struct for API requests
@@ -833,6 +1133,17 @@ impl Display for OpenAlexRequestEntity {
 pub(crate) struct OpenAlexResponseWorks {
     pub(crate) results: Vec<Work>,
     pub(crate) meta: Meta,
+}
+
+impl OpenAlexResponseWorks {
+    /// Parse the OpenAlexResponseWorks object into tables following the [create_values_fields] schema
+    ///   where each row is a different table
+    pub(crate) fn to_record_batches(&self) -> Result<RecordBatch> {
+        for work in results {
+
+        }
+        Ok()
+    }
 }
 
 // todo!(): OpenAlexResponseAuthors, ...
@@ -1244,3 +1555,77 @@ Depending on your query, random results with a seed value *may* change over time
 * You must provide a `seed` value when paging beyond the first page of results. Without a seed value, you might get duplicate records in your results.
 * You must use [basic paging](https://docs.openalex.org/how-to-use-the-api/paging#basic-paging) when sampling. Cursor pagination is not supported.
 "#;
+
+use std::borrow::Borrow;
+
+pub fn abstract_from_inverted_index<K>(
+    inverted: &HashMap<K, Vec<usize>>,
+) -> String
+where
+    K: Borrow<str>,
+{
+    // Find the maximum index to size the vector
+    let max_index = inverted
+        .values()
+        .flat_map(|positions| positions.iter())
+        .copied()
+        .max()
+        .unwrap_or(0);
+
+    // Preallocate vector of words
+    let mut words = vec![String::new(); max_index + 1];
+
+    // Fill in words at their positions
+    for (key, positions) in inverted {
+        let word = key.borrow();
+        for &pos in positions {
+            if pos < words.len() {
+                words[pos] = word.to_owned();
+            }
+        }
+    }
+
+    words.join(" ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::borrow::Cow;
+
+    #[test]
+    fn test_abstract_from_inverted_index_string_keys() {
+        let mut idx: HashMap<String, Vec<usize>> = HashMap::new();
+        idx.insert("hello".into(), vec![0]);
+        idx.insert("world".into(), vec![1]);
+
+        assert_eq!(
+            abstract_from_inverted_index(&idx),
+            "hello world"
+        );
+    }
+
+    #[test]
+    fn test_abstract_from_inverted_index_str_keys() {
+        let mut idx: HashMap<&str, Vec<usize>> = HashMap::new();
+        idx.insert("foo", vec![0]);
+        idx.insert("bar", vec![1]);
+
+        assert_eq!(
+            abstract_from_inverted_index(&idx),
+            "foo bar"
+        );
+    }
+
+    #[test]
+    fn test_abstract_from_inverted_index_cow_keys() {
+        let mut idx: HashMap<Cow<'static, str>, Vec<usize>> = HashMap::new();
+        idx.insert(Cow::Borrowed("alpha"), vec![1]);
+        idx.insert(Cow::Owned("beta".into()), vec![0]);
+
+        assert_eq!(
+            abstract_from_inverted_index(&idx),
+            "beta alpha"
+        );
+    }
+}

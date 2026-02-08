@@ -745,9 +745,9 @@ impl DataConfigTrait for DataConfig {
             .iter()
             .map(|f| f.name().to_string())
             .collect::<HashSet<_>>();
-        if !(column_names.contains("operator") && column_names.contains("cpu")) {
+        if !(column_names.contains("operator") && column_names.contains("cpu") && column_names.contains("stream")) {
             return Err(anyhow!(
-                "Table {} is missing required Field for `operator` or `cpu` in DataConfig.",
+                "Table {} is missing required Field for `operator`, `cpu`, or `stream` in DataConfig.",
                 table.get_name()
             ));
         }

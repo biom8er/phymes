@@ -7,12 +7,12 @@ use phymes_core::{
     RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait,
-    remove_message_by_subject,
+    remove_message_by_subject, create_config_fields
 };
 
 use arrow::{
     array::StringArray,
-    datatypes::{DataType, Field, Fields, Schema, SchemaRef},
+    datatypes::{Schema, SchemaRef},
     record_batch::RecordBatch,
 };
 
@@ -82,6 +82,9 @@ impl ProcessorTrait for CandleDataProcessor {
         };
 
         // Re-index the messages by the subject name which needs to be unique at this stage
+        // DM: required because we have to incrementally polls streams which requires access the map using `get_mut`
+        // DM: alternatively, could make a helper method analogous to `remove_message_by_subject`
+        //     or use `remove_message_by_subject` followed by re-inserting the message into the map
         let message = message
             .into_iter()
             .map(|(_k, v)| (v.get_subject().to_string(), v))
@@ -201,13 +204,13 @@ impl Stream for CandleDataStream {
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
-            let values = Fields::from_iter(vec![Field::new("values", DataType::Utf8, false)]);
+            // Check for `config` schema
             if batches
                 .first()
                 .ok_or(anyhow!("Config stream for CandleDataStream is empty"))?
                 .schema()
                 .fields()
-                .contains(&values)
+                .contains(&create_config_fields())
             {
                 let config_json = batches
                     .first()
@@ -226,6 +229,7 @@ impl Stream for CandleDataStream {
                 let config: DataConfig =
                     serde_json::from_value(config_values.get("arguments").unwrap().clone())?;
                 self.config.replace(config);
+            // Parse as a config
             } else {
                 let config_table = TableBuilder::new()
                     .with_name("config")

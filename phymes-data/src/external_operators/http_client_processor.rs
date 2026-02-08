@@ -39,6 +39,7 @@ pub enum HTTPClientRequestState {
     Connecting(Pin<Box<dyn Future<Output = Result<Response, reqwest::Error>> + Send + 'static>>),
     ToText(Pin<Box<dyn Future<Output = Result<String, reqwest::Error>> + Send + 'static>>),
     ToBytes(Pin<Box<dyn Future<Output = Result<Bytes, reqwest::Error>> + Send + 'static>>),
+    Ready(Vec<RecordBatch>),
     Done,
 }
 
@@ -536,16 +537,9 @@ impl Stream for HTTPClientRequestStream {
                         }
                     };
 
-                    // Reset the state to poll the next batch
-                    self.state = HTTPClientRequestState::NotStarted;
-
-                    // record the poll
-                    let poll = Poll::Ready(Some(Ok(batch)));
-                    if let Some(baseline_metrics) = &baseline_metrics {
-                        baseline_metrics.record_poll(poll)
-                    } else {
-                        poll
-                    }
+                    // Ready to poll the batches
+                    self.state = HTTPClientRequestState::Ready(vec![batch]);
+                    self.poll_next(cx)
                 }
                 Err(err) => {
                     self.state = HTTPClientRequestState::Done;
@@ -561,7 +555,7 @@ impl Stream for HTTPClientRequestStream {
                                 diagnostic_builder
                                     .clone()
                                     .to_child("HTTPClientRequestStream")?
-                                    .baseline_metrics(line!(), file!(), "poll_next"),
+                                    .baseline_metrics(line!(), file!(), "poll_next.HTTPClientRequestState::ToBytes"),
                             )
                         } else {
                             None
@@ -623,21 +617,47 @@ impl Stream for HTTPClientRequestStream {
                         }
                     };
 
-                    // Reset the state to poll the next batch
-                    self.state = HTTPClientRequestState::NotStarted;
+                    // Ready to poll the batches
+                    self.state = HTTPClientRequestState::Ready(vec![batch]);
+                    self.poll_next(cx)
+                }
+                Err(err) => {
+                    self.state = HTTPClientRequestState::Done;
+                    Poll::Ready(Some(Err(anyhow!(error_report(&err)))))
+                }
+            },
+            HTTPClientRequestState::Ready(batches) => {
+                // Ready the next poll
+                if let Some(batch) = batches.pop() {
+                    
+                    // Initialize the metrics
+                    let baseline_metrics =
+                        if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                            Some(
+                                diagnostic_builder
+                                    .clone()
+                                    .to_child("HTTPClientRequestStream")?
+                                    .baseline_metrics(line!(), file!(), "poll_next.HTTPClientRequestState::Ready"),
+                            )
+                        } else {
+                            None
+                        };
+                    let _timer = baseline_metrics
+                        .as_ref()
+                        .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
-                    // record the poll
+                    // Record the poll
                     let poll = Poll::Ready(Some(Ok(batch)));
                     if let Some(baseline_metrics) = &baseline_metrics {
                         baseline_metrics.record_poll(poll)
                     } else {
                         poll
                     }
-                }
-                Err(err) => {
-                    self.state = HTTPClientRequestState::Done;
-                    Poll::Ready(Some(Err(anyhow!(error_report(&err)))))
-                }
+                // Or reset the state to poll the next batch
+                } else {
+                    self.state = HTTPClientRequestState::NotStarted;
+                    self.poll_next(cx)
+                }          
             },
             HTTPClientRequestState::Done => Poll::Ready(None),
         }
