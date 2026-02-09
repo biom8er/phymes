@@ -304,6 +304,12 @@ impl Work {
         Vec<WorkKeywordTable>,
         Vec<WorkMeshTagTable>,
         Vec<WorkSdgTagTable>,
+        Vec<WorkCorrespondingAuthorTable>,
+        Vec<WorkCorrespondingInstitutionTable>,
+        Vec<WorkIndexedInTable>,
+        Option<WorkIdsTable>,
+        Vec<WorkReferencedWorksTable>,
+        Vec<WorkRelatedWorksTable>,
     ) {
         // WorkAuthorshipTable
         let work_authorship_table = self.authorships.into_iter()
@@ -390,16 +396,31 @@ impl Work {
 
         // WorkCorrespondingAuthorTable
         let work_corresponding_author_table = self.corresponding_author_ids.unwrap_or_default().into_iter()
-            .map(|t| t.(&self.id))
+            .map(|t| WorkCorrespondingAuthorTable { work_id: self.id.to_owned(), corresponding_author_id: t})
             .collect::<Vec<_>>();
 
         // WorkCorrespondingInstitutionTable
+        let work_corresponding_insitution_table = self.corresponding_institution_ids.unwrap_or_default().into_iter()
+            .map(|t| WorkCorrespondingInstitutionTable { work_id: self.id.to_owned(), corresponding_institution_id: t})
+            .collect::<Vec<_>>();
+
+        // WorkIndexedInTable
+        let work_indexed_in_table = self.indexed_in.unwrap_or_default().into_iter()
+            .map(|t| WorkIndexedInTable { work_id: self.id.to_owned(), indexed_in: t})
+            .collect::<Vec<_>>();
 
         // WorkIdsTable
+        let work_ids_table = self.ids.map(|t| t.to_work_ids_table(&self.id));
 
-        // WorkReferenceWorksTable
+        // WorkReferencedWorksTable
+        let work_referenced_works_table = self.referenced_works.unwrap_or_default().into_iter()
+            .map(|t| WorkReferencedWorksTable { work_id: self.id.to_owned(), referenced_work_id: t})
+            .collect::<Vec<_>>();
 
         // WorkRelatedWorksTable
+        let work_related_works_table = self.related_works.unwrap_or_default().into_iter()
+            .map(|t| WorkRelatedWorksTable { work_id: self.id.to_owned(), related_work_id: t})
+            .collect::<Vec<_>>();
 
         // WorkTable
         let abstract_ = if let Some(abstract_inverted_index) = self.abstract_inverted_index {
@@ -448,7 +469,13 @@ impl Work {
             work_topics_table,
             work_keywords_table,
             work_mesh_tag_table,
-            work_sdg_tag_table
+            work_sdg_tag_table,
+            work_corresponding_author_table,
+            work_corresponding_insitution_table,
+            work_indexed_in_table,
+            work_ids_table,
+            work_referenced_works_table,
+            work_related_works_table
         )
     }
 }
@@ -464,40 +491,15 @@ pub struct WorkTable {
     pub publication_year: u32,
     pub created_date: String,
     pub updated_date: String,
-    pub abstract_: String, // todo: conversion from inverse abstract
-    // pub authorships: Vec<Authorship>, // todo: WorkAuthorshipTable
-    // pub awards: Option<Vec<Award>>, // todo: WorkAwardTable
-    // pub funders: Option<Vec<Funder>>, // todo: WorkFunderTable
-    // pub apc_list: Option<ApcInfo>, // todo: WorkApcInfoTable
-    // pub apc_paid: Option<ApcInfo>, // todo: WorkApcInfoTable
-    // pub best_oa_location: Option<Location>, // todo: WorkLocationTable
-    // pub primary_location: Option<Location>, // todo: WorkLocationTable
-    // pub locations: Option<Vec<Location>>, // todo: WorkLocationTable
+    pub abstract_: String,
     pub locations_count: u32,
-    // pub open_access: OpenAccess, // todo: WorkOpenAccessTable
-    // pub biblio: Option<Biblio>, // todo: WorkBiblioTable
-    // pub citation_normalized_percentile: Option<CitationPercentile>, // todo: WorkCitationPercentileTable
     pub cited_by_count: u32,
-    // pub cited_by_percentile_year: Option<CitedByPercentileYear>, // todo: WorkCitedByPercentileYearTable
-    // pub counts_by_year: Option<Vec<CountsByYear>>, // todo: WorkCountsByYearTable
-    // pub concepts: Option<Vec<WorkConcept>>, // todo: WorkConceptTable
-    // pub topics: Option<Vec<WorkTopic>>, // todo: WorkTopicTable
-    // pub primary_topic: Option<WorkTopic>, // todo: WorkTopicTable
-    // pub keywords: Option<Vec<Keyword>>, // todo: WorkKeywordTable
-    // pub mesh: Option<Vec<MeshTag>>, // todo: WorkMeshTagTable
-    // pub sustainable_development_goals: Option<Vec<SdgTag>>, // todo: WorkSdgTagTable
-    // pub corresponding_author_ids: Vec<String>, // todo: WorkCorrespondingAuthorTable
-    // pub corresponding_institution_ids: Vec<String>, // todo: WorkCorrespondingInstitutionTable
     pub countries_distinct_count: u32,
     pub institutions_distinct_count: u32,
-    // pub indexed_in: Option<Vec<String>>, // todo: WorkIndexedTable
-    // pub ids: Option<WorkIds>, // todo: WorkIdsTable
     pub is_paratext: bool,
     pub is_retracted: bool,
     pub is_xpac: bool,
-    // pub referenced_works: Option<Vec<String>>, // todo: WorkReferenceWorksTable
     pub referenced_works_count: u32,
-    // pub related_works: Option<Vec<String>>, // todo: WorkRelatedWorksTable
     pub language: LanguageCode,
 }
 
@@ -1009,6 +1011,36 @@ pub struct WorkConceptTable {
     pub work_id: String,
     pub concept_id: String,
     pub score: f32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkCorrespondingAuthorTable {
+    pub work_id: String,
+    pub corresponding_author_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkCorrespondingInstitutionTable {
+    pub work_id: String,
+    pub corresponding_institution_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkIndexedInTable {
+    pub work_id: String,
+    pub indexed_in: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkReferencedWorksTable {
+    pub work_id: String,
+    pub referenced_work_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkRelatedWorksTable {
+    pub work_id: String,
+    pub related_work_id: String,
 }
 
 //
@@ -1538,8 +1570,30 @@ pub(crate) struct OpenAlexResponseWorks {
 impl OpenAlexResponseWorks {
     /// Parse the OpenAlexResponseWorks object into tables following the [create_values_fields] schema
     ///   where each row is a different table
-    pub(crate) fn to_record_batches(&self) -> Result<RecordBatch> {
-        for work in results {
+    pub(crate) fn to_record_batches(self) -> Result<RecordBatch> {
+        for work in self.results {
+            let (work_table, 
+            work_authorship_table, 
+            work_award_table, 
+            work_funder_table, 
+            work_apc_info_table, 
+            work_location_table, 
+            work_open_access_table, 
+            work_biblio_table, 
+            work_citation_normalized_percentile_table,
+            work_cited_percentile_year_table,
+            work_counts_by_year_table,
+            work_concepts_table,
+            work_topics_table,
+            work_keywords_table,
+            work_mesh_tag_table,
+            work_sdg_tag_table,
+            work_corresponding_author_table,
+            work_corresponding_insitution_table,
+            work_indexed_in_table,
+            work_ids_table,
+            work_referenced_works_table,
+            work_related_works_table) = work.to_tables();
 
         }
         Ok()
