@@ -121,11 +121,14 @@ pub fn extract_tabular(
     lhs_args: &[RecordBatch],
     format: &DataFormat,
 ) -> Result<RecordBatch> {
+    // Extract out the values
     let args_table = Table::get_builder()
         .with_name("extract_tabular")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
     let values_vec = args_table.get_column_as_vec_nested_primitive::<u8>(lhs_values)?;
+
+    // Parse the values depending upon the specified format
     let table = match format {
         DataFormat::Csv(csv_format) => Table::get_builder()
             .with_name("attachment")

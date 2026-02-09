@@ -33,7 +33,7 @@ pub enum OpenAlexEntity {
 // ===== Shared enums =====
 //
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum CountryCode {
     US,
@@ -51,7 +51,7 @@ pub enum CountryCode {
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum Currency {
     USD,
@@ -66,7 +66,7 @@ pub enum Currency {
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ConceptLevel {
     Domain,
@@ -78,7 +78,7 @@ pub enum ConceptLevel {
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum InstitutionRelationship {
     Parent,
@@ -89,7 +89,7 @@ pub enum InstitutionRelationship {
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum InstitutionType {
     Education,
@@ -105,7 +105,7 @@ pub enum InstitutionType {
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum RoleType {
     Institution,
@@ -116,7 +116,7 @@ pub enum RoleType {
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum SourceType {
     Journal,
@@ -131,7 +131,7 @@ pub enum SourceType {
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum KeywordType {
     Phrase,
@@ -141,7 +141,7 @@ pub enum KeywordType {
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum WorkType {
     Article,
@@ -158,7 +158,7 @@ pub enum WorkType {
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum OaStatus {
     Gold,
@@ -171,7 +171,7 @@ pub enum OaStatus {
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum LanguageCode {
     En,
@@ -187,7 +187,7 @@ pub enum LanguageCode {
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum AuthorPosition {
     First,
@@ -203,14 +203,20 @@ pub enum AuthorPosition {
 // ===== Shared structs =====
 //
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct CountsByYear {
     pub year: u32,
     pub works_count: Option<u32>,
     pub cited_by_count: u32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl CountsByYear {
+    pub fn to_work_counts_by_year(self, work_id: &str) -> WorkCountsByYearTable {
+        WorkCountsByYearTable { work_id: work_id.to_string(), year: self.year, cited_by_count: self.cited_by_count }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct SummaryStats {
     #[serde(rename = "2yr_mean_citedness")]
     pub two_year_mean_citedness: Option<f64>,
@@ -218,7 +224,7 @@ pub struct SummaryStats {
     pub i10_index: Option<u32>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Concept {
     pub id: Option<String>,
     pub wikidata: Option<String>,
@@ -244,8 +250,7 @@ pub struct Work {
     pub publication_year: Option<u32>,
     pub created_date: Option<String>,
     pub updated_date: Option<String>,
-    pub abstract_inverted_index: Option<serde_json::Value>, // Raw JSON for abstracts
-    // pub abstract_inverted_index: Option<HashMap<String, Vec<u32>>>,
+    pub abstract_inverted_index: Option<serde_json::Value>,
     pub authorships: Vec<Authorship>,
     pub awards: Option<Vec<Award>>,
     pub funders: Option<Vec<Funder>>,
@@ -264,7 +269,7 @@ pub struct Work {
     pub concepts: Option<Vec<WorkConcept>>,
     pub topics: Option<Vec<WorkTopic>>,
     pub primary_topic: Option<WorkTopic>,
-    pub keywords: Option<Vec<Keyword>>,
+    pub keywords: Option<Vec<WorkKeyword>>,
     pub mesh: Option<Vec<MeshTag>>,
     pub sustainable_development_goals: Option<Vec<SdgTag>>,
     pub corresponding_author_ids: Option<Vec<String>>,
@@ -283,7 +288,119 @@ pub struct Work {
 }
 
 impl Work {
-    pub fn to_tables(self) -> () {
+    pub fn to_tables(self) -> (WorkTable, 
+        Vec<WorkAuthorshipTable>, 
+        Vec<WorkAwardTable>, 
+        Vec<WorkFunderTable>, 
+        Vec<WorkApcInfoTable>, 
+        Vec<WorkLocationTable>,
+        Option<WorkOpenAccessTable>,
+        Option<WorkBiblioTable>,
+        Option<WorkCitationPercentileTable>,
+        Option<WorkCitedByPercentileYearTable>,
+        Vec<WorkCountsByYearTable>,
+        Vec<WorkConceptTable>,
+        Vec<WorkTopicTable>,
+        Vec<WorkKeywordTable>,
+        Vec<WorkMeshTagTable>,
+        Vec<WorkSdgTagTable>,
+    ) {
+        // WorkAuthorshipTable
+        let work_authorship_table = self.authorships.into_iter()
+            .map(|t| t.to_work_authorship_table(&self.id))
+            .collect::<Vec<_>>();
+    
+        // WorkAwardTable
+        let work_award_table = self.awards.unwrap_or_default().into_iter()
+            .map(|t| t.to_work_award_table(&self.id))
+            .collect::<Vec<_>>();
+
+        // WorkFunderTable
+        let work_funder_table = self.funders.unwrap_or_default().into_iter()
+            .map(|t| t.to_work_funder_table(&self.id))
+            .collect::<Vec<_>>();
+
+        // WorkApcInfoTable
+        let mut work_apc_info_table = Vec::new();
+        if let Some(apc_info) = self.apc_list {
+            let t = apc_info.to_work_apc_info_table(&self.id, true, false);
+            work_apc_info_table.push(t);
+        }
+        if let Some(apc_info) = self.apc_paid {
+            let t = apc_info.to_work_apc_info_table(&self.id, false, true);
+            work_apc_info_table.push(t);
+        }
+
+        // WorkLocationTable
+        let work_location_table = self.locations.unwrap_or_default().into_iter()
+            .map(|t| if self.best_oa_location.is_some() && self.best_oa_location.as_ref().unwrap() == &t {
+                t.to_work_location_table(&self.id, true, false)
+            } else if self.primary_location.is_some() && self.primary_location.as_ref().unwrap() == &t {
+                t.to_work_location_table(&self.id, false, true)
+            } else {
+                t.to_work_location_table(&self.id, false, false)
+            })
+            .collect::<Vec<_>>();
+
+        // WorkOpenAccessTable
+        let work_open_access_table = self.open_access.map(|t| t.to_work_open_access_table(&self.id));
+
+        // WorkBiblioTable
+        let work_biblio_table = self.biblio.map(|t| t.to_work_biblio_table(&self.id));
+
+        // WorkCitationPercentileTable
+        let work_citation_normalized_percentile_table = self.citation_normalized_percentile.map(|t| t.to_work_citation_percentile_table(&self.id));
+
+        // WorkCitedByPercentileYearTable
+        let work_cited_percentile_year_table = self.cited_by_percentile_year.map(|t| t.to_work_cited_by_percentile_year(&self.id));
+
+        // WorkCountsByYearTable
+        let work_counts_by_year_table = self.counts_by_year.unwrap_or_default().into_iter()
+            .map(|t| t.to_work_counts_by_year(&self.id))
+            .collect::<Vec<_>>();
+
+        // WorkConceptTable
+        let work_concepts_table = self.concepts.unwrap_or_default().into_iter()
+            .map(|t| t.to_work_concept_table(&self.id))
+            .collect::<Vec<_>>();
+
+        // WorkTopicTable
+        let work_topics_table = self.topics.unwrap_or_default().into_iter()
+            .map(|t| if self.primary_topic.is_some() && self.primary_topic.as_ref().unwrap() == &t {
+                t.to_work_topic_table(&self.id, true)
+            } else {
+                t.to_work_topic_table(&self.id, false)
+            })
+            .collect::<Vec<_>>();
+
+        // WorkKeywordTable
+        let work_keywords_table = self.keywords.unwrap_or_default().into_iter()
+            .map(|t| t.to_work_keyword_table(&self.id))
+            .collect::<Vec<_>>();
+
+        // WorkMeshTagTable
+        let work_mesh_tag_table = self.mesh.unwrap_or_default().into_iter()
+            .map(|t| t.to_work_mesh_tag_table(&self.id))
+            .collect::<Vec<_>>();
+
+        // WorkSdgTagTable
+        let work_sdg_tag_table = self.sustainable_development_goals.unwrap_or_default().into_iter()
+            .map(|t| t.to_work_sdg_tag_table(&self.id))
+            .collect::<Vec<_>>();
+
+        // WorkCorrespondingAuthorTable
+        let work_corresponding_author_table = self.corresponding_author_ids.unwrap_or_default().into_iter()
+            .map(|t| t.(&self.id))
+            .collect::<Vec<_>>();
+
+        // WorkCorrespondingInstitutionTable
+
+        // WorkIdsTable
+
+        // WorkReferenceWorksTable
+
+        // WorkRelatedWorksTable
+
         // WorkTable
         let abstract_ = if let Some(abstract_inverted_index) = self.abstract_inverted_index {
             let abstract_inverted_index = serde_json::from_value::<Map<String, Value>>(abstract_inverted_index).unwrap()
@@ -294,48 +411,45 @@ impl Work {
         } else {
             String::new()
         };
-        
+        let work_table = WorkTable {
+            id: self.id,
+            display_name: self.display_name.unwrap_or_default(),
+            title: self.title.unwrap_or_default(),
+            doi: self.doi.unwrap_or_default(),
+            type_: self.type_.unwrap_or_default(),
+            publication_date: self.publication_date.unwrap_or_default(),
+            publication_year: self.publication_year.unwrap_or_default(),
+            created_date: self.created_date.unwrap_or_default(),
+            updated_date: self.updated_date.unwrap_or_default(),
+            abstract_,
+            locations_count: self.locations_count.unwrap_or_default(),
+            cited_by_count: self.cited_by_count.unwrap_or_default(),
+            countries_distinct_count: self.countries_distinct_count.unwrap_or_default(),
+            institutions_distinct_count: self.institutions_distinct_count.unwrap_or_default(),
+            is_paratext: self.is_paratext.unwrap_or_default(),
+            is_retracted: self.is_retracted.unwrap_or_default(),
+            is_xpac: self.is_xpac.unwrap_or_default(),
+            referenced_works_count: self.referenced_works_count.unwrap_or_default(),
+            language: self.language.unwrap_or_default(),
+        };
 
-        // WorkAuthorshipTable
-    
-        // WorkAwardTable
-
-        // WorkFunderTable
-
-        // WorkApcInfoTable
-
-        // WorkLocationTable
-
-        // WorkOpenAccessTable
-
-        // WorkBiblioTable
-
-        // WorkCitationPercentileTable
-
-        // WorkCitedByPercentileYearTable
-
-        // WorkCountsByYearTable
-
-        // WorkConceptTable
-
-        // WorkTopicTable
-
-        // WorkKeywordTable
-
-        // WorkMeshTagTable
-
-        // WorkSdgTagTable
-
-        // WorkCorrespondingAuthorTable
-
-        // WorkCorrespondingInstitutionTable
-
-        // WorkIdsTable
-
-        // WorkReferenceWorksTable
-
-        // WorkRelatedWorksTable
-        todo!()
+        (work_table, 
+            work_authorship_table, 
+            work_award_table, 
+            work_funder_table, 
+            work_apc_info_table, 
+            work_location_table, 
+            work_open_access_table, 
+            work_biblio_table, 
+            work_citation_normalized_percentile_table,
+            work_cited_percentile_year_table,
+            work_counts_by_year_table,
+            work_concepts_table,
+            work_topics_table,
+            work_keywords_table,
+            work_mesh_tag_table,
+            work_sdg_tag_table
+        )
     }
 }
 
@@ -355,13 +469,9 @@ pub struct WorkTable {
     // pub awards: Option<Vec<Award>>, // todo: WorkAwardTable
     // pub funders: Option<Vec<Funder>>, // todo: WorkFunderTable
     // pub apc_list: Option<ApcInfo>, // todo: WorkApcInfoTable
-    pub apc_list_id: String,
-    pub apc_paid: Option<ApcInfo>, // todo: WorkApcInfoTable
-    pub apc_paid_id: String,
+    // pub apc_paid: Option<ApcInfo>, // todo: WorkApcInfoTable
     // pub best_oa_location: Option<Location>, // todo: WorkLocationTable
-    pub best_oa_location_id: String,
     // pub primary_location: Option<Location>, // todo: WorkLocationTable
-    pub primary_location_id: String,
     // pub locations: Option<Vec<Location>>, // todo: WorkLocationTable
     pub locations_count: u32,
     // pub open_access: OpenAccess, // todo: WorkOpenAccessTable
@@ -373,26 +483,24 @@ pub struct WorkTable {
     // pub concepts: Option<Vec<WorkConcept>>, // todo: WorkConceptTable
     // pub topics: Option<Vec<WorkTopic>>, // todo: WorkTopicTable
     // pub primary_topic: Option<WorkTopic>, // todo: WorkTopicTable
-    pub primary_topic_id: String,
     // pub keywords: Option<Vec<Keyword>>, // todo: WorkKeywordTable
     // pub mesh: Option<Vec<MeshTag>>, // todo: WorkMeshTagTable
     // pub sustainable_development_goals: Option<Vec<SdgTag>>, // todo: WorkSdgTagTable
     // pub corresponding_author_ids: Vec<String>, // todo: WorkCorrespondingAuthorTable
     // pub corresponding_institution_ids: Vec<String>, // todo: WorkCorrespondingInstitutionTable
-    pub countries_distinct_count: Option<u32>,
-    pub institutions_distinct_count: Option<u32>,
-    pub indexed_in: Vec<String>,
+    pub countries_distinct_count: u32,
+    pub institutions_distinct_count: u32,
+    // pub indexed_in: Option<Vec<String>>, // todo: WorkIndexedTable
     // pub ids: Option<WorkIds>, // todo: WorkIdsTable
     pub is_paratext: bool,
     pub is_retracted: bool,
     pub is_xpac: bool,
-    pub referenced_works: Option<Vec<String>>, // todo: WorkReferenceWorksTable
-    pub referenced_works_count: Option<u32>,
-    pub related_works: Option<Vec<String>>, // todo: WorkRelatedWorksTable
-    pub language: Option<LanguageCode>,
+    // pub referenced_works: Option<Vec<String>>, // todo: WorkReferenceWorksTable
+    pub referenced_works_count: u32,
+    // pub related_works: Option<Vec<String>>, // todo: WorkRelatedWorksTable
+    pub language: LanguageCode,
 }
 
-// DM: Vec -> new table, object -> id that references a table
 pub fn create_open_alex_work_fields() -> Fields {
     let field_names = ["work_id", 
         "display_name", 
@@ -545,7 +653,6 @@ pub fn create_work_authorship_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ApcInfo {
     pub value: Option<u32>,
@@ -555,6 +662,43 @@ pub struct ApcInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct WorkAwardTable {
+    pub work_id: String,
+    pub award_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkFunderTable {
+    pub work_id: String,
+    pub funder_id: String,
+}
+
+impl ApcInfo {
+    pub fn to_work_apc_info_table(self, work_id: &str, is_list: bool, is_paid: bool) -> WorkApcInfoTable {
+        WorkApcInfoTable { 
+            work_id: work_id.to_string(), 
+            is_list, 
+            is_paid, 
+            value: self.value.unwrap_or_default(), 
+            currency: self.currency.unwrap_or_default(), 
+            value_usd: self.value_usd.unwrap_or_default(), 
+            provenance: self.provenance.unwrap_or_default() 
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkApcInfoTable {
+    pub work_id: String,
+    pub is_list: bool,
+    pub is_paid: bool,
+    pub value: u32,
+    pub currency: Currency,
+    pub value_usd: u32,
+    pub provenance: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 pub struct Location {
     pub is_oa: Option<bool>,
     pub landing_page_url: Option<String>,
@@ -562,6 +706,40 @@ pub struct Location {
     pub source: Option<Source>,
     pub license: Option<String>,
     pub version: Option<String>,
+}
+
+impl Location {
+    pub fn to_work_location_table(self, work_id: &str, is_best_oa: bool, is_primary: bool) -> WorkLocationTable {
+        let source_id = if let Some(source) = self.source {
+            source.id
+        } else {
+            String::new()
+        };
+        WorkLocationTable { 
+            work_id: work_id.to_string(), 
+            is_best_oa,
+            is_primary, 
+            is_oa: self.is_oa.unwrap_or_default(), 
+            landing_page_url: self.landing_page_url.unwrap_or_default(), 
+            pdf_url: self.pdf_url.unwrap_or_default(), 
+            source_id, 
+            license: self.license.unwrap_or_default(), 
+            version: self.version.unwrap_or_default(), 
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkLocationTable {
+    pub work_id: String,
+    pub is_best_oa: bool,
+    pub is_primary: bool,
+    pub is_oa: bool,
+    pub landing_page_url: String,
+    pub pdf_url: String,
+    pub source_id: String,
+    pub license: String,
+    pub version: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -572,12 +750,53 @@ pub struct OpenAccess {
     pub any_repository_has_fulltext: Option<bool>,
 }
 
+impl OpenAccess {
+    pub fn to_work_open_access_table(self, work_id: &str) -> WorkOpenAccessTable {
+        WorkOpenAccessTable { 
+            work_id: work_id.to_string(), 
+            is_oa: self.is_oa.unwrap_or_default(), 
+            oa_status: self.oa_status.unwrap_or_default(), 
+            oa_url: self.oa_url.unwrap_or_default(), 
+            any_repository_has_fulltext: self.any_repository_has_fulltext.unwrap_or_default()
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkOpenAccessTable {
+    pub work_id: String,
+    pub is_oa: bool,
+    pub oa_status: OaStatus,
+    pub oa_url: String,
+    pub any_repository_has_fulltext: bool,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Biblio {
     pub volume: Option<String>,
     pub issue: Option<String>,
     pub first_page: Option<String>,
     pub last_page: Option<String>,
+}
+
+impl Biblio {
+    pub fn to_work_biblio_table(self, work_id: &str) -> WorkBiblioTable {
+        WorkBiblioTable { work_id: work_id.to_string(), 
+            volume: self.volume.unwrap_or_default(), 
+            issue: self.issue.unwrap_or_default(), 
+            first_page: self.first_page.unwrap_or_default(), 
+            last_page: self.last_page.unwrap_or_default() 
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkBiblioTable {
+    pub work_id: String,
+    pub volume: String,
+    pub issue: String,
+    pub first_page: String,
+    pub last_page: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -587,28 +806,71 @@ pub struct CitationPercentile {
     pub is_in_top_10_percent: Option<bool>,
 }
 
+impl CitationPercentile {
+    pub fn to_work_citation_percentile_table(self, work_id: &str) -> WorkCitationPercentileTable {
+        WorkCitationPercentileTable { work_id: work_id.to_string(), 
+            value: self.value.unwrap_or_default(), 
+            is_in_top_1_percent: self.is_in_top_1_percent.unwrap_or_default(), 
+            is_in_top_10_percent: self.is_in_top_10_percent.unwrap_or_default() 
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkCitationPercentileTable {
+    pub work_id: String,
+    pub value: f64,
+    pub is_in_top_1_percent: bool,
+    pub is_in_top_10_percent: bool,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CitedByPercentileYear {
     pub min: Option<u32>,
     pub max: Option<u32>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TopicSubfield {
-    pub id: Option<String>,
-    pub display_name: Option<String>,
+impl CitedByPercentileYear {
+    pub fn to_work_cited_by_percentile_year(self, work_id: &str) -> WorkCitedByPercentileYearTable {
+        WorkCitedByPercentileYearTable {
+            work_id: work_id.to_string(),
+            min: self.min.unwrap_or_default(),
+            max: self.max.unwrap_or_default()
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TopicField {
+pub struct WorkCitedByPercentileYearTable {
+    pub work_id: String,
+    pub min: u32,
+    pub max: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct WorkCountsByYearTable {
+    pub work_id: String,
+    pub year: u32,
+    pub cited_by_count: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct WorkKeyword {
     pub id: Option<String>,
-    pub display_name: Option<String>,
+    pub score: Option<f32>,
+}
+
+impl WorkKeyword {
+    pub fn to_work_keyword_table(self, work_id: &str) -> WorkKeywordTable {
+        WorkKeywordTable { work_id: work_id.to_string(), keyword_id: self.id.unwrap_or_default(), score: self.score.unwrap_or_default() }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TopicDomain {
-    pub id: Option<String>,
-    pub display_name: Option<String>,
+pub struct WorkKeywordTable {
+    pub work_id: String,
+    pub keyword_id: String,
+    pub score: f32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -620,11 +882,53 @@ pub struct MeshTag {
     pub is_major_topic: Option<bool>,
 }
 
+impl MeshTag {
+    pub fn to_work_mesh_tag_table(self, work_id: &str) -> WorkMeshTagTable {
+        WorkMeshTagTable { 
+            work_id:work_id.to_string(), 
+            descriptor_ui: self.descriptor_ui.unwrap_or_default(), 
+            descriptor_name: self.descriptor_name.unwrap_or_default(), 
+            qualifier_ui: self.qualifier_ui.unwrap_or_default(), 
+            qualifier_name: self.qualifier_name.unwrap_or_default(), 
+            is_major_topic: self.is_major_topic.unwrap_or_default() 
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkMeshTagTable {
+    pub work_id: String,
+    pub descriptor_ui: String,
+    pub descriptor_name: String,
+    pub qualifier_ui: String,
+    pub qualifier_name: String,
+    pub is_major_topic: bool,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SdgTag {
     pub id: Option<String>,
     pub display_name: Option<String>,
-    pub score: Option<f64>,
+    pub score: Option<f32>,
+}
+
+impl SdgTag {
+    pub fn to_work_sdg_tag_table(self, work_id: &str) -> WorkSdgTagTable {
+        WorkSdgTagTable { 
+            work_id: work_id.to_string(), 
+            sdg_tag_id: self.id.unwrap_or_default(), 
+            display_name: self.display_name.unwrap_or_default(), 
+            score: self.score.unwrap_or_default() 
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkSdgTagTable {
+    pub work_id: String,
+    pub sdg_tag_id: String,
+    pub display_name: String,
+    pub score: f32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -636,22 +940,76 @@ pub struct WorkIds {
     pub pmcid: Option<String>,
 }
 
+impl WorkIds {
+    pub fn to_work_ids_table(self, work_id: &str) -> WorkIdsTable {
+        WorkIdsTable { 
+            work_id: work_id.to_string(), 
+            openalex: self.openalex.unwrap_or_default(), 
+            doi: self.doi.unwrap_or_default(), 
+            mag: self.mag.unwrap_or_default(), 
+            pmid: self.pmid.unwrap_or_default(), 
+            pmcid: self.pmcid.unwrap_or_default() 
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
+pub struct WorkIdsTable {
+    pub work_id: String,
+    pub openalex: String,
+    pub doi: String,
+    pub mag: String,
+    pub pmid: String,
+    pub pmcid: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct WorkTopic {
-    // work_id in SQL
-    // topic_id in SQL
     pub id: Option<String>,
-    pub score: Option<f64>,
+    pub score: Option<f32>,
+}
+
+impl WorkTopic {
+    pub fn to_work_topic_table(self, work_id: &str, is_primary: bool) -> WorkTopicTable {
+        WorkTopicTable { 
+            work_id: work_id.to_string(), 
+            topic_id: self.id.unwrap_or_default(), 
+            is_primary, 
+            score: self.score.unwrap_or_default()
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkTopicTable {
+    pub work_id: String,
+    pub topic_id: String,
+    pub is_primary: bool,
+    pub score: f32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkConcept {
-    // work_id in SQL
-    // topic_id in SQL
     pub id: Option<String>,
-    pub score: Option<f64>,
+    pub score: Option<f32>,
 }
 
+impl WorkConcept {
+    pub fn to_work_concept_table(self, work_id: &str) -> WorkConceptTable {
+        WorkConceptTable { 
+            work_id: work_id.to_string(), 
+            concept_id: self.id.unwrap_or_default(), 
+            score: self.score.unwrap_or_default() 
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkConceptTable {
+    pub work_id: String,
+    pub concept_id: String,
+    pub score: f32,
+}
 
 //
 // ===== Author and related =====
@@ -701,7 +1059,7 @@ pub struct AuthorIds {
 // ===== Source and related =====
 //
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Source {
     pub id: String,
     pub display_name: Option<String>,
@@ -733,19 +1091,19 @@ pub struct Source {
     pub x_concepts: Option<Vec<Concept>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct ApcPrice {
     pub price: Option<u32>,
     pub currency: Option<Currency>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Society {
     pub url: Option<String>,
     pub organization: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct SourceIds {
     pub fatcat: Option<String>,
     pub issn: Option<Vec<String>>,
@@ -858,13 +1216,41 @@ pub struct Topic {
     pub keywords: Option<Vec<Keyword>>,
     pub updated_date: Option<String>,
     pub works_count: Option<u64>,
-    pub score: Option<f64>,
+}
+
+impl Topic {
+    pub fn to_work_topic_table(self, work_id: &str, is_primary: bool, score: f32) -> WorkTopicTable {
+        WorkTopicTable { 
+            work_id: work_id.to_string(), 
+            topic_id: self.id, 
+            is_primary,
+            score
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TopicIds {
     pub openalex: Option<String>,
     pub wikipedia: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TopicSubfield {
+    pub id: Option<String>,
+    pub display_name: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TopicField {
+    pub id: Option<String>,
+    pub display_name: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TopicDomain {
+    pub id: Option<String>,
+    pub display_name: Option<String>,
 }
 
 //
@@ -904,7 +1290,7 @@ pub struct PublisherIds {
 // ===== Keywords and related =====
 //
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Keyword {
     pub id: Option<String>,
     pub display_name: Option<String>,
@@ -912,7 +1298,6 @@ pub struct Keyword {
     pub updated_date: Option<String>,
     pub cited_by_count: Option<u32>,
     pub works_count: Option<u32>,
-    pub score: Option<f64>,
     #[serde(rename = "type")]
     pub type_: Option<KeywordType>,
 }
@@ -940,6 +1325,12 @@ pub struct Funder {
     pub roles: Option<Vec<Role>>,
     pub counts_by_year: Option<Vec<CountsByYear>>,
     pub summary_stats: Option<SummaryStats>,
+}
+
+impl Funder {
+    pub fn to_work_funder_table(self, work_id: &str) -> WorkFunderTable {
+        WorkFunderTable { work_id: work_id.to_string(), funder_id: self.id }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -981,6 +1372,15 @@ pub struct Award {
     pub works_api_url: Option<String>,
     pub created_date: Option<String>,
     pub updated_date: Option<String>,
+}
+
+impl Award {
+    pub fn to_work_award_table(self, work_id: &str) -> WorkAwardTable {
+        WorkAwardTable {
+            work_id: work_id.to_string(),
+            award_id: self.id.unwrap_or_default()
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
