@@ -1,5 +1,5 @@
 use dioxus::{html::FileData, prelude::*};
-use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
+use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, SessionInterfaceMessageTrait};
 use phymes_core::{
     create_blob_batch, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait,
     Table, TableBuilderTrait, TablePublication, TableTrait,
