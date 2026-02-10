@@ -601,38 +601,55 @@ pub struct WorkAuthorshipTable {
     pub raw_author_name: Vec<String>,
 }
 
+impl WorkAuthorshipTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id", 
+            "author_position", 
+            "author_id"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Utf8, false)));
+        let field_names = [
+            "institutions",
+            "countries",
+            "raw_affiliation_strings",
+            "raw_author_name",
+        ];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, list_data_type.clone(), false))
+                .collect::<Vec<_>>(),
+        );
+        let field_names = [
+            "is_corresponding",
+        ];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Boolean, false))
+                .collect::<Vec<_>>(),
+        );
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkAuthorshipTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkAuthorshipTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
 /// WorkAuthorship
 pub fn create_work_authorship_fields() -> Fields {
-    let field_names = ["work_id", 
-        "author_position", 
-        "author_id"];
-    let mut fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Utf8, false)));
-    let field_names = [
-        "institutions",
-        "countries",
-        "raw_affiliation_strings",
-        "raw_author_name",
-    ];
-    fields_vec.extend(
-        field_names
-            .iter()
-            .map(|f| Field::new(*f, list_data_type.clone(), false))
-            .collect::<Vec<_>>(),
-    );
-    let field_names = [
-        "is_corresponding",
-    ];
-    fields_vec.extend(
-        field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::Boolean, false))
-            .collect::<Vec<_>>(),
-    );
-    Fields::from(fields_vec)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -641,18 +658,6 @@ pub struct ApcInfo {
     pub currency: Option<Currency>,
     pub value_usd: Option<u32>,
     pub provenance: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct WorkAwardTable {
-    pub work_id: String,
-    pub award_id: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct WorkFunderTable {
-    pub work_id: String,
-    pub funder_id: String,
 }
 
 impl ApcInfo {
@@ -678,6 +683,111 @@ pub struct WorkApcInfoTable {
     pub currency: Currency,
     pub value_usd: u32,
     pub provenance: String,
+}
+
+impl WorkApcInfoTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id", 
+            "Currency", 
+            "provenance"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let field_names = [
+            "value",
+            "value_usd",
+        ];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::UInt32, false))
+                .collect::<Vec<_>>(),
+        );
+        let field_names = [
+            "is_list",
+            "is_paid",
+        ];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Boolean, false))
+                .collect::<Vec<_>>(),
+        );
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkApcInfoTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkApcInfoTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkAwardTable {
+    pub work_id: String,
+    pub award_id: String,
+}
+
+impl WorkAwardTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id", 
+            "award_id"];
+        let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkAwardTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkAwardTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkFunderTable {
+    pub work_id: String,
+    pub funder_id: String,
+}
+
+impl WorkFunderTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id", 
+            "funder_id"];
+        let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkFunderTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkFunderTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
@@ -724,6 +834,45 @@ pub struct WorkLocationTable {
     pub version: String,
 }
 
+impl WorkLocationTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id", 
+            "landing_page_url", 
+            "pdf_url", 
+            "source_id", 
+            "license", 
+            "version"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let field_names = [
+            "is_best_oa",
+            "is_primary",
+            "is_oa",
+        ];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Boolean, false))
+                .collect::<Vec<_>>(),
+        );
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkLocationTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkLocationTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OpenAccess {
     pub is_oa: Option<bool>,
@@ -751,6 +900,41 @@ pub struct WorkOpenAccessTable {
     pub oa_status: OaStatus,
     pub oa_url: String,
     pub any_repository_has_fulltext: bool,
+}
+
+impl WorkOpenAccessTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id", 
+            "oa_status", 
+            "oa_url"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let field_names = [
+            "is_oa",
+            "any_repository_has_fulltext",
+        ];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Boolean, false))
+                .collect::<Vec<_>>(),
+        );
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkOpenAccessTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkOpenAccessTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -781,6 +965,33 @@ pub struct WorkBiblioTable {
     pub last_page: String,
 }
 
+impl WorkBiblioTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id", 
+            "volume", 
+            "issue", 
+            "first_page", 
+            "last_page"];
+        let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkBiblioTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkBiblioTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CitationPercentile {
     pub value: Option<f64>,
@@ -806,6 +1017,48 @@ pub struct WorkCitationPercentileTable {
     pub is_in_top_10_percent: bool,
 }
 
+impl WorkCitationPercentileTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let field_names = [
+            "value",
+        ];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Float64, false))
+                .collect::<Vec<_>>(),
+        );
+        let field_names = [
+            "is_in_top_1_percent",
+            "is_in_top_10_percent",
+        ];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Boolean, false))
+                .collect::<Vec<_>>(),
+        );
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkCitationPercentileTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkCitationPercentileTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CitedByPercentileYear {
     pub min: Option<u32>,
@@ -829,11 +1082,77 @@ pub struct WorkCitedByPercentileYearTable {
     pub max: u32,
 }
 
+impl WorkCitedByPercentileYearTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let field_names = [
+            "min",
+            "max",
+        ];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::UInt32, false))
+                .collect::<Vec<_>>(),
+        );
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkCitedByPercentileYearTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkCitedByPercentileYearTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct WorkCountsByYearTable {
     pub work_id: String,
     pub year: u32,
     pub cited_by_count: u32,
+}
+
+impl WorkCountsByYearTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let field_names = [
+            "year",
+            "cited_by_count",
+        ];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::UInt32, false))
+                .collect::<Vec<_>>(),
+        );
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkCountsByYearTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkCountsByYearTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -853,6 +1172,36 @@ pub struct WorkKeywordTable {
     pub work_id: String,
     pub keyword_id: String,
     pub score: f32,
+}
+
+impl WorkKeywordTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id", "keyword_id"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let field_names = ["score"];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Float32, false))
+                .collect::<Vec<_>>(),
+        );
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkKeywordTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkKeywordTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -887,6 +1236,36 @@ pub struct WorkMeshTagTable {
     pub is_major_topic: bool,
 }
 
+impl WorkMeshTagTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id", "descriptor_ui", "descriptor_name", "qualifier_ui", "qualifier_name"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let field_names = ["is_major_topic"];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Boolean, false))
+                .collect::<Vec<_>>(),
+        );
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkMeshTagTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkMeshTagTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SdgTag {
     pub id: Option<String>,
@@ -911,6 +1290,36 @@ pub struct WorkSdgTagTable {
     pub sdg_tag_id: String,
     pub display_name: String,
     pub score: f32,
+}
+
+impl WorkSdgTagTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id", "sdg_tag_id", "display_name"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let field_names = ["score"];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Float32, false))
+                .collect::<Vec<_>>(),
+        );
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkSdgTagTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkSdgTagTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -945,6 +1354,34 @@ pub struct WorkIdsTable {
     pub pmcid: String,
 }
 
+impl WorkIdsTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id",
+        "openalex",
+        "doi",
+        "mag",
+        "pmid",
+        "pmcid"];
+        let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkIdsTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkIdsTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct WorkTopic {
     pub id: Option<String>,
@@ -970,6 +1407,43 @@ pub struct WorkTopicTable {
     pub score: f32,
 }
 
+impl WorkTopicTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id", "topic_id"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let field_names = ["score"];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Float32, false))
+                .collect::<Vec<_>>(),
+        );
+        let field_names = ["is_primary"];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Boolean, false))
+                .collect::<Vec<_>>(),
+        );
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkTopicTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkTopicTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkConcept {
     pub id: Option<String>,
@@ -993,10 +1467,63 @@ pub struct WorkConceptTable {
     pub score: f32,
 }
 
+impl WorkConceptTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id", "concept_id"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let field_names = ["score"];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Float32, false))
+                .collect::<Vec<_>>(),
+        );
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkConceptTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkConceptTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkCorrespondingAuthorTable {
     pub work_id: String,
     pub corresponding_author_id: String,
+}
+
+impl WorkCorrespondingAuthorTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id", "corresponding_author_id"];
+        let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkCorrespondingAuthorTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkCorrespondingAuthorTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1005,10 +1532,56 @@ pub struct WorkCorrespondingInstitutionTable {
     pub corresponding_institution_id: String,
 }
 
+impl WorkCorrespondingInstitutionTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id", "corresponding_institution_id"];
+        let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkCorrespondingInstitutionTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkCorrespondingInstitutionTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkIndexedInTable {
     pub work_id: String,
     pub indexed_in: String,
+}
+
+impl WorkIndexedInTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id", "indexed_in"];
+        let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkIndexedInTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkIndexedInTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1017,10 +1590,56 @@ pub struct WorkReferencedWorksTable {
     pub referenced_work_id: String,
 }
 
+impl WorkReferencedWorksTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id", "referenced_work_id"];
+        let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkReferencedWorksTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkReferencedWorksTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkRelatedWorksTable {
     pub work_id: String,
     pub related_work_id: String,
+}
+
+impl WorkRelatedWorksTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id", "related_work_id"];
+        let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for WorkRelatedWorksTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for WorkRelatedWorksTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
 }
 
 //
@@ -1755,7 +2374,7 @@ impl OpenAlexResponseWorks {
             ipcs.push(Table::get_builder()
                 .with_name(work_cited_percentile_year_tables.first().unwrap().get_name())
                 .with_schema(work_cited_percentile_year_tables.first().unwrap().to_schema())
-                .with_struct::<WorkCitationPercentileTable>(&work_cited_percentile_year_tables)?
+                .with_struct::<WorkCitedByPercentileYearTable>(&work_cited_percentile_year_tables)?
                 .build()?
                 .to_ipc_stream()?
             );
