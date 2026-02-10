@@ -1,6 +1,11 @@
+mod messages;
 mod plans;
 mod session;
 
+pub use messages::{
+    SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
+    SessionInterfaceMessageTrait,
+};
 pub use plans::{
     AvailableInterfaceSubjects, AvailableProcessors, AvailableSessionPlans, BuilderSession,
     ChatAgentSession, DiagnosticSession, DocumentRAGSession, ToolAgentSession, UserSession,

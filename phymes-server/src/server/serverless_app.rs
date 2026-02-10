@@ -81,11 +81,9 @@ mod tests {
     use bytes::Bytes;
     use futures::TryStreamExt;
     use futures_executor::block_on;
-    use phymes_agents::AvailableInterfaceSubjects;
+    use phymes_agents::{AvailableInterfaceSubjects, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait};
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
-        ChatBuilderTraitExt, DataFormat, MappableTrait, MessageBuilderTrait,
-        SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, TablePublication, TableTrait,
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, DataFormat, MappableTrait, MessageBuilderTrait, TablePublication, TableTrait
     };
     use serde_json::{Map, Value};
 

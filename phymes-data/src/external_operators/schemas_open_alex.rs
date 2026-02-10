@@ -1,7 +1,7 @@
 use std::{fmt::Display, sync::Arc};
 
 use anyhow::{anyhow, Result};
-use arrow::{array::{ArrayRef, RecordBatch, StringArray}, datatypes::{DataType, Field, Fields}};
+use arrow::{array::RecordBatch, datatypes::{DataType, Field, Fields, SchemaRef}};
 use phymes_core::{AvailableSchemaTrait, BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableTrait, create_route_ipc_record_batch, create_schema_from_fields};
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
@@ -646,10 +646,6 @@ impl AvailableSchemaTrait for WorkAuthorshipTable {
     fn to_schema(&self) -> SchemaRef {
         create_schema_from_fields(&Self::to_fields)
     }
-}
-
-/// WorkAuthorship
-pub fn create_work_authorship_fields() -> Fields {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2174,7 +2170,7 @@ impl OpenAlexResponseWorks {
         let mut work_authorship_tables = Vec::new();
         let mut work_award_tables = Vec::new();
         let mut work_funder_tables = Vec::new();
-        let mut work_apc_info_table = Vec::new();
+        let mut work_apc_info_tables = Vec::new();
         let mut work_location_tables = Vec::new();
         let mut work_open_access_tables = Vec::new();
         let mut work_biblio_tables = Vec::new();
@@ -2183,7 +2179,7 @@ impl OpenAlexResponseWorks {
         let mut work_counts_by_year_tables = Vec::new();
         let mut work_concepts_tables = Vec::new();
         let mut work_topics_tables = Vec::new();
-        let mut work_keywords_table = Vec::new();
+        let mut work_keywords_tables = Vec::new();
         let mut work_mesh_tag_tables = Vec::new();
         let mut work_sdg_tag_tables = Vec::new();
         let mut work_corresponding_author_tables = Vec::new();
@@ -2191,7 +2187,7 @@ impl OpenAlexResponseWorks {
         let mut work_indexed_in_tables = Vec::new();
         let mut work_ids_tables = Vec::new();
         let mut work_referenced_works_tables = Vec::new();
-        let mut work_related_works_table = Vec::new();
+        let mut work_related_works_tables = Vec::new();
         for work in self.results {
             // Parse into individual tables
             let (work_table, 
@@ -2260,7 +2256,7 @@ impl OpenAlexResponseWorks {
 
         // Handle each individual table
         if !work_tables.is_empty() {
-            names.extend(work_tables.first().unwrap().get_name().to_string());
+            names.push(work_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
@@ -2272,7 +2268,7 @@ impl OpenAlexResponseWorks {
             );
         }
         if !work_authorship_tables.is_empty() {
-            names.extend(work_authorship_tables.first().unwrap().get_name().to_string());
+            names.push(work_authorship_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_authorship_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
@@ -2284,7 +2280,7 @@ impl OpenAlexResponseWorks {
             );
         }
         if !work_award_tables.is_empty() {
-            names.extend(work_award_tables.first().unwrap().get_name().to_string());
+            names.push(work_award_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_award_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
@@ -2296,7 +2292,7 @@ impl OpenAlexResponseWorks {
             );
         }
         if !work_funder_tables.is_empty() {
-            names.extend(work_funder_tables.first().unwrap().get_name().to_string());
+            names.push(work_funder_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_funder_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
@@ -2307,20 +2303,20 @@ impl OpenAlexResponseWorks {
                 .to_ipc_stream()?
             );
         }
-        if !work_apc_info_table.is_empty() {
-            names.extend(work_apc_info_table.first().unwrap().get_name().to_string());
+        if !work_apc_info_tables.is_empty() {
+            names.push(work_apc_info_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
-            subjects.push(work_apc_info_table.first().unwrap().get_name().to_string());
+            subjects.push(work_apc_info_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
-                .with_name(work_apc_info_table.first().unwrap().get_name())
-                .with_schema(work_apc_info_table.first().unwrap().to_schema())
-                .with_struct::<WorkApcInfoTable>(&work_apc_info_table)?
+                .with_name(work_apc_info_tables.first().unwrap().get_name())
+                .with_schema(work_apc_info_tables.first().unwrap().to_schema())
+                .with_struct::<WorkApcInfoTable>(&work_apc_info_tables)?
                 .build()?
                 .to_ipc_stream()?
             );
         }
         if !work_location_tables.is_empty() {
-            names.extend(work_location_tables.first().unwrap().get_name().to_string());
+            names.push(work_location_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_location_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
@@ -2332,7 +2328,7 @@ impl OpenAlexResponseWorks {
             );
         }
         if !work_open_access_tables.is_empty() {
-            names.extend(work_open_access_tables.first().unwrap().get_name().to_string());
+            names.push(work_open_access_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_open_access_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
@@ -2344,7 +2340,7 @@ impl OpenAlexResponseWorks {
             );
         }
         if !work_biblio_tables.is_empty() {
-            names.extend(work_biblio_tables.first().unwrap().get_name().to_string());
+            names.push(work_biblio_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_biblio_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
@@ -2356,7 +2352,7 @@ impl OpenAlexResponseWorks {
             );
         }
         if !work_citation_normalized_percentile_tables.is_empty() {
-            names.extend(work_citation_normalized_percentile_tables.first().unwrap().get_name().to_string());
+            names.push(work_citation_normalized_percentile_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_citation_normalized_percentile_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
@@ -2368,7 +2364,7 @@ impl OpenAlexResponseWorks {
             );
         }
         if !work_cited_percentile_year_tables.is_empty() {
-            names.extend(work_cited_percentile_year_tables.first().unwrap().get_name().to_string());
+            names.push(work_cited_percentile_year_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_cited_percentile_year_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
@@ -2380,7 +2376,7 @@ impl OpenAlexResponseWorks {
             );
         }
         if !work_counts_by_year_tables.is_empty() {
-            names.extend(work_counts_by_year_tables.first().unwrap().get_name().to_string());
+            names.push(work_counts_by_year_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_counts_by_year_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
@@ -2392,7 +2388,7 @@ impl OpenAlexResponseWorks {
             );
         }
         if !work_concepts_tables.is_empty() {
-            names.extend(work_concepts_tables.first().unwrap().get_name().to_string());
+            names.push(work_concepts_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_concepts_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
@@ -2404,7 +2400,7 @@ impl OpenAlexResponseWorks {
             );
         }
         if !work_topics_tables.is_empty() {
-            names.extend(work_topics_tables.first().unwrap().get_name().to_string());
+            names.push(work_topics_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_topics_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
@@ -2415,20 +2411,20 @@ impl OpenAlexResponseWorks {
                 .to_ipc_stream()?
             );
         }
-        if !work_keywords_table.is_empty() {
-            names.extend(work_keywords_table.first().unwrap().get_name().to_string());
+        if !work_keywords_tables.is_empty() {
+            names.push(work_keywords_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
-            subjects.push(work_keywords_table.first().unwrap().get_name().to_string());
+            subjects.push(work_keywords_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
-                .with_name(work_keywords_table.first().unwrap().get_name())
-                .with_schema(work_keywords_table.first().unwrap().to_schema())
-                .with_struct::<WorkKeywordTable>(&work_keywords_table)?
+                .with_name(work_keywords_tables.first().unwrap().get_name())
+                .with_schema(work_keywords_tables.first().unwrap().to_schema())
+                .with_struct::<WorkKeywordTable>(&work_keywords_tables)?
                 .build()?
                 .to_ipc_stream()?
             );
         }
         if !work_mesh_tag_tables.is_empty() {
-            names.extend(work_mesh_tag_tables.first().unwrap().get_name().to_string());
+            names.push(work_mesh_tag_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_mesh_tag_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
@@ -2440,7 +2436,7 @@ impl OpenAlexResponseWorks {
             );
         }
         if !work_sdg_tag_tables.is_empty() {
-            names.extend(work_sdg_tag_tables.first().unwrap().get_name().to_string());
+            names.push(work_sdg_tag_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_sdg_tag_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
@@ -2452,7 +2448,7 @@ impl OpenAlexResponseWorks {
             );
         }
         if !work_corresponding_author_tables.is_empty() {
-            names.extend(work_corresponding_author_tables.first().unwrap().get_name().to_string());
+            names.push(work_corresponding_author_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_corresponding_author_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
@@ -2464,7 +2460,7 @@ impl OpenAlexResponseWorks {
             );
         }
         if !work_corresponding_insitution_tables.is_empty() {
-            names.extend(work_corresponding_insitution_tables.first().unwrap().get_name().to_string());
+            names.push(work_corresponding_insitution_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_corresponding_insitution_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
@@ -2476,7 +2472,7 @@ impl OpenAlexResponseWorks {
             );
         }
         if !work_indexed_in_tables.is_empty() {
-            names.extend(work_indexed_in_tables.first().unwrap().get_name().to_string());
+            names.push(work_indexed_in_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_indexed_in_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
@@ -2488,7 +2484,7 @@ impl OpenAlexResponseWorks {
             );
         }
         if !work_ids_tables.is_empty() {
-            names.extend(work_ids_tables.first().unwrap().get_name().to_string());
+            names.push(work_ids_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_ids_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
@@ -2500,7 +2496,7 @@ impl OpenAlexResponseWorks {
             );
         }
         if !work_referenced_works_tables.is_empty() {
-            names.extend(work_referenced_works_tables.first().unwrap().get_name().to_string());
+            names.push(work_referenced_works_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_referenced_works_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
@@ -2511,14 +2507,14 @@ impl OpenAlexResponseWorks {
                 .to_ipc_stream()?
             );
         }
-        if !work_related_works_table.is_empty() {
-            names.extend(work_related_works_table.first().unwrap().get_name().to_string());
+        if !work_related_works_tables.is_empty() {
+            names.push(work_related_works_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
-            subjects.push(work_related_works_table.first().unwrap().get_name().to_string());
+            subjects.push(work_related_works_tables.first().unwrap().get_name().to_string());
             ipcs.push(Table::get_builder()
-                .with_name(work_related_works_table.first().unwrap().get_name())
-                .with_schema(work_related_works_table.first().unwrap().to_schema())
-                .with_struct::<WorkRelatedWorksTable>(&work_related_works_table)?
+                .with_name(work_related_works_tables.first().unwrap().get_name())
+                .with_schema(work_related_works_tables.first().unwrap().to_schema())
+                .with_struct::<WorkRelatedWorksTable>(&work_related_works_tables)?
                 .build()?
                 .to_ipc_stream()?
             );

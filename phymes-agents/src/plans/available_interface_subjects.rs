@@ -3,7 +3,7 @@ use std::fmt::Display;
 use anyhow::Result;
 use arrow::array::RecordBatch;
 use clap::ValueEnum;
-use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, MappableTrait, Table, TableBuilder};
+use phymes_core::{AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, MappableTrait, Table, TableBuilder};
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 
@@ -188,6 +188,9 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             }
         }
     }
+}
+
+impl AvailableSchemaTrait for AvailableInterfaceSubjects {
     fn to_schema(&self) -> arrow::datatypes::SchemaRef {
         match self {
             Self::UserMessages

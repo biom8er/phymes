@@ -19,9 +19,10 @@ use phymes_agents::{
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, DiagnosticsVisualizations,
     IPCMessage, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait,
-    MessageTrait, SessionInterfaceMessage, SessionInterfaceMessageTrait, TableBuilder,
+    MessageTrait, TableBuilder,
     TableBuilderTrait, TablePublication, TableTrait,
 };
+use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
 
 // General imports
 use anyhow::Result;

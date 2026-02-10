@@ -13,11 +13,11 @@ use clap::ValueEnum;
 use futures::prelude::*;
 use phymes_agents::{AvailableInterfaceSubjects, SessionStream, create_message_map};
 use phymes_core::{
-    AvailableSubjectsTrait, BuildableTrait, BuilderTrait, DataFormat, IPCMessage,
+    AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, IPCMessage,
     JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait,
-    SessionInterfaceMessage, SessionInterfaceMessageTrait, Table, TableBuilder, TableBuilderTrait,
-    TableTrait,
+    Table, TableBuilder, TableBuilderTrait, TableTrait,
 };
+use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
 
 // General imports
 use anyhow::Result;

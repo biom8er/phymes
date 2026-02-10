@@ -7,9 +7,7 @@ mod task;
 pub use message::{
     IPCMessage, IPCMessageBuilder, IPCMessageMap, MessageBuilderTrait, MessageTrait,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
-    SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
-    SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-    SessionInterfaceMessageTrait, make_random_id, remove_message_by_subject,
+    SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, make_random_id, remove_message_by_subject,
 };
 pub use processor::{
     ProcessorBuilder, ProcessorEcho, ProcessorMap, ProcessorPlan, ProcessorPlanBuilder,

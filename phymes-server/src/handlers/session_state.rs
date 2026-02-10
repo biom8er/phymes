@@ -16,9 +16,9 @@ use phymes_agents::{SessionStreamStep, SessionStreamStepTrait, create_message_ma
 use phymes_core::{
     BuilderTrait, CsvFormat, DataFormat, IPCMessageBuilder,
     JoinUserInboxSessionContextsMermaidDiagrams, MessageBuilderTrait, MessageTrait,
-    SessionInterfaceMessage, SessionInterfaceMessageTrait, TableBuilder, TableBuilderTrait,
-    TableTrait,
+    TableBuilder, TableBuilderTrait, TableTrait,
 };
+use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
 
 // Library imports
 use crate::handlers::json_error::{ErrorToResponse, JsonError, serde_json_error_response};

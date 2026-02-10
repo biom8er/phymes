@@ -5,7 +5,7 @@ use arrow::{array::RecordBatch, datatypes::Schema};
 use clap::ValueEnum;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
+    AvailableSchemaTrait, AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait,
     BuilderTrait, MappableTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait,
     StateMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap,
     TaskPlan,
