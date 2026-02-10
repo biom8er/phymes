@@ -20,7 +20,7 @@ pub use runtime_env::{
     BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvMap, RuntimeEnvTrait,
 };
 pub use schemas::{
-    AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BlobSubject,
+    AvailableSubjects, AvailableSchemaTrait, AvailableSubjectsTrait, BlobBuilderTraitExt, BlobSubject,
     ChatBuilderTraitExt, ChatCompletionRequest, ChatCompletionResponse, ChatTraitExt,
     DiagnosticsVisualizations, EmbeddingRequest, EmbeddingResponse, EncodingFormat, FinishReason,
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
@@ -39,8 +39,8 @@ pub use schemas::{
     create_session_tasks_subscribe_batch, create_session_tasks_subscribe_publish_batch,
     create_subjects_change_log_batch, create_subjects_num_rows_batch, create_tools_record_batch,
     create_user_batch, create_user_inbox_batch, create_user_session_contexts_batch,
-    create_values_record_batch, from_diagnostics_to_tables, create_documents_embeddings_batch, create_query_embeddings_batch,
-    create_config_fields
+    create_route_values_record_batch, from_diagnostics_to_tables, create_documents_embeddings_batch, create_query_embeddings_batch,
+    create_values_fields, create_ipc_record_batch, create_route_ipc_record_batch
 };
 pub use table::{
     AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, CsvFormat, DataFormat,

@@ -46,7 +46,7 @@ use crate::{
 
 use anyhow::Result;
 use arrow::{
-    array::{ArrayRef, Float32Builder, ListBuilder, StringArray},
+    array::{ArrayRef, Float32Builder, ListBuilder, StringArray, UInt8Builder},
     datatypes::{DataType, Field, Fields, Schema, SchemaRef},
     record_batch::RecordBatch,
 };
@@ -58,7 +58,8 @@ pub fn create_schema_from_fields(f: &dyn Fn() -> Fields) -> SchemaRef {
     Arc::new(Schema::new(f()))
 }
 
-pub fn create_values_fields() -> Fields {
+/// Fields where each row of a `values` [RecordBatch] is split into a seperate message
+pub fn create_route_values_fields() -> Fields {
     let field_names = ["name", "publisher", "subject", "values"];
     let fields_vec = field_names
         .iter()
@@ -67,7 +68,8 @@ pub fn create_values_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_values_record_batch(
+/// Each row of a `values` [RecordBatch] is split into a seperate message
+pub fn create_route_values_record_batch(
     names: Vec<String>,
     publishers: Vec<String>,
     subjects: Vec<String>,
@@ -86,7 +88,14 @@ pub fn create_values_record_batch(
     Ok(batch)
 }
 
-pub fn create_config_fields() -> Fields {
+/// Fields for a single JSON object i.e., [serde_json::Value] per row
+/// 
+/// # Usage
+/// 
+/// - As a JSON formatted processor configuration message resulting from
+///   a `tool call` during text generation inference
+/// - As a JSON formated [RecordBatch]
+pub fn create_values_fields() -> Fields {
     let field_names = ["values"];
     let fields_vec = field_names
         .iter()
@@ -95,7 +104,13 @@ pub fn create_config_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_config_record_batch(
+/// A single JSON object i.e., [serde_json::Value] per row
+/// 
+/// # Usage
+/// 
+/// - As a JSON formatted processor configuration message resulting from
+///   a `tool call` during text generation inference
+pub fn create_values_record_batch(
     values: Vec<String>,
 ) -> Result<RecordBatch> {
     let values: ArrayRef = Arc::new(StringArray::from(values));
@@ -105,6 +120,84 @@ pub fn create_config_record_batch(
     Ok(batch)
 }
 
+/// Fields where each row of a compressed `IPC` [RecordBatch] is split into a seperate message
+pub fn create_route_ipc_fields() -> Fields {
+    let field_names = ["name", "publisher", "subject"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let list_data_type = DataType::List(
+        Arc::new(Field::new_list_field(DataType::UInt8, false))
+    );
+    let field_names = ["ipc"];
+    fields_vec.extend(field_names
+            .iter()
+            .map(|f| Field::new(*f, list_data_type.clone(), false))
+            .collect::<Vec<_>>());
+    Fields::from(fields_vec)
+}
+
+/// Each row of a compressed `IPC` [RecordBatch] is split into a seperate message
+pub fn create_route_ipc_record_batch(
+    names: Vec<String>,
+    publishers: Vec<String>,
+    subjects: Vec<String>,
+    ipcs: Vec<Vec<u8>>,
+) -> Result<RecordBatch> {
+    let names: ArrayRef = Arc::new(StringArray::from(names));
+    let publishers: ArrayRef = Arc::new(StringArray::from(publishers));
+    let subjects: ArrayRef = Arc::new(StringArray::from(subjects));
+    let value_builder = UInt8Builder::new();
+    let mut list_builder =
+        ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::UInt8, false));
+    for values in ipcs.into_iter() {
+        list_builder.values().append_slice(values.as_slice());
+        list_builder.append(true);
+    }
+    let ipcs: ArrayRef = Arc::new(list_builder.finish());
+    let batch = RecordBatch::try_from_iter(vec![
+        ("name", names),
+        ("publisher", publishers),
+        ("subject", subjects),
+        ("ipc", ipcs),
+    ])?;
+    Ok(batch)
+}
+
+/// Fields for a single IPC [RecordBatch] per row
+pub fn create_ipc_fields() -> Fields {
+    let list_data_type = DataType::List(
+        Arc::new(Field::new_list_field(DataType::UInt8, false))
+    );
+    let field_names = ["ipc"];
+    let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, list_data_type.clone(), false))
+            .collect::<Vec<_>>();
+    Fields::from(fields_vec)
+}
+
+/// A single IPC [RecordBatch] per row
+pub fn create_ipc_record_batch(
+    ipcs: Vec<Vec<u8>>,
+) -> Result<RecordBatch> {
+    let value_builder = UInt8Builder::new();
+    let mut list_builder =
+        ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::UInt8, false));
+    for values in ipcs.into_iter() {
+        list_builder.values().append_slice(values.as_slice());
+        list_builder.append(true);
+    }
+    let ipcs: ArrayRef = Arc::new(list_builder.finish());
+    let batch = RecordBatch::try_from_iter(vec![
+        ("ipc", ipcs),
+    ])?;
+    Ok(batch)
+}
+
+/// Each row of a `tool`s [RecordBatch] is JSON Schema object describing a tool/function
+///   that can be called during text generation inference
 pub fn create_tools_fields() -> Fields {
     let field_names = ["tool_id", "tool"];
     let fields_vec = field_names
@@ -114,6 +207,8 @@ pub fn create_tools_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
+/// Each row of a `tool`s [RecordBatch] is JSON Schema object describing a tool/function
+///   that can be called during text generation inference
 pub fn create_tools_record_batch(tool_ids: Vec<String>, tools: Vec<String>) -> Result<RecordBatch> {
     let tool_ids: ArrayRef = Arc::new(StringArray::from(tool_ids));
     let tools: ArrayRef = Arc::new(StringArray::from(tools));
@@ -220,10 +315,13 @@ pub fn create_join_chunks_scores_fields() -> Fields {
     Fields::from(vec![chunk_id, query_id, score, document_id, text])
 }
 
-pub trait AvailableSubjectsTrait {
+pub trait AvailableSchemaTrait {
+    fn to_schema(&self) -> SchemaRef;
+}
+
+pub trait AvailableSubjectsTrait: AvailableSchemaTrait {
     fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Table>;
     fn to_table_builder(&self, name: Option<&str>) -> TableBuilder;
-    fn to_schema(&self) -> SchemaRef;
 }
 
 /// The available subject schmeas
@@ -234,10 +332,14 @@ pub enum AvailableSubjects {
     #[value(name = "Messages")]
     Messages,
     #[default]
+    #[value(name = "RouteValues")]
+    RouteValues,
     #[value(name = "Values")]
     Values,
-    #[value(name = "Configs")]
-    Configs,
+    #[value(name = "RouteIPC")]
+    RouteIPC,
+    #[value(name = "IPC")]
+    IPC,
     #[value(name = "Tools")]
     Tools,
     #[value(name = "Documents")]
@@ -359,8 +461,10 @@ impl Display for AvailableSubjects {
         match self {
             AvailableSubjects::Empty => write!(f, "Empty"),
             AvailableSubjects::Messages => write!(f, "Messages"),
+            AvailableSubjects::RouteValues => write!(f, "RouteValues"),
             AvailableSubjects::Values => write!(f, "Values"),
-            AvailableSubjects::Configs => write!(f, "Configs"),
+            AvailableSubjects::RouteIPC => write!(f, "RouteIPC"),
+            AvailableSubjects::IPC => write!(f, "IPC"),
             AvailableSubjects::Tools => write!(f, "Tools"),
             AvailableSubjects::Documents => write!(f, "Documents"),
             AvailableSubjects::Queries => write!(f, "Queries"),
@@ -459,12 +563,17 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             .with_name(&name)
             .with_schema(self.to_schema())
     }
+}
+
+impl AvailableSchemaTrait for AvailableSubjects {
     fn to_schema(&self) -> SchemaRef {
         match self {
             AvailableSubjects::Empty => Arc::new(Schema::empty()),
             AvailableSubjects::Messages => create_schema_from_fields(&create_chat_fields),
+            AvailableSubjects::RouteValues => create_schema_from_fields(&create_route_values_fields),
             AvailableSubjects::Values => create_schema_from_fields(&create_values_fields),
-            AvailableSubjects::Configs => create_schema_from_fields(&create_config_fields),
+            AvailableSubjects::RouteIPC => create_schema_from_fields(&create_route_ipc_fields),
+            AvailableSubjects::IPC => create_schema_from_fields(&create_ipc_fields),
             AvailableSubjects::Tools => create_schema_from_fields(&create_tools_fields),
             AvailableSubjects::Documents => create_schema_from_fields(&create_documents_fields),
             AvailableSubjects::Queries => create_schema_from_fields(&create_queries_fields),

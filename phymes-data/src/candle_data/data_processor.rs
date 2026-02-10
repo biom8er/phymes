@@ -7,7 +7,7 @@ use phymes_core::{
     RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait,
-    remove_message_by_subject, create_config_fields
+    remove_message_by_subject, create_values_fields
 };
 
 use arrow::{
@@ -210,7 +210,7 @@ impl Stream for CandleDataStream {
                 .ok_or(anyhow!("Config stream for CandleDataStream is empty"))?
                 .schema()
                 .fields()
-                .contains(&create_config_fields())
+                .contains(&create_values_fields())
             {
                 let config_json = batches
                     .first()

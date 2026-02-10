@@ -810,10 +810,10 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             AvailableSubjects::Messages
                 .to_table(Some(self.message_parser_task_name), None)
                 .unwrap(),
-            AvailableSubjects::Configs
+            AvailableSubjects::Values
                 .to_table(Some(self.tool_task_name), None)
                 .unwrap(),
-            AvailableSubjects::Configs
+            AvailableSubjects::Values
                 .to_table(Some(self.hitl_task_name), None)
                 .unwrap(),
             AvailableInterfaceSubjects::AssistantCsv

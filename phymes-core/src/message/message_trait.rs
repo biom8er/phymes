@@ -1,4 +1,4 @@
-use crate::schemas::{create_config_record_batch, create_values_fields};
+use crate::schemas::{create_values_record_batch, create_route_values_fields};
 use crate::{
     BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait,
     MessageBuilderTrait, SendableRecordBatchStream, SendableRecordBatchStreamMessageBuilder,
@@ -55,22 +55,22 @@ impl IPCMessage {
 
     /// Convert the message to a message map
     ///
-    /// Each row in the message will be allocated to
-    ///   a new message if an aggregated message schema is
-    ///   followed whereby there are columns for the
-    ///   `name`, `publisher`, `subject`,  and `values`,
-    ///   where `values` is a deserializable JSON payload
-    ///
     /// # Note
-    ///
+    /// ## Routing to multiple subjects
+    /// 
+    /// - Each row in the message will be allocated to a new message when
+    ///   the `values` [RecordBatch] schema is followed which includes columns
+    ///   for `name`, `publisher`, `subject`,  and `values`, and
+    ///   where `values` is a deserializable JSON payload
+    /// - Multple rows with the same `name` of a `values` [RecordBatch] schema
+    ///   will be concatenated together
     /// - It is up to the implementer to assure that the `values`
-    ///   can be deserialized to either an ArrowTable or
-    ///   a user-defined schema
+    ///   can be deserialized to the intended schema
     pub fn to_map(self) -> Result<IPCMessageMap> {
         let mut map = HashMap::<String, IPCMessage>::new();
 
         // Expected fields if it is an aggregated message
-        let fields = create_values_fields();
+        let fields = create_route_values_fields();
 
         // Wrap the message in a table
         let table = TableBuilder::new_from_ipc_stream(&self.message)?
@@ -93,7 +93,7 @@ impl IPCMessage {
                 let values = vec![
                     data.get(3).unwrap().get(row).unwrap().to_string(),
                 ];
-                let batch = create_config_record_batch(values)?;
+                let batch = create_values_record_batch(values)?;
                 let bytes = TableBuilder::new()
                     .with_name(name)
                     .with_record_batches(vec![batch])?
