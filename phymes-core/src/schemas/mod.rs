@@ -68,3 +68,8 @@ pub use embedding::{EmbeddingRequest, EmbeddingResponse, EncodingFormat};
 // Based on openai-api-rs and modified to accomodate Apache Arrow
 mod chat_types;
 pub use chat_types::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType};
+
+
+pub mod e_utils;
+pub mod open_alex;
+pub mod semantic_scholar;

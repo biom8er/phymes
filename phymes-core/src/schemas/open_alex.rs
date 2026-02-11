@@ -2,7 +2,7 @@ use std::{fmt::Display, sync::Arc};
 
 use anyhow::{anyhow, Result};
 use arrow::{array::RecordBatch, datatypes::{DataType, Field, Fields, SchemaRef}};
-use phymes_core::{AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, MappableTrait, Table, TableBuilderTrait, TableTrait, create_route_bytes_record_batch, create_schema_from_fields};
+use crate::{AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, MappableTrait, Table, TableBuilderTrait, TableTrait, create_route_bytes_record_batch, create_schema_from_fields};
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};

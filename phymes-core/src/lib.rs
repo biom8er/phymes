@@ -38,7 +38,7 @@ pub use schemas::{
     create_subjects_change_log_batch, create_subjects_num_rows_batch, create_tools_record_batch,
     create_user_batch, create_user_inbox_batch, create_user_session_contexts_batch,
     create_route_bytes_record_batch, from_diagnostics_to_tables, create_documents_embeddings_batch, create_query_embeddings_batch,
-    create_bytes_fields, create_bytes_record_batch
+    create_bytes_fields, create_bytes_record_batch, e_utils, open_alex, semantic_scholar
 };
 pub use table::{
     AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, CsvFormat, DataFormat,

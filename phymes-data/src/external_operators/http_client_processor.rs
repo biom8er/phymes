@@ -516,11 +516,11 @@ impl RecordBatchStream for HTTPClientRequestStream {
 
 #[cfg(test)]
 mod tests {
-    use crate::{external_operators::{schemas_open_alex, schemas_semantic_scholar}, extract_pdf, filter_pdf, load_pdf_document};
+    use crate::{extract_pdf, filter_pdf, load_pdf_document};
 
     use super::*;
     use futures::TryStreamExt;
-    use phymes_core::{ChatBuilderTraitExt, RuntimeEnvTrait, TableBuilder, TablePublication};
+    use phymes_core::{ChatBuilderTraitExt, RuntimeEnvTrait, TableBuilder, TablePublication, open_alex, semantic_scholar};
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
 
     #[tokio::test]
@@ -540,11 +540,11 @@ mod tests {
         // OpenAlex request filters
         let mut filter = Map::<String, Value>::new();
         let _ = filter.insert("publication_year".to_string(), Value::String("2020".to_string()));
-        let open_alex_request = schemas_open_alex::OpenAlexRequest {
+        let open_alex_request = open_alex::OpenAlexRequest {
             page: Some(1),
             per_page: Some(5),
             filter: Some(filter),
-            entity: schemas_open_alex::OpenAlexRequestEntity::Works,
+            entity: open_alex::OpenAlexRequestEntity::Works,
             ..Default::default()
         };
 
@@ -635,11 +635,11 @@ mod tests {
         // OpenAlex request filters
         let mut filter = Map::<String, Value>::new();
         let _ = filter.insert("publication_year".to_string(), Value::String("2020".to_string()));
-        let open_alex_request = schemas_open_alex::OpenAlexRequest {
+        let open_alex_request = open_alex::OpenAlexRequest {
             page: Some(1),
             per_page: Some(5),
             filter: Some(filter),
-            entity: schemas_open_alex::OpenAlexRequestEntity::Works,
+            entity: open_alex::OpenAlexRequestEntity::Works,
             ..Default::default()
         };
 
@@ -717,11 +717,11 @@ mod tests {
         // OpenAlex request filters
         let mut filter = Map::<String, Value>::new();
         let _ = filter.insert("publication_year".to_string(), Value::String("2020".to_string()));
-        let open_alex_request = schemas_open_alex::OpenAlexRequest {
+        let open_alex_request = open_alex::OpenAlexRequest {
             page: Some(1),
             per_page: Some(5),
             filter: Some(filter),
-            entity: schemas_open_alex::OpenAlexRequestEntity::Works,
+            entity: open_alex::OpenAlexRequestEntity::Works,
             ..Default::default()
         };
 
@@ -1147,7 +1147,7 @@ mod tests {
             .build()?;
 
         // Make the request body
-        let req_body = schemas_semantic_scholar::RecommendationsRequest {
+        let req_body = semantic_scholar::RecommendationsRequest {
             positive_papers: Some(vec!["649def34f8be52c8b66281af98ae884c09aef38b".to_string()]),
             negative_papers: Some(vec!["ArXiv:1805.02262".to_string()]),
         };

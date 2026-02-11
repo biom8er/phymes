@@ -4,11 +4,11 @@ use serde::{Deserialize, Serialize};
 /// Request body for Recommendations API.
 /// You can provide positive and negative seed papers, a limit, and desired fields.
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct RecommendationsRequest {
+pub struct RecommendationsRequest {
     #[serde(rename = "positivePaperIds")]
-    pub(crate) positive_papers: Option<Vec<String>>,
+    pub positive_papers: Option<Vec<String>>,
     #[serde(rename = "negativePaperIds")]
-    pub(crate) negative_papers: Option<Vec<String>>,
+    pub negative_papers: Option<Vec<String>>,
     // /// Maximum number of recommendations to return.
     // pub(crate) limit: Option<u32>,
     // /// List of paper fields to return in the response.
