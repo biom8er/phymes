@@ -2,7 +2,7 @@ use std::{fmt::Display, sync::Arc};
 
 use anyhow::{anyhow, Result};
 use arrow::{array::RecordBatch, datatypes::{DataType, Field, Fields, SchemaRef}};
-use phymes_core::{AvailableSchemaTrait, BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableTrait, create_route_ipc_record_batch, create_schema_from_fields};
+use phymes_core::{AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, MappableTrait, Table, TableBuilderTrait, TableTrait, create_route_bytes_record_batch, create_schema_from_fields};
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -2252,14 +2252,16 @@ impl OpenAlexResponseWorks {
         let mut names = Vec::new();
         let mut publishers = Vec::new();
         let mut subjects = Vec::new();
-        let mut ipcs = Vec::new();
+        let mut formats = Vec::new();
+        let mut bytes = Vec::new();
 
         // Handle each individual table
         if !work_tables.is_empty() {
             names.push(work_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_tables.first().unwrap().get_name())
                 .with_schema(work_tables.first().unwrap().to_schema())
                 .with_struct::<WorkTable>(&work_tables)?
@@ -2271,7 +2273,8 @@ impl OpenAlexResponseWorks {
             names.push(work_authorship_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_authorship_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_authorship_tables.first().unwrap().get_name())
                 .with_schema(work_authorship_tables.first().unwrap().to_schema())
                 .with_struct::<WorkAuthorshipTable>(&work_authorship_tables)?
@@ -2283,7 +2286,8 @@ impl OpenAlexResponseWorks {
             names.push(work_award_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_award_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_award_tables.first().unwrap().get_name())
                 .with_schema(work_award_tables.first().unwrap().to_schema())
                 .with_struct::<WorkAwardTable>(&work_award_tables)?
@@ -2295,7 +2299,8 @@ impl OpenAlexResponseWorks {
             names.push(work_funder_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_funder_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_funder_tables.first().unwrap().get_name())
                 .with_schema(work_funder_tables.first().unwrap().to_schema())
                 .with_struct::<WorkFunderTable>(&work_funder_tables)?
@@ -2307,7 +2312,8 @@ impl OpenAlexResponseWorks {
             names.push(work_apc_info_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_apc_info_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_apc_info_tables.first().unwrap().get_name())
                 .with_schema(work_apc_info_tables.first().unwrap().to_schema())
                 .with_struct::<WorkApcInfoTable>(&work_apc_info_tables)?
@@ -2319,7 +2325,8 @@ impl OpenAlexResponseWorks {
             names.push(work_location_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_location_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_location_tables.first().unwrap().get_name())
                 .with_schema(work_location_tables.first().unwrap().to_schema())
                 .with_struct::<WorkLocationTable>(&work_location_tables)?
@@ -2331,7 +2338,8 @@ impl OpenAlexResponseWorks {
             names.push(work_open_access_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_open_access_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_open_access_tables.first().unwrap().get_name())
                 .with_schema(work_open_access_tables.first().unwrap().to_schema())
                 .with_struct::<WorkOpenAccessTable>(&work_open_access_tables)?
@@ -2343,7 +2351,8 @@ impl OpenAlexResponseWorks {
             names.push(work_biblio_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_biblio_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_biblio_tables.first().unwrap().get_name())
                 .with_schema(work_biblio_tables.first().unwrap().to_schema())
                 .with_struct::<WorkBiblioTable>(&work_biblio_tables)?
@@ -2355,7 +2364,8 @@ impl OpenAlexResponseWorks {
             names.push(work_citation_normalized_percentile_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_citation_normalized_percentile_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_citation_normalized_percentile_tables.first().unwrap().get_name())
                 .with_schema(work_citation_normalized_percentile_tables.first().unwrap().to_schema())
                 .with_struct::<WorkCitationPercentileTable>(&work_citation_normalized_percentile_tables)?
@@ -2367,7 +2377,8 @@ impl OpenAlexResponseWorks {
             names.push(work_cited_percentile_year_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_cited_percentile_year_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_cited_percentile_year_tables.first().unwrap().get_name())
                 .with_schema(work_cited_percentile_year_tables.first().unwrap().to_schema())
                 .with_struct::<WorkCitedByPercentileYearTable>(&work_cited_percentile_year_tables)?
@@ -2379,7 +2390,8 @@ impl OpenAlexResponseWorks {
             names.push(work_counts_by_year_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_counts_by_year_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_counts_by_year_tables.first().unwrap().get_name())
                 .with_schema(work_counts_by_year_tables.first().unwrap().to_schema())
                 .with_struct::<WorkCountsByYearTable>(&work_counts_by_year_tables)?
@@ -2391,7 +2403,8 @@ impl OpenAlexResponseWorks {
             names.push(work_concepts_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_concepts_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_concepts_tables.first().unwrap().get_name())
                 .with_schema(work_concepts_tables.first().unwrap().to_schema())
                 .with_struct::<WorkConceptTable>(&work_concepts_tables)?
@@ -2403,7 +2416,8 @@ impl OpenAlexResponseWorks {
             names.push(work_topics_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_topics_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_topics_tables.first().unwrap().get_name())
                 .with_schema(work_topics_tables.first().unwrap().to_schema())
                 .with_struct::<WorkTopicTable>(&work_topics_tables)?
@@ -2415,7 +2429,8 @@ impl OpenAlexResponseWorks {
             names.push(work_keywords_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_keywords_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_keywords_tables.first().unwrap().get_name())
                 .with_schema(work_keywords_tables.first().unwrap().to_schema())
                 .with_struct::<WorkKeywordTable>(&work_keywords_tables)?
@@ -2427,7 +2442,8 @@ impl OpenAlexResponseWorks {
             names.push(work_mesh_tag_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_mesh_tag_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_mesh_tag_tables.first().unwrap().get_name())
                 .with_schema(work_mesh_tag_tables.first().unwrap().to_schema())
                 .with_struct::<WorkMeshTagTable>(&work_mesh_tag_tables)?
@@ -2439,7 +2455,8 @@ impl OpenAlexResponseWorks {
             names.push(work_sdg_tag_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_sdg_tag_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_sdg_tag_tables.first().unwrap().get_name())
                 .with_schema(work_sdg_tag_tables.first().unwrap().to_schema())
                 .with_struct::<WorkSdgTagTable>(&work_sdg_tag_tables)?
@@ -2451,7 +2468,8 @@ impl OpenAlexResponseWorks {
             names.push(work_corresponding_author_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_corresponding_author_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_corresponding_author_tables.first().unwrap().get_name())
                 .with_schema(work_corresponding_author_tables.first().unwrap().to_schema())
                 .with_struct::<WorkCorrespondingAuthorTable>(&work_corresponding_author_tables)?
@@ -2463,7 +2481,8 @@ impl OpenAlexResponseWorks {
             names.push(work_corresponding_insitution_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_corresponding_insitution_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_corresponding_insitution_tables.first().unwrap().get_name())
                 .with_schema(work_corresponding_insitution_tables.first().unwrap().to_schema())
                 .with_struct::<WorkCorrespondingInstitutionTable>(&work_corresponding_insitution_tables)?
@@ -2475,7 +2494,8 @@ impl OpenAlexResponseWorks {
             names.push(work_indexed_in_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_indexed_in_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_indexed_in_tables.first().unwrap().get_name())
                 .with_schema(work_indexed_in_tables.first().unwrap().to_schema())
                 .with_struct::<WorkIndexedInTable>(&work_indexed_in_tables)?
@@ -2487,7 +2507,8 @@ impl OpenAlexResponseWorks {
             names.push(work_ids_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_ids_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_ids_tables.first().unwrap().get_name())
                 .with_schema(work_ids_tables.first().unwrap().to_schema())
                 .with_struct::<WorkIdsTable>(&work_ids_tables)?
@@ -2499,7 +2520,8 @@ impl OpenAlexResponseWorks {
             names.push(work_referenced_works_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_referenced_works_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_referenced_works_tables.first().unwrap().get_name())
                 .with_schema(work_referenced_works_tables.first().unwrap().to_schema())
                 .with_struct::<WorkReferencedWorksTable>(&work_referenced_works_tables)?
@@ -2511,7 +2533,8 @@ impl OpenAlexResponseWorks {
             names.push(work_related_works_tables.first().unwrap().get_name().to_string());
             publishers.push(publisher.to_string());
             subjects.push(work_related_works_tables.first().unwrap().get_name().to_string());
-            ipcs.push(Table::get_builder()
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
                 .with_name(work_related_works_tables.first().unwrap().get_name())
                 .with_schema(work_related_works_tables.first().unwrap().to_schema())
                 .with_struct::<WorkRelatedWorksTable>(&work_related_works_tables)?
@@ -2520,7 +2543,7 @@ impl OpenAlexResponseWorks {
             );
         }
 
-        let batch = create_route_ipc_record_batch(names, publishers, subjects, ipcs)?;
+        let batch = create_route_bytes_record_batch(names, publishers, subjects, formats, bytes)?;
         Ok(batch)
     }
 }

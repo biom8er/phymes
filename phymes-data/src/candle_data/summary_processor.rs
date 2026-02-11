@@ -231,12 +231,14 @@ pub fn table_and_data_format_to_record_batch(
         }
         DataFormat::Html | DataFormat::Txt => {
             // Extract out the values column and concatenate into a single String to form the document
-            let values = table.get_column_as_vec_str("values").join("");
-            let bytes = Bytes::from(values);
+            let bytes = table.get_column_as_vec_nested_primitive::<u8>("bytes")?
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>();
             create_blob_batch(
                 vec![table.get_name().to_string()],
                 vec![format.to_extension().to_string()],
-                vec![bytes.to_vec()],
+                vec![bytes],
                 vec!["assistant".to_string()],
                 vec![create_timestamp_micros()],
             )

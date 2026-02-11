@@ -5,7 +5,7 @@ use std::{
 };
 
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, ToolCall, create_chat_record_batch, create_route_bytes_record_batch, remove_message_by_subject
+    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, DataFormat, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, ToolCall, create_chat_record_batch, create_route_bytes_record_batch, remove_message_by_subject
 };
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
@@ -215,6 +215,7 @@ impl Stream for MessageParserStream {
                     let mut names_vec = Vec::new();
                     let mut publishers_vec = Vec::new();
                     let mut subjects_vec = Vec::new();
+                    let mut formats_vec = Vec::new();
                     let mut values_vec = Vec::new();
                     for tool_call in tool_calls.iter() {
                         names_vec.push(
@@ -236,18 +237,18 @@ impl Stream for MessageParserStream {
                                 .as_str()
                                 .to_string(),
                         );
+                        formats_vec.push(DataFormat::Bytes.to_string());
 
                         // Parse the arguments and rebuild the as a `serde_json::Value`
-                        let arguments = serde_json::from_str::<serde_json::Value>(
+                        let mut values = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(
                             tool_call.function.arguments.as_ref().unwrap().as_str(),
                         )?;
-                        let values = json!({
-                            "name": tool_call.function.name.as_ref().unwrap().as_str(),
-                            "arguments": arguments
-                        });
-                        values_vec.push(serde_json::to_string(&values)?);
+                        
+                        // DM: we assume a `DataConfig`-like subject target
+                        let _ = values.insert("operator".to_string(), serde_json::Value::String(tool_call.function.name.as_ref().unwrap().as_str().to_string()));
+                        values_vec.push(serde_json::to_string(&values)?.into_bytes());
                     }
-                    create_route_bytes_record_batch(names_vec, publishers_vec, subjects_vec, values_vec)?
+                    create_route_bytes_record_batch(names_vec, publishers_vec, subjects_vec, formats_vec, values_vec)?
                 }
                 Err(_e) => {
                     // Parse for Qwen
@@ -274,31 +275,35 @@ impl Stream for MessageParserStream {
                             let mut names_vec = Vec::new();
                             let mut publishers_vec = Vec::new();
                             let mut subjects_vec = Vec::new();
+                            let mut formats_vec = Vec::new();
                             let mut values_vec = Vec::new();
                             for json_value in json_values.into_iter() {
-                                names_vec.push(
-                                    json_value
-                                        .get("name")
-                                        .unwrap()
-                                        .as_str()
-                                        .unwrap()
-                                        .to_string(),
-                                );
+                                let name = json_value.get("name")
+                                    .unwrap()
+                                    .as_str()
+                                    .unwrap()
+                                    .to_string();
+                                names_vec.push(name.to_owned());
                                 publishers_vec.push("message_parser_processor".to_string());
-                                subjects_vec.push(
-                                    json_value
-                                        .get("name")
-                                        .unwrap()
-                                        .as_str()
-                                        .unwrap()
-                                        .to_string(),
-                                );
-                                values_vec.push(serde_json::to_string(&json_value)?);
+                                subjects_vec.push(name.to_owned());
+                                formats_vec.push(DataFormat::Bytes.to_string());
+
+                                // Parse the arguments and rebuild the as a `serde_json::Value`
+                                let s = json_value.get("arguments")
+                                    .unwrap()
+                                    .as_str()
+                                    .unwrap();
+                                let mut map = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(s)?;
+
+                                // DM: we assume a `DataConfig`-like subject target
+                                let _ = map.insert("operator".to_string(), serde_json::Value::String(name));
+                                values_vec.push(serde_json::to_string(&map)?.into_bytes());
                             }
                             create_route_bytes_record_batch(
                                 names_vec,
                                 publishers_vec,
                                 subjects_vec,
+                                formats_vec,
                                 values_vec,
                             )?
                         }
