@@ -8,52 +8,25 @@ use serde::{Deserialize, Serialize};
 
 use crate::DataConfigTrait;
 
-/// The HTTP client request types
+/// Schema to use when packaging the HTTP client request response
+/// 
+/// More complex parsing should be handled by one of the extractor `DataProcessor`s 
+///   e.g., tabular for JSON Line, xml for XML, and PDF for PDFs
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default, PartialEq)]
 pub enum HTTPClientRequestSchemas {
-    /// No parsing of the response
     #[default]
-    #[value(name = "None")]
-    None,
-    /// `works` OpenAlex API endpoint
-    #[value(name = "OpenAlexWorks")]
-    OpenAlexWorks,
-    /// `find/works` OpenAlex API endpoint
-    #[value(name = "OpenAlexFind")]
-    OpenAlexFind,
-    /// `group_by` OpenAlex API endpoint
-    #[value(name = "OpenAlexGroupBy")]
-    OpenAlexGroupBy,
-    /// EUtils ESearch utility
-    ///
-    /// MUST use `retmode=json`
-    #[value(name = "ESearch")]
-    ESearch,
-    /// EUtils Efetch utility
-    ///
-    /// MUST use `retmode=xml`
-    #[value(name = "EFetch")]
-    EFetch,
-    /// Semantic Scholar Recomendations API
-    #[value(name = "SemanticScholarRecomendations")]
-    SemanticScholarRecomendations,
-    /// A general API endpoint for PDFs
-    #[value(name = "PDF")]
-    PDF,
+    #[value(name = "Messages")]
+    Messages,
+    #[value(name = "Blob")]
+    Blob,
     #[value(skip)]
     Custom(String),
 }
 impl Display for HTTPClientRequestSchemas {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::None => write!(f, "None"),
-            Self::OpenAlexWorks => write!(f, "OpenAlexWorks"),
-            Self::OpenAlexFind => write!(f, "OpenAlexFind"),
-            Self::OpenAlexGroupBy => write!(f, "OpenAlexGroupBy"),
-            Self::ESearch => write!(f, "ESearch"),
-            Self::EFetch => write!(f, "EFetch"),
-            Self::SemanticScholarRecomendations => write!(f, "SemanticScholarRecomendations"),
-            Self::PDF => write!(f, "PDF"),
+            Self::Messages => write!(f, "Messages"),
+            Self::Blob => write!(f, "Blob"),
             Self::Custom(s) => write!(f, "{s}"),
         }
     }
@@ -136,7 +109,7 @@ pub struct HTTPClientConfig {
     pub subject_name: Option<String>,
 
     /// The request schema to try and parse responses into
-    #[arg(long, default_value_t = HTTPClientRequestSchemas::None)]
+    #[arg(long, default_value_t = HTTPClientRequestSchemas::Messages)]
     pub request_schema: HTTPClientRequestSchemas,
 }
 
@@ -173,7 +146,7 @@ impl Default for HTTPClientConfig {
             base_url: "".to_string(),
             subject_name: None,
             json: None,
-            request_schema: HTTPClientRequestSchemas::None,
+            request_schema: HTTPClientRequestSchemas::Messages,
         }
     }
 }

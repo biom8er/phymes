@@ -23,10 +23,7 @@ use reqwest::{
 use serde_json::{Map, Value};
 
 use crate::{
-    DataConfigTrait, external_operators::{
-        http_client_config::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType},
-        schemas_e_utils, schemas_open_alex, schemas_semantic_scholar,
-    }, extract_pdf, filter_pdf, load_pdf_document
+    DataConfigTrait, external_operators::http_client_config::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType}
 };
 
 /// The state of the HTTP Client API request
@@ -134,6 +131,8 @@ pub struct HTTPClientRequestStream {
     json_str: Option<String>,
     /// Optional copy of the query string which is needed for downloading PDFs and other data assets
     url: Option<String>,
+    /// Optional copy of the contenty type string which is needed for downloading PDFs and other data assets
+    content_type: Option<String>,
 }
 
 impl HTTPClientRequestStream {
@@ -154,6 +153,7 @@ impl HTTPClientRequestStream {
             record_batches: None,
             json_str: None,
             url: None,
+            content_type: None,
         })
     }
 
@@ -254,7 +254,7 @@ impl Stream for HTTPClientRequestStream {
                         let url = self.config.as_ref().unwrap().url(query_url.as_deref());
 
                         // Save the URL when downloading data
-                        if self.config.as_ref().unwrap().request_schema == HTTPClientRequestSchemas::PDF {
+                        if self.config.as_ref().unwrap().request_schema == HTTPClientRequestSchemas::Blob {
                             self.url.replace(url.to_owned());
                         }                    
 
@@ -300,7 +300,7 @@ impl Stream for HTTPClientRequestStream {
                         };
 
                         // Save the URL when downloading data
-                        if self.config.as_ref().unwrap().request_schema == HTTPClientRequestSchemas::PDF {
+                        if self.config.as_ref().unwrap().request_schema == HTTPClientRequestSchemas::Blob {
                             self.json_str.replace(url.to_owned());
                         }
 
@@ -345,26 +345,15 @@ impl Stream for HTTPClientRequestStream {
                         .get(CONTENT_TYPE)
                         .and_then(|ct| ct.to_str().ok())
                         .unwrap_or("");
+                    self.content_type.replace(content_type.to_owned());
 
-                    match content_type {
-                        ct if ct.contains("application/json") => {
-                            // DM: treat JSON as Text to apply custom parsing
-                            // let json: Value = response.json()?;
+                    match self.config.as_ref().unwrap().request_schema {
+                        HTTPClientRequestSchemas::Messages => {
                             let text = response.text();
                             self.state = HTTPClientRequestState::ToText(Box::pin(text));
                             self.poll_next(cx)
                         } 
-                        ct if ct.contains("application/xml")
-                        || ct.contains("text/xml")
-                        || ct.contains("text/html")
-                        || ct.contains("text/plain")
-                        || ct.contains("application/x-www-form-urlencoded") => {
-                            let text = response.text();
-                            self.state = HTTPClientRequestState::ToText(Box::pin(text));
-                            self.poll_next(cx)
-                        }
-                        ct if ct.contains("image/")
-                        || ct.contains("application/octet-stream") => {
+                        HTTPClientRequestSchemas::Blob => {
                             let bytes = response.bytes();
                             self.state = HTTPClientRequestState::ToBytes(Box::pin(bytes));
                             self.poll_next(cx)
@@ -401,133 +390,11 @@ impl Stream for HTTPClientRequestStream {
 
                     // Parse the response
                     let batch = match self.config.as_ref().unwrap().request_schema {
-                        HTTPClientRequestSchemas::None => create_chat_record_batch(
+                        HTTPClientRequestSchemas::Messages => create_chat_record_batch(
                             vec!["tool".to_string()],
                             vec![text],
                             vec![create_timestamp_micros()],
                         )?,
-                        HTTPClientRequestSchemas::OpenAlexWorks => {
-                            let parsed = match serde_json::from_str::<
-                                schemas_open_alex::OpenAlexResponseWorks,
-                            >(&text)
-                            {
-                                Ok(parsed) => parsed,
-                                Err(err) => {
-                                    self.state = HTTPClientRequestState::Done;
-                                    let text = if text.len() > 10000 {
-                                        &text[0..10000]
-                                    } else {
-                                        &text
-                                    };
-                                    return Poll::Ready(Some(Err(anyhow!(
-                                        "A parsing error {err:?} was encountered when parsing response {text} for schema {}.",
-                                        self.config.as_ref().unwrap().request_schema,
-                                    ))));
-                                }
-                            };
-                            let content = parsed
-                                .results
-                                .into_iter()
-                                .map(|w| serde_json::to_string(&w).unwrap())
-                                .collect::<Vec<_>>();
-                            let roles = content
-                                .iter()
-                                .map(|_| "tool".to_string())
-                                .collect::<Vec<_>>();
-                            let timestamps = content
-                                .iter()
-                                .map(|_| create_timestamp_micros())
-                                .collect::<Vec<_>>();
-                            create_chat_record_batch(roles, content, timestamps)?
-                        }
-                        HTTPClientRequestSchemas::ESearch => {
-                            let parsed = match serde_json::from_str::<
-                                schemas_e_utils::ESearchResponse,
-                            >(&text)
-                            {
-                                Ok(parsed) => parsed,
-                                Err(err) => {
-                                    self.state = HTTPClientRequestState::Done;
-                                    return Poll::Ready(Some(Err(anyhow!(
-                                        "A parsing error {err:?} was encountered when parsing response {text} for schema {}.",
-                                        self.config.as_ref().unwrap().request_schema
-                                    ))));
-                                }
-                            };
-                            let content = parsed.esearchresult.idlist;
-                            let roles = content
-                                .iter()
-                                .map(|_| "tool".to_string())
-                                .collect::<Vec<_>>();
-                            let timestamps = content
-                                .iter()
-                                .map(|_| create_timestamp_micros())
-                                .collect::<Vec<_>>();
-                            create_chat_record_batch(roles, content, timestamps)?
-                        }
-                        HTTPClientRequestSchemas::EFetch => {
-                            let cleaned_text = text
-                                .replace("<sup>", "")
-                                .replace("</sup>", "")
-                                .replace("<sub>", "")
-                                .replace("</sub>", "");
-                            let parsed = match quick_xml::de::from_str::<
-                                schemas_e_utils::PubmedArticleSet,
-                            >(&cleaned_text)
-                            {
-                                Ok(parsed) => parsed,
-                                Err(err) => {
-                                    self.state = HTTPClientRequestState::Done;
-                                    return Poll::Ready(Some(Err(anyhow!(
-                                        "A parsing error {err:?} was encountered when parsing response {cleaned_text} for schema {}.",
-                                        self.config.as_ref().unwrap().request_schema
-                                    ))));
-                                }
-                            };
-                            let content = parsed
-                                .articles
-                                .into_iter()
-                                .map(|w| serde_json::to_string(&w).unwrap())
-                                .collect::<Vec<_>>();
-                            let roles = content
-                                .iter()
-                                .map(|_| "tool".to_string())
-                                .collect::<Vec<_>>();
-                            let timestamps = content
-                                .iter()
-                                .map(|_| create_timestamp_micros())
-                                .collect::<Vec<_>>();
-                            create_chat_record_batch(roles, content, timestamps)?
-                        }
-                        HTTPClientRequestSchemas::SemanticScholarRecomendations => {
-                            let parsed = match serde_json::from_str::<
-                                schemas_semantic_scholar::RecommendationsResponse,
-                            >(&text)
-                            {
-                                Ok(parsed) => parsed,
-                                Err(err) => {
-                                    self.state = HTTPClientRequestState::Done;
-                                    return Poll::Ready(Some(Err(anyhow!(
-                                        "A parsing error {err:?} was encountered when parsing response {text} for schema {}.",
-                                        self.config.as_ref().unwrap().request_schema
-                                    ))));
-                                }
-                            };
-                            let content = parsed
-                                .papers
-                                .into_iter()
-                                .map(|w| serde_json::to_string(&w).unwrap())
-                                .collect::<Vec<_>>();
-                            let roles = content
-                                .iter()
-                                .map(|_| "tool".to_string())
-                                .collect::<Vec<_>>();
-                            let timestamps = content
-                                .iter()
-                                .map(|_| create_timestamp_micros())
-                                .collect::<Vec<_>>();
-                            create_chat_record_batch(roles, content, timestamps)?
-                        }
                         _ => {
                             self.state = HTTPClientRequestState::Done;
                             return Poll::Ready(Some(Err(anyhow!(
@@ -574,40 +441,13 @@ impl Stream for HTTPClientRequestStream {
 
                     // Parse the response
                     let batch = match self.config.as_ref().unwrap().request_schema {
-                        HTTPClientRequestSchemas::None => create_blob_batch(
+                        HTTPClientRequestSchemas::Blob => create_blob_batch(
                             vec![filename],
-                            vec!["".to_string()],
+                            vec![self.content_type.take().unwrap_or_default()],
                             vec![bytes.to_vec()],
                             vec!["tool".to_string()],
                             vec![create_timestamp_micros()],
                         )?,
-                        HTTPClientRequestSchemas::PDF => {
-                            // Parse the PDF
-                            let pdf = match load_pdf_document(&bytes) {
-                                Ok(pdf) => filter_pdf(pdf),
-                                Err(err) => {
-                                    self.state = HTTPClientRequestState::Done;
-                                    return Poll::Ready(Some(Err(anyhow!(
-                                        "A parsing error {err:?} was encountered when loading PDF for schema {}.",
-                                        self.config.as_ref().unwrap().request_schema,
-                                    ))));
-                                }
-                            };
-
-                            // Extract the PDF
-                            let docs = [(filename, pdf)];
-                            match extract_pdf(&docs)
-                            {
-                                Ok(parsed) => parsed,
-                                Err(err) => {
-                                    self.state = HTTPClientRequestState::Done;
-                                    return Poll::Ready(Some(Err(anyhow!(
-                                        "A parsing error {err:?} was encountered when parsing response for schema {}.",
-                                        self.config.as_ref().unwrap().request_schema,
-                                    ))));
-                                }
-                            }
-                        }
                         _ => {
                             self.state = HTTPClientRequestState::Done;
                             return Poll::Ready(Some(Err(anyhow!(
@@ -676,13 +516,15 @@ impl RecordBatchStream for HTTPClientRequestStream {
 
 #[cfg(test)]
 mod tests {
+    use crate::{external_operators::{schemas_open_alex, schemas_semantic_scholar}, extract_pdf, filter_pdf, load_pdf_document};
+
     use super::*;
     use futures::TryStreamExt;
     use phymes_core::{ChatBuilderTraitExt, RuntimeEnvTrait, TableBuilder, TablePublication};
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
 
     #[tokio::test]
-    async fn test_http_client_processor_open_alex_get_message() -> Result<()> {
+    async fn test_http_client_processor_open_alex_get_message_from_message() -> Result<()> {
         // Case 1: GET from messages
         let name = "HTTPClientRequestProcessor";
         let messages = "messages";
@@ -713,7 +555,7 @@ mod tests {
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: format!("{}?", open_alex_request.to_base_url()),
             subject_name: Some(messages.to_string()),
-            request_schema: HTTPClientRequestSchemas::OpenAlexWorks,
+            request_schema: HTTPClientRequestSchemas::Messages,
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
@@ -770,18 +612,15 @@ mod tests {
             .build()?;
 
         let result = table.get_column_as_vec_str("role");
-        assert_eq!(result, ["tool", "tool", "tool", "tool", "tool"]);
+        assert_eq!(result, ["tool"]);
         let result = table.get_column_as_vec_string("content")?;
         let snippet = result.first().unwrap().to_string();
-        assert_eq!(
-            snippet[..50],
-            *"{\"id\":\"https://openalex.org/W3038568908\",\"display_"
-        );
+        assert!(snippet.contains("https://openalex.org/W3038568908"));
 
         Ok(())
     }
     #[tokio::test]
-    async fn test_http_client_processor_open_alex_get_config() -> Result<()> {
+    async fn test_http_client_processor_open_alex_get_message_from_config() -> Result<()> {
         // Case 1: GET from messages
         let name = "HTTPClientRequestProcessor";
 
@@ -811,7 +650,7 @@ mod tests {
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: format!("{}?", open_alex_request.to_base_url()),
             json: Some(open_alex_request.to_get_query()?),
-            request_schema: HTTPClientRequestSchemas::OpenAlexWorks,
+            request_schema: HTTPClientRequestSchemas::Messages,
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
@@ -853,13 +692,114 @@ mod tests {
             .build()?;
 
         let result = table.get_column_as_vec_str("role");
-        assert_eq!(result, ["tool", "tool", "tool", "tool", "tool"]);
+        assert_eq!(result, ["tool"]);
         let result = table.get_column_as_vec_string("content")?;
         let snippet = result.first().unwrap().to_string();
-        assert_eq!(
-            snippet[..50],
-            *"{\"id\":\"https://openalex.org/W3038568908\",\"display_"
+        assert!(snippet.contains("https://openalex.org/W3038568908"));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_http_client_processor_open_alex_get_blob_from_message() -> Result<()> {
+        // Case 1: GET from messages
+        let name = "HTTPClientRequestProcessor";
+        let messages = "messages";
+
+        // Runtime env
+        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+
+        // Metrics to compute time and rows
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
+        // OpenAlex request filters
+        let mut filter = Map::<String, Value>::new();
+        let _ = filter.insert("publication_year".to_string(), Value::String("2020".to_string()));
+        let open_alex_request = schemas_open_alex::OpenAlexRequest {
+            page: Some(1),
+            per_page: Some(5),
+            filter: Some(filter),
+            entity: schemas_open_alex::OpenAlexRequestEntity::Works,
+            ..Default::default()
+        };
+
+        // Config for the HTTP Processor
+        let http_client_config = HTTPClientConfig {
+            timeout: 5,
+            request_type: HTTPClientRequestType::Get,
+            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
+            base_url: format!("{}?", open_alex_request.to_base_url()),
+            subject_name: Some(messages.to_string()),
+            request_schema: HTTPClientRequestSchemas::Blob,
+            ..Default::default()
+        };
+        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
+        let http_client_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&http_client_config_json, 1)?
+            .build()?;
+
+        // Make the system prompt and add the user query
+        let message_builder = TableBuilder::new()
+            .with_name(messages)
+            .append_new_user_query_str(&open_alex_request.to_get_query()?, "user")?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            messages.to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(messages)
+                .with_publisher("")
+                .with_subject(messages)
+                .with_update(&TablePublication::None)
+                .with_message(message_builder.clone().build()?.to_record_batch_stream())
+                .build()?,
         );
+        let _ = message.insert(
+            http_client_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(http_client_config_table.get_name())
+                .with_publisher("")
+                .with_subject(http_client_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(http_client_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the http client processor
+        let processor =
+            HTTPClientRequestProcessor::new(name, HTTPClientRequestProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("metadata");
+        assert_eq!(result, ["tool"]);
+        let result = table.get_column_as_vec_str("filename");
+        assert_eq!(result, ["works?page=1&per-page=5&filter=publication_year:\"2020\""]);
+        let result = table.get_column_as_vec_str("extension");
+        assert_eq!(result, ["application/json"]);
+        let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        let snippet = String::from_utf8(result)?;
+        assert!(snippet.contains("https://openalex.org/W3038568908"));
 
         Ok(())
     }
@@ -901,7 +841,7 @@ mod tests {
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?".to_string(),
             subject_name: Some(messages.to_string()),
-            request_schema: HTTPClientRequestSchemas::ESearch,
+            request_schema: HTTPClientRequestSchemas::Messages,
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
@@ -958,12 +898,9 @@ mod tests {
             .build()?;
 
         let result = table.get_column_as_vec_str("role");
-        assert_eq!(result, ["tool", "tool", "tool", "tool", "tool"]);
-        let result = table.get_column_as_vec_str("content");
-        assert_eq!(
-            result,
-            ["37997144", "37997132", "37997130", "37997120", "37997092"]
-        );
+        assert_eq!(result, ["tool"]);
+        let result = table.get_column_as_vec_str("content").join("");
+        assert!(result.contains("\"idlist\":[\"37997144\",\"37997132\",\"37997130\",\"37997120\",\"37997092\"]"));
 
         Ok(())
     }
@@ -992,7 +929,7 @@ mod tests {
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?".to_string(),
             subject_name: Some(messages.to_string()),
-            request_schema: HTTPClientRequestSchemas::EFetch,
+            request_schema: HTTPClientRequestSchemas::Blob,
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
@@ -1048,14 +985,20 @@ mod tests {
             .with_name("")
             .build()?;
 
-        let result = table.get_column_as_vec_str("role");
-        assert_eq!(result, ["tool", "tool", "tool", "tool", "tool"]);
-        let result = table.get_column_as_vec_str("content");
-        let snippet = result.first().unwrap().to_string();
-        assert_eq!(
-            snippet[..50],
-            *"{\"MedlineCitation\":{\"Article\":{\"ArticleTitle\":\"Eff"
-        );
+        let result = table.get_column_as_vec_str("metadata");
+        assert_eq!(result, ["tool"]);
+        let result = table.get_column_as_vec_str("filename");
+        assert_eq!(result, ["efetch.fcgi?db=pubmed&id=37997144,37997132,37997130,37997120,37997092&retmode=xml"]);
+        let result = table.get_column_as_vec_str("extension");
+        assert_eq!(result, ["text/xml; charset=UTF-8"]);
+        let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        let snippet = String::from_utf8(result)?;
+        assert!(snippet.contains("MedlineCitation"));
+        assert!(snippet.contains("!DOCTYPE PubmedArticleSet PUBLIC"));
+        assert!(snippet.contains("https://dtd.nlm.nih.gov/ncbi/pubmed/"));
 
         Ok(())
     }
@@ -1084,7 +1027,7 @@ mod tests {
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: "https://arxiv.org/".to_string(),
             subject_name: Some(messages.to_string()),
-            request_schema: HTTPClientRequestSchemas::PDF,
+            request_schema: HTTPClientRequestSchemas::Blob,
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
@@ -1139,7 +1082,25 @@ mod tests {
             .with_record_batches(result)?
             .with_name("")
             .build()?;
+        let result = table.get_column_as_vec_str("metadata");
+        assert_eq!(result, ["tool"]);
+        let filenames = table.get_column_as_vec_str("filename");
+        assert_eq!(filenames, ["2508.18700"]);
+        let result = table.get_column_as_vec_str("extension");
+        assert_eq!(result, ["application/pdf"]);
 
+        // Check the PDF
+        let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        let pdf = filter_pdf(load_pdf_document(&result)?);
+        let docs = [(filenames.first().unwrap().to_string(), pdf)];
+        let pdf_batch = extract_pdf(&docs)?;
+        let table = TableBuilder::new()
+            .with_record_batches(vec![pdf_batch])?
+            .with_name("")
+            .build()?;
         let result = table.get_column_as_vec_str("chunk_id");
         assert_eq!(result, ["2508.18700_1", "2508.18700_2", "2508.18700_3"]);
         let result = table.get_column_as_vec_str("document_id");
@@ -1176,7 +1137,7 @@ mod tests {
             base_url: "https://api.semanticscholar.org/recommendations/v1/papers/?".to_string(),
             json: Some("fields=title,url,authors&limit=3".to_string()),
             subject_name: Some(messages.to_string()),
-            request_schema: HTTPClientRequestSchemas::SemanticScholarRecomendations,
+            request_schema: HTTPClientRequestSchemas::Messages,
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
@@ -1239,13 +1200,10 @@ mod tests {
             .build()?;
 
         let result = table.get_column_as_vec_str("role");
-        assert_eq!(result, ["tool", "tool", "tool"]);
+        assert_eq!(result, ["tool"]);
         let result = table.get_column_as_vec_str("content");
         let snippet = result.first().unwrap().to_string();
-        assert_eq!(
-            snippet[..11],
-            *"{\"paperId\":"
-        );
+        assert!(snippet.contains("{\"paperId\":"));
 
         Ok(())
     }

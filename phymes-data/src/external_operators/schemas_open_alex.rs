@@ -2165,7 +2165,7 @@ pub(crate) struct OpenAlexResponseWorks {
 impl OpenAlexResponseWorks {
     /// Parse the OpenAlexResponseWorks object into tables following the [create_ipc_fields] schema
     ///   where each row is routed to a different table
-    pub(crate) fn to_route_ipc_record_batches(self, publisher: &str) -> Result<RecordBatch> {
+    pub(crate) fn to_route_bytes_record_batches(self, publisher: &str) -> Result<RecordBatch> {
         let mut work_tables = Vec::new();
         let mut work_authorship_tables = Vec::new();
         let mut work_award_tables = Vec::new();
