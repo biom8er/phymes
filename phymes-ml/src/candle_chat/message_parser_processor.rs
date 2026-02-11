@@ -5,7 +5,7 @@ use std::{
 };
 
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, ToolCall, create_chat_record_batch, create_route_values_record_batch, remove_message_by_subject
+    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, ToolCall, create_chat_record_batch, create_route_bytes_record_batch, remove_message_by_subject
 };
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
@@ -123,7 +123,7 @@ impl MessageParserStream {
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
-            schema: AvailableSubjects::RouteValues.to_schema(),
+            schema: AvailableSubjects::RouteBytes.to_schema(),
             messages,
             config_stream,
             runtime_env,
@@ -247,7 +247,7 @@ impl Stream for MessageParserStream {
                         });
                         values_vec.push(serde_json::to_string(&values)?);
                     }
-                    create_route_values_record_batch(names_vec, publishers_vec, subjects_vec, values_vec)?
+                    create_route_bytes_record_batch(names_vec, publishers_vec, subjects_vec, values_vec)?
                 }
                 Err(_e) => {
                     // Parse for Qwen
@@ -295,7 +295,7 @@ impl Stream for MessageParserStream {
                                 );
                                 values_vec.push(serde_json::to_string(&json_value)?);
                             }
-                            create_route_values_record_batch(
+                            create_route_bytes_record_batch(
                                 names_vec,
                                 publishers_vec,
                                 subjects_vec,

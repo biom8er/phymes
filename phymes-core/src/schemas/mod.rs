@@ -1,10 +1,10 @@
 mod available_subjects;
 pub use available_subjects::{
     AvailableSubjects, AvailableSchemaTrait, AvailableSubjectsTrait, create_documents_batch, create_schema_from_fields,
-    create_tools_record_batch, create_route_values_record_batch, create_documents_embeddings_batch, create_query_embeddings_batch, create_values_record_batch,
-    create_values_fields, create_ipc_record_batch, create_route_ipc_record_batch
+    create_tools_record_batch, create_route_bytes_record_batch, create_documents_embeddings_batch, create_query_embeddings_batch, create_bytes_record_batch,
+    create_bytes_fields
 };
-pub(crate) use available_subjects::create_route_values_fields;
+pub(crate) use available_subjects::create_route_bytes_fields;
 
 mod blob;
 pub use blob::{BlobBuilderTraitExt, BlobSubject, create_blob_batch, create_blob_fields};

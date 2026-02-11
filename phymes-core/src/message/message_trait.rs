@@ -1,11 +1,10 @@
-use crate::schemas::{create_values_record_batch, create_route_values_fields};
+use crate::schemas::{create_bytes_record_batch, create_route_bytes_fields};
 use crate::{
-    BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait,
-    MessageBuilderTrait, SendableRecordBatchStream, SendableRecordBatchStreamMessageBuilder,
-    TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
+    BuildableTrait, BuilderTrait, DataFormat, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, SendableRecordBatchStream, SendableRecordBatchStreamMessageBuilder, TableBuilder, TableBuilderTrait, TablePublication, TableTrait
 };
 
 use anyhow::Result;
+use clap::ValueEnum;
 use phymes_diagnostics::{HashMap, TraceableTrait, Tracer};
 
 /// An [RecordBatch], `IPCStream`, or [SendableRecordBatch] with additional
@@ -59,18 +58,14 @@ impl IPCMessage {
     /// ## Routing to multiple subjects
     /// 
     /// - Each row in the message will be allocated to a new message when
-    ///   the `values` [RecordBatch] schema is followed which includes columns
-    ///   for `name`, `publisher`, `subject`,  and `values`, and
-    ///   where `values` is a deserializable JSON payload
-    /// - Multple rows with the same `name` of a `values` [RecordBatch] schema
-    ///   will be concatenated together
+    ///   the `bytes` [RecordBatch] schema is followed which includes columns
+    ///   for `name`, `publisher`, `subject`, `format`,  and `bytes`, and
+    ///   where `bytes` is a serializable payload
     /// - It is up to the implementer to assure that the `values`
     ///   can be deserialized to the intended schema
     pub fn to_map(self) -> Result<IPCMessageMap> {
-        let mut map = HashMap::<String, IPCMessage>::new();
-
         // Expected fields if it is an aggregated message
-        let fields = create_route_values_fields();
+        let fields = create_route_bytes_fields();
 
         // Wrap the message in a table
         let table = TableBuilder::new_from_ipc_stream(&self.message)?
@@ -78,44 +73,46 @@ impl IPCMessage {
             .build()?;
 
         if table.get_schema().fields().contains(&fields) {
-            // Each row is a new message
-            let data = fields
-                .iter()
-                .map(|f| table.get_column_as_vec_str(f.name()))
+            let names = table.get_column_as_vec_str("name");
+            let publishers = table.get_column_as_vec_str("publisher");
+            let subjects = table.get_column_as_vec_str("subject");
+            let formats = table.get_column_as_vec_str("format")
+                .into_iter()
+                .map(|s| DataFormat::from_str(s, false).unwrap())
                 .collect::<Vec<_>>();
-            let n_rows: usize = table
-                .get_record_batches()
-                .iter()
-                .map(|batches| batches.num_rows())
-                .sum::<usize>();
-            for row in 0..n_rows {
-                let name = data.first().unwrap().get(row).unwrap();
-                let values = vec![
-                    data.get(3).unwrap().get(row).unwrap().to_string(),
-                ];
-                let batch = create_values_record_batch(values)?;
-                let bytes = TableBuilder::new()
-                    .with_name(name)
-                    .with_record_batches(vec![batch])?
-                    .build()?
-                    .to_ipc_stream()?;
-                let message = IPCMessageBuilder::new()
-                    .with_publisher(data.get(1).unwrap().get(row).unwrap())
-                    .with_subject(data.get(2).unwrap().get(row).unwrap())
-                    // With configs we can assume that the last record batch is the one that will be used
-                    .with_update(&TablePublication::Extend {
-                        table_name: data.get(2).unwrap().get(row).unwrap().to_string(),
-                    })
-                    .with_message(bytes)
-                    .make_name()?
-                    .build()?;
-                let _ = map.insert(name.to_string(), message);
-            }
+            let bytes = table.get_column_as_vec_nested_primitive::<u8>("bytes")?;
+            let map: Result<HashMap<String, IPCMessage>> = names.into_iter()
+                .zip(publishers.into_iter())
+                .zip(subjects.into_iter())
+                .zip(formats.into_iter())
+                .zip(bytes.into_iter())
+                .map(|((((name, publisher), subject), format), bytes)| {
+                    let batch = create_bytes_record_batch(vec![bytes])?;
+                    let values = TableBuilder::new()
+                        .with_name(name)
+                        .with_record_batches(vec![batch])?
+                        .build()?
+                        .to_ipc_stream()?;
+                    let message = IPCMessageBuilder::new()
+                        .with_publisher(publisher)
+                        .with_subject(subject)
+                        .with_update(&TablePublication::ExtendBytes {
+                            table_name: subject.to_string(),
+                            col_name: "bytes".to_string(),
+                            serialize_format: format,
+                        })
+                        .with_message(values)
+                        .make_name()?
+                        .build()?;
+                    Ok((message.get_name().to_string(), message))
+                }).collect();
+            map
         } else {
             // No need to split the message
+            let mut map = HashMap::<String, IPCMessage>::new();
             let _ = map.insert(self.name.clone(), self);
+            Ok(map)
         }
-        Ok(map)
     }
 }
 
@@ -245,37 +242,27 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        TableBuilder, TableTrait,
-        test_table::{self, make_test_table, make_test_table_chat},
+        TableBuilder, TableTrait, create_route_bytes_record_batch, test_table
     };
 
     use super::*;
 
     #[test]
     fn test_input_message_to_map() -> Result<()> {
-        let test_table_1 = make_test_table("data", 4, 0, 3)?;
-        let json_str_1 = String::from_utf8(test_table_1.to_json()?)?;
-        let test_table_2 = make_test_table_chat("chat")?;
-        let json_str_2 = String::from_utf8(test_table_2.to_json()?)?;
-        let names: ArrayRef = Arc::new(StringArray::from(vec!["data", "chat"]));
-        let publishers: ArrayRef = Arc::new(StringArray::from(vec!["s1", "s2"]));
-        let subjects: ArrayRef = Arc::new(StringArray::from(vec!["d1", "d2"]));
-        let values: ArrayRef = Arc::new(StringArray::from(vec![
-            json_str_1.clone(),
-            json_str_2.clone(),
-        ]));
-        let batch = RecordBatch::try_from_iter(vec![
-            ("name", names),
-            ("publisher", publishers),
-            ("subject", subjects),
-            ("values", values),
-        ])?;
+        let test_table_1 = test_table::make_test_table("data", 4, 0, 3)?;
+        let test_table_2 = test_table::make_test_table_chat("chat")?;
+        let names = ["data", "chat"].into_iter().map(|s| s.to_string()).collect();
+        let publishers = ["s1", "s2"].into_iter().map(|s| s.to_string()).collect();
+        let subjects = ["d1", "d2"].into_iter().map(|s| s.to_string()).collect();
+        let formats = [DataFormat::Ipc, DataFormat::Bytes].into_iter().map(|s| s.to_string()).collect();
+        let bytes = vec![
+            test_table_1.to_ipc_stream()?,
+            test_table_2.to_bytes()?.to_vec(),
+        ];
+        let batch = create_route_bytes_record_batch(names, publishers, subjects, formats, bytes)?;
         let table = TableBuilder::new()
             .with_name("")
             .with_record_batches(vec![batch])?
@@ -289,41 +276,42 @@ mod tests {
             .build()?;
         let message_map = message.to_map()?;
         assert_eq!(message_map.len(), 2);
-        assert_eq!(message_map.get("data").unwrap().get_name(), "from_s1_on_d1");
-        assert_eq!(message_map.get("data").unwrap().get_publisher(), "s1");
-        assert_eq!(message_map.get("data").unwrap().get_subject(), "d1");
+        assert_eq!(message_map.get("from_s1_on_d1").unwrap().get_name(), "from_s1_on_d1");
+        assert_eq!(message_map.get("from_s1_on_d1").unwrap().get_publisher(), "s1");
+        assert_eq!(message_map.get("from_s1_on_d1").unwrap().get_subject(), "d1");
         assert_eq!(
-            *message_map.get("data").unwrap().get_update(),
-            TablePublication::Extend {
-                table_name: "d1".to_string()
+            *message_map.get("from_s1_on_d1").unwrap().get_update(),
+            TablePublication::ExtendBytes {
+                table_name: "d1".to_string(),
+                col_name: "bytes".to_string(),
+                serialize_format: DataFormat::Ipc
             }
         );
         let test_table =
-            TableBuilder::new_from_ipc_stream(message_map.get("data").unwrap().get_message())?
+            TableBuilder::new_from_ipc_stream(message_map.get("from_s1_on_d1").unwrap().get_message())?
                 .with_name("")
                 .build()?;
+        let test_bytes = test_table.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+        let expected_bytes = test_table_1.to_ipc_stream()?;
+        assert_eq!(test_bytes, expected_bytes);
+        assert_eq!(message_map.get("from_s2_on_d2").unwrap().get_name(), "from_s2_on_d2");
+        assert_eq!(message_map.get("from_s2_on_d2").unwrap().get_publisher(), "s2");
+        assert_eq!(message_map.get("from_s2_on_d2").unwrap().get_subject(), "d2");
         assert_eq!(
-            *test_table.get_column_as_vec_str("values").first().unwrap(),
-            json_str_1
-        );
-        assert_eq!(message_map.get("chat").unwrap().get_name(), "from_s2_on_d2");
-        assert_eq!(message_map.get("chat").unwrap().get_publisher(), "s2");
-        assert_eq!(message_map.get("chat").unwrap().get_subject(), "d2");
-        assert_eq!(
-            *message_map.get("chat").unwrap().get_update(),
-            TablePublication::Extend {
-                table_name: "d2".to_string()
+            *message_map.get("from_s2_on_d2").unwrap().get_update(),
+            TablePublication::ExtendBytes {
+                table_name: "d2".to_string(),
+                col_name: "bytes".to_string(),
+                serialize_format: DataFormat::Bytes
             }
         );
         let test_table =
-            TableBuilder::new_from_ipc_stream(message_map.get("chat").unwrap().get_message())?
+            TableBuilder::new_from_ipc_stream(message_map.get("from_s2_on_d2").unwrap().get_message())?
                 .with_name("")
                 .build()?;
-        assert_eq!(
-            *test_table.get_column_as_vec_str("values").first().unwrap(),
-            json_str_2
-        );
-
+        let test_bytes = test_table.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+        let expected_bytes = test_table_2.to_bytes()?.to_vec();
+        assert_eq!(test_bytes, expected_bytes);
         Ok(())
     }
 

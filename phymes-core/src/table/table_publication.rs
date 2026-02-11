@@ -10,7 +10,7 @@ use arrow::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::runtime_env::MappableTrait;
+use crate::{BuilderTrait, DataFormat, TableBuilder, TableBuilderTrait, runtime_env::MappableTrait};
 
 use super::table_trait::{Table, TableTrait};
 
@@ -23,6 +23,14 @@ pub enum TablePublication {
     ExtendChunks {
         table_name: String,
         col_name: String,
+    },
+    /// Push a new vector of record batches onto the table
+    /// after deserializing bytes from a specified format
+    /// DM: intended for internal routing of messages
+    ExtendBytes {
+        table_name: String,
+        col_name: String,
+        serialize_format: DataFormat,
     },
     /// Replace the existing vector of record batches with a new one
     Replace { table_name: String },
@@ -44,6 +52,11 @@ impl TablePublication {
                 table_name: _tn,
                 col_name: _cn,
             } => "ExtendChunks",
+            Self::ExtendBytes {
+                table_name: _tn,
+                col_name: _cn,
+                serialize_format: _sf
+            } => "ExtendBytes",
             Self::Replace { table_name: _tn } => "Replace",
             Self::ReplaceLast { table_name: _tn } => "ReplaceLast",
             Self::None => "None",
@@ -59,6 +72,11 @@ impl TablePublication {
                 table_name: tn,
                 col_name: cn,
             } => format!("extend-chunks-{tn}-{cn}"),
+            Self::ExtendBytes {
+                table_name: tn,
+                col_name: cn,
+                serialize_format: sf
+            } => format!("extend-values-{tn}-{cn}-{sf}"),
             Self::Replace { table_name: tn } => format!("replace-{tn}"),
             Self::ReplaceLast { table_name: tn } => format!("replace-last-{tn}"),
             Self::None => "none".to_string(),
@@ -73,6 +91,11 @@ impl TablePublication {
             Self::ExtendChunks {
                 table_name: tn,
                 col_name: _cn,
+            } => tn,
+            Self::ExtendBytes {
+                table_name: tn,
+                col_name: _cn,
+                serialize_format: _sf
             } => tn,
             Self::Replace { table_name: tn } => tn,
             Self::ReplaceLast { table_name: tn } => tn,
@@ -151,6 +174,11 @@ impl Display for TablePublication {
                 table_name: _,
                 col_name: _,
             } => write!(f, "ExtendChunks"),
+            Self::ExtendBytes {
+                table_name: _,
+                col_name: _,
+                serialize_format: _
+            } => write!(f, "ExtendBytes"),
             Self::Custom(_s) => write!(f, "Custom"),
         }
     }
@@ -225,6 +253,68 @@ impl TablePublicationTrait for Table {
                 )?;
                 self.get_record_batches_mut().push(new_first_row);
                 Ok(())
+            }
+            TablePublication::ExtendBytes { 
+                table_name: tn ,
+                col_name: cn,
+                serialize_format: sf
+            } => {
+                if self.get_name() != tn {
+                    return Err(anyhow!(
+                        "Mismatch between table name {} and update table target {tn}.",
+                        self.get_name(),
+                    ));
+                }
+                let new_batches_res: Result<Vec<Vec<RecordBatch>>> = new.into_iter()
+                    .map(|batch| {
+                        let new_table = TableBuilder::default()
+                            .with_name("ExtendBytes")
+                            .with_record_batches(vec![batch])?
+                            .build()?;
+                        match sf {
+                            DataFormat::Ipc => {
+                                let bytes = new_table.get_column_as_vec_nested_primitive::<u8>(&cn)?
+                                    .into_iter()
+                                    .flatten()
+                                    .collect::<Vec<_>>();
+                                let batches = TableBuilder::new_from_ipc_stream(&bytes)?
+                                    .with_name("ExtendBytesIpc")
+                                    .build()?
+                                    .get_record_batches_own();
+                                Ok(batches)
+                            }
+                            DataFormat::Bytes => {
+                                let bytes = new_table.get_column_as_vec_nested_primitive::<u8>(&cn)?
+                                    .into_iter()
+                                    .flatten()
+                                    .collect::<Vec<_>>();
+                                let batches = TableBuilder::new()
+                                    .with_schema(self.get_schema())
+                                    .with_name("ExtendBytesBytes")
+                                    .with_bytes(&bytes)?
+                                    .build()?
+                                    .get_record_batches_own();
+                                Ok(batches)
+                            }
+                            _ => Err(anyhow!(
+                                "Serialization format {sf} for table name {} and update table target {tn} is not supported.",
+                                self.get_name(),                        
+                            ))
+                        }
+                    })
+                    .collect();
+                let new_batches = new_batches_res?.into_iter().flatten().collect::<Vec<_>>();
+                if !self.get_schema().eq(&new_batches.first().unwrap().schema()) {
+                    Err(anyhow!(
+                        "Mismatch between schema {:?} and batches {:?} when attempting to update table {}.",
+                        self.get_schema(),
+                        &new_batches.first().unwrap(),
+                        self.get_name()
+                    ))
+                } else {
+                    self.get_record_batches_mut().extend(new_batches);
+                    Ok(())
+                }
             }
             TablePublication::Replace { table_name: tn } => {
                 if self.get_name() != tn {
@@ -412,7 +502,7 @@ fn create_record_batch_from_first_row(
 mod tests {
     use arrow::datatypes::Schema;
 
-    use crate::table::table_trait::test_table::{make_test_table, make_test_table_chat};
+    use crate::{schemas::create_bytes_record_batch, table::table_trait::test_table::{make_test_table, make_test_table_chat}};
 
     use super::*;
 
@@ -609,6 +699,60 @@ mod tests {
                 "0123"
             ]
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_table_publication_extend_bytes_update() -> Result<()> {
+        // IPC format
+        let mut old = make_test_table("test_table", 1, 0, 1)?;
+        let new = vec![
+            create_bytes_record_batch(
+                vec![make_test_table("test_table", 2, 0, 2)?
+                .to_ipc_stream()?]
+            )?,
+            create_bytes_record_batch(
+                vec![make_test_table("test_table", 2, 0, 2)?
+                .to_ipc_stream()?]
+            )?,
+        ];
+
+        old.publish_to_table(
+            new,
+            TablePublication::ExtendBytes {
+                table_name: "test_table".to_string(),
+                col_name: "bytes".to_string(), 
+                serialize_format: DataFormat::Ipc
+            },
+        )?;
+        assert_eq!(old.count_rows(), 9);
+        assert_eq!(old.get_record_batches().len(), 5);
+
+        // Bytes format
+        let mut old = make_test_table("test_table", 1, 0, 1)?;
+        let new = vec![
+            create_bytes_record_batch(
+                vec![make_test_table("test_table", 2, 0, 2)?
+                .to_bytes()?
+                .to_vec()]
+            )?,
+            create_bytes_record_batch(
+                vec![make_test_table("test_table", 2, 0, 2)?
+                .to_bytes()?
+                .to_vec()]
+            )?,
+        ];
+
+        old.publish_to_table(
+            new,
+            TablePublication::ExtendBytes {
+                table_name: "test_table".to_string(),
+                col_name: "bytes".to_string(), 
+                serialize_format: DataFormat::Bytes
+            },
+        )?;
+        assert_eq!(old.count_rows(), 9);
+        assert_eq!(old.get_record_batches().len(), 3);
         Ok(())
     }
 

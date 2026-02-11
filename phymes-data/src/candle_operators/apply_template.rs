@@ -6,7 +6,7 @@ use candle_core::Device;
 use phymes_core::{
     BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine,
     JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableScript, TableTrait, Tool,
-    ToolType, create_mermaid_content_template_batch, create_route_values_record_batch,
+    ToolType, create_mermaid_content_template_batch, create_route_bytes_record_batch,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -219,7 +219,7 @@ pub fn apply_template(
     // Wrap into a table
     let batch = match format {
         DataFormat::None => create_mermaid_content_template_batch(vec![document])?,
-        _ => create_route_values_record_batch(
+        _ => create_route_bytes_record_batch(
             vec![String::new()],
             vec![String::new()],
             vec![String::new()],

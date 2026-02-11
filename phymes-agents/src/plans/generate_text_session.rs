@@ -340,11 +340,11 @@ mod tests {
 		// Add the target tool subjects to the session for testing
 		let _ = session_ctx_arc.write().state.insert(
 			AvailableCandleOperators::Sort.to_string(), 
-			Arc::new(RwLock::new(AvailableSubjects::Values.to_table(Some(AvailableCandleOperators::Sort.to_string().as_str()), None)?))
+			Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(Some(AvailableCandleOperators::Sort.to_string().as_str()), None)?))
 		);
 		let _ = session_ctx_arc.write().state.insert(
 			AvailableCandleOperators::HumanInTheLoop.to_string(), 
-			Arc::new(RwLock::new(AvailableSubjects::Values.to_table(Some(AvailableCandleOperators::HumanInTheLoop.to_string().as_str()), None)?))
+			Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(Some(AvailableCandleOperators::HumanInTheLoop.to_string().as_str()), None)?))
 		);
 
 		// Tools data
@@ -498,11 +498,11 @@ mod tests {
 		// Add the target tool subjects to the session for testing
 		let _ = session_ctx_arc.write().state.insert(
 			AvailableCandleOperators::Sort.to_string(), 
-			Arc::new(RwLock::new(AvailableSubjects::Values.to_table(Some(AvailableCandleOperators::Sort.to_string().as_str()), None)?))
+			Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(Some(AvailableCandleOperators::Sort.to_string().as_str()), None)?))
 		);
 		let _ = session_ctx_arc.write().state.insert(
 			AvailableCandleOperators::HumanInTheLoop.to_string(), 
-			Arc::new(RwLock::new(AvailableSubjects::Values.to_table(Some(AvailableCandleOperators::HumanInTheLoop.to_string().as_str()), None)?))
+			Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(Some(AvailableCandleOperators::HumanInTheLoop.to_string().as_str()), None)?))
 		);
 
 		// Tools data
@@ -674,11 +674,11 @@ mod tests {
 		// Add the target tool subjects to the session for testing
 		let _ = session_ctx_arc.write().state.insert(
 			AvailableCandleOperators::Sort.to_string(), 
-			Arc::new(RwLock::new(AvailableSubjects::Values.to_table(Some(AvailableCandleOperators::Sort.to_string().as_str()), None)?))
+			Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(Some(AvailableCandleOperators::Sort.to_string().as_str()), None)?))
 		);
 		let _ = session_ctx_arc.write().state.insert(
 			AvailableCandleOperators::HumanInTheLoop.to_string(), 
-			Arc::new(RwLock::new(AvailableSubjects::Values.to_table(Some(AvailableCandleOperators::HumanInTheLoop.to_string().as_str()), None)?))
+			Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(Some(AvailableCandleOperators::HumanInTheLoop.to_string().as_str()), None)?))
 		);
 
 		// Tools data

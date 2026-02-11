@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 
-#[derive(Parser, Debug, Copy, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[derive(Parser, Debug, Copy, PartialEq, Eq, Serialize, Deserialize, Clone, Hash)]
 pub struct CsvFormat {
     pub delimiter: u8,
     pub header: bool,
@@ -21,7 +21,7 @@ impl Default for CsvFormat {
     }
 }
 
-#[derive(Parser, Debug, Copy, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[derive(Parser, Debug, Copy, PartialEq, Eq, Serialize, Deserialize, Clone, Hash)]
 pub struct JsonFormat {
     pub batch_size: usize,
 }
@@ -32,7 +32,7 @@ impl Default for JsonFormat {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, ValueEnum, Deserialize, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, ValueEnum, Deserialize, Default, Hash)]
 pub enum DataFormat {
     /// Comma Seperated Values string
     #[value(name = "CsvDefault")]
