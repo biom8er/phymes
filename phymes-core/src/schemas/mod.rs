@@ -1,6 +1,6 @@
 mod available_subjects;
 pub use available_subjects::{
-    AvailableSubjects, AvailableSchemaTrait, AvailableSubjectsTrait, create_documents_batch, create_schema_from_fields,
+    AvailableSubjects, AvailableSchemaTrait, AvailableSubjectsTrait, JsonSchemaTrait, create_documents_batch, create_schema_from_fields,
     create_tools_record_batch, create_route_bytes_record_batch, create_documents_embeddings_batch, create_query_embeddings_batch, create_bytes_record_batch,
     create_bytes_fields
 };

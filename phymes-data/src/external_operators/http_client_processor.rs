@@ -542,7 +542,7 @@ mod tests {
         let _ = filter.insert("publication_year".to_string(), Value::String("2020".to_string()));
         let open_alex_request = open_alex::OpenAlexRequest {
             page: Some(1),
-            per_page: Some(5),
+            per_page: Some(1),
             filter: Some(filter),
             entity: open_alex::OpenAlexRequestEntity::Works,
             ..Default::default()
@@ -637,7 +637,7 @@ mod tests {
         let _ = filter.insert("publication_year".to_string(), Value::String("2020".to_string()));
         let open_alex_request = open_alex::OpenAlexRequest {
             page: Some(1),
-            per_page: Some(5),
+            per_page: Some(1),
             filter: Some(filter),
             entity: open_alex::OpenAlexRequestEntity::Works,
             ..Default::default()
@@ -719,7 +719,7 @@ mod tests {
         let _ = filter.insert("publication_year".to_string(), Value::String("2020".to_string()));
         let open_alex_request = open_alex::OpenAlexRequest {
             page: Some(1),
-            per_page: Some(5),
+            per_page: Some(1),
             filter: Some(filter),
             entity: open_alex::OpenAlexRequestEntity::Works,
             ..Default::default()

@@ -2,7 +2,7 @@ use std::{fmt::Display, sync::Arc};
 
 use anyhow::{anyhow, Result};
 use arrow::{array::RecordBatch, datatypes::{DataType, Field, Fields, SchemaRef}};
-use crate::{AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, MappableTrait, Table, TableBuilderTrait, TableTrait, create_route_bytes_record_batch, create_schema_from_fields};
+use crate::{AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, JsonSchemaTrait, MappableTrait, Table, TableBuilderTrait, TableTrait, create_route_bytes_record_batch, create_schema_from_fields};
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -50,6 +50,24 @@ pub enum CountryCode {
     #[default]
     #[serde(other)]
     Unknown,
+}
+
+impl Display for CountryCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::US => write!(f, "US"),
+            Self::GB => write!(f, "GB"),
+            Self::DE => write!(f, "DE"),
+            Self::FR => write!(f, "FR"),
+            Self::NL => write!(f, "NL"),
+            Self::CN => write!(f, "CN"),
+            Self::JP => write!(f, "JP"),
+            Self::IN => write!(f, "IN"),
+            Self::ES => write!(f, "ES"),
+            Self::IT => write!(f, "IT"),
+            Self::Unknown => write!(f, "Unknown"),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
@@ -198,6 +216,18 @@ pub enum AuthorPosition {
     #[default]
     #[serde(other)]
     Unknown,
+}
+
+impl Display for AuthorPosition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::First => write!(f, "First"),
+            Self::Middle => write!(f, "Middle"),
+            Self::Last => write!(f, "Last"),
+            Self::Solo => write!(f, "Solo"),
+            Self::Unknown => write!(f, "Unknown"),
+        }
+    }
 }
 
 //
@@ -561,7 +591,7 @@ pub struct Authorship {
     pub is_corresponding: Option<bool>,
     pub countries: Option<Vec<CountryCode>>,
     pub raw_affiliation_strings: Option<Vec<String>>,
-    pub raw_author_name: Option<Vec<String>>,
+    pub raw_author_name: Option<String>,
 }
 
 impl Authorship {
@@ -582,7 +612,7 @@ impl Authorship {
             author_id, 
             institution_ids,
             is_corresponding: self.is_corresponding.unwrap_or_default(), 
-            countries: self.countries.unwrap_or_default(), 
+            countries: self.countries.unwrap_or_default(),
             raw_affiliation_strings: self.raw_affiliation_strings.unwrap_or_default(), 
             raw_author_name: self.raw_author_name.unwrap_or_default() 
         }
@@ -598,24 +628,24 @@ pub struct WorkAuthorshipTable {
     pub is_corresponding: bool,
     pub countries: Vec<CountryCode>,
     pub raw_affiliation_strings: Vec<String>,
-    pub raw_author_name: Vec<String>,
+    pub raw_author_name: String,
 }
 
 impl WorkAuthorshipTable {
     fn to_fields() -> Fields {
         let field_names = ["work_id", 
             "author_position", 
-            "author_id"];
+            "author_id",
+            "raw_author_name"];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
         let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Utf8, false)));
         let field_names = [
-            "institutions",
+            "institution_ids",
             "countries",
             "raw_affiliation_strings",
-            "raw_author_name",
         ];
         fields_vec.extend(
             field_names
@@ -2157,15 +2187,15 @@ impl Display for OpenAlexRequestEntity {
 
 /// Struct for API response
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct OpenAlexResponseWorks {
-    pub(crate) results: Vec<Work>,
-    pub(crate) meta: Meta,
+pub struct OpenAlexResponseWorks {
+    pub results: Vec<Work>,
+    pub meta: Meta,
 }
 
-impl OpenAlexResponseWorks {
+impl JsonSchemaTrait for OpenAlexResponseWorks {
     /// Parse the OpenAlexResponseWorks object into tables following the [create_ipc_fields] schema
     ///   where each row is routed to a different table
-    pub(crate) fn to_route_bytes_record_batches(self, publisher: &str) -> Result<RecordBatch> {
+    fn to_record_batch(self, publisher: &str) -> Result<RecordBatch> {
         let mut work_tables = Vec::new();
         let mut work_authorship_tables = Vec::new();
         let mut work_award_tables = Vec::new();
@@ -2576,16 +2606,16 @@ pub(crate) struct GroupByResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct Meta {
-    pub(crate) count: u32,
-    pub(crate) groups_count: Option<u32>,
-    pub(crate) db_response_time_ms: u32,
-    pub(crate) page: Option<u32>,
-    pub(crate) per_page: u32,
-    pub(crate) next_cursor: Option<String>,
-    pub(crate) query: Option<String>,
-    pub(crate) filters_applied: Option<Map<String, Value>>,
-    pub(crate) timing: Option<Timing>,
+pub struct Meta {
+    pub count: u32,
+    pub groups_count: Option<u32>,
+    pub db_response_time_ms: u32,
+    pub page: Option<u32>,
+    pub per_page: u32,
+    pub next_cursor: Option<String>,
+    pub query: Option<String>,
+    pub filters_applied: Option<Map<String, Value>>,
+    pub timing: Option<Timing>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2614,14 +2644,15 @@ pub(crate) struct CreditCosts {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct Timing {
-    pub(crate) embed_ms: u32,
-    pub(crate) search_ms: u32,
-    pub(crate) hydrate_ms: u32,
-    pub(crate) total_ms: u32,
+pub struct Timing {
+    pub embed_ms: u32,
+    pub search_ms: u32,
+    pub hydrate_ms: u32,
+    pub total_ms: u32,
 }
 
 // Documentation for the OpenAlex API in MarkDown from <https://docs.openalex.org/>
+#[allow(dead_code)]
 const OPENALEX_API_DOCUMENTATION: &str = r#"# Get lists of entities
 
 It's easy to get a list of entity objects from from the API:`/<entity_name>`. Here's an example:

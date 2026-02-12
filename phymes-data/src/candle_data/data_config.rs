@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
-use phymes_core::{DataFormat, MappableTrait, Table, TableTrait};
+use phymes_core::{AvailableSubjects, DataFormat, MappableTrait, Table, TableTrait};
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
@@ -609,6 +609,11 @@ pub struct DataConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<DataFormat>,
 
+    /// The data schema to extract with
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub schema: Option<AvailableSubjects>,
+
     /// Vec of Strings for the comparator columns
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -711,6 +716,7 @@ impl Default for DataConfig {
             chunk_size: None,
             chunk_overlap: None,
             format: None,
+            schema: None,
             cmp_columns: None,
             cmp_operators: None,
             cmp_predicate: None,

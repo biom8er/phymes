@@ -40,12 +40,17 @@ pub enum DataFormat {
     #[clap(skip)]
     #[value(name = "Csv")]
     Csv(CsvFormat),
-    /// Json attachment
+    /// Json attachment with common defaults
     #[value(name = "JsonDefault")]
     JsonDefault,
+    /// Json attachment
     #[clap(skip)]
     #[value(name = "Json")]
     Json(JsonFormat),
+    /// Json attachment with a specified schema
+    ///   and `JsonSchemaTrait` to parse to [RecordBatch]es
+    #[value(name = "JsonSchema")]
+    JsonSchema,
     /// Pdf attachment
     #[value(name = "Pdf")]
     Pdf,
@@ -101,7 +106,7 @@ impl DataFormat {
     pub fn to_extension(&self) -> &str {
         match self {
             Self::Csv(_) | Self::CsvDefault => "csv",
-            Self::Json(_) | Self::JsonDefault => "json",
+            Self::Json(_) | Self::JsonDefault | Self::JsonSchema => "json",
             Self::Bytes => "bytes",
             Self::Ipc => "ipc",
             Self::Pdf => "pdf",
@@ -121,6 +126,7 @@ impl Display for DataFormat {
             Self::CsvDefault => write!(f, "CsvDefault"),
             Self::Json(_) => write!(f, "Json"),
             Self::JsonDefault => write!(f, "JsonDefault"),
+            Self::JsonSchema => write!(f, "JsonSchema"),
             Self::Bytes => write!(f, "Bytes"),
             Self::Ipc => write!(f, "Ipc"),
             Self::Pdf => write!(f, "Pdf"),

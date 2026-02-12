@@ -7,11 +7,10 @@ use phymes_core::{
     RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait,
-    remove_message_by_subject, create_bytes_fields
+    remove_message_by_subject,
 };
 
 use arrow::{
-    array::StringArray,
     datatypes::{Schema, SchemaRef},
     record_batch::RecordBatch,
 };
@@ -204,40 +203,12 @@ impl Stream for CandleDataStream {
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
-            // Check for `config` schema
-            if batches
-                .first()
-                .ok_or(anyhow!("Config stream for CandleDataStream is empty"))?
-                .schema()
-                .fields()
-                .contains(&create_bytes_fields())
-            {
-                let config_json = batches
-                    .first()
-                    .unwrap()
-                    .column_by_name("values")
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<StringArray>()
-                    .unwrap()
-                    .iter()
-                    .map(|s| s.unwrap_or_default())
-                    .collect::<Vec<_>>()
-                    .join("");
-                let mut config_values: serde_json::Value = serde_json::from_str(&config_json)?;
-                config_values["arguments"]["operator"] = config_values["name"].clone();
-                let config: DataConfig =
-                    serde_json::from_value(config_values.get("arguments").unwrap().clone())?;
-                self.config.replace(config);
-            // Parse as a config
-            } else {
-                let config_table = TableBuilder::new()
-                    .with_name("config")
-                    .with_record_batches(batches)?
-                    .build()?;
-                let config = DataConfig::from_table(&config_table)?;
-                self.config.replace(config);
-            }
+            let config_table = TableBuilder::new()
+                .with_name("config")
+                .with_record_batches(batches)?
+                .build()?;
+            let config = DataConfig::from_table(&config_table)?;
+            self.config.replace(config);
         }
         // DM: need to implement a trigger for event verbosity
         // if let Some(diagnostic_builder) = &self.diagnostic_builder {
@@ -616,7 +587,7 @@ pub mod test_candle_ops_processor {
 #[cfg(test)]
 mod tests {
     use crate::{DataDistanceOperator, candle_operators::AvailableCandleOperators};
-    use arrow::array::Float32Array;
+    use arrow::array::{Float32Array, StringArray};
     use futures::TryStreamExt;
     use phymes_core::{Table, TablePublication};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};

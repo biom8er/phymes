@@ -217,7 +217,7 @@ pub fn table_and_data_format_to_record_batch(
                 vec![create_timestamp_micros()],
             )
         }
-        DataFormat::Json(_) | DataFormat::JsonDefault => {
+        DataFormat::Json(_) | DataFormat::JsonDefault | DataFormat::JsonSchema => {
             // Convert to JSON
             let bytes = table.to_json()?;
             create_blob_batch(

@@ -21,7 +21,7 @@ pub use schemas::{
     AvailableSubjects, AvailableSchemaTrait, AvailableSubjectsTrait, BlobBuilderTraitExt, BlobSubject,
     ChatBuilderTraitExt, ChatCompletionRequest, ChatCompletionResponse, ChatTraitExt,
     DiagnosticsVisualizations, EmbeddingRequest, EmbeddingResponse, EncodingFormat, FinishReason,
-    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
+    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, JsonSchemaTrait,
     JoinUserInboxSessionContextsMermaidDiagrams, SessionMermaidSubject, Tool, ToolCall,
     ToolChoiceType, ToolType, UserSubject, create_blob_batch, create_blob_fields,
     create_chat_fields, create_chat_record_batch, create_documents_batch, create_error_message_map,

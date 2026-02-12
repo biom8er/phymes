@@ -256,10 +256,17 @@ pub fn create_join_chunks_scores_fields() -> Fields {
     Fields::from(vec![chunk_id, query_id, score, document_id, text])
 }
 
+/// Convert a possible nested Json-like structure into a single [RecordBatch]
+pub trait JsonSchemaTrait {
+    fn to_record_batch(self, publisher: &str) -> Result<RecordBatch>;
+}
+
+/// Materialize the [Schema] for the object
 pub trait AvailableSchemaTrait {
     fn to_schema(&self) -> SchemaRef;
 }
 
+/// Materialize the [Table] or [TableBuilder] for building the table for the object
 pub trait AvailableSubjectsTrait: AvailableSchemaTrait {
     fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Table>;
     fn to_table_builder(&self, name: Option<&str>) -> TableBuilder;
@@ -391,6 +398,8 @@ pub enum AvailableSubjects {
     SessionSupersteps,
     #[value(name = "SessionSuperstepMax")]
     SessionSuperstepMax,
+    #[value(name = "OpenAlexResponseWorks")]
+    OpenAlexResponseWorks,
 }
 
 impl Display for AvailableSubjects {
@@ -479,6 +488,7 @@ impl Display for AvailableSubjects {
             }
             AvailableSubjects::SessionSupersteps => write!(f, "SessionSupersteps"),
             AvailableSubjects::SessionSuperstepMax => write!(f, "SessionSuperstepMax"),
+            AvailableSubjects::OpenAlexResponseWorks => write!(f, "OpenAlexResponseWorks"),
         }
     }
 }
@@ -646,6 +656,7 @@ impl AvailableSchemaTrait for AvailableSubjects {
             AvailableSubjects::SessionSuperstepMax => {
                 create_schema_from_fields(&create_session_superstep_max_fields)
             }
+            AvailableSubjects::OpenAlexResponseWorks => Arc::new(Schema::empty()),
         }
     }
 }
