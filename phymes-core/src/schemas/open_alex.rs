@@ -248,6 +248,9 @@ impl CountsByYear {
     pub fn to_author_counts_by_year(self, author_id: &str) -> AuthorCountsByYearTable {
         AuthorCountsByYearTable { author_id: author_id.to_string(), year: self.year, cited_by_count: self.cited_by_count }
     }
+    pub fn to_institution_counts_by_year(self, institution_id: &str) -> InstitutionCountsByYearTable {
+        InstitutionCountsByYearTable { institution_id: institution_id.to_string(), year: self.year, cited_by_count: self.cited_by_count }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -261,6 +264,13 @@ pub struct SummaryStats {
 impl SummaryStats {
     pub fn to_author_summary_stats_table(self, author_id: &str) -> AuthorSummaryStatsTable {
         AuthorSummaryStatsTable { author_id: author_id.to_string(), 
+            two_year_mean_citedness: self.two_year_mean_citedness.unwrap_or_default(), 
+            h_index: self.h_index.unwrap_or_default(), 
+            i10_index: self.i10_index.unwrap_or_default() 
+        }
+    }
+    pub fn to_institution_summary_stats_table(self, institution_id: &str) -> InstitutionSummaryStatsTable {
+        InstitutionSummaryStatsTable { institution_id: institution_id.to_string(), 
             two_year_mean_citedness: self.two_year_mean_citedness.unwrap_or_default(), 
             h_index: self.h_index.unwrap_or_default(), 
             i10_index: self.i10_index.unwrap_or_default() 
@@ -1757,6 +1767,40 @@ pub struct AuthorTable {
     pub works_api_url: String,
 }
 
+impl AuthorTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id", 
+            "orcid", 
+            "display_name", 
+            "created_date", 
+            "updated_date", 
+            "works_api_url"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let field_names = ["works_count", 
+            "cited_by_count"];
+        fields_vec.extend(field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::UInt32, false))
+            .collect::<Vec<_>>());
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for AuthorTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for AuthorTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthorDisplayNameAlternativesTable {
     pub author_id: String,
@@ -2164,36 +2208,129 @@ impl Institution {
             institution_id: self.id
         }
     }
+    pub fn to_table(self) -> (InstitutionTable,
+        Vec<InstitutionDisplayNameAcronymsTable>,
+        Vec<InstitutionDisplayNameAlternativesTable>,
+        Option<InstitutionGeoTable>,
+        Option<InstitutionIdsTable>,
+        Vec<InstitutionAssociatedInstitutionTable>,
+        Vec<InstitutionRepositoryTable>,
+        Vec<InstitutionRoleTable>,
+        Option<InstitutionInternationalNamesTable>,
+        Option<InstitutionSummaryStatsTable>,
+        Vec<InstitutionCountsByYearTable>,
+        Vec<InstitutionConceptTable>,
+        Vec<InstitutionLineageTable>,
+    ) {
+        let institution_display_name_acronyms = self.display_name_acronyms.unwrap_or_default().into_iter()
+            .map(|t| InstitutionDisplayNameAcronymsTable { institution_id: self.id.clone(), display_name: t})
+            .collect::<Vec<_>>();
+        let institution_display_name_alternatives = self.display_name_alternatives.unwrap_or_default().into_iter()
+            .map(|t| InstitutionDisplayNameAlternativesTable { institution_id: self.id.clone(), display_name: t})
+            .collect::<Vec<_>>();
+        let institution_geo = self.geo.map(|t| t.to_institution_geo_table(&self.id.clone()));
+        let institution_ids = self.ids.map(|t| t.to_institution_ids_table(&self.id.clone()));
+        let institution_associated_institution = self.associated_institutions.unwrap_or_default().into_iter()
+            .map(|t| t.to_institution_associated_institution_table(&self.id))
+            .collect::<Vec<_>>();
+        let institution_repository = self.repositories.unwrap_or_default().into_iter()
+            .map(|t| t.to_institution_repository_table(&self.id))
+            .collect::<Vec<_>>();
+        let institution_role = self.roles.unwrap_or_default().into_iter()
+            .map(|t| t.to_institution_role_table(&self.id))
+            .collect::<Vec<_>>();
+        let institution_international_names = self.international.map(|t| t.to_insitution_international_names_table(&self.id.clone()));
+        let institution_summary_stats = self.summary_stats.map(|t| t.to_institution_summary_stats_table(&self.id));
+        let institution_counts_by_year = self.counts_by_year.unwrap_or_default().into_iter()
+            .map(|t| t.to_institution_counts_by_year(&self.id))
+            .collect::<Vec<_>>();
+        let institution_concepts = self.x_concepts.unwrap_or_default().into_iter()
+            .map(|t| t.to_institution_concept_table(&self.id))
+            .collect::<Vec<_>>();
+        let institution_lineage = self.lineage.unwrap_or_default().into_iter()
+            .map(|t| InstitutionLineageTable { institution_id: self.id.clone(), lineage_id: t})
+            .collect::<Vec<_>>();
+        let institution = InstitutionTable {
+            institution_id: self.id,
+            ror: self.ror.unwrap_or_default(),
+            display_name: self.display_name.unwrap_or_default(),
+            country_code: self.country_code.unwrap_or_default(),
+            type_: self.type_.unwrap_or_default(),
+            cited_by_count: self.cited_by_count.unwrap_or_default(),
+            works_count: self.works_count.unwrap_or_default(),
+            created_date: self.created_date.unwrap_or_default(),
+            updated_date: self.updated_date.unwrap_or_default(),
+            homepage_url: self.homepage_url.unwrap_or_default(),
+            image_url: self.image_url.unwrap_or_default(),
+            image_thumbnail_url: self.image_thumbnail_url.unwrap_or_default(),
+            is_super_system: self.is_super_system.unwrap_or_default(),
+            works_api_url: self.works_api_url.unwrap_or_default()
+        };
+        (institution, institution_display_name_acronyms, institution_display_name_alternatives, institution_geo, institution_ids, institution_associated_institution, institution_repository, institution_role,
+        institution_international_names, institution_summary_stats, institution_counts_by_year, institution_concepts, institution_lineage)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InstitutionTable {
     pub institution_id: String,
-    pub ror: Option<String>,
-    pub display_name: Option<String>,
-    pub display_name_acronyms: Option<Vec<String>>,
-    pub display_name_alternatives: Option<Vec<String>>,
-    pub country_code: Option<CountryCode>,
-    pub type_: Option<InstitutionType>,
-    pub cited_by_count: Option<u32>,
-    pub works_count: Option<u32>,
-    pub created_date: Option<String>,
-    pub updated_date: Option<String>,
-    pub homepage_url: Option<String>,
-    pub image_url: Option<String>,
-    pub image_thumbnail_url: Option<String>,
-    pub geo: Option<Geo>,
-    pub ids: Option<InstitutionIds>,
-    pub associated_institutions: Option<Vec<AssociatedInstitution>>,
-    pub counts_by_year: Option<Vec<CountsByYear>>,
-    pub lineage: Option<Vec<String>>,
-    pub repositories: Option<Vec<Repository>>,
-    pub roles: Option<Vec<Role>>,
-    pub summary_stats: Option<SummaryStats>,
-    pub x_concepts: Option<Vec<Concept>>,
-    pub international: Option<InternationalNames>,
-    pub is_super_system: Option<bool>,
-    pub works_api_url: Option<String>,
+    pub ror: String,
+    pub display_name: String,
+    pub country_code: CountryCode,
+    pub type_: InstitutionType,
+    pub cited_by_count: u32,
+    pub works_count: u32,
+    pub created_date: String,
+    pub updated_date: String,
+    pub homepage_url: String,
+    pub image_url: String,
+    pub image_thumbnail_url: String,
+    pub is_super_system: bool,
+    pub works_api_url: String,
+}
+
+impl InstitutionTable {
+    fn to_fields() -> Fields {
+        let field_names = ["institution_id", 
+            "ror", 
+            "display_name", 
+            "country_code", 
+            "type_", 
+            "created_date", 
+            "updated_date", 
+            "homepage_url", 
+            "image_url", 
+            "image_thumbnail_url", 
+            "works_api_url", ];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let field_names = ["cited_by_count", 
+            "works_count"];
+        fields_vec.extend(field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::UInt32, false))
+            .collect::<Vec<_>>());
+        let field_names = ["is_super_system"];
+        fields_vec.extend(field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Boolean, false))
+            .collect::<Vec<_>>());
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for InstitutionTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for InstitutionTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2249,6 +2386,35 @@ impl MappableTrait for InstitutionDisplayNameAlternativesTable {
 }
 
 impl AvailableSchemaTrait for InstitutionDisplayNameAlternativesTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct InstitutionLineageTable {
+    pub institution_id: String,
+    pub lineage_id: String,
+}
+
+impl InstitutionLineageTable {
+    fn to_fields() -> Fields {
+        let field_names = ["institution_id", "lineage_id"];
+        let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for InstitutionLineageTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for InstitutionLineageTable {
     fn to_schema(&self) -> SchemaRef {
         create_schema_from_fields(&Self::to_fields)
     }
@@ -2509,6 +2675,7 @@ impl Role {
     pub fn to_institution_role_table(self, institution_id: &str) -> InstitutionRoleTable {
         InstitutionRoleTable { institution_id: institution_id.to_string(), role: self.role, id: self.id, works_count: self.works_count }
     }
+    // pub fn to_publisher_role_table(self, publisher_id:&str) ->
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2684,7 +2851,7 @@ pub struct InstitutionConcept {
 }
 
 impl InstitutionConcept {
-    pub fn to_author_concept_table(self, institution_id: &str) -> InstitutionConceptTable {
+    pub fn to_institution_concept_table(self, institution_id: &str) -> InstitutionConceptTable {
         InstitutionConceptTable { 
             institution_id: institution_id.to_string(), 
             concept_id: self.id.unwrap_or_default(), 
@@ -2743,7 +2910,7 @@ pub struct Topic {
     pub field: TopicField,
     pub subfield: TopicSubfield,
     pub ids: Option<TopicIds>,
-    pub keywords: Option<Vec<Keyword>>,
+    pub keywords: Option<Vec<String>>,
     pub updated_date: Option<String>,
     pub works_count: Option<u32>,
 }
@@ -2757,6 +2924,67 @@ impl Topic {
             score
         }
     }
+    pub fn to_table(self) -> (TopicTable,
+        TopicDomainTable,
+        TopicFieldTable,
+        TopicSubfieldTable,
+        Option<TopicIdsTable>,
+        Vec<TopicKeywordTable>
+    ) {
+        let topic_domain = self.domain.to_topic_domain_table(&self.id);
+        let topic_field = self.field.to_topic_field_table(&self.id);
+        let topic_subfield = self.subfield.to_topic_subfield_table(&self.id);
+        let topic_ids = self.ids.map(|t| t.to_topic_ids_table(&self.id));
+        let topic_keyword = self.keywords.unwrap_or_default().into_iter().map(|k| TopicKeywordTable {topic_id: self.id.clone(), keyword: k}).collect::<Vec<_>>();
+        let topic = TopicTable {
+            topic_id: self.id,
+            display_name: self.display_name,
+            description: self.description.unwrap_or_default(),
+            updated_date: self.updated_date.unwrap_or_default(),
+            works_count: self.works_count.unwrap_or_default()
+        };
+        (topic, topic_domain, topic_field, topic_subfield, topic_ids, topic_keyword)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TopicTable {
+    pub topic_id: String,
+    pub display_name: String,
+    pub description: String,
+    pub updated_date: String,
+    pub works_count: u32,
+}
+
+impl TopicTable {
+    fn to_fields() -> Fields {
+        let field_names = ["topic_id", 
+            "display_name", 
+            "description", 
+            "updated_date"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let field_names = ["works_count"];
+        fields_vec.extend(field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::UInt32, false))
+            .collect::<Vec<_>>());
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for TopicTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for TopicTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2765,10 +2993,86 @@ pub struct TopicIds {
     pub wikipedia: Option<String>,
 }
 
+impl TopicIds {
+    pub fn to_topic_ids_table(self, topic_id: &str) -> TopicIdsTable {
+        TopicIdsTable { topic_id: topic_id.to_string(), openalex: self.openalex.unwrap_or_default(), wikipedia: self.wikipedia.unwrap_or_default() }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TopicIdsTable {
+    pub topic_id: String,
+    pub openalex: String,
+    pub wikipedia: String,
+}
+
+impl TopicIdsTable {
+    fn to_fields() -> Fields {
+        let field_names = ["topic_id",
+        "openalex",
+        "wikipedia"];
+        let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for TopicIdsTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for TopicIdsTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TopicSubfield {
     pub id: Option<String>,
     pub display_name: Option<String>,
+}
+
+impl TopicSubfield {
+    pub fn to_topic_subfield_table(self, topic_id: &str) -> TopicSubfieldTable {
+        TopicSubfieldTable { topic_id: topic_id.to_string(), topic_subfield_id: self.id.unwrap_or_default(), display_name: self.display_name.unwrap_or_default() }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TopicSubfieldTable {
+    pub topic_id: String,
+    pub topic_subfield_id: String,
+    pub display_name: String,
+}
+
+impl TopicSubfieldTable {
+    fn to_fields() -> Fields {
+        let field_names = ["topic_id",
+        "topic_subfield_id",
+        "display_name"];
+        let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for TopicSubfieldTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for TopicSubfieldTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2777,10 +3081,115 @@ pub struct TopicField {
     pub display_name: Option<String>,
 }
 
+impl TopicField {
+    pub fn to_topic_field_table(self, topic_id: &str) -> TopicFieldTable {
+        TopicFieldTable { topic_id: topic_id.to_string(), topic_field_id: self.id.unwrap_or_default(), display_name: self.display_name.unwrap_or_default() }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TopicFieldTable {
+    pub topic_id: String,
+    pub topic_field_id: String,
+    pub display_name: String,
+}
+
+impl TopicFieldTable {
+    fn to_fields() -> Fields {
+        let field_names = ["topic_id",
+        "topic_field_id",
+        "display_name"];
+        let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for TopicFieldTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for TopicFieldTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TopicDomain {
     pub id: Option<String>,
     pub display_name: Option<String>,
+}
+
+impl TopicDomain {
+    pub fn to_topic_domain_table(self, topic_id: &str) -> TopicDomainTable {
+        TopicDomainTable { topic_id: topic_id.to_string(), topic_domain_id: self.id.unwrap_or_default(), display_name: self.display_name.unwrap_or_default() }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TopicDomainTable {
+    pub topic_id: String,
+    pub topic_domain_id: String,
+    pub display_name: String,
+}
+
+impl TopicDomainTable {
+    fn to_fields() -> Fields {
+        let field_names = ["topic_id",
+        "topic_domain_id",
+        "display_name"];
+        let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for TopicDomainTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for TopicDomainTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TopicKeywordTable {
+    pub topic_id: String,
+    pub keyword: String,
+}
+
+impl TopicKeywordTable {
+    fn to_fields() -> Fields {
+        let field_names = ["topic_id", "keyword"];
+        let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for TopicKeywordTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for TopicKeywordTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
 }
 
 //
