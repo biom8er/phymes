@@ -1,25 +1,22 @@
 mod available_subjects;
+mod chat;
+mod embed;
+mod http;
 pub use available_subjects::{
-    AvailableSubjects, AvailableSchemaTrait, AvailableSubjectsTrait, JsonSchemaTrait, create_documents_batch, create_schema_from_fields,
-    create_tools_record_batch, create_route_bytes_record_batch, create_documents_embeddings_batch, create_query_embeddings_batch, create_bytes_record_batch,
-    create_bytes_fields
+    AvailableSubjects, AvailableSchemaTrait, AvailableSubjectsTrait, JsonSchemaTrait, create_schema_from_fields,
 };
-pub(crate) use available_subjects::create_route_bytes_fields;
-
-mod blob;
-pub use blob::{BlobBuilderTraitExt, BlobSubject, create_blob_batch, create_blob_fields};
+pub use chat::{create_chat_fields, create_chat_record_batch, ChatBuilderTraitExt, ChatTraitExt, ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolCall, ToolChoiceType,
+    ToolType, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, create_tools_record_batch, create_route_bytes_record_batch, create_bytes_record_batch,
+    create_bytes_fields, create_route_bytes_fields, create_tools_fields};
+pub use embed::{BlobBuilderTraitExt, BlobSubject, create_blob_batch, create_blob_fields, create_document_embeddings_fields, create_documents_fields, create_embeddings_scores_fields, create_join_chunks_scores_fields, create_documents_batch, create_documents_embeddings_batch, create_query_embeddings_fields, create_queries_fields, create_query_embeddings_batch,
+    create_queries_batch, EmbeddingRequest, EmbeddingResponse, EncodingFormat};
+pub use http::{e_utils, open_alex, semantic_scholar};
 
 mod mermaid;
 pub use mermaid::{
     SessionMermaidSubject, create_mermaid_content_template_batch,
     create_mermaid_sequence_diagram_participants_template_batch, create_session_mermaid_batch,
 };
-
-mod chat;
-pub use chat::{ChatBuilderTraitExt, ChatTraitExt, create_chat_fields, create_chat_record_batch};
-
-mod queries;
-pub use queries::create_queries_batch;
 
 mod user;
 pub use user::{
@@ -52,24 +49,3 @@ pub use graph::{
     create_n_quads_batch, create_n_triples_batch, create_parse_n_quads_batch,
     create_parse_owl_batch, create_parse_xml_batch,
 };
-
-// Based on openai-api-rs <https://github.com/dongri/openai-api-rs>
-mod chat_completion;
-pub use chat_completion::{
-    ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolCall, ToolChoiceType,
-    ToolType,
-};
-
-mod common;
-
-mod embedding;
-pub use embedding::{EmbeddingRequest, EmbeddingResponse, EncodingFormat};
-
-// Based on openai-api-rs and modified to accomodate Apache Arrow
-mod chat_types;
-pub use chat_types::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType};
-
-
-pub mod e_utils;
-pub mod open_alex;
-pub mod semantic_scholar;

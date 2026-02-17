@@ -1,18 +1,16 @@
 use crate::{
-    runtime_env::{BuildableTrait, BuilderTrait},
+    create_bytes_fields, create_chat_fields,
+    runtime_env::{BuildableTrait, BuilderTrait}, 
     schemas::{
-        blob::create_blob_fields,
-        chat::create_chat_fields,
+        create_tools_fields, create_route_bytes_fields, create_blob_fields, create_document_embeddings_fields, create_documents_fields, create_embeddings_scores_fields, create_join_chunks_scores_fields, create_query_embeddings_fields, create_queries_fields,
         diagnostics::{
             create_events_fields, create_metrics_fields, create_metrics_mermaid_gantt_fields,
             create_metrics_pivot_fields, create_metrics_pivot_norm_time_fields,
             create_traces_fields,
-        },
-        graph::{
+        }, graph::{
             create_n_quads_fields, create_n_triples_fields, create_parse_owl_fields,
             create_parse_xml_fields,
-        },
-        mermaid::{
+        }, mermaid::{
             create_mermaid_content_template_fields,
             create_mermaid_er_diagram_entities_template_fields,
             create_mermaid_er_diagram_relations_template_fields,
@@ -23,9 +21,7 @@ use crate::{
             create_mermaid_sequence_diagram_participants_template_fields,
             create_mermaid_visualization_fields, create_mermaid_xychart_template_fields,
             create_session_mermaid_fields,
-        },
-        queries::create_queries_fields,
-        session::{
+        }, session::{
             create_session_processors_fields, create_session_runtime_envs_fields,
             create_session_subjects_fields, create_session_superstep_max_fields,
             create_session_supersteps_fields, create_session_tasks_check_fields,
@@ -33,21 +29,17 @@ use crate::{
             create_session_tasks_publish_fields, create_session_tasks_run_log_fields,
             create_session_tasks_subscribe_aggregate_fields, create_session_tasks_subscribe_fields,
             create_session_tasks_subscribe_publish_fields,
-        },
-        subjects::{create_subjects_change_log_fields, create_subjects_num_rows_fields},
-        user::{
+        }, subjects::{create_subjects_change_log_fields, create_subjects_num_rows_fields}, user::{
             create_join_user_inbox_session_contexts_fields,
             create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields,
             create_user_inbox_fields, create_user_session_contexts_fields,
-        },
-    },
-    table::{Table, TableBuilder, TableBuilderTrait},
+        }
+    }, table::{Table, TableBuilder, TableBuilderTrait}
 };
 
 use anyhow::Result;
 use arrow::{
-    array::{ArrayRef, Float32Builder, ListBuilder, StringArray, UInt8Builder},
-    datatypes::{DataType, Field, Fields, Schema, SchemaRef},
+    datatypes::{Fields, Schema, SchemaRef},
     record_batch::RecordBatch,
 };
 use clap::ValueEnum;
@@ -56,204 +48,6 @@ use std::{fmt::Display, sync::Arc};
 
 pub fn create_schema_from_fields(f: &dyn Fn() -> Fields) -> SchemaRef {
     Arc::new(Schema::new(f()))
-}
-
-/// Fields where each row is a [RecordBatch]
-pub fn create_route_bytes_fields() -> Fields {
-    let field_names = ["name", "publisher", "subject", "format"];
-    let mut fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    let list_data_type = DataType::List(
-        Arc::new(Field::new_list_field(DataType::UInt8, false))
-    );
-    let field_names = ["bytes"];
-    fields_vec.extend(field_names
-            .iter()
-            .map(|f| Field::new(*f, list_data_type.clone(), false))
-            .collect::<Vec<_>>());
-    Fields::from(fields_vec)
-}
-
-/// Each row of a `values` [RecordBatch] is split into a seperate message
-pub fn create_route_bytes_record_batch(
-    names: Vec<String>,
-    publishers: Vec<String>,
-    subjects: Vec<String>,
-    formats: Vec<String>,
-    bytes: Vec<Vec<u8>>,
-) -> Result<RecordBatch> {
-    let names: ArrayRef = Arc::new(StringArray::from(names));
-    let publishers: ArrayRef = Arc::new(StringArray::from(publishers));
-    let subjects: ArrayRef = Arc::new(StringArray::from(subjects));
-    let formats: ArrayRef = Arc::new(StringArray::from(formats));
-    let value_builder = UInt8Builder::new();
-    let mut list_builder =
-        ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::UInt8, false));
-    for values in bytes.into_iter() {
-        list_builder.values().append_slice(values.as_slice());
-        list_builder.append(true);
-    }
-    let bytes: ArrayRef = Arc::new(list_builder.finish());
-    let batch = RecordBatch::try_from_iter(vec![
-        ("name", names),
-        ("publisher", publishers),
-        ("subject", subjects),
-        ("format", formats),
-        ("bytes", bytes),
-    ])?;
-    Ok(batch)
-}
-
-/// Fields for a single [RecordBatch] per row
-pub fn create_bytes_fields() -> Fields {
-    let list_data_type = DataType::List(
-        Arc::new(Field::new_list_field(DataType::UInt8, false))
-    );
-    let field_names = ["bytes"];
-    let fields_vec = field_names
-            .iter()
-            .map(|f| Field::new(*f, list_data_type.clone(), false))
-            .collect::<Vec<_>>();
-    Fields::from(fields_vec)
-}
-
-/// A single [RecordBatch] per row
-pub fn create_bytes_record_batch(
-    bytes: Vec<Vec<u8>>,
-) -> Result<RecordBatch> {
-    let value_builder = UInt8Builder::new();
-    let mut list_builder =
-        ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::UInt8, false));
-    for values in bytes.into_iter() {
-        list_builder.values().append_slice(values.as_slice());
-        list_builder.append(true);
-    }
-    let bytes: ArrayRef = Arc::new(list_builder.finish());
-    let batch = RecordBatch::try_from_iter(vec![
-        ("bytes", bytes),
-    ])?;
-    Ok(batch)
-}
-
-/// Each row of a `tool`s [RecordBatch] is JSON Schema object describing a tool/function
-///   that can be called during text generation inference
-pub fn create_tools_fields() -> Fields {
-    let field_names = ["tool_id", "tool"];
-    let fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    Fields::from(fields_vec)
-}
-
-/// Each row of a `tool`s [RecordBatch] is JSON Schema object describing a tool/function
-///   that can be called during text generation inference
-pub fn create_tools_record_batch(tool_ids: Vec<String>, tools: Vec<String>) -> Result<RecordBatch> {
-    let tool_ids: ArrayRef = Arc::new(StringArray::from(tool_ids));
-    let tools: ArrayRef = Arc::new(StringArray::from(tools));
-    let batch = RecordBatch::try_from_iter(vec![("tool_id", tool_ids), ("tool", tools)])?;
-    Ok(batch)
-}
-
-pub fn create_documents_fields() -> Fields {
-    let field_names = ["chunk_id", "document_id", "text"];
-    let fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    Fields::from(fields_vec)
-}
-
-pub fn create_documents_batch(
-    chunk_id: Vec<String>,
-    document_id: Vec<String>,
-    text: Vec<String>,
-) -> Result<RecordBatch> {
-    let chunk_id: ArrayRef = Arc::new(StringArray::from(chunk_id));
-    let document_id: ArrayRef = Arc::new(StringArray::from(document_id));
-    let text: ArrayRef = Arc::new(StringArray::from(text));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("chunk_id", chunk_id),
-        ("document_id", document_id),
-        ("text", text),
-    ])?;
-    Ok(batch)
-}
-
-pub fn create_document_embeddings_fields() -> Fields {
-    let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
-    let document_id = Field::new("document_id", DataType::Utf8, false);
-    let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Float32, false)));
-    let embedding = Field::new("embedding", list_data_type, false);
-    Fields::from(vec![chunk_id, document_id, embedding])
-}
-
-pub fn create_documents_embeddings_batch(
-    chunk_id: Vec<String>,
-    document_id: Vec<String>,
-    embedding: Vec<Vec<f32>>,
-) -> Result<RecordBatch> {
-    let chunk_id: ArrayRef = Arc::new(StringArray::from(chunk_id));
-    let document_id: ArrayRef = Arc::new(StringArray::from(document_id));
-    let value_builder = Float32Builder::new();
-    let mut list_builder =
-        ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Float32, false));
-    for values in embedding.into_iter() {
-        list_builder.values().append_slice(values.as_slice());
-        list_builder.append(true);
-    }
-    let embedding: ArrayRef = Arc::new(list_builder.finish());
-    let batch = RecordBatch::try_from_iter(vec![
-        ("chunk_id", chunk_id),
-        ("document_id", document_id),
-        ("embedding", embedding),
-    ])?;
-    Ok(batch)
-}
-
-pub fn create_query_embeddings_fields() -> Fields {
-    let query_id = Field::new("query_id", DataType::Utf8, false);
-    let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Float32, false)));
-    let embedding = Field::new("embedding", list_data_type, false);
-    Fields::from(vec![query_id, embedding])
-}
-
-pub fn create_query_embeddings_batch(
-    query_id: Vec<String>,
-    embedding: Vec<Vec<f32>>,
-) -> Result<RecordBatch> {
-    let query_id: ArrayRef = Arc::new(StringArray::from(query_id));
-    let value_builder = Float32Builder::new();
-    let mut list_builder =
-        ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Float32, false));
-    for values in embedding.into_iter() {
-        list_builder.values().append_slice(values.as_slice());
-        list_builder.append(true);
-    }
-    let embedding: ArrayRef = Arc::new(list_builder.finish());
-    let batch = RecordBatch::try_from_iter(vec![
-        ("query_id", query_id),
-        ("embedding", embedding),
-    ])?;
-    Ok(batch)
-}
-
-pub fn create_embeddings_scores_fields() -> Fields {
-    let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
-    let query_id = Field::new("query_id", DataType::Utf8, false);
-    let score = Field::new("score", DataType::Float32, false);
-    Fields::from(vec![chunk_id, query_id, score])
-}
-
-pub fn create_join_chunks_scores_fields() -> Fields {
-    let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
-    let query_id = Field::new("query_id", DataType::Utf8, false);
-    let score = Field::new("score", DataType::Float32, false);
-    let document_id = Field::new("document_id", DataType::Utf8, false);
-    let text = Field::new("text", DataType::Utf8, false);
-    Fields::from(vec![chunk_id, query_id, score, document_id, text])
 }
 
 /// Convert a possible nested Json-like structure into a single [RecordBatch]
