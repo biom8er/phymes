@@ -1,12 +1,10 @@
 use anyhow::Result;
 use arrow::array::RecordBatch;
-use crate::{AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, JsonSchemaTrait, MappableTrait, Table, TableBuilderTrait, TableTrait, create_route_bytes_record_batch, 
-    schemas::http::{open_alex_common::OpenAlexEntity, open_alex_works::{Work, WorkApcInfoTable, WorkAuthorshipTable, WorkAwardTable, WorkBiblioTable, WorkCitationPercentileTable, WorkCitedByPercentileYearTable, WorkConceptTable, WorkCorrespondingAuthorTable, WorkCorrespondingInstitutionTable, WorkCountsByYearTable, WorkFunderTable, WorkIdsTable, WorkIndexedInTable, WorkKeywordTable, WorkLocationTable, WorkMeshTagTable, WorkOpenAccessTable, WorkReferencedWorksTable, WorkRelatedWorksTable, WorkSdgTagTable, WorkTable, WorkTopicTable}}, 
+use crate::{AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, JsonSchemaTrait, MappableTrait, Table, TableBuilderTrait, TableTrait, create_route_bytes_record_batch, open_alex::{AuthorAffiliationTable, AuthorConceptTable, AuthorCountsByYearTable, AuthorDisplayNameAlternativesTable, AuthorIdsTable, AuthorLastKnownInstitutionsTable, AuthorSummaryStatsTable, AuthorTable}, schemas::http::{open_alex_author::{Author, AuthorIds}, open_alex_award::Award, open_alex_common::OpenAlexEntity, open_alex_funder::Funder, open_alex_institution::Institution, open_alex_publisher::Publisher, open_alex_source::Source, open_alex_topic::Topic, open_alex_works::{Work, WorkApcInfoTable, WorkAuthorshipTable, WorkAwardTable, WorkBiblioTable, WorkCitationPercentileTable, WorkCitedByPercentileYearTable, WorkConceptTable, WorkCorrespondingAuthorTable, WorkCorrespondingInstitutionTable, WorkCountsByYearTable, WorkFunderTable, WorkIdsTable, WorkIndexedInTable, WorkKeywordTable, WorkLocationTable, WorkMeshTagTable, WorkOpenAccessTable, WorkReferencedWorksTable, WorkRelatedWorksTable, WorkSdgTagTable, WorkTable, WorkTopicTable}} 
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-/// Struct for API response
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OpenAlexResponseWorks {
     pub results: Vec<Work>,
@@ -399,7 +397,288 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
     }
 }
 
-// todo!(): OpenAlexResponseAuthors, ...
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OpenAlexResponseAuthors {
+    pub results: Vec<Author>,
+    pub meta: Meta,
+}
+
+impl JsonSchemaTrait for OpenAlexResponseAuthors {
+    fn to_record_batch(self, publisher: &str) -> Result<RecordBatch> {
+        let mut author_vec = Vec::new();
+        let mut author_display_name_alternatives_vec = Vec::new(); 
+        let mut author_affiliation_vec = Vec::new();
+        let mut author_last_known_institutions_vec = Vec::new();
+        let mut author_ids_vec = Vec::new();
+        let mut author_summary_stats_vec = Vec::new();
+        let mut author_counts_by_year_vec = Vec::new();
+        let mut author_concepts_vec = Vec::new();  
+        for result in self.results {
+            let (author, 
+                author_display_name_alternatives, 
+                author_affiliation, 
+                author_last_known_institutions, 
+                author_ids, 
+                author_summary_stats, 
+                author_counts_by_year, 
+                author_concepts) = result.to_tables();
+            author_vec.push(author);
+            author_display_name_alternatives_vec.extend(author_display_name_alternatives);
+            author_affiliation_vec.extend(author_affiliation);
+            author_last_known_institutions_vec.extend(author_last_known_institutions);
+            if let Some(author_ids) = author_ids {
+                author_ids_vec.push(author_ids);
+            }
+            if let Some(author_summary_stats) = author_summary_stats {
+                author_summary_stats_vec.push(author_summary_stats);
+            }
+            author_counts_by_year_vec.extend(author_counts_by_year);
+            author_concepts_vec.extend(author_concepts);            
+        }
+
+        // Wrap into IPC [RecordBatch]
+        let mut names = Vec::new();
+        let mut publishers = Vec::new();
+        let mut subjects = Vec::new();
+        let mut formats = Vec::new();
+        let mut bytes = Vec::new();
+
+        // Handle each individual table
+        if !author_vec.is_empty() {
+            names.push(author_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(author_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(author_vec.first().unwrap().get_name())
+                .with_schema(author_vec.first().unwrap().to_schema())
+                .with_struct::<AuthorTable>(&author_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !author_display_name_alternatives_vec.is_empty() {
+            names.push(author_display_name_alternatives_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(author_display_name_alternatives_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(author_display_name_alternatives_vec.first().unwrap().get_name())
+                .with_schema(author_display_name_alternatives_vec.first().unwrap().to_schema())
+                .with_struct::<AuthorDisplayNameAlternativesTable>(&author_display_name_alternatives_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !author_affiliation_vec.is_empty() {
+            names.push(author_affiliation_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(author_affiliation_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(author_affiliation_vec.first().unwrap().get_name())
+                .with_schema(author_affiliation_vec.first().unwrap().to_schema())
+                .with_struct::<AuthorAffiliationTable>(&author_affiliation_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !author_last_known_institutions_vec.is_empty() {
+            names.push(author_last_known_institutions_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(author_last_known_institutions_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(author_last_known_institutions_vec.first().unwrap().get_name())
+                .with_schema(author_last_known_institutions_vec.first().unwrap().to_schema())
+                .with_struct::<AuthorLastKnownInstitutionsTable>(&author_last_known_institutions_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !author_ids_vec.is_empty() {
+            names.push(author_ids_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(author_ids_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(author_ids_vec.first().unwrap().get_name())
+                .with_schema(author_ids_vec.first().unwrap().to_schema())
+                .with_struct::<AuthorIdsTable>(&author_ids_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !author_summary_stats_vec.is_empty() {
+            names.push(author_summary_stats_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(author_summary_stats_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(author_summary_stats_vec.first().unwrap().get_name())
+                .with_schema(author_summary_stats_vec.first().unwrap().to_schema())
+                .with_struct::<AuthorSummaryStatsTable>(&author_summary_stats_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !author_counts_by_year_vec.is_empty() {
+            names.push(author_counts_by_year_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(author_counts_by_year_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(author_counts_by_year_vec.first().unwrap().get_name())
+                .with_schema(author_counts_by_year_vec.first().unwrap().to_schema())
+                .with_struct::<AuthorCountsByYearTable>(&author_counts_by_year_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !author_concepts_vec.is_empty() {
+            names.push(author_concepts_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(author_concepts_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(author_concepts_vec.first().unwrap().get_name())
+                .with_schema(author_concepts_vec.first().unwrap().to_schema())
+                .with_struct::<AuthorConceptTable>(&author_concepts_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+
+        let batch = create_route_bytes_record_batch(names, publishers, subjects, formats, bytes)?;
+        Ok(batch)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OpenAlexResponseInstitution {
+    pub results: Vec<Institution>,
+    pub meta: Meta,
+}
+
+impl JsonSchemaTrait for OpenAlexResponseInstitution {
+    fn to_record_batch(self, publisher: &str) -> Result<RecordBatch> {
+
+        // Wrap into IPC [RecordBatch]
+        let mut names = Vec::new();
+        let mut publishers = Vec::new();
+        let mut subjects = Vec::new();
+        let mut formats = Vec::new();
+        let mut bytes = Vec::new();
+
+        let batch = create_route_bytes_record_batch(names, publishers, subjects, formats, bytes)?;
+        Ok(batch)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OpenAlexResponseTopic {
+    pub results: Vec<Topic>,
+    pub meta: Meta,
+}
+
+impl JsonSchemaTrait for OpenAlexResponseTopic {
+    fn to_record_batch(self, publisher: &str) -> Result<RecordBatch> {
+
+        // Wrap into IPC [RecordBatch]
+        let mut names = Vec::new();
+        let mut publishers = Vec::new();
+        let mut subjects = Vec::new();
+        let mut formats = Vec::new();
+        let mut bytes = Vec::new();
+
+        let batch = create_route_bytes_record_batch(names, publishers, subjects, formats, bytes)?;
+        Ok(batch)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OpenAlexResponseSource {
+    pub results: Vec<Source>,
+    pub meta: Meta,
+}
+
+impl JsonSchemaTrait for OpenAlexResponseSource {
+    fn to_record_batch(self, publisher: &str) -> Result<RecordBatch> {
+
+        // Wrap into IPC [RecordBatch]
+        let mut names = Vec::new();
+        let mut publishers = Vec::new();
+        let mut subjects = Vec::new();
+        let mut formats = Vec::new();
+        let mut bytes = Vec::new();
+
+        let batch = create_route_bytes_record_batch(names, publishers, subjects, formats, bytes)?;
+        Ok(batch)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OpenAlexResponsePublisher {
+    pub results: Vec<Publisher>,
+    pub meta: Meta,
+}
+
+impl JsonSchemaTrait for OpenAlexResponsePublisher {
+    fn to_record_batch(self, publisher: &str) -> Result<RecordBatch> {
+
+        // Wrap into IPC [RecordBatch]
+        let mut names = Vec::new();
+        let mut publishers = Vec::new();
+        let mut subjects = Vec::new();
+        let mut formats = Vec::new();
+        let mut bytes = Vec::new();
+
+        let batch = create_route_bytes_record_batch(names, publishers, subjects, formats, bytes)?;
+        Ok(batch)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OpenAlexResponseAward {
+    pub results: Vec<Award>,
+    pub meta: Meta,
+}
+
+impl JsonSchemaTrait for OpenAlexResponseAward {
+    fn to_record_batch(self, publisher: &str) -> Result<RecordBatch> {
+
+        // Wrap into IPC [RecordBatch]
+        let mut names = Vec::new();
+        let mut publishers = Vec::new();
+        let mut subjects = Vec::new();
+        let mut formats = Vec::new();
+        let mut bytes = Vec::new();
+
+        let batch = create_route_bytes_record_batch(names, publishers, subjects, formats, bytes)?;
+        Ok(batch)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OpenAlexResponseFunder {
+    pub results: Vec<Funder>,
+    pub meta: Meta,
+}
+
+impl JsonSchemaTrait for OpenAlexResponseFunder {
+    fn to_record_batch(self, publisher: &str) -> Result<RecordBatch> {
+
+        // Wrap into IPC [RecordBatch]
+        let mut names = Vec::new();
+        let mut publishers = Vec::new();
+        let mut subjects = Vec::new();
+        let mut formats = Vec::new();
+        let mut bytes = Vec::new();
+
+        let batch = create_route_bytes_record_batch(names, publishers, subjects, formats, bytes)?;
+        Ok(batch)
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OpenAlexResponseFind {
