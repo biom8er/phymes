@@ -1,4 +1,4 @@
-use super::common;
+use crate::schemas::chat::openai_common;
 use crate::{Function, impl_builder_methods};
 
 use serde::de::{self, MapAccess, SeqAccess, Visitor};
@@ -250,7 +250,7 @@ pub struct ChatCompletionResponse {
     pub created: i64,
     pub model: String,
     pub choices: Vec<ChatCompletionChoice>,
-    pub usage: common::Usage,
+    pub usage: openai_common::Usage,
     pub system_fingerprint: Option<String>,
 }
 
