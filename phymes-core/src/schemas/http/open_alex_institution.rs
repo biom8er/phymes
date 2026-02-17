@@ -41,7 +41,7 @@ impl Institution {
             institution_id: self.id
         }
     }
-    pub fn to_table(self) -> (InstitutionTable,
+    pub fn to_tables(self) -> (InstitutionTable,
         Vec<InstitutionDisplayNameAcronymsTable>,
         Vec<InstitutionDisplayNameAlternativesTable>,
         Option<InstitutionGeoTable>,

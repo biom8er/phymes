@@ -26,7 +26,7 @@ impl Topic {
             score
         }
     }
-    pub fn to_table(self) -> (TopicTable,
+    pub fn to_tables(self) -> (TopicTable,
         TopicDomainTable,
         TopicFieldTable,
         TopicSubfieldTable,
