@@ -1,6 +1,6 @@
 
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use crate::{AvailableSchemaTrait, BuilderTrait, MappableTrait, create_schema_from_fields, schemas::http::{open_alex_common::{CountryCode, CountsByYear, RoleType, SummaryStats}, open_alex_institution::Role}};
+use crate::{AvailableSchemaTrait, MappableTrait, create_schema_from_fields, schemas::http::{open_alex_common::{CountryCode, CountsByYear, RoleType, SummaryStats}, open_alex_institution::Role}};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -26,7 +26,7 @@ pub struct Publisher {
 }
 
 impl Publisher {
-    pub fn to_table(self) -> (PublisherTable,
+    pub fn to_tables(self) -> (PublisherTable,
         Vec<PublisherAlternativeTitlesTable>,
         Vec<PublisherCountryCodeTable>,
         Vec<PublisherLineageTable>,

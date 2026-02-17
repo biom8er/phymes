@@ -1,6 +1,6 @@
 use anyhow::Result;
 use arrow::array::RecordBatch;
-use crate::{AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, JsonSchemaTrait, MappableTrait, Table, TableBuilderTrait, TableTrait, create_route_bytes_record_batch, open_alex::{AuthorAffiliationTable, AuthorConceptTable, AuthorCountsByYearTable, AuthorDisplayNameAlternativesTable, AuthorIdsTable, AuthorLastKnownInstitutionsTable, AuthorSummaryStatsTable, AuthorTable, AwardAffiliationTable, AwardFundedOutputsTable, AwardFunderTable, AwardInvestigatorTable, AwardTable, FunderAlternativeTitlesTable, FunderCountsByYearTable, FunderIdsTable, FunderRoleTable, FunderSummaryStatsTable, FunderTable, InstitutionAssociatedInstitutionTable, InstitutionConceptTable, InstitutionCountsByYearTable, InstitutionDisplayNameAcronymsTable, InstitutionDisplayNameAlternativesTable, InstitutionGeoTable, InstitutionIdsTable, InstitutionInternationalNamesTable, InstitutionLineageTable, InstitutionRepositoryTable, InstitutionRoleTable, InstitutionSummaryStatsTable, InstitutionTable, SourceAlternativeTitlesTable, SourceApcPriceTable, SourceTable, TopicDomainTable, TopicFieldTable, TopicIdsTable, TopicKeywordTable, TopicSubfieldTable, TopicTable}, schemas::http::{open_alex_author::{Author, AuthorIds}, open_alex_award::Award, open_alex_common::OpenAlexEntity, open_alex_funder::Funder, open_alex_institution::Institution, open_alex_publisher::Publisher, open_alex_source::Source, open_alex_topic::Topic, open_alex_works::{Work, WorkApcInfoTable, WorkAuthorshipTable, WorkAwardTable, WorkBiblioTable, WorkCitationPercentileTable, WorkCitedByPercentileYearTable, WorkConceptTable, WorkCorrespondingAuthorTable, WorkCorrespondingInstitutionTable, WorkCountsByYearTable, WorkFunderTable, WorkIdsTable, WorkIndexedInTable, WorkKeywordTable, WorkLocationTable, WorkMeshTagTable, WorkOpenAccessTable, WorkReferencedWorksTable, WorkRelatedWorksTable, WorkSdgTagTable, WorkTable, WorkTopicTable}} 
+use crate::{AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, JsonSchemaTrait, MappableTrait, Table, TableBuilderTrait, TableTrait, create_route_bytes_record_batch, open_alex::{AuthorAffiliationTable, AuthorConceptTable, AuthorCountsByYearTable, AuthorDisplayNameAlternativesTable, AuthorIdsTable, AuthorLastKnownInstitutionsTable, AuthorSummaryStatsTable, AuthorTable, AwardAffiliationTable, AwardFundedOutputsTable, AwardFunderTable, AwardInvestigatorTable, AwardTable, FunderAlternativeTitlesTable, FunderCountsByYearTable, FunderIdsTable, FunderRoleTable, FunderSummaryStatsTable, FunderTable, InstitutionAssociatedInstitutionTable, InstitutionConceptTable, InstitutionCountsByYearTable, InstitutionDisplayNameAcronymsTable, InstitutionDisplayNameAlternativesTable, InstitutionGeoTable, InstitutionIdsTable, InstitutionInternationalNamesTable, InstitutionLineageTable, InstitutionRepositoryTable, InstitutionRoleTable, InstitutionSummaryStatsTable, InstitutionTable, PublisherAlternativeTitlesTable, PublisherCountryCodeTable, PublisherCountsByYearTable, PublisherIdsTable, PublisherLineageTable, PublisherRoleTable, PublisherSummaryStatsTable, PublisherTable, SourceAlternativeTitlesTable, SourceApcPriceTable, SourceConceptTable, SourceCountsByYearTable, SourceIdsTable, SourceIssnTable, SourceLineageTable, SourceSocietyTable, SourceSummaryStatsTable, SourceTable, TopicDomainTable, TopicFieldTable, TopicIdsTable, TopicKeywordTable, TopicSubfieldTable, TopicTable}, schemas::http::{open_alex_author::{Author, AuthorIds}, open_alex_award::Award, open_alex_common::OpenAlexEntity, open_alex_funder::Funder, open_alex_institution::Institution, open_alex_publisher::Publisher, open_alex_source::Source, open_alex_topic::Topic, open_alex_works::{Work, WorkApcInfoTable, WorkAuthorshipTable, WorkAwardTable, WorkBiblioTable, WorkCitationPercentileTable, WorkCitedByPercentileYearTable, WorkConceptTable, WorkCorrespondingAuthorTable, WorkCorrespondingInstitutionTable, WorkCountsByYearTable, WorkFunderTable, WorkIdsTable, WorkIndexedInTable, WorkKeywordTable, WorkLocationTable, WorkMeshTagTable, WorkOpenAccessTable, WorkReferencedWorksTable, WorkRelatedWorksTable, WorkSdgTagTable, WorkTable, WorkTopicTable}} 
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -999,6 +999,97 @@ impl JsonSchemaTrait for OpenAlexResponseSource {
                 .to_ipc_stream()?
             );
         }
+        if !source_counts_by_year_vec.is_empty() {
+            names.push(source_counts_by_year_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(source_counts_by_year_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(source_counts_by_year_vec.first().unwrap().get_name())
+                .with_schema(source_counts_by_year_vec.first().unwrap().to_schema())
+                .with_struct::<SourceCountsByYearTable>(&source_counts_by_year_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !source_lineage_vec.is_empty() {
+            names.push(source_lineage_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(source_lineage_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(source_lineage_vec.first().unwrap().get_name())
+                .with_schema(source_lineage_vec.first().unwrap().to_schema())
+                .with_struct::<SourceLineageTable>(&source_lineage_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !source_ids_vec.is_empty() {
+            names.push(source_ids_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(source_ids_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(source_ids_vec.first().unwrap().get_name())
+                .with_schema(source_ids_vec.first().unwrap().to_schema())
+                .with_struct::<SourceIdsTable>(&source_ids_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !source_issn_vec.is_empty() {
+            names.push(source_issn_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(source_issn_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(source_issn_vec.first().unwrap().get_name())
+                .with_schema(source_issn_vec.first().unwrap().to_schema())
+                .with_struct::<SourceIssnTable>(&source_issn_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !source_society_vec.is_empty() {
+            names.push(source_society_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(source_society_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(source_society_vec.first().unwrap().get_name())
+                .with_schema(source_society_vec.first().unwrap().to_schema())
+                .with_struct::<SourceSocietyTable>(&source_society_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !source_summary_stats_vec.is_empty() {
+            names.push(source_summary_stats_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(source_summary_stats_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(source_summary_stats_vec.first().unwrap().get_name())
+                .with_schema(source_summary_stats_vec.first().unwrap().to_schema())
+                .with_struct::<SourceSummaryStatsTable>(&source_summary_stats_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !source_concept_vec.is_empty() {
+            names.push(source_concept_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(source_concept_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(source_concept_vec.first().unwrap().get_name())
+                .with_schema(source_concept_vec.first().unwrap().to_schema())
+                .with_struct::<SourceConceptTable>(&source_concept_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
 
         let batch = create_route_bytes_record_batch(names, publishers, subjects, formats, bytes)?;
         Ok(batch)
@@ -1013,39 +1104,150 @@ pub struct OpenAlexResponsePublisher {
 
 impl JsonSchemaTrait for OpenAlexResponsePublisher {
     fn to_record_batch(self, publisher: &str) -> Result<RecordBatch> {
-        // let mut topic_vec = Vec::new();
-        // for result in self.results {
-        //     let (topic, topic_domain, topic_field, topic_subfield, topic_ids, topic_keyword) = result.to_tables();
-        //     topic_vec.push(topic);
-        //     if let Some(topic_ids) = topic_ids {
-        //         topic_ids_vec.push(topic_ids);
-        //     }
-        //     topic_keyword_vec.extend(topic_keyword);
-        // }
+        let mut publisher_vec = Vec::new();
+        let mut publisher_alternative_titles_vec = Vec::new();
+        let mut publisher_country_code_vec = Vec::new();
+        let mut publisher_lineage_vec = Vec::new();
+        let mut publisher_ids_vec = Vec::new();
+        let mut publisher_role_vec = Vec::new();
+        let mut publisher_counts_by_year_vec = Vec::new();
+        let mut publisher_summary_stats_vec = Vec::new();
+        for result in self.results {
+            let (publisher, 
+                publisher_alternative_titles, 
+                publisher_country_code, 
+                publisher_lineage, 
+                publisher_ids, 
+                publisher_role, 
+                publisher_counts_by_year, 
+                publisher_summary_stats) = result.to_tables();
+            publisher_vec.push(publisher);
+            publisher_alternative_titles_vec.extend(publisher_alternative_titles);
+            publisher_country_code_vec.extend(publisher_country_code);
+            publisher_lineage_vec.extend(publisher_lineage);
+            if let Some(publisher_ids) = publisher_ids {
+                publisher_ids_vec.push(publisher_ids);
+            }
+            publisher_role_vec.extend(publisher_role);
+            publisher_counts_by_year_vec.extend(publisher_counts_by_year);
+            if let Some(publisher_summary_stats) = publisher_summary_stats {
+                publisher_summary_stats_vec.push(publisher_summary_stats);
+            }
+        }
 
-        // // Wrap into IPC [RecordBatch]
-        // let mut names = Vec::new();
-        // let mut publishers = Vec::new();
-        // let mut subjects = Vec::new();
-        // let mut formats = Vec::new();
-        // let mut bytes = Vec::new();
-        // if !topic_vec.is_empty() {
-        //     names.push(topic_vec.first().unwrap().get_name().to_string());
-        //     publishers.push(publisher.to_string());
-        //     subjects.push(topic_vec.first().unwrap().get_name().to_string());
-        //     formats.push(DataFormat::Ipc.to_string());
-        //     bytes.push(Table::get_builder()
-        //         .with_name(topic_vec.first().unwrap().get_name())
-        //         .with_schema(topic_vec.first().unwrap().to_schema())
-        //         .with_struct::<TopicTable>(&topic_vec)?
-        //         .build()?
-        //         .to_ipc_stream()?
-        //     );
-        // }
+        // Wrap into IPC [RecordBatch]
+        let mut names = Vec::new();
+        let mut publishers = Vec::new();
+        let mut subjects = Vec::new();
+        let mut formats = Vec::new();
+        let mut bytes = Vec::new();
+        if !publisher_vec.is_empty() {
+            names.push(publisher_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(publisher_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(publisher_vec.first().unwrap().get_name())
+                .with_schema(publisher_vec.first().unwrap().to_schema())
+                .with_struct::<PublisherTable>(&publisher_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !publisher_alternative_titles_vec.is_empty() {
+            names.push(publisher_alternative_titles_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(publisher_alternative_titles_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(publisher_alternative_titles_vec.first().unwrap().get_name())
+                .with_schema(publisher_alternative_titles_vec.first().unwrap().to_schema())
+                .with_struct::<PublisherAlternativeTitlesTable>(&publisher_alternative_titles_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !publisher_country_code_vec.is_empty() {
+            names.push(publisher_country_code_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(publisher_country_code_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(publisher_country_code_vec.first().unwrap().get_name())
+                .with_schema(publisher_country_code_vec.first().unwrap().to_schema())
+                .with_struct::<PublisherCountryCodeTable>(&publisher_country_code_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !publisher_lineage_vec.is_empty() {
+            names.push(publisher_lineage_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(publisher_lineage_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(publisher_lineage_vec.first().unwrap().get_name())
+                .with_schema(publisher_lineage_vec.first().unwrap().to_schema())
+                .with_struct::<PublisherLineageTable>(&publisher_lineage_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !publisher_ids_vec.is_empty() {
+            names.push(publisher_ids_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(publisher_ids_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(publisher_ids_vec.first().unwrap().get_name())
+                .with_schema(publisher_ids_vec.first().unwrap().to_schema())
+                .with_struct::<PublisherIdsTable>(&publisher_ids_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !publisher_role_vec.is_empty() {
+            names.push(publisher_role_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(publisher_role_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(publisher_role_vec.first().unwrap().get_name())
+                .with_schema(publisher_role_vec.first().unwrap().to_schema())
+                .with_struct::<PublisherRoleTable>(&publisher_role_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !publisher_counts_by_year_vec.is_empty() {
+            names.push(publisher_counts_by_year_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(publisher_counts_by_year_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(publisher_counts_by_year_vec.first().unwrap().get_name())
+                .with_schema(publisher_counts_by_year_vec.first().unwrap().to_schema())
+                .with_struct::<PublisherCountsByYearTable>(&publisher_counts_by_year_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
+        if !publisher_summary_stats_vec.is_empty() {
+            names.push(publisher_summary_stats_vec.first().unwrap().get_name().to_string());
+            publishers.push(publisher.to_string());
+            subjects.push(publisher_summary_stats_vec.first().unwrap().get_name().to_string());
+            formats.push(DataFormat::Ipc.to_string());
+            bytes.push(Table::get_builder()
+                .with_name(publisher_summary_stats_vec.first().unwrap().get_name())
+                .with_schema(publisher_summary_stats_vec.first().unwrap().to_schema())
+                .with_struct::<PublisherSummaryStatsTable>(&publisher_summary_stats_vec)?
+                .build()?
+                .to_ipc_stream()?
+            );
+        }
 
-        // let batch = create_route_bytes_record_batch(names, publishers, subjects, formats, bytes)?;
-        // Ok(batch)
-        todo!()
+        let batch = create_route_bytes_record_batch(names, publishers, subjects, formats, bytes)?;
+        Ok(batch)
     }
 }
 

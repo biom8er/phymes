@@ -200,6 +200,14 @@ pub enum AvailableSubjects {
     OpenAlexResponseInstitutions,
     #[value(name = "OpenAlexResponseTopics")]
     OpenAlexResponseTopics,
+    #[value(name = "OpenAlexResponseAwards")]
+    OpenAlexResponseAwards,
+    #[value(name = "OpenAlexResponseFunders")]
+    OpenAlexResponseFunders,
+    #[value(name = "OpenAlexResponsePublishers")]
+    OpenAlexResponsePublishers,
+    #[value(name = "OpenAlexResponseSources")]
+    OpenAlexResponseSources,
 }
 
 impl Display for AvailableSubjects {
@@ -292,6 +300,10 @@ impl Display for AvailableSubjects {
             AvailableSubjects::OpenAlexResponseAuthors => write!(f, "OpenAlexResponseAuthors"),
             AvailableSubjects::OpenAlexResponseInstitutions => write!(f, "OpenAlexResponseInstitutions"),
             AvailableSubjects::OpenAlexResponseTopics => write!(f, "OpenAlexResponseTopics"),
+            AvailableSubjects::OpenAlexResponseAwards => write!(f, "OpenAlexResponseAwards"),
+            AvailableSubjects::OpenAlexResponseFunders => write!(f, "OpenAlexResponseFunders"),
+            AvailableSubjects::OpenAlexResponsePublishers => write!(f, "OpenAlexResponsePublishers"),
+            AvailableSubjects::OpenAlexResponseSources => write!(f, "OpenAlexResponseSources"),
         }
     }
 }
@@ -463,6 +475,10 @@ impl AvailableSchemaTrait for AvailableSubjects {
             AvailableSubjects::OpenAlexResponseAuthors => Arc::new(Schema::empty()),
             AvailableSubjects::OpenAlexResponseInstitutions => Arc::new(Schema::empty()),
             AvailableSubjects::OpenAlexResponseTopics => Arc::new(Schema::empty()),
+            AvailableSubjects::OpenAlexResponseAwards => Arc::new(Schema::empty()),
+            AvailableSubjects::OpenAlexResponseFunders => Arc::new(Schema::empty()),
+            AvailableSubjects::OpenAlexResponsePublishers => Arc::new(Schema::empty()),
+            AvailableSubjects::OpenAlexResponseSources => Arc::new(Schema::empty()),
         }
     }
 }

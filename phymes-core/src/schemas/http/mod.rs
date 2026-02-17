@@ -23,7 +23,8 @@ pub(crate) use open_alex_source::{SourceCountsByYearTable, SourceSummaryStatsTab
 pub mod open_alex {
     use super::*;
     pub use open_alex_request::{OPENALEX_API, OpenAlexRequest, OpenAlexRequestEntity};
-    pub use open_alex_response::{OpenAlexResponseWorks, OpenAlexResponseAuthors, OpenAlexResponseInstitution, OpenAlexResponseTopic, OpenAlexResponseFind, OpenAlexResponseGroupBy};
+    pub use open_alex_response::{OpenAlexResponseWorks, OpenAlexResponseAuthors, OpenAlexResponseInstitution, OpenAlexResponseTopic, 
+        OpenAlexResponseAward, OpenAlexResponseFunder, OpenAlexResponsePublisher, OpenAlexResponseSource, OpenAlexResponseFind, OpenAlexResponseGroupBy};
     pub use open_alex_works::{WorkTable, WorkAuthorshipTable, WorkApcInfoTable, WorkAwardTable, WorkFunderTable, WorkLocationTable, WorkOpenAccessTable, 
         WorkBiblioTable, WorkCitationPercentileTable, WorkCitedByPercentileYearTable, WorkCountsByYearTable, WorkKeywordTable, WorkMeshTagTable, WorkSdgTagTable, 
         WorkIdsTable, WorkTopicTable, WorkConceptTable, WorkCorrespondingAuthorTable, WorkCorrespondingInstitutionTable, WorkIndexedInTable, WorkReferencedWorksTable, 
