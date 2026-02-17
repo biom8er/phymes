@@ -1,8 +1,8 @@
-use std::{fmt::Display, sync::Arc};
+use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
-use arrow::{array::RecordBatch, datatypes::{DataType, Field, Fields, SchemaRef}};
-use crate::{AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, JsonSchemaTrait, MappableTrait, Table, TableBuilderTrait, TableTrait, create_route_bytes_record_batch, create_schema_from_fields, open_alex::OaStatus};
+use arrow::{datatypes::{DataType, Field, Fields, SchemaRef}};
+use crate::{AvailableSchemaTrait, MappableTrait, create_schema_from_fields, 
+    schemas::http::{open_alex_author::Author, open_alex_award::Award, open_alex_common::{AuthorPosition, CountryCode, CountsByYear, Currency, LanguageCode, OaStatus, WorkType, abstract_from_inverted_index}, open_alex_funder::Funder, open_alex_institution::Institution, open_alex_source::Source}};
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};

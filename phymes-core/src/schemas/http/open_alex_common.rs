@@ -2,7 +2,7 @@ use std::{fmt::Display, sync::Arc};
 
 use anyhow::{anyhow, Result};
 use arrow::{array::RecordBatch, datatypes::{DataType, Field, Fields, SchemaRef}};
-use crate::{AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, JsonSchemaTrait, MappableTrait, Table, TableBuilderTrait, TableTrait, create_route_bytes_record_batch, create_schema_from_fields};
+use crate::{AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, JsonSchemaTrait, MappableTrait, Table, TableBuilderTrait, TableTrait, create_route_bytes_record_batch, create_schema_from_fields, schemas::http::{AuthorCountsByYearTable, AuthorSummaryStatsTable, FunderCountsByYearTable, FunderSummaryStatsTable, InstitutionCountsByYearTable, InstitutionSummaryStatsTable, PublisherCountsByYearTable, PublisherSummaryStatsTable, SourceCountsByYearTable, SourceSummaryStatsTable, WorkCountsByYearTable, open_alex_author::Author, open_alex_award::Award, open_alex_funder::Funder, open_alex_institution::{Geo, Institution}, open_alex_publisher::Publisher, open_alex_source::Source, open_alex_topic::Topic, open_alex_works::Work}};
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
