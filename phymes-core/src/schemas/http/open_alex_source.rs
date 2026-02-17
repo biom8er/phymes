@@ -1,11 +1,8 @@
-use std::{fmt::Display, sync::Arc};
+use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
-use arrow::{array::RecordBatch, datatypes::{DataType, Field, Fields, SchemaRef}};
-use crate::{AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, JsonSchemaTrait, MappableTrait, Table, TableBuilderTrait, TableTrait, create_route_bytes_record_batch, create_schema_from_fields, schemas::http::open_alex_common::{CountryCode, CountsByYear, Currency, SourceType, SummaryStats}};
-use phymes_diagnostics::HashMap;
+use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
+use crate::{AvailableSchemaTrait, BuilderTrait, MappableTrait, create_schema_from_fields, schemas::http::open_alex_common::{CountryCode, CountsByYear, Currency, SourceType, SummaryStats}};
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Source {
