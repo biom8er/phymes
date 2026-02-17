@@ -257,6 +257,9 @@ impl CountsByYear {
     pub fn to_publisher_counts_by_year(self, publisher_id: &str) -> PublisherCountsByYearTable {
         PublisherCountsByYearTable { publisher_id: publisher_id.to_string(), year: self.year, cited_by_count: self.cited_by_count }
     }
+    pub fn to_source_counts_by_year(self, source_id: &str) -> SourceCountsByYearTable {
+        SourceCountsByYearTable { source_id: source_id.to_string(), year: self.year, cited_by_count: self.cited_by_count }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -291,6 +294,13 @@ impl SummaryStats {
     }
     pub fn to_publisher_summary_stats_table(self, publisher_id: &str) -> PublisherSummaryStatsTable {
         PublisherSummaryStatsTable { publisher_id: publisher_id.to_string(), 
+            two_year_mean_citedness: self.two_year_mean_citedness.unwrap_or_default(), 
+            h_index: self.h_index.unwrap_or_default(), 
+            i10_index: self.i10_index.unwrap_or_default() 
+        }
+    }
+    pub fn to_source_summary_stats_table(self, source_id: &str) -> SourceSummaryStatsTable {
+        SourceSummaryStatsTable { source_id: source_id.to_string(), 
             two_year_mean_citedness: self.two_year_mean_citedness.unwrap_or_default(), 
             h_index: self.h_index.unwrap_or_default(), 
             i10_index: self.i10_index.unwrap_or_default() 
@@ -2165,13 +2175,13 @@ pub struct Source {
     pub type_: Option<SourceType>,
     pub works_api_url: Option<String>,
     pub works_count: Option<u32>,
-    pub x_concepts: Option<Vec<Concept>>,
+    pub x_concepts: Option<Vec<SourceConcept>>,
 }
 
 impl Source {
     pub fn to_table(self) -> (SourceTable,
         Vec<SourceAlternativeTitlesTable>,
-        Vec<SourceApcInfoTable>,
+        Vec<SourceApcPriceTable>,
         Vec<SourceCountsByYearTable>,
         Vec<SourceLineageTable>,
         Option<SourceIdsTable>,
@@ -2180,7 +2190,41 @@ impl Source {
         Option<SourceSummaryStatsTable>,
         Vec<SourceConceptTable>,
     ) {
-        todo!()
+        let source_alternative_titles = self.alternate_titles.unwrap_or_default().into_iter()
+            .map(|t| SourceAlternativeTitlesTable { source_id: self.id.clone(), display_name: t})
+            .collect::<Vec<_>>();
+        let source_apc_price = self.apc_prices.unwrap_or_default().into_iter().map(|t| t.to_source_apc_price_table(&self.id)).collect::<Vec<_>>();
+        let source_counts_by_year = self.counts_by_year.unwrap_or_default().into_iter().map(|t| t.to_source_counts_by_year(&self.id)).collect::<Vec<_>>();
+        let source_lineage = self.host_organization_lineage.unwrap_or_default().into_iter()
+            .map(|t| SourceLineageTable { source_id: self.id.clone(), lineage_id: t})
+            .collect::<Vec<_>>();
+        let source_ids = self.ids.map(|t| t.to_source_ids_table(&self.id));
+        let source_issn = self.issn.unwrap_or_default().into_iter()
+            .map(|t| SourceIssnTable { source_id: self.id.clone(), issn: t})
+            .collect::<Vec<_>>();
+        let source_society = self.societies.unwrap_or_default().into_iter().map(|t| t.to_source_society_table(&self.id)).collect::<Vec<_>>();
+        let source_summary_stats = self.summary_stats.map(|t| t.to_source_summary_stats_table(&self.id));
+        let source_concept = self.x_concepts.unwrap_or_default().into_iter().map(|t| t.to_source_concept_table(&self.id)).collect::<Vec<_>>();
+        let source = SourceTable {
+            source_id: self.id,
+            display_name: self.display_name.unwrap_or_default(),
+            abbreviated_title: self.abbreviated_title.unwrap_or_default(),
+            cited_by_count: self.cited_by_count.unwrap_or_default(),
+            country_code: self.country_code.unwrap_or_default(),
+            created_date: self.created_date.unwrap_or_default(),
+            updated_date: self.updated_date.unwrap_or_default(),
+            homepage_url: self.homepage_url.unwrap_or_default(),
+            host_organization: self.host_organization.unwrap_or_default(),
+            host_organization_name: self.host_organization_name.unwrap_or_default(),
+            is_core: self.is_core.unwrap_or_default(),
+            is_in_doaj: self.is_in_doaj.unwrap_or_default(),
+            is_oa: self.is_oa.unwrap_or_default(),
+            issn_l: self.issn_l.unwrap_or_default(),
+            type_: self.type_.unwrap_or_default(),
+            works_api_url: self.works_api_url.unwrap_or_default(),
+            works_count: self.works_count.unwrap_or_default()
+        };
+        (source, source_alternative_titles, source_apc_price, source_counts_by_year, source_lineage, source_ids, source_issn, source_society, source_summary_stats, source_concept)
     }
 }
 
@@ -2254,27 +2298,33 @@ pub struct ApcPrice {
     pub currency: Option<Currency>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SourceApcInfoTable {
-    pub source_id: String,
-    pub value: u32,
-    pub currency: Currency,
-    pub value_usd: u32,
-    pub provenance: String,
+impl ApcPrice {
+    pub fn to_source_apc_price_table(self, source_id: &str) -> SourceApcPriceTable {
+        SourceApcPriceTable {
+            source_id: source_id.to_string(),
+            price: self.price.unwrap_or_default(),
+            currency: self.currency.unwrap_or_default()
+        }
+    }
 }
 
-impl SourceApcInfoTable {
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SourceApcPriceTable {
+    pub source_id: String,
+    pub price: u32,
+    pub currency: Currency,
+}
+
+impl SourceApcPriceTable {
     fn to_fields() -> Fields {
         let field_names = ["work_id", 
-            "Currency", 
-            "provenance"];
+            "Currency"];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
         let field_names = [
-            "value",
-            "value_usd",
+            "price",
         ];
         fields_vec.extend(
             field_names
@@ -2286,13 +2336,13 @@ impl SourceApcInfoTable {
     }
 }
 
-impl MappableTrait for SourceApcInfoTable {
+impl MappableTrait for SourceApcPriceTable {
     fn get_name(&self) -> &str {
         Self::get_static_name()
     }
 }
 
-impl AvailableSchemaTrait for SourceApcInfoTable {
+impl AvailableSchemaTrait for SourceApcPriceTable {
     fn to_schema(&self) -> SchemaRef {
         create_schema_from_fields(&Self::to_fields)
     }
