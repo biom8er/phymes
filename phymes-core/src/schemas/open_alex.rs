@@ -2168,16 +2168,176 @@ pub struct Source {
     pub x_concepts: Option<Vec<Concept>>,
 }
 
+impl Source {
+    pub fn to_table(self) -> (SourceTable,
+        Vec<SourceAlternativeTitlesTable>,
+        Vec<SourceApcInfoTable>,
+        Vec<SourceCountsByYearTable>,
+        Vec<SourceLineageTable>,
+        Option<SourceIdsTable>,
+        Vec<SourceIssnTable>,
+        Vec<SourceSocietyTable>,
+        Option<SourceSummaryStatsTable>,
+        Vec<SourceConceptTable>,
+    ) {
+        todo!()
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct SourceTable {
+    pub source_id: String,
+    pub display_name: String,
+    pub abbreviated_title: String,
+    pub cited_by_count: u32,
+    pub country_code: CountryCode,
+    pub created_date: String,
+    pub updated_date: String,
+    pub homepage_url: String,
+    pub host_organization: String,
+    pub host_organization_name: String,
+    pub is_core: bool,
+    pub is_in_doaj: bool,
+    pub is_oa: bool,
+    pub issn_l: String,
+    pub type_: SourceType,
+    pub works_api_url: String,
+    pub works_count: u32,
+}
+
+impl SourceTable {
+    fn to_fields() -> Fields {
+        let field_names = ["source_id", 
+            "display_name", 
+            "abbreviated_title", 
+            "country_code", 
+            "created_date", 
+            "updated_date", 
+            "homepage_url", 
+            "host_organization", 
+            "host_organization_name", 
+            "type_"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let field_names = ["cited_by_count", 
+            "works_count"];
+        fields_vec.extend(field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::UInt32, false))
+            .collect::<Vec<_>>());
+        let field_names = ["is_core", "is_in_doaj", "is_oa"];
+        fields_vec.extend(field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Boolean, false))
+            .collect::<Vec<_>>());
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for SourceTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for SourceTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct ApcPrice {
     pub price: Option<u32>,
     pub currency: Option<Currency>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SourceApcInfoTable {
+    pub source_id: String,
+    pub value: u32,
+    pub currency: Currency,
+    pub value_usd: u32,
+    pub provenance: String,
+}
+
+impl SourceApcInfoTable {
+    fn to_fields() -> Fields {
+        let field_names = ["work_id", 
+            "Currency", 
+            "provenance"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let field_names = [
+            "value",
+            "value_usd",
+        ];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::UInt32, false))
+                .collect::<Vec<_>>(),
+        );
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for SourceApcInfoTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for SourceApcInfoTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Society {
     pub url: Option<String>,
     pub organization: Option<String>,
+}
+
+impl Society {
+    pub fn to_source_society_table(self, source_id: &str) -> SourceSocietyTable {
+        SourceSocietyTable { source_id: source_id.to_string(), url: self.url.unwrap_or_default(), organization: self.organization.unwrap_or_default() }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct SourceSocietyTable {
+    pub source_id: String,
+    pub url: String,
+    pub organization: String,
+}
+
+impl SourceSocietyTable {
+    fn to_fields() -> Fields {
+        let field_names = ["source_id", "url", "organization"];
+        let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for SourceSocietyTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for SourceSocietyTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -2188,6 +2348,289 @@ pub struct SourceIds {
     pub mag: Option<String>,
     pub openalex: Option<String>,
     pub wikidata: Option<String>,
+}
+
+impl SourceIds {
+    pub fn to_source_ids_table(self, source_id: &str) -> SourceIdsTable {
+        SourceIdsTable { source_id: source_id.to_string(), 
+            fatcat: self.fatcat.unwrap_or_default(), 
+            issn: self.issn.unwrap_or_default(), 
+            issn_l: self.issn_l.unwrap_or_default(), 
+            mag: self.mag.unwrap_or_default(), 
+            openalex: self.openalex.unwrap_or_default(), 
+            wikidata: self.wikidata.unwrap_or_default()
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SourceIdsTable {
+    pub source_id: String,
+    pub fatcat: String,
+    pub issn: Vec<String>,
+    pub issn_l: String,
+    pub mag: String,
+    pub openalex: String,
+    pub wikidata: String,
+}
+
+impl SourceIdsTable {
+    fn to_fields() -> Fields {
+        let field_names = ["source_id", "fatcat", "issn_l", "mag", "openalex", "wikidata"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Utf8, false)));
+        let field_names = ["issn"];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, list_data_type.clone(), false))
+                .collect::<Vec<_>>(),
+        );
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for SourceIdsTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for SourceIdsTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SourceAlternativeTitlesTable {
+    pub source_id: String,
+    pub display_name: String,
+}
+
+impl SourceAlternativeTitlesTable {
+    fn to_fields() -> Fields {
+        let field_names = ["source_id", "display_name"];
+        let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for SourceAlternativeTitlesTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for SourceAlternativeTitlesTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct SourceSummaryStatsTable {
+    pub source_id: String,
+    pub two_year_mean_citedness: f64,
+    pub h_index: u32,
+    pub i10_index: u32,
+}
+
+impl SourceSummaryStatsTable {
+    fn to_fields() -> Fields {
+        let field_names = ["source_id"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let field_names = ["two_year_mean_citedness"];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Float64, false))
+                .collect::<Vec<_>>(),
+        );
+        let field_names = [
+            "h_index",
+            "i10_index",
+        ];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::UInt32, false))
+                .collect::<Vec<_>>(),
+        );
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for SourceSummaryStatsTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for SourceSummaryStatsTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct SourceCountsByYearTable {
+    pub source_id: String,
+    pub year: u32,
+    pub cited_by_count: u32,
+}
+
+impl SourceCountsByYearTable {
+    fn to_fields() -> Fields {
+        let field_names = ["source_id"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let field_names = [
+            "year",
+            "cited_by_count",
+        ];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::UInt32, false))
+                .collect::<Vec<_>>(),
+        );
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for SourceCountsByYearTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for SourceCountsByYearTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct SourceConcept {
+    pub id: Option<String>,
+    pub score: Option<f32>,
+}
+
+impl SourceConcept {
+    pub fn to_source_concept_table(self, source_id: &str) -> SourceConceptTable {
+        SourceConceptTable { 
+            source_id: source_id.to_string(), 
+            concept_id: self.id.unwrap_or_default(), 
+            score: self.score.unwrap_or_default() 
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SourceConceptTable {
+    pub source_id: String,
+    pub concept_id: String,
+    pub score: f32,
+}
+
+impl SourceConceptTable {
+    fn to_fields() -> Fields {
+        let field_names = ["source_id", "concept_id"];
+        let mut fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        let field_names = ["score"];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Float32, false))
+                .collect::<Vec<_>>(),
+        );
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for SourceConceptTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for SourceConceptTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SourceLineageTable {
+    pub source_id: String,
+    pub lineage_id: String,
+}
+
+impl SourceLineageTable {
+    fn to_fields() -> Fields {
+        let field_names = ["source_id", "lineage_id"];
+        let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for SourceLineageTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for SourceLineageTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SourceIssnTable {
+    pub source_id: String,
+    pub issn: String,
+}
+
+impl SourceIssnTable {
+    fn to_fields() -> Fields {
+        let field_names = ["source_id", "issn"];
+        let fields_vec = field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>();
+        Fields::from(fields_vec)
+    }
+}
+
+impl MappableTrait for SourceIssnTable {
+    fn get_name(&self) -> &str {
+        Self::get_static_name()
+    }
+}
+
+impl AvailableSchemaTrait for SourceIssnTable {
+    fn to_schema(&self) -> SchemaRef {
+        create_schema_from_fields(&Self::to_fields)
+    }
 }
 
 //
