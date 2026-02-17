@@ -10,24 +10,7 @@ use crate::{BuilderTrait, SendableIPCRecordBatchStream, SendableRecordBatchStrea
 use anyhow::{Result, anyhow};
 use arrow::{
     array::{
-        ArrayData,
-        ArrayRef,
-        BooleanArray, //Float16Array,
-        FixedSizeListArray,
-        Float32Array,
-        Float32Builder,
-        Float64Array,
-        Int8Array,
-        Int16Array,
-        Int32Array,
-        Int64Array,
-        ListBuilder,
-        StringArray,
-        StringBuilder,
-        UInt8Array,
-        UInt16Array,
-        UInt32Array,
-        UInt64Array,
+        ArrayData, ArrayRef, BooleanArray, FixedSizeListArray, Float32Array, Float32Builder, Float64Array, Float64Builder, Int8Array, Int16Array, Int32Array, Int64Array, Int64Builder, ListBuilder, StringArray, StringBuilder, UInt8Array, UInt8Builder, UInt16Array, UInt32Array, UInt32Builder, UInt64Array
     },
     buffer::Buffer,
     csv::reader::Format,
@@ -604,6 +587,69 @@ impl TableBuilderTrait for TableBuilder {
                     }
                 },
                 DataType::List(f) => match f.data_type() {
+                    DataType::UInt8 => {
+                        let value_builder = UInt8Builder::new();
+                        let mut list_builder = ListBuilder::new(value_builder)
+                            .with_field(Field::new_list_field(DataType::UInt8, false));
+                        for value in json_values {
+                            if let Value::Object(map) = value
+                                && let Some(Value::Array(val)) = map.get(field.name())
+                            {
+                                let mut values = Vec::new();
+                                for v in val {
+                                    if let Value::Number(num) = v {
+                                        values.push(num.as_u64().unwrap() as u8);
+                                    }
+                                }
+                                list_builder.values().append_slice(&values);
+                                list_builder.append(true);
+                            }
+                        }
+                        let array_ref: ArrayRef = Arc::new(list_builder.finish());
+                        batch_vec.push((field.name(), array_ref));
+                    }
+                    DataType::UInt32 => {
+                        let value_builder = UInt32Builder::new();
+                        let mut list_builder = ListBuilder::new(value_builder)
+                            .with_field(Field::new_list_field(DataType::UInt32, false));
+                        for value in json_values {
+                            if let Value::Object(map) = value
+                                && let Some(Value::Array(val)) = map.get(field.name())
+                            {
+                                let mut values = Vec::new();
+                                for v in val {
+                                    if let Value::Number(num) = v {
+                                        values.push(num.as_u64().unwrap() as u32);
+                                    }
+                                }
+                                list_builder.values().append_slice(&values);
+                                list_builder.append(true);
+                            }
+                        }
+                        let array_ref: ArrayRef = Arc::new(list_builder.finish());
+                        batch_vec.push((field.name(), array_ref));
+                    }
+                    DataType::Int64 => {
+                        let value_builder = Int64Builder::new();
+                        let mut list_builder = ListBuilder::new(value_builder)
+                            .with_field(Field::new_list_field(DataType::Int64, false));
+                        for value in json_values {
+                            if let Value::Object(map) = value
+                                && let Some(Value::Array(val)) = map.get(field.name())
+                            {
+                                let mut values = Vec::new();
+                                for v in val {
+                                    if let Value::Number(num) = v {
+                                        values.push(num.as_i64().unwrap() as i64);
+                                    }
+                                }
+                                list_builder.values().append_slice(&values);
+                                list_builder.append(true);
+                            }
+                        }
+                        let array_ref: ArrayRef = Arc::new(list_builder.finish());
+                        batch_vec.push((field.name(), array_ref));
+                    }
                     DataType::Float32 => {
                         let value_builder = Float32Builder::new();
                         let mut list_builder = ListBuilder::new(value_builder)
@@ -616,6 +662,27 @@ impl TableBuilderTrait for TableBuilder {
                                 for v in val {
                                     if let Value::Number(num) = v {
                                         values.push(num.as_f64().unwrap() as f32);
+                                    }
+                                }
+                                list_builder.values().append_slice(&values);
+                                list_builder.append(true);
+                            }
+                        }
+                        let array_ref: ArrayRef = Arc::new(list_builder.finish());
+                        batch_vec.push((field.name(), array_ref));
+                    }
+                    DataType::Float64 => {
+                        let value_builder = Float64Builder::new();
+                        let mut list_builder = ListBuilder::new(value_builder)
+                            .with_field(Field::new_list_field(DataType::Float64, false));
+                        for value in json_values {
+                            if let Value::Object(map) = value
+                                && let Some(Value::Array(val)) = map.get(field.name())
+                            {
+                                let mut values = Vec::new();
+                                for v in val {
+                                    if let Value::Number(num) = v {
+                                        values.push(num.as_f64().unwrap() as f64);
                                     }
                                 }
                                 list_builder.values().append_slice(&values);

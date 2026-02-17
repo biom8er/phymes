@@ -354,12 +354,11 @@ impl InstitutionGeoTable {
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Utf8, false)));
         let field_names = ["latitude", "longitude"];
         fields_vec.extend(
             field_names
                 .iter()
-                .map(|f| Field::new(*f, list_data_type.clone(), false))
+                .map(|f| Field::new(*f, DataType::Float32, false))
                 .collect::<Vec<_>>(),
         );
         Fields::from(fields_vec)
@@ -561,14 +560,19 @@ pub struct InternationalNames {
 
 impl InternationalNames {
     pub fn to_insitution_international_names_table(self, institution_id: &str) -> InstitutionInternationalNamesTable {
-        InstitutionInternationalNamesTable { institution_id: institution_id.to_string(), display_name: self.display_name.unwrap_or_default() }
+        let display_name = if let Some(display_name) = self.display_name {
+            serde_json::to_string(&display_name).unwrap()
+        } else {
+            String::new()
+        };
+        InstitutionInternationalNamesTable { institution_id: institution_id.to_string(), display_name }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InstitutionInternationalNamesTable {
     pub institution_id: String,
-    pub display_name: serde_json::Value,
+    pub display_name: String,
 }
 
 impl InstitutionInternationalNamesTable {

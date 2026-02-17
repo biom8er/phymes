@@ -78,7 +78,7 @@ pub struct AuthorTable {
 
 impl AuthorTable {
     fn to_fields() -> Fields {
-        let field_names = ["work_id", 
+        let field_names = ["author_id", 
             "orcid", 
             "display_name", 
             "created_date", 

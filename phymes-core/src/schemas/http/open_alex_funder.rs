@@ -1,6 +1,6 @@
 
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use crate::{AvailableSchemaTrait, BuilderTrait, MappableTrait, create_schema_from_fields, schemas::http::{AwardFunderTable, WorkFunderTable, open_alex_common::{CountryCode, CountsByYear, RoleType, SummaryStats}, open_alex_institution::Role}};
+use crate::{AvailableSchemaTrait, MappableTrait, create_schema_from_fields, schemas::http::{AwardFunderTable, WorkFunderTable, open_alex_common::{CountryCode, CountsByYear, RoleType, SummaryStats}, open_alex_institution::Role}};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -31,7 +31,7 @@ impl Funder {
     pub fn to_award_funder_table(self, award_id: &str) -> AwardFunderTable {
         AwardFunderTable { award_id: award_id.to_string(), funder_id: self.id }
     }
-    pub fn to_table(self) -> (FunderTable,
+    pub fn to_tables(self) -> (FunderTable,
         Vec<FunderAlternativeTitlesTable>,
         Option<FunderIdsTable>,
         Vec<FunderRoleTable>,

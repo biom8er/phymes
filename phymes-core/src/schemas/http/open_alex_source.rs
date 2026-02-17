@@ -37,7 +37,7 @@ pub struct Source {
 }
 
 impl Source {
-    pub fn to_table(self) -> (SourceTable,
+    pub fn to_tables(self) -> (SourceTable,
         Vec<SourceAlternativeTitlesTable>,
         Vec<SourceApcPriceTable>,
         Vec<SourceCountsByYearTable>,

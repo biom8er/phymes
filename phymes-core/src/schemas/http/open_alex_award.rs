@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use crate::{AvailableSchemaTrait, BuilderTrait, MappableTrait, create_schema_from_fields, schemas::http::{WorkAwardTable, open_alex_author::Affiliation, open_alex_common::Currency, open_alex_funder::Funder}};
+use crate::{AvailableSchemaTrait, MappableTrait, create_schema_from_fields, schemas::http::{WorkAwardTable, open_alex_author::Affiliation, open_alex_common::Currency, open_alex_funder::Funder}};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -39,7 +39,7 @@ impl Award {
             award_id: self.id.unwrap_or_default()
         }
     }
-    pub fn to_table(self) -> (AwardTable,
+    pub fn to_tables(self) -> (AwardTable,
         Option<AwardFunderTable>,
         Vec<AwardFundedOutputsTable>,
         Vec<AwardInvestigatorTable>,

@@ -194,6 +194,12 @@ pub enum AvailableSubjects {
     SessionSuperstepMax,
     #[value(name = "OpenAlexResponseWorks")]
     OpenAlexResponseWorks,
+    #[value(name = "OpenAlexResponseAuthors")]
+    OpenAlexResponseAuthors,
+    #[value(name = "OpenAlexResponseInstitutions")]
+    OpenAlexResponseInstitutions,
+    #[value(name = "OpenAlexResponseTopics")]
+    OpenAlexResponseTopics,
 }
 
 impl Display for AvailableSubjects {
@@ -283,6 +289,9 @@ impl Display for AvailableSubjects {
             AvailableSubjects::SessionSupersteps => write!(f, "SessionSupersteps"),
             AvailableSubjects::SessionSuperstepMax => write!(f, "SessionSuperstepMax"),
             AvailableSubjects::OpenAlexResponseWorks => write!(f, "OpenAlexResponseWorks"),
+            AvailableSubjects::OpenAlexResponseAuthors => write!(f, "OpenAlexResponseAuthors"),
+            AvailableSubjects::OpenAlexResponseInstitutions => write!(f, "OpenAlexResponseInstitutions"),
+            AvailableSubjects::OpenAlexResponseTopics => write!(f, "OpenAlexResponseTopics"),
         }
     }
 }
@@ -451,6 +460,9 @@ impl AvailableSchemaTrait for AvailableSubjects {
                 create_schema_from_fields(&create_session_superstep_max_fields)
             }
             AvailableSubjects::OpenAlexResponseWorks => Arc::new(Schema::empty()),
+            AvailableSubjects::OpenAlexResponseAuthors => Arc::new(Schema::empty()),
+            AvailableSubjects::OpenAlexResponseInstitutions => Arc::new(Schema::empty()),
+            AvailableSubjects::OpenAlexResponseTopics => Arc::new(Schema::empty()),
         }
     }
 }
