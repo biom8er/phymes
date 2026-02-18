@@ -820,9 +820,7 @@ impl SessionContext {
                 // Handleany inconsistencies in the message
                 // DM, todo!(): Mostly an issue with empty batches which should be ignored anyway
                 if let Ok(builder) = TableBuilder::new_from_ipc_stream(&message.get_message_own()) {
-                    let table = builder
-                        .with_name(table_name.as_str())
-                        .build()?;
+                    let table = builder.with_name(table_name.as_str()).build()?;
                     let _num_rows = table.count_rows(); // DM: not used currently...
                     let batches = table.get_record_batches_own();
 
@@ -838,7 +836,7 @@ impl SessionContext {
                     session_names.push(self.get_name().to_string());
                     num_rows_deltas.push(num_rows_new as i64 - num_rows_old as i64);
                     timestamps.push(step as i64);
-                }                
+                }
             } else {
                 // Mismatch in table names of the update and state
                 return Err(anyhow!(

@@ -1,5 +1,6 @@
-use crate::{create_chat_record_batch, RecordBatchReceiverStream, SendableRecordBatchStream, Table, TableBuilder, TableBuilderTrait,
-    TableScript, TableTrait,
+use crate::{
+    RecordBatchReceiverStream, SendableRecordBatchStream, Table, TableBuilder, TableBuilderTrait,
+    TableScript, TableTrait, create_chat_record_batch,
 };
 
 use anyhow::Result;
@@ -398,7 +399,8 @@ mod test_messages {
                             .get_column_as_vec_str("tool")
                             .iter()
                             .map(|s| {
-                                let tool: openai_chat_completion::Tool = serde_json::from_str(s).unwrap();
+                                let tool: openai_chat_completion::Tool =
+                                    serde_json::from_str(s).unwrap();
                                 tool
                             })
                             .collect::<Vec<_>>();

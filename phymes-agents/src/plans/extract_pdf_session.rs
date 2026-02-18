@@ -45,7 +45,7 @@ impl<'a> ExtractPDFSession<'a> {
 	chunk_documents_p-subscribe@{shape: diamond, label: All}
 	Documents-subject@{shape: doc, label: Documents}
 	%% ------------------------------------------------------------------------------"#
-	}
+    }
     /// Return the Mermaid.js ER diagram representation of the session
     pub fn as_mermaid_erdiagram(&self) -> &str {
         r#"erDiagram
@@ -83,7 +83,7 @@ impl<'a> ExtractPDFSession<'a> {
         Utf8 document_id
         Utf8 text
 	}"#
-	}
+    }
 }
 
 #[cfg(test)]
@@ -93,12 +93,15 @@ mod tests {
     use anyhow::Result;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, TablePublication, TableTrait,
+        AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait,
+        BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, TablePublication, TableTrait,
     };
     use phymes_data::make_pdf_document;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep, SessionStreamStepTrait, create_message_map
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
+        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep,
+        SessionStreamStepTrait, create_message_map,
     };
 
     use super::*;
@@ -116,7 +119,7 @@ mod tests {
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
-		.add_next_supersteps()?
+        .add_next_supersteps()?
         .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
@@ -148,7 +151,9 @@ mod tests {
         let message_map = create_message_map(vec![blob_message]);
 
         // Run the first superstep
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map).await?.unwrap();
+        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map)
+            .await?
+            .unwrap();
 
         assert_eq!(response.len(), 0);
 
@@ -160,7 +165,7 @@ mod tests {
                 .get(AvailableSubjects::Documents.to_string().as_str())
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 21);
+            assert_eq!(table_reading.count_rows(), 21);
             let column = table_reading.get_column_as_vec_str("chunk_id");
             assert_eq!(column.first().unwrap(), &"WikiBioComponents_1_0");
             assert_eq!(column.last().unwrap(), &"WikiBioComponents_4_2");
@@ -168,8 +173,14 @@ mod tests {
             assert_eq!(column.first().unwrap(), &"WikiBioComponents");
             assert_eq!(column.last().unwrap(), &"WikiBioComponents");
             let column = table_reading.get_column_as_vec_str("text");
-            assert_eq!(column.first().unwrap(), &"Proteins are large biomolecules and macromolecules that comprise one or more long chains of amino acid residues. Proteins perform a vast array of functions within organisms, including catalysing metabolic reactions, DNA replication, responding to stimuli, providing structure to cells and organisms, and transporting molecules from one location to another. Proteins differ from one another primarily in their sequence of amino acids, which is dictated by the nucleotide sequence of their genes, and which usually");
-            assert_eq!(column.last().unwrap(), &"ts, which in plants create sugars by photosynthesis, and ribosomes, which synthesise proteins.Cells were discovered by Robert Hooke in 1665, who named them after their resemblance to cells inhabited by Christian monks in a monastery. Cell theory, developed in 1839 by Matthias Jakob Schleiden and Theodor Schwann, states that all organisms are composed of one or more cells, that cells are the fundamental unit of structure and function in all living organisms, and that all cells come from pre-existing cells. ");
+            assert_eq!(
+                column.first().unwrap(),
+                &"Proteins are large biomolecules and macromolecules that comprise one or more long chains of amino acid residues. Proteins perform a vast array of functions within organisms, including catalysing metabolic reactions, DNA replication, responding to stimuli, providing structure to cells and organisms, and transporting molecules from one location to another. Proteins differ from one another primarily in their sequence of amino acids, which is dictated by the nucleotide sequence of their genes, and which usually"
+            );
+            assert_eq!(
+                column.last().unwrap(),
+                &"ts, which in plants create sugars by photosynthesis, and ribosomes, which synthesise proteins.Cells were discovered by Robert Hooke in 1665, who named them after their resemblance to cells inhabited by Christian monks in a monastery. Cell theory, developed in 1839 by Matthias Jakob Schleiden and Theodor Schwann, states that all organisms are composed of one or more cells, that cells are the fundamental unit of structure and function in all living organisms, and that all cells come from pre-existing cells. "
+            );
         }
         Ok(())
     }

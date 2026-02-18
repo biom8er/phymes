@@ -12,12 +12,12 @@ use bytes::Bytes;
 use clap::ValueEnum;
 use futures::prelude::*;
 use phymes_agents::{AvailableInterfaceSubjects, SessionStream, create_message_map};
+use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
 use phymes_core::{
     AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, IPCMessage,
     JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait,
     Table, TableBuilder, TableBuilderTrait, TableTrait,
 };
-use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
 
 // General imports
 use anyhow::Result;

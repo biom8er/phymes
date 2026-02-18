@@ -50,9 +50,6 @@ pub fn create_query_embeddings_batch(
         list_builder.append(true);
     }
     let embedding: ArrayRef = Arc::new(list_builder.finish());
-    let batch = RecordBatch::try_from_iter(vec![
-        ("query_id", query_id),
-        ("embedding", embedding),
-    ])?;
+    let batch = RecordBatch::try_from_iter(vec![("query_id", query_id), ("embedding", embedding)])?;
     Ok(batch)
 }

@@ -4,16 +4,22 @@ use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Table, test_processor::{ProcessorError, ProcessorMock}
+    AvailableSubjects, DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait,
+    Table,
+    test_processor::{ProcessorError, ProcessorMock},
 };
-#[cfg(feature = "api")]
-use phymes_data::{CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxProcessor, CommandSandboxRunners, DataIOMethod, HTTPClientConfig, HTTPClientRequestProcessor, HTTPClientRequestSchemas, HTTPClientRequestType};
 use phymes_data::{
     AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,
     CandleDataProcessor, CoalesceProcessor, DataAggregatorOperator, DataCastOperator,
     DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig,
     DataConfigTrait, DataDistanceOperator, DataStreamManager, DataSummaryConfig,
     DataSummaryProcessor, LimitProcessor, ToolTrait,
+};
+#[cfg(feature = "api")]
+use phymes_data::{
+    CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxProcessor,
+    CommandSandboxRunners, DataIOMethod, HTTPClientConfig, HTTPClientRequestProcessor,
+    HTTPClientRequestSchemas, HTTPClientRequestType,
 };
 use phymes_ml::{
     AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, CandleEmbedConfig,
@@ -140,9 +146,13 @@ impl Display for AvailableProcessors {
             }
             Self::CandleEmbedProcessor => write!(f, "{}", CandleEmbedProcessor::get_static_name()),
             #[cfg(feature = "api")]
-            Self::HTTPClientRequestProcessor => write!(f, "{}", HTTPClientRequestProcessor::get_static_name()),
+            Self::HTTPClientRequestProcessor => {
+                write!(f, "{}", HTTPClientRequestProcessor::get_static_name())
+            }
             #[cfg(feature = "api")]
-            Self::CommandSandboxProcessor => write!(f, "{}", CommandSandboxProcessor::get_static_name()),
+            Self::CommandSandboxProcessor => {
+                write!(f, "{}", CommandSandboxProcessor::get_static_name())
+            }
             #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => write!(f, "{}", OpenAIChatProcessor::get_static_name()),
             #[cfg(feature = "api")]
@@ -434,7 +444,7 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             #[cfg(feature = "api")]
-                Self::CommandSandboxProcessor => serde_json::to_vec(&CommandSandboxConfig {
+            Self::CommandSandboxProcessor => serde_json::to_vec(&CommandSandboxConfig {
                 runner: CommandSandboxRunners::Docker,
                 environment: CommandSandboxEnvironments::Bash,
                 container_image: "alpine".to_string(),
@@ -741,13 +751,15 @@ impl AvailableProcessors {
                 Arc::new(CandleEmbedProcessor::new(name, self.to_string().as_str()))
             }
             #[cfg(feature = "api")]
-            Self::HTTPClientRequestProcessor => {
-                Arc::new(HTTPClientRequestProcessor::new(name, self.to_string().as_str()))
-            }
+            Self::HTTPClientRequestProcessor => Arc::new(HTTPClientRequestProcessor::new(
+                name,
+                self.to_string().as_str(),
+            )),
             #[cfg(feature = "api")]
-            Self::CommandSandboxProcessor => {
-                Arc::new(CommandSandboxProcessor::new(name, self.to_string().as_str()))
-            }
+            Self::CommandSandboxProcessor => Arc::new(CommandSandboxProcessor::new(
+                name,
+                self.to_string().as_str(),
+            )),
             #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => {
                 Arc::new(OpenAIChatProcessor::new(name, self.to_string().as_str()))

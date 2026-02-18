@@ -1,7 +1,8 @@
 use dioxus::prelude::*;
 use phymes_agents::{
     AvailableSessionPlans, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-    SessionContextBuilderMermaidTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait,
+    SessionContextBuilderMermaidTrait, SessionInterfaceMessage,
+    SessionInterfaceMessageBuilderTrait,
 };
 use phymes_core::{
     create_session_mermaid_batch, AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat,

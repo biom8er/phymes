@@ -423,7 +423,7 @@ fn parse_owl_children(
     let mut object_vec = Vec::new();
     for (t, c) in type_tmp.into_iter().zip(children_tmp) {
         match t {
-            XMLType::Text => {},
+            XMLType::Text => {}
             XMLType::Element => {
                 if let Some((predicate, object)) = children_to_po(relations, &c)? {
                     predicate_vec.push(predicate);

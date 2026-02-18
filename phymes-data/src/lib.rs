@@ -15,8 +15,8 @@ pub use candle_operators::{
     ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait, ExtractPDF,
     ExtractTabular, ExtractXML, Filter, FromTasksToParticipants, FromTracesToMessages, GroupBy,
     HumanInTheLoop, Join, NormalizeTime, Pivot, Select, Sort, ToolTrait, VectorDistance,
-    convert_destinations_to_tools, extract_xml, filter, group_by, make_pdf_document, filter_pdf, load_pdf_document, extract_pdf, sort,
-    test_extract_tabular_data,
+    convert_destinations_to_tools, extract_pdf, extract_xml, filter, filter_pdf, group_by,
+    load_pdf_document, make_pdf_document, sort, test_extract_tabular_data,
 };
 #[cfg(feature = "api")]
 pub use external_operators::{

@@ -3,7 +3,10 @@ use std::fmt::Display;
 use anyhow::Result;
 use arrow::array::RecordBatch;
 use clap::ValueEnum;
-use phymes_core::{AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, MappableTrait, Table, TableBuilder};
+use phymes_core::{
+    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, MappableTrait, Table,
+    TableBuilder,
+};
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 

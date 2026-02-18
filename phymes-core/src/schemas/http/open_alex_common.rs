@@ -1,6 +1,19 @@
 use std::fmt::Display;
 
-use crate::schemas::http::{AuthorCountsByYearTable, AuthorSummaryStatsTable, FunderCountsByYearTable, FunderSummaryStatsTable, InstitutionCountsByYearTable, InstitutionSummaryStatsTable, PublisherCountsByYearTable, PublisherSummaryStatsTable, SourceCountsByYearTable, SourceSummaryStatsTable, WorkCountsByYearTable, open_alex_author::Author, open_alex_award::Award, open_alex_funder::Funder, open_alex_institution::{Geo, Institution}, open_alex_publisher::Publisher, open_alex_source::Source, open_alex_topic::Topic, open_alex_works::Work};
+use crate::schemas::http::{
+    AuthorCountsByYearTable, AuthorSummaryStatsTable, FunderCountsByYearTable,
+    FunderSummaryStatsTable, InstitutionCountsByYearTable, InstitutionSummaryStatsTable,
+    PublisherCountsByYearTable, PublisherSummaryStatsTable, SourceCountsByYearTable,
+    SourceSummaryStatsTable, WorkCountsByYearTable,
+    open_alex_author::Author,
+    open_alex_award::Award,
+    open_alex_funder::Funder,
+    open_alex_institution::{Geo, Institution},
+    open_alex_publisher::Publisher,
+    open_alex_source::Source,
+    open_alex_topic::Topic,
+    open_alex_works::Work,
+};
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 
@@ -237,22 +250,49 @@ pub struct CountsByYear {
 
 impl CountsByYear {
     pub fn to_work_counts_by_year(self, work_id: &str) -> WorkCountsByYearTable {
-        WorkCountsByYearTable { work_id: work_id.to_string(), year: self.year, cited_by_count: self.cited_by_count }
+        WorkCountsByYearTable {
+            work_id: work_id.to_string(),
+            year: self.year,
+            cited_by_count: self.cited_by_count,
+        }
     }
     pub fn to_author_counts_by_year(self, author_id: &str) -> AuthorCountsByYearTable {
-        AuthorCountsByYearTable { author_id: author_id.to_string(), year: self.year, cited_by_count: self.cited_by_count }
+        AuthorCountsByYearTable {
+            author_id: author_id.to_string(),
+            year: self.year,
+            cited_by_count: self.cited_by_count,
+        }
     }
-    pub fn to_institution_counts_by_year(self, institution_id: &str) -> InstitutionCountsByYearTable {
-        InstitutionCountsByYearTable { institution_id: institution_id.to_string(), year: self.year, cited_by_count: self.cited_by_count }
+    pub fn to_institution_counts_by_year(
+        self,
+        institution_id: &str,
+    ) -> InstitutionCountsByYearTable {
+        InstitutionCountsByYearTable {
+            institution_id: institution_id.to_string(),
+            year: self.year,
+            cited_by_count: self.cited_by_count,
+        }
     }
     pub fn to_funder_counts_by_year(self, funder_id: &str) -> FunderCountsByYearTable {
-        FunderCountsByYearTable { funder_id: funder_id.to_string(), year: self.year, cited_by_count: self.cited_by_count }
+        FunderCountsByYearTable {
+            funder_id: funder_id.to_string(),
+            year: self.year,
+            cited_by_count: self.cited_by_count,
+        }
     }
     pub fn to_publisher_counts_by_year(self, publisher_id: &str) -> PublisherCountsByYearTable {
-        PublisherCountsByYearTable { publisher_id: publisher_id.to_string(), year: self.year, cited_by_count: self.cited_by_count }
+        PublisherCountsByYearTable {
+            publisher_id: publisher_id.to_string(),
+            year: self.year,
+            cited_by_count: self.cited_by_count,
+        }
     }
     pub fn to_source_counts_by_year(self, source_id: &str) -> SourceCountsByYearTable {
-        SourceCountsByYearTable { source_id: source_id.to_string(), year: self.year, cited_by_count: self.cited_by_count }
+        SourceCountsByYearTable {
+            source_id: source_id.to_string(),
+            year: self.year,
+            cited_by_count: self.cited_by_count,
+        }
     }
 }
 
@@ -266,38 +306,49 @@ pub struct SummaryStats {
 
 impl SummaryStats {
     pub fn to_author_summary_stats_table(self, author_id: &str) -> AuthorSummaryStatsTable {
-        AuthorSummaryStatsTable { author_id: author_id.to_string(), 
-            two_year_mean_citedness: self.two_year_mean_citedness.unwrap_or_default(), 
-            h_index: self.h_index.unwrap_or_default(), 
-            i10_index: self.i10_index.unwrap_or_default() 
+        AuthorSummaryStatsTable {
+            author_id: author_id.to_string(),
+            two_year_mean_citedness: self.two_year_mean_citedness.unwrap_or_default(),
+            h_index: self.h_index.unwrap_or_default(),
+            i10_index: self.i10_index.unwrap_or_default(),
         }
     }
-    pub fn to_institution_summary_stats_table(self, institution_id: &str) -> InstitutionSummaryStatsTable {
-        InstitutionSummaryStatsTable { institution_id: institution_id.to_string(), 
-            two_year_mean_citedness: self.two_year_mean_citedness.unwrap_or_default(), 
-            h_index: self.h_index.unwrap_or_default(), 
-            i10_index: self.i10_index.unwrap_or_default() 
+    pub fn to_institution_summary_stats_table(
+        self,
+        institution_id: &str,
+    ) -> InstitutionSummaryStatsTable {
+        InstitutionSummaryStatsTable {
+            institution_id: institution_id.to_string(),
+            two_year_mean_citedness: self.two_year_mean_citedness.unwrap_or_default(),
+            h_index: self.h_index.unwrap_or_default(),
+            i10_index: self.i10_index.unwrap_or_default(),
         }
     }
     pub fn to_funder_summary_stats_table(self, funder_id: &str) -> FunderSummaryStatsTable {
-        FunderSummaryStatsTable { funder_id: funder_id.to_string(), 
-            two_year_mean_citedness: self.two_year_mean_citedness.unwrap_or_default(), 
-            h_index: self.h_index.unwrap_or_default(), 
-            i10_index: self.i10_index.unwrap_or_default() 
+        FunderSummaryStatsTable {
+            funder_id: funder_id.to_string(),
+            two_year_mean_citedness: self.two_year_mean_citedness.unwrap_or_default(),
+            h_index: self.h_index.unwrap_or_default(),
+            i10_index: self.i10_index.unwrap_or_default(),
         }
     }
-    pub fn to_publisher_summary_stats_table(self, publisher_id: &str) -> PublisherSummaryStatsTable {
-        PublisherSummaryStatsTable { publisher_id: publisher_id.to_string(), 
-            two_year_mean_citedness: self.two_year_mean_citedness.unwrap_or_default(), 
-            h_index: self.h_index.unwrap_or_default(), 
-            i10_index: self.i10_index.unwrap_or_default() 
+    pub fn to_publisher_summary_stats_table(
+        self,
+        publisher_id: &str,
+    ) -> PublisherSummaryStatsTable {
+        PublisherSummaryStatsTable {
+            publisher_id: publisher_id.to_string(),
+            two_year_mean_citedness: self.two_year_mean_citedness.unwrap_or_default(),
+            h_index: self.h_index.unwrap_or_default(),
+            i10_index: self.i10_index.unwrap_or_default(),
         }
     }
     pub fn to_source_summary_stats_table(self, source_id: &str) -> SourceSummaryStatsTable {
-        SourceSummaryStatsTable { source_id: source_id.to_string(), 
-            two_year_mean_citedness: self.two_year_mean_citedness.unwrap_or_default(), 
-            h_index: self.h_index.unwrap_or_default(), 
-            i10_index: self.i10_index.unwrap_or_default() 
+        SourceSummaryStatsTable {
+            source_id: source_id.to_string(),
+            two_year_mean_citedness: self.two_year_mean_citedness.unwrap_or_default(),
+            h_index: self.h_index.unwrap_or_default(),
+            i10_index: self.i10_index.unwrap_or_default(),
         }
     }
 }
@@ -664,9 +715,7 @@ Depending on your query, random results with a seed value *may* change over time
 
 use std::borrow::Borrow;
 
-pub fn abstract_from_inverted_index<K>(
-    inverted: &HashMap<K, Vec<usize>>,
-) -> String
+pub fn abstract_from_inverted_index<K>(inverted: &HashMap<K, Vec<usize>>) -> String
 where
     K: Borrow<str>,
 {
@@ -705,10 +754,7 @@ mod tests {
         idx.insert("hello".into(), vec![0]);
         idx.insert("world".into(), vec![1]);
 
-        assert_eq!(
-            abstract_from_inverted_index(&idx),
-            "hello world"
-        );
+        assert_eq!(abstract_from_inverted_index(&idx), "hello world");
     }
 
     #[test]
@@ -717,10 +763,7 @@ mod tests {
         idx.insert("foo", vec![0]);
         idx.insert("bar", vec![1]);
 
-        assert_eq!(
-            abstract_from_inverted_index(&idx),
-            "foo bar"
-        );
+        assert_eq!(abstract_from_inverted_index(&idx), "foo bar");
     }
 
     #[test]
@@ -729,9 +772,6 @@ mod tests {
         idx.insert(Cow::Borrowed("alpha"), vec![1]);
         idx.insert(Cow::Owned("beta".into()), vec![0]);
 
-        assert_eq!(
-            abstract_from_inverted_index(&idx),
-            "beta alpha"
-        );
+        assert_eq!(abstract_from_inverted_index(&idx), "beta alpha");
     }
 }

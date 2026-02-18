@@ -10,7 +10,9 @@ use arrow::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{BuilderTrait, DataFormat, TableBuilder, TableBuilderTrait, runtime_env::MappableTrait};
+use crate::{
+    BuilderTrait, DataFormat, TableBuilder, TableBuilderTrait, runtime_env::MappableTrait,
+};
 
 use super::table_trait::{Table, TableTrait};
 
@@ -55,7 +57,7 @@ impl TablePublication {
             Self::ExtendBytes {
                 table_name: _tn,
                 col_name: _cn,
-                serialize_format: _sf
+                serialize_format: _sf,
             } => "ExtendBytes",
             Self::Replace { table_name: _tn } => "Replace",
             Self::ReplaceLast { table_name: _tn } => "ReplaceLast",
@@ -75,7 +77,7 @@ impl TablePublication {
             Self::ExtendBytes {
                 table_name: tn,
                 col_name: cn,
-                serialize_format: sf
+                serialize_format: sf,
             } => format!("extend-values-{tn}-{cn}-{sf}"),
             Self::Replace { table_name: tn } => format!("replace-{tn}"),
             Self::ReplaceLast { table_name: tn } => format!("replace-last-{tn}"),
@@ -95,7 +97,7 @@ impl TablePublication {
             Self::ExtendBytes {
                 table_name: tn,
                 col_name: _cn,
-                serialize_format: _sf
+                serialize_format: _sf,
             } => tn,
             Self::Replace { table_name: tn } => tn,
             Self::ReplaceLast { table_name: tn } => tn,
@@ -177,7 +179,7 @@ impl Display for TablePublication {
             Self::ExtendBytes {
                 table_name: _,
                 col_name: _,
-                serialize_format: _
+                serialize_format: _,
             } => write!(f, "ExtendBytes"),
             Self::Custom(_s) => write!(f, "Custom"),
         }
@@ -254,10 +256,10 @@ impl TablePublicationTrait for Table {
                 self.get_record_batches_mut().push(new_first_row);
                 Ok(())
             }
-            TablePublication::ExtendBytes { 
-                table_name: tn ,
+            TablePublication::ExtendBytes {
+                table_name: tn,
                 col_name: cn,
-                serialize_format: sf
+                serialize_format: sf,
             } => {
                 if self.get_name() != tn {
                     return Err(anyhow!(
@@ -298,7 +300,7 @@ impl TablePublicationTrait for Table {
                             }
                             _ => Err(anyhow!(
                                 "Serialization format {sf} for table name {} and update table target {tn} is not supported.",
-                                self.get_name(),                        
+                                self.get_name(),
                             ))
                         }
                     })
@@ -502,7 +504,10 @@ fn create_record_batch_from_first_row(
 mod tests {
     use arrow::datatypes::Schema;
 
-    use crate::{schemas::create_bytes_record_batch, table::table_trait::test_table::{make_test_table, make_test_table_chat}};
+    use crate::{
+        schemas::create_bytes_record_batch,
+        table::table_trait::test_table::{make_test_table, make_test_table_chat},
+    };
 
     use super::*;
 
@@ -707,22 +712,20 @@ mod tests {
         // IPC format
         let mut old = make_test_table("test_table", 1, 0, 1)?;
         let new = vec![
-            create_bytes_record_batch(
-                vec![make_test_table("test_table", 2, 0, 2)?
-                .to_ipc_stream()?]
-            )?,
-            create_bytes_record_batch(
-                vec![make_test_table("test_table", 2, 0, 2)?
-                .to_ipc_stream()?]
-            )?,
+            create_bytes_record_batch(vec![
+                make_test_table("test_table", 2, 0, 2)?.to_ipc_stream()?,
+            ])?,
+            create_bytes_record_batch(vec![
+                make_test_table("test_table", 2, 0, 2)?.to_ipc_stream()?,
+            ])?,
         ];
 
         old.publish_to_table(
             new,
             TablePublication::ExtendBytes {
                 table_name: "test_table".to_string(),
-                col_name: "bytes".to_string(), 
-                serialize_format: DataFormat::Ipc
+                col_name: "bytes".to_string(),
+                serialize_format: DataFormat::Ipc,
             },
         )?;
         assert_eq!(old.count_rows(), 9);
@@ -731,24 +734,20 @@ mod tests {
         // Bytes format
         let mut old = make_test_table("test_table", 1, 0, 1)?;
         let new = vec![
-            create_bytes_record_batch(
-                vec![make_test_table("test_table", 2, 0, 2)?
-                .to_bytes()?
-                .to_vec()]
-            )?,
-            create_bytes_record_batch(
-                vec![make_test_table("test_table", 2, 0, 2)?
-                .to_bytes()?
-                .to_vec()]
-            )?,
+            create_bytes_record_batch(vec![
+                make_test_table("test_table", 2, 0, 2)?.to_bytes()?.to_vec(),
+            ])?,
+            create_bytes_record_batch(vec![
+                make_test_table("test_table", 2, 0, 2)?.to_bytes()?.to_vec(),
+            ])?,
         ];
 
         old.publish_to_table(
             new,
             TablePublication::ExtendBytes {
                 table_name: "test_table".to_string(),
-                col_name: "bytes".to_string(), 
-                serialize_format: DataFormat::Bytes
+                col_name: "bytes".to_string(),
+                serialize_format: DataFormat::Bytes,
             },
         )?;
         assert_eq!(old.count_rows(), 9);

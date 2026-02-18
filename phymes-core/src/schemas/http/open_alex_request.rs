@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -8,7 +8,7 @@ use serde_json::{Map, Value};
 pub const OPENALEX_API: &str = "https://api.openalex.org/";
 
 /// Struct for API requests
-/// 
+///
 /// # Notes
 /// - see paging documentation <https://docs.openalex.org/how-to-use-the-api/get-lists-of-entities/paging>
 /// - see filters documentation <https://docs.openalex.org/how-to-use-the-api/get-lists-of-entities/filter-entity-lists>
@@ -35,9 +35,9 @@ pub struct OpenAlexRequest {
 
 impl OpenAlexRequest {
     /// OpenAlex GET Request Query
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```bash
     /// https://api.openalex.org/find/works?query=machine%20learning%20for%20drug%20discovery&api_key=YOUR_KEY
     /// ```
@@ -56,7 +56,11 @@ impl OpenAlexRequest {
             query_list.push(query);
         }
         if let Some(filter) = self.filter.as_ref() {
-            let query = filter.iter().map(|(k,v)| format!("{k}:{v}")).collect::<Vec<_>>().join(",");
+            let query = filter
+                .iter()
+                .map(|(k, v)| format!("{k}:{v}"))
+                .collect::<Vec<_>>()
+                .join(",");
             let query = format!("filter={query}");
             query_list.push(query);
         }
@@ -69,7 +73,11 @@ impl OpenAlexRequest {
             query_list.push(query);
         }
         if let Some(sort) = self.sort.as_ref() {
-            let query = sort.iter().map(|(k,v)| format!("{k}:{v}")).collect::<Vec<_>>().join(",");
+            let query = sort
+                .iter()
+                .map(|(k, v)| format!("{k}:{v}"))
+                .collect::<Vec<_>>()
+                .join(",");
             let query = format!("sort={query}");
             query_list.push(query);
         }
@@ -87,7 +95,9 @@ impl OpenAlexRequest {
             query_list.push(query);
         }
         if query_list.is_empty() {
-            Err(anyhow!("Missing query parameters for OpenAlex GET request."))
+            Err(anyhow!(
+                "Missing query parameters for OpenAlex GET request."
+            ))
         } else {
             let query_str = query_list.join("&");
             Ok(query_str)

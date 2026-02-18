@@ -1,7 +1,12 @@
 use std::sync::Arc;
 
+use crate::{
+    AvailableSchemaTrait, MappableTrait, create_schema_from_fields,
+    schemas::http::open_alex_common::{
+        CountryCode, CountsByYear, Currency, SourceType, SummaryStats,
+    },
+};
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use crate::{AvailableSchemaTrait, MappableTrait, create_schema_from_fields, schemas::http::open_alex_common::{CountryCode, CountsByYear, Currency, SourceType, SummaryStats}};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -37,7 +42,10 @@ pub struct Source {
 }
 
 impl Source {
-    pub fn to_tables(self) -> (SourceTable,
+    pub fn to_tables(
+        self,
+    ) -> (
+        SourceTable,
         Vec<SourceAlternativeTitlesTable>,
         Vec<SourceApcPriceTable>,
         Vec<SourceCountsByYearTable>,
@@ -48,25 +56,67 @@ impl Source {
         Option<SourceSummaryStatsTable>,
         Vec<SourceConceptTable>,
     ) {
-        let source_alternative_titles = self.alternate_titles.unwrap_or_default().into_iter()
-            .map(|t| SourceAlternativeTitlesTable { source_id: self.id.clone(), display_name: t})
+        let source_alternative_titles = self
+            .alternate_titles
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| SourceAlternativeTitlesTable {
+                source_id: self.id.clone(),
+                display_name: t,
+            })
             .collect::<Vec<_>>();
-        let source_apc_price = self.apc_prices.unwrap_or_default().into_iter().map(|t| t.to_source_apc_price_table(&self.id)).collect::<Vec<_>>();
-        let source_counts_by_year = self.counts_by_year.unwrap_or_default().into_iter().map(|t| t.to_source_counts_by_year(&self.id)).collect::<Vec<_>>();
-        let source_lineage = self.host_organization_lineage.unwrap_or_default().into_iter()
-            .filter_map(|t| if let Some(t) = t {
-                Some(SourceLineageTable { source_id: self.id.clone(), lineage_id: t})
-            } else {
-                None
+        let source_apc_price = self
+            .apc_prices
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| t.to_source_apc_price_table(&self.id))
+            .collect::<Vec<_>>();
+        let source_counts_by_year = self
+            .counts_by_year
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| t.to_source_counts_by_year(&self.id))
+            .collect::<Vec<_>>();
+        let source_lineage = self
+            .host_organization_lineage
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|t| {
+                if let Some(t) = t {
+                    Some(SourceLineageTable {
+                        source_id: self.id.clone(),
+                        lineage_id: t,
+                    })
+                } else {
+                    None
+                }
             })
             .collect::<Vec<_>>();
         let source_ids = self.ids.map(|t| t.to_source_ids_table(&self.id));
-        let source_issn = self.issn.unwrap_or_default().into_iter()
-            .map(|t| SourceIssnTable { source_id: self.id.clone(), issn: t})
+        let source_issn = self
+            .issn
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| SourceIssnTable {
+                source_id: self.id.clone(),
+                issn: t,
+            })
             .collect::<Vec<_>>();
-        let source_society = self.societies.unwrap_or_default().into_iter().map(|t| t.to_source_society_table(&self.id)).collect::<Vec<_>>();
-        let source_summary_stats = self.summary_stats.map(|t| t.to_source_summary_stats_table(&self.id));
-        let source_concept = self.x_concepts.unwrap_or_default().into_iter().map(|t| t.to_source_concept_table(&self.id)).collect::<Vec<_>>();
+        let source_society = self
+            .societies
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| t.to_source_society_table(&self.id))
+            .collect::<Vec<_>>();
+        let source_summary_stats = self
+            .summary_stats
+            .map(|t| t.to_source_summary_stats_table(&self.id));
+        let source_concept = self
+            .x_concepts
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| t.to_source_concept_table(&self.id))
+            .collect::<Vec<_>>();
         let source = SourceTable {
             source_id: self.id,
             display_name: self.display_name.unwrap_or_default(),
@@ -84,9 +134,20 @@ impl Source {
             issn_l: self.issn_l.unwrap_or_default(),
             type_: self.type_.unwrap_or_default(),
             works_api_url: self.works_api_url.unwrap_or_default(),
-            works_count: self.works_count.unwrap_or_default()
+            works_count: self.works_count.unwrap_or_default(),
         };
-        (source, source_alternative_titles, source_apc_price, source_counts_by_year, source_lineage, source_ids, source_issn, source_society, source_summary_stats, source_concept)
+        (
+            source,
+            source_alternative_titles,
+            source_apc_price,
+            source_counts_by_year,
+            source_lineage,
+            source_ids,
+            source_issn,
+            source_society,
+            source_summary_stats,
+            source_concept,
+        )
     }
 }
 
@@ -113,31 +174,36 @@ pub struct SourceTable {
 
 impl SourceTable {
     fn to_fields() -> Fields {
-        let field_names = ["source_id", 
-            "display_name", 
-            "abbreviated_title", 
-            "country_code", 
-            "created_date", 
-            "updated_date", 
-            "homepage_url", 
-            "host_organization", 
-            "host_organization_name", 
-            "type_"];
+        let field_names = [
+            "source_id",
+            "display_name",
+            "abbreviated_title",
+            "country_code",
+            "created_date",
+            "updated_date",
+            "homepage_url",
+            "host_organization",
+            "host_organization_name",
+            "type_",
+        ];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = ["cited_by_count", 
-            "works_count"];
-        fields_vec.extend(field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::UInt32, false))
-            .collect::<Vec<_>>());
+        let field_names = ["cited_by_count", "works_count"];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::UInt32, false))
+                .collect::<Vec<_>>(),
+        );
         let field_names = ["is_core", "is_in_doaj", "is_oa"];
-        fields_vec.extend(field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::Boolean, false))
-            .collect::<Vec<_>>());
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Boolean, false))
+                .collect::<Vec<_>>(),
+        );
         Fields::from(fields_vec)
     }
 }
@@ -165,7 +231,7 @@ impl ApcPrice {
         SourceApcPriceTable {
             source_id: source_id.to_string(),
             price: self.price.unwrap_or_default(),
-            currency: self.currency.unwrap_or_default()
+            currency: self.currency.unwrap_or_default(),
         }
     }
 }
@@ -179,15 +245,12 @@ pub struct SourceApcPriceTable {
 
 impl SourceApcPriceTable {
     fn to_fields() -> Fields {
-        let field_names = ["work_id", 
-            "Currency"];
+        let field_names = ["work_id", "Currency"];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = [
-            "price",
-        ];
+        let field_names = ["price"];
         fields_vec.extend(
             field_names
                 .iter()
@@ -218,7 +281,11 @@ pub struct Society {
 
 impl Society {
     pub fn to_source_society_table(self, source_id: &str) -> SourceSocietyTable {
-        SourceSocietyTable { source_id: source_id.to_string(), url: self.url.unwrap_or_default(), organization: self.organization.unwrap_or_default() }
+        SourceSocietyTable {
+            source_id: source_id.to_string(),
+            url: self.url.unwrap_or_default(),
+            organization: self.organization.unwrap_or_default(),
+        }
     }
 }
 
@@ -264,13 +331,14 @@ pub struct SourceIds {
 
 impl SourceIds {
     pub fn to_source_ids_table(self, source_id: &str) -> SourceIdsTable {
-        SourceIdsTable { source_id: source_id.to_string(), 
-            fatcat: self.fatcat.unwrap_or_default(), 
-            issn: self.issn.unwrap_or_default(), 
-            issn_l: self.issn_l.unwrap_or_default(), 
-            mag: self.mag.unwrap_or_default(), 
-            openalex: self.openalex.unwrap_or_default(), 
-            wikidata: self.wikidata.unwrap_or_default()
+        SourceIdsTable {
+            source_id: source_id.to_string(),
+            fatcat: self.fatcat.unwrap_or_default(),
+            issn: self.issn.unwrap_or_default(),
+            issn_l: self.issn_l.unwrap_or_default(),
+            mag: self.mag.unwrap_or_default(),
+            openalex: self.openalex.unwrap_or_default(),
+            wikidata: self.wikidata.unwrap_or_default(),
         }
     }
 }
@@ -288,7 +356,14 @@ pub struct SourceIdsTable {
 
 impl SourceIdsTable {
     fn to_fields() -> Fields {
-        let field_names = ["source_id", "fatcat", "issn_l", "mag", "openalex", "wikidata"];
+        let field_names = [
+            "source_id",
+            "fatcat",
+            "issn_l",
+            "mag",
+            "openalex",
+            "wikidata",
+        ];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -368,10 +443,7 @@ impl SourceSummaryStatsTable {
                 .map(|f| Field::new(*f, DataType::Float64, false))
                 .collect::<Vec<_>>(),
         );
-        let field_names = [
-            "h_index",
-            "i10_index",
-        ];
+        let field_names = ["h_index", "i10_index"];
         fields_vec.extend(
             field_names
                 .iter()
@@ -408,10 +480,7 @@ impl SourceCountsByYearTable {
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = [
-            "year",
-            "cited_by_count",
-        ];
+        let field_names = ["year", "cited_by_count"];
         fields_vec.extend(
             field_names
                 .iter()
@@ -442,10 +511,10 @@ pub struct SourceConcept {
 
 impl SourceConcept {
     pub fn to_source_concept_table(self, source_id: &str) -> SourceConceptTable {
-        SourceConceptTable { 
-            source_id: source_id.to_string(), 
-            concept_id: self.id.unwrap_or_default(), 
-            score: self.score.unwrap_or_default() 
+        SourceConceptTable {
+            source_id: source_id.to_string(),
+            concept_id: self.id.unwrap_or_default(),
+            score: self.score.unwrap_or_default(),
         }
     }
 }

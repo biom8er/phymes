@@ -3289,8 +3289,11 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<u8>(&s, column_name)
-                                            .unwrap_or_default();
+                                        let s_vec = Table::get_array_as_vec_primitive::<u8>(
+                                            &s,
+                                            column_name,
+                                        )
+                                        .unwrap_or_default();
                                         template
                                             .apply_template(
                                                 &json!({column_name.to_string(): s_vec}),
@@ -3310,8 +3313,11 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<u32>(&s, column_name)
-                                            .unwrap_or_default();
+                                        let s_vec = Table::get_array_as_vec_primitive::<u32>(
+                                            &s,
+                                            column_name,
+                                        )
+                                        .unwrap_or_default();
                                         template
                                             .apply_template(
                                                 &json!({column_name.to_string(): s_vec}),
@@ -3331,8 +3337,11 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<i64>(&s, column_name)
-                                            .unwrap_or_default();
+                                        let s_vec = Table::get_array_as_vec_primitive::<i64>(
+                                            &s,
+                                            column_name,
+                                        )
+                                        .unwrap_or_default();
                                         template
                                             .apply_template(
                                                 &json!({column_name.to_string(): s_vec}),
@@ -3352,8 +3361,11 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<f32>(&s, column_name)
-                                            .unwrap_or_default();
+                                        let s_vec = Table::get_array_as_vec_primitive::<f32>(
+                                            &s,
+                                            column_name,
+                                        )
+                                        .unwrap_or_default();
                                         template
                                             .apply_template(
                                                 &json!({column_name.to_string(): s_vec}),
@@ -3373,8 +3385,11 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<f64>(&s, column_name)
-                                            .unwrap_or_default();
+                                        let s_vec = Table::get_array_as_vec_primitive::<f64>(
+                                            &s,
+                                            column_name,
+                                        )
+                                        .unwrap_or_default();
                                         template
                                             .apply_template(
                                                 &json!({column_name.to_string(): s_vec}),
@@ -3394,8 +3409,11 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_nonprimitive::<String>(&s, column_name)
-                                            .unwrap_or_default();
+                                        let s_vec = Table::get_array_as_vec_nonprimitive::<String>(
+                                            &s,
+                                            column_name,
+                                        )
+                                        .unwrap_or_default();
                                         template
                                             .apply_template(
                                                 &json!({column_name.to_string(): s_vec}),
@@ -3422,8 +3440,11 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<u8>(&s, column_name)
-                                            .unwrap_or_default();
+                                        let s_vec = Table::get_array_as_vec_primitive::<u8>(
+                                            &s,
+                                            column_name,
+                                        )
+                                        .unwrap_or_default();
                                         template
                                             .apply_template(
                                                 &json!({column_name.to_string(): s_vec}),
@@ -3443,8 +3464,11 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<u32>(&s, column_name)
-                                            .unwrap_or_default();
+                                        let s_vec = Table::get_array_as_vec_primitive::<u32>(
+                                            &s,
+                                            column_name,
+                                        )
+                                        .unwrap_or_default();
                                         template
                                             .apply_template(
                                                 &json!({column_name.to_string(): s_vec}),
@@ -3464,8 +3488,11 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<i64>(&s, column_name)
-                                            .unwrap_or_default();
+                                        let s_vec = Table::get_array_as_vec_primitive::<i64>(
+                                            &s,
+                                            column_name,
+                                        )
+                                        .unwrap_or_default();
                                         template
                                             .apply_template(
                                                 &json!({column_name.to_string(): s_vec}),
@@ -3485,8 +3512,11 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<f32>(&s, column_name)
-                                            .unwrap_or_default();
+                                        let s_vec = Table::get_array_as_vec_primitive::<f32>(
+                                            &s,
+                                            column_name,
+                                        )
+                                        .unwrap_or_default();
                                         template
                                             .apply_template(
                                                 &json!({column_name.to_string(): s_vec}),
@@ -3506,8 +3536,11 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<f64>(&s, column_name)
-                                            .unwrap_or_default();
+                                        let s_vec = Table::get_array_as_vec_primitive::<f64>(
+                                            &s,
+                                            column_name,
+                                        )
+                                        .unwrap_or_default();
                                         template
                                             .apply_template(
                                                 &json!({column_name.to_string(): s_vec}),
@@ -3527,8 +3560,11 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_nonprimitive::<String>(&s, column_name)
-                                            .unwrap_or_default();
+                                        let s_vec = Table::get_array_as_vec_nonprimitive::<String>(
+                                            &s,
+                                            column_name,
+                                        )
+                                        .unwrap_or_default();
                                         template
                                             .apply_template(
                                                 &json!({column_name.to_string(): s_vec}),

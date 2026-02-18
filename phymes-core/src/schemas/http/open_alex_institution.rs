@@ -1,7 +1,16 @@
 use std::sync::Arc;
 
+use crate::{
+    AvailableSchemaTrait, MappableTrait, create_schema_from_fields,
+    schemas::http::{
+        AuthorLastKnownInstitutionsTable, FunderRoleTable, PublisherRoleTable,
+        open_alex_common::{
+            CountryCode, CountsByYear, InstitutionRelationship, InstitutionType, RoleType,
+            SummaryStats,
+        },
+    },
+};
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use crate::{AvailableSchemaTrait, MappableTrait, create_schema_from_fields, schemas::http::{AuthorLastKnownInstitutionsTable, FunderRoleTable, PublisherRoleTable, open_alex_common::{CountryCode, CountsByYear, InstitutionRelationship, InstitutionType, RoleType, SummaryStats}}};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -35,13 +44,19 @@ pub struct Institution {
 }
 
 impl Institution {
-    pub fn to_author_last_known_institutions_table(self, author_id: &str) -> AuthorLastKnownInstitutionsTable {
+    pub fn to_author_last_known_institutions_table(
+        self,
+        author_id: &str,
+    ) -> AuthorLastKnownInstitutionsTable {
         AuthorLastKnownInstitutionsTable {
             author_id: author_id.to_string(),
-            institution_id: self.id
+            institution_id: self.id,
         }
     }
-    pub fn to_tables(self) -> (InstitutionTable,
+    pub fn to_tables(
+        self,
+    ) -> (
+        InstitutionTable,
         Vec<InstitutionDisplayNameAcronymsTable>,
         Vec<InstitutionDisplayNameAlternativesTable>,
         Option<InstitutionGeoTable>,
@@ -55,33 +70,74 @@ impl Institution {
         Vec<InstitutionConceptTable>,
         Vec<InstitutionLineageTable>,
     ) {
-        let institution_display_name_acronyms = self.display_name_acronyms.unwrap_or_default().into_iter()
-            .map(|t| InstitutionDisplayNameAcronymsTable { institution_id: self.id.clone(), display_name: t})
+        let institution_display_name_acronyms = self
+            .display_name_acronyms
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| InstitutionDisplayNameAcronymsTable {
+                institution_id: self.id.clone(),
+                display_name: t,
+            })
             .collect::<Vec<_>>();
-        let institution_display_name_alternatives = self.display_name_alternatives.unwrap_or_default().into_iter()
-            .map(|t| InstitutionDisplayNameAlternativesTable { institution_id: self.id.clone(), display_name: t})
+        let institution_display_name_alternatives = self
+            .display_name_alternatives
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| InstitutionDisplayNameAlternativesTable {
+                institution_id: self.id.clone(),
+                display_name: t,
+            })
             .collect::<Vec<_>>();
-        let institution_geo = self.geo.map(|t| t.to_institution_geo_table(&self.id.clone()));
-        let institution_ids = self.ids.map(|t| t.to_institution_ids_table(&self.id.clone()));
-        let institution_associated_institution = self.associated_institutions.unwrap_or_default().into_iter()
+        let institution_geo = self
+            .geo
+            .map(|t| t.to_institution_geo_table(&self.id.clone()));
+        let institution_ids = self
+            .ids
+            .map(|t| t.to_institution_ids_table(&self.id.clone()));
+        let institution_associated_institution = self
+            .associated_institutions
+            .unwrap_or_default()
+            .into_iter()
             .map(|t| t.to_institution_associated_institution_table(&self.id))
             .collect::<Vec<_>>();
-        let institution_repository = self.repositories.unwrap_or_default().into_iter()
+        let institution_repository = self
+            .repositories
+            .unwrap_or_default()
+            .into_iter()
             .map(|t| t.to_institution_repository_table(&self.id))
             .collect::<Vec<_>>();
-        let institution_role = self.roles.unwrap_or_default().into_iter()
+        let institution_role = self
+            .roles
+            .unwrap_or_default()
+            .into_iter()
             .map(|t| t.to_institution_role_table(&self.id))
             .collect::<Vec<_>>();
-        let institution_international_names = self.international.map(|t| t.to_insitution_international_names_table(&self.id.clone()));
-        let institution_summary_stats = self.summary_stats.map(|t| t.to_institution_summary_stats_table(&self.id));
-        let institution_counts_by_year = self.counts_by_year.unwrap_or_default().into_iter()
+        let institution_international_names = self
+            .international
+            .map(|t| t.to_insitution_international_names_table(&self.id.clone()));
+        let institution_summary_stats = self
+            .summary_stats
+            .map(|t| t.to_institution_summary_stats_table(&self.id));
+        let institution_counts_by_year = self
+            .counts_by_year
+            .unwrap_or_default()
+            .into_iter()
             .map(|t| t.to_institution_counts_by_year(&self.id))
             .collect::<Vec<_>>();
-        let institution_concepts = self.x_concepts.unwrap_or_default().into_iter()
+        let institution_concepts = self
+            .x_concepts
+            .unwrap_or_default()
+            .into_iter()
             .map(|t| t.to_institution_concept_table(&self.id))
             .collect::<Vec<_>>();
-        let institution_lineage = self.lineage.unwrap_or_default().into_iter()
-            .map(|t| InstitutionLineageTable { institution_id: self.id.clone(), lineage_id: t})
+        let institution_lineage = self
+            .lineage
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| InstitutionLineageTable {
+                institution_id: self.id.clone(),
+                lineage_id: t,
+            })
             .collect::<Vec<_>>();
         let institution = InstitutionTable {
             institution_id: self.id,
@@ -97,10 +153,23 @@ impl Institution {
             image_url: self.image_url.unwrap_or_default(),
             image_thumbnail_url: self.image_thumbnail_url.unwrap_or_default(),
             is_super_system: self.is_super_system.unwrap_or_default(),
-            works_api_url: self.works_api_url.unwrap_or_default()
+            works_api_url: self.works_api_url.unwrap_or_default(),
         };
-        (institution, institution_display_name_acronyms, institution_display_name_alternatives, institution_geo, institution_ids, institution_associated_institution, institution_repository, institution_role,
-        institution_international_names, institution_summary_stats, institution_counts_by_year, institution_concepts, institution_lineage)
+        (
+            institution,
+            institution_display_name_acronyms,
+            institution_display_name_alternatives,
+            institution_geo,
+            institution_ids,
+            institution_associated_institution,
+            institution_repository,
+            institution_role,
+            institution_international_names,
+            institution_summary_stats,
+            institution_counts_by_year,
+            institution_concepts,
+            institution_lineage,
+        )
     }
 }
 
@@ -124,32 +193,37 @@ pub struct InstitutionTable {
 
 impl InstitutionTable {
     fn to_fields() -> Fields {
-        let field_names = ["institution_id", 
-            "ror", 
-            "display_name", 
-            "country_code", 
-            "type_", 
-            "created_date", 
-            "updated_date", 
-            "homepage_url", 
-            "image_url", 
-            "image_thumbnail_url", 
-            "works_api_url", ];
+        let field_names = [
+            "institution_id",
+            "ror",
+            "display_name",
+            "country_code",
+            "type_",
+            "created_date",
+            "updated_date",
+            "homepage_url",
+            "image_url",
+            "image_thumbnail_url",
+            "works_api_url",
+        ];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = ["cited_by_count", 
-            "works_count"];
-        fields_vec.extend(field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::UInt32, false))
-            .collect::<Vec<_>>());
+        let field_names = ["cited_by_count", "works_count"];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::UInt32, false))
+                .collect::<Vec<_>>(),
+        );
         let field_names = ["is_super_system"];
-        fields_vec.extend(field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::Boolean, false))
-            .collect::<Vec<_>>());
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Boolean, false))
+                .collect::<Vec<_>>(),
+        );
         Fields::from(fields_vec)
     }
 }
@@ -264,14 +338,17 @@ pub struct AssociatedInstitution {
 }
 
 impl AssociatedInstitution {
-    pub fn to_institution_associated_institution_table(self, institution_id: &str) -> InstitutionAssociatedInstitutionTable {
-        InstitutionAssociatedInstitutionTable { 
-            institution_id: institution_id.to_string(), 
-            ror: self.ror.unwrap_or_default(), 
-            display_name: self.display_name.unwrap_or_default(), 
-            country_code: self.country_code.unwrap_or_default(), 
-            type_: self.type_.unwrap_or_default(), 
-            relationship: self.relationship.unwrap_or_default()
+    pub fn to_institution_associated_institution_table(
+        self,
+        institution_id: &str,
+    ) -> InstitutionAssociatedInstitutionTable {
+        InstitutionAssociatedInstitutionTable {
+            institution_id: institution_id.to_string(),
+            ror: self.ror.unwrap_or_default(),
+            display_name: self.display_name.unwrap_or_default(),
+            country_code: self.country_code.unwrap_or_default(),
+            type_: self.type_.unwrap_or_default(),
+            relationship: self.relationship.unwrap_or_default(),
         }
     }
 }
@@ -288,7 +365,14 @@ pub struct InstitutionAssociatedInstitutionTable {
 
 impl InstitutionAssociatedInstitutionTable {
     fn to_fields() -> Fields {
-        let field_names = ["institution_id", "ror", "display_name", "country_code", "type_", "relationship"];
+        let field_names = [
+            "institution_id",
+            "ror",
+            "display_name",
+            "country_code",
+            "type_",
+            "relationship",
+        ];
         let fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -322,15 +406,15 @@ pub struct Geo {
 
 impl Geo {
     pub fn to_institution_geo_table(self, institution_id: &str) -> InstitutionGeoTable {
-        InstitutionGeoTable { 
-            institution_id: institution_id.to_string(), 
-            city: self.city.unwrap_or_default(), 
-            geonames_city_id: self.geonames_city_id.unwrap_or_default(), 
-            region: self.region.unwrap_or_default(), 
-            country_code: self.country_code.unwrap_or_default(), 
-            country: self.country.unwrap_or_default(), 
-            latitude: self.latitude.unwrap_or_default(), 
-            longitude: self.longitude.unwrap_or_default()
+        InstitutionGeoTable {
+            institution_id: institution_id.to_string(),
+            city: self.city.unwrap_or_default(),
+            geonames_city_id: self.geonames_city_id.unwrap_or_default(),
+            region: self.region.unwrap_or_default(),
+            country_code: self.country_code.unwrap_or_default(),
+            country: self.country.unwrap_or_default(),
+            latitude: self.latitude.unwrap_or_default(),
+            longitude: self.longitude.unwrap_or_default(),
         }
     }
 }
@@ -349,7 +433,14 @@ pub struct InstitutionGeoTable {
 
 impl InstitutionGeoTable {
     fn to_fields() -> Fields {
-        let field_names = ["institution_id", "city", "geonames_city_id", "region", "country_code", "country"];
+        let field_names = [
+            "institution_id",
+            "city",
+            "geonames_city_id",
+            "region",
+            "country_code",
+            "country",
+        ];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -389,14 +480,14 @@ pub struct InstitutionIds {
 
 impl InstitutionIds {
     pub fn to_institution_ids_table(self, institution_id: &str) -> InstitutionIdsTable {
-        InstitutionIdsTable { 
-            institution_id: institution_id.to_string(), 
-            openalex: self.openalex.unwrap_or_default(), 
-            ror: self.ror.unwrap_or_default(), 
-            grid: self.grid.unwrap_or_default(), 
-            mag: self.mag.unwrap_or_default(), 
-            wikipedia: self.wikipedia.unwrap_or_default(), 
-            wikidata: self.wikidata.unwrap_or_default()
+        InstitutionIdsTable {
+            institution_id: institution_id.to_string(),
+            openalex: self.openalex.unwrap_or_default(),
+            ror: self.ror.unwrap_or_default(),
+            grid: self.grid.unwrap_or_default(),
+            mag: self.mag.unwrap_or_default(),
+            wikipedia: self.wikipedia.unwrap_or_default(),
+            wikidata: self.wikidata.unwrap_or_default(),
         }
     }
 }
@@ -414,7 +505,15 @@ pub struct InstitutionIdsTable {
 
 impl InstitutionIdsTable {
     fn to_fields() -> Fields {
-        let field_names = ["institution_id", "openalex", "ror", "grid", "mag", "wikipedia", "wikidata"];
+        let field_names = [
+            "institution_id",
+            "openalex",
+            "ror",
+            "grid",
+            "mag",
+            "wikipedia",
+            "wikidata",
+        ];
         let fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -445,13 +544,16 @@ pub struct Repository {
 }
 
 impl Repository {
-    pub fn to_institution_repository_table(self, institution_id: &str) -> InstitutionRepositoryTable {
-        InstitutionRepositoryTable { 
-            institution_id: institution_id.to_string(), 
-            display_name: self.display_name.unwrap_or_default(), 
-            host_organization: self.host_organization.unwrap_or_default(), 
-            host_organization_name: self.host_organization_name.unwrap_or_default(), 
-            host_organization_lineage: self.host_organization_lineage.unwrap_or_default()
+    pub fn to_institution_repository_table(
+        self,
+        institution_id: &str,
+    ) -> InstitutionRepositoryTable {
+        InstitutionRepositoryTable {
+            institution_id: institution_id.to_string(),
+            display_name: self.display_name.unwrap_or_default(),
+            host_organization: self.host_organization.unwrap_or_default(),
+            host_organization_name: self.host_organization_name.unwrap_or_default(),
+            host_organization_lineage: self.host_organization_lineage.unwrap_or_default(),
         }
     }
 }
@@ -467,7 +569,12 @@ pub struct InstitutionRepositoryTable {
 
 impl InstitutionRepositoryTable {
     fn to_fields() -> Fields {
-        let field_names = ["institution_id", "display_name", "host_organization", "host_organization_name"];
+        let field_names = [
+            "institution_id",
+            "display_name",
+            "host_organization",
+            "host_organization_name",
+        ];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -505,13 +612,28 @@ pub struct Role {
 
 impl Role {
     pub fn to_institution_role_table(self, institution_id: &str) -> InstitutionRoleTable {
-        InstitutionRoleTable { institution_id: institution_id.to_string(), role: self.role, id: self.id, works_count: self.works_count }
+        InstitutionRoleTable {
+            institution_id: institution_id.to_string(),
+            role: self.role,
+            id: self.id,
+            works_count: self.works_count,
+        }
     }
-    pub fn to_publisher_role_table(self, publisher_id:&str) -> PublisherRoleTable {
-        PublisherRoleTable { publisher_id: publisher_id.to_string(), role: self.role, id: self.id, works_count: self.works_count }
+    pub fn to_publisher_role_table(self, publisher_id: &str) -> PublisherRoleTable {
+        PublisherRoleTable {
+            publisher_id: publisher_id.to_string(),
+            role: self.role,
+            id: self.id,
+            works_count: self.works_count,
+        }
     }
-    pub fn to_funder_role_table(self, funder_id:&str) -> FunderRoleTable {
-        FunderRoleTable { funder_id: funder_id.to_string(), role: self.role, id: self.id, works_count: self.works_count }
+    pub fn to_funder_role_table(self, funder_id: &str) -> FunderRoleTable {
+        FunderRoleTable {
+            funder_id: funder_id.to_string(),
+            role: self.role,
+            id: self.id,
+            works_count: self.works_count,
+        }
     }
 }
 
@@ -559,13 +681,19 @@ pub struct InternationalNames {
 }
 
 impl InternationalNames {
-    pub fn to_insitution_international_names_table(self, institution_id: &str) -> InstitutionInternationalNamesTable {
+    pub fn to_insitution_international_names_table(
+        self,
+        institution_id: &str,
+    ) -> InstitutionInternationalNamesTable {
         let display_name = if let Some(display_name) = self.display_name {
             serde_json::to_string(&display_name).unwrap()
         } else {
             String::new()
         };
-        InstitutionInternationalNamesTable { institution_id: institution_id.to_string(), display_name }
+        InstitutionInternationalNamesTable {
+            institution_id: institution_id.to_string(),
+            display_name,
+        }
     }
 }
 
@@ -620,10 +748,7 @@ impl InstitutionSummaryStatsTable {
                 .map(|f| Field::new(*f, DataType::Float64, false))
                 .collect::<Vec<_>>(),
         );
-        let field_names = [
-            "h_index",
-            "i10_index",
-        ];
+        let field_names = ["h_index", "i10_index"];
         fields_vec.extend(
             field_names
                 .iter()
@@ -660,10 +785,7 @@ impl InstitutionCountsByYearTable {
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = [
-            "year",
-            "cited_by_count",
-        ];
+        let field_names = ["year", "cited_by_count"];
         fields_vec.extend(
             field_names
                 .iter()
@@ -694,10 +816,10 @@ pub struct InstitutionConcept {
 
 impl InstitutionConcept {
     pub fn to_institution_concept_table(self, institution_id: &str) -> InstitutionConceptTable {
-        InstitutionConceptTable { 
-            institution_id: institution_id.to_string(), 
-            concept_id: self.id.unwrap_or_default(), 
-            score: self.score.unwrap_or_default() 
+        InstitutionConceptTable {
+            institution_id: institution_id.to_string(),
+            concept_id: self.id.unwrap_or_default(),
+            score: self.score.unwrap_or_default(),
         }
     }
 }

@@ -87,7 +87,7 @@ impl<'a> GenerateTextSession<'a> {
 	parse_generated_text_p-publish@{shape: fork}
 	parse_generated_text_p-subscribe@{shape: diamond, label: All}
 	%% ------------------------------------------------------------------------------"#
-	}
+    }
 
     /// Return the Mermaid.js ER diagram representation of the session
     pub fn as_mermaid_erdiagram(&self) -> &str {
@@ -178,7 +178,7 @@ impl<'a> GenerateTextSession<'a> {
         Utf8 weights_config_file "/home/dmccloskey/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/config.json"
         Utf8 weights_file "/home/dmccloskey/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-1.5b-instruct-q4_k_m.gguf"
     }"#
-	}
+    }
 }
 
 #[cfg(test)]
@@ -189,13 +189,19 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, create_documents_batch, create_documents_embeddings_batch, create_query_embeddings_batch, create_tools_record_batch
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
+        ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, TableBuilder,
+        TableBuilderTrait, TablePublication, TableTrait, create_documents_batch,
+        create_documents_embeddings_batch, create_query_embeddings_batch,
+        create_tools_record_batch,
     };
     use phymes_data::{AvailableCandleOperators, ToolTrait};
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, create_message_map
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
+        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
+        create_message_map,
     };
 
     use super::*;
@@ -208,16 +214,20 @@ mod tests {
             generate_text_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(generate_text_session.as_mermaid_erdiagram(), false, true)?
+        .with_state_from_mermaid_erdiagram(
+            generate_text_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
         .with_name(generate_text_session.session_context_name)
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
-		.add_next_supersteps()?
-		.build_with_tables()?;
+        .add_next_supersteps()?
+        .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
-		// User message
+        // User message
         let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
             .append_new_user_query_str("Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.", "user")?
             .build()?;
@@ -230,7 +240,7 @@ mod tests {
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
             .build()?;
-		
+
         let message_map = create_message_map(vec![chat_message]);
 
         // Run the session
@@ -255,67 +265,85 @@ mod tests {
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
                 .get_states()
-                .get(AvailableInterfaceSubjects::AssistantMessages.to_string().as_str())
+                .get(
+                    AvailableInterfaceSubjects::AssistantMessages
+                        .to_string()
+                        .as_str(),
+                )
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 1);
+            assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("role");
             assert_eq!(column.first().unwrap(), &"assistant");
             let column = table_reading.get_column_as_vec_str("content");
-			let assistant_content = column.first().unwrap();
+            let assistant_content = column.first().unwrap();
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-			for t in column {
-				assert!(t > 0);
-			}
+            for t in column {
+                assert!(t > 0);
+            }
             let table_reading = session_reading
                 .get_states()
-                .get(AvailableInterfaceSubjects::ToolMessages.to_string().as_str())
+                .get(
+                    AvailableInterfaceSubjects::ToolMessages
+                        .to_string()
+                        .as_str(),
+                )
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 0);
+            assert_eq!(table_reading.count_rows(), 0);
             let table_reading = session_reading
                 .get_states()
-                .get(AvailableInterfaceSubjects::AggregatedMessages.to_string().as_str())
+                .get(
+                    AvailableInterfaceSubjects::AggregatedMessages
+                        .to_string()
+                        .as_str(),
+                )
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 2);
+            assert_eq!(table_reading.count_rows(), 2);
             let column = table_reading.get_column_as_vec_str("role");
             assert_eq!(column.first().unwrap(), &"user");
             assert_eq!(column.last().unwrap(), &"assistant");
             let column = table_reading.get_column_as_vec_str("content");
-            assert_eq!(column.first().unwrap(), &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.");
+            assert_eq!(
+                column.first().unwrap(),
+                &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
+            );
             assert_eq!(column.last().unwrap(), assistant_content);
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-			for t in column {
-				assert!(t > 0);
-			}
+            for t in column {
+                assert!(t > 0);
+            }
             let table_reading = session_reading
                 .get_states()
                 .get("aggregate_messages_generate_text_s")
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 1);
+            assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("role");
             assert_eq!(column.first().unwrap(), &"user");
             let column = table_reading.get_column_as_vec_str("content");
-            assert_eq!(column.first().unwrap(), &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.");
+            assert_eq!(
+                column.first().unwrap(),
+                &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
+            );
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-			for t in column {
-				assert!(t > 0);
-			}
+            for t in column {
+                assert!(t > 0);
+            }
             let table_reading = session_reading
                 .get_states()
                 .get("generate_text_inference_s")
                 .unwrap()
                 .read();
-			assert!(table_reading.count_rows() > 1);
+            assert!(table_reading.count_rows() > 1);
             let column = table_reading.get_column_as_vec_str("role");
             assert_eq!(column.first().unwrap(), &"assistant");
             assert_eq!(column.last().unwrap(), &"assistant");
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-			for t in column {
-				assert!(t > 0);
-			}
+            for t in column {
+                assert!(t > 0);
+            }
         }
         Ok(())
     }
@@ -328,26 +356,42 @@ mod tests {
             generate_text_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(generate_text_session.as_mermaid_erdiagram(), false, true)?
+        .with_state_from_mermaid_erdiagram(
+            generate_text_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
         .with_name(generate_text_session.session_context_name)
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
-		.add_next_supersteps()?
-		.build_with_tables()?;
+        .add_next_supersteps()?
+        .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
-		// Add the target tool subjects to the session for testing
-		let _ = session_ctx_arc.write().state.insert(
-			AvailableCandleOperators::Sort.to_string(), 
-			Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(Some(AvailableCandleOperators::Sort.to_string().as_str()), None)?))
-		);
-		let _ = session_ctx_arc.write().state.insert(
-			AvailableCandleOperators::HumanInTheLoop.to_string(), 
-			Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(Some(AvailableCandleOperators::HumanInTheLoop.to_string().as_str()), None)?))
-		);
+        // Add the target tool subjects to the session for testing
+        let _ = session_ctx_arc.write().state.insert(
+            AvailableCandleOperators::Sort.to_string(),
+            Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(
+                Some(AvailableCandleOperators::Sort.to_string().as_str()),
+                None,
+            )?)),
+        );
+        let _ = session_ctx_arc.write().state.insert(
+            AvailableCandleOperators::HumanInTheLoop.to_string(),
+            Arc::new(RwLock::new(
+                AvailableSubjects::Bytes.to_table(
+                    Some(
+                        AvailableCandleOperators::HumanInTheLoop
+                            .to_string()
+                            .as_str(),
+                    ),
+                    None,
+                )?,
+            )),
+        );
 
-		// Tools data
+        // Tools data
         let tool_ids = vec![
             AvailableCandleOperators::Sort.to_string(),
             AvailableCandleOperators::HumanInTheLoop.to_string(),
@@ -371,7 +415,7 @@ mod tests {
             .make_name()?
             .build()?;
 
-		// User message
+        // User message
         let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
             .append_new_user_query_str("Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.", "user")?
             .build()?;
@@ -384,7 +428,7 @@ mod tests {
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
             .build()?;
-		
+
         let message_map = create_message_map(vec![tool_message, chat_message]);
 
         // Run the session
@@ -409,71 +453,96 @@ mod tests {
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
                 .get_states()
-                .get(AvailableInterfaceSubjects::AssistantMessages.to_string().as_str())
+                .get(
+                    AvailableInterfaceSubjects::AssistantMessages
+                        .to_string()
+                        .as_str(),
+                )
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 0);
+            assert_eq!(table_reading.count_rows(), 0);
             let table_reading = session_reading
                 .get_states()
-                .get(AvailableInterfaceSubjects::ToolMessages.to_string().as_str())
+                .get(
+                    AvailableInterfaceSubjects::ToolMessages
+                        .to_string()
+                        .as_str(),
+                )
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 0);
+            assert_eq!(table_reading.count_rows(), 0);
             let table_reading = session_reading
                 .get_states()
-                .get(AvailableInterfaceSubjects::AggregatedMessages.to_string().as_str())
+                .get(
+                    AvailableInterfaceSubjects::AggregatedMessages
+                        .to_string()
+                        .as_str(),
+                )
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 1);
+            assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("role");
             assert_eq!(column.first().unwrap(), &"user");
             let column = table_reading.get_column_as_vec_str("content");
-            assert_eq!(column.first().unwrap(), &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.");
+            assert_eq!(
+                column.first().unwrap(),
+                &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
+            );
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-			for t in column {
-				assert!(t > 0);
-			}
+            for t in column {
+                assert!(t > 0);
+            }
             let table_reading = session_reading
                 .get_states()
                 .get("aggregate_messages_generate_text_s")
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 1);
+            assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("role");
             assert_eq!(column.first().unwrap(), &"user");
             let column = table_reading.get_column_as_vec_str("content");
-            assert_eq!(column.first().unwrap(), &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.");
+            assert_eq!(
+                column.first().unwrap(),
+                &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
+            );
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-			for t in column {
-				assert!(t > 0);
-			}
+            for t in column {
+                assert!(t > 0);
+            }
             let table_reading = session_reading
                 .get_states()
                 .get("generate_text_inference_s")
                 .unwrap()
                 .read();
-			assert!(table_reading.count_rows() > 1);
+            assert!(table_reading.count_rows() > 1);
             let column = table_reading.get_column_as_vec_str("role");
             assert_eq!(column.first().unwrap(), &"assistant");
             assert_eq!(column.last().unwrap(), &"assistant");
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-			for t in column {
-				assert!(t > 0);
-			}
+            for t in column {
+                assert!(t > 0);
+            }
             let table_reading = session_reading
                 .get_states()
                 .get(AvailableCandleOperators::Sort.to_string().as_str())
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 1);
+            assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("values");
-            assert_eq!(column.first().unwrap(), &"{\"arguments\":{\"lhs_name\":\"available_data_1\",\"lhs_pk\":\"lhs_pk\",\"lhs_values\":[\"score\"]},\"name\":\"Sort\"}");
+            assert_eq!(
+                column.first().unwrap(),
+                &"{\"arguments\":{\"lhs_name\":\"available_data_1\",\"lhs_pk\":\"lhs_pk\",\"lhs_values\":[\"score\"]},\"name\":\"Sort\"}"
+            );
             let table_reading = session_reading
                 .get_states()
-                .get(AvailableCandleOperators::HumanInTheLoop.to_string().as_str())
+                .get(
+                    AvailableCandleOperators::HumanInTheLoop
+                        .to_string()
+                        .as_str(),
+                )
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 0);
+            assert_eq!(table_reading.count_rows(), 0);
         }
         Ok(())
     }
@@ -486,26 +555,42 @@ mod tests {
             generate_text_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(generate_text_session.as_mermaid_erdiagram(), false, true)?
+        .with_state_from_mermaid_erdiagram(
+            generate_text_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
         .with_name(generate_text_session.session_context_name)
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
-		.add_next_supersteps()?
-		.build_with_tables()?;
+        .add_next_supersteps()?
+        .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
-		// Add the target tool subjects to the session for testing
-		let _ = session_ctx_arc.write().state.insert(
-			AvailableCandleOperators::Sort.to_string(), 
-			Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(Some(AvailableCandleOperators::Sort.to_string().as_str()), None)?))
-		);
-		let _ = session_ctx_arc.write().state.insert(
-			AvailableCandleOperators::HumanInTheLoop.to_string(), 
-			Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(Some(AvailableCandleOperators::HumanInTheLoop.to_string().as_str()), None)?))
-		);
+        // Add the target tool subjects to the session for testing
+        let _ = session_ctx_arc.write().state.insert(
+            AvailableCandleOperators::Sort.to_string(),
+            Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(
+                Some(AvailableCandleOperators::Sort.to_string().as_str()),
+                None,
+            )?)),
+        );
+        let _ = session_ctx_arc.write().state.insert(
+            AvailableCandleOperators::HumanInTheLoop.to_string(),
+            Arc::new(RwLock::new(
+                AvailableSubjects::Bytes.to_table(
+                    Some(
+                        AvailableCandleOperators::HumanInTheLoop
+                            .to_string()
+                            .as_str(),
+                    ),
+                    None,
+                )?,
+            )),
+        );
 
-		// Tools data
+        // Tools data
         let tool_ids = vec![
             AvailableCandleOperators::Sort.to_string(),
             AvailableCandleOperators::HumanInTheLoop.to_string(),
@@ -529,7 +614,7 @@ mod tests {
             .make_name()?
             .build()?;
 
-		// User message
+        // User message
         let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
             .append_new_user_query_str("Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.", "user")?
             .build()?;
@@ -543,7 +628,7 @@ mod tests {
             .make_name()?
             .build()?;
 
-		// Tool response
+        // Tool response
         let tool = AvailableInterfaceSubjects::ToolMessages.to_table_builder(None)
             .append_new_user_query_str("[{\"lhs_pk\":\"c\",\"score\":1.0}, {\"lhs_pk\":\"b\",\"score\":2.0}, {\"lhs_pk\":\"a\",\"score\":3.0}]", "tool")?
             .build()?;
@@ -556,7 +641,7 @@ mod tests {
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
             .build()?;
-		
+
         let message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
 
         // Run the session
@@ -581,75 +666,96 @@ mod tests {
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
                 .get_states()
-                .get(AvailableInterfaceSubjects::AssistantMessages.to_string().as_str())
+                .get(
+                    AvailableInterfaceSubjects::AssistantMessages
+                        .to_string()
+                        .as_str(),
+                )
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 1);
+            assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("role");
             assert_eq!(column.first().unwrap(), &"assistant");
             let column = table_reading.get_column_as_vec_str("content");
-			let assistant_content = column.first().unwrap();
+            let assistant_content = column.first().unwrap();
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-			for t in column {
-				assert!(t > 0);
-			}
+            for t in column {
+                assert!(t > 0);
+            }
             let table_reading = session_reading
                 .get_states()
-                .get(AvailableInterfaceSubjects::AggregatedMessages.to_string().as_str())
+                .get(
+                    AvailableInterfaceSubjects::AggregatedMessages
+                        .to_string()
+                        .as_str(),
+                )
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 2);
+            assert_eq!(table_reading.count_rows(), 2);
             let column = table_reading.get_column_as_vec_str("role");
             assert_eq!(column.first().unwrap(), &"user");
             assert_eq!(column.last().unwrap(), &"assistant");
             let column = table_reading.get_column_as_vec_str("content");
-            assert_eq!(column.first().unwrap(), &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.");
+            assert_eq!(
+                column.first().unwrap(),
+                &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
+            );
             assert_eq!(column.last().unwrap(), assistant_content);
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-			for t in column {
-				assert!(t > 0);
-			}
+            for t in column {
+                assert!(t > 0);
+            }
             let table_reading = session_reading
                 .get_states()
                 .get("aggregate_messages_generate_text_s")
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 2);
+            assert_eq!(table_reading.count_rows(), 2);
             let column = table_reading.get_column_as_vec_str("role");
             assert_eq!(column.first().unwrap(), &"user");
             assert_eq!(column.last().unwrap(), &"tool");
             let column = table_reading.get_column_as_vec_str("content");
-            assert_eq!(column.first().unwrap(), &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.");
-            assert_eq!(column.last().unwrap(), &"[{\"lhs_pk\":\"c\",\"score\":1.0}, {\"lhs_pk\":\"b\",\"score\":2.0}, {\"lhs_pk\":\"a\",\"score\":3.0}]");
+            assert_eq!(
+                column.first().unwrap(),
+                &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
+            );
+            assert_eq!(
+                column.last().unwrap(),
+                &"[{\"lhs_pk\":\"c\",\"score\":1.0}, {\"lhs_pk\":\"b\",\"score\":2.0}, {\"lhs_pk\":\"a\",\"score\":3.0}]"
+            );
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-			for t in column {
-				assert!(t > 0);
-			}
+            for t in column {
+                assert!(t > 0);
+            }
             let table_reading = session_reading
                 .get_states()
                 .get("generate_text_inference_s")
                 .unwrap()
                 .read();
-			assert!(table_reading.count_rows() > 1);
+            assert!(table_reading.count_rows() > 1);
             let column = table_reading.get_column_as_vec_str("role");
             assert_eq!(column.first().unwrap(), &"assistant");
             assert_eq!(column.last().unwrap(), &"assistant");
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-			for t in column {
-				assert!(t > 0);
-			}
+            for t in column {
+                assert!(t > 0);
+            }
             let table_reading = session_reading
                 .get_states()
                 .get(AvailableCandleOperators::Sort.to_string().as_str())
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 0);
+            assert_eq!(table_reading.count_rows(), 0);
             let table_reading = session_reading
                 .get_states()
-                .get(AvailableCandleOperators::HumanInTheLoop.to_string().as_str())
+                .get(
+                    AvailableCandleOperators::HumanInTheLoop
+                        .to_string()
+                        .as_str(),
+                )
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 0);
+            assert_eq!(table_reading.count_rows(), 0);
         }
         Ok(())
     }
@@ -662,26 +768,42 @@ mod tests {
             generate_text_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(generate_text_session.as_mermaid_erdiagram(), false, true)?
+        .with_state_from_mermaid_erdiagram(
+            generate_text_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
         .with_name(generate_text_session.session_context_name)
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
-		.add_next_supersteps()?
-		.build_with_tables()?;
+        .add_next_supersteps()?
+        .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
-		// Add the target tool subjects to the session for testing
-		let _ = session_ctx_arc.write().state.insert(
-			AvailableCandleOperators::Sort.to_string(), 
-			Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(Some(AvailableCandleOperators::Sort.to_string().as_str()), None)?))
-		);
-		let _ = session_ctx_arc.write().state.insert(
-			AvailableCandleOperators::HumanInTheLoop.to_string(), 
-			Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(Some(AvailableCandleOperators::HumanInTheLoop.to_string().as_str()), None)?))
-		);
+        // Add the target tool subjects to the session for testing
+        let _ = session_ctx_arc.write().state.insert(
+            AvailableCandleOperators::Sort.to_string(),
+            Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(
+                Some(AvailableCandleOperators::Sort.to_string().as_str()),
+                None,
+            )?)),
+        );
+        let _ = session_ctx_arc.write().state.insert(
+            AvailableCandleOperators::HumanInTheLoop.to_string(),
+            Arc::new(RwLock::new(
+                AvailableSubjects::Bytes.to_table(
+                    Some(
+                        AvailableCandleOperators::HumanInTheLoop
+                            .to_string()
+                            .as_str(),
+                    ),
+                    None,
+                )?,
+            )),
+        );
 
-		// Tools data
+        // Tools data
         let tool_ids = vec![
             AvailableCandleOperators::Sort.to_string(),
             AvailableCandleOperators::HumanInTheLoop.to_string(),
@@ -705,7 +827,7 @@ mod tests {
             .make_name()?
             .build()?;
 
-		// User message
+        // User message
         let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
             .append_new_user_query_str("Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.", "user")?
             .build()?;
@@ -719,7 +841,7 @@ mod tests {
             .make_name()?
             .build()?;
 
-		// Error response
+        // Error response
         let tool = AvailableSubjects::SessionErrors.to_table_builder(None)
             .append_new_user_query_str("lhs_name `available_data_1` was not found. Available options are [`available_data_0`, `available_data_2`, `available_data_3`].", "tool")?
             .build()?;
@@ -732,7 +854,7 @@ mod tests {
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
             .build()?;
-		
+
         let message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
 
         // Run the session
@@ -757,83 +879,103 @@ mod tests {
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
                 .get_states()
-                .get(AvailableInterfaceSubjects::AssistantMessages.to_string().as_str())
+                .get(
+                    AvailableInterfaceSubjects::AssistantMessages
+                        .to_string()
+                        .as_str(),
+                )
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 1);
+            assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("role");
             assert_eq!(column.first().unwrap(), &"assistant");
             let column = table_reading.get_column_as_vec_str("content");
-			let assistant_content = column.first().unwrap();
+            let assistant_content = column.first().unwrap();
             assert!(assistant_content.contains("available_data_0"));
             assert!(assistant_content.contains("available_data_1"));
             assert!(assistant_content.contains("available_data_2"));
             assert!(assistant_content.contains("available_data_3"));
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-			for t in column {
-				assert!(t > 0);
-			}
+            for t in column {
+                assert!(t > 0);
+            }
             let table_reading = session_reading
                 .get_states()
-                .get(AvailableInterfaceSubjects::AggregatedMessages.to_string().as_str())
+                .get(
+                    AvailableInterfaceSubjects::AggregatedMessages
+                        .to_string()
+                        .as_str(),
+                )
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 2);
+            assert_eq!(table_reading.count_rows(), 2);
             let column = table_reading.get_column_as_vec_str("role");
             assert_eq!(column.first().unwrap(), &"user");
             assert_eq!(column.last().unwrap(), &"assistant");
             let column = table_reading.get_column_as_vec_str("content");
-            assert_eq!(column.first().unwrap(), &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.");
+            assert_eq!(
+                column.first().unwrap(),
+                &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
+            );
             assert_eq!(column.last().unwrap(), assistant_content);
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-			for t in column {
-				assert!(t > 0);
-			}
+            for t in column {
+                assert!(t > 0);
+            }
             let table_reading = session_reading
                 .get_states()
                 .get("aggregate_messages_generate_text_s")
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 2);
+            assert_eq!(table_reading.count_rows(), 2);
             let column = table_reading.get_column_as_vec_str("role");
             assert_eq!(column.first().unwrap(), &"user");
             assert_eq!(column.last().unwrap(), &"tool");
             let column = table_reading.get_column_as_vec_str("content");
-            assert_eq!(column.first().unwrap(), &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.");
-            assert_eq!(column.last().unwrap(), &"lhs_name `available_data_1` was not found. Available options are [`available_data_0`, `available_data_2`, `available_data_3`].");
+            assert_eq!(
+                column.first().unwrap(),
+                &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
+            );
+            assert_eq!(
+                column.last().unwrap(),
+                &"lhs_name `available_data_1` was not found. Available options are [`available_data_0`, `available_data_2`, `available_data_3`]."
+            );
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-			for t in column {
-				assert!(t > 0);
-			}
+            for t in column {
+                assert!(t > 0);
+            }
             let table_reading = session_reading
                 .get_states()
                 .get("generate_text_inference_s")
                 .unwrap()
                 .read();
-			assert!(table_reading.count_rows() > 1);
+            assert!(table_reading.count_rows() > 1);
             let column = table_reading.get_column_as_vec_str("role");
             assert_eq!(column.first().unwrap(), &"assistant");
             assert_eq!(column.last().unwrap(), &"assistant");
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-			for t in column {
-				assert!(t > 0);
-			}
+            for t in column {
+                assert!(t > 0);
+            }
             let table_reading = session_reading
                 .get_states()
                 .get(AvailableCandleOperators::Sort.to_string().as_str())
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 0);
+            assert_eq!(table_reading.count_rows(), 0);
             let table_reading = session_reading
                 .get_states()
-                .get(AvailableCandleOperators::HumanInTheLoop.to_string().as_str())
+                .get(
+                    AvailableCandleOperators::HumanInTheLoop
+                        .to_string()
+                        .as_str(),
+                )
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 0);
-			// assert_eq!(table_reading.count_rows(), 1);
-			// let column = table_reading.get_column_as_vec_str("values");
+            assert_eq!(table_reading.count_rows(), 0);
+            // assert_eq!(table_reading.count_rows(), 1);
+            // let column = table_reading.get_column_as_vec_str("values");
             // assert_eq!(column.first().unwrap(), &"");
-
         }
         Ok(())
     }

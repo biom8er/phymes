@@ -11,7 +11,12 @@ use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use bytes::Bytes;
 use futures::{FutureExt, Stream, StreamExt};
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, create_blob_batch, create_chat_record_batch, remove_message_by_subject
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
+    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, create_blob_batch,
+    create_chat_record_batch, remove_message_by_subject,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
@@ -23,7 +28,10 @@ use reqwest::{
 use serde_json::{Map, Value};
 
 use crate::{
-    DataConfigTrait, external_operators::http_client_config::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType}
+    DataConfigTrait,
+    external_operators::http_client_config::{
+        HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType,
+    },
 };
 
 /// The state of the HTTP Client API request
@@ -188,29 +196,37 @@ impl Stream for HTTPClientRequestStream {
                 }
 
                 // Collect the request data
-                if self.record_batches.is_none() && self.json_str.is_none() 
-                && let Some(subject_name) = self.config.as_ref().unwrap().subject_name.clone() {
+                if self.record_batches.is_none()
+                    && self.json_str.is_none()
+                    && let Some(subject_name) = self.config.as_ref().unwrap().subject_name.clone()
+                {
                     match self.messages.get_mut(subject_name.as_str()) {
                         // Poll the next batches in a streaming fashion
                         Some(fut) => {
-                            while let Some(Ok(batch)) = ready!(fut.get_message_mut().poll_next_unpin(cx)) {
+                            while let Some(Ok(batch)) =
+                                ready!(fut.get_message_mut().poll_next_unpin(cx))
+                            {
                                 self.record_batches.replace(batch);
                                 break;
                             }
                         }
                         // Extract the data from the config
-                        None => if let Some(json) = self.config.as_ref().unwrap().json.clone() {
-                            self.json_str.replace(json.to_string());
-                        } else {
-                            self.state = HTTPClientRequestState::Done;
-                            return Poll::Ready(Some(Err(anyhow!(
-                                "Subject `{subject_name}` was not found in the messages. The available message subjects are `{:?}`",
-                                self.messages.keys()
-                            ))));
-                        },
+                        None => {
+                            if let Some(json) = self.config.as_ref().unwrap().json.clone() {
+                                self.json_str.replace(json.to_string());
+                            } else {
+                                self.state = HTTPClientRequestState::Done;
+                                return Poll::Ready(Some(Err(anyhow!(
+                                    "Subject `{subject_name}` was not found in the messages. The available message subjects are `{:?}`",
+                                    self.messages.keys()
+                                ))));
+                            }
+                        }
                     }
-                } else if self.record_batches.is_none() && self.json_str.is_none() 
-                && let Some(json) = self.config.as_ref().unwrap().json.clone() {
+                } else if self.record_batches.is_none()
+                    && self.json_str.is_none()
+                    && let Some(json) = self.config.as_ref().unwrap().json.clone()
+                {
                     // Extract the data from the config
                     self.json_str.replace(json.to_string());
                 } else if self.json_str.is_some() {
@@ -220,7 +236,7 @@ impl Stream for HTTPClientRequestStream {
                 }
 
                 // The poll ends when there are no more batches
-                if self.record_batches.is_none() && self.json_str.is_none()  {
+                if self.record_batches.is_none() && self.json_str.is_none() {
                     self.state = HTTPClientRequestState::Done;
                     return Poll::Ready(None);
                 }
@@ -236,14 +252,13 @@ impl Stream for HTTPClientRequestStream {
                 // DM: A future optimization maybe to treat each row as a parallel API request
                 let fut = match self.config.as_ref().unwrap().request_type {
                     HTTPClientRequestType::Get => {
-
                         // Prioritize the message data over the config when building the url
                         let query_url = if let Some(batches) = self.record_batches.take() {
                             let messages = Table::get_builder()
                                 .with_name("messages")
                                 .with_record_batches(vec![batches])?
                                 .build()?;
-                            
+
                             // Join the `content` fields together for the case of multiple rows
                             let query_str = messages.get_column_as_vec_str("content").join("");
 
@@ -254,9 +269,11 @@ impl Stream for HTTPClientRequestStream {
                         let url = self.config.as_ref().unwrap().url(query_url.as_deref());
 
                         // Save the URL when downloading data
-                        if self.config.as_ref().unwrap().request_schema == HTTPClientRequestSchemas::Blob {
+                        if self.config.as_ref().unwrap().request_schema
+                            == HTTPClientRequestSchemas::Blob
+                        {
                             self.url.replace(url.to_owned());
-                        }                    
+                        }
 
                         // Make the request
                         let mut client = client.get(url);
@@ -267,7 +284,6 @@ impl Stream for HTTPClientRequestStream {
                             .send()
                     }
                     HTTPClientRequestType::Post => {
-
                         // Prioritize the message data over the config when building the JSON body and url
                         let (json_data, url) = if let Some(batches) = self.record_batches.take() {
                             // Extract the table as a JSON object
@@ -281,7 +297,9 @@ impl Stream for HTTPClientRequestStream {
                             let json_data = json_object.pop().unwrap();
 
                             // Build the url
-                            let url = if let Some(json_str) = self.config.as_ref().unwrap().json.as_ref() {
+                            let url = if let Some(json_str) =
+                                self.config.as_ref().unwrap().json.as_ref()
+                            {
                                 self.config.as_ref().unwrap().url(Some(json_str))
                             } else {
                                 self.config.as_ref().unwrap().url(None)
@@ -300,7 +318,9 @@ impl Stream for HTTPClientRequestStream {
                         };
 
                         // Save the URL when downloading data
-                        if self.config.as_ref().unwrap().request_schema == HTTPClientRequestSchemas::Blob {
+                        if self.config.as_ref().unwrap().request_schema
+                            == HTTPClientRequestSchemas::Blob
+                        {
                             self.json_str.replace(url.to_owned());
                         }
 
@@ -309,7 +329,9 @@ impl Stream for HTTPClientRequestStream {
                         if let Ok(token) = self.config.as_ref().unwrap().api_key() {
                             client = client.bearer_auth(token)
                         }
-                        if let Some(user_agent) = self.config.as_ref().unwrap().user_agent_type.as_ref() {
+                        if let Some(user_agent) =
+                            self.config.as_ref().unwrap().user_agent_type.as_ref()
+                        {
                             client = client.header(USER_AGENT, user_agent.to_string());
                         }
                         client
@@ -352,7 +374,7 @@ impl Stream for HTTPClientRequestStream {
                             let text = response.text();
                             self.state = HTTPClientRequestState::ToText(Box::pin(text));
                             self.poll_next(cx)
-                        } 
+                        }
                         HTTPClientRequestSchemas::Blob => {
                             let bytes = response.bytes();
                             self.state = HTTPClientRequestState::ToBytes(Box::pin(bytes));
@@ -422,7 +444,11 @@ impl Stream for HTTPClientRequestStream {
                                 diagnostic_builder
                                     .clone()
                                     .to_child("HTTPClientRequestStream")?
-                                    .baseline_metrics(line!(), file!(), "poll_next.HTTPClientRequestState::ToBytes"),
+                                    .baseline_metrics(
+                                        line!(),
+                                        file!(),
+                                        "poll_next.HTTPClientRequestState::ToBytes",
+                                    ),
                             )
                         } else {
                             None
@@ -469,7 +495,6 @@ impl Stream for HTTPClientRequestStream {
             HTTPClientRequestState::Ready(batches) => {
                 // Ready the next poll
                 if let Some(batch) = batches.pop() {
-                    
                     // Initialize the metrics
                     let baseline_metrics =
                         if let Some(diagnostic_builder) = &self.diagnostic_builder {
@@ -477,7 +502,11 @@ impl Stream for HTTPClientRequestStream {
                                 diagnostic_builder
                                     .clone()
                                     .to_child("HTTPClientRequestStream")?
-                                    .baseline_metrics(line!(), file!(), "poll_next.HTTPClientRequestState::Ready"),
+                                    .baseline_metrics(
+                                        line!(),
+                                        file!(),
+                                        "poll_next.HTTPClientRequestState::Ready",
+                                    ),
                             )
                         } else {
                             None
@@ -497,8 +526,8 @@ impl Stream for HTTPClientRequestStream {
                 } else {
                     self.state = HTTPClientRequestState::NotStarted;
                     self.poll_next(cx)
-                }          
-            },
+                }
+            }
             HTTPClientRequestState::Done => Poll::Ready(None),
         }
     }
@@ -520,7 +549,10 @@ mod tests {
 
     use super::*;
     use futures::TryStreamExt;
-    use phymes_core::{ChatBuilderTraitExt, RuntimeEnvTrait, TableBuilder, TablePublication, open_alex, semantic_scholar};
+    use phymes_core::{
+        ChatBuilderTraitExt, RuntimeEnvTrait, TableBuilder, TablePublication, open_alex,
+        semantic_scholar,
+    };
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
 
     #[tokio::test]
@@ -539,7 +571,10 @@ mod tests {
 
         // OpenAlex request filters
         let mut filter = Map::<String, Value>::new();
-        let _ = filter.insert("publication_year".to_string(), Value::String("2020".to_string()));
+        let _ = filter.insert(
+            "publication_year".to_string(),
+            Value::String("2020".to_string()),
+        );
         let open_alex_request = open_alex::OpenAlexRequest {
             page: Some(1),
             per_page: Some(1),
@@ -635,7 +670,10 @@ mod tests {
 
         // OpenAlex request filters
         let mut filter = Map::<String, Value>::new();
-        let _ = filter.insert("publication_year".to_string(), Value::String("2020".to_string()));
+        let _ = filter.insert(
+            "publication_year".to_string(),
+            Value::String("2020".to_string()),
+        );
         let open_alex_request = open_alex::OpenAlexRequest {
             page: Some(1),
             per_page: Some(1),
@@ -717,7 +755,10 @@ mod tests {
 
         // OpenAlex request filters
         let mut filter = Map::<String, Value>::new();
-        let _ = filter.insert("publication_year".to_string(), Value::String("2020".to_string()));
+        let _ = filter.insert(
+            "publication_year".to_string(),
+            Value::String("2020".to_string()),
+        );
         let open_alex_request = open_alex::OpenAlexRequest {
             page: Some(1),
             per_page: Some(1),
@@ -792,10 +833,14 @@ mod tests {
         let result = table.get_column_as_vec_str("metadata");
         assert_eq!(result, ["tool"]);
         let result = table.get_column_as_vec_str("filename");
-        assert_eq!(result, ["works?page=1&per-page=5&filter=publication_year:\"2020\""]);
+        assert_eq!(
+            result,
+            ["works?page=1&per-page=5&filter=publication_year:\"2020\""]
+        );
         let result = table.get_column_as_vec_str("extension");
         assert_eq!(result, ["application/json"]);
-        let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?
+        let result = table
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
@@ -901,7 +946,9 @@ mod tests {
         let result = table.get_column_as_vec_str("role");
         assert_eq!(result, ["tool"]);
         let result = table.get_column_as_vec_str("content").join("");
-        assert!(result.contains("\"idlist\":[\"37997144\",\"37997132\",\"37997130\",\"37997120\",\"37997092\"]"));
+        assert!(result.contains(
+            "\"idlist\":[\"37997144\",\"37997132\",\"37997130\",\"37997120\",\"37997092\"]"
+        ));
 
         Ok(())
     }
@@ -989,10 +1036,14 @@ mod tests {
         let result = table.get_column_as_vec_str("metadata");
         assert_eq!(result, ["tool"]);
         let result = table.get_column_as_vec_str("filename");
-        assert_eq!(result, ["efetch.fcgi?db=pubmed&id=37997144,37997132,37997130,37997120,37997092&retmode=xml"]);
+        assert_eq!(
+            result,
+            ["efetch.fcgi?db=pubmed&id=37997144,37997132,37997130,37997120,37997092&retmode=xml"]
+        );
         let result = table.get_column_as_vec_str("extension");
         assert_eq!(result, ["text/xml; charset=UTF-8"]);
-        let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?
+        let result = table
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
@@ -1091,7 +1142,8 @@ mod tests {
         assert_eq!(result, ["application/pdf"]);
 
         // Check the PDF
-        let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?
+        let result = table
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
@@ -1208,7 +1260,7 @@ mod tests {
 
         Ok(())
     }
-    
+
     #[tokio::test]
     #[ignore = "for generating data to test OpenAlex parsers"]
     async fn test_http_client_processor_open_alex_test_data() -> Result<()> {
@@ -1328,7 +1380,10 @@ mod tests {
 
         // Topic
         let mut filter = Map::<String, Value>::new();
-        let _ = filter.insert("display_name.search".to_string(), Value::String("artificial+intelligence".to_string()));
+        let _ = filter.insert(
+            "display_name.search".to_string(),
+            Value::String("artificial+intelligence".to_string()),
+        );
         let open_alex_request = open_alex::OpenAlexRequest {
             page: Some(1),
             per_page: Some(1),
@@ -1382,7 +1437,10 @@ mod tests {
 
         // Award
         let mut filter = Map::<String, Value>::new();
-        let _ = filter.insert("funder.id".to_string(), Value::String("F4320306076".to_string()));
+        let _ = filter.insert(
+            "funder.id".to_string(),
+            Value::String("F4320306076".to_string()),
+        );
         let open_alex_request = open_alex::OpenAlexRequest {
             page: Some(1),
             per_page: Some(1),
@@ -1490,7 +1548,10 @@ mod tests {
 
         // Publisher
         let mut filter = Map::<String, Value>::new();
-        let _ = filter.insert("display_name.search".to_string(), Value::String("elsevier".to_string()));
+        let _ = filter.insert(
+            "display_name.search".to_string(),
+            Value::String("elsevier".to_string()),
+        );
         let open_alex_request = open_alex::OpenAlexRequest {
             page: Some(1),
             per_page: Some(1),

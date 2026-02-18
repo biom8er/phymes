@@ -635,7 +635,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         "Config could not be built for subject `{}` and Error `{err}` when trying to build for DataConfig with table `{table:?}`.",
                         table.get_name()
                     ));
-                } else {                    
+                } else {
                     return Err(anyhow!(
                         "Config could not be built for subject `{}` and table `{table:?}`.",
                         table.get_name()

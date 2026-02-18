@@ -1,6 +1,12 @@
-
+use crate::{
+    AvailableSchemaTrait, MappableTrait, create_schema_from_fields,
+    schemas::http::{
+        AwardFunderTable, WorkFunderTable,
+        open_alex_common::{CountryCode, CountsByYear, RoleType, SummaryStats},
+        open_alex_institution::Role,
+    },
+};
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use crate::{AvailableSchemaTrait, MappableTrait, create_schema_from_fields, schemas::http::{AwardFunderTable, WorkFunderTable, open_alex_common::{CountryCode, CountsByYear, RoleType, SummaryStats}, open_alex_institution::Role}};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -26,23 +32,52 @@ pub struct Funder {
 
 impl Funder {
     pub fn to_work_funder_table(self, work_id: &str) -> WorkFunderTable {
-        WorkFunderTable { work_id: work_id.to_string(), funder_id: self.id }
+        WorkFunderTable {
+            work_id: work_id.to_string(),
+            funder_id: self.id,
+        }
     }
     pub fn to_award_funder_table(self, award_id: &str) -> AwardFunderTable {
-        AwardFunderTable { award_id: award_id.to_string(), funder_id: self.id }
+        AwardFunderTable {
+            award_id: award_id.to_string(),
+            funder_id: self.id,
+        }
     }
-    pub fn to_tables(self) -> (FunderTable,
+    pub fn to_tables(
+        self,
+    ) -> (
+        FunderTable,
         Vec<FunderAlternativeTitlesTable>,
         Option<FunderIdsTable>,
         Vec<FunderRoleTable>,
         Vec<FunderCountsByYearTable>,
         Option<FunderSummaryStatsTable>,
     ) {
-        let funder_alternative_titles = self.alternate_titles.unwrap_or_default().into_iter().map(|t| FunderAlternativeTitlesTable {funder_id: self.id.to_owned(), title: t}).collect::<Vec<_>>();
+        let funder_alternative_titles = self
+            .alternate_titles
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| FunderAlternativeTitlesTable {
+                funder_id: self.id.to_owned(),
+                title: t,
+            })
+            .collect::<Vec<_>>();
         let funder_ids = self.ids.map(|i| i.to_funder_ids_table(&self.id));
-        let funder_role = self.roles.unwrap_or_default().into_iter().map(|t| t.to_funder_role_table(&self.id)).collect::<Vec<_>>();
-        let funder_counts_by_year = self.counts_by_year.unwrap_or_default().into_iter().map(|t| t.to_funder_counts_by_year(&self.id)).collect::<Vec<_>>();
-        let funder_summary_stats = self.summary_stats.map(|t| t.to_funder_summary_stats_table(&self.id));
+        let funder_role = self
+            .roles
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| t.to_funder_role_table(&self.id))
+            .collect::<Vec<_>>();
+        let funder_counts_by_year = self
+            .counts_by_year
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| t.to_funder_counts_by_year(&self.id))
+            .collect::<Vec<_>>();
+        let funder_summary_stats = self
+            .summary_stats
+            .map(|t| t.to_funder_summary_stats_table(&self.id));
         let funder = FunderTable {
             funder_id: self.id,
             display_name: self.display_name,
@@ -57,7 +92,14 @@ impl Funder {
             image_url: self.image_url.unwrap_or_default(),
             image_thumbnail_url: self.image_thumbnail_url.unwrap_or_default(),
         };
-        (funder, funder_alternative_titles, funder_ids, funder_role, funder_counts_by_year, funder_summary_stats)
+        (
+            funder,
+            funder_alternative_titles,
+            funder_ids,
+            funder_role,
+            funder_counts_by_year,
+            funder_summary_stats,
+        )
     }
 }
 
@@ -79,26 +121,28 @@ pub struct FunderTable {
 
 impl FunderTable {
     fn to_fields() -> Fields {
-        let field_names = ["funder_id", 
-            "display_name", 
-            "description", 
-            "country_code", 
-            "created_date", 
-            "updated_date", 
-            "homepage_url", 
-            "image_url", 
-            "image_thumbnail_url"];
+        let field_names = [
+            "funder_id",
+            "display_name",
+            "description",
+            "country_code",
+            "created_date",
+            "updated_date",
+            "homepage_url",
+            "image_url",
+            "image_thumbnail_url",
+        ];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = ["cited_by_count", 
-            "works_count", 
-            "grants_count"];
-        fields_vec.extend(field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::UInt32, false))
-            .collect::<Vec<_>>());
+        let field_names = ["cited_by_count", "works_count", "grants_count"];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::UInt32, false))
+                .collect::<Vec<_>>(),
+        );
         Fields::from(fields_vec)
     }
 }
@@ -126,12 +170,13 @@ pub struct FunderIds {
 
 impl FunderIds {
     pub fn to_funder_ids_table(self, funder_id: &str) -> FunderIdsTable {
-        FunderIdsTable { funder_id: funder_id.to_string(), 
-            openalex: self.openalex.unwrap_or_default(), 
-            ror: self.ror.unwrap_or_default(), 
-            wikidata: self.wikidata.unwrap_or_default(), 
-            crossref: self.crossref.unwrap_or_default(), 
-            doi: self.doi.unwrap_or_default()
+        FunderIdsTable {
+            funder_id: funder_id.to_string(),
+            openalex: self.openalex.unwrap_or_default(),
+            ror: self.ror.unwrap_or_default(),
+            wikidata: self.wikidata.unwrap_or_default(),
+            crossref: self.crossref.unwrap_or_default(),
+            doi: self.doi.unwrap_or_default(),
         }
     }
 }
@@ -148,7 +193,14 @@ pub struct FunderIdsTable {
 
 impl FunderIdsTable {
     fn to_fields() -> Fields {
-        let field_names = ["funder_id", "openalex", "ror", "wikidata", "crossref", "doi"];
+        let field_names = [
+            "funder_id",
+            "openalex",
+            "ror",
+            "wikidata",
+            "crossref",
+            "doi",
+        ];
         let fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -258,10 +310,7 @@ impl FunderSummaryStatsTable {
                 .map(|f| Field::new(*f, DataType::Float64, false))
                 .collect::<Vec<_>>(),
         );
-        let field_names = [
-            "h_index",
-            "i10_index",
-        ];
+        let field_names = ["h_index", "i10_index"];
         fields_vec.extend(
             field_names
                 .iter()
@@ -298,10 +347,7 @@ impl FunderCountsByYearTable {
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = [
-            "year",
-            "cited_by_count",
-        ];
+        let field_names = ["year", "cited_by_count"];
         fields_vec.extend(
             field_names
                 .iter()

@@ -5,7 +5,12 @@ use std::{
 };
 
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, CsvFormat, DataFormat, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, create_blob_batch, create_chat_record_batch, remove_message_by_subject
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, CsvFormat, DataFormat,
+    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream,
+    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, create_blob_batch,
+    create_chat_record_batch, remove_message_by_subject,
 };
 
 use anyhow::{Result, anyhow};
@@ -230,7 +235,8 @@ pub fn table_and_data_format_to_record_batch(
         }
         DataFormat::Html | DataFormat::Txt => {
             // Extract out the values column and concatenate into a single String to form the document
-            let bytes = table.get_column_as_vec_nested_primitive::<u8>("bytes")?
+            let bytes = table
+                .get_column_as_vec_nested_primitive::<u8>("bytes")?
                 .into_iter()
                 .flatten()
                 .collect::<Vec<_>>();

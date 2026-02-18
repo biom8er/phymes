@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     runtime_env::{BuildableTrait, BuilderTrait},
-    schemas::available_subjects::{AvailableSubjects, AvailableSchemaTrait},
+    schemas::available_subjects::{AvailableSchemaTrait, AvailableSubjects},
     table::{Table, TableBuilderTrait},
 };
 

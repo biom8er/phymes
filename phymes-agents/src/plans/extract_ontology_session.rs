@@ -868,7 +868,7 @@ impl<'a> ExtractOntologySession<'a> {
 	apply_template_object_property_entity_p-publish@{shape: fork}
 	apply_template_object_property_entity_p-subscribe@{shape: diamond, label: All}
 	%% ------------------------------------------------------------------------------"#
-	}
+    }
     pub fn as_mermaid_erdiagram(&self) -> &str {
         r#"erDiagram
     UserScript["UserScript"] {
@@ -1793,7 +1793,7 @@ impl<'a> ExtractOntologySession<'a> {
         Utf8 document_id
         Utf8 text
 	}"#
-	}
+    }
 }
 
 #[cfg(test)]
@@ -1803,12 +1803,15 @@ mod tests {
     use anyhow::Result;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Table, TableBuilderTrait, TablePublication, TableTrait, create_blob_batch
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Table,
+        TableBuilderTrait, TablePublication, TableTrait, create_blob_batch,
     };
     use phymes_diagnostics::{HashMap, create_timestamp_micros};
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep, SessionStreamStepTrait, create_message_map
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
+        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep,
+        SessionStreamStepTrait, create_message_map,
     };
 
     use super::*;
@@ -1821,12 +1824,16 @@ mod tests {
             extract_onto_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(extract_onto_session.as_mermaid_erdiagram(), false, true)?
+        .with_state_from_mermaid_erdiagram(
+            extract_onto_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
         .with_name(extract_onto_session.session_context_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
-		.add_next_supersteps()?
+        .add_next_supersteps()?
         .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
@@ -1911,7 +1918,7 @@ mod tests {
 
 </rdf:RDF>"#;
 
-		// Make the test data
+        // Make the test data
         let batch = create_blob_batch(
             vec!["attachment".to_string()],
             vec!["owl".to_string()],
@@ -1935,7 +1942,9 @@ mod tests {
         let message_map = create_message_map(vec![owl_message]);
 
         // Run the first superstep
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map).await?.unwrap();
+        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map)
+            .await?
+            .unwrap();
 
         {
             // Debug any errors
@@ -1959,12 +1968,21 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 30);
+            assert_eq!(table_reading.count_rows(), 30);
             let column = table_reading.get_column_as_vec_str("entity");
-            assert_eq!(column.first().unwrap(), &"http://www.w3.org/2002/07/owl#AnnotationProperty");
-            assert_eq!(column.last().unwrap(), &"http://www.w3.org/2002/07/owl#Ontology");
+            assert_eq!(
+                column.first().unwrap(),
+                &"http://www.w3.org/2002/07/owl#AnnotationProperty"
+            );
+            assert_eq!(
+                column.last().unwrap(),
+                &"http://www.w3.org/2002/07/owl#Ontology"
+            );
             let column = table_reading.get_column_as_vec_str("subject");
-            assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/IAO_0000115");
+            assert_eq!(
+                column.first().unwrap(),
+                &"http://purl.obolibrary.org/obo/IAO_0000115"
+            );
             assert_eq!(column.last().unwrap(), &"");
             let column = table_reading.get_column_as_vec_str("predicate");
             assert_eq!(column.first().unwrap(), &"");
@@ -1981,7 +1999,12 @@ mod tests {
         }
 
         // Run the second superstep
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), HashMap::<String, IPCMessage>::new()).await?.unwrap();
+        let response = SessionStreamStep::run_superstep(
+            Arc::clone(&session_ctx_arc),
+            HashMap::<String, IPCMessage>::new(),
+        )
+        .await?
+        .unwrap();
 
         {
             // Debug any errors
@@ -1995,7 +2018,7 @@ mod tests {
         }
 
         assert_eq!(response.len(), 0);
-		println!("Starting second superstep...");
+        println!("Starting second superstep...");
 
         {
             // Test supsersteps
@@ -2006,7 +2029,7 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 2);
+            assert_eq!(table_reading.count_rows(), 2);
             let column = table_reading.get_column_as_vec_str("entity");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
@@ -2031,7 +2054,7 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 17);
+            assert_eq!(table_reading.count_rows(), 17);
             let column = table_reading.get_column_as_vec_str("entity");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
@@ -2055,14 +2078,14 @@ mod tests {
                 .get("select_datatype_property_entity_s")
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 0);
+            assert_eq!(table_reading.count_rows(), 0);
             let table_reading = session_reading
                 .get_states()
                 .get("select_class_entity_s")
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 5);
+            assert_eq!(table_reading.count_rows(), 5);
             let column = table_reading.get_column_as_vec_str("entity");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
@@ -2087,7 +2110,7 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 5);
+            assert_eq!(table_reading.count_rows(), 5);
             let column = table_reading.get_column_as_vec_str("entity");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
@@ -2112,7 +2135,7 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 1);
+            assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("entity");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
@@ -2136,11 +2159,16 @@ mod tests {
                 .get("select_axiom_entity_s")
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 0);
+            assert_eq!(table_reading.count_rows(), 0);
         }
 
         // Run the third superstep
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), HashMap::<String, IPCMessage>::new()).await?.unwrap();
+        let response = SessionStreamStep::run_superstep(
+            Arc::clone(&session_ctx_arc),
+            HashMap::<String, IPCMessage>::new(),
+        )
+        .await?
+        .unwrap();
 
         {
             // Debug any errors
@@ -2164,14 +2192,16 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 7);
+            assert_eq!(table_reading.count_rows(), 7);
             let column = table_reading.get_column_as_vec_str("subject");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
-            let column = table_reading.get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
+            let column = table_reading
+                .get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
-            let column = table_reading.get_column_as_vec_str("http://purl.obolibrary.org/obo/IAO_0000115-object-First");
+            let column = table_reading
+                .get_column_as_vec_str("http://purl.obolibrary.org/obo/IAO_0000115-object-First");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
             let table_reading = session_reading
@@ -2180,14 +2210,16 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 1);
+            assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("subject");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
-            let column = table_reading.get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
+            let column = table_reading
+                .get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
-            let column = table_reading.get_column_as_vec_str("http://purl.obolibrary.org/obo/IAO_0000115-object-First");
+            let column = table_reading
+                .get_column_as_vec_str("http://purl.obolibrary.org/obo/IAO_0000115-object-First");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
             let table_reading = session_reading
@@ -2196,14 +2228,16 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 2);
+            assert_eq!(table_reading.count_rows(), 2);
             let column = table_reading.get_column_as_vec_str("subject");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
-            let column = table_reading.get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
+            let column = table_reading
+                .get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
-            let column = table_reading.get_column_as_vec_str("http://purl.obolibrary.org/obo/IAO_0000115-object-First");
+            let column = table_reading
+                .get_column_as_vec_str("http://purl.obolibrary.org/obo/IAO_0000115-object-First");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
             let table_reading = session_reading
@@ -2212,17 +2246,23 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 1);
+            assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("subject");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
-            let column = table_reading.get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
+            let column = table_reading
+                .get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
         }
 
         // Run the fourth superstep
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), HashMap::<String, IPCMessage>::new()).await?.unwrap();
+        let response = SessionStreamStep::run_superstep(
+            Arc::clone(&session_ctx_arc),
+            HashMap::<String, IPCMessage>::new(),
+        )
+        .await?
+        .unwrap();
 
         {
             // Debug any errors
@@ -2246,7 +2286,7 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 7);
+            assert_eq!(table_reading.count_rows(), 7);
             let column = table_reading.get_column_as_vec_str("uri");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
@@ -2262,7 +2302,7 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 4);
+            assert_eq!(table_reading.count_rows(), 4);
             let column = table_reading.get_column_as_vec_str("uri");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
@@ -2275,7 +2315,12 @@ mod tests {
         }
 
         // Run the fifth superstep
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), HashMap::<String, IPCMessage>::new()).await?.unwrap();
+        let response = SessionStreamStep::run_superstep(
+            Arc::clone(&session_ctx_arc),
+            HashMap::<String, IPCMessage>::new(),
+        )
+        .await?
+        .unwrap();
 
         {
             // Debug any errors
@@ -2299,7 +2344,7 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 5);
+            assert_eq!(table_reading.count_rows(), 5);
             let column = table_reading.get_column_as_vec_str("entity");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
@@ -2330,7 +2375,7 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 5);
+            assert_eq!(table_reading.count_rows(), 5);
             let column = table_reading.get_column_as_vec_str("entity");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
@@ -2358,7 +2403,12 @@ mod tests {
         }
 
         // Run the sixth superstep
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), HashMap::<String, IPCMessage>::new()).await?.unwrap();
+        let response = SessionStreamStep::run_superstep(
+            Arc::clone(&session_ctx_arc),
+            HashMap::<String, IPCMessage>::new(),
+        )
+        .await?
+        .unwrap();
 
         {
             // Debug any errors
@@ -2382,14 +2432,14 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 0);
+            assert_eq!(table_reading.count_rows(), 0);
             let table_reading = session_reading
                 .get_states()
                 .get("select_resource_object_property_entity_s")
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 1);
+            assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("entity");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
@@ -2417,7 +2467,12 @@ mod tests {
         }
 
         // Run the seventh superstep
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), HashMap::<String, IPCMessage>::new()).await?.unwrap();
+        let response = SessionStreamStep::run_superstep(
+            Arc::clone(&session_ctx_arc),
+            HashMap::<String, IPCMessage>::new(),
+        )
+        .await?
+        .unwrap();
 
         {
             // Debug any errors
@@ -2441,7 +2496,7 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 5);
+            assert_eq!(table_reading.count_rows(), 5);
             let column = table_reading.get_column_as_vec_str("entity");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
@@ -2472,7 +2527,7 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 5);
+            assert_eq!(table_reading.count_rows(), 5);
             let column = table_reading.get_column_as_vec_str("entity");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");
@@ -2500,7 +2555,12 @@ mod tests {
         }
 
         // Run the eigth superstep
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), HashMap::<String, IPCMessage>::new()).await?.unwrap();
+        let response = SessionStreamStep::run_superstep(
+            Arc::clone(&session_ctx_arc),
+            HashMap::<String, IPCMessage>::new(),
+        )
+        .await?
+        .unwrap();
 
         {
             // Debug any errors
@@ -2524,7 +2584,7 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-			assert_eq!(table_reading.count_rows(), 3);
+            assert_eq!(table_reading.count_rows(), 3);
             let column = table_reading.get_column_as_vec_str("chunk_id");
             assert_eq!(column.first().unwrap(), &"");
             assert_eq!(column.last().unwrap(), &"");

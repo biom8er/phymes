@@ -12,7 +12,12 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait, create_chat_record_batch, remove_message_by_subject
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
+    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait,
+    create_chat_record_batch, remove_message_by_subject,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
@@ -245,14 +250,18 @@ impl Stream for CommandSandboxStream {
                 }
 
                 // Collect the next batch or continue processing the current batch
-                if self.message_inbox.is_none() && !self.from_cli_args
-                && let Some(subject_name) = self.config.as_ref().unwrap().subject_name.clone() {
+                if self.message_inbox.is_none()
+                    && !self.from_cli_args
+                    && let Some(subject_name) = self.config.as_ref().unwrap().subject_name.clone()
+                {
                     match self.messages.get_mut(subject_name.as_str()) {
                         // Poll the next batches
                         Some(fut) => {
                             // DM: where we will specify to stream batch by batch or collect all batches
                             let mut batches = Vec::new();
-                            while let Some(Ok(batch)) = ready!(fut.get_message_mut().poll_next_unpin(cx)) {
+                            while let Some(Ok(batch)) =
+                                ready!(fut.get_message_mut().poll_next_unpin(cx))
+                            {
                                 if batch.num_rows() > 0 {
                                     batches.push(batch);
                                     break;
@@ -267,16 +276,21 @@ impl Stream for CommandSandboxStream {
                                     .build()?;
                                 self.schema = table.get_schema();
                                 self.message_inbox.replace(table);
-                            }                        
+                            }
                         }
                         None => {
                             self.stream_state = CommandSandboxStreamState::Done;
-                            let error = Err(anyhow!("Subject `{subject_name}` was not found in the messages. The available message subjects are `{:?}`", self.messages.keys()));
+                            let error = Err(anyhow!(
+                                "Subject `{subject_name}` was not found in the messages. The available message subjects are `{:?}`",
+                                self.messages.keys()
+                            ));
                             return Poll::Ready(Some(error));
                         }
                     }
-                } else if self.message_inbox.is_none() && !self.from_cli_args
-                && self.config.as_ref().unwrap().cli_args.is_some() {
+                } else if self.message_inbox.is_none()
+                    && !self.from_cli_args
+                    && self.config.as_ref().unwrap().cli_args.is_some()
+                {
                     // "Poll" the config
                     self.from_cli_args = true;
                 } else if self.from_cli_args {
@@ -631,7 +645,7 @@ impl Stream for CommandSandboxStream {
                         // Do nothing
                     }
                 }
-                dbg!(&self.runner_state);
+                // dbg!(&self.runner_state);
 
                 // Execute the command
                 // DM: A future optimization maybe to treat each row as a parallel Command
@@ -1157,7 +1171,7 @@ impl Stream for CommandSandboxStream {
                         }
 
                         // Run the command
-                        dbg!(&command_args);
+                        // dbg!(&command_args);
                         Command::new("docker").args(&command_args).output()
                     }
                     CommandSandboxRunners::Wasmtime => {
@@ -1429,10 +1443,10 @@ impl Stream for CommandSandboxStream {
                             stdout
                         ))));
                     }
-                    {
-                        let stdout = String::from_utf8_lossy(&output.stdout);
-                        dbg!(stdout);
-                    }
+                    // {
+                    //     let stdout = String::from_utf8_lossy(&output.stdout);
+                    //     dbg!(stdout);
+                    // }
 
                     // Parse the response if running and skip if initializing or done
                     let batch = match (&self.config.as_ref().unwrap().data_o, &self.runner_state) {
@@ -1457,7 +1471,7 @@ impl Stream for CommandSandboxStream {
                             DataIOMethod::TempFile,
                             CommandSandboxRunnerState::Running(runner_info),
                         ) => {
-                            dbg!(&runner_info);
+                            // dbg!(&runner_info);
                             let file = fs::File::open(
                                 runner_info
                                     .output_file
@@ -1467,7 +1481,6 @@ impl Stream for CommandSandboxStream {
                             let table = TableBuilder::new_from_ipc_file(file)?
                                 .with_name("sandbox_tempfile_running")
                                 .build()?;
-                            dbg!(&table);
                             table.get_record_batches_own().pop().unwrap()
                         }
                         (
@@ -2173,7 +2186,6 @@ mod tests {
             .with_record_batches(result)?
             .build()?;
 
-        dbg!(&table);
         let result = table.get_column_as_vec_str("name");
         assert_eq!(result, ["Alice", "Bob"]);
         let result = table.get_column_as_vec_primitive::<u32>("age")?;

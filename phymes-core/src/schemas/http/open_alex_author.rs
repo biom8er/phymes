@@ -1,7 +1,14 @@
 use std::sync::Arc;
 
+use crate::{
+    AvailableSchemaTrait, MappableTrait, create_schema_from_fields,
+    schemas::http::{
+        AwardAffiliationTable,
+        open_alex_common::{CountsByYear, SummaryStats},
+        open_alex_institution::Institution,
+    },
+};
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use crate::{AvailableSchemaTrait, MappableTrait, create_schema_from_fields, schemas::http::{AwardAffiliationTable, open_alex_common::{CountsByYear, SummaryStats}, open_alex_institution::Institution}};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -24,30 +31,57 @@ pub struct Author {
 }
 
 impl Author {
-    pub fn to_tables(self) -> (AuthorTable,
-        Vec<AuthorDisplayNameAlternativesTable>, 
-        Vec<AuthorAffiliationTable>, 
-        Vec<AuthorLastKnownInstitutionsTable>, 
+    pub fn to_tables(
+        self,
+    ) -> (
+        AuthorTable,
+        Vec<AuthorDisplayNameAlternativesTable>,
+        Vec<AuthorAffiliationTable>,
+        Vec<AuthorLastKnownInstitutionsTable>,
         Option<AuthorIdsTable>,
         Option<AuthorSummaryStatsTable>,
         Vec<AuthorCountsByYearTable>,
         Vec<AuthorConceptTable>,
     ) {
-        let author_display_name_alternatives = self.display_name_alternatives.unwrap_or_default().into_iter()
-            .map(|t| AuthorDisplayNameAlternativesTable { author_id: self.id.clone().unwrap_or_default(), display_name: t})
+        let author_display_name_alternatives = self
+            .display_name_alternatives
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| AuthorDisplayNameAlternativesTable {
+                author_id: self.id.clone().unwrap_or_default(),
+                display_name: t,
+            })
             .collect::<Vec<_>>();
-        let author_affiliation = self.affiliations.unwrap_or_default().into_iter()
+        let author_affiliation = self
+            .affiliations
+            .unwrap_or_default()
+            .into_iter()
             .map(|t| t.to_author_affiliation_table(&self.id.clone().unwrap_or_default()))
             .collect::<Vec<_>>();
-        let author_last_known_institutions = self.last_known_institutions.unwrap_or_default().into_iter()
-            .map(|t| t.to_author_last_known_institutions_table(&self.id.clone().unwrap_or_default()))
+        let author_last_known_institutions = self
+            .last_known_institutions
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| {
+                t.to_author_last_known_institutions_table(&self.id.clone().unwrap_or_default())
+            })
             .collect::<Vec<_>>();
-        let author_ids = self.ids.map(|t| t.to_author_ids_table(&self.id.clone().unwrap_or_default()));
-        let author_summary_stats = self.summary_stats.map(|t| t.to_author_summary_stats_table(&self.id.clone().unwrap_or_default()));
-        let author_counts_by_year = self.counts_by_year.unwrap_or_default().into_iter()
+        let author_ids = self
+            .ids
+            .map(|t| t.to_author_ids_table(&self.id.clone().unwrap_or_default()));
+        let author_summary_stats = self
+            .summary_stats
+            .map(|t| t.to_author_summary_stats_table(&self.id.clone().unwrap_or_default()));
+        let author_counts_by_year = self
+            .counts_by_year
+            .unwrap_or_default()
+            .into_iter()
             .map(|t| t.to_author_counts_by_year(&self.id.clone().unwrap_or_default()))
             .collect::<Vec<_>>();
-        let author_concepts = self.x_concepts.unwrap_or_default().into_iter()
+        let author_concepts = self
+            .x_concepts
+            .unwrap_or_default()
+            .into_iter()
             .map(|t| t.to_author_concept_table(&self.id.clone().unwrap_or_default()))
             .collect::<Vec<_>>();
         let author = AuthorTable {
@@ -58,9 +92,18 @@ impl Author {
             cited_by_count: self.cited_by_count.unwrap_or_default(),
             created_date: self.created_date.unwrap_or_default(),
             updated_date: self.updated_date.unwrap_or_default(),
-            works_api_url: self.works_api_url.unwrap_or_default()
+            works_api_url: self.works_api_url.unwrap_or_default(),
         };
-        (author, author_display_name_alternatives, author_affiliation, author_last_known_institutions, author_ids, author_summary_stats, author_counts_by_year, author_concepts)
+        (
+            author,
+            author_display_name_alternatives,
+            author_affiliation,
+            author_last_known_institutions,
+            author_ids,
+            author_summary_stats,
+            author_counts_by_year,
+            author_concepts,
+        )
     }
 }
 
@@ -78,22 +121,25 @@ pub struct AuthorTable {
 
 impl AuthorTable {
     fn to_fields() -> Fields {
-        let field_names = ["author_id", 
-            "orcid", 
-            "display_name", 
-            "created_date", 
-            "updated_date", 
-            "works_api_url"];
+        let field_names = [
+            "author_id",
+            "orcid",
+            "display_name",
+            "created_date",
+            "updated_date",
+            "works_api_url",
+        ];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = ["works_count", 
-            "cited_by_count"];
-        fields_vec.extend(field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::UInt32, false))
-            .collect::<Vec<_>>());
+        let field_names = ["works_count", "cited_by_count"];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::UInt32, false))
+                .collect::<Vec<_>>(),
+        );
         Fields::from(fields_vec)
     }
 }
@@ -154,7 +200,12 @@ impl Affiliation {
         }
     }
     pub fn to_award_affiliation_table(self, award_id: &str, orcid: &str) -> AwardAffiliationTable {
-        AwardAffiliationTable { award_id: award_id.to_string(), orcid: orcid.to_string(), institution_id: self.institution.id, years: self.years }
+        AwardAffiliationTable {
+            award_id: award_id.to_string(),
+            orcid: orcid.to_string(),
+            institution_id: self.institution.id,
+            years: self.years,
+        }
     }
 }
 
@@ -172,7 +223,8 @@ impl AuthorAffiliationTable {
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::UInt32, false)));
+        let list_data_type =
+            DataType::List(Arc::new(Field::new_list_field(DataType::UInt32, false)));
         let field_names = ["years"];
         fields_vec.extend(
             field_names
@@ -236,13 +288,13 @@ pub struct AuthorIds {
 
 impl AuthorIds {
     pub fn to_author_ids_table(self, author_id: &str) -> AuthorIdsTable {
-        AuthorIdsTable { 
-            author_id: author_id.to_string(), 
-            openalex: self.openalex.unwrap_or_default(), 
-            orcid: self.orcid.unwrap_or_default(), 
-            scopus: self.scopus.unwrap_or_default(), 
-            twitter: self.twitter.unwrap_or_default(), 
-            wikipedia: self.wikipedia.unwrap_or_default()
+        AuthorIdsTable {
+            author_id: author_id.to_string(),
+            openalex: self.openalex.unwrap_or_default(),
+            orcid: self.orcid.unwrap_or_default(),
+            scopus: self.scopus.unwrap_or_default(),
+            twitter: self.twitter.unwrap_or_default(),
+            wikipedia: self.wikipedia.unwrap_or_default(),
         }
     }
 }
@@ -259,7 +311,14 @@ pub struct AuthorIdsTable {
 
 impl AuthorIdsTable {
     fn to_fields() -> Fields {
-        let field_names = ["author_id", "openalex", "orcid", "scopus", "twitter", "wikipedia"];
+        let field_names = [
+            "author_id",
+            "openalex",
+            "orcid",
+            "scopus",
+            "twitter",
+            "wikipedia",
+        ];
         let fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -302,10 +361,7 @@ impl AuthorSummaryStatsTable {
                 .map(|f| Field::new(*f, DataType::Float64, false))
                 .collect::<Vec<_>>(),
         );
-        let field_names = [
-            "h_index",
-            "i10_index",
-        ];
+        let field_names = ["h_index", "i10_index"];
         fields_vec.extend(
             field_names
                 .iter()
@@ -342,10 +398,7 @@ impl AuthorCountsByYearTable {
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = [
-            "year",
-            "cited_by_count",
-        ];
+        let field_names = ["year", "cited_by_count"];
         fields_vec.extend(
             field_names
                 .iter()
@@ -376,10 +429,10 @@ pub struct AuthorConcept {
 
 impl AuthorConcept {
     pub fn to_author_concept_table(self, author_id: &str) -> AuthorConceptTable {
-        AuthorConceptTable { 
-            author_id: author_id.to_string(), 
-            concept_id: self.id.unwrap_or_default(), 
-            score: self.score.unwrap_or_default() 
+        AuthorConceptTable {
+            author_id: author_id.to_string(),
+            concept_id: self.id.unwrap_or_default(),
+            score: self.score.unwrap_or_default(),
         }
     }
 }

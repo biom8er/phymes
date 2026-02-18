@@ -5,7 +5,12 @@ use std::{
 };
 
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, ToolCall, create_chat_record_batch, create_route_bytes_record_batch, remove_message_by_subject
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat,
+    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream,
+    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, ToolCall,
+    create_chat_record_batch, create_route_bytes_record_batch, remove_message_by_subject,
 };
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
@@ -240,13 +245,31 @@ impl Stream for MessageParserStream {
 
                         // Parse the arguments and rebuild the as a `serde_json::Value`
                         //  that is compatible with `DataConfig`-like subject targets
-                        let mut values = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(
-                            tool_call.function.arguments.as_ref().unwrap().as_str(),
-                        )?;
-                        let _ = values.insert("operator".to_string(), serde_json::Value::String(tool_call.function.name.as_ref().unwrap().as_str().to_string()));
+                        let mut values =
+                            serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(
+                                tool_call.function.arguments.as_ref().unwrap().as_str(),
+                            )?;
+                        let _ = values.insert(
+                            "operator".to_string(),
+                            serde_json::Value::String(
+                                tool_call
+                                    .function
+                                    .name
+                                    .as_ref()
+                                    .unwrap()
+                                    .as_str()
+                                    .to_string(),
+                            ),
+                        );
                         values_vec.push(serde_json::to_string(&values)?.into_bytes());
                     }
-                    create_route_bytes_record_batch(names_vec, publishers_vec, subjects_vec, formats_vec, values_vec)?
+                    create_route_bytes_record_batch(
+                        names_vec,
+                        publishers_vec,
+                        subjects_vec,
+                        formats_vec,
+                        values_vec,
+                    )?
                 }
                 Err(_e) => {
                     // Parse for Qwen
@@ -277,7 +300,8 @@ impl Stream for MessageParserStream {
                             let mut formats_vec = Vec::new();
                             let mut values_vec = Vec::new();
                             for json_value in json_values.into_iter() {
-                                let name = json_value.get("name")
+                                let name = json_value
+                                    .get("name")
                                     .unwrap()
                                     .as_str()
                                     .unwrap()
@@ -290,8 +314,13 @@ impl Stream for MessageParserStream {
                                 // Parse the arguments and rebuild the as a `serde_json::Value`
                                 //  that is compatible with `DataConfig`-like subject targets
                                 let s = json_value.get("arguments").ok_or(anyhow!("Missing object for `arguments` when parsing JSON message response `{json_value}`."))?;
-                                let mut map = serde_json::from_value::<serde_json::Map<String, serde_json::Value>>(s.to_owned())?;
-                                let _ = map.insert("operator".to_string(), serde_json::Value::String(name));
+                                let mut map = serde_json::from_value::<
+                                    serde_json::Map<String, serde_json::Value>,
+                                >(s.to_owned())?;
+                                let _ = map.insert(
+                                    "operator".to_string(),
+                                    serde_json::Value::String(name),
+                                );
                                 values_vec.push(serde_json::to_string(&map)?.into_bytes());
                             }
                             create_route_bytes_record_batch(
@@ -468,14 +497,15 @@ mod tests {
             partitions.get_column_as_vec_str("format"),
             [DataFormat::Bytes.to_string(), DataFormat::Bytes.to_string()]
         );
-        let test: Vec<String> = partitions.get_column_as_vec_nested_primitive::<u8>("bytes")?
+        let test: Vec<String> = partitions
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
             .into_iter()
-            .map(|b|String::from_utf8(b).unwrap())
+            .map(|b| String::from_utf8(b).unwrap())
             .collect();
         assert_eq!(
             test,
             [
-                "{\"format\":\"celsius\",\"location\":\"San Francisco, CA\",\"operator\":\"get_current_weather\"}", 
+                "{\"format\":\"celsius\",\"location\":\"San Francisco, CA\",\"operator\":\"get_current_weather\"}",
                 "{\"location\":\"Santa Ana, CA\",\"operator\":\"get_weather\",\"time\":\"08:00\"}"
             ]
         );
@@ -580,9 +610,10 @@ mod tests {
             partitions.get_column_as_vec_str("format"),
             [DataFormat::Bytes.to_string()]
         );
-        let test: Vec<String> = partitions.get_column_as_vec_nested_primitive::<u8>("bytes")?
+        let test: Vec<String> = partitions
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
             .into_iter()
-            .map(|b|String::from_utf8(b).unwrap())
+            .map(|b| String::from_utf8(b).unwrap())
             .collect();
         assert_eq!(
             test,

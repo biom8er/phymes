@@ -74,9 +74,9 @@ impl<'a> EmbedTextSession<'a> {
 	embed_documents_p-subscribe@{shape: diamond, label: All}
 	DocumentEmbeddings-subject@{shape: doc, label: DocumentEmbeddings}
 	%% ------------------------------------------------------------------------------"#
-	}
+    }
     /// Return the Mermaid.js ER diagram representation of the session
-    /// 
+    ///
     /// # Note
     /// * for QWEN, the following cast template should be used
     ///   List-Utf8 cast_templates "['','Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: {{ content }}']"
@@ -146,7 +146,7 @@ impl<'a> EmbedTextSession<'a> {
 	    Utf8 document_id
 	    List-Float32 embedding
 	}"#
-	}
+    }
 }
 
 #[cfg(test)]
@@ -156,12 +156,16 @@ mod tests {
     use anyhow::Result;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, TablePublication, TableTrait, create_documents_batch
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
+        ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, TablePublication,
+        TableTrait, create_documents_batch,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep, SessionStreamStepTrait, create_message_map
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
+        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep,
+        SessionStreamStepTrait, create_message_map,
     };
 
     use super::*;
@@ -179,19 +183,37 @@ mod tests {
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
-		.add_next_supersteps()?
+        .add_next_supersteps()?
         .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
         // Documents data
-        let chunk_id = ["WikiBioComponents_2_0","WikiBioComponents_2_1","WikiBioComponents_2_2","WikiBioComponents_2_3","WikiBioComponents_2_4","WikiBioComponents_2_5","WikiBioComponents_2_6","WikiBioComponents_3_0"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
-        let document_id = ["WikiBioComponents","WikiBioComponents","WikiBioComponents","WikiBioComponents","WikiBioComponents","WikiBioComponents","WikiBioComponents","WikiBioComponents"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
+        let chunk_id = [
+            "WikiBioComponents_2_0",
+            "WikiBioComponents_2_1",
+            "WikiBioComponents_2_2",
+            "WikiBioComponents_2_3",
+            "WikiBioComponents_2_4",
+            "WikiBioComponents_2_5",
+            "WikiBioComponents_2_6",
+            "WikiBioComponents_3_0",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+        let document_id = [
+            "WikiBioComponents",
+            "WikiBioComponents",
+            "WikiBioComponents",
+            "WikiBioComponents",
+            "WikiBioComponents",
+            "WikiBioComponents",
+            "WikiBioComponents",
+            "WikiBioComponents",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
         let text = [
             "Deoxyribonucleic acid (DNA) is a polymer composed of two polynucleotide chains that coil around each other to form a double helix. The polymer carries genetic instructions for the development, functioning, growth and reproduction of all known organisms and many viruses. DNA and ribonucleic acid (RNA) are nucleic acids. Alongside proteins, lipids and complex carbohydrates (polysaccharides), nucleic acids are one of the four major types of macromolecules that are essential for all known forms of life.The two ",
             "olecules that are essential for all known forms of life.The two DNA strands are known as polynucleotides as they are composed of simpler monomeric units called nucleotides.[2][3] Each nucleotide is composed of one of four nitrogen-containing nucleobases (cytosine [C], guanine [G], adenine [A] or thymine [T]), a sugar called deoxyribose, and a phosphate group. The nucleotides are joined to one another in a chain by covalent bonds (known as the phosphodiester linkage) between the sugar of one nucleotide and t",
@@ -205,8 +227,7 @@ mod tests {
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
         let batch = create_documents_batch(chunk_id, document_id, text)?;
-        let document = AvailableSubjects::Documents
-            .to_table(None, Some(vec![batch]))?;
+        let document = AvailableSubjects::Documents.to_table(None, Some(vec![batch]))?;
         let document_message = IPCMessage::get_builder()
             .with_message(document.to_ipc_stream()?)
             .with_subject(document.get_name())
@@ -234,7 +255,9 @@ mod tests {
         let message_map = create_message_map(vec![chat_message, document_message]);
 
         // Run the first superstep
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map).await?.unwrap();
+        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map)
+            .await?
+            .unwrap();
 
         assert_eq!(response.len(), 0);
 
@@ -246,15 +269,23 @@ mod tests {
                 .get(AvailableInterfaceSubjects::UserQueries.to_string().as_str())
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 1);
+            assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("query_id");
             assert!(column.first().is_some());
             let column = table_reading.get_column_as_vec_str("text");
-            assert_eq!(column.first().unwrap(), &"What are the four molecules that compose DNA?");
+            assert_eq!(
+                column.first().unwrap(),
+                &"What are the four molecules that compose DNA?"
+            );
         }
 
         // Run the second superstep
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), HashMap::<String, IPCMessage>::new()).await?.unwrap();
+        let response = SessionStreamStep::run_superstep(
+            Arc::clone(&session_ctx_arc),
+            HashMap::<String, IPCMessage>::new(),
+        )
+        .await?
+        .unwrap();
 
         assert_eq!(response.len(), 0);
 
@@ -266,7 +297,7 @@ mod tests {
                 .get(AvailableSubjects::QueryEmbeddings.to_string().as_str())
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 1);
+            assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("query_id");
             assert!(column.first().is_some());
             let column = table_reading.get_column_as_vec_nested_primitive::<f32>("embedding")?;
@@ -277,7 +308,7 @@ mod tests {
                 .get(AvailableSubjects::DocumentEmbeddings.to_string().as_str())
                 .unwrap()
                 .read();
-			assert_eq!(table_reading.count_rows(), 8);
+            assert_eq!(table_reading.count_rows(), 8);
             let column = table_reading.get_column_as_vec_str("chunk_id");
             assert_eq!(column.first().unwrap(), &"WikiBioComponents_2_0");
             assert_eq!(column.last().unwrap(), &"WikiBioComponents_3_0");

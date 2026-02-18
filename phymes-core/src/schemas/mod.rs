@@ -3,13 +3,23 @@ mod chat;
 mod embed;
 mod http;
 pub use available_subjects::{
-    AvailableSubjects, AvailableSchemaTrait, AvailableSubjectsTrait, JsonSchemaTrait, create_schema_from_fields,
+    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, JsonSchemaTrait,
+    create_schema_from_fields,
 };
-pub use chat::{create_chat_fields, create_chat_record_batch, ChatBuilderTraitExt, ChatTraitExt, ChatCompletionRequest, ChatCompletionResponse, FinishReason, Tool, ToolCall, ToolChoiceType,
-    ToolType, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, create_tools_record_batch, create_route_bytes_record_batch, create_bytes_record_batch,
-    create_bytes_fields, create_route_bytes_fields, create_tools_fields};
-pub use embed::{BlobBuilderTraitExt, BlobSubject, create_blob_batch, create_blob_fields, create_document_embeddings_fields, create_documents_fields, create_embeddings_scores_fields, create_join_chunks_scores_fields, create_documents_batch, create_documents_embeddings_batch, create_query_embeddings_fields, create_queries_fields, create_query_embeddings_batch,
-    create_queries_batch, EmbeddingRequest, EmbeddingResponse, EncodingFormat};
+pub use chat::{
+    ChatBuilderTraitExt, ChatCompletionRequest, ChatCompletionResponse, ChatTraitExt, FinishReason,
+    Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, Tool, ToolCall, ToolChoiceType,
+    ToolType, create_bytes_fields, create_bytes_record_batch, create_chat_fields,
+    create_chat_record_batch, create_route_bytes_fields, create_route_bytes_record_batch,
+    create_tools_fields, create_tools_record_batch,
+};
+pub use embed::{
+    BlobBuilderTraitExt, BlobSubject, EmbeddingRequest, EmbeddingResponse, EncodingFormat,
+    create_blob_batch, create_blob_fields, create_document_embeddings_fields,
+    create_documents_batch, create_documents_embeddings_batch, create_documents_fields,
+    create_embeddings_scores_fields, create_join_chunks_scores_fields, create_queries_batch,
+    create_queries_fields, create_query_embeddings_batch, create_query_embeddings_fields,
+};
 pub use http::{e_utils, open_alex, semantic_scholar};
 
 mod mermaid;

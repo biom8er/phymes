@@ -16,13 +16,12 @@ use phymes_agents::{
     SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream,
     create_message_map,
 };
+use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, DiagnosticsVisualizations,
     IPCMessage, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait,
-    MessageTrait, TableBuilder,
-    TableBuilderTrait, TablePublication, TableTrait,
+    MessageTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
 };
-use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
 
 // General imports
 use anyhow::Result;

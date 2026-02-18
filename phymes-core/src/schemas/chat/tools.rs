@@ -13,14 +13,14 @@ pub fn create_route_bytes_fields() -> Fields {
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let list_data_type = DataType::List(
-        Arc::new(Field::new_list_field(DataType::UInt8, false))
-    );
+    let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::UInt8, false)));
     let field_names = ["bytes"];
-    fields_vec.extend(field_names
+    fields_vec.extend(
+        field_names
             .iter()
             .map(|f| Field::new(*f, list_data_type.clone(), false))
-            .collect::<Vec<_>>());
+            .collect::<Vec<_>>(),
+    );
     Fields::from(fields_vec)
 }
 
@@ -56,21 +56,17 @@ pub fn create_route_bytes_record_batch(
 
 /// Fields for a single [RecordBatch] per row
 pub fn create_bytes_fields() -> Fields {
-    let list_data_type = DataType::List(
-        Arc::new(Field::new_list_field(DataType::UInt8, false))
-    );
+    let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::UInt8, false)));
     let field_names = ["bytes"];
     let fields_vec = field_names
-            .iter()
-            .map(|f| Field::new(*f, list_data_type.clone(), false))
-            .collect::<Vec<_>>();
+        .iter()
+        .map(|f| Field::new(*f, list_data_type.clone(), false))
+        .collect::<Vec<_>>();
     Fields::from(fields_vec)
 }
 
 /// A single [RecordBatch] per row
-pub fn create_bytes_record_batch(
-    bytes: Vec<Vec<u8>>,
-) -> Result<RecordBatch> {
+pub fn create_bytes_record_batch(bytes: Vec<Vec<u8>>) -> Result<RecordBatch> {
     let value_builder = UInt8Builder::new();
     let mut list_builder =
         ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::UInt8, false));
@@ -79,9 +75,7 @@ pub fn create_bytes_record_batch(
         list_builder.append(true);
     }
     let bytes: ArrayRef = Arc::new(list_builder.finish());
-    let batch = RecordBatch::try_from_iter(vec![
-        ("bytes", bytes),
-    ])?;
+    let batch = RecordBatch::try_from_iter(vec![("bytes", bytes)])?;
     Ok(batch)
 }
 

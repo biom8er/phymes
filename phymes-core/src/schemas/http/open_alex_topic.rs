@@ -1,6 +1,7 @@
-
+use crate::{
+    AvailableSchemaTrait, MappableTrait, create_schema_from_fields, schemas::http::WorkTopicTable,
+};
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use crate::{AvailableSchemaTrait, MappableTrait, create_schema_from_fields, schemas::http::WorkTopicTable};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -18,34 +19,57 @@ pub struct Topic {
 }
 
 impl Topic {
-    pub fn to_work_topic_table(self, work_id: &str, is_primary: bool, score: f32) -> WorkTopicTable {
-        WorkTopicTable { 
-            work_id: work_id.to_string(), 
-            topic_id: self.id, 
+    pub fn to_work_topic_table(
+        self,
+        work_id: &str,
+        is_primary: bool,
+        score: f32,
+    ) -> WorkTopicTable {
+        WorkTopicTable {
+            work_id: work_id.to_string(),
+            topic_id: self.id,
             is_primary,
-            score
+            score,
         }
     }
-    pub fn to_tables(self) -> (TopicTable,
+    pub fn to_tables(
+        self,
+    ) -> (
+        TopicTable,
         TopicDomainTable,
         TopicFieldTable,
         TopicSubfieldTable,
         Option<TopicIdsTable>,
-        Vec<TopicKeywordTable>
+        Vec<TopicKeywordTable>,
     ) {
         let topic_domain = self.domain.to_topic_domain_table(&self.id);
         let topic_field = self.field.to_topic_field_table(&self.id);
         let topic_subfield = self.subfield.to_topic_subfield_table(&self.id);
         let topic_ids = self.ids.map(|t| t.to_topic_ids_table(&self.id));
-        let topic_keyword = self.keywords.unwrap_or_default().into_iter().map(|k| TopicKeywordTable {topic_id: self.id.clone(), keyword: k}).collect::<Vec<_>>();
+        let topic_keyword = self
+            .keywords
+            .unwrap_or_default()
+            .into_iter()
+            .map(|k| TopicKeywordTable {
+                topic_id: self.id.clone(),
+                keyword: k,
+            })
+            .collect::<Vec<_>>();
         let topic = TopicTable {
             topic_id: self.id,
             display_name: self.display_name,
             description: self.description.unwrap_or_default(),
             updated_date: self.updated_date.unwrap_or_default(),
-            works_count: self.works_count.unwrap_or_default()
+            works_count: self.works_count.unwrap_or_default(),
         };
-        (topic, topic_domain, topic_field, topic_subfield, topic_ids, topic_keyword)
+        (
+            topic,
+            topic_domain,
+            topic_field,
+            topic_subfield,
+            topic_ids,
+            topic_keyword,
+        )
     }
 }
 
@@ -60,19 +84,18 @@ pub struct TopicTable {
 
 impl TopicTable {
     fn to_fields() -> Fields {
-        let field_names = ["topic_id", 
-            "display_name", 
-            "description", 
-            "updated_date"];
+        let field_names = ["topic_id", "display_name", "description", "updated_date"];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
         let field_names = ["works_count"];
-        fields_vec.extend(field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::UInt32, false))
-            .collect::<Vec<_>>());
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::UInt32, false))
+                .collect::<Vec<_>>(),
+        );
         Fields::from(fields_vec)
     }
 }
@@ -97,7 +120,11 @@ pub struct TopicIds {
 
 impl TopicIds {
     pub fn to_topic_ids_table(self, topic_id: &str) -> TopicIdsTable {
-        TopicIdsTable { topic_id: topic_id.to_string(), openalex: self.openalex.unwrap_or_default(), wikipedia: self.wikipedia.unwrap_or_default() }
+        TopicIdsTable {
+            topic_id: topic_id.to_string(),
+            openalex: self.openalex.unwrap_or_default(),
+            wikipedia: self.wikipedia.unwrap_or_default(),
+        }
     }
 }
 
@@ -110,9 +137,7 @@ pub struct TopicIdsTable {
 
 impl TopicIdsTable {
     fn to_fields() -> Fields {
-        let field_names = ["topic_id",
-        "openalex",
-        "wikipedia"];
+        let field_names = ["topic_id", "openalex", "wikipedia"];
         let fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -141,7 +166,11 @@ pub struct TopicSubfield {
 
 impl TopicSubfield {
     pub fn to_topic_subfield_table(self, topic_id: &str) -> TopicSubfieldTable {
-        TopicSubfieldTable { topic_id: topic_id.to_string(), topic_subfield_id: self.id.unwrap_or_default(), display_name: self.display_name.unwrap_or_default() }
+        TopicSubfieldTable {
+            topic_id: topic_id.to_string(),
+            topic_subfield_id: self.id.unwrap_or_default(),
+            display_name: self.display_name.unwrap_or_default(),
+        }
     }
 }
 
@@ -154,9 +183,7 @@ pub struct TopicSubfieldTable {
 
 impl TopicSubfieldTable {
     fn to_fields() -> Fields {
-        let field_names = ["topic_id",
-        "topic_subfield_id",
-        "display_name"];
+        let field_names = ["topic_id", "topic_subfield_id", "display_name"];
         let fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -185,7 +212,11 @@ pub struct TopicField {
 
 impl TopicField {
     pub fn to_topic_field_table(self, topic_id: &str) -> TopicFieldTable {
-        TopicFieldTable { topic_id: topic_id.to_string(), topic_field_id: self.id.unwrap_or_default(), display_name: self.display_name.unwrap_or_default() }
+        TopicFieldTable {
+            topic_id: topic_id.to_string(),
+            topic_field_id: self.id.unwrap_or_default(),
+            display_name: self.display_name.unwrap_or_default(),
+        }
     }
 }
 
@@ -198,9 +229,7 @@ pub struct TopicFieldTable {
 
 impl TopicFieldTable {
     fn to_fields() -> Fields {
-        let field_names = ["topic_id",
-        "topic_field_id",
-        "display_name"];
+        let field_names = ["topic_id", "topic_field_id", "display_name"];
         let fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -229,7 +258,11 @@ pub struct TopicDomain {
 
 impl TopicDomain {
     pub fn to_topic_domain_table(self, topic_id: &str) -> TopicDomainTable {
-        TopicDomainTable { topic_id: topic_id.to_string(), topic_domain_id: self.id.unwrap_or_default(), display_name: self.display_name.unwrap_or_default() }
+        TopicDomainTable {
+            topic_id: topic_id.to_string(),
+            topic_domain_id: self.id.unwrap_or_default(),
+            display_name: self.display_name.unwrap_or_default(),
+        }
     }
 }
 
@@ -242,9 +275,7 @@ pub struct TopicDomainTable {
 
 impl TopicDomainTable {
     fn to_fields() -> Fields {
-        let field_names = ["topic_id",
-        "topic_domain_id",
-        "display_name"];
+        let field_names = ["topic_id", "topic_domain_id", "display_name"];
         let fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))

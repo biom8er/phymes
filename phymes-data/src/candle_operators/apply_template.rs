@@ -4,7 +4,9 @@ use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableScript, TableTrait, Tool, ToolType, create_bytes_record_batch, create_mermaid_content_template_batch
+    BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine,
+    JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableScript, TableTrait, Tool,
+    ToolType, create_bytes_record_batch, create_mermaid_content_template_batch,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -217,9 +219,7 @@ pub fn apply_template(
     // Wrap into a table
     let batch = match format {
         DataFormat::None => create_mermaid_content_template_batch(vec![document])?,
-        _ => create_bytes_record_batch(
-            vec![document.as_bytes().to_vec()],
-        )?,
+        _ => create_bytes_record_batch(vec![document.as_bytes().to_vec()])?,
     };
     let table = Table::get_builder()
         .with_name(doc_name)

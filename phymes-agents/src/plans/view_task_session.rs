@@ -9,20 +9,20 @@ use phymes_diagnostics::HashMap;
 use crate::create_message_map;
 
 /// A session for determining the next superstep task publications and subscriptions
-pub struct NextTaskSession<'a> {
+pub struct ViewTaskSession<'a> {
     /// Session
     pub session_context_name: &'a str,
 }
 
-impl Default for NextTaskSession<'_> {
+impl Default for ViewTaskSession<'_> {
     fn default() -> Self {
-        NextTaskSession {
-            session_context_name: "next_task_session",
+        ViewTaskSession {
+            session_context_name: "view_task_session",
         }
     }
 }
 
-impl<'a> NextTaskSession<'a> {
+impl<'a> ViewTaskSession<'a> {
     /// Return the pre-compiled task subscriptions and publications as messages
     ///
     /// # Notes
@@ -51,9 +51,9 @@ impl<'a> NextTaskSession<'a> {
             "cmp_processors_subscriptions_p",
             "filter_processors_subscriptions_p",
             "select_processors_subscriptions_p",
-            "cmp_processors_publications_p",
+            "select_processors_p",
             "filter_processors_publications_p",
-            "select_processors_publications_p",
+            "select_tasks_processors_p",
         ]
         .into_iter()
         .map(|s| s.to_string())
@@ -80,26 +80,26 @@ impl<'a> NextTaskSession<'a> {
         let subscription_table_names = vec![
             vec!["SessionTasksRunLog", "group_by_tasks_run_log_timestamp_p"],
             vec![
-                "group_by_tasks_run_log_timestamp_s",
+                "group_by_tasks_run_log_timestamp_t",
                 "select_tasks_run_log_timestamp_p",
             ],
             vec!["SessionProcessors", "cmp_processors_subscriptions_p"],
             vec![
-                "cmp_processors_subscriptions_s",
+                "cmp_processors_subscriptions_t",
                 "filter_processors_subscriptions_p",
             ],
             vec![
-                "filter_processors_subscriptions_s",
+                "filter_processors_subscriptions_t",
                 "select_processors_subscriptions_p",
             ],
-            vec!["SessionProcessors", "cmp_processors_publications_p"],
+            vec!["SessionProcessors", "select_processors_p"],
             vec![
-                "cmp_processors_publications_s",
+                "select_processors_s",
                 "filter_processors_publications_p",
             ],
             vec![
-                "filter_processors_publications_s",
-                "select_processors_publications_p",
+                "filter_processors_publications_t",
+                "select_tasks_processors_p",
             ],
         ]
         .into_iter()
@@ -119,14 +119,14 @@ impl<'a> NextTaskSession<'a> {
         .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
         .collect::<Vec<_>>();
         let publication_table_names = vec![
-            vec!["group_by_tasks_run_log_timestamp_s"],
-            vec!["select_tasks_run_log_timestamp_s"],
-            vec!["cmp_processors_subscriptions_s"],
-            vec!["filter_processors_subscriptions_s"],
-            vec!["select_processors_subscriptions_s"],
-            vec!["cmp_processors_publications_s"],
-            vec!["filter_processors_publications_s"],
-            vec!["select_processors_publications_s"],
+            vec!["group_by_tasks_run_log_timestamp_t"],
+            vec!["select_tasks_run_log_timestamp_t"],
+            vec!["cmp_processors_subscriptions_t"],
+            vec!["filter_processors_subscriptions_t"],
+            vec!["select_processors_subscriptions_t"],
+            vec!["select_processors_s"],
+            vec!["filter_processors_publications_t"],
+            vec!["select_tasks_processors_s"],
         ]
         .into_iter()
         .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
@@ -171,19 +171,19 @@ impl<'a> NextTaskSession<'a> {
 
         // 2. Message to trigger the second superstep
         let task_names = vec![
-            "join_tasks_run_log_timestamp_t",
-            "join_tasks_run_log_timestamp_t",
-            "join_tasks_run_log_timestamp_t",
-            "join_tasks_run_log_timestamp_t",
-            "join_tasks_run_log_timestamp_t",
-            "join_tasks_run_log_timestamp_t",
+            "join_tasks_processors_s",
+            "join_tasks_processors_s",
+            "join_tasks_processors_s",
+            "join_tasks_processors_s",
+            "join_tasks_processors_s",
+            "join_tasks_processors_s",
         ]
         .into_iter()
         .map(|s| s.to_string())
         .collect::<Vec<_>>();
         let processor_names = vec![
-            "group_by_subject_change_log_timestamp_p",
-            "join_tasks_run_log_timestamp_p",
+            "group_by_processors_p",
+            "join_tasks_processors_p",
             "join_tasks_processors_subscriptions_p",
             "join_tasks_processors_subscriptions_subjects_p",
             "select_tasks_processors_subscriptions_subjects_p",
@@ -210,29 +210,29 @@ impl<'a> NextTaskSession<'a> {
         let subscription_table_names = vec![
             vec![
                 "SubjectsChangeLog",
-                "group_by_subject_change_log_timestamp_p",
+                "group_by_processors_p",
             ],
             vec![
-                "select_tasks_run_log_timestamp_s",
+                "select_tasks_run_log_timestamp_t",
                 "SessionTasks",
-                "join_tasks_run_log_timestamp_p",
+                "join_tasks_processors_p",
             ],
             vec![
-                "join_tasks_run_log_timestamp_s",
-                "select_processors_subscriptions_s",
+                "join_tasks_processors_s",
+                "select_processors_subscriptions_t",
                 "join_tasks_processors_subscriptions_p",
             ],
             vec![
-                "join_tasks_processors_subscriptions_s",
-                "group_by_subject_change_log_timestamp_s",
+                "join_tasks_processors_subscriptions_t",
+                "group_by_processors_s",
                 "join_tasks_processors_subscriptions_subjects_p",
             ],
             vec![
-                "join_tasks_processors_subscriptions_subjects_s",
+                "join_tasks_processors_subscriptions_subjects_t",
                 "select_tasks_processors_subscriptions_subjects_p",
             ],
             vec![
-                "select_tasks_processors_subscriptions_subjects_s",
+                "select_tasks_processors_subscriptions_subjects_t",
                 "group_by_tasks_processors_subscriptions_p",
             ],
         ]
@@ -251,11 +251,11 @@ impl<'a> NextTaskSession<'a> {
         .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
         .collect::<Vec<_>>();
         let publication_table_names = vec![
-            vec!["group_by_subject_change_log_timestamp_s"],
-            vec!["join_tasks_run_log_timestamp_s"],
-            vec!["join_tasks_processors_subscriptions_s"],
-            vec!["join_tasks_processors_subscriptions_subjects_s"],
-            vec!["select_tasks_processors_subscriptions_subjects_s"],
+            vec!["group_by_processors_s"],
+            vec!["join_tasks_processors_s"],
+            vec!["join_tasks_processors_subscriptions_t"],
+            vec!["join_tasks_processors_subscriptions_subjects_t"],
+            vec!["select_tasks_processors_subscriptions_subjects_t"],
             vec!["SessionTasksSubscribeAggregate"],
         ]
         .into_iter()
@@ -340,16 +340,16 @@ impl<'a> NextTaskSession<'a> {
                 "group_by_tasks_processors_subscriptions_subjects_p",
             ],
             vec![
-                "select_processors_publications_s",
+                "select_tasks_processors_s",
                 "group_by_tasks_processors_publications_p",
             ],
             vec![
-                "group_by_tasks_processors_subscriptions_subjects_s",
-                "group_by_tasks_processors_publications_s",
+                "group_by_tasks_processors_subscriptions_subjects_t",
+                "group_by_tasks_processors_publications_t",
                 "join_tasks_processors_publications_p",
             ],
             vec![
-                "join_tasks_processors_publications_s",
+                "join_tasks_processors_publications_t",
                 "select_tasks_processors_publications_p",
             ],
         ]
@@ -366,9 +366,9 @@ impl<'a> NextTaskSession<'a> {
         .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
         .collect::<Vec<_>>();
         let publication_table_names = vec![
-            vec!["group_by_tasks_processors_subscriptions_subjects_s"],
-            vec!["group_by_tasks_processors_publications_s"],
-            vec!["join_tasks_processors_publications_s"],
+            vec!["group_by_tasks_processors_subscriptions_subjects_t"],
+            vec!["group_by_tasks_processors_publications_t"],
+            vec!["join_tasks_processors_publications_t"],
             vec!["SessionTasksSubscribePublish"],
         ]
         .into_iter()
@@ -418,211 +418,51 @@ impl<'a> NextTaskSession<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
-    NextTaskSession_runtime_env-rt@{shape: subproc, label: NextTaskSession_runtime_env}
+    ViewTaskSession_runtime_env-rt@{shape: subproc, label: ViewTaskSession_runtime_env}
 
-	subgraph group_by_tasks_run_log_timestamp_t
-		SessionTasksRunLog-subject-.->|FullTable|group_by_tasks_run_log_timestamp_p-subscribe
-		group_by_tasks_run_log_timestamp_p-subscribe-->group_by_tasks_run_log_timestamp_p-processor
-		group_by_tasks_run_log_timestamp_p-processor-->group_by_tasks_run_log_timestamp_p-publish
-		group_by_tasks_run_log_timestamp_p-publish-->|Replace|group_by_tasks_run_log_timestamp_s-subject
-		group_by_tasks_run_log_timestamp_s-subject-->|FullTable|select_tasks_run_log_timestamp_p-subscribe
-		select_tasks_run_log_timestamp_p-subscribe-->select_tasks_run_log_timestamp_p-processor
-		select_tasks_run_log_timestamp_p-processor-->select_tasks_run_log_timestamp_p-publish
-		select_tasks_run_log_timestamp_p-publish-->|Replace|select_tasks_run_log_timestamp_s-subject
+	subgraph join_tasks_processors_t
+		SessionProcessors-subject-.->|FullTable|group_by_processors_p-subscribe
+		group_by_processors_p-subscribe-->group_by_processors_p-processor
+		group_by_processors_p-processor-->group_by_processors_p-publish
+		group_by_processors_p-publish-->|Replace|group_by_processors_s-subject
+		group_by_processors_s-subject-->|FullTable|select_processors_p-subscribe
+		select_processors_p-subscribe-->select_processors_p-processor
+		select_processors_p-processor-->select_processors_p-publish
+		select_processors_p-publish-->|Replace|select_processors_s-subject
+		group_by_processors_s-subject-->|FullTable|join_tasks_processors_p-subscribe
+		SessionTasks-subject-.->|FullTable|join_tasks_processors_p-subscribe
+		join_tasks_processors_p-subscribe-->join_tasks_processors_p-processor
+		join_tasks_processors_p-processor-->join_tasks_processors_p-publish
+		join_tasks_processors_p-publish-->|Replace|join_tasks_processors_s-subject
+		join_tasks_processors_s-subject-->|FullTable|select_tasks_processors_p-subscribe
+		select_tasks_processors_p-subscribe-->select_tasks_processors_p-processor
+		select_tasks_processors_p-processor-->select_tasks_processors_p-publish
+		select_tasks_processors_p-publish-->|Replace|select_tasks_processors_s-subject
 	end
-	NextTaskSession_runtime_env-rt-->group_by_tasks_run_log_timestamp_t
-	SessionTasksRunLog-subject@{shape: doc, label: SessionTasksRunLog}
-	group_by_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}
-	group_by_tasks_run_log_timestamp_p-processor@{shape: rect, label: GroupBy}
-	group_by_tasks_run_log_timestamp_p-publish@{shape: fork}
-	group_by_tasks_run_log_timestamp_s-subject@{shape: doc, label: group_by_tasks_run_log_timestamp_s}
-	select_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}
-	select_tasks_run_log_timestamp_p-processor@{shape: rect, label: Select}
-	select_tasks_run_log_timestamp_p-publish@{shape: fork}
-	select_tasks_run_log_timestamp_s-subject@{shape: doc, label: select_tasks_run_log_timestamp_s}
-
-	subgraph filter_processors_subscriptions_t
-		SessionProcessors-subject-.->|FullTable|cmp_processors_subscriptions_p-subscribe
-		cmp_processors_subscriptions_p-subscribe-->cmp_processors_subscriptions_p-processor
-		cmp_processors_subscriptions_p-processor-->cmp_processors_subscriptions_p-publish
-		cmp_processors_subscriptions_p-publish-->|Replace|cmp_processors_subscriptions_s-subject
-		cmp_processors_subscriptions_s-subject-->|FullTable|filter_processors_subscriptions_p-subscribe
-		filter_processors_subscriptions_p-subscribe-->filter_processors_subscriptions_p-processor
-		filter_processors_subscriptions_p-processor-->filter_processors_subscriptions_p-publish
-		filter_processors_subscriptions_p-publish-->|Replace|filter_processors_subscriptions_s-subject
-		filter_processors_subscriptions_s-subject-->|FullTable|select_processors_subscriptions_p-subscribe
-		select_processors_subscriptions_p-subscribe-->select_processors_subscriptions_p-processor
-		select_processors_subscriptions_p-processor-->select_processors_subscriptions_p-publish
-		select_processors_subscriptions_p-publish-->|Replace|select_processors_subscriptions_s-subject
-	end
-	NextTaskSession_runtime_env-rt-->filter_processors_subscriptions_t
+	ViewTaskSession_runtime_env-rt-->join_tasks_processors_s
 	SessionProcessors-subject@{shape: doc, label: SessionProcessors}
-	cmp_processors_subscriptions_p-subscribe@{shape: diamond, label: All}
-	cmp_processors_subscriptions_p-processor@{shape: rect, label: Select}
-	cmp_processors_subscriptions_p-publish@{shape: fork}
-	cmp_processors_subscriptions_s-subject@{shape: doc, label: cmp_processors_subscriptions_s}
-	filter_processors_subscriptions_p-subscribe@{shape: diamond, label: All}
-	filter_processors_subscriptions_p-processor@{shape: rect, label: Filter}
-	filter_processors_subscriptions_p-publish@{shape: fork}
-	filter_processors_subscriptions_s-subject@{shape: doc, label: filter_processors_subscriptions_s}
-	select_processors_subscriptions_p-subscribe@{shape: diamond, label: All}
-	select_processors_subscriptions_p-processor@{shape: rect, label: Select}
-	select_processors_subscriptions_p-publish@{shape: fork}
-	select_processors_subscriptions_s-subject@{shape: doc, label: select_processors_subscriptions_s}
-
-	subgraph join_tasks_run_log_timestamp_t
-		SubjectsChangeLog-subject-->|FullTable|group_by_subject_change_log_timestamp_p-subscribe
-		group_by_subject_change_log_timestamp_p-subscribe-->group_by_subject_change_log_timestamp_p-processor
-		group_by_subject_change_log_timestamp_p-processor-->group_by_subject_change_log_timestamp_p-publish
-		group_by_subject_change_log_timestamp_p-publish-->|Replace|group_by_subject_change_log_timestamp_s-subject
-		select_tasks_run_log_timestamp_s-subject-.->|FullTable|join_tasks_run_log_timestamp_p-subscribe
-		SessionTasks-subject-->|FullTable|join_tasks_run_log_timestamp_p-subscribe
-		join_tasks_run_log_timestamp_p-subscribe-->join_tasks_run_log_timestamp_p-processor
-		join_tasks_run_log_timestamp_p-processor-->join_tasks_run_log_timestamp_p-publish
-		join_tasks_run_log_timestamp_p-publish-->|Replace|join_tasks_run_log_timestamp_s-subject
-		join_tasks_run_log_timestamp_s-subject-->|FullTable|join_tasks_processors_subscriptions_p-subscribe
-		select_processors_subscriptions_s-subject-->|FullTable|join_tasks_processors_subscriptions_p-subscribe
-		join_tasks_processors_subscriptions_p-subscribe-->join_tasks_processors_subscriptions_p-processor
-		join_tasks_processors_subscriptions_p-processor-->join_tasks_processors_subscriptions_p-publish
-		join_tasks_processors_subscriptions_p-publish-->|Replace|join_tasks_processors_subscriptions_s-subject
-		join_tasks_processors_subscriptions_s-subject-->|FullTable|join_tasks_processors_subscriptions_subjects_p-subscribe
-		group_by_subject_change_log_timestamp_s-subject-->|FullTable|join_tasks_processors_subscriptions_subjects_p-subscribe
-		join_tasks_processors_subscriptions_subjects_p-subscribe-->join_tasks_processors_subscriptions_subjects_p-processor
-		join_tasks_processors_subscriptions_subjects_p-processor-->join_tasks_processors_subscriptions_subjects_p-publish
-		join_tasks_processors_subscriptions_subjects_p-publish-->|Replace|join_tasks_processors_subscriptions_subjects_s-subject
-		join_tasks_processors_subscriptions_subjects_s-subject-->|FullTable|select_tasks_processors_subscriptions_subjects_p-subscribe
-		select_tasks_processors_subscriptions_subjects_p-subscribe-->select_tasks_processors_subscriptions_subjects_p-processor
-		select_tasks_processors_subscriptions_subjects_p-processor-->select_tasks_processors_subscriptions_subjects_p-publish
-		select_tasks_processors_subscriptions_subjects_p-publish-->|Replace|select_tasks_processors_subscriptions_subjects_s-subject
-		select_tasks_processors_subscriptions_subjects_s-subject-->|FullTable|group_by_tasks_processors_subscriptions_p-subscribe
-		group_by_tasks_processors_subscriptions_p-subscribe-->group_by_tasks_processors_subscriptions_p-processor
-		group_by_tasks_processors_subscriptions_p-processor-->group_by_tasks_processors_subscriptions_p-publish
-		group_by_tasks_processors_subscriptions_p-publish-->|Replace|SessionTasksSubscribeAggregate-subject
-	end
-	NextTaskSession_runtime_env-rt-->join_tasks_run_log_timestamp_t
-	SubjectsChangeLog-subject@{shape: doc, label: SubjectsChangeLog}
-	group_by_subject_change_log_timestamp_p-subscribe@{shape: diamond, label: All}
-	group_by_subject_change_log_timestamp_p-processor@{shape: rect, label: GroupBy}
-	group_by_subject_change_log_timestamp_p-publish@{shape: fork}
-	group_by_subject_change_log_timestamp_s-subject@{shape: doc, label: group_by_subject_change_log_timestamp_s}
+	group_by_processors_p-subscribe@{shape: diamond, label: All}
+	group_by_processors_p-processor@{shape: rect, label: GroupBy}
+	group_by_processors_p-publish@{shape: fork}
+	group_by_processors_s-subject@{shape: doc, label: group_by_processors_s}
+	select_processors_p-subscribe@{shape: diamond, label: All}
+	select_processors_p-processor@{shape: rect, label: Select}
+	select_processors_p-publish@{shape: fork}
+	select_processors_s-subject@{shape: doc, label: select_processors_s}
 	SessionTasks-subject@{shape: doc, label: SessionTasks}
-	join_tasks_run_log_timestamp_p-subscribe@{shape: diamond, label: All}
-	join_tasks_run_log_timestamp_p-processor@{shape: rect, label: Join}
-	join_tasks_run_log_timestamp_p-publish@{shape: fork}
-	join_tasks_run_log_timestamp_s-subject@{shape: doc, label: join_tasks_run_log_timestamp_s}
-	join_tasks_processors_subscriptions_p-subscribe@{shape: diamond, label: All}
-	join_tasks_processors_subscriptions_p-processor@{shape: rect, label: Join}
-	join_tasks_processors_subscriptions_p-publish@{shape: fork}
-	join_tasks_processors_subscriptions_s-subject@{shape: doc, label: join_tasks_processors_subscriptions_s}
-	join_tasks_processors_subscriptions_subjects_p-subscribe@{shape: diamond, label: All}
-	join_tasks_processors_subscriptions_subjects_p-processor@{shape: rect, label: Join}
-	join_tasks_processors_subscriptions_subjects_p-publish@{shape: fork}
-	join_tasks_processors_subscriptions_subjects_s-subject@{shape: doc, label: join_tasks_processors_subscriptions_subjects_s}
-	select_tasks_processors_subscriptions_subjects_p-subscribe@{shape: diamond, label: All}
-	select_tasks_processors_subscriptions_subjects_p-processor@{shape: rect, label: Select}
-	select_tasks_processors_subscriptions_subjects_p-publish@{shape: fork}
-	select_tasks_processors_subscriptions_subjects_s-subject@{shape: doc, label: select_tasks_processors_subscriptions_subjects_s}
-	group_by_tasks_processors_subscriptions_p-subscribe@{shape: diamond, label: All}
-	group_by_tasks_processors_subscriptions_p-processor@{shape: rect, label: GroupBy}
-	group_by_tasks_processors_subscriptions_p-publish@{shape: fork}
-	SessionTasksSubscribeAggregate-subject@{shape: doc, label: SessionTasksSubscribeAggregate}
-
-	subgraph filter_processors_publications_t
-		SessionProcessors-subject-.->|FullTable|cmp_processors_publications_p-subscribe
-		cmp_processors_publications_p-subscribe-->cmp_processors_publications_p-processor
-		cmp_processors_publications_p-processor-->cmp_processors_publications_p-publish
-		cmp_processors_publications_p-publish-->|Replace|cmp_processors_publications_s-subject
-		cmp_processors_publications_s-subject-->|FullTable|filter_processors_publications_p-subscribe
-		filter_processors_publications_p-subscribe-->filter_processors_publications_p-processor
-		filter_processors_publications_p-processor-->filter_processors_publications_p-publish
-		filter_processors_publications_p-publish-->|Replace|filter_processors_publications_s-subject
-		filter_processors_publications_s-subject-->|FullTable|select_processors_publications_p-subscribe
-		select_processors_publications_p-subscribe-->select_processors_publications_p-processor
-		select_processors_publications_p-processor-->select_processors_publications_p-publish
-		select_processors_publications_p-publish-->|Replace|select_processors_publications_s-subject
-	end
-	NextTaskSession_runtime_env-rt-->filter_processors_publications_t
-	cmp_processors_publications_p-subscribe@{shape: diamond, label: All}
-	cmp_processors_publications_p-processor@{shape: rect, label: Select}
-	cmp_processors_publications_p-publish@{shape: fork}
-	cmp_processors_publications_s-subject@{shape: doc, label: cmp_processors_publications_s}
-	filter_processors_publications_p-subscribe@{shape: diamond, label: All}
-	filter_processors_publications_p-processor@{shape: rect, label: Filter}
-	filter_processors_publications_p-publish@{shape: fork}
-	filter_processors_publications_s-subject@{shape: doc, label: filter_processors_publications_s}
-	select_processors_publications_p-subscribe@{shape: diamond, label: All}
-	select_processors_publications_p-processor@{shape: rect, label: Select}
-	select_processors_publications_p-publish@{shape: fork}
-	select_processors_publications_s-subject@{shape: doc, label: select_processors_publications_s}
-
-	subgraph select_tasks_processors_publications_t
-		SessionTasksSubscribe-subject-.->|FullTable|group_by_tasks_processors_subscriptions_subjects_p-subscribe
-		group_by_tasks_processors_subscriptions_subjects_p-subscribe-->group_by_tasks_processors_subscriptions_subjects_p-processor
-		group_by_tasks_processors_subscriptions_subjects_p-processor-->group_by_tasks_processors_subscriptions_subjects_p-publish
-		group_by_tasks_processors_subscriptions_subjects_p-publish-->|Replace|group_by_tasks_processors_subscriptions_subjects_s-subject
-		select_processors_publications_s-subject-->|FullTable|group_by_tasks_processors_publications_p-subscribe
-		group_by_tasks_processors_publications_p-subscribe-->group_by_tasks_processors_publications_p-processor
-		group_by_tasks_processors_publications_p-processor-->group_by_tasks_processors_publications_p-publish
-		group_by_tasks_processors_publications_p-publish-->|Replace|group_by_tasks_processors_publications_s-subject
-		group_by_tasks_processors_subscriptions_subjects_s-subject-->|FullTable|join_tasks_processors_publications_p-subscribe
-		group_by_tasks_processors_publications_s-subject-->|FullTable|join_tasks_processors_publications_p-subscribe
-		join_tasks_processors_publications_p-subscribe-->join_tasks_processors_publications_p-processor
-		join_tasks_processors_publications_p-processor-->join_tasks_processors_publications_p-publish
-		join_tasks_processors_publications_p-publish-->|Replace|join_tasks_processors_publications_s-subject
-		join_tasks_processors_publications_s-subject-->|FullTable|select_tasks_processors_publications_p-subscribe
-		select_tasks_processors_publications_p-subscribe-->select_tasks_processors_publications_p-processor
-		select_tasks_processors_publications_p-processor-->select_tasks_processors_publications_p-publish
-		select_tasks_processors_publications_p-publish-->|Replace|SessionTasksSubscribePublish-subject
-	end
-	NextTaskSession_runtime_env-rt-->select_tasks_processors_publications_t
-	SessionTasksSubscribe-subject@{shape: doc, label: SessionTasksSubscribe}
-	group_by_tasks_processors_subscriptions_subjects_p-subscribe@{shape: diamond, label: All}
-	group_by_tasks_processors_subscriptions_subjects_p-processor@{shape: rect, label: GroupBy}
-	group_by_tasks_processors_subscriptions_subjects_p-publish@{shape: fork}
-	group_by_tasks_processors_subscriptions_subjects_s-subject@{shape: doc, label: group_by_tasks_processors_subscriptions_subjects_s}
-	group_by_tasks_processors_publications_p-subscribe@{shape: diamond, label: All}
-	group_by_tasks_processors_publications_p-processor@{shape: rect, label: GroupBy}
-	group_by_tasks_processors_publications_p-publish@{shape: fork}
-	group_by_tasks_processors_publications_s-subject@{shape: doc, label: group_by_tasks_processors_publications_s}
-	join_tasks_processors_publications_p-subscribe@{shape: diamond, label: All}
-	join_tasks_processors_publications_p-processor@{shape: rect, label: Join}
-	join_tasks_processors_publications_p-publish@{shape: fork}
-	join_tasks_processors_publications_s-subject@{shape: doc, label: join_tasks_processors_publications_s}
-	select_tasks_processors_publications_p-subscribe@{shape: diamond, label: All}
-	select_tasks_processors_publications_p-processor@{shape: rect, label: Select}
-	select_tasks_processors_publications_p-publish@{shape: fork}
-	SessionTasksSubscribePublish-subject@{shape: doc, label: SessionTasksSubscribePublish}"#
+	join_tasks_processors_p-subscribe@{shape: diamond, label: All}
+	join_tasks_processors_p-processor@{shape: rect, label: Join}
+	join_tasks_processors_p-publish@{shape: fork}
+	join_tasks_processors_s-subject@{shape: doc, label: join_tasks_processors_s}
+	select_tasks_processors_p-subscribe@{shape: diamond, label: All}
+	select_tasks_processors_p-processor@{shape: rect, label: Select}
+	select_tasks_processors_p-publish@{shape: fork}
+	select_tasks_processors_s-subject@{shape: doc, label: select_tasks_processors_s}"#
     }
 
     /// Return the Mermaid.js ER Diagram representation of the session
     pub fn as_mermaid_erdiagram(&self) -> &str {
         r#"erDiagram
-    SessionTasksRunLog["SessionTasksRunLog"] {
-        Utf8 session_name
-        Utf8 task_name
-        Int64 timestamp
-    }
-    group_by_tasks_run_log_timestamp_p["group_by_tasks_run_log_timestamp_p"] {
-        List-Utf8 agg_columns "['timestamp']"
-        List-Utf8 agg_operators "['Max']"
-        Boolean cpu "false"
-        Utf8 lhs_name "SessionTasksRunLog"
-        List-Utf8 lhs_values "['task_name']"
-        Utf8 operator "GroupBy"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    select_tasks_run_log_timestamp_p["select_tasks_run_log_timestamp_p"] {
-        List-Utf8 as_columns "['','timestamp']"
-        Boolean cpu "false"
-        Utf8 lhs_name "group_by_tasks_run_log_timestamp_s"
-        List-Utf8 lhs_values "['task_name','timestamp-Max']"
-        Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    select_tasks_run_log_timestamp_s["select_tasks_run_log_timestamp_s"] {
-        Utf8 task_name
-        Int64 timestamp
-    }
     SessionProcessors["SessionProcessors"] {
         Utf8 session_name
         Utf8 processor_name
@@ -633,88 +473,7 @@ impl<'a> NextTaskSession<'a> {
         Utf8 update_type
         UInt8 is_subscription
     }
-    cmp_processors_subscriptions_p["cmp_processors_subscriptions_p"] {
-        List-Utf8 as_columns "['','','','','','','','','subscription']"
-        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','UInt8','UInt8']"
-        List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Ones']"
-        Boolean cpu "false"
-        Utf8 lhs_name "SessionProcessors"
-        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','update_type','is_subscription','subscription']"
-        Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    filter_processors_subscriptions_p["filter_processors_subscriptions_p"] {
-        List-Utf8 cmp_columns "['subscription']"
-        List-Utf8 cmp_operators "['Equals']"
-        Utf8 cmp_predicate "All"
-        Boolean cpu "false"
-        Utf8 lhs_name "cmp_processors_subscriptions_s"
-        List-Utf8 lhs_values "['is_subscription']"
-        Utf8 operator "Filter"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    select_processors_subscriptions_p["select_processors_subscriptions_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "filter_processors_subscriptions_s"
-        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','update_type','is_subscription']"
-        Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    select_processors_subscriptions_s["select_processors_subscriptions_s"] {
-        Utf8 session_name
-        Utf8 processor_name
-        Utf8 processor_type
-        Utf8 publication_subscription_name
-        Utf8 publication_subscription_table_name
-        Utf8 subscribe_type
-        Utf8 update_type
-        UInt8 is_subscription
-    }
-    cmp_processors_publications_p["cmp_processors_publications_p"] {
-        List-Utf8 as_columns "['','','','','','','','','publication']"
-        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','UInt8','UInt8']"
-        List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Zeros']"
-        Boolean cpu "false"
-        Utf8 lhs_name "SessionProcessors"
-        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','update_type','is_subscription','publication']"
-        Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    filter_processors_publications_p["filter_processors_publications_p"] {
-        List-Utf8 cmp_columns "['publication']"
-        List-Utf8 cmp_operators "['Equals']"
-        Utf8 cmp_predicate "All"
-        Boolean cpu "false"
-        Utf8 lhs_name "cmp_processors_publications_s"
-        List-Utf8 lhs_values "['is_subscription']"
-        Utf8 operator "Filter"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    select_processors_publications_p["select_processors_publications_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "filter_processors_publications_s"
-        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','update_type','is_subscription']"
-        Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    select_processors_publications_s["select_processors_publications_s"] {
-        Utf8 session_name
-        Utf8 processor_name
-        Utf8 processor_type
-        Utf8 publication_subscription_name
-        Utf8 publication_subscription_table_name
-        Utf8 subscribe_type
-        Utf8 update_type
-        UInt8 is_subscription
-    }
-    SubjectsChangeLog["SubjectsChangeLog"] {
-        Utf8 subject_name
-        Utf8 task_name
-        Utf8 session_name
-        Int64 num_rows_delta
-        Int64 timestamp
-    }
-    group_by_subject_change_log_timestamp_p["group_by_subject_change_log_timestamp_p"] {
+    group_by_processors_p["group_by_processors_p"] {
         List-Utf8 agg_columns "['timestamp']"
         List-Utf8 agg_operators "['Max']"
         Boolean cpu "false"
@@ -723,16 +482,14 @@ impl<'a> NextTaskSession<'a> {
         Utf8 operator "GroupBy"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
-    join_tasks_run_log_timestamp_p["join_tasks_run_log_timestamp_p"] {
+    select_processors_p["select_processors_p"] {
+        List-Utf8 as_columns "['','','','','','','','','publication']"
+        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','UInt8','UInt8']"
+        List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Zeros']"
         Boolean cpu "false"
-        Utf8 lhs_fk "task_name"
-        Utf8 lhs_name "select_tasks_run_log_timestamp_s"
-        Utf8 lhs_pk "task_name"
-        Utf8 operator "Join"
-        Utf8 rhs_fk "task_name"
-        Utf8 rhs_name "SessionTasks"
-        Utf8 rhs_pk "task_name"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_name "SessionProcessors"
+        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','update_type','is_subscription','publication']"
+        Utf8 operator "Select"
     }
     SessionTasks["SessionTasks"] {
         Utf8 session_name
@@ -740,123 +497,33 @@ impl<'a> NextTaskSession<'a> {
         Utf8 processor_name
         Utf8 runtime_env_name
     }
-    join_tasks_processors_subscriptions_p["join_tasks_processors_subscriptions_p"] {
+    join_tasks_processors_p["join_tasks_processors_p"] {
         Boolean cpu "false"
-        Utf8 lhs_fk "processor_name"
-        Utf8 lhs_name "join_tasks_run_log_timestamp_s"
-        Utf8 lhs_pk "processor_name"
+        Utf8 lhs_fk "task_name"
+        Utf8 lhs_name "select_tasks_run_log_timestamp_t"
+        Utf8 lhs_pk "task_name"
         Utf8 operator "Join"
-        Utf8 rhs_fk "processor_name"
-        Utf8 rhs_name "select_processors_subscriptions_s"
-        Utf8 rhs_pk "processor_name"
+        Utf8 rhs_fk "task_name"
+        Utf8 rhs_name "SessionTasks"
+        Utf8 rhs_pk "task_name"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
-    join_tasks_processors_subscriptions_subjects_p["join_tasks_processors_subscriptions_subjects_p"] {
+    select_tasks_processors_p["select_tasks_processors_p"] {
         Boolean cpu "false"
-        Utf8 lhs_fk "publication_subscription_table_name"
-        Utf8 lhs_name "join_tasks_processors_subscriptions_s"
-        Utf8 lhs_pk "publication_subscription_table_name"
-        Utf8 operator "Join"
-        Utf8 rhs_fk "subject_name"
-        Utf8 rhs_name "group_by_subject_change_log_timestamp_s"
-        Utf8 rhs_pk "subject_name"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    select_tasks_processors_subscriptions_subjects_p["select_tasks_processors_subscriptions_subjects_p"] {
-        List-Utf8 as_columns "['','','','','subscription_name','subscription_table_name','','','','']"
-        Boolean cpu "false"
-        Utf8 lhs_name "join_tasks_processors_subscriptions_subjects_s"
-        List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type','publication_subscription_name','subject_name','subscribe_type','update_type','timestamp','timestamp-Max']"
+        Utf8 lhs_name "filter_processors_publications_t"
+        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','update_type','is_subscription']"
         Utf8 operator "Select"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
-    select_tasks_processors_subscriptions_subjects_s["select_tasks_processors_subscriptions_subjects_s"] {
+    select_tasks_processors_s["select_tasks_processors_s"] {
         Utf8 session_name
-        Utf8 task_name
         Utf8 processor_name
         Utf8 processor_type
-        Utf8 subscription_name
-        Utf8 subscription_table_name
+        Utf8 publication_subscription_name
+        Utf8 publication_subscription_table_name
         Utf8 subscribe_type
         Utf8 update_type
-        Int64 timestamp
-        Int64 timestamp-Max
-    }
-    group_by_tasks_processors_subscriptions_p["group_by_tasks_processors_subscriptions_p"] {
-        List-Utf8 agg_columns "['subscription_name','subscription_table_name','subscribe_type','update_type','timestamp','timestamp-Max']"
-        List-Utf8 agg_operators "['List','List','Last','Last','List','List']"
-        Boolean cpu "false"
-        Utf8 lhs_name "select_tasks_processors_subscriptions_subjects_s"
-        List-Utf8 lhs_values "['session_name','task_name','processor_type','processor_name']"
-        Utf8 operator "GroupBy"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    SessionTasksSubscribeAggregate["SessionTasksSubscribeAggregate"] {
-        Utf8 session_name
-        Utf8 task_name
-        Utf8 processor_type
-        Utf8 processor_name
-        List-Utf8 subscription_name-List
-        List-Utf8 subscription_table_name-List
-        Utf8 subscribe_type-Last
-        Utf8 update_type-Last
-        List-Int64 timestamp-List
-        List-Int64 timestamp-Max-List
-    }
-    SessionTasksSubscribe["SessionTasksSubscribe"] {
-        Utf8 session_name
-        Utf8 task_name
-        Utf8 processor_name
-        Utf8 processor_type
-        Utf8 subscription_name
-        Utf8 subscription_table_name
-    }
-    group_by_tasks_processors_subscriptions_subjects_p["group_by_tasks_processors_subscriptions_subjects_p"] {
-        List-Utf8 agg_columns "['subscription_name','subscription_table_name']"
-        List-Utf8 agg_operators "['List','List']"
-        Boolean cpu "false"
-        Utf8 lhs_name "SessionTasksSubscribe"
-        List-Utf8 lhs_values "['session_name','task_name','processor_type','processor_name']"
-        Utf8 operator "GroupBy"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    group_by_tasks_processors_publications_p["group_by_tasks_processors_publications_p"] {
-        List-Utf8 agg_columns "['publication_subscription_name','publication_subscription_table_name']"
-        List-Utf8 agg_operators "['List','List']"
-        Boolean cpu "false"
-        Utf8 lhs_name "select_processors_publications_s"
-        List-Utf8 lhs_values "['session_name','processor_type','processor_name']"
-        Utf8 operator "GroupBy"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    join_tasks_processors_publications_p["join_tasks_processors_publications_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_fk "processor_name"
-        Utf8 lhs_name "group_by_tasks_processors_subscriptions_subjects_s"
-        Utf8 lhs_pk "processor_name"
-        Utf8 operator "Join"
-        Utf8 rhs_fk "processor_name"
-        Utf8 rhs_name "group_by_tasks_processors_publications_s"
-        Utf8 rhs_pk "processor_name"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    select_tasks_processors_publications_p["select_tasks_processors_publications_p"] {
-        Boolean cpu "false"
-        Utf8 lhs_name "join_tasks_processors_publications_s"
-        List-Utf8 as_columns "['','','','','subscription_names','subscription_table_names','publication_names','publication_table_names']"
-        List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type','subscription_name-List','subscription_table_name-List','publication_subscription_name-List','publication_subscription_table_name-List']"
-        Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
-    }
-    SessionTasksSubscribePublish["SessionTasksSubscribePublish"] {
-        Utf8 session_name
-        Utf8 task_name
-        Utf8 processor_name
-        Utf8 processor_type
-        List-Utf8 subscription_names
-        List-Utf8 subscription_table_names
-        List-Utf8 publication_names
-        List-Utf8 publication_table_names
+        UInt8 is_subscription
     }"#
     }
 }
@@ -883,15 +550,15 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_next_task_session() -> Result<()> {
+    async fn test_view_task_session() -> Result<()> {
         // Initialize the session
-        let next_task_session = NextTaskSession::default();
+        let view_task_session = ViewTaskSession::default();
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
-            next_task_session.as_mermaid_flowchart(),
+            view_task_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(next_task_session.as_mermaid_erdiagram(), false, true)?
-        .with_name(next_task_session.session_context_name)
+        .with_state_from_mermaid_erdiagram(view_task_session.as_mermaid_erdiagram(), false, true)?
+        .with_name(view_task_session.session_context_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_supersteps()?
@@ -944,7 +611,7 @@ mod tests {
                 .with_update(&TablePublication::Replace {
                     table_name: AvailableSubjects::SessionProcessors.to_string(),
                 })
-                .with_publisher(next_task_session.session_context_name)
+                .with_publisher(view_task_session.session_context_name)
                 .make_name()?
                 .build()?;
             let table = session_ctx_reading
@@ -958,7 +625,7 @@ mod tests {
                 .with_update(&TablePublication::Replace {
                     table_name: AvailableSubjects::SessionTasks.to_string(),
                 })
-                .with_publisher(next_task_session.session_context_name)
+                .with_publisher(view_task_session.session_context_name)
                 .make_name()?
                 .build()?;
             let table = session_ctx_reading
@@ -972,7 +639,7 @@ mod tests {
                 .with_update(&TablePublication::Replace {
                     table_name: AvailableSubjects::SessionTasksRunLog.to_string(),
                 })
-                .with_publisher(next_task_session.session_context_name)
+                .with_publisher(view_task_session.session_context_name)
                 .make_name()?
                 .build()?;
             let table = session_ctx_reading
@@ -986,7 +653,7 @@ mod tests {
                 .with_update(&TablePublication::Replace {
                     table_name: AvailableSubjects::SubjectsChangeLog.to_string(),
                 })
-                .with_publisher(next_task_session.session_context_name)
+                .with_publisher(view_task_session.session_context_name)
                 .make_name()?
                 .build()?;
             create_message_map(vec![
@@ -997,7 +664,7 @@ mod tests {
             ])
         };
 
-        let mut tasks_publish_subscribe_messages = next_task_session
+        let mut tasks_publish_subscribe_messages = view_task_session
             .as_task_messages()?
             .into_iter()
             .rev()
@@ -1015,7 +682,7 @@ mod tests {
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
                 .get_states()
-                .get("select_tasks_run_log_timestamp_s")
+                .get("select_tasks_run_log_timestamp_t")
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("task_name");
@@ -1027,7 +694,7 @@ mod tests {
 
             let table_reading = session_reading
                 .get_states()
-                .get("select_processors_subscriptions_s")
+                .get("select_processors_subscriptions_t")
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("session_name");
@@ -1115,7 +782,7 @@ mod tests {
 
             let table_reading = session_reading
                 .get_states()
-                .get("select_processors_publications_s")
+                .get("select_tasks_processors_s")
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("session_name");

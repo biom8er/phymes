@@ -10,7 +10,10 @@ use crate::{BuilderTrait, SendableIPCRecordBatchStream, SendableRecordBatchStrea
 use anyhow::{Result, anyhow};
 use arrow::{
     array::{
-        ArrayData, ArrayRef, BooleanArray, FixedSizeListArray, Float32Array, Float32Builder, Float64Array, Float64Builder, Int8Array, Int16Array, Int32Array, Int64Array, Int64Builder, ListBuilder, StringArray, StringBuilder, UInt8Array, UInt8Builder, UInt16Array, UInt32Array, UInt32Builder, UInt64Array
+        ArrayData, ArrayRef, BooleanArray, FixedSizeListArray, Float32Array, Float32Builder,
+        Float64Array, Float64Builder, Int8Array, Int16Array, Int32Array, Int64Array, Int64Builder,
+        ListBuilder, StringArray, StringBuilder, UInt8Array, UInt8Builder, UInt16Array,
+        UInt32Array, UInt32Builder, UInt64Array,
     },
     buffer::Buffer,
     csv::reader::Format,

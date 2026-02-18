@@ -1,7 +1,13 @@
 use std::sync::Arc;
 
+use crate::{
+    AvailableSchemaTrait, MappableTrait, create_schema_from_fields,
+    schemas::http::{
+        WorkAwardTable, open_alex_author::Affiliation, open_alex_common::Currency,
+        open_alex_funder::Funder,
+    },
+};
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use crate::{AvailableSchemaTrait, MappableTrait, create_schema_from_fields, schemas::http::{WorkAwardTable, open_alex_author::Affiliation, open_alex_common::Currency, open_alex_funder::Funder}};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,29 +42,56 @@ impl Award {
     pub fn to_work_award_table(self, work_id: &str) -> WorkAwardTable {
         WorkAwardTable {
             work_id: work_id.to_string(),
-            award_id: self.id.unwrap_or_default()
+            award_id: self.id.unwrap_or_default(),
         }
     }
-    pub fn to_tables(self) -> (AwardTable,
+    pub fn to_tables(
+        self,
+    ) -> (
+        AwardTable,
         Option<AwardFunderTable>,
         Vec<AwardFundedOutputsTable>,
         Vec<AwardInvestigatorTable>,
-        Vec<AwardAffiliationTable>
+        Vec<AwardAffiliationTable>,
     ) {
-        let award_funder = self.funder.map(|f| f.to_award_funder_table(&self.id.clone().unwrap_or_default()));
-        let award_funded_outputs = self.funded_outputs.unwrap_or_default().into_iter().map(|f| AwardFundedOutputsTable { award_id: self.id.clone().unwrap_or_default(), work_id: f}).collect::<Vec<_>>();
-        let (award_investigator, award_affiliation): (Vec<_>, Vec<_>) = self.investigators.unwrap_or_default().into_iter().map(|i| if self.lead_investigator.is_some() && self.lead_investigator.as_ref().unwrap() == &i {
-            i.to_award_investigator_table(&self.id.clone().unwrap_or_default(), true, false)
-        } else if self.co_lead_investigator.is_some() && self.co_lead_investigator.as_ref().unwrap() == &i {
-            i.to_award_investigator_table(&self.id.clone().unwrap_or_default(), false, true)
-        } else {
-            i.to_award_investigator_table(&self.id.clone().unwrap_or_default(), false, false)
-        }).unzip();
-        let award_affiliation = award_affiliation.into_iter().filter_map(|a| if let Some(a_i) = a {
-            Some(a_i)
-        } else {
-            None
-        }).collect::<Vec<_>>();
+        let award_funder = self
+            .funder
+            .map(|f| f.to_award_funder_table(&self.id.clone().unwrap_or_default()));
+        let award_funded_outputs = self
+            .funded_outputs
+            .unwrap_or_default()
+            .into_iter()
+            .map(|f| AwardFundedOutputsTable {
+                award_id: self.id.clone().unwrap_or_default(),
+                work_id: f,
+            })
+            .collect::<Vec<_>>();
+        let (award_investigator, award_affiliation): (Vec<_>, Vec<_>) = self
+            .investigators
+            .unwrap_or_default()
+            .into_iter()
+            .map(|i| {
+                if self.lead_investigator.is_some()
+                    && self.lead_investigator.as_ref().unwrap() == &i
+                {
+                    i.to_award_investigator_table(&self.id.clone().unwrap_or_default(), true, false)
+                } else if self.co_lead_investigator.is_some()
+                    && self.co_lead_investigator.as_ref().unwrap() == &i
+                {
+                    i.to_award_investigator_table(&self.id.clone().unwrap_or_default(), false, true)
+                } else {
+                    i.to_award_investigator_table(
+                        &self.id.clone().unwrap_or_default(),
+                        false,
+                        false,
+                    )
+                }
+            })
+            .unzip();
+        let award_affiliation = award_affiliation
+            .into_iter()
+            .filter_map(|a| if let Some(a_i) = a { Some(a_i) } else { None })
+            .collect::<Vec<_>>();
         let award = AwardTable {
             award_id: self.id.unwrap_or_default(),
             display_name: self.display_name.unwrap_or_default(),
@@ -78,9 +111,15 @@ impl Award {
             provenance: self.provenance.unwrap_or_default(),
             works_api_url: self.works_api_url.unwrap_or_default(),
             created_date: self.created_date.unwrap_or_default(),
-            updated_date: self.updated_date.unwrap_or_default()
+            updated_date: self.updated_date.unwrap_or_default(),
         };
-        (award, award_funder, award_funded_outputs, award_investigator, award_affiliation)
+        (
+            award,
+            award_funder,
+            award_funded_outputs,
+            award_investigator,
+            award_affiliation,
+        )
     }
 }
 
@@ -109,37 +148,41 @@ pub struct AwardTable {
 
 impl AwardTable {
     fn to_fields() -> Fields {
-        let field_names = ["award_id", 
-            "display_name", 
-            "description", 
-            "funder_award_id", 
-            "currency", 
-            "funding_type", 
-            "funder_scheme", 
-            "start_date", 
-            "end_date", 
-            "landing_page_url", 
-            "doi", 
-            "provenance", 
-            "works_api_url", 
-            "created_date", 
-            "updated_date"];
+        let field_names = [
+            "award_id",
+            "display_name",
+            "description",
+            "funder_award_id",
+            "currency",
+            "funding_type",
+            "funder_scheme",
+            "start_date",
+            "end_date",
+            "landing_page_url",
+            "doi",
+            "provenance",
+            "works_api_url",
+            "created_date",
+            "updated_date",
+        ];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = ["funded_outputs_count", 
-            "start_year", 
-            "end_year"];
-        fields_vec.extend(field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::UInt32, false))
-            .collect::<Vec<_>>());
+        let field_names = ["funded_outputs_count", "start_year", "end_year"];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::UInt32, false))
+                .collect::<Vec<_>>(),
+        );
         let field_names = ["amount"];
-        fields_vec.extend(field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::Float32, false))
-            .collect::<Vec<_>>());
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Float32, false))
+                .collect::<Vec<_>>(),
+        );
         Fields::from(fields_vec)
     }
 }
@@ -166,16 +209,23 @@ pub struct Investigator {
 }
 
 impl Investigator {
-    pub fn to_award_investigator_table(self, award_id: &str, is_lead_investigator: bool, is_co_lead_investigator: bool) -> (AwardInvestigatorTable, Option<AwardAffiliationTable>) {
-        let award_affiliation = self.affiliation.map(|a| a.to_award_affiliation_table(award_id, &self.orcid.clone().unwrap_or_default()));
-        let award_investigator = AwardInvestigatorTable { 
-            award_id: award_id.to_string(), 
+    pub fn to_award_investigator_table(
+        self,
+        award_id: &str,
+        is_lead_investigator: bool,
+        is_co_lead_investigator: bool,
+    ) -> (AwardInvestigatorTable, Option<AwardAffiliationTable>) {
+        let award_affiliation = self.affiliation.map(|a| {
+            a.to_award_affiliation_table(award_id, &self.orcid.clone().unwrap_or_default())
+        });
+        let award_investigator = AwardInvestigatorTable {
+            award_id: award_id.to_string(),
             is_lead_investigator,
             is_co_lead_investigator,
-            given_name: self.given_name.unwrap_or_default(), 
-            family_name: self.family_name.unwrap_or_default(), 
-            orcid: self.orcid.unwrap_or_default(), 
-            role_start: self.role_start.unwrap_or_default(), 
+            given_name: self.given_name.unwrap_or_default(),
+            family_name: self.family_name.unwrap_or_default(),
+            orcid: self.orcid.unwrap_or_default(),
+            role_start: self.role_start.unwrap_or_default(),
         };
         (award_investigator, award_affiliation)
     }
@@ -194,21 +244,24 @@ pub struct AwardInvestigatorTable {
 
 impl AwardInvestigatorTable {
     fn to_fields() -> Fields {
-        let field_names = ["award_id", 
-            "given_name", 
-            "family_name", 
-            "orcid", 
-            "role_start"];
+        let field_names = [
+            "award_id",
+            "given_name",
+            "family_name",
+            "orcid",
+            "role_start",
+        ];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = ["is_lead_investigator", 
-            "is_co_lead_investigator"];
-        fields_vec.extend(field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::Boolean, false))
-            .collect::<Vec<_>>());
+        let field_names = ["is_lead_investigator", "is_co_lead_investigator"];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Boolean, false))
+                .collect::<Vec<_>>(),
+        );
         Fields::from(fields_vec)
     }
 }
@@ -240,7 +293,8 @@ impl AwardAffiliationTable {
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::UInt32, false)));
+        let list_data_type =
+            DataType::List(Arc::new(Field::new_list_field(DataType::UInt32, false)));
         let field_names = ["years"];
         fields_vec.extend(
             field_names

@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use crate::DataConfigTrait;
 
 /// Schema to use when packaging the HTTP client request response
-/// 
-/// More complex parsing should be handled by one of the extractor `DataProcessor`s 
+///
+/// More complex parsing should be handled by one of the extractor `DataProcessor`s
 ///   e.g., tabular for JSON Line, xml for XML, and PDF for PDFs
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default, PartialEq)]
 pub enum HTTPClientRequestSchemas {
@@ -90,9 +90,9 @@ pub struct HTTPClientConfig {
     pub bearer_auth: Option<String>,
 
     /// The base URL of the request
-    /// 
+    ///
     /// # Notes
-    /// - Can range from just scheme to the port number and all the way to the query string separator or fragment 
+    /// - Can range from just scheme to the port number and all the way to the query string separator or fragment
     #[arg(long)]
     pub base_url: String,
 

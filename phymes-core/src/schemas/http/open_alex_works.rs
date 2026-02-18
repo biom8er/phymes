@@ -1,8 +1,20 @@
 use std::sync::Arc;
 
-use arrow::{datatypes::{DataType, Field, Fields, SchemaRef}};
-use crate::{AvailableSchemaTrait, MappableTrait, create_schema_from_fields, 
-    schemas::http::{open_alex_author::Author, open_alex_award::Award, open_alex_common::{AuthorPosition, CountryCode, CountsByYear, Currency, LanguageCode, OaStatus, WorkType, abstract_from_inverted_index}, open_alex_funder::Funder, open_alex_institution::Institution, open_alex_source::Source}};
+use crate::{
+    AvailableSchemaTrait, MappableTrait, create_schema_from_fields,
+    schemas::http::{
+        open_alex_author::Author,
+        open_alex_award::Award,
+        open_alex_common::{
+            AuthorPosition, CountryCode, CountsByYear, Currency, LanguageCode, OaStatus, WorkType,
+            abstract_from_inverted_index,
+        },
+        open_alex_funder::Funder,
+        open_alex_institution::Institution,
+        open_alex_source::Source,
+    },
+};
+use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -57,11 +69,14 @@ pub struct Work {
 }
 
 impl Work {
-    pub fn to_tables(self) -> (WorkTable, 
-        Vec<WorkAuthorshipTable>, 
-        Vec<WorkAwardTable>, 
-        Vec<WorkFunderTable>, 
-        Vec<WorkApcInfoTable>, 
+    pub fn to_tables(
+        self,
+    ) -> (
+        WorkTable,
+        Vec<WorkAuthorshipTable>,
+        Vec<WorkAwardTable>,
+        Vec<WorkFunderTable>,
+        Vec<WorkApcInfoTable>,
         Vec<WorkLocationTable>,
         Option<WorkOpenAccessTable>,
         Option<WorkBiblioTable>,
@@ -81,17 +96,25 @@ impl Work {
         Vec<WorkRelatedWorksTable>,
     ) {
         // WorkAuthorshipTable
-        let work_authorship_table = self.authorships.into_iter()
+        let work_authorship_table = self
+            .authorships
+            .into_iter()
             .map(|t| t.to_work_authorship_table(&self.id))
             .collect::<Vec<_>>();
-    
+
         // WorkAwardTable
-        let work_award_table = self.awards.unwrap_or_default().into_iter()
+        let work_award_table = self
+            .awards
+            .unwrap_or_default()
+            .into_iter()
             .map(|t| t.to_work_award_table(&self.id))
             .collect::<Vec<_>>();
 
         // WorkFunderTable
-        let work_funder_table = self.funders.unwrap_or_default().into_iter()
+        let work_funder_table = self
+            .funders
+            .unwrap_or_default()
+            .into_iter()
             .map(|t| t.to_work_funder_table(&self.id))
             .collect::<Vec<_>>();
 
@@ -107,96 +130,162 @@ impl Work {
         }
 
         // WorkLocationTable
-        let work_location_table = self.locations.unwrap_or_default().into_iter()
-            .map(|t| if self.best_oa_location.is_some() && self.best_oa_location.as_ref().unwrap() == &t {
-                t.to_work_location_table(&self.id, true, false)
-            } else if self.primary_location.is_some() && self.primary_location.as_ref().unwrap() == &t {
-                t.to_work_location_table(&self.id, false, true)
-            } else {
-                t.to_work_location_table(&self.id, false, false)
+        let work_location_table = self
+            .locations
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| {
+                if self.best_oa_location.is_some() && self.best_oa_location.as_ref().unwrap() == &t
+                {
+                    t.to_work_location_table(&self.id, true, false)
+                } else if self.primary_location.is_some()
+                    && self.primary_location.as_ref().unwrap() == &t
+                {
+                    t.to_work_location_table(&self.id, false, true)
+                } else {
+                    t.to_work_location_table(&self.id, false, false)
+                }
             })
             .collect::<Vec<_>>();
 
         // WorkOpenAccessTable
-        let work_open_access_table = self.open_access.map(|t| t.to_work_open_access_table(&self.id));
+        let work_open_access_table = self
+            .open_access
+            .map(|t| t.to_work_open_access_table(&self.id));
 
         // WorkBiblioTable
         let work_biblio_table = self.biblio.map(|t| t.to_work_biblio_table(&self.id));
 
         // WorkCitationPercentileTable
-        let work_citation_normalized_percentile_table = self.citation_normalized_percentile.map(|t| t.to_work_citation_percentile_table(&self.id));
+        let work_citation_normalized_percentile_table = self
+            .citation_normalized_percentile
+            .map(|t| t.to_work_citation_percentile_table(&self.id));
 
         // WorkCitedByPercentileYearTable
-        let work_cited_percentile_year_table = self.cited_by_percentile_year.map(|t| t.to_work_cited_by_percentile_year(&self.id));
+        let work_cited_percentile_year_table = self
+            .cited_by_percentile_year
+            .map(|t| t.to_work_cited_by_percentile_year(&self.id));
 
         // WorkCountsByYearTable
-        let work_counts_by_year_table = self.counts_by_year.unwrap_or_default().into_iter()
+        let work_counts_by_year_table = self
+            .counts_by_year
+            .unwrap_or_default()
+            .into_iter()
             .map(|t| t.to_work_counts_by_year(&self.id))
             .collect::<Vec<_>>();
 
         // WorkConceptTable
-        let work_concepts_table = self.concepts.unwrap_or_default().into_iter()
+        let work_concepts_table = self
+            .concepts
+            .unwrap_or_default()
+            .into_iter()
             .map(|t| t.to_work_concept_table(&self.id))
             .collect::<Vec<_>>();
 
         // WorkTopicTable
-        let work_topics_table = self.topics.unwrap_or_default().into_iter()
-            .map(|t| if self.primary_topic.is_some() && self.primary_topic.as_ref().unwrap() == &t {
-                t.to_work_topic_table(&self.id, true)
-            } else {
-                t.to_work_topic_table(&self.id, false)
+        let work_topics_table = self
+            .topics
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| {
+                if self.primary_topic.is_some() && self.primary_topic.as_ref().unwrap() == &t {
+                    t.to_work_topic_table(&self.id, true)
+                } else {
+                    t.to_work_topic_table(&self.id, false)
+                }
             })
             .collect::<Vec<_>>();
 
         // WorkKeywordTable
-        let work_keywords_table = self.keywords.unwrap_or_default().into_iter()
+        let work_keywords_table = self
+            .keywords
+            .unwrap_or_default()
+            .into_iter()
             .map(|t| t.to_work_keyword_table(&self.id))
             .collect::<Vec<_>>();
 
         // WorkMeshTagTable
-        let work_mesh_tag_table = self.mesh.unwrap_or_default().into_iter()
+        let work_mesh_tag_table = self
+            .mesh
+            .unwrap_or_default()
+            .into_iter()
             .map(|t| t.to_work_mesh_tag_table(&self.id))
             .collect::<Vec<_>>();
 
         // WorkSdgTagTable
-        let work_sdg_tag_table = self.sustainable_development_goals.unwrap_or_default().into_iter()
+        let work_sdg_tag_table = self
+            .sustainable_development_goals
+            .unwrap_or_default()
+            .into_iter()
             .map(|t| t.to_work_sdg_tag_table(&self.id))
             .collect::<Vec<_>>();
 
         // WorkCorrespondingAuthorTable
-        let work_corresponding_author_table = self.corresponding_author_ids.unwrap_or_default().into_iter()
-            .map(|t| WorkCorrespondingAuthorTable { work_id: self.id.to_owned(), corresponding_author_id: t})
+        let work_corresponding_author_table = self
+            .corresponding_author_ids
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| WorkCorrespondingAuthorTable {
+                work_id: self.id.to_owned(),
+                corresponding_author_id: t,
+            })
             .collect::<Vec<_>>();
 
         // WorkCorrespondingInstitutionTable
-        let work_corresponding_insitution_table = self.corresponding_institution_ids.unwrap_or_default().into_iter()
-            .map(|t| WorkCorrespondingInstitutionTable { work_id: self.id.to_owned(), corresponding_institution_id: t})
+        let work_corresponding_insitution_table = self
+            .corresponding_institution_ids
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| WorkCorrespondingInstitutionTable {
+                work_id: self.id.to_owned(),
+                corresponding_institution_id: t,
+            })
             .collect::<Vec<_>>();
 
         // WorkIndexedInTable
-        let work_indexed_in_table = self.indexed_in.unwrap_or_default().into_iter()
-            .map(|t| WorkIndexedInTable { work_id: self.id.to_owned(), indexed_in: t})
+        let work_indexed_in_table = self
+            .indexed_in
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| WorkIndexedInTable {
+                work_id: self.id.to_owned(),
+                indexed_in: t,
+            })
             .collect::<Vec<_>>();
 
         // WorkIdsTable
         let work_ids_table = self.ids.map(|t| t.to_work_ids_table(&self.id));
 
         // WorkReferencedWorksTable
-        let work_referenced_works_table = self.referenced_works.unwrap_or_default().into_iter()
-            .map(|t| WorkReferencedWorksTable { work_id: self.id.to_owned(), referenced_work_id: t})
+        let work_referenced_works_table = self
+            .referenced_works
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| WorkReferencedWorksTable {
+                work_id: self.id.to_owned(),
+                referenced_work_id: t,
+            })
             .collect::<Vec<_>>();
 
         // WorkRelatedWorksTable
-        let work_related_works_table = self.related_works.unwrap_or_default().into_iter()
-            .map(|t| WorkRelatedWorksTable { work_id: self.id.to_owned(), related_work_id: t})
+        let work_related_works_table = self
+            .related_works
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| WorkRelatedWorksTable {
+                work_id: self.id.to_owned(),
+                related_work_id: t,
+            })
             .collect::<Vec<_>>();
 
         // WorkTable
         let abstract_ = if let Some(abstract_inverted_index) = self.abstract_inverted_index {
-            let abstract_inverted_index = serde_json::from_value::<Map<String, Value>>(abstract_inverted_index).unwrap()
-                .into_iter()
-                .map(|(k,v)| (k, serde_json::from_value::<Vec<usize>>(v).unwrap()))
-                .collect::<HashMap<_, _>>();
+            let abstract_inverted_index =
+                serde_json::from_value::<Map<String, Value>>(abstract_inverted_index)
+                    .unwrap()
+                    .into_iter()
+                    .map(|(k, v)| (k, serde_json::from_value::<Vec<usize>>(v).unwrap()))
+                    .collect::<HashMap<_, _>>();
             abstract_from_inverted_index(&abstract_inverted_index)
         } else {
             String::new()
@@ -223,14 +312,15 @@ impl Work {
             language: self.language.unwrap_or_default(),
         };
 
-        (work_table, 
-            work_authorship_table, 
-            work_award_table, 
-            work_funder_table, 
-            work_apc_info_table, 
-            work_location_table, 
-            work_open_access_table, 
-            work_biblio_table, 
+        (
+            work_table,
+            work_authorship_table,
+            work_award_table,
+            work_funder_table,
+            work_apc_info_table,
+            work_location_table,
+            work_open_access_table,
+            work_biblio_table,
             work_citation_normalized_percentile_table,
             work_cited_percentile_year_table,
             work_counts_by_year_table,
@@ -244,7 +334,7 @@ impl Work {
             work_indexed_in_table,
             work_ids_table,
             work_referenced_works_table,
-            work_related_works_table
+            work_related_works_table,
         )
     }
 }
@@ -274,36 +364,42 @@ pub struct WorkTable {
 
 impl WorkTable {
     fn to_fields() -> Fields {
-        let field_names = ["work_id", 
-            "display_name", 
-            "title", 
-            "doi", 
-            "type_", 
-            "publication_date", 
-            "created_date", 
-            "updated_date", 
-            "abstract_", 
-            "language"];
+        let field_names = [
+            "work_id",
+            "display_name",
+            "title",
+            "doi",
+            "type_",
+            "publication_date",
+            "created_date",
+            "updated_date",
+            "abstract_",
+            "language",
+        ];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = ["publication_year", 
-            "locations_count", 
-            "countries_distinct_count", 
-            "institutions_distinct_count", 
-            "referenced_works_count"];
-        fields_vec.extend(field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::UInt32, false))
-            .collect::<Vec<_>>());
-        let field_names = ["is_paratext", 
-            "is_retracted", 
-            "is_xpac"];
-        fields_vec.extend(field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::Boolean, false))
-            .collect::<Vec<_>>());
+        let field_names = [
+            "publication_year",
+            "locations_count",
+            "countries_distinct_count",
+            "institutions_distinct_count",
+            "referenced_works_count",
+        ];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::UInt32, false))
+                .collect::<Vec<_>>(),
+        );
+        let field_names = ["is_paratext", "is_retracted", "is_xpac"];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::Boolean, false))
+                .collect::<Vec<_>>(),
+        );
         Fields::from(fields_vec)
     }
 }
@@ -344,15 +440,15 @@ impl Authorship {
         } else {
             Vec::new()
         };
-        WorkAuthorshipTable { 
-            work_id: work_id.to_string(), 
-            author_position: self.author_position.unwrap_or_default(), 
-            author_id, 
+        WorkAuthorshipTable {
+            work_id: work_id.to_string(),
+            author_position: self.author_position.unwrap_or_default(),
+            author_id,
             institution_ids,
-            is_corresponding: self.is_corresponding.unwrap_or_default(), 
+            is_corresponding: self.is_corresponding.unwrap_or_default(),
             countries: self.countries.unwrap_or_default(),
-            raw_affiliation_strings: self.raw_affiliation_strings.unwrap_or_default(), 
-            raw_author_name: self.raw_author_name.unwrap_or_default() 
+            raw_affiliation_strings: self.raw_affiliation_strings.unwrap_or_default(),
+            raw_author_name: self.raw_author_name.unwrap_or_default(),
         }
     }
 }
@@ -371,29 +467,20 @@ pub struct WorkAuthorshipTable {
 
 impl WorkAuthorshipTable {
     fn to_fields() -> Fields {
-        let field_names = ["work_id", 
-            "author_position", 
-            "author_id",
-            "raw_author_name"];
+        let field_names = ["work_id", "author_position", "author_id", "raw_author_name"];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
         let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Utf8, false)));
-        let field_names = [
-            "institution_ids",
-            "countries",
-            "raw_affiliation_strings",
-        ];
+        let field_names = ["institution_ids", "countries", "raw_affiliation_strings"];
         fields_vec.extend(
             field_names
                 .iter()
                 .map(|f| Field::new(*f, list_data_type.clone(), false))
                 .collect::<Vec<_>>(),
         );
-        let field_names = [
-            "is_corresponding",
-        ];
+        let field_names = ["is_corresponding"];
         fields_vec.extend(
             field_names
                 .iter()
@@ -425,15 +512,20 @@ pub struct ApcInfo {
 }
 
 impl ApcInfo {
-    pub fn to_work_apc_info_table(self, work_id: &str, is_list: bool, is_paid: bool) -> WorkApcInfoTable {
-        WorkApcInfoTable { 
-            work_id: work_id.to_string(), 
-            is_list, 
-            is_paid, 
-            value: self.value.unwrap_or_default(), 
-            currency: self.currency.unwrap_or_default(), 
-            value_usd: self.value_usd.unwrap_or_default(), 
-            provenance: self.provenance.unwrap_or_default() 
+    pub fn to_work_apc_info_table(
+        self,
+        work_id: &str,
+        is_list: bool,
+        is_paid: bool,
+    ) -> WorkApcInfoTable {
+        WorkApcInfoTable {
+            work_id: work_id.to_string(),
+            is_list,
+            is_paid,
+            value: self.value.unwrap_or_default(),
+            currency: self.currency.unwrap_or_default(),
+            value_usd: self.value_usd.unwrap_or_default(),
+            provenance: self.provenance.unwrap_or_default(),
         }
     }
 }
@@ -451,27 +543,19 @@ pub struct WorkApcInfoTable {
 
 impl WorkApcInfoTable {
     fn to_fields() -> Fields {
-        let field_names = ["work_id", 
-            "Currency", 
-            "provenance"];
+        let field_names = ["work_id", "Currency", "provenance"];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = [
-            "value",
-            "value_usd",
-        ];
+        let field_names = ["value", "value_usd"];
         fields_vec.extend(
             field_names
                 .iter()
                 .map(|f| Field::new(*f, DataType::UInt32, false))
                 .collect::<Vec<_>>(),
         );
-        let field_names = [
-            "is_list",
-            "is_paid",
-        ];
+        let field_names = ["is_list", "is_paid"];
         fields_vec.extend(
             field_names
                 .iter()
@@ -502,8 +586,7 @@ pub struct WorkAwardTable {
 
 impl WorkAwardTable {
     fn to_fields() -> Fields {
-        let field_names = ["work_id", 
-            "award_id"];
+        let field_names = ["work_id", "award_id"];
         let fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -532,8 +615,7 @@ pub struct WorkFunderTable {
 
 impl WorkFunderTable {
     fn to_fields() -> Fields {
-        let field_names = ["work_id", 
-            "funder_id"];
+        let field_names = ["work_id", "funder_id"];
         let fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -565,22 +647,27 @@ pub struct Location {
 }
 
 impl Location {
-    pub fn to_work_location_table(self, work_id: &str, is_best_oa: bool, is_primary: bool) -> WorkLocationTable {
+    pub fn to_work_location_table(
+        self,
+        work_id: &str,
+        is_best_oa: bool,
+        is_primary: bool,
+    ) -> WorkLocationTable {
         let source_id = if let Some(source) = self.source {
             source.id
         } else {
             String::new()
         };
-        WorkLocationTable { 
-            work_id: work_id.to_string(), 
+        WorkLocationTable {
+            work_id: work_id.to_string(),
             is_best_oa,
-            is_primary, 
-            is_oa: self.is_oa.unwrap_or_default(), 
-            landing_page_url: self.landing_page_url.unwrap_or_default(), 
-            pdf_url: self.pdf_url.unwrap_or_default(), 
-            source_id, 
-            license: self.license.unwrap_or_default(), 
-            version: self.version.unwrap_or_default(), 
+            is_primary,
+            is_oa: self.is_oa.unwrap_or_default(),
+            landing_page_url: self.landing_page_url.unwrap_or_default(),
+            pdf_url: self.pdf_url.unwrap_or_default(),
+            source_id,
+            license: self.license.unwrap_or_default(),
+            version: self.version.unwrap_or_default(),
         }
     }
 }
@@ -600,21 +687,19 @@ pub struct WorkLocationTable {
 
 impl WorkLocationTable {
     fn to_fields() -> Fields {
-        let field_names = ["work_id", 
-            "landing_page_url", 
-            "pdf_url", 
-            "source_id", 
-            "license", 
-            "version"];
+        let field_names = [
+            "work_id",
+            "landing_page_url",
+            "pdf_url",
+            "source_id",
+            "license",
+            "version",
+        ];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = [
-            "is_best_oa",
-            "is_primary",
-            "is_oa",
-        ];
+        let field_names = ["is_best_oa", "is_primary", "is_oa"];
         fields_vec.extend(
             field_names
                 .iter()
@@ -647,12 +732,12 @@ pub struct OpenAccess {
 
 impl OpenAccess {
     pub fn to_work_open_access_table(self, work_id: &str) -> WorkOpenAccessTable {
-        WorkOpenAccessTable { 
-            work_id: work_id.to_string(), 
-            is_oa: self.is_oa.unwrap_or_default(), 
-            oa_status: self.oa_status.unwrap_or_default(), 
-            oa_url: self.oa_url.unwrap_or_default(), 
-            any_repository_has_fulltext: self.any_repository_has_fulltext.unwrap_or_default()
+        WorkOpenAccessTable {
+            work_id: work_id.to_string(),
+            is_oa: self.is_oa.unwrap_or_default(),
+            oa_status: self.oa_status.unwrap_or_default(),
+            oa_url: self.oa_url.unwrap_or_default(),
+            any_repository_has_fulltext: self.any_repository_has_fulltext.unwrap_or_default(),
         }
     }
 }
@@ -668,17 +753,12 @@ pub struct WorkOpenAccessTable {
 
 impl WorkOpenAccessTable {
     fn to_fields() -> Fields {
-        let field_names = ["work_id", 
-            "oa_status", 
-            "oa_url"];
+        let field_names = ["work_id", "oa_status", "oa_url"];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = [
-            "is_oa",
-            "any_repository_has_fulltext",
-        ];
+        let field_names = ["is_oa", "any_repository_has_fulltext"];
         fields_vec.extend(
             field_names
                 .iter()
@@ -711,11 +791,12 @@ pub struct Biblio {
 
 impl Biblio {
     pub fn to_work_biblio_table(self, work_id: &str) -> WorkBiblioTable {
-        WorkBiblioTable { work_id: work_id.to_string(), 
-            volume: self.volume.unwrap_or_default(), 
-            issue: self.issue.unwrap_or_default(), 
-            first_page: self.first_page.unwrap_or_default(), 
-            last_page: self.last_page.unwrap_or_default() 
+        WorkBiblioTable {
+            work_id: work_id.to_string(),
+            volume: self.volume.unwrap_or_default(),
+            issue: self.issue.unwrap_or_default(),
+            first_page: self.first_page.unwrap_or_default(),
+            last_page: self.last_page.unwrap_or_default(),
         }
     }
 }
@@ -731,11 +812,7 @@ pub struct WorkBiblioTable {
 
 impl WorkBiblioTable {
     fn to_fields() -> Fields {
-        let field_names = ["work_id", 
-            "volume", 
-            "issue", 
-            "first_page", 
-            "last_page"];
+        let field_names = ["work_id", "volume", "issue", "first_page", "last_page"];
         let fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -765,10 +842,11 @@ pub struct CitationPercentile {
 
 impl CitationPercentile {
     pub fn to_work_citation_percentile_table(self, work_id: &str) -> WorkCitationPercentileTable {
-        WorkCitationPercentileTable { work_id: work_id.to_string(), 
-            value: self.value.unwrap_or_default(), 
-            is_in_top_1_percent: self.is_in_top_1_percent.unwrap_or_default(), 
-            is_in_top_10_percent: self.is_in_top_10_percent.unwrap_or_default() 
+        WorkCitationPercentileTable {
+            work_id: work_id.to_string(),
+            value: self.value.unwrap_or_default(),
+            is_in_top_1_percent: self.is_in_top_1_percent.unwrap_or_default(),
+            is_in_top_10_percent: self.is_in_top_10_percent.unwrap_or_default(),
         }
     }
 }
@@ -788,19 +866,14 @@ impl WorkCitationPercentileTable {
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = [
-            "value",
-        ];
+        let field_names = ["value"];
         fields_vec.extend(
             field_names
                 .iter()
                 .map(|f| Field::new(*f, DataType::Float64, false))
                 .collect::<Vec<_>>(),
         );
-        let field_names = [
-            "is_in_top_1_percent",
-            "is_in_top_10_percent",
-        ];
+        let field_names = ["is_in_top_1_percent", "is_in_top_10_percent"];
         fields_vec.extend(
             field_names
                 .iter()
@@ -834,7 +907,7 @@ impl CitedByPercentileYear {
         WorkCitedByPercentileYearTable {
             work_id: work_id.to_string(),
             min: self.min.unwrap_or_default(),
-            max: self.max.unwrap_or_default()
+            max: self.max.unwrap_or_default(),
         }
     }
 }
@@ -853,10 +926,7 @@ impl WorkCitedByPercentileYearTable {
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = [
-            "min",
-            "max",
-        ];
+        let field_names = ["min", "max"];
         fields_vec.extend(
             field_names
                 .iter()
@@ -893,10 +963,7 @@ impl WorkCountsByYearTable {
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = [
-            "year",
-            "cited_by_count",
-        ];
+        let field_names = ["year", "cited_by_count"];
         fields_vec.extend(
             field_names
                 .iter()
@@ -927,7 +994,11 @@ pub struct WorkKeyword {
 
 impl WorkKeyword {
     pub fn to_work_keyword_table(self, work_id: &str) -> WorkKeywordTable {
-        WorkKeywordTable { work_id: work_id.to_string(), keyword_id: self.id.unwrap_or_default(), score: self.score.unwrap_or_default() }
+        WorkKeywordTable {
+            work_id: work_id.to_string(),
+            keyword_id: self.id.unwrap_or_default(),
+            score: self.score.unwrap_or_default(),
+        }
     }
 }
 
@@ -979,13 +1050,13 @@ pub struct MeshTag {
 
 impl MeshTag {
     pub fn to_work_mesh_tag_table(self, work_id: &str) -> WorkMeshTagTable {
-        WorkMeshTagTable { 
-            work_id:work_id.to_string(), 
-            descriptor_ui: self.descriptor_ui.unwrap_or_default(), 
-            descriptor_name: self.descriptor_name.unwrap_or_default(), 
-            qualifier_ui: self.qualifier_ui.unwrap_or_default(), 
-            qualifier_name: self.qualifier_name.unwrap_or_default(), 
-            is_major_topic: self.is_major_topic.unwrap_or_default() 
+        WorkMeshTagTable {
+            work_id: work_id.to_string(),
+            descriptor_ui: self.descriptor_ui.unwrap_or_default(),
+            descriptor_name: self.descriptor_name.unwrap_or_default(),
+            qualifier_ui: self.qualifier_ui.unwrap_or_default(),
+            qualifier_name: self.qualifier_name.unwrap_or_default(),
+            is_major_topic: self.is_major_topic.unwrap_or_default(),
         }
     }
 }
@@ -1002,7 +1073,13 @@ pub struct WorkMeshTagTable {
 
 impl WorkMeshTagTable {
     fn to_fields() -> Fields {
-        let field_names = ["work_id", "descriptor_ui", "descriptor_name", "qualifier_ui", "qualifier_name"];
+        let field_names = [
+            "work_id",
+            "descriptor_ui",
+            "descriptor_name",
+            "qualifier_ui",
+            "qualifier_name",
+        ];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -1039,11 +1116,11 @@ pub struct SdgTag {
 
 impl SdgTag {
     pub fn to_work_sdg_tag_table(self, work_id: &str) -> WorkSdgTagTable {
-        WorkSdgTagTable { 
-            work_id: work_id.to_string(), 
-            sdg_tag_id: self.id.unwrap_or_default(), 
-            display_name: self.display_name.unwrap_or_default(), 
-            score: self.score.unwrap_or_default() 
+        WorkSdgTagTable {
+            work_id: work_id.to_string(),
+            sdg_tag_id: self.id.unwrap_or_default(),
+            display_name: self.display_name.unwrap_or_default(),
+            score: self.score.unwrap_or_default(),
         }
     }
 }
@@ -1097,13 +1174,13 @@ pub struct WorkIds {
 
 impl WorkIds {
     pub fn to_work_ids_table(self, work_id: &str) -> WorkIdsTable {
-        WorkIdsTable { 
-            work_id: work_id.to_string(), 
-            openalex: self.openalex.unwrap_or_default(), 
-            doi: self.doi.unwrap_or_default(), 
-            mag: self.mag.unwrap_or_default(), 
-            pmid: self.pmid.unwrap_or_default(), 
-            pmcid: self.pmcid.unwrap_or_default() 
+        WorkIdsTable {
+            work_id: work_id.to_string(),
+            openalex: self.openalex.unwrap_or_default(),
+            doi: self.doi.unwrap_or_default(),
+            mag: self.mag.unwrap_or_default(),
+            pmid: self.pmid.unwrap_or_default(),
+            pmcid: self.pmcid.unwrap_or_default(),
         }
     }
 }
@@ -1120,12 +1197,7 @@ pub struct WorkIdsTable {
 
 impl WorkIdsTable {
     fn to_fields() -> Fields {
-        let field_names = ["work_id",
-        "openalex",
-        "doi",
-        "mag",
-        "pmid",
-        "pmcid"];
+        let field_names = ["work_id", "openalex", "doi", "mag", "pmid", "pmcid"];
         let fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -1154,11 +1226,11 @@ pub struct WorkTopic {
 
 impl WorkTopic {
     pub fn to_work_topic_table(self, work_id: &str, is_primary: bool) -> WorkTopicTable {
-        WorkTopicTable { 
-            work_id: work_id.to_string(), 
-            topic_id: self.id.unwrap_or_default(), 
-            is_primary, 
-            score: self.score.unwrap_or_default()
+        WorkTopicTable {
+            work_id: work_id.to_string(),
+            topic_id: self.id.unwrap_or_default(),
+            is_primary,
+            score: self.score.unwrap_or_default(),
         }
     }
 }
@@ -1216,10 +1288,10 @@ pub struct WorkConcept {
 
 impl WorkConcept {
     pub fn to_work_concept_table(self, work_id: &str) -> WorkConceptTable {
-        WorkConceptTable { 
-            work_id: work_id.to_string(), 
-            concept_id: self.id.unwrap_or_default(), 
-            score: self.score.unwrap_or_default() 
+        WorkConceptTable {
+            work_id: work_id.to_string(),
+            concept_id: self.id.unwrap_or_default(),
+            score: self.score.unwrap_or_default(),
         }
     }
 }

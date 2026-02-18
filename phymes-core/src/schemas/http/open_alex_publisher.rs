@@ -1,6 +1,11 @@
-
+use crate::{
+    AvailableSchemaTrait, MappableTrait, create_schema_from_fields,
+    schemas::http::{
+        open_alex_common::{CountryCode, CountsByYear, RoleType, SummaryStats},
+        open_alex_institution::Role,
+    },
+};
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use crate::{AvailableSchemaTrait, MappableTrait, create_schema_from_fields, schemas::http::{open_alex_common::{CountryCode, CountsByYear, RoleType, SummaryStats}, open_alex_institution::Role}};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -26,7 +31,10 @@ pub struct Publisher {
 }
 
 impl Publisher {
-    pub fn to_tables(self) -> (PublisherTable,
+    pub fn to_tables(
+        self,
+    ) -> (
+        PublisherTable,
         Vec<PublisherAlternativeTitlesTable>,
         Vec<PublisherCountryCodeTable>,
         Vec<PublisherLineageTable>,
@@ -35,15 +43,49 @@ impl Publisher {
         Vec<PublisherCountsByYearTable>,
         Option<PublisherSummaryStatsTable>,
     ) {
-        let publisher_alternative_titles = self.alternate_titles.unwrap_or_default().into_iter().map(|t| PublisherAlternativeTitlesTable {publisher_id: self.id.to_owned(), title: t}).collect::<Vec<_>>();
-        let publisher_country_code = self.country_codes.unwrap_or_default().into_iter().map(|t| PublisherCountryCodeTable {publisher_id: self.id.to_owned(), country_code: t}).collect::<Vec<_>>();
-        let publisher_lineage = self.lineage.unwrap_or_default().into_iter()
-            .map(|t| PublisherLineageTable { publisher_id: self.id.clone(), lineage_id: t})
+        let publisher_alternative_titles = self
+            .alternate_titles
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| PublisherAlternativeTitlesTable {
+                publisher_id: self.id.to_owned(),
+                title: t,
+            })
+            .collect::<Vec<_>>();
+        let publisher_country_code = self
+            .country_codes
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| PublisherCountryCodeTable {
+                publisher_id: self.id.to_owned(),
+                country_code: t,
+            })
+            .collect::<Vec<_>>();
+        let publisher_lineage = self
+            .lineage
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| PublisherLineageTable {
+                publisher_id: self.id.clone(),
+                lineage_id: t,
+            })
             .collect::<Vec<_>>();
         let publisher_ids = self.ids.map(|i| i.to_publisher_ids_table(&self.id));
-        let publisher_role = self.roles.unwrap_or_default().into_iter().map(|t| t.to_publisher_role_table(&self.id)).collect::<Vec<_>>();
-        let publisher_counts_by_year = self.counts_by_year.unwrap_or_default().into_iter().map(|t| t.to_publisher_counts_by_year(&self.id)).collect::<Vec<_>>();
-        let publisher_summary_stats = self.summary_stats.map(|t| t.to_publisher_summary_stats_table(&self.id));
+        let publisher_role = self
+            .roles
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| t.to_publisher_role_table(&self.id))
+            .collect::<Vec<_>>();
+        let publisher_counts_by_year = self
+            .counts_by_year
+            .unwrap_or_default()
+            .into_iter()
+            .map(|t| t.to_publisher_counts_by_year(&self.id))
+            .collect::<Vec<_>>();
+        let publisher_summary_stats = self
+            .summary_stats
+            .map(|t| t.to_publisher_summary_stats_table(&self.id));
         let publisher = PublisherTable {
             publisher_id: self.id,
             display_name: self.display_name,
@@ -55,9 +97,18 @@ impl Publisher {
             parent_publisher: self.parent_publisher.unwrap_or_default(),
             image_url: self.image_url.unwrap_or_default(),
             image_thumbnail_url: self.image_thumbnail_url.unwrap_or_default(),
-            sources_api_url: self.sources_api_url.unwrap_or_default()
+            sources_api_url: self.sources_api_url.unwrap_or_default(),
         };
-        (publisher, publisher_alternative_titles, publisher_country_code, publisher_lineage, publisher_ids, publisher_role, publisher_counts_by_year, publisher_summary_stats)
+        (
+            publisher,
+            publisher_alternative_titles,
+            publisher_country_code,
+            publisher_lineage,
+            publisher_ids,
+            publisher_role,
+            publisher_counts_by_year,
+            publisher_summary_stats,
+        )
     }
 }
 
@@ -78,25 +129,27 @@ pub struct PublisherTable {
 
 impl PublisherTable {
     fn to_fields() -> Fields {
-        let field_names = ["publisher_id", 
-            "display_name", 
-            "created_date", 
-            "updated_date", 
-            "parent_publisher", 
-            "image_url", 
-            "image_thumbnail_url", 
-            "sources_api_url"];
+        let field_names = [
+            "publisher_id",
+            "display_name",
+            "created_date",
+            "updated_date",
+            "parent_publisher",
+            "image_url",
+            "image_thumbnail_url",
+            "sources_api_url",
+        ];
         let mut fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = ["cited_by_count", 
-            "works_count", 
-            "hierarchy_level"];
-        fields_vec.extend(field_names
-            .iter()
-            .map(|f| Field::new(*f, DataType::UInt32, false))
-            .collect::<Vec<_>>());
+        let field_names = ["cited_by_count", "works_count", "hierarchy_level"];
+        fields_vec.extend(
+            field_names
+                .iter()
+                .map(|f| Field::new(*f, DataType::UInt32, false))
+                .collect::<Vec<_>>(),
+        );
         Fields::from(fields_vec)
     }
 }
@@ -122,9 +175,10 @@ pub struct PublisherIds {
 
 impl PublisherIds {
     pub fn to_publisher_ids_table(self, publisher_id: &str) -> PublisherIdsTable {
-        PublisherIdsTable { publisher_id: publisher_id.to_string(), 
-            openalex: self.openalex.unwrap_or_default(), 
-            ror: self.ror.unwrap_or_default(), 
+        PublisherIdsTable {
+            publisher_id: publisher_id.to_string(),
+            openalex: self.openalex.unwrap_or_default(),
+            ror: self.ror.unwrap_or_default(),
             wikidata: self.wikidata.unwrap_or_default(),
         }
     }
@@ -308,10 +362,7 @@ impl PublisherSummaryStatsTable {
                 .map(|f| Field::new(*f, DataType::Float64, false))
                 .collect::<Vec<_>>(),
         );
-        let field_names = [
-            "h_index",
-            "i10_index",
-        ];
+        let field_names = ["h_index", "i10_index"];
         fields_vec.extend(
             field_names
                 .iter()
@@ -348,10 +399,7 @@ impl PublisherCountsByYearTable {
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
             .collect::<Vec<_>>();
-        let field_names = [
-            "year",
-            "cited_by_count",
-        ];
+        let field_names = ["year", "cited_by_count"];
         fields_vec.extend(
             field_names
                 .iter()

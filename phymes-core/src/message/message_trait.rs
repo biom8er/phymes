@@ -1,6 +1,8 @@
 use crate::schemas::{create_bytes_record_batch, create_route_bytes_fields};
 use crate::{
-    BuildableTrait, BuilderTrait, DataFormat, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, SendableRecordBatchStream, SendableRecordBatchStreamMessageBuilder, TableBuilder, TableBuilderTrait, TablePublication, TableTrait
+    BuildableTrait, BuilderTrait, DataFormat, IPCMessageBuilder, IPCMessageMap, MappableTrait,
+    MessageBuilderTrait, SendableRecordBatchStream, SendableRecordBatchStreamMessageBuilder,
+    TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
 };
 
 use anyhow::Result;
@@ -56,7 +58,7 @@ impl IPCMessage {
     ///
     /// # Note
     /// ## Routing to multiple subjects
-    /// 
+    ///
     /// - Each row in the message will be allocated to a new message when
     ///   the `bytes` [RecordBatch] schema is followed which includes columns
     ///   for `name`, `publisher`, `subject`, `format`,  and `bytes`, and
@@ -76,12 +78,14 @@ impl IPCMessage {
             let names = table.get_column_as_vec_str("name");
             let publishers = table.get_column_as_vec_str("publisher");
             let subjects = table.get_column_as_vec_str("subject");
-            let formats = table.get_column_as_vec_str("format")
+            let formats = table
+                .get_column_as_vec_str("format")
                 .into_iter()
                 .map(|s| DataFormat::from_str(s, false).unwrap())
                 .collect::<Vec<_>>();
             let bytes = table.get_column_as_vec_nested_primitive::<u8>("bytes")?;
-            let map: Result<HashMap<String, IPCMessage>> = names.into_iter()
+            let map: Result<HashMap<String, IPCMessage>> = names
+                .into_iter()
                 .zip(publishers.into_iter())
                 .zip(subjects.into_iter())
                 .zip(formats.into_iter())
@@ -105,7 +109,8 @@ impl IPCMessage {
                         .make_name()?
                         .build()?;
                     Ok((message.get_name().to_string(), message))
-                }).collect();
+                })
+                .collect();
             map
         } else {
             // No need to split the message
@@ -244,9 +249,7 @@ where
 mod tests {
     use phymes_diagnostics::HashMap;
 
-    use crate::{
-        TableBuilder, TableTrait, create_route_bytes_record_batch, test_table
-    };
+    use crate::{TableBuilder, TableTrait, create_route_bytes_record_batch, test_table};
 
     use super::*;
 
@@ -254,10 +257,16 @@ mod tests {
     fn test_input_message_to_map() -> Result<()> {
         let test_table_1 = test_table::make_test_table("data", 4, 0, 3)?;
         let test_table_2 = test_table::make_test_table_chat("chat")?;
-        let names = ["data", "chat"].into_iter().map(|s| s.to_string()).collect();
+        let names = ["data", "chat"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
         let publishers = ["s1", "s2"].into_iter().map(|s| s.to_string()).collect();
         let subjects = ["d1", "d2"].into_iter().map(|s| s.to_string()).collect();
-        let formats = [DataFormat::Ipc, DataFormat::Bytes].into_iter().map(|s| s.to_string()).collect();
+        let formats = [DataFormat::Ipc, DataFormat::Bytes]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
         let bytes = vec![
             test_table_1.to_ipc_stream()?,
             test_table_2.to_bytes()?.to_vec(),
@@ -276,9 +285,18 @@ mod tests {
             .build()?;
         let message_map = message.to_map()?;
         assert_eq!(message_map.len(), 2);
-        assert_eq!(message_map.get("from_s1_on_d1").unwrap().get_name(), "from_s1_on_d1");
-        assert_eq!(message_map.get("from_s1_on_d1").unwrap().get_publisher(), "s1");
-        assert_eq!(message_map.get("from_s1_on_d1").unwrap().get_subject(), "d1");
+        assert_eq!(
+            message_map.get("from_s1_on_d1").unwrap().get_name(),
+            "from_s1_on_d1"
+        );
+        assert_eq!(
+            message_map.get("from_s1_on_d1").unwrap().get_publisher(),
+            "s1"
+        );
+        assert_eq!(
+            message_map.get("from_s1_on_d1").unwrap().get_subject(),
+            "d1"
+        );
         assert_eq!(
             *message_map.get("from_s1_on_d1").unwrap().get_update(),
             TablePublication::ExtendBytes {
@@ -287,16 +305,30 @@ mod tests {
                 serialize_format: DataFormat::Ipc
             }
         );
-        let test_table =
-            TableBuilder::new_from_ipc_stream(message_map.get("from_s1_on_d1").unwrap().get_message())?
-                .with_name("")
-                .build()?;
-        let test_bytes = test_table.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+        let test_table = TableBuilder::new_from_ipc_stream(
+            message_map.get("from_s1_on_d1").unwrap().get_message(),
+        )?
+        .with_name("")
+        .build()?;
+        let test_bytes = test_table
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
         let expected_bytes = test_table_1.to_ipc_stream()?;
         assert_eq!(test_bytes, expected_bytes);
-        assert_eq!(message_map.get("from_s2_on_d2").unwrap().get_name(), "from_s2_on_d2");
-        assert_eq!(message_map.get("from_s2_on_d2").unwrap().get_publisher(), "s2");
-        assert_eq!(message_map.get("from_s2_on_d2").unwrap().get_subject(), "d2");
+        assert_eq!(
+            message_map.get("from_s2_on_d2").unwrap().get_name(),
+            "from_s2_on_d2"
+        );
+        assert_eq!(
+            message_map.get("from_s2_on_d2").unwrap().get_publisher(),
+            "s2"
+        );
+        assert_eq!(
+            message_map.get("from_s2_on_d2").unwrap().get_subject(),
+            "d2"
+        );
         assert_eq!(
             *message_map.get("from_s2_on_d2").unwrap().get_update(),
             TablePublication::ExtendBytes {
@@ -305,11 +337,16 @@ mod tests {
                 serialize_format: DataFormat::Bytes
             }
         );
-        let test_table =
-            TableBuilder::new_from_ipc_stream(message_map.get("from_s2_on_d2").unwrap().get_message())?
-                .with_name("")
-                .build()?;
-        let test_bytes = test_table.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+        let test_table = TableBuilder::new_from_ipc_stream(
+            message_map.get("from_s2_on_d2").unwrap().get_message(),
+        )?
+        .with_name("")
+        .build()?;
+        let test_bytes = test_table
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
         let expected_bytes = test_table_2.to_bytes()?.to_vec();
         assert_eq!(test_bytes, expected_bytes);
         Ok(())
