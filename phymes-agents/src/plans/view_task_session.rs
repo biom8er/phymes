@@ -17,9 +17,66 @@ impl<'a> ViewTaskSession<'a> {
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
     ViewTaskSession_runtime_env-rt@{shape: subproc, label: ViewTaskSession_runtime_env}
+
+	subgraph select_processors_subscriptions_t
+		SessionProcessors-subject-.->|FullTable|cmp_processors_subscriptions_p-subscribe
+		cmp_processors_subscriptions_p-subscribe-->cmp_processors_subscriptions_p-processor
+		cmp_processors_subscriptions_p-processor-->cmp_processors_subscriptions_p-publish
+		cmp_processors_subscriptions_p-publish-->|Replace|cmp_processors_subscriptions_s-subject
+		cmp_processors_subscriptions_s-subject-->|FullTable|filter_processors_subscriptions_p-subscribe
+		filter_processors_subscriptions_p-subscribe-->filter_processors_subscriptions_p-processor
+		filter_processors_subscriptions_p-processor-->filter_processors_subscriptions_p-publish
+		filter_processors_subscriptions_p-publish-->|Replace|filter_processors_subscriptions_s-subject
+		filter_processors_subscriptions_s-subject-->|FullTable|select_processors_subscriptions_p-subscribe
+		select_processors_subscriptions_p-subscribe-->select_processors_subscriptions_p-processor
+		select_processors_subscriptions_p-processor-->select_processors_subscriptions_p-publish
+		select_processors_subscriptions_p-publish-->|Replace|select_processors_subscriptions_s-subject
+	end
+	ViewTaskSession_runtime_env-rt-->select_processors_subscriptions_t
+	SessionProcessors-subject@{shape: doc, label: SessionProcessors}
+	cmp_processors_subscriptions_p-subscribe@{shape: diamond, label: All}
+	cmp_processors_subscriptions_p-processor@{shape: rect, label: Select}
+	cmp_processors_subscriptions_p-publish@{shape: fork}
+	cmp_processors_subscriptions_s-subject@{shape: doc, label: cmp_processors_subscriptions_s}
+	filter_processors_subscriptions_p-subscribe@{shape: diamond, label: All}
+	filter_processors_subscriptions_p-processor@{shape: rect, label: Filter}
+	filter_processors_subscriptions_p-publish@{shape: fork}
+	filter_processors_subscriptions_s-subject@{shape: doc, label: filter_processors_subscriptions_s}
+	select_processors_subscriptions_p-subscribe@{shape: diamond, label: All}
+	select_processors_subscriptions_p-processor@{shape: rect, label: Select}
+	select_processors_subscriptions_p-publish@{shape: fork}
+	select_processors_subscriptions_s-subject@{shape: doc, label: select_processors_subscriptions_s}
+
+	subgraph select_processors_publications_t
+		SessionProcessors-subject-.->|FullTable|cmp_processors_publications_p-subscribe
+		cmp_processors_publications_p-subscribe-->cmp_processors_publications_p-processor
+		cmp_processors_publications_p-processor-->cmp_processors_publications_p-publish
+		cmp_processors_publications_p-publish-->|Replace|cmp_processors_publications_s-subject
+		cmp_processors_publications_s-subject-->|FullTable|filter_processors_publications_p-subscribe
+		filter_processors_publications_p-subscribe-->filter_processors_publications_p-processor
+		filter_processors_publications_p-processor-->filter_processors_publications_p-publish
+		filter_processors_publications_p-publish-->|Replace|filter_processors_publications_s-subject
+		filter_processors_publications_s-subject-->|FullTable|select_processors_publications_p-subscribe
+		select_processors_publications_p-subscribe-->select_processors_publications_p-processor
+		select_processors_publications_p-processor-->select_processors_publications_p-publish
+		select_processors_publications_p-publish-->|Replace|select_processors_publications_s-subject
+	end
+	ViewTaskSession_runtime_env-rt-->select_processors_publications_t
+	cmp_processors_publications_p-subscribe@{shape: diamond, label: All}
+	cmp_processors_publications_p-processor@{shape: rect, label: Select}
+	cmp_processors_publications_p-publish@{shape: fork}
+	cmp_processors_publications_s-subject@{shape: doc, label: cmp_processors_publications_s}
+	filter_processors_publications_p-subscribe@{shape: diamond, label: All}
+	filter_processors_publications_p-processor@{shape: rect, label: Filter}
+	filter_processors_publications_p-publish@{shape: fork}
+	filter_processors_publications_s-subject@{shape: doc, label: filter_processors_publications_s}
+	select_processors_publications_p-subscribe@{shape: diamond, label: All}
+	select_processors_publications_p-processor@{shape: rect, label: Select}
+	select_processors_publications_p-publish@{shape: fork}
+	select_processors_publications_s-subject@{shape: doc, label: select_processors_publications_s}
     
 	subgraph group_by_processors_subscriptions_t
-		select_processors_subscriptions_s-subject-->|FullTable|group_by_processors_subscriptions_p-subscribe
+		select_processors_subscriptions_s-subject-.->|FullTable|group_by_processors_subscriptions_p-subscribe
 		group_by_processors_subscriptions_p-subscribe-->group_by_processors_subscriptions_p-processor
 		group_by_processors_subscriptions_p-processor-->group_by_processors_subscriptions_p-publish
 		group_by_processors_subscriptions_p-publish-->|Replace|group_by_processors_subscriptions_s-subject
@@ -29,7 +86,6 @@ impl<'a> ViewTaskSession<'a> {
 		select_processors_subscriptions_aggregated_p-publish-->|Replace|select_processors_subscriptions_aggregated_s-subject
     end
 	ViewTaskSession_runtime_env-rt-->group_by_processors_subscriptions_t
-	select_processors_subscriptions_s-subject@{shape: doc, label: select_processors_subscriptions_s}
 	group_by_processors_subscriptions_p-subscribe@{shape: diamond, label: All}
 	group_by_processors_subscriptions_p-processor@{shape: rect, label: GroupBy}
 	group_by_processors_subscriptions_p-publish@{shape: fork}
@@ -40,7 +96,7 @@ impl<'a> ViewTaskSession<'a> {
 	select_processors_subscriptions_aggregated_s-subject@{shape: doc, label: select_processors_subscriptions_aggregated_s}
     
 	subgraph group_by_processors_publications_t
-		select_processors_publications_s-subject-->|FullTable|group_by_processors_publications_p-subscribe
+		select_processors_publications_s-subject-.->|FullTable|group_by_processors_publications_p-subscribe
 		group_by_processors_publications_p-subscribe-->group_by_processors_publications_p-processor
 		group_by_processors_publications_p-processor-->group_by_processors_publications_p-publish
 		group_by_processors_publications_p-publish-->|Replace|group_by_processors_publications_s-subject
@@ -50,7 +106,6 @@ impl<'a> ViewTaskSession<'a> {
 		select_processors_publications_aggregated_p-publish-->|Replace|select_processors_publications_aggregated_s-subject
     end
 	ViewTaskSession_runtime_env-rt-->group_by_processors_publications_t
-	select_processors_publications_s-subject@{shape: doc, label: select_processors_publications_s}
 	group_by_processors_publications_p-subscribe@{shape: diamond, label: All}
 	group_by_processors_publications_p-processor@{shape: rect, label: GroupBy}
 	group_by_processors_publications_p-publish@{shape: fork}
@@ -62,11 +117,12 @@ impl<'a> ViewTaskSession<'a> {
 
 	subgraph join_tasks_processors_subscriptions_publications_aggregated_t
 		select_processors_subscriptions_aggregated_s-subject-.->|FullTable|join_processors_subscriptions_publications_aggregated_p-subscribe
+		select_processors_publications_aggregated_s-subject-.->|FullTable|join_processors_subscriptions_publications_aggregated_p-subscribe
 		join_processors_subscriptions_publications_aggregated_p-subscribe-->join_processors_subscriptions_publications_aggregated_p-processor
 		join_processors_subscriptions_publications_aggregated_p-processor-->join_processors_subscriptions_publications_aggregated_p-publish
 		join_processors_subscriptions_publications_aggregated_p-publish-->|Replace|join_processors_subscriptions_publications_aggregated_s-subject
 		join_processors_subscriptions_publications_aggregated_s-subject-->|FullTable|join_tasks_processors_subscriptions_publications_aggregated_p-subscribe
-		SessionTasks-subject-.->|FullTable|join_tasks_processors_subscriptions_publications_aggregated_p-subscribe
+		SessionTasks-subject-->|FullTable|join_tasks_processors_subscriptions_publications_aggregated_p-subscribe
 		join_tasks_processors_subscriptions_publications_aggregated_p-subscribe-->join_tasks_processors_subscriptions_publications_aggregated_p-processor
 		join_tasks_processors_subscriptions_publications_aggregated_p-processor-->join_tasks_processors_subscriptions_publications_aggregated_p-publish
 		join_tasks_processors_subscriptions_publications_aggregated_p-publish-->|Replace|join_tasks_processors_subscriptions_publications_aggregated_s-subject
@@ -75,8 +131,7 @@ impl<'a> ViewTaskSession<'a> {
 		select_tasks_processors_subscriptions_publications_aggregated_p-processor-->select_tasks_processors_subscriptions_publications_aggregated_p-publish
 		select_tasks_processors_subscriptions_publications_aggregated_p-publish-->|Replace|select_tasks_processors_subscriptions_publications_aggregated_s-subject
 	end
-	ViewTaskSession_runtime_env-rt-->join_tasks_processors_subscriptions_publications_aggregated_s
-	SessionProcessors-subject@{shape: doc, label: SessionProcessors}
+	ViewTaskSession_runtime_env-rt-->join_tasks_processors_subscriptions_publications_aggregated_t
 	join_processors_subscriptions_publications_aggregated_p-subscribe@{shape: diamond, label: All}
 	join_processors_subscriptions_publications_aggregated_p-processor@{shape: rect, label: Join}
 	join_processors_subscriptions_publications_aggregated_p-publish@{shape: fork}
@@ -95,7 +150,81 @@ impl<'a> ViewTaskSession<'a> {
     /// Return the Mermaid.js ER Diagram representation of the session
     pub fn as_mermaid_erdiagram(&self) -> &str {
         r#"erDiagram
+    SessionProcessors["SessionProcessors"] {
+        Utf8 session_name
+        Utf8 processor_name
+        Utf8 processor_type
+        Utf8 publication_subscription_name
+        Utf8 publication_subscription_table_name
+        Utf8 subscribe_type
+        Utf8 update_type
+        UInt8 is_subscription
+    }
+    cmp_processors_subscriptions_p["cmp_processors_subscriptions_p"] {
+        List-Utf8 as_columns "['','','','','','','','','subscription']"
+        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','UInt8','UInt8']"
+        List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Ones']"
+        Boolean cpu "false"
+        Utf8 lhs_name "SessionProcessors"
+        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','update_type','is_subscription','subscription']"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    filter_processors_subscriptions_p["filter_processors_subscriptions_p"] {
+        List-Utf8 cmp_columns "['subscription']"
+        List-Utf8 cmp_operators "['Equals']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "cmp_processors_subscriptions_s"
+        List-Utf8 lhs_values "['is_subscription']"
+        Utf8 operator "Filter"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_processors_subscriptions_p["select_processors_subscriptions_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_processors_subscriptions_s"
+        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','update_type','is_subscription']"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
     select_processors_subscriptions_s["select_processors_subscriptions_s"] {
+        Utf8 session_name
+        Utf8 processor_name
+        Utf8 processor_type
+        Utf8 publication_subscription_name
+        Utf8 publication_subscription_table_name
+        Utf8 subscribe_type
+        Utf8 update_type
+        UInt8 is_subscription
+    }
+    cmp_processors_publications_p["cmp_processors_publications_p"] {
+        List-Utf8 as_columns "['','','','','','','','','publication']"
+        List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','Utf8','UInt8','UInt8']"
+        List-Utf8 column_operators "['None','None','None','None','None','None','None','None','Zeros']"
+        Boolean cpu "false"
+        Utf8 lhs_name "SessionProcessors"
+        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','update_type','is_subscription','publication']"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    filter_processors_publications_p["filter_processors_publications_p"] {
+        List-Utf8 cmp_columns "['publication']"
+        List-Utf8 cmp_operators "['Equals']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "cmp_processors_publications_s"
+        List-Utf8 lhs_values "['is_subscription']"
+        Utf8 operator "Filter"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_processors_publications_p["select_processors_publications_p"] {
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_processors_publications_s"
+        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','update_type','is_subscription']"
+        Utf8 operator "Select"
+        Utf8 stream "AccumulateLHSAccumulateRHS"
+    }
+    select_processors_publications_s["select_processors_publications_s"] {
         Utf8 session_name
         Utf8 processor_name
         Utf8 processor_type
@@ -129,16 +258,6 @@ impl<'a> ViewTaskSession<'a> {
         List-Utf8 subscription_names
         List-Utf8 subscription_table_names
         Utf8 subscribe_type
-    }
-    select_processors_publications_s["select_processors_publications_s"] {
-        Utf8 session_name
-        Utf8 processor_name
-        Utf8 processor_type
-        Utf8 publication_subscription_name
-        Utf8 publication_subscription_table_name
-        Utf8 subscribe_type
-        Utf8 update_type
-        UInt8 is_subscription
     }
     group_by_processors_publications_p["group_by_processors_publications_p"] {
         List-Utf8 agg_columns "['publication_subscription_name','publication_subscription_table_name','update_type']"
@@ -195,7 +314,7 @@ impl<'a> ViewTaskSession<'a> {
     }
     select_tasks_processors_subscriptions_publications_aggregated_p["select_tasks_processors_subscriptions_publications_aggregated_p"] {
         Boolean cpu "false"
-        Utf8 lhs_name "filter_processors_publications_t"
+        Utf8 lhs_name "join_tasks_processors_subscriptions_publications_aggregated_s"
         List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type','subscription_names','subscription_table_names','publication_names','publication_table_names','subscribe_type','update_type']"
         Utf8 operator "Select"
         Utf8 stream "AccumulateLHSAccumulateRHS"
@@ -253,7 +372,7 @@ mod tests {
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
         // Make the test session data
-        let mut message_map = {
+        let message_map = {
             // Make the test sequential session
             let session_context =
                 test_session_context_builder::make_test_session_context_builder_sequential(
@@ -262,7 +381,6 @@ mod tests {
                 )?
                 .with_diagnostics(false)
                 .add_session_interface(Some(&["state_1"]))?
-                .add_next_tasks()? // DM required for 'SessionTasksSubscribePublish' table
                 .add_next_supersteps()?
                 .build_with_tables()?;
             let session_context_arc = Arc::new(RwLock::new(session_context));
@@ -316,6 +434,31 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let subjects_reading = session_ctx_arc.read();
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
         }
 
         assert_eq!(response.len(), 0);
@@ -323,6 +466,135 @@ mod tests {
         {
             // Test supserstep 1
             let session_reading = session_ctx_arc.read();
+
+            let table_reading = session_reading
+                .get_states()
+                .get("select_processors_subscriptions_s")
+                .unwrap()
+                .read();
+            let column = table_reading.get_column_as_vec_str("session_name");
+            assert_eq!(
+                column,
+                [
+                    "session_1",
+                    "session_1",
+                    "session_1",
+                    "session_1",
+                    "session_1",
+                    "session_1",
+                    "session_1"
+                ]
+            );
+            let column = table_reading.get_column_as_vec_str("processor_name");
+            assert_eq!(
+                column,
+                [
+                    "processor_1",
+                    "processor_1",
+                    "processor_2",
+                    "processor_2",
+                    "processor_3",
+                    "processor_3",
+                    "session_1"
+                ]
+            );
+            let column = table_reading.get_column_as_vec_str("processor_type");
+            assert_eq!(
+                column,
+                [
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorEcho"
+                ]
+            );
+            let column = table_reading.get_column_as_vec_str("publication_subscription_name");
+            assert_eq!(
+                column,
+                [
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateLastRecordBatch"
+                ]
+            );
+            let column = table_reading.get_column_as_vec_str("publication_subscription_table_name");
+            assert_eq!(
+                column,
+                [
+                    "state_1",
+                    "processor_1",
+                    "state_1",
+                    "processor_2",
+                    "state_1",
+                    "processor_3",
+                    "state_1"
+                ]
+            );
+            let column = table_reading.get_column_as_vec_str("subscribe_type");
+            assert_eq!(column, ["All", "All", "All", "All", "All", "All", "Any"]);
+            let column = table_reading.get_column_as_vec_str("update_type");
+            assert_eq!(
+                column,
+                [
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate"
+                ]
+            );
+            let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
+            assert_eq!(column, [1, 1, 1, 1, 1, 1, 1]);
+
+            let table_reading = session_reading
+                .get_states()
+                .get("select_processors_publications_s")
+                .unwrap()
+                .read();
+            let column = table_reading.get_column_as_vec_str("session_name");
+            assert_eq!(column, ["session_1", "session_1", "session_1", "session_1"]);
+            let column = table_reading.get_column_as_vec_str("processor_name");
+            assert_eq!(
+                column,
+                ["processor_1", "processor_2", "processor_3", "session_1"]
+            );
+            let column = table_reading.get_column_as_vec_str("processor_type");
+            assert_eq!(
+                column,
+                [
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorMock",
+                    "ProcessorEcho"
+                ]
+            );
+            let column = table_reading.get_column_as_vec_str("publication_subscription_name");
+            assert_eq!(column, ["Extend", "Extend", "Extend", "Extend"]);
+            let column = table_reading.get_column_as_vec_str("publication_subscription_table_name");
+            assert_eq!(column, ["state_1", "state_1", "state_1", "state_1"]);
+            let column = table_reading.get_column_as_vec_str("subscribe_type");
+            assert_eq!(column, ["All", "All", "All", "Any"]);
+            let column = table_reading.get_column_as_vec_str("update_type");
+            assert_eq!(
+                column,
+                [
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate"
+                ]
+            );
+            let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
+            assert_eq!(column, [0, 0, 0, 0]);
             let table_reading = session_reading
                 .get_states()
                 .get("select_processors_subscriptions_aggregated_s")
