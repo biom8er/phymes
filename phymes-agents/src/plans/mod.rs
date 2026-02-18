@@ -17,6 +17,8 @@ mod ontology_rag_session;
 mod retrieve_text_session;
 mod tool_agent_session;
 mod user_session;
+#[cfg(feature = "api")]
+mod download_pdf_session;
 
 pub use available_interface_subjects::{
     AvailableInterfaceSubjects, check_agent_subjects, create_message_map,
@@ -34,3 +36,5 @@ pub use tool_agent_session::ToolAgentSession;
 pub use user_session::UserSession;
 #[allow(unused_imports)]
 pub(crate) use user_session::user_session_inner;
+#[cfg(feature = "api")]
+pub use download_pdf_session::DownloadPDFSession;

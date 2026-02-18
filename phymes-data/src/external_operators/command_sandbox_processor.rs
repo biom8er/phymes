@@ -12,11 +12,7 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
-    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait,
-    create_chat_record_batch, remove_message_by_subject,
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait, create_chat_record_batch, remove_message_by_subject
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
@@ -154,23 +150,9 @@ impl ProcessorTrait for CommandSandboxProcessor {
             None => return Err(anyhow!("Config not provided for {}.", self.get_name())),
         };
 
-        // Extract out the message
-        let mut subscriptions = message.into_values().collect::<Vec<_>>();
-        if subscriptions.len() > 1 {
-            return Err(anyhow!(
-                "More than one subscription was found for {}.",
-                self.get_name()
-            ));
-        } else if subscriptions.is_empty() {
-            return Err(anyhow!(
-                "No subscriptions were found for {}.",
-                self.get_name()
-            ));
-        }
-
         // Run the stream
         let out = Box::pin(CommandSandboxStream::new(
-            subscriptions.swap_remove(0).get_message_own(),
+            message,
             config,
             Arc::clone(&runtime_env),
             diagnostic_builder.cloned(),
@@ -190,8 +172,9 @@ impl ProcessorTrait for CommandSandboxProcessor {
 pub struct CommandSandboxStream {
     /// Output schema
     schema: SchemaRef,
-    /// The input message to process
-    message_stream: SendableRecordBatchStream,
+    /// The messages containing the lhs and rhs
+    /// which we cannot determine until we intialize the config
+    messages: SendableRecordBatchStreamMessageMap,
     /// Parameters for chat inference
     config_stream: SendableRecordBatchStream,
     /// The candle assets needed for inference
@@ -206,18 +189,20 @@ pub struct CommandSandboxStream {
     runner_state: CommandSandboxRunnerState,
     /// The inbox of messages to processes
     message_inbox: Option<Table>,
+    /// The inbox of CLI args to processes
+    from_cli_args: bool,
 }
 
 impl CommandSandboxStream {
     pub fn new(
-        message_stream: SendableRecordBatchStream,
+        messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<RuntimeEnv>,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
-            schema: message_stream.schema(),
-            message_stream,
+            schema: AvailableSubjects::Messages.to_schema(),
+            messages,
             diagnostic_builder,
             config_stream,
             _runtime_env: runtime_env,
@@ -225,6 +210,7 @@ impl CommandSandboxStream {
             stream_state: CommandSandboxStreamState::NotStarted,
             runner_state: CommandSandboxRunnerState::NotStarted,
             message_inbox: None,
+            from_cli_args: false,
         })
     }
 
@@ -259,38 +245,58 @@ impl Stream for CommandSandboxStream {
                 }
 
                 // Collect the next batch or continue processing the current batch
-                if self.message_inbox.is_none() {
-                    // Collect the message data in a streaming fashion
-                    let mut batches = Vec::new();
-                    while let Some(Ok(batch)) = ready!(self.message_stream.poll_next_unpin(cx)) {
-                        if batch.num_rows() > 0 {
-                            batches.push(batch);
-                            break;
+                if self.message_inbox.is_none() && !self.from_cli_args
+                && let Some(subject_name) = self.config.as_ref().unwrap().subject_name.clone() {
+                    match self.messages.get_mut(subject_name.as_str()) {
+                        // Poll the next batches
+                        Some(fut) => {
+                            // DM: where we will specify to stream batch by batch or collect all batches
+                            let mut batches = Vec::new();
+                            while let Some(Ok(batch)) = ready!(fut.get_message_mut().poll_next_unpin(cx)) {
+                                if batch.num_rows() > 0 {
+                                    batches.push(batch);
+                                    break;
+                                }
+                            }
+
+                            // Replace the inbox
+                            if !batches.is_empty() {
+                                let table = Table::get_builder()
+                                    .with_name("messages")
+                                    .with_record_batches(batches)?
+                                    .build()?;
+                                self.schema = table.get_schema();
+                                self.message_inbox.replace(table);
+                            }                        
+                        }
+                        None => {
+                            self.stream_state = CommandSandboxStreamState::Done;
+                            let error = Err(anyhow!("Subject `{subject_name}` was not found in the messages. The available message subjects are `{:?}`", self.messages.keys()));
+                            return Poll::Ready(Some(error));
                         }
                     }
+                } else if self.message_inbox.is_none() && !self.from_cli_args
+                && self.config.as_ref().unwrap().cli_args.is_some() {
+                    // "Poll" the config
+                    self.from_cli_args = true;
+                } else if self.from_cli_args {
+                    // The config has already been "polled"
+                    self.from_cli_args = false;
+                }
 
-                    // The poll ends when there are no more batches
-                    let messages = if batches.is_empty() {
-                        self.stream_state = CommandSandboxStreamState::Done;
-                        match &self.runner_state {
-                            CommandSandboxRunnerState::NotStarted => return Poll::Ready(None),
-                            CommandSandboxRunnerState::Initializing(runner_info)
-                            | CommandSandboxRunnerState::Running(runner_info)
-                            | CommandSandboxRunnerState::Done(runner_info) => {
-                                // Cleanup resources
-                                self.runner_state =
-                                    CommandSandboxRunnerState::Done(runner_info.to_owned());
-                                Table::default()
-                            }
+                // The poll ends when there are no more batches
+                if self.message_inbox.is_none() && !self.from_cli_args {
+                    self.stream_state = CommandSandboxStreamState::Done;
+                    match &self.runner_state {
+                        CommandSandboxRunnerState::NotStarted => return Poll::Ready(None),
+                        CommandSandboxRunnerState::Initializing(runner_info)
+                        | CommandSandboxRunnerState::Running(runner_info)
+                        | CommandSandboxRunnerState::Done(runner_info) => {
+                            // Cleanup resources
+                            self.runner_state =
+                                CommandSandboxRunnerState::Done(runner_info.to_owned());
                         }
-                    } else {
-                        Table::get_builder()
-                            .with_name("messages")
-                            .with_record_batches(batches)?
-                            .build()?
-                    };
-
-                    self.message_inbox.replace(messages);
+                    }
                 }
 
                 // Create the input/output file or content for the next batch based on the runner state
@@ -1657,23 +1663,8 @@ mod tests {
             .with_json(&command_config_json, 1)?
             .build()?;
 
-        // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
-            .with_name(messages)
-            .append_new_user_query_str("Hello from WASM!", "user")?;
-
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            messages.to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(messages)
-                .with_publisher("")
-                .with_subject(messages)
-                .with_update(&TablePublication::None)
-                .with_message(message_builder.clone().build()?.to_record_batch_stream())
-                .build()?,
-        );
         let _ = message.insert(
             command_config_table.get_name().to_string(),
             SendableRecordBatchStreamMessage::get_builder()
@@ -1755,23 +1746,8 @@ mod tests {
             .with_json(&command_config_json, 1)?
             .build()?;
 
-        // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
-            .with_name(messages)
-            .append_new_user_query_str("Hello from WASM!", "user")?;
-
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            messages.to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(messages)
-                .with_publisher("")
-                .with_subject(messages)
-                .with_update(&TablePublication::None)
-                .with_message(message_builder.clone().build()?.to_record_batch_stream())
-                .build()?,
-        );
         let _ = message.insert(
             command_config_table.get_name().to_string(),
             SendableRecordBatchStreamMessage::get_builder()
@@ -1849,23 +1825,8 @@ mod tests {
             .with_json(&command_config_json, 1)?
             .build()?;
 
-        // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
-            .with_name(messages)
-            .append_new_user_query_str("Hello from Docker!", "user")?;
-
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            messages.to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(messages)
-                .with_publisher("")
-                .with_subject(messages)
-                .with_update(&TablePublication::None)
-                .with_message(message_builder.clone().build()?.to_record_batch_stream())
-                .build()?,
-        );
         let _ = message.insert(
             command_config_table.get_name().to_string(),
             SendableRecordBatchStreamMessage::get_builder()
@@ -1912,6 +1873,7 @@ mod tests {
             data_o: DataIOMethod::None,
             command: Some("echo".to_string()),
             timeout: 5,
+            subject_name: Some(messages.to_string()),
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
@@ -1919,6 +1881,11 @@ mod tests {
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
+
+        // Make the system prompt and add the user query
+        let message_builder = TableBuilder::new()
+            .with_name(messages)
+            .append_new_user_query_str("Hello from Docker!", "user")?;
 
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -1988,6 +1955,7 @@ mod tests {
             data_o: DataIOMethod::None,
             command: Some("echo".to_string()),
             timeout: 5,
+            subject_name: Some(messages.to_string()),
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
@@ -2088,6 +2056,69 @@ mod tests {
             .with_json(&command_config_json, 1)?
             .build()?;
 
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor =
+            CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_name("test_command_sandbox_processor_docker_py_run from Config")
+            .with_record_batches(result)?
+            .build()?;
+
+        let result = table.get_column_as_vec_str("role");
+        assert_eq!(result, ["tool"]);
+        let result = table.get_column_as_vec_str("content");
+        assert_eq!(result, ["[{\"name\": \"Alice\"}, {\"name\": \"Bob\"}]\n"]);
+
+        // --- From Stdio ---
+
+        // State for the command processor config
+        let command_config = CommandSandboxConfig {
+            data_i: DataIOMethod::Stdio,
+            data_o: DataIOMethod::Stdio,
+            runner: CommandSandboxRunners::Docker,
+            environment: CommandSandboxEnvironments::Python,
+            container_image: "python:3.12-slim-trixie".to_string(),
+            command: Some("-c".to_string()),
+            timeout: 5,
+            cli_args: Some(vec!["import json, argparse; \
+                parser = argparse.ArgumentParser(); \
+                parser.add_argument('--input', required=True); \
+                args = parser.parse_args(); \
+                data = json.loads(args.input); \
+                print(json.dumps([{\"name\": item[\"name\"], \"age\": item[\"age\"] + 10} for item in data]))".to_string()]),
+            subject_name: Some(messages.to_string()),
+            ..Default::default()
+        };
+        let command_config_json = serde_json::to_vec(&command_config)?;
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
+
         // Make the input data for the script
         let names = vec!["Alice", "Bob"];
         let names_arr: ArrayRef = Arc::new(StringArray::from(names));
@@ -2138,82 +2169,11 @@ mod tests {
             .try_collect::<Vec<_>>()
             .await?;
         let table = TableBuilder::new()
+            .with_name("test_command_sandbox_processor_docker_py_run from STDIO")
             .with_record_batches(result)?
-            .with_name("")
             .build()?;
 
-        let result = table.get_column_as_vec_str("role");
-        assert_eq!(result, ["tool"]);
-        let result = table.get_column_as_vec_str("content");
-        assert_eq!(result, ["[{\"name\": \"Alice\"}, {\"name\": \"Bob\"}]\n"]);
-
-        // --- From Stdio ---
-
-        // State for the command processor config
-        let command_config = CommandSandboxConfig {
-            data_i: DataIOMethod::Stdio,
-            data_o: DataIOMethod::Stdio,
-            runner: CommandSandboxRunners::Docker,
-            environment: CommandSandboxEnvironments::Python,
-            container_image: "python:3.12-slim-trixie".to_string(),
-            command: Some("-c".to_string()),
-            timeout: 5,
-            cli_args: Some(vec!["import json, argparse; \
-                parser = argparse.ArgumentParser(); \
-                parser.add_argument('--input', required=True); \
-                args = parser.parse_args(); \
-                data = json.loads(args.input); \
-                print(json.dumps([{\"name\": item[\"name\"], \"age\": item[\"age\"] + 10} for item in data]))".to_string()]),
-            ..Default::default()
-        };
-        let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
-            .with_name(name)
-            .with_json(&command_config_json, 1)?
-            .build()?;
-
-        // Build the current message state
-        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            messages.to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(messages)
-                .with_publisher("")
-                .with_subject(messages)
-                .with_update(&TablePublication::None)
-                .with_message(message_table.to_record_batch_stream())
-                .build()?,
-        );
-        let _ = message.insert(
-            command_config_table.get_name().to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(command_config_table.get_name())
-                .with_publisher("")
-                .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
-                .with_message(command_config_table.to_record_batch_stream())
-                .build()?,
-        );
-
-        // Build the command processor
-        let processor =
-            CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
-        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
-
-        // Check the response
-        let result = stream
-            .remove(name)
-            .unwrap()
-            .message
-            .take()
-            .unwrap()
-            .try_collect::<Vec<_>>()
-            .await?;
-        let table = TableBuilder::new()
-            .with_record_batches(result)?
-            .with_name("")
-            .build()?;
-
+        dbg!(&table);
         let result = table.get_column_as_vec_str("name");
         assert_eq!(result, ["Alice", "Bob"]);
         let result = table.get_column_as_vec_primitive::<u32>("age")?;
@@ -2297,6 +2257,7 @@ if __name__ == '__main__':
             timeout: 5,
             container_args: None,
             cli_args: None,
+            subject_name: Some(messages.to_string()),
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
@@ -2513,6 +2474,7 @@ fn main() -> Result<()> {
             timeout: 5,
             container_args: None,
             cli_args: Some(vec!["--release".to_string(), "--".to_string()]),
+            subject_name: Some(messages.to_string()),
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;

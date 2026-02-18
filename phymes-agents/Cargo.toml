@@ -9,9 +9,9 @@ repository = "https://github.com/biom8er/phymes"
 documentation = "https://docs.rs/phymes-agents"
 
 [features]
-default = ["wsl", "candle"]
+default = ["wsl", "candle", "api"]
 hf_hub = ["phymes-ml/hf_hub"]
-api = ["phymes-ml/api"]
+api = ["phymes-ml/api", "phymes-data/api"]
 wasip2 = ["phymes-diagnostics/wasip2", "phymes-core/wasip2", "phymes-ml/wasip2", "phymes-data/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt"]
 wsl = ["dep:tempfile", "phymes-diagnostics/wsl", "phymes-core/wsl", "phymes-ml/wsl", "phymes-data/wsl", "tokio/full", "tracing-subscriber/env-filter",]
 gpu = ["phymes-ml/gpu", "phymes-data/gpu"]

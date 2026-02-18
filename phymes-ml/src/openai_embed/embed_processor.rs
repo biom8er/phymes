@@ -320,7 +320,8 @@ impl Stream for OpenAIEmbedStream {
                         Poll::Ready(Some(Err(anyhow!(err.to_string()))))
                     }
                 },
-                HTTPClientRequestState::ToBytes(fut) => Poll::Ready(None),
+                HTTPClientRequestState::ToBytes(_fut) => Poll::Ready(None),
+                HTTPClientRequestState::Ready(_batches) => Poll::Ready(None),
                 HTTPClientRequestState::Done => {
                     // Increase the sample count
                     self.sample += 1;
@@ -437,7 +438,8 @@ impl Stream for OpenAIEmbedStream {
                         Poll::Ready(Some(Err(anyhow!(err.to_string()))))
                     }
                 },
-                HTTPClientRequestState::ToBytes(fut) => Poll::Ready(None),
+                HTTPClientRequestState::ToBytes(_fut) => Poll::Ready(None),
+                HTTPClientRequestState::Ready(_batches) => Poll::Ready(None),
                 HTTPClientRequestState::Done => {
                     // Increase the sample count
                     self.sample += 1;
@@ -470,7 +472,7 @@ mod tests {
     #[allow(unused_imports)]
     use super::*;
 
-    #[cfg(not(feature = "candle"))]
+    // #[cfg(not(feature = "candle"))]
     #[tokio::test]
     async fn test_openai_embed_processor() -> Result<()> {
         use phymes_diagnostics::{Diagnostics, SpanBuilder};

@@ -6,6 +6,8 @@ use clap::ValueEnum;
 use phymes_core::{
     AvailableSubjects, DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Table, test_processor::{ProcessorError, ProcessorMock}
 };
+#[cfg(feature = "api")]
+use phymes_data::{CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxProcessor, CommandSandboxRunners, DataIOMethod, HTTPClientConfig, HTTPClientRequestProcessor, HTTPClientRequestSchemas, HTTPClientRequestType};
 use phymes_data::{
     AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,
     CandleDataProcessor, CoalesceProcessor, DataAggregatorOperator, DataCastOperator,
@@ -80,6 +82,12 @@ pub enum AvailableProcessors {
     #[value(name = "CandleEmbedProcessor")]
     CandleEmbedProcessor,
     #[cfg(feature = "api")]
+    #[value(name = "HTTPClientRequestProcessor")]
+    HTTPClientRequestProcessor,
+    #[cfg(feature = "api")]
+    #[value(name = "CommandSandboxProcessor")]
+    CommandSandboxProcessor,
+    #[cfg(feature = "api")]
     #[value(name = "OpenAIChatProcessor")]
     OpenAIChatProcessor,
     #[cfg(feature = "api")]
@@ -131,6 +139,10 @@ impl Display for AvailableProcessors {
                 write!(f, "{}", MessageParserProcessor::get_static_name())
             }
             Self::CandleEmbedProcessor => write!(f, "{}", CandleEmbedProcessor::get_static_name()),
+            #[cfg(feature = "api")]
+            Self::HTTPClientRequestProcessor => write!(f, "{}", HTTPClientRequestProcessor::get_static_name()),
+            #[cfg(feature = "api")]
+            Self::CommandSandboxProcessor => write!(f, "{}", CommandSandboxProcessor::get_static_name()),
             #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => write!(f, "{}", OpenAIChatProcessor::get_static_name()),
             #[cfg(feature = "api")]
@@ -411,8 +423,31 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             #[cfg(feature = "api")]
+            Self::HTTPClientRequestProcessor => serde_json::to_vec(&HTTPClientConfig {
+                timeout: 5,
+                request_type: HTTPClientRequestType::Get,
+                user_agent_type: Some("rust-openalex-client/2.0".to_string()),
+                base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?".to_string(),
+                subject_name: Some("messages".to_string()),
+                request_schema: HTTPClientRequestSchemas::Messages,
+                json: Some("db=pubmed&retmode=json&retmax=5&mindate=2020&maxdate=2023".to_string()),
+                ..Default::default()
+            }),
+            #[cfg(feature = "api")]
+                Self::CommandSandboxProcessor => serde_json::to_vec(&CommandSandboxConfig {
+                runner: CommandSandboxRunners::Docker,
+                environment: CommandSandboxEnvironments::Bash,
+                container_image: "alpine".to_string(),
+                data_i: DataIOMethod::None,
+                data_o: DataIOMethod::None,
+                command: Some("echo".to_string()),
+                timeout: 5,
+                cli_args: Some(vec!["Hello from Docker!".to_string()]),
+                ..Default::default()
+            }),
+            #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => serde_json::to_vec(&CandleChatConfig {
-                messages: "messages",
+                messages: "messages".to_string(),
                 max_tokens: 1000,
                 temperature: 0.8,
                 seed: 299792458,
@@ -435,10 +470,7 @@ impl DataConfigTrait for AvailableProcessors {
                 input_type: "query".to_string(),
                 openai_asset: Some(AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2),
                 api_url: Some("http://0.0.0.0:8001/v1".to_string()),
-                input_type: "query".to_string(),
                 candle_asset: None,
-                encoding_format: "float".to_string(),
-                modality: "text".to_string(),
                 ..Default::default()
             }),
         }
@@ -482,6 +514,10 @@ impl ToolTrait for AvailableProcessors {
             Self::MessageParserProcessor => todo!(),
             Self::CandleEmbedProcessor => todo!(),
             #[cfg(feature = "api")]
+            Self::HTTPClientRequestProcessor => todo!(),
+            #[cfg(feature = "api")]
+            Self::CommandSandboxProcessor => todo!(),
+            #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => todo!(),
             #[cfg(feature = "api")]
             Self::OpenAIEmbedProcessor => todo!(),
@@ -516,6 +552,10 @@ impl ToolTrait for AvailableProcessors {
             Self::CandleChatProcessor => todo!(),
             Self::MessageParserProcessor => todo!(),
             Self::CandleEmbedProcessor => todo!(),
+            #[cfg(feature = "api")]
+            Self::HTTPClientRequestProcessor => todo!(),
+            #[cfg(feature = "api")]
+            Self::CommandSandboxProcessor => todo!(),
             #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => todo!(),
             #[cfg(feature = "api")]
@@ -555,6 +595,10 @@ impl AvailableProcessors {
             AvailableProcessors::MessageAggregatorProcessor.to_string(),
             AvailableProcessors::MessageParserProcessor.to_string(),
             AvailableProcessors::CandleEmbedProcessor.to_string(),
+            #[cfg(feature = "api")]
+            AvailableProcessors::HTTPClientRequestProcessor.to_string(),
+            #[cfg(feature = "api")]
+            AvailableProcessors::CommandSandboxProcessor.to_string(),
             #[cfg(feature = "api")]
             AvailableProcessors::OpenAIChatProcessor.to_string(),
             #[cfg(feature = "api")]
@@ -626,7 +670,11 @@ impl AvailableProcessors {
             Ok(AvailableProcessors::CandleEmbedProcessor)
         } else {
             #[cfg(feature = "api")]
-            if line.contains(&AvailableProcessors::OpenAIChatProcessor.to_string()) {
+            if line.contains(&AvailableProcessors::HTTPClientRequestProcessor.to_string()) {
+                Ok(AvailableProcessors::HTTPClientRequestProcessor)
+            } else if line.contains(&AvailableProcessors::CommandSandboxProcessor.to_string()) {
+                Ok(AvailableProcessors::CommandSandboxProcessor)
+            } else if line.contains(&AvailableProcessors::OpenAIChatProcessor.to_string()) {
                 Ok(AvailableProcessors::OpenAIChatProcessor)
             } else if line.contains(&AvailableProcessors::OpenAIEmbedProcessor.to_string()) {
                 Ok(AvailableProcessors::OpenAIEmbedProcessor)
@@ -693,6 +741,14 @@ impl AvailableProcessors {
                 Arc::new(CandleEmbedProcessor::new(name, self.to_string().as_str()))
             }
             #[cfg(feature = "api")]
+            Self::HTTPClientRequestProcessor => {
+                Arc::new(HTTPClientRequestProcessor::new(name, self.to_string().as_str()))
+            }
+            #[cfg(feature = "api")]
+            Self::CommandSandboxProcessor => {
+                Arc::new(CommandSandboxProcessor::new(name, self.to_string().as_str()))
+            }
+            #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => {
                 Arc::new(OpenAIChatProcessor::new(name, self.to_string().as_str()))
             }
@@ -736,6 +792,10 @@ impl AvailableProcessors {
             Self::MessageParserProcessor => builder.build_arc::<MessageParserProcessor>(),
             Self::CandleEmbedProcessor => builder.build_arc::<CandleEmbedProcessor>(),
             #[cfg(feature = "api")]
+            Self::HTTPClientRequestProcessor => builder.build_arc::<HTTPClientRequestProcessor>(),
+            #[cfg(feature = "api")]
+            Self::CommandSandboxProcessor => builder.build_arc::<CommandSandboxProcessor>(),
+            #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => builder.build_arc::<OpenAIChatProcessor>(),
             #[cfg(feature = "api")]
             Self::OpenAIEmbedProcessor => builder.build_arc::<OpenAIEmbedProcessor>(),
@@ -771,6 +831,10 @@ impl AvailableProcessors {
             }
             Self::CandleChatProcessor | Self::MessageParserProcessor => "CandleChatConfig",
             Self::CandleEmbedProcessor => "CandleEmbedConfig",
+            #[cfg(feature = "api")]
+            Self::HTTPClientRequestProcessor => "HTTPClientConfig",
+            #[cfg(feature = "api")]
+            Self::CommandSandboxProcessor => "CommandSandboxConfig",
             #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => "CandleChatConfig",
             #[cfg(feature = "api")]

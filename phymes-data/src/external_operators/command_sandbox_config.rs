@@ -225,6 +225,7 @@ pub struct CommandSandboxConfig {
     pub container_args: Option<Vec<String>>,
 
     /// List of arguments for running the command
+    /// The CLI arguments MUST be specified if the `subject_name` is not specified!
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cli_args: Option<Vec<String>>,
@@ -233,6 +234,11 @@ pub struct CommandSandboxConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub env_args: Option<Vec<String>>,
+
+    /// The name of the streaming subject with the data to run with the command
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject_name: Option<String>,
 }
 
 impl CommandSandboxConfig {

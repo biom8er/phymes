@@ -204,7 +204,7 @@ impl Stream for HTTPClientRequestStream {
                         } else {
                             self.state = HTTPClientRequestState::Done;
                             return Poll::Ready(Some(Err(anyhow!(
-                                "subject_name `{subject_name}` does not exist. Available options are {:?}",
+                                "Subject `{subject_name}` was not found in the messages. The available message subjects are `{:?}`",
                                 self.messages.keys()
                             ))));
                         },
