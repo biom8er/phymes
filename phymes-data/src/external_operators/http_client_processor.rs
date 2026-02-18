@@ -1380,6 +1380,222 @@ mod tests {
         let snippet = result.first().unwrap().to_string();
         println!("Topic: {snippet}");
 
+        // Award
+        let mut filter = Map::<String, Value>::new();
+        let _ = filter.insert("funder.id".to_string(), Value::String("F4320306076".to_string()));
+        let open_alex_request = open_alex::OpenAlexRequest {
+            page: Some(1),
+            per_page: Some(1),
+            filter: Some(filter),
+            entity: open_alex::OpenAlexRequestEntity::Awards,
+            ..Default::default()
+        };
+        let http_client_config = HTTPClientConfig {
+            timeout: 5,
+            request_type: HTTPClientRequestType::Get,
+            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
+            base_url: format!("{}?", open_alex_request.to_base_url()),
+            json: Some(open_alex_request.to_get_query()?),
+            request_schema: HTTPClientRequestSchemas::Messages,
+            ..Default::default()
+        };
+        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
+        let http_client_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&http_client_config_json, 1)?
+            .build()?;
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            http_client_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(http_client_config_table.get_name())
+                .with_publisher("")
+                .with_subject(http_client_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(http_client_config_table.to_record_batch_stream())
+                .build()?,
+        );
+        let processor =
+            HTTPClientRequestProcessor::new(name, HTTPClientRequestProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_name("test_http_client_processor_open_alex_get_config")
+            .with_record_batches(result)?
+            .build()?;
+        let result = table.get_column_as_vec_string("content")?;
+        let snippet = result.first().unwrap().to_string();
+        println!("Award: {snippet}");
+
+        // Funder
+        let mut filter = Map::<String, Value>::new();
+        let _ = filter.insert("country_code".to_string(), Value::String("us".to_string()));
+        let open_alex_request = open_alex::OpenAlexRequest {
+            page: Some(1),
+            per_page: Some(1),
+            filter: Some(filter),
+            entity: open_alex::OpenAlexRequestEntity::Funders,
+            ..Default::default()
+        };
+        let http_client_config = HTTPClientConfig {
+            timeout: 5,
+            request_type: HTTPClientRequestType::Get,
+            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
+            base_url: format!("{}?", open_alex_request.to_base_url()),
+            json: Some(open_alex_request.to_get_query()?),
+            request_schema: HTTPClientRequestSchemas::Messages,
+            ..Default::default()
+        };
+        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
+        let http_client_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&http_client_config_json, 1)?
+            .build()?;
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            http_client_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(http_client_config_table.get_name())
+                .with_publisher("")
+                .with_subject(http_client_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(http_client_config_table.to_record_batch_stream())
+                .build()?,
+        );
+        let processor =
+            HTTPClientRequestProcessor::new(name, HTTPClientRequestProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_name("test_http_client_processor_open_alex_get_config")
+            .with_record_batches(result)?
+            .build()?;
+        let result = table.get_column_as_vec_string("content")?;
+        let snippet = result.first().unwrap().to_string();
+        println!("Funder: {snippet}");
+
+        // Publisher
+        let mut filter = Map::<String, Value>::new();
+        let _ = filter.insert("display_name.search".to_string(), Value::String("elsevier".to_string()));
+        let open_alex_request = open_alex::OpenAlexRequest {
+            page: Some(1),
+            per_page: Some(1),
+            filter: Some(filter),
+            entity: open_alex::OpenAlexRequestEntity::Publishers,
+            ..Default::default()
+        };
+        let http_client_config = HTTPClientConfig {
+            timeout: 5,
+            request_type: HTTPClientRequestType::Get,
+            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
+            base_url: format!("{}?", open_alex_request.to_base_url()),
+            json: Some(open_alex_request.to_get_query()?),
+            request_schema: HTTPClientRequestSchemas::Messages,
+            ..Default::default()
+        };
+        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
+        let http_client_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&http_client_config_json, 1)?
+            .build()?;
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            http_client_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(http_client_config_table.get_name())
+                .with_publisher("")
+                .with_subject(http_client_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(http_client_config_table.to_record_batch_stream())
+                .build()?,
+        );
+        let processor =
+            HTTPClientRequestProcessor::new(name, HTTPClientRequestProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_name("test_http_client_processor_open_alex_get_config")
+            .with_record_batches(result)?
+            .build()?;
+        let result = table.get_column_as_vec_string("content")?;
+        let snippet = result.first().unwrap().to_string();
+        println!("Publisher: {snippet}");
+
+        // Source
+        let mut filter = Map::<String, Value>::new();
+        let _ = filter.insert("has_issn".to_string(), Value::String("true".to_string()));
+        let open_alex_request = open_alex::OpenAlexRequest {
+            page: Some(1),
+            per_page: Some(1),
+            filter: Some(filter),
+            entity: open_alex::OpenAlexRequestEntity::Sources,
+            ..Default::default()
+        };
+        let http_client_config = HTTPClientConfig {
+            timeout: 5,
+            request_type: HTTPClientRequestType::Get,
+            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
+            base_url: format!("{}?", open_alex_request.to_base_url()),
+            json: Some(open_alex_request.to_get_query()?),
+            request_schema: HTTPClientRequestSchemas::Messages,
+            ..Default::default()
+        };
+        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
+        let http_client_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&http_client_config_json, 1)?
+            .build()?;
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            http_client_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(http_client_config_table.get_name())
+                .with_publisher("")
+                .with_subject(http_client_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(http_client_config_table.to_record_batch_stream())
+                .build()?,
+        );
+        let processor =
+            HTTPClientRequestProcessor::new(name, HTTPClientRequestProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_name("test_http_client_processor_open_alex_get_config")
+            .with_record_batches(result)?
+            .build()?;
+        let result = table.get_column_as_vec_string("content")?;
+        let snippet = result.first().unwrap().to_string();
+        println!("Source: {snippet}");
+
         Ok(())
     }
 }

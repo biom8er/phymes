@@ -1,6 +1,6 @@
 
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use crate::{AvailableSchemaTrait, BuilderTrait, MappableTrait, create_schema_from_fields, schemas::http::WorkTopicTable};
+use crate::{AvailableSchemaTrait, MappableTrait, create_schema_from_fields, schemas::http::WorkTopicTable};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]

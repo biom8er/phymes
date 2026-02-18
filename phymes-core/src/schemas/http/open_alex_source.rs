@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use crate::{AvailableSchemaTrait, BuilderTrait, MappableTrait, create_schema_from_fields, schemas::http::open_alex_common::{CountryCode, CountsByYear, Currency, SourceType, SummaryStats}};
+use crate::{AvailableSchemaTrait, MappableTrait, create_schema_from_fields, schemas::http::open_alex_common::{CountryCode, CountsByYear, Currency, SourceType, SummaryStats}};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -20,7 +20,7 @@ pub struct Source {
     pub homepage_url: Option<String>,
     pub host_organization: Option<String>,
     pub host_organization_name: Option<String>,
-    pub host_organization_lineage: Option<Vec<String>>,
+    pub host_organization_lineage: Option<Vec<Option<String>>>,
     pub ids: Option<SourceIds>,
     pub is_core: Option<bool>,
     pub is_in_doaj: Option<bool>,
@@ -54,7 +54,11 @@ impl Source {
         let source_apc_price = self.apc_prices.unwrap_or_default().into_iter().map(|t| t.to_source_apc_price_table(&self.id)).collect::<Vec<_>>();
         let source_counts_by_year = self.counts_by_year.unwrap_or_default().into_iter().map(|t| t.to_source_counts_by_year(&self.id)).collect::<Vec<_>>();
         let source_lineage = self.host_organization_lineage.unwrap_or_default().into_iter()
-            .map(|t| SourceLineageTable { source_id: self.id.clone(), lineage_id: t})
+            .filter_map(|t| if let Some(t) = t {
+                Some(SourceLineageTable { source_id: self.id.clone(), lineage_id: t})
+            } else {
+                None
+            })
             .collect::<Vec<_>>();
         let source_ids = self.ids.map(|t| t.to_source_ids_table(&self.id));
         let source_issn = self.issn.unwrap_or_default().into_iter()

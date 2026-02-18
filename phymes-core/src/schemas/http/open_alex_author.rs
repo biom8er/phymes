@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
-use crate::{AvailableSchemaTrait, BuilderTrait, MappableTrait, create_schema_from_fields, schemas::http::{AwardAffiliationTable, open_alex_common::{CountsByYear, SummaryStats}, open_alex_institution::Institution}};
+use crate::{AvailableSchemaTrait, MappableTrait, create_schema_from_fields, schemas::http::{AwardAffiliationTable, open_alex_common::{CountsByYear, SummaryStats}, open_alex_institution::Institution}};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]

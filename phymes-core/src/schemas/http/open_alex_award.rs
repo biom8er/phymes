@@ -272,7 +272,7 @@ pub struct AwardFunderTable {
 
 impl AwardFunderTable {
     fn to_fields() -> Fields {
-        let field_names = ["author_id", "funder_id"];
+        let field_names = ["award_id", "funder_id"];
         let fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -301,7 +301,7 @@ pub struct AwardFundedOutputsTable {
 
 impl AwardFundedOutputsTable {
     fn to_fields() -> Fields {
-        let field_names = ["author_id", "work_id"];
+        let field_names = ["award_id", "work_id"];
         let fields_vec = field_names
             .iter()
             .map(|f| Field::new(*f, DataType::Utf8, false))

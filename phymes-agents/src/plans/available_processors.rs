@@ -4,8 +4,7 @@ use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
 use phymes_core::{
-    DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Table,
-    test_processor::{ProcessorError, ProcessorMock},
+    AvailableSubjects, DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Table, test_processor::{ProcessorError, ProcessorMock}
 };
 use phymes_data::{
     AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,
@@ -247,7 +246,7 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 format: Some(DataFormat::CsvDefault),
-                schema: Some(AvaiilableSubjects::default()),
+                schema: Some(AvailableSubjects::default()),
                 cpu: false,
                 operator: AvailableCandleOperators::ExtractTabular,
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
@@ -257,7 +256,7 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 format: Some(DataFormat::Owl),
-                schema: Some(AvaiilableSubjects::default()),
+                schema: Some(AvailableSubjects::default()),
                 cpu: false,
                 operator: AvailableCandleOperators::ExtractXML,
                 stream: DataStreamManager::AccumulateLHSAccumulateRHS,
