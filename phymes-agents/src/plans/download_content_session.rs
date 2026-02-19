@@ -125,7 +125,7 @@ mod tests {
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream
     };
 
     use super::*;
@@ -177,6 +177,16 @@ mod tests {
                 .with_schema(session_ctx_reading.get_states().get(name).unwrap().read().get_schema())
                 .with_json(&http_client_config_json, 1)?
                 .build()?;
+            let _ = message_map.insert(
+                http_client_config_table.get_name().to_string(),
+                IPCMessage::get_builder()
+                    .with_name(http_client_config_table.get_name())
+                    .with_publisher(download_content_session.session_context_name)
+                    .with_subject(http_client_config_table.get_name())
+                    .with_update(&TablePublication::Replace { table_name: http_client_config_table.get_name().to_string() })
+                    .with_message(http_client_config_table.to_ipc_stream()?)
+                    .build()?,
+            );
             let message_builder = TableBuilder::new()
                 .with_name(messages)
                 .append_new_user_query_str(&download_url, "user")?;
@@ -188,16 +198,6 @@ mod tests {
                     .with_subject(messages)
                     .with_update(&TablePublication::Replace { table_name: messages.to_string() })
                     .with_message(message_builder.clone().build()?.to_ipc_stream()?)
-                    .build()?,
-            );
-            let _ = message_map.insert(
-                http_client_config_table.get_name().to_string(),
-                IPCMessage::get_builder()
-                    .with_name(http_client_config_table.get_name())
-                    .with_publisher(download_content_session.session_context_name)
-                    .with_subject(http_client_config_table.get_name())
-                    .with_update(&TablePublication::Replace { table_name: http_client_config_table.get_name().to_string() })
-                    .with_message(http_client_config_table.to_ipc_stream()?)
                     .build()?,
             );
         }
@@ -237,6 +237,16 @@ mod tests {
                 .with_schema(session_ctx_reading.get_states().get(name).unwrap().read().get_schema())
                 .with_json(&http_client_config_json, 1)?
                 .build()?;
+            let _ = message_map.insert(
+                http_client_config_table.get_name().to_string(),
+                IPCMessage::get_builder()
+                    .with_name(http_client_config_table.get_name())
+                    .with_publisher(download_content_session.session_context_name)
+                    .with_subject(http_client_config_table.get_name())
+                    .with_update(&TablePublication::Replace { table_name: http_client_config_table.get_name().to_string() })
+                    .with_message(http_client_config_table.to_ipc_stream()?)
+                    .build()?,
+            );
             let message_builder = TableBuilder::new()
                 .with_name(messages)
                 .append_new_user_query_str(&esearch_url, "user")?;
@@ -248,16 +258,6 @@ mod tests {
                     .with_subject(messages)
                     .with_update(&TablePublication::Replace { table_name: messages.to_string() })
                     .with_message(message_builder.clone().build()?.to_ipc_stream()?)
-                    .build()?,
-            );
-            let _ = message_map.insert(
-                http_client_config_table.get_name().to_string(),
-                IPCMessage::get_builder()
-                    .with_name(http_client_config_table.get_name())
-                    .with_publisher(download_content_session.session_context_name)
-                    .with_subject(http_client_config_table.get_name())
-                    .with_update(&TablePublication::Replace { table_name: http_client_config_table.get_name().to_string() })
-                    .with_message(http_client_config_table.to_ipc_stream()?)
                     .build()?,
             );
         }
@@ -298,6 +298,18 @@ mod tests {
             let table_reading = subjects_reading
                 .get_states()
                 .get(AvailableSubjects::SessionTraces.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let table_reading = subjects_reading
+                .get_states()
+                .get("download_json_p")
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);

@@ -797,13 +797,14 @@ impl SessionContext {
     }
 
     /// Update the state from the published messages
-    /// and return a map of changed subscriptions along with their publishers
+    ///   and return a table of subject change logs
     pub fn update_subjects_from_messages(&self, messages: IPCMessageMap) -> Result<Table> {
         let mut subject_names = Vec::new();
         let mut task_names = Vec::new();
         let mut session_names = Vec::new();
         let mut num_rows_deltas = Vec::new();
         let mut timestamps = Vec::new();
+        let mut errors = Vec::new(); // Collect the errors
         let step = self.current_superstep().unwrap_or_default();
         for (_name, message) in messages.into_iter() {
             // Should the subject be updated?
@@ -817,30 +818,41 @@ impl SessionContext {
             if let Some(state) = self.get_states().get(table_name.as_str()) {
                 let publisher = message.get_publisher().to_string();
 
-                // Handleany inconsistencies in the message
+                // Handle any inconsistencies in the message
                 // DM, todo!(): Mostly an issue with empty batches which should be ignored anyway
-                if let Ok(builder) = TableBuilder::new_from_ipc_stream(&message.get_message_own()) {
-                    let table = builder.with_name(table_name.as_str()).build()?;
-                    let _num_rows = table.count_rows(); // DM: not used currently...
-                    let batches = table.get_record_batches_own();
+                match TableBuilder::new_from_ipc_stream(&message.get_message_own()) {
+                    Ok(builder) => {
+                        let table = builder.with_name(table_name.as_str()).build()?;
+                        let _num_rows = table.count_rows(); // DM: not used currently...
+                        let batches = table.get_record_batches_own();
 
-                    // Update the state
-                    // Check for a mismatch in the schema and intercept any errors
-                    let num_rows_old = state.read().count_rows();
-                    state.write().publish_to_table(batches, update)?;
-                    let num_rows_new = state.read().count_rows();
+                        // Update the state
+                        // Check for a mismatch in the schema and intercept any errors
+                        let num_rows_old = state.read().count_rows();
+                        if let Err(err) = state.write().publish_to_table(batches, update) {
+                            return Err(anyhow!(
+                                "Subject `{table_name}` from publisher `{publisher}` failed to update the target table with error `{err:?}`",
+                            ));
+                        }
+                        let num_rows_new = state.read().count_rows();
 
-                    // Record the table name that was updated and the pubisher who updated it
-                    subject_names.push(state.read().get_name().to_string());
-                    task_names.push(publisher);
-                    session_names.push(self.get_name().to_string());
-                    num_rows_deltas.push(num_rows_new as i64 - num_rows_old as i64);
-                    timestamps.push(step as i64);
+                        // Record the table name that was updated and the pubisher who updated it
+                        subject_names.push(state.read().get_name().to_string());
+                        task_names.push(publisher);
+                        session_names.push(self.get_name().to_string());
+                        num_rows_deltas.push(num_rows_new as i64 - num_rows_old as i64);
+                        timestamps.push(step as i64);
+                    }
+                    Err(err) => {
+                        return Err(anyhow!(
+                            "Subject `{table_name}` with update `{update:?}` from publisher `{publisher}` failed to build the Table with error `{err:?}`",
+                        ));
+                    }
                 }
             } else {
                 // Mismatch in table names of the update and state
                 return Err(anyhow!(
-                    "Subject '{table_name}' with update '{update:?}' is not in the session state tables! Available tables are {:?}",
+                    "Subject `{table_name}` with update `{update:?}` is not in the session state tables! Available tables are {:?}",
                     self.get_states().keys()
                 ));
             }
