@@ -10,6 +10,8 @@ use phymes_core::{
     StateMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap,
     TaskPlan,
 };
+#[cfg(feature = "api")]
+use phymes_data::{CommandSandboxConfig, HTTPClientConfig};
 use phymes_data::{
     AvailableCandleOperators, DataConfig, DataConfigTrait, DataSummaryConfig, device,
 };
@@ -514,6 +516,49 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 continue;
             }
 
+            // Check guarded configs
+            let mut passed_config_checks = false;
+            #[cfg(feature = "api")]
+            if let Ok(_config) = HTTPClientConfig::from_table(table) {
+                if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
+                    if processor.config_type() != "HTTPClientConfig" {
+                        return Err(anyhow!(
+                            "Schema for `HTTPClientConfig` from subject `{}` for processor type `{}` does not match the expected processor type HTTPClientRequestProcessor.",
+                            table.get_name(),
+                            r#type
+                        ));
+                    } else {
+                        passed_config_checks = true;
+                    }
+                } else {
+                    return Err(anyhow!(
+                        "Processor type `{}` for `HTTPClientConfig` from subject `{}` does not match any of the supported processor types {:?}.",
+                        r#type,
+                        table.get_name(),
+                        AvailableProcessors::all_varient_names()
+                    ));
+                }
+            } else if let Ok(_config) = CommandSandboxConfig::from_table(table) {
+                if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
+                    if processor.config_type() != "CommandSandboxConfig" {
+                        return Err(anyhow!(
+                            "Schema for `CommandSandboxConfig` from subject `{}` for processor type `{}` does not match the expected processor type CommandSandboxProcessor.",
+                            table.get_name(),
+                            r#type
+                        ));
+                    } else {
+                        passed_config_checks = true;
+                    }
+                } else {
+                    return Err(anyhow!(
+                        "Processor type `{}` for `CommandSandboxConfig` from subject `{}` does not match any of the supported processor types {:?}.",
+                        r#type,
+                        table.get_name(),
+                        AvailableProcessors::all_varient_names()
+                    ));
+                }
+            }
+
             // Check everything else
             if let Ok(_config) = CandleChatConfig::from_table(table) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
@@ -523,6 +568,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                             table.get_name(),
                             r#type
                         ));
+                    } else {
+                        passed_config_checks = true;
                     }
                 } else {
                     return Err(anyhow!(
@@ -540,6 +587,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                             table.get_name(),
                             r#type
                         ));
+                    } else {
+                        passed_config_checks = true;
                     }
                 } else {
                     return Err(anyhow!(
@@ -557,6 +606,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                             table.get_name(),
                             r#type
                         ));
+                    } else {
+                        passed_config_checks = true;
                     }
                 } else {
                     return Err(anyhow!(
@@ -611,6 +662,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                                 AvailableProcessors::AttachmentAggregatorProcessor,
                                 AvailableProcessors::MessageAggregatorProcessor
                             ));
+                        } else {
+                            passed_config_checks = true;
                         }
                     } else {
                         return Err(anyhow!(
@@ -629,7 +682,10 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     ));
                 }
                 data_config_vec.push((config, table.get_name().to_string()));
-            } else {
+            }
+            
+            // Return an error if the config didn't pass one of the checks
+            if !passed_config_checks {
                 if let Err(err) = DataConfig::from_table(table) {
                     return Err(anyhow!(
                         "Config could not be built for subject `{}` and Error `{err}` when trying to build for DataConfig with table `{table:?}`.",

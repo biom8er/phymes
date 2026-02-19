@@ -7,7 +7,7 @@ mod count_subject_rows_session;
 mod diagnostic_session;
 mod document_rag_session;
 #[cfg(feature = "api")]
-mod download_pdf_session;
+mod download_content_session;
 mod embed_text_session;
 mod extract_ontology_session;
 mod extract_pdf_session;
@@ -31,7 +31,7 @@ pub(crate) use count_subject_rows_session::CountSubjectRowsSession;
 pub use diagnostic_session::DiagnosticSession;
 pub use document_rag_session::DocumentRAGSession;
 #[cfg(feature = "api")]
-pub use download_pdf_session::DownloadPDFSession;
+pub use download_content_session::DownloadContentSession;
 pub(crate) use next_superstep_session::NextSuperstepSession;
 pub(crate) use next_task_session::NextTaskSession;
 pub use tool_agent_session::ToolAgentSession;

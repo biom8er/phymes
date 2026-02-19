@@ -168,11 +168,10 @@ impl DataConfigTrait for HTTPClientConfig {
             .collect::<HashSet<_>>();
         if !(column_names.contains("timeout")
             && column_names.contains("request_type")
-            && column_names.contains("content_type")
             && column_names.contains("request_schema"))
         {
             return Err(anyhow!(
-                "Table {} is missing required Field for `timeout`, `request_type`, `content_type`, and `request_schema` in HTTPClientConfig.",
+                "Table {} is missing required Field for `timeout`, `request_type`, and `request_schema` in HTTPClientConfig.",
                 table.get_name()
             ));
         }
