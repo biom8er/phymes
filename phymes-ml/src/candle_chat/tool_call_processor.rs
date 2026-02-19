@@ -26,31 +26,22 @@ use crate::candle_chat::{chat_config::CandleChatConfig, tool_parser::format_tool
 
 use super::tool_parser::extract_tool_calls_str;
 
-/// Processor that takes an unstructured chat response
-///   and attempts to convert to a structured output
-///
-/// # Notes
-///
-/// - Supports OpenAI and Llama tool response formats
-/// - Parsed messages are routed based on the function call
-/// - Messages that cannot be parsed are sent the default publish subject
-/// 
-/// # Todo
-/// 
-/// - Better support different tool response formats through the config
+/// Processor that parses a [ProcessorTrait] configuration subject and
+///   creates an on-the-fly `SessionTasksSubscribePublish` subject which calls 
+///   the [ProcessorTrait] with subscriptions provided in the configuration subject
 #[derive(Debug)]
-pub struct MessageParserProcessor {
+pub struct ToolCallProcessor {
     name: String,
     r#type: String,
 }
 
-impl MappableTrait for MessageParserProcessor {
+impl MappableTrait for ToolCallProcessor {
     fn get_name(&self) -> &str {
         &self.name
     }
 }
 
-impl ProcessorTrait for MessageParserProcessor {
+impl ProcessorTrait for ToolCallProcessor {
     fn new(name: &str, r#type: &str) -> Self {
         Self {
             name: name.to_string(),
@@ -82,7 +73,7 @@ impl ProcessorTrait for MessageParserProcessor {
         };
 
         // Make the outbox and send
-        let out = Box::pin(MessageParserStream::new(
+        let out = Box::pin(ToolCallStream::new(
             message,
             config,
             Arc::clone(&runtime_env),
@@ -101,7 +92,7 @@ impl ProcessorTrait for MessageParserProcessor {
 }
 
 #[allow(dead_code)]
-pub struct MessageParserStream {
+pub struct ToolCallStream {
     /// Output schema (role and content)
     schema: SchemaRef,
     /// The messages to parse
@@ -116,7 +107,7 @@ pub struct MessageParserStream {
     config: Option<CandleChatConfig>,
 }
 
-impl MessageParserStream {
+impl ToolCallStream {
     pub fn new(
         messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
@@ -142,7 +133,7 @@ impl MessageParserStream {
     }
 }
 
-impl Stream for MessageParserStream {
+impl Stream for ToolCallStream {
     type Item = Result<RecordBatch>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -157,7 +148,7 @@ impl Stream for MessageParserStream {
                 Some(
                     diagnostic_builder
                         .clone()
-                        .to_child("MessageParserStream")?
+                        .to_child("ToolCallStream")?
                         .baseline_metrics(line!(), file!(), "poll_next"),
                 )
             } else {
@@ -197,7 +188,7 @@ impl Stream for MessageParserStream {
 
             // Concatenate into a single record batch
             let message = Table::get_builder()
-                .with_name("MessageParserStream")
+                .with_name("ToolCallStream")
                 .with_record_batches(batches)?
                 .build()?
                 .concat_record_batches()?;
@@ -375,7 +366,7 @@ impl Stream for MessageParserStream {
     }
 }
 
-impl RecordBatchStream for MessageParserStream {
+impl RecordBatchStream for ToolCallStream {
     fn schema(&self) -> SchemaRef {
         Arc::clone(&self.schema)
     }
@@ -462,7 +453,7 @@ mod tests {
         });
 
         // Create the processor and run
-        let processor = MessageParserProcessor::new("message_processor", "");
+        let processor = ToolCallProcessor::new("message_processor", "");
         let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
         // Wrap the results in a table
@@ -575,7 +566,7 @@ mod tests {
         });
 
         // Create the processor and run
-        let processor = MessageParserProcessor::new("message_processor", "");
+        let processor = ToolCallProcessor::new("message_processor", "");
         let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
         // Wrap the results in a table
@@ -687,7 +678,7 @@ mod tests {
         });
 
         // Create the processor and run
-        let processor = MessageParserProcessor::new("message_processor", "");
+        let processor = ToolCallProcessor::new("message_processor", "");
         let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
         // DM: this will result in an error because the schema is dynamically updated

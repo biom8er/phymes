@@ -3,6 +3,8 @@ mod chat_processor;
 mod message_aggregator_processor;
 mod message_parser_processor;
 mod tool_parser;
+mod tool_call_config;
+mod tool_call_processor;
 
 pub use chat_config::CandleChatConfig;
 pub use chat_processor::{
