@@ -13,3 +13,5 @@ pub use chat_processor::{
 pub use message_aggregator_processor::MessageAggregatorProcessor;
 pub use message_parser_processor::MessageParserProcessor;
 pub use tool_parser::extract_tool_calls_str;
+pub use tool_call_config::ToolCallConfig;
+pub use tool_call_processor::ToolCallProcessor;

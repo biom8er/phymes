@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow};
 use clap::Parser;
-use phymes_core::{AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, MappableTrait, Table, TablePublication, TableSubscription, TableTrait};
+use phymes_core::{AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, MappableTrait, Table, TableTrait};
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
@@ -15,29 +15,25 @@ pub struct ToolCallConfig {
     #[arg(long)]
     pub all_subscribe_publish: String,
 
+    /// The name of the subjects containing the processor configs
+    #[arg(long)]
+    pub subject_names: Vec<String>,
+
     /// The subscription keys in the configs to search for
     #[arg(long)]
     pub subscription_table_names: Vec<String>,
 
     /// The default subscription to use 
     #[arg(long)]
-    pub subscription: Option<String>,
-
-    /// The default subscribe policy to use 
-    #[arg(long)]
-    pub subscribe_policy: Option<AvailableTableSubscribePolicies>,
+    pub subscription_name: Option<String>,
 
     /// The publication keys in the configs to search for
     #[arg(long)]
-    pub publication_table_names: Opeion<Vec<String>>,
+    pub publication_table_names: Option<Vec<String>>,
 
     /// The default publication to use 
     #[arg(long)]
-    pub publication: Option<String>,
-
-    /// The default update policy to use 
-    #[arg(long)]
-    pub update_policy: Option<AvailableTableUpdatePolicies>,
+    pub publication_name: Option<String>,
 }
 
 impl DataConfigTrait for ToolCallConfig {
@@ -56,10 +52,11 @@ impl DataConfigTrait for ToolCallConfig {
             .map(|f| f.name().to_string())
             .collect::<HashSet<_>>();
         if !(column_names.contains("all_subscribe_publish")
-            && column_names.contains("subscriptions"))
+            && column_names.contains("subject_names")
+            && column_names.contains("subscription_table_names"))
         {
             return Err(anyhow!(
-                "Table {} is missing required Field for `all_subscribe_publish`, `subscriptions` in ToolCallConfig.",
+                "Table {} is missing required Field for `all_subscribe_publish`, `subject_names`, `subscription_table_names` in ToolCallConfig.",
                 table.get_name()
             ));
         }

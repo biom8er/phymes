@@ -23,7 +23,7 @@ use phymes_data::{
 };
 use phymes_ml::{
     AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, CandleEmbedConfig,
-    CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor,
+    CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor, ToolCallConfig, ToolCallProcessor,
 };
 #[cfg(feature = "api")]
 use phymes_ml::{AvailableOpenAIAssets, OpenAIChatProcessor, OpenAIEmbedProcessor};
@@ -85,6 +85,8 @@ pub enum AvailableProcessors {
     MessageAggregatorProcessor,
     #[value(name = "MessageParserProcessor")]
     MessageParserProcessor,
+    #[value(name = "ToolCallProcessor")]
+    ToolCallProcessor,
     #[value(name = "CandleEmbedProcessor")]
     CandleEmbedProcessor,
     #[cfg(feature = "api")]
@@ -143,6 +145,9 @@ impl Display for AvailableProcessors {
             }
             Self::MessageParserProcessor => {
                 write!(f, "{}", MessageParserProcessor::get_static_name())
+            }
+            Self::ToolCallProcessor => {
+                write!(f, "{}", ToolCallProcessor::get_static_name())
             }
             Self::CandleEmbedProcessor => write!(f, "{}", CandleEmbedProcessor::get_static_name()),
             #[cfg(feature = "api")]
@@ -408,6 +413,12 @@ impl DataConfigTrait for AvailableProcessors {
                 candle_asset: Some(AvailableCandleAssets::SmolLM2_135MChat),
                 ..Default::default()
             }),
+            Self::ToolCallProcessor => serde_json::to_vec(&ToolCallConfig {
+                all_subscribe_publish: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+                subject_names: vec!["processor_1".to_string()],
+                subscription_table_names: vec!["lhs_name".to_string()],
+                ..Default::default()
+            }),
             Self::CandleEmbedProcessor => serde_json::to_vec(&CandleEmbedConfig {
                 documents: "documents".to_string(),
                 encoding_format: "float".to_string(),
@@ -522,6 +533,7 @@ impl ToolTrait for AvailableProcessors {
             Self::LimitProcessor => todo!(),
             Self::CandleChatProcessor => todo!(),
             Self::MessageParserProcessor => todo!(),
+            Self::ToolCallProcessor => todo!(),
             Self::CandleEmbedProcessor => todo!(),
             #[cfg(feature = "api")]
             Self::HTTPClientRequestProcessor => todo!(),
@@ -561,6 +573,7 @@ impl ToolTrait for AvailableProcessors {
             Self::LimitProcessor => todo!(),
             Self::CandleChatProcessor => todo!(),
             Self::MessageParserProcessor => todo!(),
+            Self::ToolCallProcessor => todo!(),
             Self::CandleEmbedProcessor => todo!(),
             #[cfg(feature = "api")]
             Self::HTTPClientRequestProcessor => todo!(),
@@ -604,6 +617,7 @@ impl AvailableProcessors {
             AvailableProcessors::CandleChatProcessor.to_string(),
             AvailableProcessors::MessageAggregatorProcessor.to_string(),
             AvailableProcessors::MessageParserProcessor.to_string(),
+            AvailableProcessors::ToolCallProcessor.to_string(),
             AvailableProcessors::CandleEmbedProcessor.to_string(),
             #[cfg(feature = "api")]
             AvailableProcessors::HTTPClientRequestProcessor.to_string(),
@@ -676,6 +690,8 @@ impl AvailableProcessors {
             Ok(AvailableProcessors::MessageAggregatorProcessor)
         } else if line.contains(&AvailableProcessors::MessageParserProcessor.to_string()) {
             Ok(AvailableProcessors::MessageParserProcessor)
+        } else if line.contains(&AvailableProcessors::ToolCallProcessor.to_string()) {
+            Ok(AvailableProcessors::ToolCallProcessor)
         } else if line.contains(&AvailableProcessors::CandleEmbedProcessor.to_string()) {
             Ok(AvailableProcessors::CandleEmbedProcessor)
         } else {
@@ -747,6 +763,9 @@ impl AvailableProcessors {
             Self::MessageParserProcessor => {
                 Arc::new(MessageParserProcessor::new(name, self.to_string().as_str()))
             }
+            Self::ToolCallProcessor => {
+                Arc::new(ToolCallProcessor::new(name, self.to_string().as_str()))
+            }
             Self::CandleEmbedProcessor => {
                 Arc::new(CandleEmbedProcessor::new(name, self.to_string().as_str()))
             }
@@ -802,6 +821,7 @@ impl AvailableProcessors {
             Self::CandleChatProcessor => builder.build_arc::<CandleChatProcessor>(),
             Self::MessageAggregatorProcessor => builder.build_arc::<MessageAggregatorProcessor>(),
             Self::MessageParserProcessor => builder.build_arc::<MessageParserProcessor>(),
+            Self::ToolCallProcessor => builder.build_arc::<ToolCallProcessor>(),
             Self::CandleEmbedProcessor => builder.build_arc::<CandleEmbedProcessor>(),
             #[cfg(feature = "api")]
             Self::HTTPClientRequestProcessor => builder.build_arc::<HTTPClientRequestProcessor>(),
@@ -841,6 +861,7 @@ impl AvailableProcessors {
             Self::DataSummaryProcessor | Self::CoalesceProcessor | Self::LimitProcessor => {
                 "DataSummaryConfig"
             }
+            Self::ToolCallProcessor => "ToolCallConfig",
             Self::CandleChatProcessor | Self::MessageParserProcessor => "CandleChatConfig",
             Self::CandleEmbedProcessor => "CandleEmbedConfig",
             #[cfg(feature = "api")]
