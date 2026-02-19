@@ -104,7 +104,7 @@ impl DataOperatorTrait for ExtractTabular {
             Self::get_static_name()
         ))?;
         let schema = config.schema.clone().ok_or(anyhow!(
-            "Missing `config` for `{}`.",
+            "Missing `schema` for `{}`.",
             Self::get_static_name()
         ))?;
         Ok(ExtractTabular {

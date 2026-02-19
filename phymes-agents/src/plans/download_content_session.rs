@@ -17,7 +17,7 @@ impl<'a> DownloadPDFSession<'a> {
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
 	%% ------------------------------------------------------------------------------
-	%% PDF document downloadion
+	%% PDF document downloading
 	%% ------------------------------------------------------------------------------
 	subgraph download_pdf_t
 		UserPdf-subject-.->|LastRecordBatch|download_pdf_p-subscribe

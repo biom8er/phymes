@@ -323,6 +323,7 @@ impl<'a> MeltStudyDataSession<'a> {
 	user_csv["user_csv"] {{
 	    Boolean cpu "false"
 	    Utf8 format "CsvDefault"
+        Utf8 schema "Blob"
 	    Utf8 lhs_name "UserCsv"
 	    List-Utf8 lhs_values "['bytes']"
 	    Utf8 operator "ExtractTabular"
