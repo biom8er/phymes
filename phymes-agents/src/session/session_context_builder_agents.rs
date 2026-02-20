@@ -16,7 +16,7 @@ use phymes_data::{
     AvailableCandleOperators, DataConfig, DataConfigTrait, DataSummaryConfig, device,
 };
 use phymes_diagnostics::{HashMap, HashSet};
-use phymes_ml::{CandleChatConfig, CandleEmbedConfig};
+use phymes_ml::{CandleChatConfig, CandleEmbedConfig, ToolCallConfig};
 
 use crate::{
     AvailableInterfaceSubjects, AvailableProcessors, SessionContext, SessionContextBuilder,
@@ -255,6 +255,54 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         "A subscriptions with the same name as the `EmbedConfig` documents was not found for processor {} with documents {name}.",
                         processor.get_name()
                     ));
+                }
+            }
+
+            // Check the subject_name entries
+            if column_names.contains("subject_name") {
+                let vec_str = table.get_column_as_vec_str("subject_name");
+                let name = vec_str.last().unwrap();
+
+                let subscriptions = processor
+                    .get_subscriptions()
+                    .iter()
+                    .filter_map(|s| {
+                        if &s.get_table_name() == name {
+                            Some(name.to_string())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                if subscriptions.is_empty() {
+                    return Err(anyhow!(
+                        "A subscriptions with the same name as the `Config` subject_name was not found for processor {} with subject_name {name}.",
+                        processor.get_name()
+                    ));
+                }
+            }
+
+            // Check the subject_names entries
+            if column_names.contains("subject_names") {
+                let mut vec_str = table.get_column_as_vec_nested_nonprimitive::<String>("subject_names")?;
+                if let Some(names) = vec_str.pop() {
+                    let subscriptions = processor
+                        .get_subscriptions()
+                        .iter()
+                        .filter_map(|s| {
+                            if names.contains(&s.get_table_name().to_string()) {
+                                Some(s.get_table_name().to_string())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    if subscriptions.is_empty() {
+                        return Err(anyhow!(
+                            "A subscriptions with the same name as the `ToolCallProcessor` subject_names was not found for processor {} with subject_name {names:?}.",
+                            processor.get_name()
+                        ));
+                    }
                 }
             }
 
@@ -594,6 +642,25 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 } else {
                     return Err(anyhow!(
                         "Processor type `{}` for `CandleEmbedConfig` from subject `{}` does not match any of the supported processor types {:?}.",
+                        r#type,
+                        table.get_name(),
+                        AvailableProcessors::all_varient_names()
+                    ));
+                }
+            } else if let Ok(_config) = ToolCallConfig::from_table(table) {
+                if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
+                    if processor.config_type() != "ToolCallConfig" {
+                        return Err(anyhow!(
+                            "Schema for `ToolCallConfig` from subject `{}` for processor type `{}` does not match the expected processor types ToolCallProcessor.",
+                            table.get_name(),
+                            r#type
+                        ));
+                    } else {
+                        passed_config_checks = true;
+                    }
+                } else {
+                    return Err(anyhow!(
+                        "Processor type `{}` for `ToolCallConfig` from subject `{}` does not match any of the supported processor types {:?}.",
                         r#type,
                         table.get_name(),
                         AvailableProcessors::all_varient_names()

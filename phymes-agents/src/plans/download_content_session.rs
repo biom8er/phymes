@@ -16,6 +16,24 @@ impl<'a> DownloadContentSession<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
+	download_content_r-rt@{shape: subproc, label: download_content_r}
+	%% ------------------------------------------------------------------------------
+	%% Tool call processor that enables calling processors from their config
+	%% ------------------------------------------------------------------------------
+	subgraph call_processor_t
+        select_tasks_processors_subscriptions_publications_aggregated_s-subject-->|FullTable|call_processor_p-subscribe
+		download_pdf_p-subject-.->|LastRecordBatch|call_processor_p-subscribe
+		download_json_p-subject-.->|LastRecordBatch|call_processor_p-subscribe
+		call_processor_p-subscribe-->call_processor_p-processor
+		call_processor_p-processor-->call_processor_p-publish
+		call_processor_p-publish-->|Extend|SessionTasksSubscribePublish-subject
+	end
+	download_content_r-rt-->call_processor_t
+	select_tasks_processors_subscriptions_publications_aggregated_s-subject@{shape: doc, label: select_tasks_processors_subscriptions_publications_aggregated_s}
+	call_processor_p-processor@{shape: rect, label: ToolCallProcessor}
+	call_processor_p-publish@{shape: fork}
+	call_processor_p-subscribe@{shape: diamond, label: Any}
+	SessionTasksSubscribePublish-subject@{shape: doc, label: SessionTasksSubscribePublish}
 	%% ------------------------------------------------------------------------------
 	%% PDF document downloading
     %% - We listen for updates both on the config `download_pdf_p` subject
@@ -30,7 +48,6 @@ impl<'a> DownloadContentSession<'a> {
 		download_pdf_p-processor-->download_pdf_p-publish
 		download_pdf_p-publish-->|Extend|UserPdf-subject
 	end
-	download_content_r-rt@{shape: subproc, label: download_content_r}
 	download_content_r-rt-->download_pdf_t
 	http_client_request_pdf_s-subject@{shape: doc, label: http_client_request_pdf_s}
 	download_pdf_p-subject@{shape: doc, label: download_pdf_p}
@@ -66,6 +83,31 @@ impl<'a> DownloadContentSession<'a> {
     /// Return the Mermaid.js ER diagram representation of the session
     pub fn as_mermaid_erdiagram(&self) -> &str {
         r#"erDiagram
+    select_tasks_processors_subscriptions_publications_aggregated_s["select_tasks_processors_subscriptions_publications_aggregated_s"] {
+        Utf8 session_name
+        Utf8 task_name
+        Utf8 processor_name
+        Utf8 processor_type
+        List-Utf8 subscription_names
+        List-Utf8 subscription_table_names
+        List-Utf8 publication_names
+        List-Utf8 publication_table_names
+    }
+    call_processor_p["call_processor_p"] {
+        Utf8 all_subscribe_publish "select_tasks_processors_subscriptions_publications_aggregated_s"
+        List-Utf8 subject_names "['download_pdf_p', 'download_json_p']"
+        List-Utf8 subscription_table_names "['lhs_name', 'rhs_name', 'subject_name']"
+    }
+    SessionTasksSubscribePublish["SessionTasksSubscribePublish"] {
+        Utf8 session_name
+        Utf8 task_name
+        Utf8 processor_name
+        Utf8 processor_type
+        List-Utf8 subscription_names
+        List-Utf8 subscription_table_names
+        List-Utf8 publication_names
+        List-Utf8 publication_table_names
+    }
     http_client_request_pdf_s["http_client_request_pdf_s"] {
         Utf8 role
         Utf8 content
@@ -113,14 +155,13 @@ mod tests {
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, plans::view_task_session::ViewTaskSession
     };
 
     use super::*;
 
-    // DM, todo: test downloading from config update and from multiple messages
     #[tokio::test(flavor = "current_thread")]
-    async fn test_download_content_session() -> Result<()> {
+    async fn test_download_content_session_w_subjects() -> Result<()> {
         // Initialize the session
         let download_content_session = DownloadContentSession::default();
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
@@ -248,25 +289,206 @@ mod tests {
             );
         }
 
-        // // Trigger the view task session
-        // {
-        //     let session_ctx_reading = session_ctx_arc.read();
-        //     let table = session_ctx_reading
-        //         .get_states()
-        //         .get(AvailableSubjects::SessionTasks.to_string().as_str())
-        //         .unwrap()
-        //         .read();
-        //     let session_tasks_message = IPCMessage::get_builder()
-        //         .with_message(table.to_ipc_stream()?)
-        //         .with_subject(AvailableSubjects::SessionTasks.to_string().as_str())
-        //         .with_update(&TablePublication::Replace {
-        //             table_name: AvailableSubjects::SessionTasks.to_string(),
-        //         })
-        //         .with_publisher(download_content_session.session_context_name)
-        //         .make_name()?
-        //         .build()?;
-        //     let _ = message_map.insert(session_tasks_message.get_name().to_string(), session_tasks_message);
-        // }
+        // Run the session
+        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+
+        {
+            // Debug any errors
+            let subjects_reading = session_ctx_arc.read();
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SessionTraces.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        }
+
+        assert_eq!(response.len(), 0);
+
+        {
+            // Test supsersteps
+            let session_reading = session_ctx_arc.read();
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableInterfaceSubjects::UserPdf.to_string().as_str())
+                .unwrap()
+                .read();
+            let column = table_reading.get_column_as_vec_str("filename");
+            assert_eq!(column, ["2508.18700"]);
+            let column = table_reading.get_column_as_vec_str("extension");
+            assert_eq!(column, ["application/pdf"]);
+            let column = table_reading.get_column_as_vec_str("metadata");
+            assert_eq!(column, ["tool"]);
+            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for c in column {
+                assert!(c > 0);
+            }
+            let column = table_reading.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+            assert_eq!(column.len(), 505519);
+            let table_reading = session_reading
+                .get_states()
+                .get(AvailableInterfaceSubjects::UserJson.to_string().as_str())
+                .unwrap()
+                .read();
+            let column = table_reading.get_column_as_vec_str("filename");
+            assert_eq!(column, ["esearch.fcgi?db=pubmed&term=Diabetes%20Mellitus%5BMeSH%20Terms%5D%20AND%20%22Lancet%22%5BJournal%5D&retmode=json&retmax=5&mindate=2020&maxdate=2023"]);
+            let column = table_reading.get_column_as_vec_str("extension");
+            assert_eq!(column, ["application/json; charset=UTF-8"]);
+            let column = table_reading.get_column_as_vec_str("metadata");
+            assert_eq!(column, ["tool"]);
+            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            for c in column {
+                assert!(c > 0);
+            }
+            let column = table_reading.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+            assert_eq!(column.len(), 392);
+        }
+        Ok(())
+    }
+    
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_download_content_session_wo_subjects() -> Result<()> {
+        // View task session
+        let view_task_session = ViewTaskSession::new("view_task_session", &["download_pdf_p", "download_json_p"]);
+        let view_task_session_builder = SessionContextBuilder::from_mermaid_flowchart(
+            &view_task_session.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_state_from_mermaid_erdiagram(&view_task_session.as_mermaid_erdiagram(), false, true)?
+        .with_name(view_task_session.session_context_name);
+
+        // Initialize the session
+        let download_content_session = DownloadContentSession::default();
+        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+            download_content_session.as_mermaid_flowchart(),
+            false,
+        )?
+        .with_state_from_mermaid_erdiagram(
+            download_content_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
+        .with_name(download_content_session.session_context_name)
+        .with_diagnostics(true)
+        .extend(view_task_session_builder)?
+        .add_processor_subjects()?
+        .add_next_tasks()?
+        .add_next_supersteps()?
+        .build_with_tables()?;
+        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+
+        // Trigger the view task session
+        let mut message_map = HashMap::<String, IPCMessage>::new();
+        {
+            let session_ctx_reading = session_ctx_arc.read();
+            let table = session_ctx_reading
+                .get_states()
+                .get(AvailableSubjects::SessionTasks.to_string().as_str())
+                .unwrap()
+                .read();
+            let session_tasks_message = IPCMessage::get_builder()
+                .with_message(table.to_ipc_stream()?)
+                .with_subject(AvailableSubjects::SessionTasks.to_string().as_str())
+                .with_update(&TablePublication::Replace {
+                    table_name: AvailableSubjects::SessionTasks.to_string(),
+                })
+                .with_publisher(download_content_session.session_context_name)
+                .make_name()?
+                .build()?;
+            let _ = message_map.insert(session_tasks_message.get_name().to_string(), session_tasks_message);
+        }
+
+        // Run the session
+        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+
+        // Make the test data
+        let mut message_map = HashMap::<String, IPCMessage>::new();
+
+        // PDF download data
+        {
+            let name = "download_pdf_p";
+            let id = "2508.18700";
+            let download_url = format!("pdf/{id}");
+            let http_client_config = HTTPClientConfig {
+                timeout: 5,
+                request_type: HTTPClientRequestType::Get,
+                user_agent_type: Some("rust-openalex-client/2.0".to_string()),
+                base_url: "https://arxiv.org/".to_string(),
+                request_schema: HTTPClientRequestSchemas::Blob,
+                json: Some(download_url),
+                ..Default::default()
+            };
+            let http_client_config_json = serde_json::to_string(&http_client_config)?;
+            let http_client_config_batch = create_values_record_batch(vec![http_client_config_json])?;
+            let http_client_config_table = TableBuilder::new()
+                .with_name(name)
+                .with_record_batches(vec![http_client_config_batch])?
+                .build()?;
+            let _ = message_map.insert(
+                http_client_config_table.get_name().to_string(),
+                IPCMessage::get_builder()
+                    .with_name(http_client_config_table.get_name())
+                    .with_publisher(download_content_session.session_context_name)
+                    .with_subject(http_client_config_table.get_name())
+                    .with_update(&TablePublication::Replace { table_name: http_client_config_table.get_name().to_string() })
+                    .with_message(http_client_config_table.to_ipc_stream()?)
+                    .build()?,
+            );
+        }
+
+        // JSON download data
+        {
+            let name = "download_json_p";
+            let mesh_term = "Diabetes Mellitus";
+            let year_from = 2020;
+            let year_to = 2023;
+            let journal_filter = Some("Lancet");
+            let mut query = format!("{mesh_term}[MeSH Terms]");
+            if let Some(journal) = journal_filter {
+                query.push_str(&format!(" AND \"{journal}\"[Journal]"));
+            }
+
+            let esearch_url = format!(
+                "db=pubmed&term={}&retmode=json&retmax=5&mindate={}&maxdate={}",
+                urlencoding::encode(&query),
+                year_from,
+                year_to
+            );
+            let http_client_config = HTTPClientConfig {
+                timeout: 5,
+                request_type: HTTPClientRequestType::Get,
+                user_agent_type: Some("rust-openalex-client/2.0".to_string()),
+                base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?".to_string(),
+                request_schema: HTTPClientRequestSchemas::Blob,
+                json: Some(esearch_url),
+                ..Default::default()
+            };
+            let http_client_config_json = serde_json::to_string(&http_client_config)?;
+            let http_client_config_batch = create_values_record_batch(vec![http_client_config_json])?;
+            let http_client_config_table = TableBuilder::new()
+                .with_name(name)
+                .with_record_batches(vec![http_client_config_batch])?
+                .build()?;
+            let _ = message_map.insert(
+                http_client_config_table.get_name().to_string(),
+                IPCMessage::get_builder()
+                    .with_name(http_client_config_table.get_name())
+                    .with_publisher(download_content_session.session_context_name)
+                    .with_subject(http_client_config_table.get_name())
+                    .with_update(&TablePublication::Replace { table_name: http_client_config_table.get_name().to_string() })
+                    .with_message(http_client_config_table.to_ipc_stream()?)
+                    .build()?,
+            );
+        }
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
@@ -317,11 +539,9 @@ mod tests {
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("filename");
-            dbg!(&column);
-            // assert_eq!(column, [""]);
+            assert_eq!(column, ["esearch.fcgi?db=pubmed&term=Diabetes%20Mellitus%5BMeSH%20Terms%5D%20AND%20%22Lancet%22%5BJournal%5D&retmode=json&retmax=5&mindate=2020&maxdate=2023"]);
             let column = table_reading.get_column_as_vec_str("extension");
-            dbg!(&column);
-            // assert_eq!(column, [""]);
+            assert_eq!(column, ["application/json; charset=UTF-8"]);
             let column = table_reading.get_column_as_vec_str("metadata");
             assert_eq!(column, ["tool"]);
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
@@ -329,7 +549,7 @@ mod tests {
                 assert!(c > 0);
             }
             let column = table_reading.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(column.len(), 0);
+            assert_eq!(column.len(), 392);
         }
         Ok(())
     }
