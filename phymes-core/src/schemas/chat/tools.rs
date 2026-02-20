@@ -6,6 +6,24 @@ use arrow::{
 };
 use std::sync::Arc;
 
+/// JSON-serialized row often used as a processor configuration file from tool calls
+pub fn create_values_fields() -> Fields {
+    let field_names = ["values"];
+    let fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    Fields::from(fields_vec)
+}
+
+pub fn create_values_record_batch(values: Vec<String>) -> Result<RecordBatch> {
+    let values: ArrayRef = Arc::new(StringArray::from(values));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("values", values),
+    ])?;
+    Ok(batch)
+}
+
 /// Fields where each row is a [RecordBatch]
 pub fn create_route_bytes_fields() -> Fields {
     let field_names = ["name", "publisher", "subject", "format"];

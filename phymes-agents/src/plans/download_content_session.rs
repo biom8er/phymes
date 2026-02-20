@@ -72,13 +72,7 @@ impl<'a> DownloadContentSession<'a> {
         Int64 timestamp
     }
     download_pdf_p["download_pdf_p"] {
-        UInt32 timeout "5"
-        Utf8 request_type "Get"
-        Utf8 user_agent_type "rust-openalex-client/2.0"
-        Utf8 base_url "https://arxiv.org/"
-        Utf8 subject_name "http_client_request_pdf_s"
-        Utf8 request_schema "Blob"
-        Utf8 json "pdf/2508.18700"
+        Utf8 values
     }
     UserPdf["UserPdf"] {
         Utf8 filename
@@ -93,13 +87,7 @@ impl<'a> DownloadContentSession<'a> {
         Int64 timestamp
     }
     download_json_p["download_json_p"] {
-        UInt32 timeout "5"
-        Utf8 request_type "Get"
-        Utf8 user_agent_type "rust-openalex-client/2.0"
-        Utf8 base_url "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?"
-        Utf8 subject_name "http_client_request_json_s"
-        Utf8 request_schema "Blob"
-        Utf8 json "db=pubmed&retmode=json&retmax=5&mindate=2020&maxdate=2023"
+        Utf8 values
     }
     UserJson["UserJson"] {
         Utf8 filename

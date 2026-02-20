@@ -17,6 +17,6 @@ pub use openai_chat_completion::{
     ToolType,
 };
 pub use tools::{
-    create_bytes_fields, create_bytes_record_batch, create_route_bytes_fields,
+    create_values_fields, create_values_record_batch, create_bytes_fields, create_bytes_record_batch, create_route_bytes_fields,
     create_route_bytes_record_batch, create_tools_fields, create_tools_record_batch,
 };

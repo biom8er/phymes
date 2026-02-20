@@ -3,11 +3,7 @@ use crate::{
     TensorProcessorTrait, device,
 };
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
-    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait,
-    remove_message_by_subject,
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait, create_values_fields, remove_message_by_subject
 };
 
 use arrow::{
@@ -79,15 +75,6 @@ impl ProcessorTrait for CandleDataProcessor {
                 ));
             }
         };
-
-        // Re-index the messages by the subject name which needs to be unique at this stage
-        // DM: required because we have to incrementally polls streams which requires access the map using `get_mut`
-        // DM: alternatively, could make a helper method analogous to `remove_message_by_subject`
-        //     or use `remove_message_by_subject` followed by re-inserting the message into the map
-        let message = message
-            .into_iter()
-            .map(|(_k, v)| (v.get_subject().to_string(), v))
-            .collect::<HashMap<_, _>>();
 
         // Run the ops
         let out = Box::pin(CandleDataStream::new(
@@ -207,8 +194,14 @@ impl Stream for CandleDataStream {
                 .with_name("config")
                 .with_record_batches(batches)?
                 .build()?;
-            let config = DataConfig::from_table(&config_table)?;
-            self.config.replace(config);
+            if config_table.get_schema().fields().contains(&create_values_fields()) {
+                let config_json = config_table.get_column_as_vec_str("values").join("");
+                let config = serde_json::from_str::<DataConfig>(&config_json)?;
+                self.config.replace(config);
+            } else {
+                let config = DataConfig::from_table(&config_table)?;
+                self.config.replace(config);
+            }
         }
         // DM: need to implement a trigger for event verbosity
         // if let Some(diagnostic_builder) = &self.diagnostic_builder {
@@ -249,8 +242,8 @@ impl Stream for CandleDataStream {
                 .clone();
 
             // Poll all the LHS batches (accumulation) or the next LHS batch (stream)
-            let lhs = match self.messages.get_mut(lhs_name.as_str()) {
-                Some(lhs) => match stream {
+            let lhs = match remove_message_by_subject(lhs_name.as_str(), &mut self.messages) {
+                Some(mut lhs) => match stream {
                     DataStreamManager::AccumulateLHSAccumulateRHS
                     | DataStreamManager::AccumulateLHSStreamRHS => {
                         let mut batches = Vec::new();
@@ -343,8 +336,8 @@ impl Stream for CandleDataStream {
                 .clone();
 
             // Poll all the RHS batches (accumulation) or the next RHS batch (stream)
-            let rhs = match self.messages.get_mut(rhs_name.as_str()) {
-                Some(rhs) => match stream {
+            let rhs = match remove_message_by_subject(rhs_name.as_str(), &mut self.messages) {
+                Some(mut rhs) => match stream {
                     DataStreamManager::AccumulateLHSAccumulateRHS
                     | DataStreamManager::StreamLHSAccumulateRHS => {
                         let mut batches = Vec::new();
