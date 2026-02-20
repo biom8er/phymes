@@ -252,6 +252,7 @@ impl Stream for CandleDataStream {
                         {
                             batches.push(batch);
                         }
+                        self.messages.insert(lhs.get_name().to_string(), lhs);
                         batches
                     }
                     DataStreamManager::StreamLHSAccumulateRHS
@@ -265,6 +266,7 @@ impl Stream for CandleDataStream {
                                 break;
                             }
                         }
+                        self.messages.insert(lhs.get_name().to_string(), lhs);
                         batches
                     }
                 },
@@ -346,6 +348,7 @@ impl Stream for CandleDataStream {
                         {
                             batches.push(batch);
                         }
+                        self.messages.insert(rhs.get_name().to_string(), rhs);
                         batches
                     }
                     DataStreamManager::StreamLHSStreamRHS
@@ -359,6 +362,7 @@ impl Stream for CandleDataStream {
                                 break;
                             }
                         }
+                        self.messages.insert(rhs.get_name().to_string(), rhs);
                         batches
                     }
                 },

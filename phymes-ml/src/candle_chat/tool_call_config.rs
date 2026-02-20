@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow};
 use clap::Parser;
-use phymes_core::{AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, MappableTrait, Table, TableTrait};
+use phymes_core::{MappableTrait, Table, TableTrait};
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};

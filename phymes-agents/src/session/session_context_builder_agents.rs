@@ -8,7 +8,7 @@ use phymes_core::{
     AvailableSchemaTrait, AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait,
     BuilderTrait, MappableTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait,
     StateMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap,
-    TaskPlan,
+    TaskPlan, create_values_fields,
 };
 #[cfg(feature = "api")]
 use phymes_data::{CommandSandboxConfig, HTTPClientConfig};
@@ -507,10 +507,11 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             // Check for processors names that are tasks names with empty rows
             if tasks.contains(name) && table.count_rows() == 0 {
                 continue;
-            }
-
+            // Check for `values` schema
+            } else if table.get_schema().fields() == &create_values_fields() {
+                continue;
             // Ignore Echo processors
-            if let Ok(processor) = AvailableProcessors::from_str(r#type, false)
+            } else if let Ok(processor) = AvailableProcessors::from_str(r#type, false)
                 && processor == AvailableProcessors::ProcessorEcho
             {
                 continue;

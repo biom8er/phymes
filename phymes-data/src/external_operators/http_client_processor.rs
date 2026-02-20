@@ -11,12 +11,7 @@ use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use bytes::Bytes;
 use futures::{FutureExt, Stream, StreamExt};
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait,
-    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, create_blob_batch,
-    create_chat_record_batch, remove_message_by_subject,
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait, create_blob_batch, create_chat_record_batch, create_values_fields, remove_message_by_subject
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
@@ -188,11 +183,18 @@ impl Stream for HTTPClientRequestStream {
                     while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                         batches.push(batch);
                     }
-                    let config_table = Table::get_builder()
+                    let config_table = TableBuilder::new()
                         .with_name("config")
                         .with_record_batches(batches)?
                         .build()?;
-                    self.init_config(config_table)?;
+                    if config_table.get_schema().fields().contains(&create_values_fields()) {
+                        let config_json = config_table.get_column_as_vec_str("values").join("");
+                        let config = serde_json::from_str::<HTTPClientConfig>(&config_json)?;
+                        self.config.replace(config);
+                    } else {
+                        let config = HTTPClientConfig::from_table(&config_table)?;
+                        self.config.replace(config);
+                    }
                 }
 
                 // Collect the request data
@@ -200,15 +202,16 @@ impl Stream for HTTPClientRequestStream {
                     && self.json_str.is_none()
                     && let Some(subject_name) = self.config.as_ref().unwrap().subject_name.clone()
                 {
-                    match self.messages.get_mut(subject_name.as_str()) {
+                    match remove_message_by_subject(&subject_name, &mut self.messages) {
                         // Poll the next batches in a streaming fashion
-                        Some(fut) => {
+                        Some(mut fut) => {
                             while let Some(Ok(batch)) =
                                 ready!(fut.get_message_mut().poll_next_unpin(cx))
                             {
                                 self.record_batches.replace(batch);
                                 break;
                             }
+                            self.messages.insert(fut.get_name().to_string(), fut);
                         }
                         // Extract the data from the config
                         None => {

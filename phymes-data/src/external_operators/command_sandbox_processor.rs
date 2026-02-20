@@ -12,12 +12,7 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait,
-    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait,
-    create_chat_record_batch, remove_message_by_subject,
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait, create_chat_record_batch, create_values_fields, remove_message_by_subject
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
@@ -242,11 +237,18 @@ impl Stream for CommandSandboxStream {
                     while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                         batches.push(batch);
                     }
-                    let config_table = Table::get_builder()
+                    let config_table = TableBuilder::new()
                         .with_name("config")
                         .with_record_batches(batches)?
                         .build()?;
-                    self.init_config(config_table)?;
+                    if config_table.get_schema().fields().contains(&create_values_fields()) {
+                        let config_json = config_table.get_column_as_vec_str("values").join("");
+                        let config = serde_json::from_str::<CommandSandboxConfig>(&config_json)?;
+                        self.config.replace(config);
+                    } else {
+                        let config = CommandSandboxConfig::from_table(&config_table)?;
+                        self.config.replace(config);
+                    }
                 }
 
                 // Collect the next batch or continue processing the current batch
@@ -254,9 +256,9 @@ impl Stream for CommandSandboxStream {
                     && !self.from_cli_args
                     && let Some(subject_name) = self.config.as_ref().unwrap().subject_name.clone()
                 {
-                    match self.messages.get_mut(subject_name.as_str()) {
+                    match remove_message_by_subject(&subject_name, &mut self.messages) {
                         // Poll the next batches
-                        Some(fut) => {
+                        Some(mut fut) => {
                             // DM: where we will specify to stream batch by batch or collect all batches
                             let mut batches = Vec::new();
                             while let Some(Ok(batch)) =
@@ -267,6 +269,7 @@ impl Stream for CommandSandboxStream {
                                     break;
                                 }
                             }
+                            self.messages.insert(fut.get_name().to_string(), fut);
 
                             // Replace the inbox
                             if !batches.is_empty() {

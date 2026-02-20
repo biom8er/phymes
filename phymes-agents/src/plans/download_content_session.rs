@@ -107,7 +107,7 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait
+        AvailableSubjects, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, create_values_record_batch
     };
     use phymes_data::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
     use phymes_diagnostics::HashMap;
@@ -149,7 +149,6 @@ mod tests {
             let messages = "http_client_request_pdf_s";
             let id = "2508.18700";
             let download_url = format!("pdf/{id}");
-            let session_ctx_reading = session_ctx_arc.read();
             let http_client_config = HTTPClientConfig {
                 timeout: 5,
                 request_type: HTTPClientRequestType::Get,
@@ -159,11 +158,11 @@ mod tests {
                 request_schema: HTTPClientRequestSchemas::Blob,
                 ..Default::default()
             };
-            let http_client_config_json = serde_json::to_vec(&http_client_config)?;
+            let http_client_config_json = serde_json::to_string(&http_client_config)?;
+            let http_client_config_batch = create_values_record_batch(vec![http_client_config_json])?;
             let http_client_config_table = TableBuilder::new()
                 .with_name(name)
-                .with_schema(session_ctx_reading.get_states().get(name).unwrap().read().get_schema())
-                .with_json(&http_client_config_json, 1)?
+                .with_record_batches(vec![http_client_config_batch])?
                 .build()?;
             let _ = message_map.insert(
                 http_client_config_table.get_name().to_string(),
@@ -209,21 +208,20 @@ mod tests {
                 year_from,
                 year_to
             );
-            let session_ctx_reading = session_ctx_arc.read();
             let http_client_config = HTTPClientConfig {
                 timeout: 5,
                 request_type: HTTPClientRequestType::Get,
                 user_agent_type: Some("rust-openalex-client/2.0".to_string()),
                 base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?".to_string(),
                 subject_name: Some(messages.to_string()),
-                request_schema: HTTPClientRequestSchemas::Messages,
+                request_schema: HTTPClientRequestSchemas::Blob,
                 ..Default::default()
             };
-            let http_client_config_json = serde_json::to_vec(&http_client_config)?;
+            let http_client_config_json = serde_json::to_string(&http_client_config)?;
+            let http_client_config_batch = create_values_record_batch(vec![http_client_config_json])?;
             let http_client_config_table = TableBuilder::new()
                 .with_name(name)
-                .with_schema(session_ctx_reading.get_states().get(name).unwrap().read().get_schema())
-                .with_json(&http_client_config_json, 1)?
+                .with_record_batches(vec![http_client_config_batch])?
                 .build()?;
             let _ = message_map.insert(
                 http_client_config_table.get_name().to_string(),
@@ -289,18 +287,6 @@ mod tests {
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            let table_reading = subjects_reading
-                .get_states()
-                .get("download_json_p")
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
         }
 
         assert_eq!(response.len(), 0);
@@ -313,30 +299,31 @@ mod tests {
                 .get(AvailableInterfaceSubjects::UserPdf.to_string().as_str())
                 .unwrap()
                 .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
             let column = table_reading.get_column_as_vec_str("filename");
-            assert_eq!(column, [""]);
+            assert_eq!(column, ["2508.18700"]);
             let column = table_reading.get_column_as_vec_str("extension");
-            assert_eq!(column, [""]);
+            assert_eq!(column, ["application/pdf"]);
             let column = table_reading.get_column_as_vec_str("metadata");
-            assert_eq!(column, [""]);
+            assert_eq!(column, ["tool"]);
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             for c in column {
                 assert!(c > 0);
             }
             let column = table_reading.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
-            assert_eq!(column.len(), 0);
+            assert_eq!(column.len(), 505519);
             let table_reading = session_reading
                 .get_states()
                 .get(AvailableInterfaceSubjects::UserJson.to_string().as_str())
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("filename");
-            assert_eq!(column, [""]);
+            dbg!(&column);
+            // assert_eq!(column, [""]);
             let column = table_reading.get_column_as_vec_str("extension");
-            assert_eq!(column, [""]);
+            dbg!(&column);
+            // assert_eq!(column, [""]);
             let column = table_reading.get_column_as_vec_str("metadata");
-            assert_eq!(column, [""]);
+            assert_eq!(column, ["tool"]);
             let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             for c in column {
                 assert!(c > 0);

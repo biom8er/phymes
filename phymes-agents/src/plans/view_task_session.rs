@@ -118,8 +118,8 @@ impl<'a> ViewTaskSession<'a> {
         UInt8 is_subscription
     }
     group_by_processors_subscriptions_p["group_by_processors_subscriptions_p"] {
-        List-Utf8 agg_columns "['publication_subscription_name','publication_subscription_table_name','subscribe_type']"
-        List-Utf8 agg_operators "['List','List','Last']"
+        List-Utf8 agg_columns "['publication_subscription_name','publication_subscription_table_name']"
+        List-Utf8 agg_operators "['List','List']"
         Boolean cpu "false"
         Utf8 lhs_name "select_processors_subscriptions_s"
         List-Utf8 lhs_values "['session_name','processor_type','processor_name']"
@@ -127,10 +127,10 @@ impl<'a> ViewTaskSession<'a> {
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     select_processors_subscriptions_aggregated_p["select_processors_subscriptions_aggregated_p"] {
-        List-Utf8 as_columns "['','','','subscription_names','subscription_table_names','subscribe_type']"
+        List-Utf8 as_columns "['','','','subscription_names','subscription_table_names']"
         Boolean cpu "false"
         Utf8 lhs_name "group_by_processors_subscriptions_s"
-        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name-List','publication_subscription_table_name-List','subscribe_type-Last']"
+        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name-List','publication_subscription_table_name-List']"
         Utf8 operator "Select"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
@@ -140,11 +140,10 @@ impl<'a> ViewTaskSession<'a> {
         Utf8 processor_type
         List-Utf8 subscription_names
         List-Utf8 subscription_table_names
-        Utf8 subscribe_type
     }
     group_by_processors_publications_p["group_by_processors_publications_p"] {
-        List-Utf8 agg_columns "['publication_subscription_name','publication_subscription_table_name','update_type']"
-        List-Utf8 agg_operators "['List','List','Last']"
+        List-Utf8 agg_columns "['publication_subscription_name','publication_subscription_table_name']"
+        List-Utf8 agg_operators "['List','List']"
         Boolean cpu "false"
         Utf8 lhs_name "select_processors_publications_s"
         List-Utf8 lhs_values "['session_name','processor_type','processor_name']"
@@ -152,10 +151,10 @@ impl<'a> ViewTaskSession<'a> {
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
     select_processors_publications_aggregated_p["select_processors_publications_aggregated_p"] {
-        List-Utf8 as_columns "['','','','publication_names','publication_table_names','update_type']"
+        List-Utf8 as_columns "['','','','publication_names','publication_table_names']"
         Boolean cpu "false"
         Utf8 lhs_name "group_by_processors_publications_s"
-        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name-List','publication_subscription_table_name-List','update_type-Last']"
+        List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name-List','publication_subscription_table_name-List']"
         Utf8 operator "Select"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
@@ -165,7 +164,6 @@ impl<'a> ViewTaskSession<'a> {
         Utf8 processor_type
         List-Utf8 publication_names
         List-Utf8 publication_table_names
-        Utf8 update_type
     }
     SessionTasks["SessionTasks"] {
         Utf8 session_name
@@ -198,7 +196,7 @@ impl<'a> ViewTaskSession<'a> {
     select_tasks_processors_subscriptions_publications_aggregated_p["select_tasks_processors_subscriptions_publications_aggregated_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "join_tasks_processors_subscriptions_publications_aggregated_s"
-        List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type','subscription_names','subscription_table_names','publication_names','publication_table_names','subscribe_type','update_type']"
+        List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type','subscription_names','subscription_table_names','publication_names','publication_table_names']"
         Utf8 operator "Select"
         Utf8 stream "AccumulateLHSAccumulateRHS"
     }
@@ -211,8 +209,6 @@ impl<'a> ViewTaskSession<'a> {
         List-Utf8 subscription_table_names
         List-Utf8 publication_names
         List-Utf8 publication_table_names
-        Utf8 subscribe_type
-        Utf8 update_type
     }"#
     }
 }
@@ -600,17 +596,7 @@ mod tests {
                     "select_processors_publications_s", "group_by_processors_publications_p", "SessionTasks", "select_processors_subscriptions_s", "group_by_processors_subscriptions_p", "select_processors_subscriptions_aggregated_s", "select_processors_publications_aggregated_s", "join_processors_subscriptions_publications_aggregated_p", "join_processors_subscriptions_publications_aggregated_s", "SessionTasks", "join_tasks_processors_subscriptions_publications_aggregated_p", "group_by_processors_publications_s", "select_processors_publications_aggregated_p", "group_by_processors_subscriptions_s", "select_processors_subscriptions_aggregated_p", "join_tasks_processors_subscriptions_publications_aggregated_s", "select_tasks_processors_subscriptions_publications_aggregated_p"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("subscribe_type");
-            assert_eq!(
-                column,
-                ["Any",
-    "Any",
-    "All",
-    "All",
-    "All",
-    "All",
-    "All"]
-            );
+            
             let table_reading = session_reading
                 .get_states()
                 .get("select_processors_publications_aggregated_s")
@@ -666,17 +652,6 @@ mod tests {
                 ]
             );
 
-            let column = table_reading.get_column_as_vec_str("update_type");
-            assert_eq!(
-                column,
-                ["TableChangedSinceLastRunUpdate",
-    "TableChangedSinceLastRunUpdate",
-    "TableChangedSinceLastRunUpdate",
-    "TableChangedSinceLastRunUpdate",
-    "TableChangedSinceLastRunUpdate",
-    "TableChangedSinceLastRunUpdate",
-    "TableChangedSinceLastRunUpdate"]
-            );
             let table_reading = session_reading
                 .get_states()
                 .get("select_tasks_processors_subscriptions_publications_aggregated_s")
@@ -793,28 +768,6 @@ mod tests {
     "select_processors_publications_aggregated_s",
     "select_processors_subscriptions_aggregated_s",
     "select_tasks_processors_subscriptions_publications_aggregated_s"]
-            );
-            let column = table_reading.get_column_as_vec_str("subscribe_type");
-            assert_eq!(
-                column,
-                ["Any",
-    "Any",
-    "All",
-    "All",
-    "All",
-    "All",
-    "All"]
-            );
-            let column = table_reading.get_column_as_vec_str("update_type");
-            assert_eq!(
-                column,
-                ["TableChangedSinceLastRunUpdate",
-    "TableChangedSinceLastRunUpdate",
-    "TableChangedSinceLastRunUpdate",
-    "TableChangedSinceLastRunUpdate",
-    "TableChangedSinceLastRunUpdate",
-    "TableChangedSinceLastRunUpdate",
-    "TableChangedSinceLastRunUpdate"]
             );
         }
 
