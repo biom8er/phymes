@@ -4,20 +4,96 @@
 pub struct EmbedTextSession<'a> {
     /// Session
     pub session_context_name: &'a str,
+    /// The Asset to use for Text Generation and related parameters
+    pub candle_asset: Option<String>,
+    pub openai_asset: Option<String>,
+    pub weights_config_file: Option<String>,
+    pub weights_file: Option<String>,
+    pub tokenizer_file: Option<String>,
+    pub tokenizer_config_file: Option<String>,
+    pub api_url: Option<String>,
+    /// The processor to use for text generation
+    pub chat_processor: &'a str,
 }
 
 impl<'a> Default for EmbedTextSession<'a> {
     fn default() -> Self {
+        let (candle_asset, openai_asset, weights_config_file, weights_file, tokenizer_file, tokenizer_config_file, api_url) = if cfg!(feature = "hf_hub") {
+            (Some("QwenV2_1p5bEmbed".to_string()), None, None, None, None, None, None)
+        } else if cfg!(all(feature = "api", not(feature = "candle"))) {
+            (None, Some("NvidiaLlamaV3p2NvEmbedQA1BV2".to_string()), None, None, None, None, Some("http://0.0.0.0:8001/v1".to_string()))
+        } else {
+            (Some("QuantizedBertEmbed".to_string()), 
+                None, Some(format!(
+                    "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",
+                    std::env::var("HOME").unwrap_or("".to_string())
+                )), Some(format!(
+                    "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/all-minilm-l6-v2-q8_0.gguf",
+                    std::env::var("HOME").unwrap_or("".to_string())
+                )), Some(format!(
+                    "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer.json",
+                    std::env::var("HOME").unwrap_or("".to_string())
+                )), Some(format!(
+                    "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer_config.json",
+                    std::env::var("HOME").unwrap_or("".to_string())
+                )), None
+            )
+        };
+        let generate_text_inference = if cfg!(all(feature = "api", not(feature = "candle"))) {
+            "OpenAIChatProcessor"
+        } else {
+            "CandleChatProcessor"
+        };
         Self {
-            session_context_name: "embed_text_session",
+            session_context_name: "generate_text_session",
+            candle_asset,
+            openai_asset,
+            weights_config_file,
+            weights_file,
+            tokenizer_config_file,
+            tokenizer_file,
+            api_url,
+            chat_processor: generate_text_inference
         }
     }
 }
 
 impl<'a> EmbedTextSession<'a> {
+    fn embed_text_p(&self) -> String {
+        let mut lines = Vec::new();
+        if let Some(candle_asset) = &self.candle_asset {
+            let line = format!(r#"Utf8 candle_asset "{candle_asset}""#);
+            lines.push(line);
+        }
+        if let Some(openai_asset) = &self.openai_asset {
+            let line = format!(r#"Utf8 openai_asset "{openai_asset}""#);
+            lines.push(line);
+        }
+        if let Some(tokenizer_config_file) = &self.tokenizer_config_file {
+            let line = format!(r#"Utf8 tokenizer_config_file "{tokenizer_config_file}""#);
+            lines.push(line);
+        }
+        if let Some(tokenizer_file) = &self.tokenizer_file {
+            let line = format!(r#"Utf8 tokenizer_file "{tokenizer_file}""#);
+            lines.push(line);
+        }
+        if let Some(weights_config_file) = &self.weights_config_file {
+            let line = format!(r#"Utf8 weights_config_file "{weights_config_file}""#);
+            lines.push(line);
+        }
+        if let Some(weights_file) = &self.weights_file {
+            let line = format!(r#"Utf8 weights_file "{weights_file}""#);
+            lines.push(line);
+        }
+        if let Some(api_url) = &self.api_url {
+            let line = format!(r#"Utf8 api_url "{api_url}""#);
+            lines.push(line);
+        }
+        lines.join("\n\t\t")
+    }
     /// Return the Mermaid.js flowchart representation of the session
-    pub fn as_mermaid_flowchart(&self) -> &str {
-        r#"flowchart TD
+    pub fn as_mermaid_flowchart(&self) -> String {
+        format!(r#"flowchart TD
 	%% ------------------------------------------------------------------------------
 	%% Messages to Query
 	%% ------------------------------------------------------------------------------
@@ -27,13 +103,13 @@ impl<'a> EmbedTextSession<'a> {
 	    select_query_from_messages_p-processor-->select_query_from_messages_p-publish
 	    select_query_from_messages_p-publish-->|Replace|UserQueries-subject
 	end
-	embed_text_r-rt@{shape: subproc, label: embed_text_r}
+	embed_text_r-rt@{{shape: subproc, label: embed_text_r}}
 	embed_text_r-rt-->select_query_t
-	UserMessages-subject@{shape: doc, label: UserMessages}
-	select_query_from_messages_p-processor@{shape: rect, label: Select}
-	select_query_from_messages_p-publish@{shape: fork}
-	select_query_from_messages_p-subscribe@{shape: diamond, label: All}
-	UserQueries-subject@{shape: doc, label: UserQueries}
+	UserMessages-subject@{{shape: doc, label: UserMessages}}
+	select_query_from_messages_p-processor@{{shape: rect, label: Select}}
+	select_query_from_messages_p-publish@{{shape: fork}}
+	select_query_from_messages_p-subscribe@{{shape: diamond, label: All}}
+	UserQueries-subject@{{shape: doc, label: UserQueries}}
 	%% ------------------------------------------------------------------------------
 	%% Embed Query
 	%% ------------------------------------------------------------------------------
@@ -43,12 +119,12 @@ impl<'a> EmbedTextSession<'a> {
 	    embed_query_p-processor-->embed_query_p-publish
 	    embed_query_p-publish-->|Replace|QueryEmbeddings-subject
 	end
-	embed_query_r-rt@{shape: subproc, label: embed_query_r}
+	embed_query_r-rt@{{shape: subproc, label: embed_query_r}}
 	embed_query_r-rt-->embed_query_t
-	embed_query_p-processor@{shape: rect, label: CandleEmbedProcessor}
-	embed_query_p-publish@{shape: fork}
-	embed_query_p-subscribe@{shape: diamond, label: All}
-	QueryEmbeddings-subject@{shape: doc, label: QueryEmbeddings}
+	embed_query_p-processor@{{shape: rect, label: {}}}
+	embed_query_p-publish@{{shape: fork}}
+	embed_query_p-subscribe@{{shape: diamond, label: All}}
+	QueryEmbeddings-subject@{{shape: doc, label: QueryEmbeddings}}
 	%% ------------------------------------------------------------------------------
 	%% Embed Documents
 	%% ------------------------------------------------------------------------------
@@ -62,32 +138,32 @@ impl<'a> EmbedTextSession<'a> {
 	    embed_documents_p-processor-->embed_documents_p-publish
 	    embed_documents_p-publish-->|Extend|DocumentEmbeddings-subject
 	end
-	embed_documents_r-rt@{shape: subproc, label: embed_documents_r}
+	embed_documents_r-rt@{{shape: subproc, label: embed_documents_r}}
 	embed_documents_r-rt-->embed_documents_t
-	Documents-subject@{shape: doc, label: Documents}
-	coalesce_documents_p-processor@{shape: rect, label: CoalesceProcessor}
-	coalesce_documents_p-publish@{shape: fork}
-	coalesce_documents_p-subscribe@{shape: diamond, label: All}
-	coalesce_documents_s-subject@{shape: doc, label: coalesce_documents_s}
-	embed_documents_p-processor@{shape: rect, label: CandleEmbedProcessor}
-	embed_documents_p-publish@{shape: fork}
-	embed_documents_p-subscribe@{shape: diamond, label: All}
-	DocumentEmbeddings-subject@{shape: doc, label: DocumentEmbeddings}
-	%% ------------------------------------------------------------------------------"#
+	Documents-subject@{{shape: doc, label: Documents}}
+	coalesce_documents_p-processor@{{shape: rect, label: CoalesceProcessor}}
+	coalesce_documents_p-publish@{{shape: fork}}
+	coalesce_documents_p-subscribe@{{shape: diamond, label: All}}
+	coalesce_documents_s-subject@{{shape: doc, label: coalesce_documents_s}}
+	embed_documents_p-processor@{{shape: rect, label: {}}}
+	embed_documents_p-publish@{{shape: fork}}
+	embed_documents_p-subscribe@{{shape: diamond, label: All}}
+	DocumentEmbeddings-subject@{{shape: doc, label: DocumentEmbeddings}}
+	%% ------------------------------------------------------------------------------"#, self.chat_processor, self.chat_processor)
     }
     /// Return the Mermaid.js ER diagram representation of the session
     ///
     /// # Note
     /// * for QWEN, the following cast template should be used
     ///   List-Utf8 cast_templates "['','Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: {{ content }}']"
-    pub fn as_mermaid_erdiagram(&self) -> &str {
-        r#"erDiagram
-    UserMessages["UserMessages"] {
+    pub fn as_mermaid_erdiagram(&self) -> String {
+        format!(r#"erDiagram
+    UserMessages["UserMessages"] {{
         Utf8 role
         Utf8 content
         Int64 timestamp
-    }
-    select_query_from_messages_p["select_query_from_messages_p"] {
+    }}
+    select_query_from_messages_p["select_query_from_messages_p"] {{
         List-Utf8 as_columns "['query_id','text']"
         List-Utf8 cast_datatypes "['Utf8','Utf8']"
         List-Utf8 cast_operators "['Cast','None']"
@@ -99,53 +175,45 @@ impl<'a> EmbedTextSession<'a> {
         Utf8 operator "Select"
         List-Utf8 rhs_values "['','']"
         Utf8 lhs_stream "Accumulate"
-    }
-    UserQueries["UserQueries"] {
+    }}
+    UserQueries["UserQueries"] {{
         Utf8 query_id
         Utf8 text
-    }
-	embed_query_p["embed_query_p"] {
+    }}
+	embed_query_p["embed_query_p"] {{
 	    Utf8 documents "UserQueries"
-	    Utf8 candle_asset "QuantizedBertEmbed"
-	    Utf8 weights_file "/home/dmccloskey/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/all-minilm-l6-v2-q8_0.gguf"
-	    Utf8 tokenizer_file "/home/dmccloskey/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer.json"
-	    Utf8 tokenizer_config_file "/home/dmccloskey/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer_config.json"
-	    Utf8 weights_config_file "/home/dmccloskey/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json"
 	    Boolean cpu "false"
 	    Utf8 encoding_format "float"
 	    Utf8 input_type "query"
 	    Utf8 modality "text"
-	}
-	QueryEmbeddings["QueryEmbeddings"] {
+        {}
+	}}
+	QueryEmbeddings["QueryEmbeddings"] {{
 	    Utf8 query_id
 	    List-Float32 embedding
-	}
-	Documents["Documents"] {
+	}}
+	Documents["Documents"] {{
         Utf8 chunk_id
         Utf8 document_id
         Utf8 text
-	}
-	coalesce_documents_p["coalesce_documents_p"] {
+	}}
+	coalesce_documents_p["coalesce_documents_p"] {{
 	    Int64 fetch "1"
 	    Utf8 summary_format "None"
-	}
-	embed_documents_p["embed_documents_p"] {
+	}}
+	embed_documents_p["embed_documents_p"] {{
 	    Utf8 documents "coalesce_documents_s"
-	    Utf8 candle_asset "QuantizedBertEmbed"
-	    Utf8 weights_file "/home/dmccloskey/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/all-minilm-l6-v2-q8_0.gguf"
-	    Utf8 tokenizer_file "/home/dmccloskey/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer.json"
-	    Utf8 tokenizer_config_file "/home/dmccloskey/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer_config.json"
-	    Utf8 weights_config_file "/home/dmccloskey/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json"
 	    Boolean cpu "false"
 	    Utf8 encoding_format "float"
 	    Utf8 input_type "passage"
 	    Utf8 modality "text"
-	}
-	DocumentEmbeddings["DocumentEmbeddings"] {
+        {}
+	}}
+	DocumentEmbeddings["DocumentEmbeddings"] {{
 	    Utf8 chunk_id
 	    Utf8 document_id
 	    List-Float32 embedding
-	}"#
+	}}"#, self.embed_text_p(), self.embed_text_p())
     }
 }
 
@@ -175,10 +243,10 @@ mod tests {
         // Initialize the session
         let embed_text_session = EmbedTextSession::default();
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
-            embed_text_session.as_mermaid_flowchart(),
+            &embed_text_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(embed_text_session.as_mermaid_erdiagram(), false, true)?
+        .with_state_from_mermaid_erdiagram(&embed_text_session.as_mermaid_erdiagram(), false, true)?
         .with_name(embed_text_session.session_context_name)
         .with_diagnostics(true)
         .add_processor_subjects()?

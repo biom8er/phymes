@@ -14,7 +14,7 @@ pub struct GenerateTextSession<'a> {
     pub tokenizer_config_file: Option<String>,
     pub api_url: Option<String>,
     /// The processor to use for text generation
-    pub generate_text_inference: &'a str,
+    pub chat_processor: &'a str,
 }
 
 impl<'a> Default for GenerateTextSession<'a> {
@@ -54,7 +54,7 @@ impl<'a> Default for GenerateTextSession<'a> {
             tokenizer_config_file,
             tokenizer_file,
             api_url,
-            generate_text_inference
+            chat_processor: generate_text_inference
         }
     }
 }
@@ -174,7 +174,7 @@ impl<'a> GenerateTextSession<'a> {
 	parse_generated_text_p-processor@{{shape: rect, label: MessageParserProcessor}}
 	parse_generated_text_p-publish@{{shape: fork}}
 	parse_generated_text_p-subscribe@{{shape: diamond, label: All}}
-	%% ------------------------------------------------------------------------------"#, self.generate_text_inference)
+	%% ------------------------------------------------------------------------------"#, self.chat_processor)
     }
 
     /// Return the Mermaid.js ER diagram representation of the session
