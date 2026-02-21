@@ -132,7 +132,7 @@ flowchart TD
 	sort_scores_processor_1-processor@{shape: rect, label: CandleDataProcessor}
 	chunk_documents_processor_2-processor@{shape: rect, label: CandleDataProcessor}
 	join_scores_chunks_processor_1-processor@{shape: rect, label: CandleDataProcessor}
-	top_k_processor_1-processor@{shape: rect, label: DataSummaryProcessor}
+	top_k_processor_1-processor@{shape: rect, label: PackTabular}
 	session_context_1-processor@{shape: rect, label: ArrowProcessorEcho}
 	chat_rt_1-rt@{shape: subproc, label: chat_rt_1}
 	embed_documents_rt_1-rt@{shape: subproc, label: embed_documents_rt_1}

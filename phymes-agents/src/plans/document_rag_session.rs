@@ -5,8 +5,7 @@ use phymes_core::{
     create_schema_from_fields,
 };
 use phymes_data::{
-    AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
-    DataDistanceOperator, DataSummaryConfig,
+    AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig, DataDistanceOperator, DataStreamManager, LimitConfig
 };
 #[cfg(feature = "api")]
 use phymes_ml::AvailableOpenAIAssets;
@@ -577,7 +576,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::DataSummaryProcessor
+                    AvailableProcessors::PackTabular
                         .build_arc(self.top_k_summary_processor_name),
                 )
                 .with_publications(&[TablePublication::Replace {
@@ -927,10 +926,9 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             .unwrap();
 
         // Limit top K config
-        let top_k_limit_config = DataSummaryConfig {
-            fetch: Some(3),
+        let top_k_limit_config = LimitConfig {
+            fetch: 3,
             skip: Some(0),
-            summary_format: DataFormat::None,
         };
         let top_k_limit_config_json = serde_json::to_vec(&top_k_limit_config).unwrap();
         let top_k_limit_state = TableBuilder::new()
@@ -961,8 +959,11 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             .unwrap();
 
         // Summary top K
-        let top_k_summary_config = DataSummaryConfig {
-            summary_format: DataFormat::None,
+        let top_k_summary_config = DataConfig {
+            format: Some(DataFormat::None),
+            cpu: false,
+            operator: AvailableCandleOperators::PackTabular,
+            stream: DataStreamManager::AccumulateLHSAccumulateRHS,
             ..Default::default()
         };
         let top_k_summary_config_json = serde_json::to_vec(&top_k_summary_config).unwrap();

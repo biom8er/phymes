@@ -8,8 +8,7 @@ use phymes_core::{
     create_schema_from_fields, create_tools_record_batch,
 };
 use phymes_data::{
-    AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
-    DataConfig, DataSummaryConfig, ToolTrait,
+    AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator, DataConfig, LimitConfig, ToolTrait
 };
 #[cfg(feature = "api")]
 use phymes_ml::AvailableOpenAIAssets;
@@ -473,7 +472,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::DataSummaryProcessor
+                    AvailableProcessors::PackTabular
                         .build_arc(self.tool_attachment_processor_name),
                 )
                 .with_publications(&[TablePublication::Extend {
@@ -494,7 +493,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::DataSummaryProcessor
+                    AvailableProcessors::PackTabular
                         .build_arc(self.tool_summary_processor_name),
                 )
                 .with_publications(&[TablePublication::Extend {
@@ -515,7 +514,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::DataSummaryProcessor
+                    AvailableProcessors::PackTabular
                         .build_arc(self.hitl_summary_processor_name),
                 )
                 .with_publications(&[TablePublication::Extend {
@@ -718,8 +717,10 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .unwrap();
 
         // Attachment config
-        let attachment_config = DataSummaryConfig {
-            summary_format: DataFormat::CsvDefault,
+        let attachment_config = DataConfig {
+            format: Some(DataFormat::CsvDefault),
+            cpu: false,
+            operator: AvailableCandleOperators::PackTabular,
             ..Default::default()
         };
         let attachmen_config_json = serde_json::to_vec(&attachment_config).unwrap();
@@ -731,7 +732,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .unwrap();
 
         // Summary config
-        let summary_config = DataSummaryConfig {
+        let summary_config = LimitConfig {
             ..Default::default()
         };
         let summary_config_json = serde_json::to_vec(&summary_config).unwrap();

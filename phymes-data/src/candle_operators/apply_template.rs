@@ -14,8 +14,8 @@ use tracing::instrument;
 
 use crate::{
     AvailableJinja2Templates, ToolTrait,
-    candle_data::{DataConfig, table_and_data_format_to_record_batch},
-    candle_operators::DataOperatorTrait,
+    candle_data::DataConfig,
+    candle_operators::{DataOperatorTrait, table_and_data_format_to_record_batch},
     jinja2_templates::{TEMPLATE_HEADER_EXPRESSION, TEMPLATE_TABLE_EXPRESSION},
 };
 

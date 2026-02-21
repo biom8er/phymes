@@ -104,7 +104,7 @@ impl<'a> RetrieveTextSession<'a> {
 	select_documents_scores_p-subscribe@{shape: diamond, label: All}
 	select_documents_scores_p-publish@{shape: fork}
 	select_documents_scores_s-subject@{shape: doc, label: select_documents_scores_s}	
-	summarize_documents_scores_p-processor@{shape: rect, label: DataSummaryProcessor}
+	summarize_documents_scores_p-processor@{shape: rect, label: PackTabular}
 	summarize_documents_scores_p-subscribe@{shape: diamond, label: All}
 	summarize_documents_scores_p-publish@{shape: fork}
 	ToolMessages-subject@{shape: doc, label: ToolMessages}

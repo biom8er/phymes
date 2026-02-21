@@ -14,7 +14,7 @@ use phymes_core::{
 };
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
 
-use crate::{DataConfigTrait, DataSummaryConfig};
+use crate::{DataConfigTrait, LimitConfig};
 
 /// Processor that implements the LIMIT operator
 #[derive(Debug)]
@@ -108,7 +108,7 @@ pub struct LimitStream {
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for limit
-    config: Option<DataSummaryConfig>,
+    config: Option<LimitConfig>,
 }
 
 impl LimitStream {
@@ -134,7 +134,7 @@ impl LimitStream {
     /// Initialize the config and update the values for skip and fetch
     fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
-            let config = DataSummaryConfig::from_table(&config_table)?;
+            let config = LimitConfig::from_table(&config_table)?;
             self.config.replace(config);
         }
         self.skip.replace(
@@ -151,8 +151,6 @@ impl LimitStream {
                 .as_ref()
                 .unwrap()
                 .fetch
-                .as_ref()
-                .unwrap()
                 .to_owned(),
         );
         Ok(())
@@ -283,7 +281,7 @@ impl RecordBatchStream for LimitStream {
 
 #[cfg(test)]
 mod tests {
-    use crate::DataSummaryConfig;
+    use crate::LimitConfig;
 
     use super::*;
     use arrow::array::{ArrayRef, Int32Array};
@@ -308,9 +306,9 @@ mod tests {
         let _ = message.insert(test_message.get_name().to_string(), test_message);
 
         // Make the config
-        let config = DataSummaryConfig {
+        let config = LimitConfig {
             skip: Some(0),
-            fetch: Some(6),
+            fetch: 6,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
@@ -467,9 +465,9 @@ mod tests {
         assert_eq!(index.value(), 0);
 
         // Make the config
-        let config = DataSummaryConfig {
+        let config = LimitConfig {
             skip: Some(0),
-            fetch: Some(6),
+            fetch: 6,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
@@ -519,9 +517,9 @@ mod tests {
         assert_eq!(index.value(), 0);
 
         // Make the config
-        let config = DataSummaryConfig {
+        let config = LimitConfig {
             skip: Some(0),
-            fetch: Some(6),
+            fetch: 6,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
@@ -575,9 +573,9 @@ mod tests {
         assert_eq!(index.value(), 0);
 
         // Make the config
-        let config = DataSummaryConfig {
+        let config = LimitConfig {
             skip: Some(0),
-            fetch: Some(6),
+            fetch: 6,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;

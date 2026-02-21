@@ -17,7 +17,7 @@ use phymes_core::{
 };
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
 
-use crate::{DataConfigTrait, DataSummaryConfig};
+use crate::{DataConfigTrait, LimitConfig};
 
 /// Processor that implements the [RecordBatch] coalesce operator to combine smaller [RecordBatch]es into larger [RecordBatch]es of a specified size
 #[derive(Debug)]
@@ -146,7 +146,7 @@ pub struct CoalesceStream {
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for coalesce
-    config: Option<DataSummaryConfig>,
+    config: Option<LimitConfig>,
     /// Buffered batches
     buffer: Vec<RecordBatch>,
     /// Buffered row count
@@ -188,10 +188,10 @@ impl CoalesceStream {
     /// Initialize the config and update the values for skip and fetch
     fn init_config(&mut self, config_table: Table) -> Result<()> {
         if self.config.is_none() {
-            let config = DataSummaryConfig::from_table(&config_table)?;
+            let config = LimitConfig::from_table(&config_table)?;
             self.config.replace(config);
         }
-        self.fetch = self.config.as_ref().unwrap().fetch;
+        self.fetch.replace(self.config.as_ref().unwrap().fetch);
         Ok(())
     }
 
@@ -465,8 +465,8 @@ mod tests {
         let _ = message.insert(test_message.get_name().to_string(), test_message);
 
         // Make the config
-        let config = DataSummaryConfig {
-            fetch: Some(6),
+        let config = LimitConfig {
+            fetch: 6,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
@@ -538,8 +538,8 @@ mod tests {
 
         // --- Coalesce without intermediate overflow ---
         // Make the config
-        let config = DataSummaryConfig {
-            fetch: Some(24),
+        let config = LimitConfig {
+            fetch: 24,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
@@ -570,8 +570,8 @@ mod tests {
 
         // --- Coalesce without overflow ---
         // Make the config
-        let config = DataSummaryConfig {
-            fetch: Some(100),
+        let config = LimitConfig {
+            fetch: 100,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
@@ -602,8 +602,8 @@ mod tests {
 
         // --- Coalesce with intermediate overflow ---
         // Make the config
-        let config = DataSummaryConfig {
-            fetch: Some(10),
+        let config = LimitConfig {
+            fetch: 10,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
@@ -636,8 +636,8 @@ mod tests {
         // Make the batches
         let batch = uint32_batch(0..80);
         // Make the config
-        let config = DataSummaryConfig {
-            fetch: Some(10),
+        let config = LimitConfig {
+            fetch: 10,
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;

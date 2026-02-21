@@ -13,7 +13,7 @@ use phymes_core::{
 #[cfg(feature = "api")]
 use phymes_data::{CommandSandboxConfig, HTTPClientConfig};
 use phymes_data::{
-    AvailableCandleOperators, DataConfig, DataConfigTrait, DataSummaryConfig, device,
+    AvailableCandleOperators, DataConfig, DataConfigTrait, LimitConfig, device,
 };
 use phymes_diagnostics::{HashMap, HashSet};
 use phymes_ml::{CandleChatConfig, CandleEmbedConfig, ToolCallConfig};
@@ -666,11 +666,11 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         AvailableProcessors::all_varient_names()
                     ));
                 }
-            } else if let Ok(_config) = DataSummaryConfig::from_table(table) {
+            } else if let Ok(_config) = LimitConfig::from_table(table) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
-                    if processor.config_type() != "DataSummaryConfig" {
+                    if processor.config_type() != "LimitConfig" {
                         return Err(anyhow!(
-                            "Schema for `DataSummaryConfig` from subject `{}` for processor type `{}` does not match the expected processor type DataSummaryProcessor.",
+                            "Schema for `LimitConfig` from subject `{}` for processor type `{}` does not match the expected processor type PackTabular.",
                             table.get_name(),
                             r#type
                         ));
@@ -679,7 +679,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     }
                 } else {
                     return Err(anyhow!(
-                        "Processor type `{}` for `DataSummaryConfig` from subject `{}` does not match any of the supported processor types {:?}.",
+                        "Processor type `{}` for `LimitConfig` from subject `{}` does not match any of the supported processor types {:?}.",
                         r#type,
                         table.get_name(),
                         AvailableProcessors::all_varient_names()
@@ -1607,8 +1607,8 @@ mod tests {
         let state = test_session_context_builder_agents::make_test_state_agents()?;
 
         // Test for mismatch between processor and config types
-        let join_config = DataSummaryConfig {
-            summary_format: DataFormat::None,
+        let join_config = LimitConfig {
+            fetch: 0,
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
@@ -1635,7 +1635,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Schema for `DataSummaryConfig` from subject `processor_3` for processor type `Join` does not match the expected processor type DataSummaryProcessor."
+                "Schema for `LimitConfig` from subject `processor_3` for processor type `Join` does not match the expected processor type PackTabular."
             ),
         }
 
