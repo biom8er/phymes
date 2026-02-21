@@ -263,8 +263,7 @@ mod tests {
     use phymes_core::{
         AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
         ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, TableBuilder,
-        TableBuilderTrait, TablePublication, TableTrait, create_documents_batch,
-        create_documents_embeddings_batch, create_query_embeddings_batch,
+        TableBuilderTrait, TablePublication, TableTrait,
         create_tools_record_batch,
     };
     use phymes_data::{AvailableCandleOperators, ToolTrait};

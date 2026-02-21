@@ -339,7 +339,7 @@ mod tests {
                 .read();
             assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("query_id");
-            assert!(column.first().is_some());
+            assert!(!column.is_empty());
             let column = table_reading.get_column_as_vec_str("text");
             assert_eq!(
                 column.first().unwrap(),
@@ -367,7 +367,7 @@ mod tests {
                 .read();
             assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("query_id");
-            assert!(column.first().is_some());
+            assert!(!column.is_empty());
             let column = table_reading.get_column_as_vec_nested_primitive::<f32>("embedding")?;
             assert_eq!(column.len(), 1);
             assert_eq!(column.first().unwrap().len(), 384);

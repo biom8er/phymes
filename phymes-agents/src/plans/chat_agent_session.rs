@@ -4,8 +4,6 @@ use phymes_core::{
     TableBuilderTrait, TablePublication, TableSubscription, TaskPlan,
 };
 use phymes_data::{AvailableCandleOperators, DataConfig};
-#[cfg(feature = "api")]
-use phymes_ml::AvailableOpenAIAssets;
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 
 use crate::{AvailableInterfaceSubjects, AvailableProcessors, CustomAgentsBuilderTrait};

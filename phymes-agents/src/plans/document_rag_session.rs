@@ -8,8 +8,6 @@ use phymes_data::{
     AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
     DataDistanceOperator, DataStreamManager, LimitConfig,
 };
-#[cfg(feature = "api")]
-use phymes_ml::AvailableOpenAIAssets;
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig};
 
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};

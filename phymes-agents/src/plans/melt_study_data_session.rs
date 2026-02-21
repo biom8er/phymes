@@ -64,11 +64,7 @@ impl<'a> MeltStudyDataSession<'a> {
         variable_names: &'a [&'a str],
         data_types: &'a [DataType],
     ) -> Result<Self> {
-        let session_context_name = if let Some(name) = session_context_name {
-            name
-        } else {
-            "melt_study_data_session"
-        };
+        let session_context_name = session_context_name.unwrap_or("melt_study_data_session");
         if variable_names.len() != data_types.len() {
             return Err(anyhow!(
                 "variable_names `{variable_names:?}` length does not match data_types `{data_types:?}` length."
@@ -97,7 +93,7 @@ impl<'a> MeltStudyDataSession<'a> {
     fn data_type_columns(&self) -> Result<String> {
         let items = self
             .data_types
-            .into_iter()
+            .iter()
             .map(|d| d.to_string())
             .collect::<Vec<_>>();
         items_to_list(&items.iter().map(|s| s.as_str()).collect::<Vec<_>>())
@@ -356,7 +352,7 @@ mod tests {
     use phymes_core::{
         AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, CsvFormat,
         IPCMessage, MappableTrait, MessageBuilderTrait, Table, TableBuilderTrait, TablePublication,
-        TableTrait, create_session_supersteps_batch,
+        TableTrait,
     };
     use phymes_diagnostics::HashMap;
 
