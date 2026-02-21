@@ -32,9 +32,8 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
     // Cases for stream and accumulation options
     let stream_vec = [
         // (DataStreamManager::Accumulate, DataStreamManager::Stream),
-        (DataStreamManager::Accumulate, DataStreamManager::Accumulate)
-        // (DataStreamManager::Stream, DataStreamManager::Stream),
-        // (DataStreamManager::Stream, DataStreamManager::Accumulate),
+        (DataStreamManager::Accumulate, DataStreamManager::Accumulate), // (DataStreamManager::Stream, DataStreamManager::Stream),
+                                                                        // (DataStreamManager::Stream, DataStreamManager::Accumulate),
     ];
 
     // Cases for the ops functions

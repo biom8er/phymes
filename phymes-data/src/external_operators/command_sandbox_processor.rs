@@ -12,7 +12,12 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait, create_chat_record_batch, create_values_fields, remove_message_by_subject
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
+    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait,
+    create_chat_record_batch, create_values_fields, remove_message_by_subject,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
@@ -241,7 +246,11 @@ impl Stream for CommandSandboxStream {
                         .with_name("config")
                         .with_record_batches(batches)?
                         .build()?;
-                    if config_table.get_schema().fields().contains(&create_values_fields()) {
+                    if config_table
+                        .get_schema()
+                        .fields()
+                        .contains(&create_values_fields())
+                    {
                         let config_json = config_table.get_column_as_vec_str("values").join("");
                         let config = serde_json::from_str::<CommandSandboxConfig>(&config_json)?;
                         self.config.replace(config);

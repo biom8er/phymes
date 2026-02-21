@@ -39,8 +39,8 @@ pub use schemas::{
     create_session_tasks_subscribe_aggregate_batch, create_session_tasks_subscribe_batch,
     create_session_tasks_subscribe_publish_batch, create_subjects_change_log_batch,
     create_subjects_num_rows_batch, create_tools_record_batch, create_user_batch,
-    create_user_inbox_batch, create_user_session_contexts_batch, e_utils,
-    from_diagnostics_to_tables, open_alex, semantic_scholar, create_values_fields, create_values_record_batch
+    create_user_inbox_batch, create_user_session_contexts_batch, create_values_fields,
+    create_values_record_batch, e_utils, from_diagnostics_to_tables, open_alex, semantic_scholar,
 };
 pub use table::{
     AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, CsvFormat, DataFormat,

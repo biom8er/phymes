@@ -18,9 +18,7 @@ pub fn create_values_fields() -> Fields {
 
 pub fn create_values_record_batch(values: Vec<String>) -> Result<RecordBatch> {
     let values: ArrayRef = Arc::new(StringArray::from(values));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("values", values),
-    ])?;
+    let batch = RecordBatch::try_from_iter(vec![("values", values)])?;
     Ok(batch)
 }
 

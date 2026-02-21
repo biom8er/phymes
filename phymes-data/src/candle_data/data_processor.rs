@@ -3,7 +3,11 @@ use crate::{
     TensorProcessorTrait, device,
 };
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait, create_values_fields, remove_message_by_subject
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
+    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait,
+    create_values_fields, remove_message_by_subject,
 };
 
 use arrow::{
@@ -194,7 +198,11 @@ impl Stream for CandleDataStream {
                 .with_name("config")
                 .with_record_batches(batches)?
                 .build()?;
-            if config_table.get_schema().fields().contains(&create_values_fields()) {
+            if config_table
+                .get_schema()
+                .fields()
+                .contains(&create_values_fields())
+            {
                 let config_json = config_table.get_column_as_vec_str("values").join("");
                 let config = serde_json::from_str::<DataConfig>(&config_json)?;
                 self.config.replace(config);
@@ -320,7 +328,13 @@ impl Stream for CandleDataStream {
         // };
 
         // Collect the RHS batches through accumulating or as stream
-        let rhs_stream = self.config.as_ref().unwrap().rhs_stream.clone().unwrap_or_default();
+        let rhs_stream = self
+            .config
+            .as_ref()
+            .unwrap()
+            .rhs_stream
+            .clone()
+            .unwrap_or_default();
         if self.rhs_inbox.is_empty() && self.config.as_ref().unwrap().rhs_name.is_some() {
             let rhs_name = self
                 .config

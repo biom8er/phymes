@@ -4,7 +4,6 @@ pub struct ViewTaskSession<'a> {
     pub session_context_name: &'a str,
     /// Subjects to listen for to trigger the view
     pub subject_names: &'a [&'a str],
-
 }
 
 impl Default for ViewTaskSession<'_> {
@@ -17,15 +16,20 @@ impl Default for ViewTaskSession<'_> {
 }
 
 impl<'a> ViewTaskSession<'a> {
-    pub fn new(session_context_name:&'a str, subject_names: &'a [&'a str]) -> Self {
-        ViewTaskSession { session_context_name, subject_names }
+    pub fn new(session_context_name: &'a str, subject_names: &'a [&'a str]) -> Self {
+        ViewTaskSession {
+            session_context_name,
+            subject_names,
+        }
     }
     fn erdiagram_subject_subscriptions(&self) -> String {
         let mut subscriptions_vec = Vec::new();
         for subject_name in self.subject_names {
-            let line = format!(r#"{subject_name}["{subject_name}"] {{
+            let line = format!(
+                r#"{subject_name}["{subject_name}"] {{
         Utf8 values
-    }}"#);
+    }}"#
+            );
             subscriptions_vec.push(line);
         }
         subscriptions_vec.join("\n\t")
@@ -37,7 +41,6 @@ impl<'a> ViewTaskSession<'a> {
             subscriptions_vec.push(line);
         }
         subscriptions_vec.join("\n\t\t")
-
     }
     fn flowchart_subject_subscriptions_2(&self) -> String {
         let mut subscriptions_vec = Vec::new();
@@ -46,11 +49,11 @@ impl<'a> ViewTaskSession<'a> {
             subscriptions_vec.push(line);
         }
         subscriptions_vec.join("\n\t")
-
     }
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
-        format!(r#"flowchart TD
+        format!(
+            r#"flowchart TD
     ViewTaskSession_runtime_env-rt@{{shape: subproc, label: ViewTaskSession_runtime_env}}
     
 	subgraph group_by_processors_subscriptions_t
@@ -127,13 +130,17 @@ impl<'a> ViewTaskSession<'a> {
 	select_tasks_processors_subscriptions_publications_aggregated_p-subscribe@{{shape: diamond, label: All}}
 	select_tasks_processors_subscriptions_publications_aggregated_p-processor@{{shape: rect, label: Select}}
 	select_tasks_processors_subscriptions_publications_aggregated_p-publish@{{shape: fork}}
-	select_tasks_processors_subscriptions_publications_aggregated_s-subject@{{shape: doc, label: select_tasks_processors_subscriptions_publications_aggregated_s}}"#, 
-        self.flowchart_subject_subscriptions_1("group_by_processors_subscriptions_p"), self.flowchart_subject_subscriptions_2(), self.flowchart_subject_subscriptions_1("group_by_processors_publications_p"))
+	select_tasks_processors_subscriptions_publications_aggregated_s-subject@{{shape: doc, label: select_tasks_processors_subscriptions_publications_aggregated_s}}"#,
+            self.flowchart_subject_subscriptions_1("group_by_processors_subscriptions_p"),
+            self.flowchart_subject_subscriptions_2(),
+            self.flowchart_subject_subscriptions_1("group_by_processors_publications_p")
+        )
     }
 
     /// Return the Mermaid.js ER Diagram representation of the session
     pub fn as_mermaid_erdiagram(&self) -> String {
-        format!(r#"erDiagram
+        format!(
+            r#"erDiagram
     {}
     select_processors_subscriptions_s["select_processors_subscriptions_s"] {{
         Utf8 session_name
@@ -247,7 +254,9 @@ impl<'a> ViewTaskSession<'a> {
         List-Utf8 subscription_table_names
         List-Utf8 publication_names
         List-Utf8 publication_table_names
-    }}"#, self.erdiagram_subject_subscriptions())
+    }}"#,
+            self.erdiagram_subject_subscriptions()
+        )
     }
 }
 
@@ -259,12 +268,15 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, TablePublication, TableTrait, create_values_record_batch
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage,
+        MappableTrait, MessageBuilderTrait, TablePublication, TableTrait,
+        create_values_record_batch,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, create_message_map
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream, create_message_map,
     };
 
     use super::*;
@@ -299,9 +311,7 @@ mod tests {
                 .with_message(table.to_ipc_stream()?)
                 .make_name()?
                 .build()?;
-            create_message_map(vec![
-                session_tasks_message,
-            ])
+            create_message_map(vec![session_tasks_message])
         };
 
         // Run the session
@@ -333,36 +343,139 @@ mod tests {
             let column = table_reading.get_column_as_vec_str("session_name");
             assert_eq!(
                 column,
-                ["view_task_session", "view_task_session", "view_task_session", "view_task_session", "view_task_session", "view_task_session", "view_task_session", "view_task_session", "view_task_session", "view_task_session", "view_task_session", "view_task_session", "view_task_session", "view_task_session", "view_task_session", "view_task_session", "view_task_session", "view_task_session"]
+                [
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session"
+                ]
             );
             let column = table_reading.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
-                ["group_by_processors_subscriptions_p", "group_by_processors_subscriptions_p", "group_by_processors_subscriptions_p", "select_processors_subscriptions_aggregated_p", "select_processors_subscriptions_aggregated_p", "group_by_processors_publications_p", "group_by_processors_publications_p", "group_by_processors_publications_p", "select_processors_publications_aggregated_p", "select_processors_publications_aggregated_p", "join_processors_subscriptions_publications_aggregated_p", "join_processors_subscriptions_publications_aggregated_p", "join_processors_subscriptions_publications_aggregated_p", "join_tasks_processors_subscriptions_publications_aggregated_p", "join_tasks_processors_subscriptions_publications_aggregated_p", "join_tasks_processors_subscriptions_publications_aggregated_p", "select_tasks_processors_subscriptions_publications_aggregated_p", "select_tasks_processors_subscriptions_publications_aggregated_p"]
+                [
+                    "group_by_processors_subscriptions_p",
+                    "group_by_processors_subscriptions_p",
+                    "group_by_processors_subscriptions_p",
+                    "select_processors_subscriptions_aggregated_p",
+                    "select_processors_subscriptions_aggregated_p",
+                    "group_by_processors_publications_p",
+                    "group_by_processors_publications_p",
+                    "group_by_processors_publications_p",
+                    "select_processors_publications_aggregated_p",
+                    "select_processors_publications_aggregated_p",
+                    "join_processors_subscriptions_publications_aggregated_p",
+                    "join_processors_subscriptions_publications_aggregated_p",
+                    "join_processors_subscriptions_publications_aggregated_p",
+                    "join_tasks_processors_subscriptions_publications_aggregated_p",
+                    "join_tasks_processors_subscriptions_publications_aggregated_p",
+                    "join_tasks_processors_subscriptions_publications_aggregated_p",
+                    "select_tasks_processors_subscriptions_publications_aggregated_p",
+                    "select_tasks_processors_subscriptions_publications_aggregated_p"
+                ]
             );
             let column = table_reading.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
-                ["GroupBy", "GroupBy", "GroupBy", "Select", "Select", "GroupBy", "GroupBy", "GroupBy", "Select", "Select", "Join", "Join", "Join", "Join", "Join", "Join", "Select", "Select"]
+                [
+                    "GroupBy", "GroupBy", "GroupBy", "Select", "Select", "GroupBy", "GroupBy",
+                    "GroupBy", "Select", "Select", "Join", "Join", "Join", "Join", "Join", "Join",
+                    "Select", "Select"
+                ]
             );
             let column = table_reading.get_column_as_vec_str("publication_subscription_name");
             assert_eq!(
                 column,
-                ["OnUpdateEmpty", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "OnUpdateEmpty", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "OnUpdateFullTable", "OnUpdateFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable"]
+                [
+                    "OnUpdateEmpty",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateEmpty",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable"
+                ]
             );
             let column = table_reading.get_column_as_vec_str("publication_subscription_table_name");
             assert_eq!(
                 column,
-["Values", "select_processors_subscriptions_s", "group_by_processors_subscriptions_p", "group_by_processors_subscriptions_s", "select_processors_subscriptions_aggregated_p", "Values", "select_processors_publications_s", "group_by_processors_publications_p", "group_by_processors_publications_s", "select_processors_publications_aggregated_p", "select_processors_subscriptions_aggregated_s", "select_processors_publications_aggregated_s", "join_processors_subscriptions_publications_aggregated_p", "join_processors_subscriptions_publications_aggregated_s", "SessionTasks", "join_tasks_processors_subscriptions_publications_aggregated_p", "join_tasks_processors_subscriptions_publications_aggregated_s", "select_tasks_processors_subscriptions_publications_aggregated_p"]            );
+                [
+                    "Values",
+                    "select_processors_subscriptions_s",
+                    "group_by_processors_subscriptions_p",
+                    "group_by_processors_subscriptions_s",
+                    "select_processors_subscriptions_aggregated_p",
+                    "Values",
+                    "select_processors_publications_s",
+                    "group_by_processors_publications_p",
+                    "group_by_processors_publications_s",
+                    "select_processors_publications_aggregated_p",
+                    "select_processors_subscriptions_aggregated_s",
+                    "select_processors_publications_aggregated_s",
+                    "join_processors_subscriptions_publications_aggregated_p",
+                    "join_processors_subscriptions_publications_aggregated_s",
+                    "SessionTasks",
+                    "join_tasks_processors_subscriptions_publications_aggregated_p",
+                    "join_tasks_processors_subscriptions_publications_aggregated_s",
+                    "select_tasks_processors_subscriptions_publications_aggregated_p"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("subscribe_type");
             assert_eq!(
                 column,
-                ["Any", "Any", "Any", "All", "All", "Any", "Any", "Any", "All", "All", "All", "All", "All", "All", "All", "All", "All", "All"]
+                [
+                    "Any", "Any", "Any", "All", "All", "Any", "Any", "Any", "All", "All", "All",
+                    "All", "All", "All", "All", "All", "All", "All"
+                ]
             );
             let column = table_reading.get_column_as_vec_str("update_type");
             assert_eq!(
                 column,
-                ["TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate", "TableChangedSinceLastRunUpdate"]
+                [
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate"
+                ]
             );
             let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
             assert_eq!(
@@ -378,91 +491,73 @@ mod tests {
             let column = table_reading.get_column_as_vec_str("session_name");
             assert_eq!(
                 column,
-                ["view_task_session",
-    "view_task_session",
-    "view_task_session",
-    "view_task_session",
-    "view_task_session",
-    "view_task_session",
-    "view_task_session"]
+                [
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session"
+                ]
             );
             let column = table_reading.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
-                ["group_by_processors_subscriptions_p",
-    "select_processors_subscriptions_aggregated_p",
-    "group_by_processors_publications_p",
-    "select_processors_publications_aggregated_p",
-    "join_processors_subscriptions_publications_aggregated_p",
-    "join_tasks_processors_subscriptions_publications_aggregated_p",
-    "select_tasks_processors_subscriptions_publications_aggregated_p"]
+                [
+                    "group_by_processors_subscriptions_p",
+                    "select_processors_subscriptions_aggregated_p",
+                    "group_by_processors_publications_p",
+                    "select_processors_publications_aggregated_p",
+                    "join_processors_subscriptions_publications_aggregated_p",
+                    "join_tasks_processors_subscriptions_publications_aggregated_p",
+                    "select_tasks_processors_subscriptions_publications_aggregated_p"
+                ]
             );
             let column = table_reading.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
-                ["GroupBy",
-    "Select",
-    "GroupBy",
-    "Select",
-    "Join",
-    "Join",
-    "Select"]
+                [
+                    "GroupBy", "Select", "GroupBy", "Select", "Join", "Join", "Select"
+                ]
             );
             let column = table_reading.get_column_as_vec_str("publication_subscription_name");
             assert_eq!(
                 column,
-                ["Replace",
-    "Replace",
-    "Replace",
-    "Replace",
-    "Replace",
-    "Replace",
-    "Replace"]
+                [
+                    "Replace", "Replace", "Replace", "Replace", "Replace", "Replace", "Replace"
+                ]
             );
             let column = table_reading.get_column_as_vec_str("publication_subscription_table_name");
             assert_eq!(
                 column,
-                ["group_by_processors_subscriptions_s",
-    "select_processors_subscriptions_aggregated_s",
-    "group_by_processors_publications_s",
-    "select_processors_publications_aggregated_s",
-    "join_processors_subscriptions_publications_aggregated_s",
-    "join_tasks_processors_subscriptions_publications_aggregated_s",
-    "select_tasks_processors_subscriptions_publications_aggregated_s"]
+                [
+                    "group_by_processors_subscriptions_s",
+                    "select_processors_subscriptions_aggregated_s",
+                    "group_by_processors_publications_s",
+                    "select_processors_publications_aggregated_s",
+                    "join_processors_subscriptions_publications_aggregated_s",
+                    "join_tasks_processors_subscriptions_publications_aggregated_s",
+                    "select_tasks_processors_subscriptions_publications_aggregated_s"
+                ]
             );
             let column = table_reading.get_column_as_vec_str("subscribe_type");
-            assert_eq!(
-                column,
-                ["Any",
-    "All",
-    "Any",
-    "All",
-    "All",
-    "All",
-    "All"]
-            );
+            assert_eq!(column, ["Any", "All", "Any", "All", "All", "All", "All"]);
             let column = table_reading.get_column_as_vec_str("update_type");
             assert_eq!(
                 column,
-                ["TableChangedSinceLastRunUpdate",
-    "TableChangedSinceLastRunUpdate",
-    "TableChangedSinceLastRunUpdate",
-    "TableChangedSinceLastRunUpdate",
-    "TableChangedSinceLastRunUpdate",
-    "TableChangedSinceLastRunUpdate",
-    "TableChangedSinceLastRunUpdate"]
+                [
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate",
+                    "TableChangedSinceLastRunUpdate"
+                ]
             );
             let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
-            assert_eq!(
-                column,
-                [0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,]
-            );
+            assert_eq!(column, [0, 0, 0, 0, 0, 0, 0,]);
             let table_reading = session_reading
                 .get_states()
                 .get("select_processors_subscriptions_aggregated_s")
@@ -471,49 +566,89 @@ mod tests {
             let column = table_reading.get_column_as_vec_str("session_name");
             assert_eq!(
                 column,
-                ["view_task_session",
-    "view_task_session",
-    "view_task_session",
-    "view_task_session",
-    "view_task_session",
-    "view_task_session",
-    "view_task_session"]
+                [
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session"
+                ]
             );
             let column = table_reading.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
-                ["group_by_processors_publications_p",
-    "group_by_processors_subscriptions_p",
-    "join_processors_subscriptions_publications_aggregated_p",
-    "join_tasks_processors_subscriptions_publications_aggregated_p",
-    "select_processors_publications_aggregated_p",
-    "select_processors_subscriptions_aggregated_p",
-    "select_tasks_processors_subscriptions_publications_aggregated_p"]
+                [
+                    "group_by_processors_publications_p",
+                    "group_by_processors_subscriptions_p",
+                    "join_processors_subscriptions_publications_aggregated_p",
+                    "join_tasks_processors_subscriptions_publications_aggregated_p",
+                    "select_processors_publications_aggregated_p",
+                    "select_processors_subscriptions_aggregated_p",
+                    "select_tasks_processors_subscriptions_publications_aggregated_p"
+                ]
             );
             let column = table_reading.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
-                ["GroupBy",
-    "GroupBy",
-    "Join",
-    "Join",
-    "Select",
-    "Select",
-    "Select"]
+                [
+                    "GroupBy", "GroupBy", "Join", "Join", "Select", "Select", "Select"
+                ]
             );
-            let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
+            let column = table_reading
+                .get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
                 flattened,
-                ["OnUpdateEmpty", "AlwaysFullTable", "AlwaysFullTable", "OnUpdateEmpty", "AlwaysFullTable", "AlwaysFullTable", "OnUpdateFullTable", "OnUpdateFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable"]
+                [
+                    "OnUpdateEmpty",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateEmpty",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable"
+                ]
             );
-            let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
+            let column = table_reading
+                .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
                 flattened,
-                ["Values", "select_processors_publications_s", "group_by_processors_publications_p", "Values", "select_processors_subscriptions_s", "group_by_processors_subscriptions_p", "select_processors_subscriptions_aggregated_s", "select_processors_publications_aggregated_s", "join_processors_subscriptions_publications_aggregated_p", "join_processors_subscriptions_publications_aggregated_s", "SessionTasks", "join_tasks_processors_subscriptions_publications_aggregated_p", "group_by_processors_publications_s", "select_processors_publications_aggregated_p", "group_by_processors_subscriptions_s", "select_processors_subscriptions_aggregated_p", "join_tasks_processors_subscriptions_publications_aggregated_s", "select_tasks_processors_subscriptions_publications_aggregated_p"]
+                [
+                    "Values",
+                    "select_processors_publications_s",
+                    "group_by_processors_publications_p",
+                    "Values",
+                    "select_processors_subscriptions_s",
+                    "group_by_processors_subscriptions_p",
+                    "select_processors_subscriptions_aggregated_s",
+                    "select_processors_publications_aggregated_s",
+                    "join_processors_subscriptions_publications_aggregated_p",
+                    "join_processors_subscriptions_publications_aggregated_s",
+                    "SessionTasks",
+                    "join_tasks_processors_subscriptions_publications_aggregated_p",
+                    "group_by_processors_publications_s",
+                    "select_processors_publications_aggregated_p",
+                    "group_by_processors_subscriptions_s",
+                    "select_processors_subscriptions_aggregated_p",
+                    "join_tasks_processors_subscriptions_publications_aggregated_s",
+                    "select_tasks_processors_subscriptions_publications_aggregated_p"
+                ]
             );
-            
+
             let table_reading = session_reading
                 .get_states()
                 .get("select_processors_publications_aggregated_s")
@@ -522,37 +657,38 @@ mod tests {
             let column = table_reading.get_column_as_vec_str("session_name");
             assert_eq!(
                 column,
-                ["view_task_session",
-    "view_task_session",
-    "view_task_session",
-    "view_task_session",
-    "view_task_session",
-    "view_task_session",
-    "view_task_session"]
+                [
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session"
+                ]
             );
             let column = table_reading.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
-                ["group_by_processors_publications_p",
-    "group_by_processors_subscriptions_p",
-    "join_processors_subscriptions_publications_aggregated_p",
-    "join_tasks_processors_subscriptions_publications_aggregated_p",
-    "select_processors_publications_aggregated_p",
-    "select_processors_subscriptions_aggregated_p",
-    "select_tasks_processors_subscriptions_publications_aggregated_p"]
+                [
+                    "group_by_processors_publications_p",
+                    "group_by_processors_subscriptions_p",
+                    "join_processors_subscriptions_publications_aggregated_p",
+                    "join_tasks_processors_subscriptions_publications_aggregated_p",
+                    "select_processors_publications_aggregated_p",
+                    "select_processors_subscriptions_aggregated_p",
+                    "select_tasks_processors_subscriptions_publications_aggregated_p"
+                ]
             );
             let column = table_reading.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
-                ["GroupBy",
-    "GroupBy",
-    "Join",
-    "Join",
-    "Select",
-    "Select",
-    "Select"]
+                [
+                    "GroupBy", "GroupBy", "Join", "Join", "Select", "Select", "Select"
+                ]
             );
-            let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
+            let column = table_reading
+                .get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
                 flattened,
@@ -560,12 +696,19 @@ mod tests {
                     "Replace", "Replace", "Replace", "Replace", "Replace", "Replace", "Replace"
                 ]
             );
-            let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
+            let column = table_reading
+                .get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
                 flattened,
                 [
-                    "group_by_processors_publications_s", "group_by_processors_subscriptions_s", "join_processors_subscriptions_publications_aggregated_s", "join_tasks_processors_subscriptions_publications_aggregated_s", "select_processors_publications_aggregated_s", "select_processors_subscriptions_aggregated_s", "select_tasks_processors_subscriptions_publications_aggregated_s"
+                    "group_by_processors_publications_s",
+                    "group_by_processors_subscriptions_s",
+                    "join_processors_subscriptions_publications_aggregated_s",
+                    "join_tasks_processors_subscriptions_publications_aggregated_s",
+                    "select_processors_publications_aggregated_s",
+                    "select_processors_subscriptions_aggregated_s",
+                    "select_tasks_processors_subscriptions_publications_aggregated_s"
                 ]
             );
 
@@ -577,82 +720,124 @@ mod tests {
             let column = table_reading.get_column_as_vec_str("session_name");
             assert_eq!(
                 column,
-                ["view_task_session",
-    "view_task_session",
-    "view_task_session",
-    "view_task_session",
-    "view_task_session",
-    "view_task_session",
-    "view_task_session"]
+                [
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session",
+                    "view_task_session"
+                ]
             );
             let column = table_reading.get_column_as_vec_str("task_name");
             assert_eq!(
                 column,
-                ["group_by_processors_publications_t",
-    "group_by_processors_subscriptions_t",
-    "join_tasks_processors_subscriptions_publications_aggregated_t",
-    "join_tasks_processors_subscriptions_publications_aggregated_t",
-    "group_by_processors_publications_t",
-    "group_by_processors_subscriptions_t",
-    "join_tasks_processors_subscriptions_publications_aggregated_t"]
+                [
+                    "group_by_processors_publications_t",
+                    "group_by_processors_subscriptions_t",
+                    "join_tasks_processors_subscriptions_publications_aggregated_t",
+                    "join_tasks_processors_subscriptions_publications_aggregated_t",
+                    "group_by_processors_publications_t",
+                    "group_by_processors_subscriptions_t",
+                    "join_tasks_processors_subscriptions_publications_aggregated_t"
+                ]
             );
             let column = table_reading.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
-                ["group_by_processors_publications_p",
-    "group_by_processors_subscriptions_p",
-    "join_processors_subscriptions_publications_aggregated_p",
-    "join_tasks_processors_subscriptions_publications_aggregated_p",
-    "select_processors_publications_aggregated_p",
-    "select_processors_subscriptions_aggregated_p",
-    "select_tasks_processors_subscriptions_publications_aggregated_p"]
+                [
+                    "group_by_processors_publications_p",
+                    "group_by_processors_subscriptions_p",
+                    "join_processors_subscriptions_publications_aggregated_p",
+                    "join_tasks_processors_subscriptions_publications_aggregated_p",
+                    "select_processors_publications_aggregated_p",
+                    "select_processors_subscriptions_aggregated_p",
+                    "select_tasks_processors_subscriptions_publications_aggregated_p"
+                ]
             );
             let column = table_reading.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
-                ["GroupBy",
-    "GroupBy",
-    "Join",
-    "Join",
-    "Select",
-    "Select",
-    "Select"]
+                [
+                    "GroupBy", "GroupBy", "Join", "Join", "Select", "Select", "Select"
+                ]
             );
-            let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
+            let column = table_reading
+                .get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
                 flattened,
-                ["OnUpdateEmpty", "AlwaysFullTable", "AlwaysFullTable", "OnUpdateEmpty", "AlwaysFullTable", "AlwaysFullTable", "OnUpdateFullTable", "OnUpdateFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable"]
+                [
+                    "OnUpdateEmpty",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateEmpty",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "OnUpdateFullTable",
+                    "OnUpdateFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable",
+                    "AlwaysFullTable"
+                ]
             );
-            let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
+            let column = table_reading
+                .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
                 flattened,
-                ["Values", "select_processors_publications_s", "group_by_processors_publications_p", "Values", "select_processors_subscriptions_s", "group_by_processors_subscriptions_p", "select_processors_subscriptions_aggregated_s", "select_processors_publications_aggregated_s", "join_processors_subscriptions_publications_aggregated_p", "join_processors_subscriptions_publications_aggregated_s", "SessionTasks", "join_tasks_processors_subscriptions_publications_aggregated_p", "group_by_processors_publications_s", "select_processors_publications_aggregated_p", "group_by_processors_subscriptions_s", "select_processors_subscriptions_aggregated_p", "join_tasks_processors_subscriptions_publications_aggregated_s", "select_tasks_processors_subscriptions_publications_aggregated_p"]
+                [
+                    "Values",
+                    "select_processors_publications_s",
+                    "group_by_processors_publications_p",
+                    "Values",
+                    "select_processors_subscriptions_s",
+                    "group_by_processors_subscriptions_p",
+                    "select_processors_subscriptions_aggregated_s",
+                    "select_processors_publications_aggregated_s",
+                    "join_processors_subscriptions_publications_aggregated_p",
+                    "join_processors_subscriptions_publications_aggregated_s",
+                    "SessionTasks",
+                    "join_tasks_processors_subscriptions_publications_aggregated_p",
+                    "group_by_processors_publications_s",
+                    "select_processors_publications_aggregated_p",
+                    "group_by_processors_subscriptions_s",
+                    "select_processors_subscriptions_aggregated_p",
+                    "join_tasks_processors_subscriptions_publications_aggregated_s",
+                    "select_tasks_processors_subscriptions_publications_aggregated_p"
+                ]
             );
-            let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
+            let column = table_reading
+                .get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
                 flattened,
-                ["Replace",
-    "Replace",
-    "Replace",
-    "Replace",
-    "Replace",
-    "Replace",
-    "Replace"]
+                [
+                    "Replace", "Replace", "Replace", "Replace", "Replace", "Replace", "Replace"
+                ]
             );
-            let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
+            let column = table_reading
+                .get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
                 flattened,
-                ["group_by_processors_publications_s",
-    "group_by_processors_subscriptions_s",
-    "join_processors_subscriptions_publications_aggregated_s",
-    "join_tasks_processors_subscriptions_publications_aggregated_s",
-    "select_processors_publications_aggregated_s",
-    "select_processors_subscriptions_aggregated_s",
-    "select_tasks_processors_subscriptions_publications_aggregated_s"]
+                [
+                    "group_by_processors_publications_s",
+                    "group_by_processors_subscriptions_s",
+                    "join_processors_subscriptions_publications_aggregated_s",
+                    "join_tasks_processors_subscriptions_publications_aggregated_s",
+                    "select_processors_publications_aggregated_s",
+                    "select_processors_subscriptions_aggregated_s",
+                    "select_tasks_processors_subscriptions_publications_aggregated_s"
+                ]
             );
         }
 

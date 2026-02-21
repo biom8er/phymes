@@ -34,9 +34,9 @@ use super::tool_parser::extract_tool_calls_str;
 /// - Supports OpenAI and Llama tool response formats
 /// - Parsed messages are routed based on the function call
 /// - Messages that cannot be parsed are sent the default publish subject
-/// 
+///
 /// # Todo
-/// 
+///
 /// - Better support different tool response formats through the config
 #[derive(Debug)]
 pub struct MessageParserProcessor {

@@ -3,7 +3,14 @@ use arrow::datatypes::SchemaRef;
 use clap::ValueEnum;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, RuntimeEnv, StateMap, Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableSubscription, TableTrait, TaskMap, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_diagnostics_to_tables
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies,
+    AvailableTableUpdatePolicies, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap,
+    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjects, ProcessorSubjectsBuilder,
+    ProcessorSubjectsMap, RuntimeEnv, StateMap, Table, TableBuilder, TableBuilderTrait,
+    TablePublication, TablePublicationTrait, TableSubscription, TableTrait, TaskMap,
+    create_chat_record_batch, create_session_supersteps_batch,
+    create_session_tasks_subscribe_batch, create_subjects_change_log_batch,
+    create_subjects_num_rows_batch, from_diagnostics_to_tables,
 };
 use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
 use std::sync::Arc;
@@ -352,7 +359,7 @@ impl SessionContext {
         let (_update, errors) = self.update_subjects_from_messages(messages);
         if let Some(table) = errors {
             let error = table.get_column_as_vec_str("content").join("; ");
-            return Err(anyhow!(error))
+            return Err(anyhow!(error));
         }
 
         Ok(())
@@ -658,7 +665,7 @@ impl SessionContext {
         let (_update, errors) = self.update_subjects_from_messages(messages);
         if let Some(table) = errors {
             let error = table.get_column_as_vec_str("content").join("; ");
-            return Err(anyhow!(error))
+            return Err(anyhow!(error));
         }
         Ok(next_superstep)
     }
@@ -800,7 +807,10 @@ impl SessionContext {
 
     /// Update the state from the published messages
     ///   and return a table of subject change logs and any errors
-    pub fn update_subjects_from_messages(&self, messages: IPCMessageMap) -> (Option<Table>, Option<Table>) {
+    pub fn update_subjects_from_messages(
+        &self,
+        messages: IPCMessageMap,
+    ) -> (Option<Table>, Option<Table>) {
         let mut subject_names = Vec::new();
         let mut task_names = Vec::new();
         let mut session_names = Vec::new();
@@ -834,7 +844,9 @@ impl SessionContext {
                         // Check for a mismatch in the schema and intercept any errors
                         let num_rows_old = state.read().count_rows();
                         if let Err(err) = state.write().publish_to_table(batches, update) {
-                            let error = format!("Subject `{table_name}` from publisher `{publisher}` failed to update the target table with error `{err:?}`");
+                            let error = format!(
+                                "Subject `{table_name}` from publisher `{publisher}` failed to update the target table with error `{err:?}`"
+                            );
                             errors.push(error);
                             continue;
                         }
@@ -848,7 +860,9 @@ impl SessionContext {
                         timestamps.push(step as i64);
                     }
                     Err(err) => {
-                        let error = format!("Subject `{table_name}` with update `{update:?}` from publisher `{publisher}` failed to build the Table with error `{err:?}`");
+                        let error = format!(
+                            "Subject `{table_name}` with update `{update:?}` from publisher `{publisher}` failed to build the Table with error `{err:?}`"
+                        );
                         errors.push(error);
                     }
                 }
@@ -865,27 +879,42 @@ impl SessionContext {
         // Prepare the change log table
         let change_log = if !subject_names.is_empty() {
             let batch = create_subjects_change_log_batch(
-            subject_names,
-            task_names,
-            session_names,
-            num_rows_deltas,
-            timestamps,
-            ).unwrap();
-            Some(AvailableSubjects::SubjectsChangeLog.to_table(None, Some(vec![batch])).unwrap())
-        } else {
-            None
-        };        
-
-        // Prepare the errors table
-        let error_log = if !errors.is_empty() {
-            let tools = errors.iter().map(|_| "tool".to_string()).collect::<Vec<_>>();
-            let timestamps = errors.iter().map(|_| create_timestamp_micros()).collect::<Vec<_>>();
-            let batch = create_chat_record_batch(tools, errors, timestamps).unwrap();
-            Some(AvailableSubjects::SessionErrors.to_table(None, Some(vec![batch])).unwrap())
+                subject_names,
+                task_names,
+                session_names,
+                num_rows_deltas,
+                timestamps,
+            )
+            .unwrap();
+            Some(
+                AvailableSubjects::SubjectsChangeLog
+                    .to_table(None, Some(vec![batch]))
+                    .unwrap(),
+            )
         } else {
             None
         };
-        
+
+        // Prepare the errors table
+        let error_log = if !errors.is_empty() {
+            let tools = errors
+                .iter()
+                .map(|_| "tool".to_string())
+                .collect::<Vec<_>>();
+            let timestamps = errors
+                .iter()
+                .map(|_| create_timestamp_micros())
+                .collect::<Vec<_>>();
+            let batch = create_chat_record_batch(tools, errors, timestamps).unwrap();
+            Some(
+                AvailableSubjects::SessionErrors
+                    .to_table(None, Some(vec![batch]))
+                    .unwrap(),
+            )
+        } else {
+            None
+        };
+
         (change_log, error_log)
     }
 }
@@ -1135,13 +1164,22 @@ mod tests {
         // check the updates
         assert_eq!(updates.as_ref().unwrap().count_rows(), 1);
         assert!(errors.is_none());
-        let col = updates.as_ref().unwrap().get_column_as_vec_str("subject_name");
+        let col = updates
+            .as_ref()
+            .unwrap()
+            .get_column_as_vec_str("subject_name");
         assert_eq!(col, ["state_1"]);
         let col = updates.as_ref().unwrap().get_column_as_vec_str("task_name");
         assert_eq!(col, ["session_1"]);
-        let col = updates.as_ref().unwrap().get_column_as_vec_str("session_name");
+        let col = updates
+            .as_ref()
+            .unwrap()
+            .get_column_as_vec_str("session_name");
         assert_eq!(col, ["session_1"]);
-        let col = updates.as_ref().unwrap().get_column_as_vec_primitive::<i64>("num_rows_delta")?;
+        let col = updates
+            .as_ref()
+            .unwrap()
+            .get_column_as_vec_primitive::<i64>("num_rows_delta")?;
         assert_eq!(col, [12]);
 
         // check the session context
@@ -1220,7 +1258,7 @@ mod tests {
         );
         let mut input = HashMap::<String, IPCMessage>::new();
         input.insert(message.get_name().to_string(), message);
-        let (updates, errors)  = session_context.update_subjects_from_messages(input);
+        let (updates, errors) = session_context.update_subjects_from_messages(input);
         assert!(updates.is_none());
         assert!(errors.is_some());
         assert_eq!(errors.unwrap().count_rows(), 1);

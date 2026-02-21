@@ -157,13 +157,17 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, create_values_record_batch
+        AvailableSubjects, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage,
+        MappableTrait, MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication,
+        TableTrait, create_values_record_batch,
     };
     use phymes_data::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, plans::view_task_session::ViewTaskSession
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
+        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
+        plans::view_task_session::ViewTaskSession,
     };
 
     use super::*;
@@ -208,7 +212,8 @@ mod tests {
                 ..Default::default()
             };
             let http_client_config_json = serde_json::to_string(&http_client_config)?;
-            let http_client_config_batch = create_values_record_batch(vec![http_client_config_json])?;
+            let http_client_config_batch =
+                create_values_record_batch(vec![http_client_config_json])?;
             let http_client_config_table = TableBuilder::new()
                 .with_name(name)
                 .with_record_batches(vec![http_client_config_batch])?
@@ -219,7 +224,9 @@ mod tests {
                     .with_name(http_client_config_table.get_name())
                     .with_publisher(download_content_session.session_context_name)
                     .with_subject(http_client_config_table.get_name())
-                    .with_update(&TablePublication::Replace { table_name: http_client_config_table.get_name().to_string() })
+                    .with_update(&TablePublication::Replace {
+                        table_name: http_client_config_table.get_name().to_string(),
+                    })
                     .with_message(http_client_config_table.to_ipc_stream()?)
                     .build()?,
             );
@@ -232,7 +239,9 @@ mod tests {
                     .with_name(messages)
                     .with_publisher(download_content_session.session_context_name)
                     .with_subject(messages)
-                    .with_update(&TablePublication::Replace { table_name: messages.to_string() })
+                    .with_update(&TablePublication::Replace {
+                        table_name: messages.to_string(),
+                    })
                     .with_message(message_builder.clone().build()?.to_ipc_stream()?)
                     .build()?,
             );
@@ -267,7 +276,8 @@ mod tests {
                 ..Default::default()
             };
             let http_client_config_json = serde_json::to_string(&http_client_config)?;
-            let http_client_config_batch = create_values_record_batch(vec![http_client_config_json])?;
+            let http_client_config_batch =
+                create_values_record_batch(vec![http_client_config_json])?;
             let http_client_config_table = TableBuilder::new()
                 .with_name(name)
                 .with_record_batches(vec![http_client_config_batch])?
@@ -278,7 +288,9 @@ mod tests {
                     .with_name(http_client_config_table.get_name())
                     .with_publisher(download_content_session.session_context_name)
                     .with_subject(http_client_config_table.get_name())
-                    .with_update(&TablePublication::Replace { table_name: http_client_config_table.get_name().to_string() })
+                    .with_update(&TablePublication::Replace {
+                        table_name: http_client_config_table.get_name().to_string(),
+                    })
                     .with_message(http_client_config_table.to_ipc_stream()?)
                     .build()?,
             );
@@ -291,7 +303,9 @@ mod tests {
                     .with_name(messages)
                     .with_publisher(download_content_session.session_context_name)
                     .with_subject(messages)
-                    .with_update(&TablePublication::Replace { table_name: messages.to_string() })
+                    .with_update(&TablePublication::Replace {
+                        table_name: messages.to_string(),
+                    })
                     .with_message(message_builder.clone().build()?.to_ipc_stream()?)
                     .build()?,
             );
@@ -338,7 +352,11 @@ mod tests {
             for c in column {
                 assert!(c > 0);
             }
-            let column = table_reading.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+            let column = table_reading
+                .get_column_as_vec_nested_primitive::<u8>("bytes")?
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>();
             assert_eq!(column.len(), 505519);
             let table_reading = session_reading
                 .get_states()
@@ -346,7 +364,12 @@ mod tests {
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("filename");
-            assert_eq!(column, ["esearch.fcgi?db=pubmed&term=Diabetes%20Mellitus%5BMeSH%20Terms%5D%20AND%20%22Lancet%22%5BJournal%5D&retmode=json&retmax=5&mindate=2020&maxdate=2023"]);
+            assert_eq!(
+                column,
+                [
+                    "esearch.fcgi?db=pubmed&term=Diabetes%20Mellitus%5BMeSH%20Terms%5D%20AND%20%22Lancet%22%5BJournal%5D&retmode=json&retmax=5&mindate=2020&maxdate=2023"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("extension");
             assert_eq!(column, ["application/json; charset=UTF-8"]);
             let column = table_reading.get_column_as_vec_str("metadata");
@@ -355,17 +378,21 @@ mod tests {
             for c in column {
                 assert!(c > 0);
             }
-            let column = table_reading.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+            let column = table_reading
+                .get_column_as_vec_nested_primitive::<u8>("bytes")?
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>();
             assert_eq!(column.len(), 392);
         }
         Ok(())
     }
-    
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_download_content_session_wo_subjects() -> Result<()> {
         // View task session
-        let view_task_session = ViewTaskSession::new("view_task_session", &["download_pdf_p", "download_json_p"]);
+        let view_task_session =
+            ViewTaskSession::new("view_task_session", &["download_pdf_p", "download_json_p"]);
         let view_task_session_builder = SessionContextBuilder::from_mermaid_flowchart(
             &view_task_session.as_mermaid_flowchart(),
             false,
@@ -411,7 +438,8 @@ mod tests {
                 ..Default::default()
             };
             let http_client_config_json = serde_json::to_string(&http_client_config)?;
-            let http_client_config_batch = create_values_record_batch(vec![http_client_config_json])?;
+            let http_client_config_batch =
+                create_values_record_batch(vec![http_client_config_json])?;
             let http_client_config_table = TableBuilder::new()
                 .with_name(name)
                 .with_record_batches(vec![http_client_config_batch])?
@@ -422,7 +450,9 @@ mod tests {
                     .with_name(http_client_config_table.get_name())
                     .with_publisher(download_content_session.session_context_name)
                     .with_subject(http_client_config_table.get_name())
-                    .with_update(&TablePublication::Replace { table_name: http_client_config_table.get_name().to_string() })
+                    .with_update(&TablePublication::Replace {
+                        table_name: http_client_config_table.get_name().to_string(),
+                    })
                     .with_message(http_client_config_table.to_ipc_stream()?)
                     .build()?,
             );
@@ -456,7 +486,8 @@ mod tests {
                 ..Default::default()
             };
             let http_client_config_json = serde_json::to_string(&http_client_config)?;
-            let http_client_config_batch = create_values_record_batch(vec![http_client_config_json])?;
+            let http_client_config_batch =
+                create_values_record_batch(vec![http_client_config_json])?;
             let http_client_config_table = TableBuilder::new()
                 .with_name(name)
                 .with_record_batches(vec![http_client_config_batch])?
@@ -467,7 +498,9 @@ mod tests {
                     .with_name(http_client_config_table.get_name())
                     .with_publisher(download_content_session.session_context_name)
                     .with_subject(http_client_config_table.get_name())
-                    .with_update(&TablePublication::Replace { table_name: http_client_config_table.get_name().to_string() })
+                    .with_update(&TablePublication::Replace {
+                        table_name: http_client_config_table.get_name().to_string(),
+                    })
                     .with_message(http_client_config_table.to_ipc_stream()?)
                     .build()?,
             );
@@ -497,7 +530,11 @@ mod tests {
             for c in column {
                 assert!(c > 0);
             }
-            let column = table_reading.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+            let column = table_reading
+                .get_column_as_vec_nested_primitive::<u8>("bytes")?
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>();
             assert_eq!(column.len(), 505519);
             let table_reading = session_reading
                 .get_states()
@@ -505,7 +542,12 @@ mod tests {
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("filename");
-            assert_eq!(column, ["esearch.fcgi?db=pubmed&term=Diabetes%20Mellitus%5BMeSH%20Terms%5D%20AND%20%22Lancet%22%5BJournal%5D&retmode=json&retmax=5&mindate=2020&maxdate=2023"]);
+            assert_eq!(
+                column,
+                [
+                    "esearch.fcgi?db=pubmed&term=Diabetes%20Mellitus%5BMeSH%20Terms%5D%20AND%20%22Lancet%22%5BJournal%5D&retmode=json&retmax=5&mindate=2020&maxdate=2023"
+                ]
+            );
             let column = table_reading.get_column_as_vec_str("extension");
             assert_eq!(column, ["application/json; charset=UTF-8"]);
             let column = table_reading.get_column_as_vec_str("metadata");
@@ -514,7 +556,11 @@ mod tests {
             for c in column {
                 assert!(c > 0);
             }
-            let column = table_reading.get_column_as_vec_nested_primitive::<u8>("bytes")?.into_iter().flatten().collect::<Vec<_>>();
+            let column = table_reading
+                .get_column_as_vec_nested_primitive::<u8>("bytes")?
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>();
             assert_eq!(column.len(), 392);
         }
         Ok(())

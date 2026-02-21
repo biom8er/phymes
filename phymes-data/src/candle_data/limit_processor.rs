@@ -146,13 +146,8 @@ impl LimitStream {
                 .unwrap()
                 .to_owned(),
         );
-        self.fetch.replace(
-            self.config
-                .as_ref()
-                .unwrap()
-                .fetch
-                .to_owned(),
-        );
+        self.fetch
+            .replace(self.config.as_ref().unwrap().fetch.to_owned());
         Ok(())
     }
 

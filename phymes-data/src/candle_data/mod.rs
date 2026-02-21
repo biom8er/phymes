@@ -2,8 +2,8 @@ mod attachment_aggregator_processor;
 mod coalesce_processor;
 mod data_config;
 mod data_processor;
-mod limit_processor;
 mod limit_config;
+mod limit_processor;
 mod tensor_service;
 
 pub use attachment_aggregator_processor::{
@@ -17,6 +17,6 @@ pub use data_config::{
 pub use data_processor::CandleDataProcessor;
 #[allow(unused_imports)]
 pub(crate) use data_processor::test_candle_ops_processor;
-pub use limit_processor::LimitProcessor;
 pub use limit_config::LimitConfig;
+pub use limit_processor::LimitProcessor;
 pub use tensor_service::{CandleTensorService, TensorProcessorTrait, device};

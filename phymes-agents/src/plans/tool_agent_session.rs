@@ -8,7 +8,8 @@ use phymes_core::{
     create_schema_from_fields, create_tools_record_batch,
 };
 use phymes_data::{
-    AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator, DataConfig, LimitConfig, ToolTrait
+    AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
+    DataConfig, LimitConfig, ToolTrait,
 };
 #[cfg(feature = "api")]
 use phymes_ml::AvailableOpenAIAssets;
@@ -472,8 +473,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::PackTabular
-                        .build_arc(self.tool_attachment_processor_name),
+                    AvailableProcessors::PackTabular.build_arc(self.tool_attachment_processor_name),
                 )
                 .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
@@ -493,8 +493,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::PackTabular
-                        .build_arc(self.tool_summary_processor_name),
+                    AvailableProcessors::PackTabular.build_arc(self.tool_summary_processor_name),
                 )
                 .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
@@ -514,8 +513,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::PackTabular
-                        .build_arc(self.hitl_summary_processor_name),
+                    AvailableProcessors::PackTabular.build_arc(self.hitl_summary_processor_name),
                 )
                 .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),

@@ -12,8 +12,8 @@ use phymes_data::{
     AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,
     CandleDataProcessor, CoalesceProcessor, DataAggregatorOperator, DataCastOperator,
     DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig,
-    DataConfigTrait, DataDistanceOperator, DataStreamManager, LimitConfig,
-    LimitProcessor, ToolTrait,
+    DataConfigTrait, DataDistanceOperator, DataStreamManager, LimitConfig, LimitProcessor,
+    ToolTrait,
 };
 #[cfg(feature = "api")]
 use phymes_data::{
@@ -23,7 +23,8 @@ use phymes_data::{
 };
 use phymes_ml::{
     AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, CandleEmbedConfig,
-    CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor, ToolCallConfig, ToolCallProcessor,
+    CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor, ToolCallConfig,
+    ToolCallProcessor,
 };
 #[cfg(feature = "api")]
 use phymes_ml::{AvailableOpenAIAssets, OpenAIChatProcessor, OpenAIEmbedProcessor};
@@ -743,8 +744,8 @@ impl AvailableProcessors {
             | Self::Select
             | Self::Sort
             | Self::VectorDistance
-            | Self::ApplyTemplate 
-            | Self::PackTabular=> {
+            | Self::ApplyTemplate
+            | Self::PackTabular => {
                 Arc::new(CandleDataProcessor::new(name, self.to_string().as_str()))
             }
             Self::CoalesceProcessor => {
@@ -813,8 +814,8 @@ impl AvailableProcessors {
             | Self::Select
             | Self::Sort
             | Self::VectorDistance
-            | Self::ApplyTemplate 
-            | Self::PackTabular=> builder.build_arc::<CandleDataProcessor>(),
+            | Self::ApplyTemplate
+            | Self::PackTabular => builder.build_arc::<CandleDataProcessor>(),
             Self::CoalesceProcessor => builder.build_arc::<CoalesceProcessor>(),
             Self::LimitProcessor => builder.build_arc::<LimitProcessor>(),
             Self::AttachmentAggregatorProcessor => {
@@ -859,11 +860,9 @@ impl AvailableProcessors {
             | Self::VectorDistance
             | Self::ApplyTemplate
             | Self::AttachmentAggregatorProcessor
-            | Self::MessageAggregatorProcessor 
+            | Self::MessageAggregatorProcessor
             | Self::PackTabular => "DataConfig",
-            Self::CoalesceProcessor | Self::LimitProcessor => {
-                "LimitConfig"
-            }
+            Self::CoalesceProcessor | Self::LimitProcessor => "LimitConfig",
             Self::ToolCallProcessor => "ToolCallConfig",
             Self::CandleChatProcessor | Self::MessageParserProcessor => "CandleChatConfig",
             Self::CandleEmbedProcessor => "CandleEmbedConfig",

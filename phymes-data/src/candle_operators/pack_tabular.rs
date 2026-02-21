@@ -4,7 +4,9 @@ use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, CsvFormat, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType, create_blob_batch, create_chat_record_batch
+    BuildableTrait, BuilderTrait, CsvFormat, DataFormat, Function, FunctionParameters,
+    JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableTrait, Tool,
+    ToolType, create_blob_batch, create_chat_record_batch,
 };
 use phymes_diagnostics::create_timestamp_micros;
 use serde::{Deserialize, Serialize};
@@ -86,9 +88,7 @@ impl DataOperatorTrait for PackTabular {
             "Missing `format` for `{}`.",
             Self::get_static_name()
         ))?;
-        Ok(PackTabular {
-            format,
-        })
+        Ok(PackTabular { format })
     }
     fn forward(
         &self,
@@ -200,10 +200,7 @@ pub fn table_and_data_format_to_record_batch(
 
 /// Pack tabular data in either CSV or JSON format from Bytes
 #[instrument(skip(lhs_args))]
-pub fn pack_tabular(
-    lhs_args: &[RecordBatch],
-    format: &DataFormat,
-) -> Result<RecordBatch> {
+pub fn pack_tabular(lhs_args: &[RecordBatch], format: &DataFormat) -> Result<RecordBatch> {
     // Pack the values
     let args_table = Table::get_builder()
         .with_name("pack_tabular")
@@ -212,11 +209,7 @@ pub fn pack_tabular(
         .concat_record_batches()?;
 
     // Convert to the desired format
-    let batch = table_and_data_format_to_record_batch(
-        &args_table,
-        &format,
-        None,
-    )?;
+    let batch = table_and_data_format_to_record_batch(&args_table, &format, None)?;
     Ok(batch)
 }
 
@@ -224,8 +217,8 @@ pub fn pack_tabular(
 mod tests {
     use std::sync::Arc;
 
-    use arrow::array::{ArrayRef, StringArray};
     use crate::candle_data::test_candle_ops_processor::make_embeddings_record_batch_str_f32;
+    use arrow::array::{ArrayRef, StringArray};
 
     use super::*;
 
@@ -285,7 +278,10 @@ mod tests {
 
         // Check the results
         assert_eq!(partitions.count_rows(), 1);
-        assert_eq!(partitions.get_column_as_vec_str("filename"), ["pack_tabular"]);
+        assert_eq!(
+            partitions.get_column_as_vec_str("filename"),
+            ["pack_tabular"]
+        );
         assert_eq!(partitions.get_column_as_vec_str("extension"), ["csv"]);
         assert_eq!(partitions.get_column_as_vec_str("metadata"), ["assistant"]);
         let contents_vec = partitions.get_column_as_vec_nested_primitive::<u8>("bytes")?;

@@ -5,11 +5,16 @@ use std::{
 };
 
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, create_session_tasks_subscribe_publish_batch, remove_message_by_subject
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
+    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait,
+    create_session_tasks_subscribe_publish_batch, remove_message_by_subject,
 };
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, HashSet, MetricBuilderTrait
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, HashSet, MetricBuilderTrait,
 };
 
 use anyhow::{Result, anyhow};
@@ -20,11 +25,11 @@ use tracing::{Level, event, instrument};
 use crate::candle_chat::tool_call_config::ToolCallConfig;
 
 /// Processor that parses a [ProcessorTrait] configuration subject and
-///   creates an on-the-fly `SessionTasksSubscribePublish` subject which calls 
+///   creates an on-the-fly `SessionTasksSubscribePublish` subject which calls
 ///   the [ProcessorTrait] with subscriptions provided in the configuration subject
-/// 
+///
 /// # Notes
-/// 
+///
 /// - This processor MUST subscribe to a `ViewTasksSubscribePublishAggregated` subject
 /// - It is assumed that the name of the configuration subject is the SAME as the processor
 #[derive(Debug)]
@@ -174,11 +179,13 @@ impl Stream for ToolCallStream {
             self.init_config(config_table)?;
 
             // Collect task/publisher subscriptions and publications as a HashMap
-            let all_subscribe_publish_subject_name = self.config.as_ref().unwrap().subject_name.clone();
+            let all_subscribe_publish_subject_name =
+                self.config.as_ref().unwrap().subject_name.clone();
             let mut all_subscribe_publish_map = {
-                let mut message_stream = if let Some(s) =
-                    remove_message_by_subject(&all_subscribe_publish_subject_name, &mut self.messages)
-                {
+                let mut message_stream = if let Some(s) = remove_message_by_subject(
+                    &all_subscribe_publish_subject_name,
+                    &mut self.messages,
+                ) {
                     s.get_message_own()
                 } else {
                     return Poll::Ready(Some(Err(anyhow!(
@@ -198,11 +205,16 @@ impl Stream for ToolCallStream {
                 let task_names = table.get_column_as_vec_string("task_name")?;
                 let processor_names = table.get_column_as_vec_string("processor_name")?;
                 let processor_types = table.get_column_as_vec_string("processor_type")?;
-                let subscription_names = table.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
-                let subscription_table_names = table.get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
-                let publication_names = table.get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
-                let publication_table_names = table.get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
-                session_names.into_iter()
+                let subscription_names =
+                    table.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
+                let subscription_table_names = table
+                    .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
+                let publication_names =
+                    table.get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
+                let publication_table_names = table
+                    .get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
+                session_names
+                    .into_iter()
                     .zip(task_names.into_iter())
                     .zip(processor_names.into_iter())
                     .zip(processor_types.into_iter())
@@ -210,13 +222,56 @@ impl Stream for ToolCallStream {
                     .zip(subscription_table_names.into_iter())
                     .zip(publication_names.into_iter())
                     .zip(publication_table_names.into_iter())
-                    .map(|(((((((session_name, task_name), processor_name), processor_type), subscription_name), subscription_table_name), publication_name), publication_table_name)| (processor_name, (session_name, task_name, processor_type, subscription_name, subscription_table_name, publication_name, publication_table_name)))
-                    .collect::<HashMap<_,_>>()
+                    .map(
+                        |(
+                            (
+                                (
+                                    (
+                                        (
+                                            ((session_name, task_name), processor_name),
+                                            processor_type,
+                                        ),
+                                        subscription_name,
+                                    ),
+                                    subscription_table_name,
+                                ),
+                                publication_name,
+                            ),
+                            publication_table_name,
+                        )| {
+                            (
+                                processor_name,
+                                (
+                                    session_name,
+                                    task_name,
+                                    processor_type,
+                                    subscription_name,
+                                    subscription_table_name,
+                                    publication_name,
+                                    publication_table_name,
+                                ),
+                            )
+                        },
+                    )
+                    .collect::<HashMap<_, _>>()
             };
 
             // Collect tool call configuration record batches from the rest of the messages
-            let subscription_table_names_set = self.config.as_ref().unwrap().subscription_table_names.iter().map(|s| s.to_string()).collect::<HashSet<_>>();
-            let subscription_name_default = self.config.as_ref().unwrap().subscription_name.clone().unwrap_or("AlwaysFullTable".to_string());
+            let subscription_table_names_set = self
+                .config
+                .as_ref()
+                .unwrap()
+                .subscription_table_names
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<HashSet<_>>();
+            let subscription_name_default = self
+                .config
+                .as_ref()
+                .unwrap()
+                .subscription_name
+                .clone()
+                .unwrap_or("AlwaysFullTable".to_string());
             let subject_names = self.config.as_ref().unwrap().subject_names.clone();
             let batch = {
                 let mut session_names = Vec::new();
@@ -249,43 +304,52 @@ impl Stream for ToolCallStream {
                         .with_name("Tool call subscription subject")
                         .with_record_batches(batches)?
                         .build()?;
-                    let tool_call_subject_names: Vec<String> = table.get_schema()
+                    let tool_call_subject_names: Vec<String> = table
+                        .get_schema()
                         .fields()
                         .iter()
-                        .filter_map(|field| if subscription_table_names_set.contains(field.name()) {
-                            let subscription_table_name = table.get_column_as_vec_str(field.name());
-                            if let Some(name) = subscription_table_name.last() {
-                                Some(name.to_string())
+                        .filter_map(|field| {
+                            if subscription_table_names_set.contains(field.name()) {
+                                let subscription_table_name =
+                                    table.get_column_as_vec_str(field.name());
+                                if let Some(name) = subscription_table_name.last() {
+                                    Some(name.to_string())
+                                } else {
+                                    None
+                                }
                             } else {
                                 None
-                            }                                
-                        } else {
-                            None
+                            }
                         })
                         .collect();
 
                     // Create the `SessionTasksSubscribePublish` batches
-                    if let Some(all_subscribe_publish) = all_subscribe_publish_map.remove(&subject_name) {
+                    if let Some(all_subscribe_publish) =
+                        all_subscribe_publish_map.remove(&subject_name)
+                    {
                         session_names.push(all_subscribe_publish.0);
                         task_names.push(all_subscribe_publish.1);
                         processor_types.push(all_subscribe_publish.2);
-                        let (sub, name): (Vec<_>, Vec<_>) = tool_call_subject_names.into_iter()
+                        let (sub, name): (Vec<_>, Vec<_>) = tool_call_subject_names
+                            .into_iter()
                             .chain([subject_name.to_string()])
                             .map(|t| {
-                                let (sub, name): (Vec<_>, Vec<_>) = all_subscribe_publish.3.iter().zip(all_subscribe_publish.4.iter())
-                                    .filter_map(|(sub, name)| if name == &t {
-                                        Some((sub, name))
-                                    } else {
-                                        None
-                                    })
-                                    .unzip();
+                                let (sub, name): (Vec<_>, Vec<_>) =
+                                    all_subscribe_publish
+                                        .3
+                                        .iter()
+                                        .zip(all_subscribe_publish.4.iter())
+                                        .filter_map(|(sub, name)| {
+                                            if name == &t { Some((sub, name)) } else { None }
+                                        })
+                                        .unzip();
                                 if let (Some(sub), Some(name)) = (sub.first(), name.first()) {
                                     (sub.to_string(), name.to_string())
                                 } else {
                                     (subscription_name_default.to_owned(), t)
                                 }
                             })
-                            .unzip();          
+                            .unzip();
                         subscription_names.push(sub);
                         subscription_table_names.push(name);
                         publication_names.push(all_subscribe_publish.5);
@@ -298,7 +362,16 @@ impl Stream for ToolCallStream {
                         ))));
                     };
                 }
-                create_session_tasks_subscribe_publish_batch(session_names, task_names, processor_names, processor_types, subscription_names, subscription_table_names, publication_names, publication_table_names)?
+                create_session_tasks_subscribe_publish_batch(
+                    session_names,
+                    task_names,
+                    processor_names,
+                    processor_types,
+                    subscription_names,
+                    subscription_table_names,
+                    publication_names,
+                    publication_table_names,
+                )?
             };
 
             // record the poll
@@ -412,28 +485,18 @@ mod tests {
         );
 
         // Make the mock subject_name table
-        let task_names = vec![
-            "task_1",
-            "task_2",
-            "task_3",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
-        let processor_names = vec![
-            "processor_1",
-            "processor_2",
-            "processor_3",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
-        let processor_types = vec![
-            "GroupBy", "Join", "Filter",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
+        let task_names = vec!["task_1", "task_2", "task_3"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let processor_names = vec!["processor_1", "processor_2", "processor_3"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let processor_types = vec!["GroupBy", "Join", "Filter"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
         let subscription_names = vec![
             vec!["OnUpdateFullTable", "AlwaysLastRecordBatch"],
             vec!["OnUpdateFullTable", "AlwaysLastRecordBatch"],
@@ -450,22 +513,14 @@ mod tests {
         .into_iter()
         .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
         .collect::<Vec<_>>();
-        let publication_names = vec![
-            vec!["Replace"],
-            vec!["Replace"],
-            vec!["Replace"],
-        ]
-        .into_iter()
-        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
-        .collect::<Vec<_>>();
-        let publication_table_names = vec![
-            vec!["state_1"],
-            vec!["state_2"],
-            vec!["state_3"],
-        ]
-        .into_iter()
-        .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
-        .collect::<Vec<_>>();
+        let publication_names = vec![vec!["Replace"], vec!["Replace"], vec!["Replace"]]
+            .into_iter()
+            .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        let publication_table_names = vec![vec!["state_1"], vec!["state_2"], vec!["state_3"]]
+            .into_iter()
+            .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
+            .collect::<Vec<_>>();
         let session_names = task_names
             .iter()
             .map(|_| "session_1".to_string())
@@ -505,12 +560,7 @@ mod tests {
 
         // Wrap the results in a table
         let table_reading = TableBuilder::new_from_sendable_record_batch_stream(
-            stream
-                .remove(name)
-                .unwrap()
-                .message
-                .take()
-                .unwrap(),
+            stream.remove(name).unwrap().message.take().unwrap(),
         )
         .await?
         .with_name("")
@@ -521,23 +571,34 @@ mod tests {
         assert_eq!(column, ["processor_1", "processor_2"]);
         let column = table_reading.get_column_as_vec_str("processor_type");
         assert_eq!(column, ["GroupBy", "Join"]);
-        let column = table_reading
-            .get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
+        let column =
+            table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
         let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-        assert_eq!(flattened, ["OnUpdateFullTable",
-            "AlwaysLastRecordBatch",
-            "AlwaysFullTable",
-            "OnUpdateFullTable",
-            "AlwaysLastRecordBatch"]);
-        let column = table_reading.get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
-        let flattened = column.into_iter().flatten().collect::<Vec<_>>();
-        assert_eq!(flattened, ["state_1",
-            "processor_1",
-            "state_1",
-            "state_2",
-            "processor_2"]);
+        assert_eq!(
+            flattened,
+            [
+                "OnUpdateFullTable",
+                "AlwaysLastRecordBatch",
+                "AlwaysFullTable",
+                "OnUpdateFullTable",
+                "AlwaysLastRecordBatch"
+            ]
+        );
         let column = table_reading
-            .get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
+            .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
+        let flattened = column.into_iter().flatten().collect::<Vec<_>>();
+        assert_eq!(
+            flattened,
+            [
+                "state_1",
+                "processor_1",
+                "state_1",
+                "state_2",
+                "processor_2"
+            ]
+        );
+        let column =
+            table_reading.get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
         let flattened = column.into_iter().flatten().collect::<Vec<_>>();
         assert_eq!(flattened, ["Replace", "Replace"]);
         let column = table_reading

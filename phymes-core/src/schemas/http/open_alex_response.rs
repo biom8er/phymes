@@ -20,7 +20,7 @@ use crate::{
         TopicFieldTable, TopicIdsTable, TopicKeywordTable, TopicSubfieldTable, TopicTable,
     },
     schemas::http::{
-        open_alex_author::{Author, AuthorIds},
+        open_alex_author::Author,
         open_alex_award::Award,
         open_alex_common::OpenAlexEntity,
         open_alex_funder::Funder,

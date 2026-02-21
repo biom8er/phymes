@@ -231,28 +231,28 @@ pub trait SessionStreamStepTrait {
             .update_subjects_from_messages(messages);
         if let Some(table) = errors {
             let error = table.get_column_as_vec_str("content").join("; ");
-            return Err(anyhow!(error))
+            return Err(anyhow!(error));
         }
 
         // Update the subjects change log
         if let Some(table) = update {
             let messages = create_message_map(vec![
-            IPCMessageBuilder::new()
-                .with_subject(table.get_name())
-                .with_publisher(&session_context_name)
-                .with_update(&TablePublication::Extend {
-                    table_name: table.get_name().to_string(),
-                })
-                .with_message(table.to_ipc_stream()?)
-                .make_random_name()?
-                .build()?,
+                IPCMessageBuilder::new()
+                    .with_subject(table.get_name())
+                    .with_publisher(&session_context_name)
+                    .with_update(&TablePublication::Extend {
+                        table_name: table.get_name().to_string(),
+                    })
+                    .with_message(table.to_ipc_stream()?)
+                    .make_random_name()?
+                    .build()?,
             ]);
             let (_update, errors) = session_context
                 .write()
-                .update_subjects_from_messages(messages);            
+                .update_subjects_from_messages(messages);
             if let Some(table) = errors {
                 let error = table.get_column_as_vec_str("content").join("; ");
-                return Err(anyhow!(error))
+                return Err(anyhow!(error));
             }
         }
 
@@ -695,7 +695,7 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
                 .update_subjects_from_messages(messages);
             if let Some(table) = errors {
                 let error = table.get_column_as_vec_str("content").join("; ");
-                return Err(anyhow!(error))
+                return Err(anyhow!(error));
             }
         }
 
@@ -714,10 +714,10 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
             if !subject_batches.is_empty() {
                 let (_update, errors) = session_context
                     .write()
-                    .update_subjects_from_messages(subject_batches);                
+                    .update_subjects_from_messages(subject_batches);
                 if let Some(table) = errors {
                     let error = table.get_column_as_vec_str("content").join("; ");
-                    return Err(anyhow!(error))
+                    return Err(anyhow!(error));
                 }
             }
         }

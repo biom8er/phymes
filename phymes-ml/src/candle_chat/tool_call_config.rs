@@ -6,7 +6,7 @@ use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
 /// Configuration for [ToolCallProcessor]
-/// 
+///
 /// [ToolCallProcessor]: phymes_ml::ToolCallProcessor
 #[derive(Parser, Debug, Serialize, Deserialize, Default, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -23,7 +23,7 @@ pub struct ToolCallConfig {
     #[arg(long)]
     pub subscription_table_names: Vec<String>,
 
-    /// The default subscription to use 
+    /// The default subscription to use
     #[arg(long)]
     pub subscription_name: Option<String>,
 
@@ -31,7 +31,7 @@ pub struct ToolCallConfig {
     #[arg(long)]
     pub publication_table_names: Option<Vec<String>>,
 
-    /// The default publication to use 
+    /// The default publication to use
     #[arg(long)]
     pub publication_name: Option<String>,
 }

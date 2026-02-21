@@ -213,7 +213,9 @@ pub mod test_task {
         // mock config for the task
         let a: ArrayRef = Arc::new(StringArray::from(vec!["HumanInTheLoop".to_string()]));
         let b: ArrayRef = Arc::new(BooleanArray::from(vec![true]));
-        let c: ArrayRef = Arc::new(StringArray::from(vec!["AccumulateLHSAccumulateRHS".to_string()]));
+        let c: ArrayRef = Arc::new(StringArray::from(vec![
+            "AccumulateLHSAccumulateRHS".to_string(),
+        ]));
         let batch = RecordBatch::try_from_iter(vec![("operator", a), ("cpu", b), ("stream", c)])?;
         let config = TableBuilder::new()
             .with_name(config_name)

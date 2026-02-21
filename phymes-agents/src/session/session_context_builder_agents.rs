@@ -10,11 +10,9 @@ use phymes_core::{
     StateMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap,
     TaskPlan, create_values_fields,
 };
+use phymes_data::{AvailableCandleOperators, DataConfig, DataConfigTrait, LimitConfig, device};
 #[cfg(feature = "api")]
 use phymes_data::{CommandSandboxConfig, HTTPClientConfig};
-use phymes_data::{
-    AvailableCandleOperators, DataConfig, DataConfigTrait, LimitConfig, device,
-};
 use phymes_diagnostics::{HashMap, HashSet};
 use phymes_ml::{CandleChatConfig, CandleEmbedConfig, ToolCallConfig};
 
@@ -284,7 +282,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
             // Check the subject_names entries
             if column_names.contains("subject_names") {
-                let mut vec_str = table.get_column_as_vec_nested_nonprimitive::<String>("subject_names")?;
+                let mut vec_str =
+                    table.get_column_as_vec_nested_nonprimitive::<String>("subject_names")?;
                 if let Some(names) = vec_str.pop() {
                     let subscriptions = processor
                         .get_subscriptions()
@@ -751,7 +750,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 }
                 data_config_vec.push((config, table.get_name().to_string()));
             }
-            
+
             // Return an error if the config didn't pass one of the checks
             if !passed_config_checks {
                 if let Err(err) = DataConfig::from_table(table) {
