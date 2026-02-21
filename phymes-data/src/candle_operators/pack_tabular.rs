@@ -209,7 +209,7 @@ pub fn pack_tabular(lhs_args: &[RecordBatch], format: &DataFormat) -> Result<Rec
         .concat_record_batches()?;
 
     // Convert to the desired format
-    let batch = table_and_data_format_to_record_batch(&args_table, &format, None)?;
+    let batch = table_and_data_format_to_record_batch(&args_table, format, None)?;
     Ok(batch)
 }
 

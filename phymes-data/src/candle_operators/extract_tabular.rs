@@ -103,7 +103,7 @@ impl DataOperatorTrait for ExtractTabular {
             "Missing `format` for `{}`.",
             Self::get_static_name()
         ))?;
-        let schema = config.schema.clone().ok_or(anyhow!(
+        let schema = config.schema.ok_or(anyhow!(
             "Missing `schema` for `{}`.",
             Self::get_static_name()
         ))?;
@@ -584,7 +584,7 @@ mod tests {
         assert_eq!(test.get("WorkConceptTable").unwrap().count_rows(), 12);
         assert_eq!(test.get("WorkTopicTable").unwrap().count_rows(), 3);
         assert_eq!(test.get("WorkKeywordTable").unwrap().count_rows(), 10);
-        assert!(test.get("WorkMeshTagTable").is_none());
+        assert!(test.contains_key("WorkMeshTagTable"));
         assert_eq!(test.get("WorkSdgTagTable").unwrap().count_rows(), 1);
         assert_eq!(
             test.get("WorkCorrespondingAuthorTable")

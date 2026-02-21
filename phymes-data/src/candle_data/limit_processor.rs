@@ -304,7 +304,6 @@ mod tests {
         let config = LimitConfig {
             skip: Some(0),
             fetch: 6,
-            ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
         let config_table = TableBuilder::new()
@@ -463,7 +462,6 @@ mod tests {
         let config = LimitConfig {
             skip: Some(0),
             fetch: 6,
-            ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
         let config_table = TableBuilder::new()
@@ -515,7 +513,6 @@ mod tests {
         let config = LimitConfig {
             skip: Some(0),
             fetch: 6,
-            ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
         let config_table = TableBuilder::new()
@@ -571,7 +568,6 @@ mod tests {
         let config = LimitConfig {
             skip: Some(0),
             fetch: 6,
-            ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
         let config_table = TableBuilder::new()
