@@ -414,7 +414,7 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             Self::ToolCallProcessor => serde_json::to_vec(&ToolCallConfig {
-                all_subscribe_publish: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+                subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
                 subject_names: vec!["processor_1".to_string()],
                 subscription_table_names: vec!["lhs_name".to_string()],
                 ..Default::default()

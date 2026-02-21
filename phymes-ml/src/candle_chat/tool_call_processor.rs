@@ -104,7 +104,7 @@ pub struct ToolCallStream {
     /// Parameters tool calling after polling
     config: Option<ToolCallConfig>,
     /// `ViewTasksSubscribePublishAggregated` subject after polling
-    all_subscribe_publish: Option<Table>,
+    subject_name: Option<Table>,
     /// The tables of processor configurations after polling
     tool_calls: Vec<Table>,
 }
@@ -123,7 +123,7 @@ impl ToolCallStream {
             runtime_env,
             diagnostic_builder,
             config: None,
-            all_subscribe_publish: None,
+            subject_name: None,
             tool_calls: Vec::new(),
         })
     }
@@ -174,7 +174,7 @@ impl Stream for ToolCallStream {
             self.init_config(config_table)?;
 
             // Collect task/publisher subscriptions and publications as a HashMap
-            let all_subscribe_publish_subject_name = self.config.as_ref().unwrap().all_subscribe_publish.clone();
+            let all_subscribe_publish_subject_name = self.config.as_ref().unwrap().subject_name.clone();
             let mut all_subscribe_publish_map = {
                 let mut message_stream = if let Some(s) =
                     remove_message_by_subject(&all_subscribe_publish_subject_name, &mut self.messages)
@@ -347,7 +347,7 @@ mod tests {
         // Make the tool_call_processor config
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let tool_call_processor_config = ToolCallConfig {
-            all_subscribe_publish: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+            subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
             subject_names: vec!["processor_1".to_string(), "processor_2".to_string()],
             subscription_table_names: vec!["lhs_name".to_string(), "rhs_name".to_string()],
             ..Default::default()
@@ -411,7 +411,7 @@ mod tests {
                 .build()?,
         );
 
-        // Make the mock all_subscribe_publish table
+        // Make the mock subject_name table
         let task_names = vec![
             "task_1",
             "task_2",

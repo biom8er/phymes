@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 pub struct ToolCallConfig {
     /// The name of the subject containing the `ViewTasksSubscribePublishAggregated` subject
     #[arg(long)]
-    pub all_subscribe_publish: String,
+    pub subject_name: String,
 
     /// The name of the subjects containing the processor configs
     #[arg(long)]
@@ -51,12 +51,12 @@ impl DataConfigTrait for ToolCallConfig {
             .iter()
             .map(|f| f.name().to_string())
             .collect::<HashSet<_>>();
-        if !(column_names.contains("all_subscribe_publish")
+        if !(column_names.contains("subject_name")
             && column_names.contains("subject_names")
             && column_names.contains("subscription_table_names"))
         {
             return Err(anyhow!(
-                "Table {} is missing required Field for `all_subscribe_publish`, `subject_names`, `subscription_table_names` in ToolCallConfig.",
+                "Table {} is missing required Field for `subject_name`, `subject_names`, `subscription_table_names` in ToolCallConfig.",
                 table.get_name()
             ));
         }

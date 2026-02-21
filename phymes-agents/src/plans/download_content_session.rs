@@ -21,6 +21,10 @@ impl<'a> DownloadContentSession<'a> {
 	%% Tool call processor that enables calling processors from their config
 	%% ------------------------------------------------------------------------------
 	subgraph call_processor_t
+        select_tasks_processors_subscriptions_publications_aggregated_s-subject-.->|FullTable|echo_processor_p-subscribe
+		echo_processor_p-subscribe-->echo_processor_p-processor
+		echo_processor_p-processor-->echo_processor_p-publish
+		echo_processor_p-publish-->|Extend|select_tasks_processors_subscriptions_publications_aggregated_s-subject
         select_tasks_processors_subscriptions_publications_aggregated_s-subject-->|FullTable|call_processor_p-subscribe
 		download_pdf_p-subject-.->|LastRecordBatch|call_processor_p-subscribe
 		download_json_p-subject-.->|LastRecordBatch|call_processor_p-subscribe
@@ -30,6 +34,10 @@ impl<'a> DownloadContentSession<'a> {
 	end
 	download_content_r-rt-->call_processor_t
 	select_tasks_processors_subscriptions_publications_aggregated_s-subject@{shape: doc, label: select_tasks_processors_subscriptions_publications_aggregated_s}
+	echo_processor_p-processor@{shape: rect, label: ProcessorEcho}
+	echo_processor_p-publish@{shape: fork}
+	echo_processor_p-subscribe@{shape: diamond, label: All}
+	%%echo_processor_s-subject@{shape: doc, label: echo_processor_s}
 	call_processor_p-processor@{shape: rect, label: ToolCallProcessor}
 	call_processor_p-publish@{shape: fork}
 	call_processor_p-subscribe@{shape: diamond, label: Any}
@@ -94,7 +102,7 @@ impl<'a> DownloadContentSession<'a> {
         List-Utf8 publication_table_names
     }
     call_processor_p["call_processor_p"] {
-        Utf8 all_subscribe_publish "select_tasks_processors_subscriptions_publications_aggregated_s"
+        Utf8 subject_name "select_tasks_processors_subscriptions_publications_aggregated_s"
         List-Utf8 subject_names "['download_pdf_p', 'download_json_p']"
         List-Utf8 subscription_table_names "['lhs_name', 'rhs_name', 'subject_name']"
     }
@@ -293,22 +301,22 @@ mod tests {
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
+        // {
+        //     // Debug any errors
+        //     let subjects_reading = session_ctx_arc.read();
+        //     let table_reading = subjects_reading
+        //         .get_states()
+        //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
+        //         .unwrap()
+        //         .read();
+        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        //     let table_reading = subjects_reading
+        //         .get_states()
+        //         .get(AvailableSubjects::SessionTraces.to_string().as_str())
+        //         .unwrap()
+        //         .read();
+        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        // }
 
         assert_eq!(response.len(), 0);
 
@@ -384,31 +392,6 @@ mod tests {
         .add_next_supersteps()?
         .build_with_tables()?;
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
-
-        // Trigger the view task session
-        let mut message_map = HashMap::<String, IPCMessage>::new();
-        {
-            let session_ctx_reading = session_ctx_arc.read();
-            let table = session_ctx_reading
-                .get_states()
-                .get(AvailableSubjects::SessionTasks.to_string().as_str())
-                .unwrap()
-                .read();
-            let session_tasks_message = IPCMessage::get_builder()
-                .with_message(table.to_ipc_stream()?)
-                .with_subject(AvailableSubjects::SessionTasks.to_string().as_str())
-                .with_update(&TablePublication::Replace {
-                    table_name: AvailableSubjects::SessionTasks.to_string(),
-                })
-                .with_publisher(download_content_session.session_context_name)
-                .make_name()?
-                .build()?;
-            let _ = message_map.insert(session_tasks_message.get_name().to_string(), session_tasks_message);
-        }
-
-        // Run the session
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
@@ -493,23 +476,6 @@ mod tests {
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
-
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
 
         assert_eq!(response.len(), 0);
 
