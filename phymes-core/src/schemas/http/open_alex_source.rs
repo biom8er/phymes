@@ -42,7 +42,8 @@ pub struct Source {
 }
 
 impl Source {
-    pub fn to_tables(
+    #[allow(clippy::type_complexity)]
+    pub fn build_tables(
         self,
     ) -> (
         SourceTable,
@@ -69,13 +70,13 @@ impl Source {
             .apc_prices
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_source_apc_price_table(&self.id))
+            .map(|t| t.build_source_apc_price_table(&self.id))
             .collect::<Vec<_>>();
         let source_counts_by_year = self
             .counts_by_year
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_source_counts_by_year(&self.id))
+            .map(|t| t.build_source_counts_by_year(&self.id))
             .collect::<Vec<_>>();
         let source_lineage = self
             .host_organization_lineage
@@ -92,7 +93,7 @@ impl Source {
                 }
             })
             .collect::<Vec<_>>();
-        let source_ids = self.ids.map(|t| t.to_source_ids_table(&self.id));
+        let source_ids = self.ids.map(|t| t.build_source_ids_table(&self.id));
         let source_issn = self
             .issn
             .unwrap_or_default()
@@ -106,16 +107,16 @@ impl Source {
             .societies
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_source_society_table(&self.id))
+            .map(|t| t.build_source_society_table(&self.id))
             .collect::<Vec<_>>();
         let source_summary_stats = self
             .summary_stats
-            .map(|t| t.to_source_summary_stats_table(&self.id));
+            .map(|t| t.build_source_summary_stats_table(&self.id));
         let source_concept = self
             .x_concepts
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_source_concept_table(&self.id))
+            .map(|t| t.build_source_concept_table(&self.id))
             .collect::<Vec<_>>();
         let source = SourceTable {
             source_id: self.id,
@@ -227,7 +228,7 @@ pub struct ApcPrice {
 }
 
 impl ApcPrice {
-    pub fn to_source_apc_price_table(self, source_id: &str) -> SourceApcPriceTable {
+    pub fn build_source_apc_price_table(self, source_id: &str) -> SourceApcPriceTable {
         SourceApcPriceTable {
             source_id: source_id.to_string(),
             price: self.price.unwrap_or_default(),
@@ -280,7 +281,7 @@ pub struct Society {
 }
 
 impl Society {
-    pub fn to_source_society_table(self, source_id: &str) -> SourceSocietyTable {
+    pub fn build_source_society_table(self, source_id: &str) -> SourceSocietyTable {
         SourceSocietyTable {
             source_id: source_id.to_string(),
             url: self.url.unwrap_or_default(),
@@ -330,7 +331,7 @@ pub struct SourceIds {
 }
 
 impl SourceIds {
-    pub fn to_source_ids_table(self, source_id: &str) -> SourceIdsTable {
+    pub fn build_source_ids_table(self, source_id: &str) -> SourceIdsTable {
         SourceIdsTable {
             source_id: source_id.to_string(),
             fatcat: self.fatcat.unwrap_or_default(),
@@ -510,7 +511,7 @@ pub struct SourceConcept {
 }
 
 impl SourceConcept {
-    pub fn to_source_concept_table(self, source_id: &str) -> SourceConceptTable {
+    pub fn build_source_concept_table(self, source_id: &str) -> SourceConceptTable {
         SourceConceptTable {
             source_id: source_id.to_string(),
             concept_id: self.id.unwrap_or_default(),

@@ -77,6 +77,7 @@ impl Display for CountryCode {
     }
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum Currency {
@@ -249,21 +250,21 @@ pub struct CountsByYear {
 }
 
 impl CountsByYear {
-    pub fn to_work_counts_by_year(self, work_id: &str) -> WorkCountsByYearTable {
+    pub fn build_work_counts_by_year(self, work_id: &str) -> WorkCountsByYearTable {
         WorkCountsByYearTable {
             work_id: work_id.to_string(),
             year: self.year,
             cited_by_count: self.cited_by_count,
         }
     }
-    pub fn to_author_counts_by_year(self, author_id: &str) -> AuthorCountsByYearTable {
+    pub fn build_author_counts_by_year(self, author_id: &str) -> AuthorCountsByYearTable {
         AuthorCountsByYearTable {
             author_id: author_id.to_string(),
             year: self.year,
             cited_by_count: self.cited_by_count,
         }
     }
-    pub fn to_institution_counts_by_year(
+    pub fn build_institution_counts_by_year(
         self,
         institution_id: &str,
     ) -> InstitutionCountsByYearTable {
@@ -273,21 +274,21 @@ impl CountsByYear {
             cited_by_count: self.cited_by_count,
         }
     }
-    pub fn to_funder_counts_by_year(self, funder_id: &str) -> FunderCountsByYearTable {
+    pub fn build_funder_counts_by_year(self, funder_id: &str) -> FunderCountsByYearTable {
         FunderCountsByYearTable {
             funder_id: funder_id.to_string(),
             year: self.year,
             cited_by_count: self.cited_by_count,
         }
     }
-    pub fn to_publisher_counts_by_year(self, publisher_id: &str) -> PublisherCountsByYearTable {
+    pub fn build_publisher_counts_by_year(self, publisher_id: &str) -> PublisherCountsByYearTable {
         PublisherCountsByYearTable {
             publisher_id: publisher_id.to_string(),
             year: self.year,
             cited_by_count: self.cited_by_count,
         }
     }
-    pub fn to_source_counts_by_year(self, source_id: &str) -> SourceCountsByYearTable {
+    pub fn build_source_counts_by_year(self, source_id: &str) -> SourceCountsByYearTable {
         SourceCountsByYearTable {
             source_id: source_id.to_string(),
             year: self.year,
@@ -305,7 +306,7 @@ pub struct SummaryStats {
 }
 
 impl SummaryStats {
-    pub fn to_author_summary_stats_table(self, author_id: &str) -> AuthorSummaryStatsTable {
+    pub fn build_author_summary_stats_table(self, author_id: &str) -> AuthorSummaryStatsTable {
         AuthorSummaryStatsTable {
             author_id: author_id.to_string(),
             two_year_mean_citedness: self.two_year_mean_citedness.unwrap_or_default(),
@@ -313,7 +314,7 @@ impl SummaryStats {
             i10_index: self.i10_index.unwrap_or_default(),
         }
     }
-    pub fn to_institution_summary_stats_table(
+    pub fn build_institution_summary_stats_table(
         self,
         institution_id: &str,
     ) -> InstitutionSummaryStatsTable {
@@ -324,7 +325,7 @@ impl SummaryStats {
             i10_index: self.i10_index.unwrap_or_default(),
         }
     }
-    pub fn to_funder_summary_stats_table(self, funder_id: &str) -> FunderSummaryStatsTable {
+    pub fn build_funder_summary_stats_table(self, funder_id: &str) -> FunderSummaryStatsTable {
         FunderSummaryStatsTable {
             funder_id: funder_id.to_string(),
             two_year_mean_citedness: self.two_year_mean_citedness.unwrap_or_default(),
@@ -332,7 +333,7 @@ impl SummaryStats {
             i10_index: self.i10_index.unwrap_or_default(),
         }
     }
-    pub fn to_publisher_summary_stats_table(
+    pub fn build_publisher_summary_stats_table(
         self,
         publisher_id: &str,
     ) -> PublisherSummaryStatsTable {
@@ -343,7 +344,7 @@ impl SummaryStats {
             i10_index: self.i10_index.unwrap_or_default(),
         }
     }
-    pub fn to_source_summary_stats_table(self, source_id: &str) -> SourceSummaryStatsTable {
+    pub fn build_source_summary_stats_table(self, source_id: &str) -> SourceSummaryStatsTable {
         SourceSummaryStatsTable {
             source_id: source_id.to_string(),
             two_year_mean_citedness: self.two_year_mean_citedness.unwrap_or_default(),

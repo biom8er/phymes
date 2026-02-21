@@ -39,13 +39,13 @@ pub struct Award {
 }
 
 impl Award {
-    pub fn to_work_award_table(self, work_id: &str) -> WorkAwardTable {
+    pub fn build_work_award_table(self, work_id: &str) -> WorkAwardTable {
         WorkAwardTable {
             work_id: work_id.to_string(),
             award_id: self.id.unwrap_or_default(),
         }
     }
-    pub fn to_tables(
+    pub fn build_tables(
         self,
     ) -> (
         AwardTable,
@@ -56,7 +56,7 @@ impl Award {
     ) {
         let award_funder = self
             .funder
-            .map(|f| f.to_award_funder_table(&self.id.clone().unwrap_or_default()));
+            .map(|f| f.build_award_funder_table(&self.id.clone().unwrap_or_default()));
         let award_funded_outputs = self
             .funded_outputs
             .unwrap_or_default()
@@ -74,13 +74,13 @@ impl Award {
                 if self.lead_investigator.is_some()
                     && self.lead_investigator.as_ref().unwrap() == &i
                 {
-                    i.to_award_investigator_table(&self.id.clone().unwrap_or_default(), true, false)
+                    i.build_award_investigator_table(&self.id.clone().unwrap_or_default(), true, false)
                 } else if self.co_lead_investigator.is_some()
                     && self.co_lead_investigator.as_ref().unwrap() == &i
                 {
-                    i.to_award_investigator_table(&self.id.clone().unwrap_or_default(), false, true)
+                    i.build_award_investigator_table(&self.id.clone().unwrap_or_default(), false, true)
                 } else {
-                    i.to_award_investigator_table(
+                    i.build_award_investigator_table(
                         &self.id.clone().unwrap_or_default(),
                         false,
                         false,
@@ -90,7 +90,7 @@ impl Award {
             .unzip();
         let award_affiliation = award_affiliation
             .into_iter()
-            .filter_map(|a| a.map(|a_i| a_i))
+            .flatten()
             .collect::<Vec<_>>();
         let award = AwardTable {
             award_id: self.id.unwrap_or_default(),
@@ -209,14 +209,14 @@ pub struct Investigator {
 }
 
 impl Investigator {
-    pub fn to_award_investigator_table(
+    pub fn build_award_investigator_table(
         self,
         award_id: &str,
         is_lead_investigator: bool,
         is_co_lead_investigator: bool,
     ) -> (AwardInvestigatorTable, Option<AwardAffiliationTable>) {
         let award_affiliation = self.affiliation.map(|a| {
-            a.to_award_affiliation_table(award_id, &self.orcid.clone().unwrap_or_default())
+            a.build_award_affiliation_table(award_id, &self.orcid.clone().unwrap_or_default())
         });
         let award_investigator = AwardInvestigatorTable {
             award_id: award_id.to_string(),

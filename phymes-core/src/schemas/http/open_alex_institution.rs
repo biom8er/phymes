@@ -44,7 +44,7 @@ pub struct Institution {
 }
 
 impl Institution {
-    pub fn to_author_last_known_institutions_table(
+    pub fn build_author_last_known_institutions_table(
         self,
         author_id: &str,
     ) -> AuthorLastKnownInstitutionsTable {
@@ -53,7 +53,8 @@ impl Institution {
             institution_id: self.id,
         }
     }
-    pub fn to_tables(
+    #[allow(clippy::type_complexity)]
+    pub fn build_tables(
         self,
     ) -> (
         InstitutionTable,
@@ -90,45 +91,45 @@ impl Institution {
             .collect::<Vec<_>>();
         let institution_geo = self
             .geo
-            .map(|t| t.to_institution_geo_table(&self.id.clone()));
+            .map(|t| t.build_institution_geo_table(&self.id.clone()));
         let institution_ids = self
             .ids
-            .map(|t| t.to_institution_ids_table(&self.id.clone()));
+            .map(|t| t.build_institution_ids_table(&self.id.clone()));
         let institution_associated_institution = self
             .associated_institutions
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_institution_associated_institution_table(&self.id))
+            .map(|t| t.build_institution_associated_institution_table(&self.id))
             .collect::<Vec<_>>();
         let institution_repository = self
             .repositories
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_institution_repository_table(&self.id))
+            .map(|t| t.build_institution_repository_table(&self.id))
             .collect::<Vec<_>>();
         let institution_role = self
             .roles
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_institution_role_table(&self.id))
+            .map(|t| t.build_institution_role_table(&self.id))
             .collect::<Vec<_>>();
         let institution_international_names = self
             .international
-            .map(|t| t.to_insitution_international_names_table(&self.id.clone()));
+            .map(|t| t.build_insitution_international_names_table(&self.id.clone()));
         let institution_summary_stats = self
             .summary_stats
-            .map(|t| t.to_institution_summary_stats_table(&self.id));
+            .map(|t| t.build_institution_summary_stats_table(&self.id));
         let institution_counts_by_year = self
             .counts_by_year
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_institution_counts_by_year(&self.id))
+            .map(|t| t.build_institution_counts_by_year(&self.id))
             .collect::<Vec<_>>();
         let institution_concepts = self
             .x_concepts
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_institution_concept_table(&self.id))
+            .map(|t| t.build_institution_concept_table(&self.id))
             .collect::<Vec<_>>();
         let institution_lineage = self
             .lineage
@@ -338,7 +339,7 @@ pub struct AssociatedInstitution {
 }
 
 impl AssociatedInstitution {
-    pub fn to_institution_associated_institution_table(
+    pub fn build_institution_associated_institution_table(
         self,
         institution_id: &str,
     ) -> InstitutionAssociatedInstitutionTable {
@@ -405,7 +406,7 @@ pub struct Geo {
 }
 
 impl Geo {
-    pub fn to_institution_geo_table(self, institution_id: &str) -> InstitutionGeoTable {
+    pub fn build_institution_geo_table(self, institution_id: &str) -> InstitutionGeoTable {
         InstitutionGeoTable {
             institution_id: institution_id.to_string(),
             city: self.city.unwrap_or_default(),
@@ -479,7 +480,7 @@ pub struct InstitutionIds {
 }
 
 impl InstitutionIds {
-    pub fn to_institution_ids_table(self, institution_id: &str) -> InstitutionIdsTable {
+    pub fn build_institution_ids_table(self, institution_id: &str) -> InstitutionIdsTable {
         InstitutionIdsTable {
             institution_id: institution_id.to_string(),
             openalex: self.openalex.unwrap_or_default(),
@@ -544,7 +545,7 @@ pub struct Repository {
 }
 
 impl Repository {
-    pub fn to_institution_repository_table(
+    pub fn build_institution_repository_table(
         self,
         institution_id: &str,
     ) -> InstitutionRepositoryTable {
@@ -611,7 +612,7 @@ pub struct Role {
 }
 
 impl Role {
-    pub fn to_institution_role_table(self, institution_id: &str) -> InstitutionRoleTable {
+    pub fn build_institution_role_table(self, institution_id: &str) -> InstitutionRoleTable {
         InstitutionRoleTable {
             institution_id: institution_id.to_string(),
             role: self.role,
@@ -619,7 +620,7 @@ impl Role {
             works_count: self.works_count,
         }
     }
-    pub fn to_publisher_role_table(self, publisher_id: &str) -> PublisherRoleTable {
+    pub fn build_publisher_role_table(self, publisher_id: &str) -> PublisherRoleTable {
         PublisherRoleTable {
             publisher_id: publisher_id.to_string(),
             role: self.role,
@@ -627,7 +628,7 @@ impl Role {
             works_count: self.works_count,
         }
     }
-    pub fn to_funder_role_table(self, funder_id: &str) -> FunderRoleTable {
+    pub fn build_funder_role_table(self, funder_id: &str) -> FunderRoleTable {
         FunderRoleTable {
             funder_id: funder_id.to_string(),
             role: self.role,
@@ -681,7 +682,7 @@ pub struct InternationalNames {
 }
 
 impl InternationalNames {
-    pub fn to_insitution_international_names_table(
+    pub fn build_insitution_international_names_table(
         self,
         institution_id: &str,
     ) -> InstitutionInternationalNamesTable {
@@ -815,7 +816,7 @@ pub struct InstitutionConcept {
 }
 
 impl InstitutionConcept {
-    pub fn to_institution_concept_table(self, institution_id: &str) -> InstitutionConceptTable {
+    pub fn build_institution_concept_table(self, institution_id: &str) -> InstitutionConceptTable {
         InstitutionConceptTable {
             institution_id: institution_id.to_string(),
             concept_id: self.id.unwrap_or_default(),

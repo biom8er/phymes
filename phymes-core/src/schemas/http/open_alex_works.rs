@@ -69,7 +69,8 @@ pub struct Work {
 }
 
 impl Work {
-    pub fn to_tables(
+    #[allow(clippy::type_complexity)]
+    pub fn build_tables(
         self,
     ) -> (
         WorkTable,
@@ -99,7 +100,7 @@ impl Work {
         let work_authorship_table = self
             .authorships
             .into_iter()
-            .map(|t| t.to_work_authorship_table(&self.id))
+            .map(|t| t.build_work_authorship_table(&self.id))
             .collect::<Vec<_>>();
 
         // WorkAwardTable
@@ -107,7 +108,7 @@ impl Work {
             .awards
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_work_award_table(&self.id))
+            .map(|t| t.build_work_award_table(&self.id))
             .collect::<Vec<_>>();
 
         // WorkFunderTable
@@ -115,17 +116,17 @@ impl Work {
             .funders
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_work_funder_table(&self.id))
+            .map(|t| t.build_work_funder_table(&self.id))
             .collect::<Vec<_>>();
 
         // WorkApcInfoTable
         let mut work_apc_info_table = Vec::new();
         if let Some(apc_info) = self.apc_list {
-            let t = apc_info.to_work_apc_info_table(&self.id, true, false);
+            let t = apc_info.build_work_apc_info_table(&self.id, true, false);
             work_apc_info_table.push(t);
         }
         if let Some(apc_info) = self.apc_paid {
-            let t = apc_info.to_work_apc_info_table(&self.id, false, true);
+            let t = apc_info.build_work_apc_info_table(&self.id, false, true);
             work_apc_info_table.push(t);
         }
 
@@ -137,13 +138,13 @@ impl Work {
             .map(|t| {
                 if self.best_oa_location.is_some() && self.best_oa_location.as_ref().unwrap() == &t
                 {
-                    t.to_work_location_table(&self.id, true, false)
+                    t.build_work_location_table(&self.id, true, false)
                 } else if self.primary_location.is_some()
                     && self.primary_location.as_ref().unwrap() == &t
                 {
-                    t.to_work_location_table(&self.id, false, true)
+                    t.build_work_location_table(&self.id, false, true)
                 } else {
-                    t.to_work_location_table(&self.id, false, false)
+                    t.build_work_location_table(&self.id, false, false)
                 }
             })
             .collect::<Vec<_>>();
@@ -151,27 +152,27 @@ impl Work {
         // WorkOpenAccessTable
         let work_open_access_table = self
             .open_access
-            .map(|t| t.to_work_open_access_table(&self.id));
+            .map(|t| t.build_work_open_access_table(&self.id));
 
         // WorkBiblioTable
-        let work_biblio_table = self.biblio.map(|t| t.to_work_biblio_table(&self.id));
+        let work_biblio_table = self.biblio.map(|t| t.build_work_biblio_table(&self.id));
 
         // WorkCitationPercentileTable
         let work_citation_normalized_percentile_table = self
             .citation_normalized_percentile
-            .map(|t| t.to_work_citation_percentile_table(&self.id));
+            .map(|t| t.build_work_citation_percentile_table(&self.id));
 
         // WorkCitedByPercentileYearTable
         let work_cited_percentile_year_table = self
             .cited_by_percentile_year
-            .map(|t| t.to_work_cited_by_percentile_year(&self.id));
+            .map(|t| t.build_work_cited_by_percentile_year(&self.id));
 
         // WorkCountsByYearTable
         let work_counts_by_year_table = self
             .counts_by_year
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_work_counts_by_year(&self.id))
+            .map(|t| t.build_work_counts_by_year(&self.id))
             .collect::<Vec<_>>();
 
         // WorkConceptTable
@@ -179,7 +180,7 @@ impl Work {
             .concepts
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_work_concept_table(&self.id))
+            .map(|t| t.build_work_concept_table(&self.id))
             .collect::<Vec<_>>();
 
         // WorkTopicTable
@@ -189,9 +190,9 @@ impl Work {
             .into_iter()
             .map(|t| {
                 if self.primary_topic.is_some() && self.primary_topic.as_ref().unwrap() == &t {
-                    t.to_work_topic_table(&self.id, true)
+                    t.build_work_topic_table(&self.id, true)
                 } else {
-                    t.to_work_topic_table(&self.id, false)
+                    t.build_work_topic_table(&self.id, false)
                 }
             })
             .collect::<Vec<_>>();
@@ -201,7 +202,7 @@ impl Work {
             .keywords
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_work_keyword_table(&self.id))
+            .map(|t| t.build_work_keyword_table(&self.id))
             .collect::<Vec<_>>();
 
         // WorkMeshTagTable
@@ -209,7 +210,7 @@ impl Work {
             .mesh
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_work_mesh_tag_table(&self.id))
+            .map(|t| t.build_work_mesh_tag_table(&self.id))
             .collect::<Vec<_>>();
 
         // WorkSdgTagTable
@@ -217,7 +218,7 @@ impl Work {
             .sustainable_development_goals
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_work_sdg_tag_table(&self.id))
+            .map(|t| t.build_work_sdg_tag_table(&self.id))
             .collect::<Vec<_>>();
 
         // WorkCorrespondingAuthorTable
@@ -254,7 +255,7 @@ impl Work {
             .collect::<Vec<_>>();
 
         // WorkIdsTable
-        let work_ids_table = self.ids.map(|t| t.to_work_ids_table(&self.id));
+        let work_ids_table = self.ids.map(|t| t.build_work_ids_table(&self.id));
 
         // WorkReferencedWorksTable
         let work_referenced_works_table = self
@@ -429,7 +430,7 @@ pub struct Authorship {
 }
 
 impl Authorship {
-    pub fn to_work_authorship_table(self, work_id: &str) -> WorkAuthorshipTable {
+    pub fn build_work_authorship_table(self, work_id: &str) -> WorkAuthorshipTable {
         let author_id = if let Some(author) = self.author {
             author.id.unwrap_or_default()
         } else {
@@ -512,7 +513,7 @@ pub struct ApcInfo {
 }
 
 impl ApcInfo {
-    pub fn to_work_apc_info_table(
+    pub fn build_work_apc_info_table(
         self,
         work_id: &str,
         is_list: bool,
@@ -647,7 +648,7 @@ pub struct Location {
 }
 
 impl Location {
-    pub fn to_work_location_table(
+    pub fn build_work_location_table(
         self,
         work_id: &str,
         is_best_oa: bool,
@@ -731,7 +732,7 @@ pub struct OpenAccess {
 }
 
 impl OpenAccess {
-    pub fn to_work_open_access_table(self, work_id: &str) -> WorkOpenAccessTable {
+    pub fn build_work_open_access_table(self, work_id: &str) -> WorkOpenAccessTable {
         WorkOpenAccessTable {
             work_id: work_id.to_string(),
             is_oa: self.is_oa.unwrap_or_default(),
@@ -790,7 +791,7 @@ pub struct Biblio {
 }
 
 impl Biblio {
-    pub fn to_work_biblio_table(self, work_id: &str) -> WorkBiblioTable {
+    pub fn build_work_biblio_table(self, work_id: &str) -> WorkBiblioTable {
         WorkBiblioTable {
             work_id: work_id.to_string(),
             volume: self.volume.unwrap_or_default(),
@@ -841,7 +842,7 @@ pub struct CitationPercentile {
 }
 
 impl CitationPercentile {
-    pub fn to_work_citation_percentile_table(self, work_id: &str) -> WorkCitationPercentileTable {
+    pub fn build_work_citation_percentile_table(self, work_id: &str) -> WorkCitationPercentileTable {
         WorkCitationPercentileTable {
             work_id: work_id.to_string(),
             value: self.value.unwrap_or_default(),
@@ -903,7 +904,7 @@ pub struct CitedByPercentileYear {
 }
 
 impl CitedByPercentileYear {
-    pub fn to_work_cited_by_percentile_year(self, work_id: &str) -> WorkCitedByPercentileYearTable {
+    pub fn build_work_cited_by_percentile_year(self, work_id: &str) -> WorkCitedByPercentileYearTable {
         WorkCitedByPercentileYearTable {
             work_id: work_id.to_string(),
             min: self.min.unwrap_or_default(),
@@ -993,7 +994,7 @@ pub struct WorkKeyword {
 }
 
 impl WorkKeyword {
-    pub fn to_work_keyword_table(self, work_id: &str) -> WorkKeywordTable {
+    pub fn build_work_keyword_table(self, work_id: &str) -> WorkKeywordTable {
         WorkKeywordTable {
             work_id: work_id.to_string(),
             keyword_id: self.id.unwrap_or_default(),
@@ -1049,7 +1050,7 @@ pub struct MeshTag {
 }
 
 impl MeshTag {
-    pub fn to_work_mesh_tag_table(self, work_id: &str) -> WorkMeshTagTable {
+    pub fn build_work_mesh_tag_table(self, work_id: &str) -> WorkMeshTagTable {
         WorkMeshTagTable {
             work_id: work_id.to_string(),
             descriptor_ui: self.descriptor_ui.unwrap_or_default(),
@@ -1115,7 +1116,7 @@ pub struct SdgTag {
 }
 
 impl SdgTag {
-    pub fn to_work_sdg_tag_table(self, work_id: &str) -> WorkSdgTagTable {
+    pub fn build_work_sdg_tag_table(self, work_id: &str) -> WorkSdgTagTable {
         WorkSdgTagTable {
             work_id: work_id.to_string(),
             sdg_tag_id: self.id.unwrap_or_default(),
@@ -1173,7 +1174,7 @@ pub struct WorkIds {
 }
 
 impl WorkIds {
-    pub fn to_work_ids_table(self, work_id: &str) -> WorkIdsTable {
+    pub fn build_work_ids_table(self, work_id: &str) -> WorkIdsTable {
         WorkIdsTable {
             work_id: work_id.to_string(),
             openalex: self.openalex.unwrap_or_default(),
@@ -1225,7 +1226,7 @@ pub struct WorkTopic {
 }
 
 impl WorkTopic {
-    pub fn to_work_topic_table(self, work_id: &str, is_primary: bool) -> WorkTopicTable {
+    pub fn build_work_topic_table(self, work_id: &str, is_primary: bool) -> WorkTopicTable {
         WorkTopicTable {
             work_id: work_id.to_string(),
             topic_id: self.id.unwrap_or_default(),
@@ -1287,7 +1288,7 @@ pub struct WorkConcept {
 }
 
 impl WorkConcept {
-    pub fn to_work_concept_table(self, work_id: &str) -> WorkConceptTable {
+    pub fn build_work_concept_table(self, work_id: &str) -> WorkConceptTable {
         WorkConceptTable {
             work_id: work_id.to_string(),
             concept_id: self.id.unwrap_or_default(),

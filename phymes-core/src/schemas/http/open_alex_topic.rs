@@ -19,7 +19,7 @@ pub struct Topic {
 }
 
 impl Topic {
-    pub fn to_work_topic_table(
+    pub fn build_work_topic_table(
         self,
         work_id: &str,
         is_primary: bool,
@@ -32,7 +32,7 @@ impl Topic {
             score,
         }
     }
-    pub fn to_tables(
+    pub fn build_tables(
         self,
     ) -> (
         TopicTable,
@@ -42,10 +42,10 @@ impl Topic {
         Option<TopicIdsTable>,
         Vec<TopicKeywordTable>,
     ) {
-        let topic_domain = self.domain.to_topic_domain_table(&self.id);
-        let topic_field = self.field.to_topic_field_table(&self.id);
-        let topic_subfield = self.subfield.to_topic_subfield_table(&self.id);
-        let topic_ids = self.ids.map(|t| t.to_topic_ids_table(&self.id));
+        let topic_domain = self.domain.build_topic_domain_table(&self.id);
+        let topic_field = self.field.build_topic_field_table(&self.id);
+        let topic_subfield = self.subfield.build_topic_subfield_table(&self.id);
+        let topic_ids = self.ids.map(|t| t.build_topic_ids_table(&self.id));
         let topic_keyword = self
             .keywords
             .unwrap_or_default()
@@ -119,7 +119,7 @@ pub struct TopicIds {
 }
 
 impl TopicIds {
-    pub fn to_topic_ids_table(self, topic_id: &str) -> TopicIdsTable {
+    pub fn build_topic_ids_table(self, topic_id: &str) -> TopicIdsTable {
         TopicIdsTable {
             topic_id: topic_id.to_string(),
             openalex: self.openalex.unwrap_or_default(),
@@ -165,7 +165,7 @@ pub struct TopicSubfield {
 }
 
 impl TopicSubfield {
-    pub fn to_topic_subfield_table(self, topic_id: &str) -> TopicSubfieldTable {
+    pub fn build_topic_subfield_table(self, topic_id: &str) -> TopicSubfieldTable {
         TopicSubfieldTable {
             topic_id: topic_id.to_string(),
             topic_subfield_id: self.id.unwrap_or_default(),
@@ -211,7 +211,7 @@ pub struct TopicField {
 }
 
 impl TopicField {
-    pub fn to_topic_field_table(self, topic_id: &str) -> TopicFieldTable {
+    pub fn build_topic_field_table(self, topic_id: &str) -> TopicFieldTable {
         TopicFieldTable {
             topic_id: topic_id.to_string(),
             topic_field_id: self.id.unwrap_or_default(),
@@ -257,7 +257,7 @@ pub struct TopicDomain {
 }
 
 impl TopicDomain {
-    pub fn to_topic_domain_table(self, topic_id: &str) -> TopicDomainTable {
+    pub fn build_topic_domain_table(self, topic_id: &str) -> TopicDomainTable {
         TopicDomainTable {
             topic_id: topic_id.to_string(),
             topic_domain_id: self.id.unwrap_or_default(),

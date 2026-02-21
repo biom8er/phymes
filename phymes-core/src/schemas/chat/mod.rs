@@ -1,4 +1,4 @@
-mod chat;
+mod messages;
 mod chat_builder;
 mod tools;
 
@@ -9,7 +9,7 @@ mod openai_common;
 // Based on openai-api-rs and modified to accomodate Apache Arrow
 mod chat_types;
 
-pub use chat::{create_chat_fields, create_chat_record_batch};
+pub use messages::{create_chat_fields, create_chat_record_batch};
 pub use chat_builder::{ChatBuilderTraitExt, ChatTraitExt};
 pub use chat_types::{Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType};
 pub use openai_chat_completion::{

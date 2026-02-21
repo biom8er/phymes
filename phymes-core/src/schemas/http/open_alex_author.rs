@@ -31,7 +31,8 @@ pub struct Author {
 }
 
 impl Author {
-    pub fn to_tables(
+    #[allow(clippy::type_complexity)]
+    pub fn build_tables(
         self,
     ) -> (
         AuthorTable,
@@ -56,33 +57,33 @@ impl Author {
             .affiliations
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_author_affiliation_table(&self.id.clone().unwrap_or_default()))
+            .map(|t| t.build_author_affiliation_table(&self.id.clone().unwrap_or_default()))
             .collect::<Vec<_>>();
         let author_last_known_institutions = self
             .last_known_institutions
             .unwrap_or_default()
             .into_iter()
             .map(|t| {
-                t.to_author_last_known_institutions_table(&self.id.clone().unwrap_or_default())
+                t.build_author_last_known_institutions_table(&self.id.clone().unwrap_or_default())
             })
             .collect::<Vec<_>>();
         let author_ids = self
             .ids
-            .map(|t| t.to_author_ids_table(&self.id.clone().unwrap_or_default()));
+            .map(|t| t.build_author_ids_table(&self.id.clone().unwrap_or_default()));
         let author_summary_stats = self
             .summary_stats
-            .map(|t| t.to_author_summary_stats_table(&self.id.clone().unwrap_or_default()));
+            .map(|t| t.build_author_summary_stats_table(&self.id.clone().unwrap_or_default()));
         let author_counts_by_year = self
             .counts_by_year
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_author_counts_by_year(&self.id.clone().unwrap_or_default()))
+            .map(|t| t.build_author_counts_by_year(&self.id.clone().unwrap_or_default()))
             .collect::<Vec<_>>();
         let author_concepts = self
             .x_concepts
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_author_concept_table(&self.id.clone().unwrap_or_default()))
+            .map(|t| t.build_author_concept_table(&self.id.clone().unwrap_or_default()))
             .collect::<Vec<_>>();
         let author = AuthorTable {
             author_id: self.id.unwrap_or_default(),
@@ -192,14 +193,14 @@ pub struct Affiliation {
 }
 
 impl Affiliation {
-    pub fn to_author_affiliation_table(self, author_id: &str) -> AuthorAffiliationTable {
+    pub fn build_author_affiliation_table(self, author_id: &str) -> AuthorAffiliationTable {
         AuthorAffiliationTable {
             author_id: author_id.to_string(),
             institution_id: self.institution.id,
             years: self.years,
         }
     }
-    pub fn to_award_affiliation_table(self, award_id: &str, orcid: &str) -> AwardAffiliationTable {
+    pub fn build_award_affiliation_table(self, award_id: &str, orcid: &str) -> AwardAffiliationTable {
         AwardAffiliationTable {
             award_id: award_id.to_string(),
             orcid: orcid.to_string(),
@@ -287,7 +288,7 @@ pub struct AuthorIds {
 }
 
 impl AuthorIds {
-    pub fn to_author_ids_table(self, author_id: &str) -> AuthorIdsTable {
+    pub fn build_author_ids_table(self, author_id: &str) -> AuthorIdsTable {
         AuthorIdsTable {
             author_id: author_id.to_string(),
             openalex: self.openalex.unwrap_or_default(),
@@ -428,7 +429,7 @@ pub struct AuthorConcept {
 }
 
 impl AuthorConcept {
-    pub fn to_author_concept_table(self, author_id: &str) -> AuthorConceptTable {
+    pub fn build_author_concept_table(self, author_id: &str) -> AuthorConceptTable {
         AuthorConceptTable {
             author_id: author_id.to_string(),
             concept_id: self.id.unwrap_or_default(),

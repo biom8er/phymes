@@ -31,19 +31,20 @@ pub struct Funder {
 }
 
 impl Funder {
-    pub fn to_work_funder_table(self, work_id: &str) -> WorkFunderTable {
+    pub fn build_work_funder_table(self, work_id: &str) -> WorkFunderTable {
         WorkFunderTable {
             work_id: work_id.to_string(),
             funder_id: self.id,
         }
     }
-    pub fn to_award_funder_table(self, award_id: &str) -> AwardFunderTable {
+    pub fn build_award_funder_table(self, award_id: &str) -> AwardFunderTable {
         AwardFunderTable {
             award_id: award_id.to_string(),
             funder_id: self.id,
         }
     }
-    pub fn to_tables(
+    #[allow(clippy::type_complexity)]
+    pub fn build_tables(
         self,
     ) -> (
         FunderTable,
@@ -62,22 +63,22 @@ impl Funder {
                 title: t,
             })
             .collect::<Vec<_>>();
-        let funder_ids = self.ids.map(|i| i.to_funder_ids_table(&self.id));
+        let funder_ids = self.ids.map(|i| i.build_funder_ids_table(&self.id));
         let funder_role = self
             .roles
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_funder_role_table(&self.id))
+            .map(|t| t.build_funder_role_table(&self.id))
             .collect::<Vec<_>>();
         let funder_counts_by_year = self
             .counts_by_year
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_funder_counts_by_year(&self.id))
+            .map(|t| t.build_funder_counts_by_year(&self.id))
             .collect::<Vec<_>>();
         let funder_summary_stats = self
             .summary_stats
-            .map(|t| t.to_funder_summary_stats_table(&self.id));
+            .map(|t| t.build_funder_summary_stats_table(&self.id));
         let funder = FunderTable {
             funder_id: self.id,
             display_name: self.display_name,
@@ -169,7 +170,7 @@ pub struct FunderIds {
 }
 
 impl FunderIds {
-    pub fn to_funder_ids_table(self, funder_id: &str) -> FunderIdsTable {
+    pub fn build_funder_ids_table(self, funder_id: &str) -> FunderIdsTable {
         FunderIdsTable {
             funder_id: funder_id.to_string(),
             openalex: self.openalex.unwrap_or_default(),

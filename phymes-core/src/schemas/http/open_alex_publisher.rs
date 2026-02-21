@@ -31,7 +31,8 @@ pub struct Publisher {
 }
 
 impl Publisher {
-    pub fn to_tables(
+    #[allow(clippy::type_complexity)]
+    pub fn build_tables(
         self,
     ) -> (
         PublisherTable,
@@ -70,22 +71,22 @@ impl Publisher {
                 lineage_id: t,
             })
             .collect::<Vec<_>>();
-        let publisher_ids = self.ids.map(|i| i.to_publisher_ids_table(&self.id));
+        let publisher_ids = self.ids.map(|i| i.build_publisher_ids_table(&self.id));
         let publisher_role = self
             .roles
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_publisher_role_table(&self.id))
+            .map(|t| t.build_publisher_role_table(&self.id))
             .collect::<Vec<_>>();
         let publisher_counts_by_year = self
             .counts_by_year
             .unwrap_or_default()
             .into_iter()
-            .map(|t| t.to_publisher_counts_by_year(&self.id))
+            .map(|t| t.build_publisher_counts_by_year(&self.id))
             .collect::<Vec<_>>();
         let publisher_summary_stats = self
             .summary_stats
-            .map(|t| t.to_publisher_summary_stats_table(&self.id));
+            .map(|t| t.build_publisher_summary_stats_table(&self.id));
         let publisher = PublisherTable {
             publisher_id: self.id,
             display_name: self.display_name,
@@ -174,7 +175,7 @@ pub struct PublisherIds {
 }
 
 impl PublisherIds {
-    pub fn to_publisher_ids_table(self, publisher_id: &str) -> PublisherIdsTable {
+    pub fn build_publisher_ids_table(self, publisher_id: &str) -> PublisherIdsTable {
         PublisherIdsTable {
             publisher_id: publisher_id.to_string(),
             openalex: self.openalex.unwrap_or_default(),

@@ -75,7 +75,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
         let mut work_ids_tables = Vec::new();
         let mut work_referenced_works_tables = Vec::new();
         let mut work_related_works_tables = Vec::new();
-        for work in self.results {
+        for result in self.results {
             // Parse into individual tables
             let (
                 work_table,
@@ -100,7 +100,7 @@ impl JsonSchemaTrait for OpenAlexResponseWorks {
                 work_ids_table,
                 work_referenced_works_table,
                 work_related_works_table,
-            ) = work.to_tables();
+            ) = result.build_tables();
 
             // Handle each individual table
             work_tables.push(work_table);
@@ -649,7 +649,7 @@ impl JsonSchemaTrait for OpenAlexResponseAuthors {
                 author_summary_stats,
                 author_counts_by_year,
                 author_concepts,
-            ) = result.to_tables();
+            ) = result.build_tables();
             author_vec.push(author);
             author_display_name_alternatives_vec.extend(author_display_name_alternatives);
             author_affiliation_vec.extend(author_affiliation);
@@ -910,7 +910,7 @@ impl JsonSchemaTrait for OpenAlexResponseInstitution {
                 institution_counts_by_year,
                 institution_concepts,
                 institution_lineage,
-            ) = result.to_tables();
+            ) = result.build_tables();
             institution_vec.push(institution);
             institution_display_name_acronyms_vec.extend(institution_display_name_acronyms);
             institution_display_name_alternatives_vec.extend(institution_display_name_alternatives);
@@ -1300,7 +1300,7 @@ impl JsonSchemaTrait for OpenAlexResponseTopic {
         let mut topic_keyword_vec = Vec::new();
         for result in self.results {
             let (topic, topic_domain, topic_field, topic_subfield, topic_ids, topic_keyword) =
-                result.to_tables();
+                result.build_tables();
             topic_vec.push(topic);
             topic_domain_vec.push(topic_domain);
             topic_field_vec.push(topic_field);
@@ -1437,7 +1437,7 @@ impl JsonSchemaTrait for OpenAlexResponseSource {
                 source_society,
                 source_summary_stats,
                 source_concept,
-            ) = result.to_tables();
+            ) = result.build_tables();
             source_vec.push(source);
             source_alternative_titles_vec.extend(source_alternative_titles);
             source_apc_price_vec.extend(source_apc_price);
@@ -1668,7 +1668,7 @@ impl JsonSchemaTrait for OpenAlexResponsePublisher {
                 publisher_role,
                 publisher_counts_by_year,
                 publisher_summary_stats,
-            ) = result.to_tables();
+            ) = result.build_tables();
             publisher_vec.push(publisher);
             publisher_alternative_titles_vec.extend(publisher_alternative_titles);
             publisher_country_code_vec.extend(publisher_country_code);
@@ -1889,7 +1889,7 @@ impl JsonSchemaTrait for OpenAlexResponseAward {
         let mut award_affiliation_vec = Vec::new();
         for result in self.results {
             let (award, award_funder, award_funded_outputs, award_investigator, award_affiliation) =
-                result.to_tables();
+                result.build_tables();
             award_vec.push(award);
             if let Some(award_funder) = award_funder {
                 award_funder_vec.push(award_funder);
@@ -2039,7 +2039,7 @@ impl JsonSchemaTrait for OpenAlexResponseFunder {
                 funder_role,
                 funder_counts_by_year,
                 funder_summary_stats,
-            ) = result.to_tables();
+            ) = result.build_tables();
             funder_vec.push(funder);
             funder_alternative_titles_vec.extend(funder_alternative_titles);
             if let Some(funder_ids) = funder_ids {
