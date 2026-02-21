@@ -218,15 +218,6 @@ impl CommandSandboxStream {
             from_cli_args: false,
         })
     }
-
-    /// Initialize the config for text generation inference
-    fn init_config(&mut self, config_table: Table) -> Result<()> {
-        if self.config.is_none() {
-            let config = CommandSandboxConfig::from_table(&config_table)?;
-            self.config.replace(config);
-        }
-        Ok(())
-    }
 }
 
 impl Stream for CommandSandboxStream {
@@ -1646,7 +1637,6 @@ mod tests {
     #[tokio::test]
     async fn test_command_sandbox_processor_wasmtime() -> Result<()> {
         let name = "CommandSandboxProcessor";
-        let messages = "messages";
 
         // Runtime env
         let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));

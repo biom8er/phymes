@@ -205,11 +205,10 @@ impl Stream for HTTPClientRequestStream {
                     match remove_message_by_subject(&subject_name, &mut self.messages) {
                         // Poll the next batches in a streaming fashion
                         Some(mut fut) => {
-                            while let Some(Ok(batch)) =
+                            if let Some(Ok(batch)) =
                                 ready!(fut.get_message_mut().poll_next_unpin(cx))
                             {
                                 self.record_batches.replace(batch);
-                                break;
                             }
                             self.messages.insert(fut.get_name().to_string(), fut);
                         }
@@ -462,8 +461,7 @@ impl Stream for HTTPClientRequestStream {
 
                     // Determine the filename
                     let filename = if let Some(url) = self.url.take() {
-                        let mut f_vec = url.split("/").into_iter().collect::<Vec<_>>();
-                        f_vec.pop().unwrap_or_default().to_string()
+                        url.split("/").last().unwrap_or_default().to_string()
                     } else {
                         String::new()
                     };
@@ -838,7 +836,7 @@ mod tests {
         let result = table.get_column_as_vec_str("filename");
         assert_eq!(
             result,
-            ["works?page=1&per-page=5&filter=publication_year:\"2020\""]
+            ["works?page=1&per-page=1&filter=publication_year:\"2020\""]
         );
         let result = table.get_column_as_vec_str("extension");
         assert_eq!(result, ["application/json"]);

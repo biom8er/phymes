@@ -215,13 +215,13 @@ impl Stream for ToolCallStream {
                     .get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
                 session_names
                     .into_iter()
-                    .zip(task_names.into_iter())
-                    .zip(processor_names.into_iter())
-                    .zip(processor_types.into_iter())
-                    .zip(subscription_names.into_iter())
-                    .zip(subscription_table_names.into_iter())
-                    .zip(publication_names.into_iter())
-                    .zip(publication_table_names.into_iter())
+                    .zip(task_names)
+                    .zip(processor_names)
+                    .zip(processor_types)
+                    .zip(subscription_names)
+                    .zip(subscription_table_names)
+                    .zip(publication_names)
+                    .zip(publication_table_names)
                     .map(
                         |(
                             (
@@ -312,11 +312,7 @@ impl Stream for ToolCallStream {
                             if subscription_table_names_set.contains(field.name()) {
                                 let subscription_table_name =
                                     table.get_column_as_vec_str(field.name());
-                                if let Some(name) = subscription_table_name.last() {
-                                    Some(name.to_string())
-                                } else {
-                                    None
-                                }
+                                subscription_table_name.last().map(|name| name.to_string())
                             } else {
                                 None
                             }

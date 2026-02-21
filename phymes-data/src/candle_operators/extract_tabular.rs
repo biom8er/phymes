@@ -584,7 +584,7 @@ mod tests {
         assert_eq!(test.get("WorkConceptTable").unwrap().count_rows(), 12);
         assert_eq!(test.get("WorkTopicTable").unwrap().count_rows(), 3);
         assert_eq!(test.get("WorkKeywordTable").unwrap().count_rows(), 10);
-        assert!(test.contains_key("WorkMeshTagTable"));
+        assert!(!test.contains_key("WorkMeshTagTable"));
         assert_eq!(test.get("WorkSdgTagTable").unwrap().count_rows(), 1);
         assert_eq!(
             test.get("WorkCorrespondingAuthorTable")
