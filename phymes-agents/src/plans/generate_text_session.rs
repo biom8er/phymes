@@ -5,20 +5,108 @@
 pub struct GenerateTextSession<'a> {
     /// Session
     pub session_context_name: &'a str,
+    /// The Asset to use for Text Generation and related parameters
+    pub candle_asset: Option<String>,
+    pub openai_asset: Option<String>,
+    pub weights_config_file: Option<String>,
+    pub weights_file: Option<String>,
+    pub tokenizer_file: Option<String>,
+    pub tokenizer_config_file: Option<String>,
+    pub api_url: Option<String>,
+    /// The processor to use for text generation
+    pub generate_text_inference: &'a str,
 }
 
 impl<'a> Default for GenerateTextSession<'a> {
     fn default() -> Self {
+        let (candle_asset, openai_asset, weights_config_file, weights_file, tokenizer_file, tokenizer_config_file, api_url) = if cfg!(feature = "hf_hub") {
+            (Some("QwenV2p5_1p5bChat".to_string()), None, None, None, None, None, None)
+        } else if cfg!(all(feature = "api", not(feature = "candle"))) {
+            (None, Some("MetaLlamaV3p2_1B".to_string()), None, None, None, None, Some("http://0.0.0.0:8000/v1".to_string()))
+        } else {
+            (Some("SmolLM2_135MChat".to_string()), 
+                None, Some(format!(
+                    "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json",
+                    std::env::var("HOME").unwrap_or("".to_string())
+                )), Some(format!(
+                    "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf",
+                    std::env::var("HOME").unwrap_or("".to_string())
+                )), Some(format!(
+                    "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json",
+                    std::env::var("HOME").unwrap_or("".to_string())
+                )), Some(format!(
+                    "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
+                    std::env::var("HOME").unwrap_or("".to_string())
+                )), None
+            )
+        };
+        let generate_text_inference = if cfg!(all(feature = "api", not(feature = "candle"))) {
+            "OpenAIChatProcessor"
+        } else {
+            "CandleChatProcessor"
+        };
         Self {
             session_context_name: "generate_text_session",
+            candle_asset,
+            openai_asset,
+            weights_config_file,
+            weights_file,
+            tokenizer_config_file,
+            tokenizer_file,
+            api_url,
+            generate_text_inference
         }
     }
 }
 
 impl<'a> GenerateTextSession<'a> {
+    fn generate_text_inference_p(&self) -> String {
+        let mut lines = Vec::new();
+        if let Some(candle_asset) = &self.candle_asset {
+            let line = format!(r#"Utf8 candle_asset "{candle_asset}""#);
+            lines.push(line);
+        }
+        if let Some(openai_asset) = &self.openai_asset {
+            let line = format!(r#"Utf8 openai_asset "{openai_asset}""#);
+            lines.push(line);
+        }
+        if let Some(tokenizer_config_file) = &self.tokenizer_config_file {
+            let line = format!(r#"Utf8 tokenizer_config_file "{tokenizer_config_file}""#);
+            lines.push(line);
+        }
+        if let Some(tokenizer_file) = &self.tokenizer_file {
+            let line = format!(r#"Utf8 tokenizer_file "{tokenizer_file}""#);
+            lines.push(line);
+        }
+        if let Some(weights_config_file) = &self.weights_config_file {
+            let line = format!(r#"Utf8 weights_config_file "{weights_config_file}""#);
+            lines.push(line);
+        }
+        if let Some(weights_file) = &self.weights_file {
+            let line = format!(r#"Utf8 weights_file "{weights_file}""#);
+            lines.push(line);
+        }
+        if let Some(api_url) = &self.api_url {
+            let line = format!(r#"Utf8 api_url "{api_url}""#);
+            lines.push(line);
+        }
+        lines.join("\n\t\t")
+    }
+    fn parse_generated_text_p(&self) -> String {
+        let mut lines = Vec::new();
+        if let Some(candle_asset) = &self.candle_asset {
+            let line = format!(r#"Utf8 candle_asset "{candle_asset}""#);
+            lines.push(line);
+        }
+        if let Some(openai_asset) = &self.openai_asset {
+            let line = format!(r#"Utf8 openai_asset "{openai_asset}""#);
+            lines.push(line);
+        }
+        lines.join("\n\t\t")
+    }
     /// Return the Mermaid.js flowchart representation of the session
-    pub fn as_mermaid_flowchart(&self) -> &str {
-        r#"flowchart TD
+    pub fn as_mermaid_flowchart(&self) -> String {
+        format!(r#"flowchart TD
 	%% ------------------------------------------------------------------------------
 	%% Message aggregation for text generation
 	%% ------------------------------------------------------------------------------
@@ -31,16 +119,16 @@ impl<'a> GenerateTextSession<'a> {
 		aggregate_messages_generate_text_p-processor-->aggregate_messages_generate_text_p-publish
 		aggregate_messages_generate_text_p-publish-->|Replace|aggregate_messages_generate_text_s-subject
 	end
-	generate_text_r-rt@{shape: subproc, label: generate_text_r}
+	generate_text_r-rt@{{shape: subproc, label: generate_text_r}}
 	generate_text_r-rt-->aggregate_messages_generate_text_t
-	UserMessages-subject@{shape: doc, label: UserMessages}
-	ToolMessages-subject@{shape: doc, label: ToolMessages}
-	SessionErrors-subject@{shape: doc, label: SessionErrors}
-	AssistantMessages-subject@{shape: doc, label: AssistantMessages}
-	aggregate_messages_generate_text_p-processor@{shape: rect, label: MessageAggregatorProcessor}
-	aggregate_messages_generate_text_p-publish@{shape: fork}
-	aggregate_messages_generate_text_p-subscribe@{shape: diamond, label: ChatContentSubscribe}
-	aggregate_messages_generate_text_s-subject@{shape: doc, label: aggregate_messages_generate_text_s}
+	UserMessages-subject@{{shape: doc, label: UserMessages}}
+	ToolMessages-subject@{{shape: doc, label: ToolMessages}}
+	SessionErrors-subject@{{shape: doc, label: SessionErrors}}
+	AssistantMessages-subject@{{shape: doc, label: AssistantMessages}}
+	aggregate_messages_generate_text_p-processor@{{shape: rect, label: MessageAggregatorProcessor}}
+	aggregate_messages_generate_text_p-publish@{{shape: fork}}
+	aggregate_messages_generate_text_p-subscribe@{{shape: diamond, label: ChatContentSubscribe}}
+	aggregate_messages_generate_text_s-subject@{{shape: doc, label: aggregate_messages_generate_text_s}}
 	%% ------------------------------------------------------------------------------
 	%% Message aggregation for the UI
 	%% ------------------------------------------------------------------------------
@@ -52,10 +140,10 @@ impl<'a> GenerateTextSession<'a> {
 		aggregate_messages_user_interface_p-publish-->|Extend|AggregatedMessages-subject
 	end
 	generate_text_r-rt-->aggregate_messages_user_interface_t
-	aggregate_messages_user_interface_p-processor@{shape: rect, label: MessageAggregatorProcessor}
-	aggregate_messages_user_interface_p-publish@{shape: fork}
-	aggregate_messages_user_interface_p-subscribe@{shape: diamond, label: Any}
-	AggregatedMessages-subject@{shape: doc, label: AggregatedMessages}
+	aggregate_messages_user_interface_p-processor@{{shape: rect, label: MessageAggregatorProcessor}}
+	aggregate_messages_user_interface_p-publish@{{shape: fork}}
+	aggregate_messages_user_interface_p-subscribe@{{shape: diamond, label: Any}}
+	AggregatedMessages-subject@{{shape: doc, label: AggregatedMessages}}
 	%% ------------------------------------------------------------------------------
 	%% Text generation
 	%% ------------------------------------------------------------------------------
@@ -66,13 +154,13 @@ impl<'a> GenerateTextSession<'a> {
 		generate_text_inference_p-processor-->generate_text_inference_p-publish
 		generate_text_inference_p-publish-->|Replace|generate_text_inference_s-subject
 	end
-	generate_text_inference_r-rt@{shape: subproc, label: generate_text_inference_r}
+	generate_text_inference_r-rt@{{shape: subproc, label: generate_text_inference_r}}
 	generate_text_inference_r-rt-->generate_text_inference_t
-	Tools-subject@{shape: doc, label: Tools}
-	generate_text_inference_p-processor@{shape: rect, label: CandleChatProcessor}
-	generate_text_inference_p-publish@{shape: fork}
-	generate_text_inference_p-subscribe@{shape: diamond, label: All}
-	generate_text_inference_s-subject@{shape: doc, label: generate_text_inference_s}
+	Tools-subject@{{shape: doc, label: Tools}}
+	generate_text_inference_p-processor@{{shape: rect, label: {}}}
+	generate_text_inference_p-publish@{{shape: fork}}
+	generate_text_inference_p-subscribe@{{shape: diamond, label: All}}
+	generate_text_inference_s-subject@{{shape: doc, label: generate_text_inference_s}}
 	%% ------------------------------------------------------------------------------
 	%% Parse generated text
 	%% ------------------------------------------------------------------------------
@@ -83,101 +171,85 @@ impl<'a> GenerateTextSession<'a> {
 		parse_generated_text_p-publish-->|Extend|AssistantMessages-subject
 	end
 	generate_text_r-rt-->parse_generated_text_t
-	parse_generated_text_p-processor@{shape: rect, label: MessageParserProcessor}
-	parse_generated_text_p-publish@{shape: fork}
-	parse_generated_text_p-subscribe@{shape: diamond, label: All}
-	%% ------------------------------------------------------------------------------"#
+	parse_generated_text_p-processor@{{shape: rect, label: MessageParserProcessor}}
+	parse_generated_text_p-publish@{{shape: fork}}
+	parse_generated_text_p-subscribe@{{shape: diamond, label: All}}
+	%% ------------------------------------------------------------------------------"#, self.generate_text_inference)
     }
 
     /// Return the Mermaid.js ER diagram representation of the session
-    pub fn as_mermaid_erdiagram(&self) -> &str {
-        r#"erDiagram
-    UserMessages["UserMessages"] {
+    pub fn as_mermaid_erdiagram(&self) -> String {
+        format!(r#"erDiagram
+    UserMessages["UserMessages"] {{
         Utf8 role
         Utf8 content
         Int64 timestamp
-    }
-	ToolMessages["ToolMessages"] {
+    }}
+	ToolMessages["ToolMessages"] {{
 	    Utf8 role
 	    Utf8 content
 	    Int64 timestamp
-	}
-    SessionErrors["SessionErrors"] {
+	}}
+    SessionErrors["SessionErrors"] {{
         Utf8 role
         Utf8 content
         Int64 timestamp
-    }
-    AssistantMessages["AssistantMessages"] {
+    }}
+    AssistantMessages["AssistantMessages"] {{
         Utf8 role
         Utf8 content
         Int64 timestamp
-    }
-    aggregate_messages_generate_text_p["aggregate_messages_generate_text_p"] {
+    }}
+    aggregate_messages_generate_text_p["aggregate_messages_generate_text_p"] {{
         Boolean asc "true"
         Boolean cpu "false"
         List-Utf8 lhs_values "['timestamp']"
         Utf8 operator "Sort"
         Utf8 lhs_stream "Accumulate"
-    }
-    aggregate_messages_user_interface_p["aggregate_messages_user_interface_p"] {
+    }}
+    aggregate_messages_user_interface_p["aggregate_messages_user_interface_p"] {{
         Boolean asc "true"
         Boolean cpu "false"
         List-Utf8 lhs_values "['timestamp']"
         Utf8 operator "Sort"
         Utf8 lhs_stream "Accumulate"
-    }
-    AggregatedMessages["AggregatedMessages"] {
+    }}
+    AggregatedMessages["AggregatedMessages"] {{
         Utf8 role
         Utf8 content
         Int64 timestamp
-    }
-    Tools["Tools"] {
+    }}
+    Tools["Tools"] {{
         Utf8 tool_id
         Utf8 tool
-    }
-    aggregate_messages_generate_text_s["aggregate_messages_generate_text_s"] {
+    }}
+    aggregate_messages_generate_text_s["aggregate_messages_generate_text_s"] {{
         Utf8 role
         Utf8 content
         Int64 timestamp
-    }
-    generate_text_inference_p["generate_text_inference_p"] {
-        Utf8 candle_asset "QwenV2p5_1p5bChat"
+    }}
+    generate_text_inference_p["generate_text_inference_p"] {{
         Boolean cpu "false"
         Float64 frequency_penalty "0.0"
         Int64 max_tokens "1000"
         Utf8 messages "aggregate_messages_generate_text_s"
+        Utf8 tools "Tools"
         Int64 repeat_last_n "64"
         Float64 repeat_penalty "1.1"
         Int64 seed "299792458"
         Boolean split_prompt "false"
         Float64 temperature "0.8"
-        Utf8 tokenizer_config_file "/home/dmccloskey/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer_config.json"
-        Utf8 tokenizer_file "/home/dmccloskey/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer.json"
-        Utf8 tools "Tools"
-        Utf8 weights_config_file "/home/dmccloskey/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/config.json"
-        Utf8 weights_file "/home/dmccloskey/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-1.5b-instruct-q4_k_m.gguf"
-    }
-    generate_text_inference_s["generate_text_inference_s"] {
+        {}
+    }}
+    generate_text_inference_s["generate_text_inference_s"] {{
         Utf8 role
         Utf8 content
         Int64 timestamp
-    }
-    parse_generated_text_p["parse_generated_text_p"] {
-        Utf8 candle_asset "QwenV2p5_1p5bChat"
-        Boolean cpu "false"
-        Float64 frequency_penalty "0.0"
-        Int64 max_tokens "1000"
+    }}
+    parse_generated_text_p["parse_generated_text_p"] {{
         Utf8 messages "generate_text_inference_s"
-        Int64 repeat_last_n "64"
-        Float64 repeat_penalty "1.1"
-        Int64 seed "299792458"
-        Boolean split_prompt "false"
-        Float64 temperature "0.8"
-        Utf8 tokenizer_config_file "/home/dmccloskey/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer_config.json"
-        Utf8 tokenizer_file "/home/dmccloskey/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer.json"
-        Utf8 weights_config_file "/home/dmccloskey/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/config.json"
-        Utf8 weights_file "/home/dmccloskey/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-1.5b-instruct-q4_k_m.gguf"
-    }"#
+        {}
+    }}"#, self.generate_text_inference_p(), self.parse_generated_text_p())
     }
 }
 
@@ -211,11 +283,11 @@ mod tests {
         // Initialize the session
         let generate_text_session = GenerateTextSession::default();
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
-            generate_text_session.as_mermaid_flowchart(),
+            &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
         .with_state_from_mermaid_erdiagram(
-            generate_text_session.as_mermaid_erdiagram(),
+            &generate_text_session.as_mermaid_erdiagram(),
             false,
             true,
         )?
@@ -353,11 +425,11 @@ mod tests {
         // Initialize the session
         let generate_text_session = GenerateTextSession::default();
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
-            generate_text_session.as_mermaid_flowchart(),
+            &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
         .with_state_from_mermaid_erdiagram(
-            generate_text_session.as_mermaid_erdiagram(),
+            &generate_text_session.as_mermaid_erdiagram(),
             false,
             true,
         )?
@@ -552,11 +624,11 @@ mod tests {
         // Initialize the session
         let generate_text_session = GenerateTextSession::default();
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
-            generate_text_session.as_mermaid_flowchart(),
+            &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
         .with_state_from_mermaid_erdiagram(
-            generate_text_session.as_mermaid_erdiagram(),
+            &generate_text_session.as_mermaid_erdiagram(),
             false,
             true,
         )?
@@ -765,11 +837,11 @@ mod tests {
         // Initialize the session
         let generate_text_session = GenerateTextSession::default();
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
-            generate_text_session.as_mermaid_flowchart(),
+            &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
         .with_state_from_mermaid_erdiagram(
-            generate_text_session.as_mermaid_erdiagram(),
+            &generate_text_session.as_mermaid_erdiagram(),
             false,
             true,
         )?
