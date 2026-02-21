@@ -32,15 +32,16 @@ pub use diagnostic_session::DiagnosticSession;
 pub use document_rag_session::DocumentRAGSession;
 #[cfg(feature = "api")]
 pub use download_content_session::DownloadContentSession;
+pub use embed_text_session::EmbedTextSession;
+pub use extract_ontology_session::ExtractOntologySession;
+pub use extract_pdf_session::ExtractPDFSession;
+pub use generate_text_session::GenerateTextSession;
+pub use melt_study_data_session::MeltStudyDataSession;
 pub(crate) use next_superstep_session::NextSuperstepSession;
 pub(crate) use next_task_session::NextTaskSession;
+pub use retrieve_text_session::RetrieveTextSession;
 pub use tool_agent_session::ToolAgentSession;
 pub use user_session::UserSession;
 #[allow(unused_imports)]
 pub(crate) use user_session::user_session_inner;
-pub use embed_text_session::EmbedTextSession;
-pub use generate_text_session::GenerateTextSession;
-pub use extract_ontology_session::ExtractOntologySession;
-pub use extract_pdf_session::ExtractPDFSession;
-pub use retrieve_text_session::RetrieveTextSession;
-pub use melt_study_data_session::MeltStudyDataSession;
+pub use view_task_session::ViewTaskSession;

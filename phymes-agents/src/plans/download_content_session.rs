@@ -157,16 +157,17 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage,
-        MappableTrait, MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication,
-        TableTrait, create_values_record_batch,
+        BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait,
+        MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
+        create_values_record_batch,
     };
     use phymes_data::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
     use phymes_diagnostics::HashMap;
 
     use crate::{
         AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, plans::ViewTaskSession,
+        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
+        ViewTaskSession,
     };
 
     use super::*;

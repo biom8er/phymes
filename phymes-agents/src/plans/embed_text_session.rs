@@ -18,25 +18,55 @@ pub struct EmbedTextSession<'a> {
 
 impl<'a> Default for EmbedTextSession<'a> {
     fn default() -> Self {
-        let (candle_asset, openai_asset, weights_config_file, weights_file, tokenizer_file, tokenizer_config_file, api_url) = if cfg!(feature = "hf_hub") {
-            (Some("QwenV2_1p5bEmbed".to_string()), None, None, None, None, None, None)
+        let (
+            candle_asset,
+            openai_asset,
+            weights_config_file,
+            weights_file,
+            tokenizer_file,
+            tokenizer_config_file,
+            api_url,
+        ) = if cfg!(feature = "hf_hub") {
+            (
+                Some("QwenV2_1p5bEmbed".to_string()),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
         } else if cfg!(all(feature = "api", not(feature = "candle"))) {
-            (None, Some("NvidiaLlamaV3p2NvEmbedQA1BV2".to_string()), None, None, None, None, Some("http://0.0.0.0:8001/v1".to_string()))
+            (
+                None,
+                Some("NvidiaLlamaV3p2NvEmbedQA1BV2".to_string()),
+                None,
+                None,
+                None,
+                None,
+                Some("http://0.0.0.0:8001/v1".to_string()),
+            )
         } else {
-            (Some("QuantizedBertEmbed".to_string()), 
-                None, Some(format!(
+            (
+                Some("QuantizedBertEmbed".to_string()),
+                None,
+                Some(format!(
                     "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",
                     std::env::var("HOME").unwrap_or("".to_string())
-                )), Some(format!(
+                )),
+                Some(format!(
                     "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/all-minilm-l6-v2-q8_0.gguf",
                     std::env::var("HOME").unwrap_or("".to_string())
-                )), Some(format!(
+                )),
+                Some(format!(
                     "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer.json",
                     std::env::var("HOME").unwrap_or("".to_string())
-                )), Some(format!(
+                )),
+                Some(format!(
                     "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/tokenizer_config.json",
                     std::env::var("HOME").unwrap_or("".to_string())
-                )), None
+                )),
+                None,
             )
         };
         let generate_text_inference = if cfg!(all(feature = "api", not(feature = "candle"))) {
@@ -53,7 +83,7 @@ impl<'a> Default for EmbedTextSession<'a> {
             tokenizer_config_file,
             tokenizer_file,
             api_url,
-            embed_processor: generate_text_inference
+            embed_processor: generate_text_inference,
         }
     }
 }
@@ -93,7 +123,8 @@ impl<'a> EmbedTextSession<'a> {
     }
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
-        format!(r#"flowchart TD
+        format!(
+            r#"flowchart TD
 	%% ------------------------------------------------------------------------------
 	%% Messages to Query
 	%% ------------------------------------------------------------------------------
@@ -149,7 +180,9 @@ impl<'a> EmbedTextSession<'a> {
 	embed_documents_p-publish@{{shape: fork}}
 	embed_documents_p-subscribe@{{shape: diamond, label: All}}
 	DocumentEmbeddings-subject@{{shape: doc, label: DocumentEmbeddings}}
-	%% ------------------------------------------------------------------------------"#, self.embed_processor, self.embed_processor)
+	%% ------------------------------------------------------------------------------"#,
+            self.embed_processor, self.embed_processor
+        )
     }
     /// Return the Mermaid.js ER diagram representation of the session
     ///
@@ -157,7 +190,8 @@ impl<'a> EmbedTextSession<'a> {
     /// * for QWEN, the following cast template should be used
     ///   List-Utf8 cast_templates "['','Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: {{ content }}']"
     pub fn as_mermaid_erdiagram(&self) -> String {
-        format!(r#"erDiagram
+        format!(
+            r#"erDiagram
     UserMessages["UserMessages"] {{
         Utf8 role
         Utf8 content
@@ -213,7 +247,10 @@ impl<'a> EmbedTextSession<'a> {
 	    Utf8 chunk_id
 	    Utf8 document_id
 	    List-Float32 embedding
-	}}"#, self.embed_text_p(), self.embed_text_p())
+	}}"#,
+            self.embed_text_p(),
+            self.embed_text_p()
+        )
     }
 }
 

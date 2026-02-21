@@ -74,11 +74,19 @@ impl Award {
                 if self.lead_investigator.is_some()
                     && self.lead_investigator.as_ref().unwrap() == &i
                 {
-                    i.build_award_investigator_table(&self.id.clone().unwrap_or_default(), true, false)
+                    i.build_award_investigator_table(
+                        &self.id.clone().unwrap_or_default(),
+                        true,
+                        false,
+                    )
                 } else if self.co_lead_investigator.is_some()
                     && self.co_lead_investigator.as_ref().unwrap() == &i
                 {
-                    i.build_award_investigator_table(&self.id.clone().unwrap_or_default(), false, true)
+                    i.build_award_investigator_table(
+                        &self.id.clone().unwrap_or_default(),
+                        false,
+                        true,
+                    )
                 } else {
                     i.build_award_investigator_table(
                         &self.id.clone().unwrap_or_default(),
@@ -88,10 +96,7 @@ impl Award {
                 }
             })
             .unzip();
-        let award_affiliation = award_affiliation
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
+        let award_affiliation = award_affiliation.into_iter().flatten().collect::<Vec<_>>();
         let award = AwardTable {
             award_id: self.id.unwrap_or_default(),
             display_name: self.display_name.unwrap_or_default(),

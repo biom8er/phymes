@@ -200,7 +200,11 @@ impl Affiliation {
             years: self.years,
         }
     }
-    pub fn build_award_affiliation_table(self, award_id: &str, orcid: &str) -> AwardAffiliationTable {
+    pub fn build_award_affiliation_table(
+        self,
+        award_id: &str,
+        orcid: &str,
+    ) -> AwardAffiliationTable {
         AwardAffiliationTable {
             award_id: award_id.to_string(),
             orcid: orcid.to_string(),

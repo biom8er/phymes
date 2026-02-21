@@ -842,7 +842,10 @@ pub struct CitationPercentile {
 }
 
 impl CitationPercentile {
-    pub fn build_work_citation_percentile_table(self, work_id: &str) -> WorkCitationPercentileTable {
+    pub fn build_work_citation_percentile_table(
+        self,
+        work_id: &str,
+    ) -> WorkCitationPercentileTable {
         WorkCitationPercentileTable {
             work_id: work_id.to_string(),
             value: self.value.unwrap_or_default(),
@@ -904,7 +907,10 @@ pub struct CitedByPercentileYear {
 }
 
 impl CitedByPercentileYear {
-    pub fn build_work_cited_by_percentile_year(self, work_id: &str) -> WorkCitedByPercentileYearTable {
+    pub fn build_work_cited_by_percentile_year(
+        self,
+        work_id: &str,
+    ) -> WorkCitedByPercentileYearTable {
         WorkCitedByPercentileYearTable {
             work_id: work_id.to_string(),
             min: self.min.unwrap_or_default(),

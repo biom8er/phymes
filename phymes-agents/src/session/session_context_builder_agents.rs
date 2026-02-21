@@ -1326,9 +1326,7 @@ pub mod test_session_context_builder_agents {
 #[cfg(test)]
 mod tests {
     use crate::test_session_context_builder;
-    use phymes_core::{
-        BuildableTrait, BuilderTrait, TableBuilderTrait, TaskTrait, test_task,
-    };
+    use phymes_core::{BuildableTrait, BuilderTrait, TableBuilderTrait, TaskTrait, test_task};
     use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager};
 
     use super::*;

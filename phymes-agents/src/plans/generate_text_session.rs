@@ -19,25 +19,55 @@ pub struct GenerateTextSession<'a> {
 
 impl<'a> Default for GenerateTextSession<'a> {
     fn default() -> Self {
-        let (candle_asset, openai_asset, weights_config_file, weights_file, tokenizer_file, tokenizer_config_file, api_url) = if cfg!(feature = "hf_hub") {
-            (Some("QwenV2p5_1p5bChat".to_string()), None, None, None, None, None, None)
+        let (
+            candle_asset,
+            openai_asset,
+            weights_config_file,
+            weights_file,
+            tokenizer_file,
+            tokenizer_config_file,
+            api_url,
+        ) = if cfg!(feature = "hf_hub") {
+            (
+                Some("QwenV2p5_1p5bChat".to_string()),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
         } else if cfg!(all(feature = "api", not(feature = "candle"))) {
-            (None, Some("MetaLlamaV3p2_1B".to_string()), None, None, None, None, Some("http://0.0.0.0:8000/v1".to_string()))
+            (
+                None,
+                Some("MetaLlamaV3p2_1B".to_string()),
+                None,
+                None,
+                None,
+                None,
+                Some("http://0.0.0.0:8000/v1".to_string()),
+            )
         } else {
-            (Some("SmolLM2_135MChat".to_string()), 
-                None, Some(format!(
+            (
+                Some("SmolLM2_135MChat".to_string()),
+                None,
+                Some(format!(
                     "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json",
                     std::env::var("HOME").unwrap_or("".to_string())
-                )), Some(format!(
+                )),
+                Some(format!(
                     "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf",
                     std::env::var("HOME").unwrap_or("".to_string())
-                )), Some(format!(
+                )),
+                Some(format!(
                     "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json",
                     std::env::var("HOME").unwrap_or("".to_string())
-                )), Some(format!(
+                )),
+                Some(format!(
                     "{}/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json",
                     std::env::var("HOME").unwrap_or("".to_string())
-                )), None
+                )),
+                None,
             )
         };
         let generate_text_inference = if cfg!(all(feature = "api", not(feature = "candle"))) {
@@ -54,7 +84,7 @@ impl<'a> Default for GenerateTextSession<'a> {
             tokenizer_config_file,
             tokenizer_file,
             api_url,
-            chat_processor: generate_text_inference
+            chat_processor: generate_text_inference,
         }
     }
 }
@@ -106,7 +136,8 @@ impl<'a> GenerateTextSession<'a> {
     }
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
-        format!(r#"flowchart TD
+        format!(
+            r#"flowchart TD
 	%% ------------------------------------------------------------------------------
 	%% Message aggregation for text generation
 	%% ------------------------------------------------------------------------------
@@ -174,12 +205,15 @@ impl<'a> GenerateTextSession<'a> {
 	parse_generated_text_p-processor@{{shape: rect, label: MessageParserProcessor}}
 	parse_generated_text_p-publish@{{shape: fork}}
 	parse_generated_text_p-subscribe@{{shape: diamond, label: All}}
-	%% ------------------------------------------------------------------------------"#, self.chat_processor)
+	%% ------------------------------------------------------------------------------"#,
+            self.chat_processor
+        )
     }
 
     /// Return the Mermaid.js ER diagram representation of the session
     pub fn as_mermaid_erdiagram(&self) -> String {
-        format!(r#"erDiagram
+        format!(
+            r#"erDiagram
     UserMessages["UserMessages"] {{
         Utf8 role
         Utf8 content
@@ -249,7 +283,10 @@ impl<'a> GenerateTextSession<'a> {
     parse_generated_text_p["parse_generated_text_p"] {{
         Utf8 messages "generate_text_inference_s"
         {}
-    }}"#, self.generate_text_inference_p(), self.parse_generated_text_p())
+    }}"#,
+            self.generate_text_inference_p(),
+            self.parse_generated_text_p()
+        )
     }
 }
 
@@ -263,8 +300,7 @@ mod tests {
     use phymes_core::{
         AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
         ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, TableBuilder,
-        TableBuilderTrait, TablePublication, TableTrait,
-        create_tools_record_batch,
+        TableBuilderTrait, TablePublication, TableTrait, create_tools_record_batch,
     };
     use phymes_data::{AvailableCandleOperators, ToolTrait};
     use phymes_diagnostics::HashMap;

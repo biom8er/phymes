@@ -344,7 +344,6 @@ impl DataConfigTrait for AvailableProcessors {
             Self::LimitProcessor => serde_json::to_vec(&LimitConfig {
                 skip: Some(0),
                 fetch: 100,
-                ..Default::default()
             }),
             Self::CoalesceProcessor => serde_json::to_vec(&LimitConfig {
                 fetch: 100,
