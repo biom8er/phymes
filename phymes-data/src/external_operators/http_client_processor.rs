@@ -159,15 +159,6 @@ impl HTTPClientRequestStream {
             content_type: None,
         })
     }
-
-    /// Initialize the config for text generation inference
-    fn init_config(&mut self, config_table: Table) -> Result<()> {
-        if self.config.is_none() {
-            let config = HTTPClientConfig::from_table(&config_table)?;
-            self.config.replace(config);
-        }
-        Ok(())
-    }
 }
 
 impl Stream for HTTPClientRequestStream {
