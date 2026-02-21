@@ -86,10 +86,10 @@ impl IPCMessage {
             let bytes = table.get_column_as_vec_nested_primitive::<u8>("bytes")?;
             let map: Result<HashMap<String, IPCMessage>> = names
                 .into_iter()
-                .zip(publishers.into_iter())
-                .zip(subjects.into_iter())
-                .zip(formats.into_iter())
-                .zip(bytes.into_iter())
+                .zip(publishers)
+                .zip(subjects)
+                .zip(formats)
+                .zip(bytes)
                 .map(|((((name, publisher), subject), format), bytes)| {
                     let batch = create_bytes_record_batch(vec![bytes])?;
                     let values = TableBuilder::new()

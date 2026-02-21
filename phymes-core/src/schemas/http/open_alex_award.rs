@@ -90,7 +90,7 @@ impl Award {
             .unzip();
         let award_affiliation = award_affiliation
             .into_iter()
-            .filter_map(|a| if let Some(a_i) = a { Some(a_i) } else { None })
+            .filter_map(|a| a.map(|a_i| a_i))
             .collect::<Vec<_>>();
         let award = AwardTable {
             award_id: self.id.unwrap_or_default(),

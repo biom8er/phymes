@@ -643,7 +643,7 @@ impl TableBuilderTrait for TableBuilder {
                                 let mut values = Vec::new();
                                 for v in val {
                                     if let Value::Number(num) = v {
-                                        values.push(num.as_i64().unwrap() as i64);
+                                        values.push(num.as_i64().unwrap());
                                     }
                                 }
                                 list_builder.values().append_slice(&values);
@@ -685,7 +685,7 @@ impl TableBuilderTrait for TableBuilder {
                                 let mut values = Vec::new();
                                 for v in val {
                                     if let Value::Number(num) = v {
-                                        values.push(num.as_f64().unwrap() as f64);
+                                        values.push(num.as_f64().unwrap());
                                     }
                                 }
                                 list_builder.values().append_slice(&values);
