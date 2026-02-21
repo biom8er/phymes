@@ -13,7 +13,7 @@ pub struct EmbedTextSession<'a> {
     pub tokenizer_config_file: Option<String>,
     pub api_url: Option<String>,
     /// The processor to use for text generation
-    pub chat_processor: &'a str,
+    pub embed_processor: &'a str,
 }
 
 impl<'a> Default for EmbedTextSession<'a> {
@@ -53,7 +53,7 @@ impl<'a> Default for EmbedTextSession<'a> {
             tokenizer_config_file,
             tokenizer_file,
             api_url,
-            chat_processor: generate_text_inference
+            embed_processor: generate_text_inference
         }
     }
 }
@@ -149,7 +149,7 @@ impl<'a> EmbedTextSession<'a> {
 	embed_documents_p-publish@{{shape: fork}}
 	embed_documents_p-subscribe@{{shape: diamond, label: All}}
 	DocumentEmbeddings-subject@{{shape: doc, label: DocumentEmbeddings}}
-	%% ------------------------------------------------------------------------------"#, self.chat_processor, self.chat_processor)
+	%% ------------------------------------------------------------------------------"#, self.embed_processor, self.embed_processor)
     }
     /// Return the Mermaid.js ER diagram representation of the session
     ///

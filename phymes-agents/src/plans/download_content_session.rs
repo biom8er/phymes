@@ -157,7 +157,7 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage,
+        BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage,
         MappableTrait, MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication,
         TableTrait, create_values_record_batch,
     };
@@ -166,8 +166,7 @@ mod tests {
 
     use crate::{
         AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
-        plans::view_task_session::ViewTaskSession,
+        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, plans::ViewTaskSession,
     };
 
     use super::*;

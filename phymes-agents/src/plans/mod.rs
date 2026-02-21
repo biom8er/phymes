@@ -38,3 +38,10 @@ pub use tool_agent_session::ToolAgentSession;
 pub use user_session::UserSession;
 #[allow(unused_imports)]
 pub(crate) use user_session::user_session_inner;
+pub use embed_text_session::EmbedTextSession;
+pub use generate_text_session::GenerateTextSession;
+pub use extract_ontology_session::ExtractOntologySession;
+pub use extract_pdf_session::ExtractPDFSession;
+pub use retrieve_text_session::RetrieveTextSession;
+pub(crate) use view_task_session::ViewTaskSession;
+pub use melt_study_data_session::MeltStudyDataSession;
