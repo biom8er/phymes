@@ -128,7 +128,7 @@ impl<'a> NextSuperstepSession<'a> {
         Utf8 lhs_name "SessionSupersteps"
         List-Utf8 lhs_values "['session_name']"
         Utf8 operator "GroupBy"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     SessionSuperstepMax["SessionSuperstepMax"] {
         Utf8 session_name

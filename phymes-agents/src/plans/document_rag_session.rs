@@ -963,7 +963,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             format: Some(DataFormat::None),
             cpu: false,
             operator: AvailableCandleOperators::PackTabular,
-            stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+            lhs_stream: DataStreamManager::Accumulate,
             ..Default::default()
         };
         let top_k_summary_config_json = serde_json::to_vec(&top_k_summary_config).unwrap();

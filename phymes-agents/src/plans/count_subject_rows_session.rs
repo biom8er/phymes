@@ -66,7 +66,7 @@ impl<'a> CountSubjectRowsSession<'a> {
         Utf8 lhs_name "SubjectsChangeLog"
         List-Utf8 lhs_values "['subject_name']"
         Utf8 operator "GroupBy"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_subject_change_log_delta_p["select_subject_change_log_delta_p"] {
         List-Utf8 as_columns "['','num_rows']"
@@ -74,7 +74,7 @@ impl<'a> CountSubjectRowsSession<'a> {
         Utf8 lhs_name "group_by_subject_change_log_delta_t"
         List-Utf8 lhs_values "['subject_name','num_rows_delta-Sum']"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     SubjectsNumRows["SubjectsNumRows"] {
         Utf8 subject_name

@@ -243,7 +243,7 @@ impl<'a> MeltStudyDataSession<'a> {
 	    Boolean cpu "false"
 	    Utf8 lhs_name "StudyData"
 	    Utf8 operator "Select"
-	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	    Utf8 lhs_stream "Accumulate"
 	}}
 	study_data_melt["study_data_melt"] {{
 	    Boolean cpu "false"
@@ -251,7 +251,7 @@ impl<'a> MeltStudyDataSession<'a> {
 	    List-Utf8 lhs_values "['study_id','sample_name']"
 	    Utf8 operator "Melt"
 	    List-Utf8 pvt_columns "[{}]"
-	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	    Utf8 lhs_stream "Accumulate"
 	}}
 	StudyDataMelt["StudyDataMelt"] {{
 	    UInt32 study_id
@@ -270,7 +270,7 @@ impl<'a> MeltStudyDataSession<'a> {
 	    Boolean cpu "false"
 	    Utf8 lhs_name "StudyData"
 	    Utf8 operator "Select"
-	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	    Utf8 lhs_stream "Accumulate"
 	}}
 	StudySamplesMelt["StudySamplesMelt"] {{
 	    Utf8 sample_name
@@ -283,7 +283,7 @@ impl<'a> MeltStudyDataSession<'a> {
 	    List-Utf8 lhs_values "['sample_name','variable','value','study_id']"
 	    Utf8 operator "Select"
 	    List-Utf8 rhs_values "['','','','']"
-	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	    Utf8 lhs_stream "Accumulate"
 	}}
 	SamplesVariablesMelt["SamplesVariablesMelt"] {{
 	    Utf8 sample_name
@@ -298,7 +298,7 @@ impl<'a> MeltStudyDataSession<'a> {
 	    Utf8 lhs_name "StudyDataMelt"
 	    List-Utf8 lhs_values "['study_id','variable']"
 	    Utf8 operator "GroupBy"
-	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	    Utf8 lhs_stream "Accumulate"
 	}}
 	study_variables_select["study_variables_select"] {{
 	    List-Utf8 as_columns "['variable_name','data_type','']"
@@ -306,7 +306,7 @@ impl<'a> MeltStudyDataSession<'a> {
 	    Boolean cpu "false"
 	    Utf8 lhs_name "StudyVariablesMeltGroupBy"
 	    Utf8 operator "Select"
-	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	    Utf8 lhs_stream "Accumulate"
 	}}
 	StudyVariablesMelt["StudyVariablesMelt"] {{
 	    Utf8 variable_name
@@ -327,7 +327,7 @@ impl<'a> MeltStudyDataSession<'a> {
 	    Utf8 lhs_name "UserCsv"
 	    List-Utf8 lhs_values "['bytes']"
 	    Utf8 operator "ExtractTabular"
-	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	    Utf8 lhs_stream "Accumulate"
 	}}"#,
             self.cast_templates_columns()?,
             self.data_type_columns()?,

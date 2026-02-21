@@ -892,7 +892,7 @@ impl<'a> ExtractOntologySession<'a> {
         Utf8 lhs_name "UserScript"
         List-Utf8 lhs_values "['bytes']"
         Utf8 operator "ExtractXML"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     comparator_ontology_entity_p["comparator_ontology_entity_p"] {
 	    List-Utf8 as_columns "['','','','','','','cmp']"
@@ -903,7 +903,7 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "ParseOwl"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     filter_ontology_entity_p["filter_ontology_entity_p"] {
         List-Utf8 cmp_columns "['cmp']"
@@ -913,14 +913,14 @@ impl<'a> ExtractOntologySession<'a> {
         Utf8 lhs_name "comparator_ontology_entity_s"
         List-Utf8 lhs_values "['entity']"
         Utf8 operator "Filter"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_ontology_entity_p["select_ontology_entity_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "filter_ontology_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_ontology_entity_s["select_ontology_entity_s"] {
         Utf8 entity
@@ -939,7 +939,7 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "ParseOwl"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     filter_annotation_property_entity_p["filter_annotation_property_entity_p"] {
         List-Utf8 cmp_columns "['cmp']"
@@ -949,14 +949,14 @@ impl<'a> ExtractOntologySession<'a> {
         Utf8 lhs_name "comparator_annotation_property_entity_s"
         List-Utf8 lhs_values "['entity']"
         Utf8 operator "Filter"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_annotation_property_entity_p["select_annotation_property_entity_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "filter_annotation_property_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_annotation_property_entity_s["select_annotation_property_entity_s"] {
         Utf8 entity
@@ -975,7 +975,7 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "ParseOwl"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     filter_datatype_property_entity_p["filter_datatype_property_entity_p"] {
         List-Utf8 cmp_columns "['cmp']"
@@ -985,14 +985,14 @@ impl<'a> ExtractOntologySession<'a> {
         Utf8 lhs_name "comparator_datatype_property_entity_s"
         List-Utf8 lhs_values "['entity']"
         Utf8 operator "Filter"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_datatype_property_entity_p["select_datatype_property_entity_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "filter_datatype_property_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_datatype_property_entity_s["select_datatype_property_entity_s"] {
         Utf8 entity
@@ -1011,7 +1011,7 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "ParseOwl"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     filter_class_entity_p["filter_class_entity_p"] {
         List-Utf8 cmp_columns "['cmp']"
@@ -1021,14 +1021,14 @@ impl<'a> ExtractOntologySession<'a> {
         Utf8 lhs_name "comparator_class_entity_s"
         List-Utf8 lhs_values "['entity']"
         Utf8 operator "Filter"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_class_entity_p["select_class_entity_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "filter_class_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_class_entity_s["select_class_entity_s"] {
         Utf8 entity
@@ -1047,7 +1047,7 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "ParseOwl"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     filter_object_property_entity_p["filter_object_property_entity_p"] {
         List-Utf8 cmp_columns "['cmp']"
@@ -1057,14 +1057,14 @@ impl<'a> ExtractOntologySession<'a> {
         Utf8 lhs_name "comparator_object_property_entity_s"
         List-Utf8 lhs_values "['entity']"
         Utf8 operator "Filter"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_object_property_entity_p["select_object_property_entity_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "filter_object_property_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_object_property_entity_s["select_object_property_entity_s"] {
         Utf8 entity
@@ -1083,7 +1083,7 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "ParseOwl"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     filter_named_individual_entity_p["filter_named_individual_entity_p"] {
         List-Utf8 cmp_columns "['cmp']"
@@ -1093,14 +1093,14 @@ impl<'a> ExtractOntologySession<'a> {
         Utf8 lhs_name "comparator_named_individual_entity_s"
         List-Utf8 lhs_values "['entity']"
         Utf8 operator "Filter"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_named_individual_entity_p["select_named_individual_entity_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "filter_named_individual_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_named_individual_entity_s["select_named_individual_entity_s"] {
         Utf8 entity
@@ -1119,7 +1119,7 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "ParseOwl"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     filter_axiom_entity_p["filter_axiom_entity_p"] {
         List-Utf8 cmp_columns "['cmp']"
@@ -1129,14 +1129,14 @@ impl<'a> ExtractOntologySession<'a> {
         Utf8 lhs_name "comparator_axiom_entity_s"
         List-Utf8 lhs_values "['entity']"
         Utf8 operator "Filter"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_axiom_entity_p["select_axiom_entity_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "filter_axiom_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_axiom_entity_s["select_axiom_entity_s"] {
         Utf8 entity
@@ -1159,7 +1159,8 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "coalesce_annotation_property_entity_s"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     filter_predicate_annotation_property_entity_p["filter_predicate_annotation_property_entity_p"] {
         List-Utf8 cmp_columns "['rdfs_label','obo_IAO_0000115']"
@@ -1169,14 +1170,16 @@ impl<'a> ExtractOntologySession<'a> {
         Utf8 lhs_name "comparator_predicate_annotation_property_entity_s"
         List-Utf8 lhs_values "['predicate','predicate']"
         Utf8 operator "Filter"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     select_predicate_annotation_property_entity_p["select_predicate_annotation_property_entity_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "filter_predicate_annotation_property_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
 	pivot_annotation_property_entity_p["pivot_annotation_property_entity_p"] {
 	    List-Utf8 agg_columns "['object']"
@@ -1187,7 +1190,8 @@ impl<'a> ExtractOntologySession<'a> {
 	    List-Utf8 lhs_values "['subject']"
 	    Utf8 operator "Pivot"
 	    List-Utf8 pvt_columns "['predicate']"
-	    Utf8 stream "StreamLHSStreamRHS"
+	    Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
 	}
 	pivot_annotation_property_entity_s["pivot_annotation_property_entity_s"] {
 	    Utf8 subject
@@ -1205,7 +1209,8 @@ impl<'a> ExtractOntologySession<'a> {
 	    Utf8 lhs_name "coalesce_annotation_property_pivot_s"
 	    List-Utf8 lhs_values "['subject']"
 	    Utf8 operator "GroupBy"
-	    Utf8 stream "StreamLHSStreamRHS"
+	    Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
 	}
 	group_by_annotation_property_pivot_s["group_by_annotation_property_pivot_s"] {
 	    Utf8 subject
@@ -1218,7 +1223,8 @@ impl<'a> ExtractOntologySession<'a> {
         List-Utf8 as_columns "['uri','rdfs_label','obo_IAO_0000115']"
         List-Utf8 lhs_values "['subject','http://www.w3.org/2000/01/rdf-schema#label-object-First-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First-First']"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
 	select_annotation_property_pivot_s["select_annotation_property_pivot_s"] {
 	    Utf8 uri
@@ -1234,7 +1240,8 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "coalesce_class_entity_s"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     filter_predicate_class_entity_p["filter_predicate_class_entity_p"] {
         List-Utf8 cmp_columns "['rdfs_label','obo_IAO_0000115']"
@@ -1244,14 +1251,16 @@ impl<'a> ExtractOntologySession<'a> {
         Utf8 lhs_name "comparator_predicate_class_entity_s"
         List-Utf8 lhs_values "['predicate','predicate']"
         Utf8 operator "Filter"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     select_predicate_class_entity_p["select_predicate_class_entity_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "filter_predicate_class_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
 	pivot_class_entity_p["pivot_class_entity_p"] {
 	    List-Utf8 agg_columns "['object']"
@@ -1262,7 +1271,8 @@ impl<'a> ExtractOntologySession<'a> {
 	    List-Utf8 lhs_values "['subject']"
 	    Utf8 operator "Pivot"
 	    List-Utf8 pvt_columns "['predicate']"
-	    Utf8 stream "StreamLHSStreamRHS"
+	    Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
 	}
 	pivot_class_entity_s["pivot_class_entity_s"] {
 	    Utf8 subject
@@ -1280,7 +1290,8 @@ impl<'a> ExtractOntologySession<'a> {
 	    Utf8 lhs_name "coalesce_class_pivot_s"
 	    List-Utf8 lhs_values "['subject']"
 	    Utf8 operator "GroupBy"
-	    Utf8 stream "StreamLHSStreamRHS"
+	    Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
 	}
 	group_by_class_pivot_s["group_by_class_pivot_s"] {
 	    Utf8 subject
@@ -1293,7 +1304,8 @@ impl<'a> ExtractOntologySession<'a> {
         List-Utf8 as_columns "['uri','rdfs_label','obo_IAO_0000115']"
         List-Utf8 lhs_values "['subject','http://www.w3.org/2000/01/rdf-schema#label-object-First-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First-First']"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     coalesce_object_property_entity_p["coalesce_object_property_entity_p"] {
         Int64 fetch "512"
@@ -1308,7 +1320,8 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "coalesce_object_property_entity_s"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     filter_predicate_object_property_entity_p["filter_predicate_object_property_entity_p"] {
         List-Utf8 cmp_columns "['rdfs_label','obo_IAO_0000115']"
@@ -1318,14 +1331,16 @@ impl<'a> ExtractOntologySession<'a> {
         Utf8 lhs_name "comparator_predicate_object_property_entity_s"
         List-Utf8 lhs_values "['predicate','predicate']"
         Utf8 operator "Filter"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     select_predicate_object_property_entity_p["select_predicate_object_property_entity_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "filter_predicate_object_property_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
 	pivot_object_property_entity_p["pivot_object_property_entity_p"] {
 	    List-Utf8 agg_columns "['object']"
@@ -1336,7 +1351,8 @@ impl<'a> ExtractOntologySession<'a> {
 	    List-Utf8 lhs_values "['subject']"
 	    Utf8 operator "Pivot"
 	    List-Utf8 pvt_columns "['predicate']"
-	    Utf8 stream "StreamLHSStreamRHS"
+	    Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
 	}
 	pivot_object_property_entity_s["pivot_object_property_entity_s"] {
 	    Utf8 subject
@@ -1354,7 +1370,8 @@ impl<'a> ExtractOntologySession<'a> {
 	    Utf8 lhs_name "coalesce_object_property_pivot_s"
 	    List-Utf8 lhs_values "['subject']"
 	    Utf8 operator "GroupBy"
-	    Utf8 stream "StreamLHSStreamRHS"
+	    Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
 	}
 	group_by_object_property_pivot_s["group_by_object_property_pivot_s"] {
 	    Utf8 subject
@@ -1367,7 +1384,8 @@ impl<'a> ExtractOntologySession<'a> {
         List-Utf8 as_columns "['uri','rdfs_label','obo_IAO_0000115']"
         List-Utf8 lhs_values "['subject','http://www.w3.org/2000/01/rdf-schema#label-object-First-First','http://purl.obolibrary.org/obo/IAO_0000115-object-First-First']"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     coalesce_named_individual_entity_p["coalesce_named_individual_entity_p"] {
         Int64 fetch "512"
@@ -1382,7 +1400,8 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "coalesce_named_individual_entity_s"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     filter_predicate_named_individual_entity_p["filter_predicate_named_individual_entity_p"] {
         List-Utf8 cmp_columns "['rdfs_label']"
@@ -1392,14 +1411,16 @@ impl<'a> ExtractOntologySession<'a> {
         Utf8 lhs_name "comparator_predicate_named_individual_entity_s"
         List-Utf8 lhs_values "['predicate']"
         Utf8 operator "Filter"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     select_predicate_named_individual_entity_p["select_predicate_named_individual_entity_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "filter_predicate_named_individual_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset']"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
 	pivot_named_individual_entity_p["pivot_named_individual_entity_p"] {
 	    List-Utf8 agg_columns "['object']"
@@ -1410,7 +1431,8 @@ impl<'a> ExtractOntologySession<'a> {
 	    List-Utf8 lhs_values "['subject']"
 	    Utf8 operator "Pivot"
 	    List-Utf8 pvt_columns "['predicate']"
-	    Utf8 stream "StreamLHSStreamRHS"
+	    Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
 	}
 	pivot_named_individual_entity_s["pivot_named_individual_entity_s"] {
 	    Utf8 subject
@@ -1427,7 +1449,8 @@ impl<'a> ExtractOntologySession<'a> {
 	    Utf8 lhs_name "coalesce_named_individual_pivot_s"
 	    List-Utf8 lhs_values "['subject']"
 	    Utf8 operator "GroupBy"
-	    Utf8 stream "StreamLHSStreamRHS"
+	    Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
 	}
 	group_by_named_individual_pivot_s["group_by_named_individual_pivot_s"] {
 	    Utf8 subject
@@ -1441,7 +1464,8 @@ impl<'a> ExtractOntologySession<'a> {
 	    List-Utf8 column_operators "['None','None','String']"
         List-Utf8 lhs_values "['subject','http://www.w3.org/2000/01/rdf-schema#label-object-First-First','obo_IAO_0000115']"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
 	merge_object_property_class_named_individual_pivot_s["merge_object_property_class_named_individual_pivot_s"] {
 	    Utf8 uri
@@ -1457,7 +1481,7 @@ impl<'a> ExtractOntologySession<'a> {
 	    Utf8 rhs_name "select_annotation_property_pivot_s"
 	    Utf8 rhs_fk "uri"
 	    Utf8 rhs_pk "uri"
-	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	    Utf8 lhs_stream "Accumulate"
 	}
     select_predicates_class_entity_p["select_predicates_class_entity_p"] {
         Boolean cpu "false"
@@ -1465,7 +1489,8 @@ impl<'a> ExtractOntologySession<'a> {
         List-Utf8 as_columns "['','','','','','','predicate_rdfs_label','predicate_obo_IAO_0000115']"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label','obo_IAO_0000115']"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
 	select_predicates_class_entity_s["select_predicates_class_entity_s"] {
         Utf8 entity
@@ -1486,7 +1511,8 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "select_predicates_class_entity_s"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     filter_resource_class_entity_p["filter_resource_class_entity_p"] {
         List-Utf8 cmp_columns "['resource']"
@@ -1496,14 +1522,16 @@ impl<'a> ExtractOntologySession<'a> {
         Utf8 lhs_name "comparator_resource_class_entity_s"
         List-Utf8 lhs_values "['object']"
         Utf8 operator "Filter"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     select_resource_class_entity_p["select_resource_class_entity_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "filter_resource_class_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115']"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     select_resource_class_entity_s["select_resource_class_entity_s"] {
         Utf8 entity
@@ -1524,7 +1552,7 @@ impl<'a> ExtractOntologySession<'a> {
 	    Utf8 rhs_name "merge_object_property_class_named_individual_pivot_s"
 	    Utf8 rhs_fk "uri"
 	    Utf8 rhs_pk "uri"
-	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	    Utf8 lhs_stream "Accumulate"
 	}
     select_objects_class_entity_p["select_objects_class_entity_p"] {
         Boolean cpu "false"
@@ -1532,7 +1560,8 @@ impl<'a> ExtractOntologySession<'a> {
         List-Utf8 as_columns "['','','','','','','object_rdfs_label','object_obo_IAO_0000115']"
         List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','rdfs_label','obo_IAO_0000115']"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
 	select_objects_class_entity_s["select_objects_class_entity_s"] {
         Utf8 entity
@@ -1553,7 +1582,8 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "select_predicates_class_entity_s"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     filter_literal_class_entity_p["filter_literal_class_entity_p"] {
         List-Utf8 cmp_columns "['resource']"
@@ -1563,7 +1593,8 @@ impl<'a> ExtractOntologySession<'a> {
         Utf8 lhs_name "comparator_literal_class_entity_s"
         List-Utf8 lhs_values "['object']"
         Utf8 operator "Filter"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     select_literal_class_entity_p["select_literal_class_entity_p"] {
         Boolean cpu "false"
@@ -1572,7 +1603,8 @@ impl<'a> ExtractOntologySession<'a> {
 	    List-Utf8 column_operators "['None','None','None','None','None','None','None','String']"
         List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','object','object_obo_IAO_0000115']"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
 	join_predicates_object_property_entity_p["join_predicates_object_property_entity_p"] {
 	    Boolean cpu "false"
@@ -1583,7 +1615,7 @@ impl<'a> ExtractOntologySession<'a> {
 	    Utf8 rhs_name "select_annotation_property_pivot_s"
 	    Utf8 rhs_fk "uri"
 	    Utf8 rhs_pk "uri"
-	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	    Utf8 lhs_stream "Accumulate"
 	}
     select_predicates_object_property_entity_p["select_predicates_object_property_entity_p"] {
         Boolean cpu "false"
@@ -1591,7 +1623,8 @@ impl<'a> ExtractOntologySession<'a> {
         List-Utf8 as_columns "['','','','','','','predicate_rdfs_label','predicate_obo_IAO_0000115']"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','rdfs_label','obo_IAO_0000115']"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
 	select_predicates_object_property_entity_s["select_predicates_object_property_entity_s"] {
         Utf8 entity
@@ -1612,7 +1645,8 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "select_predicates_object_property_entity_s"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     filter_resource_object_property_entity_p["filter_resource_object_property_entity_p"] {
         List-Utf8 cmp_columns "['resource']"
@@ -1622,14 +1656,16 @@ impl<'a> ExtractOntologySession<'a> {
         Utf8 lhs_name "comparator_resource_object_property_entity_s"
         List-Utf8 lhs_values "['object']"
         Utf8 operator "Filter"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     select_resource_object_property_entity_p["select_resource_object_property_entity_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "filter_resource_object_property_entity_s"
         List-Utf8 lhs_values "['entity','subject','predicate','object','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115']"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     select_resource_object_property_entity_s["select_resource_object_property_entity_s"] {
         Utf8 entity
@@ -1650,7 +1686,7 @@ impl<'a> ExtractOntologySession<'a> {
 	    Utf8 rhs_name "merge_object_property_class_named_individual_pivot_s"
 	    Utf8 rhs_fk "uri"
 	    Utf8 rhs_pk "uri"
-	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	    Utf8 lhs_stream "Accumulate"
 	}
     select_objects_object_property_entity_p["select_objects_object_property_entity_p"] {
         Boolean cpu "false"
@@ -1658,7 +1694,8 @@ impl<'a> ExtractOntologySession<'a> {
         List-Utf8 as_columns "['','','','','','','object_rdfs_label','object_obo_IAO_0000115']"
         List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','rdfs_label','obo_IAO_0000115']"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
 	select_objects_object_property_entity_s["select_objects_object_property_entity_s"] {
         Utf8 entity
@@ -1679,7 +1716,8 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "select_predicates_object_property_entity_s"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     filter_literal_object_property_entity_p["filter_literal_object_property_entity_p"] {
         List-Utf8 cmp_columns "['resource']"
@@ -1689,7 +1727,8 @@ impl<'a> ExtractOntologySession<'a> {
         Utf8 lhs_name "comparator_literal_object_property_entity_s"
         List-Utf8 lhs_values "['object']"
         Utf8 operator "Filter"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     select_literal_object_property_entity_p["select_literal_object_property_entity_p"] {
         Boolean cpu "false"
@@ -1698,7 +1737,8 @@ impl<'a> ExtractOntologySession<'a> {
 	    List-Utf8 column_operators "['None','None','None','None','None','None','None','String']"
         List-Utf8 lhs_values "['entity','subject','graph','dataset','predicate_rdfs_label','predicate_obo_IAO_0000115','object','object_obo_IAO_0000115']"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     concat_cols_class_entity_p["concat_cols_class_entity_p"] {
         List-Utf8 as_columns "['','','','','predicate_rdfs_label-Cast','object_obo_IAO_0000115-Cast','object-Concat','text']"
@@ -1709,14 +1749,16 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "select_objects_class_entity_s"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     select_cols_class_entity_p["select_cols_class_entity_p"] {
         List-Utf8 lhs_values "['entity','subject','graph','dataset','text']"
         Boolean cpu "false"
         Utf8 lhs_name "concat_cols_class_entity_s"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     list_rows_class_entity_p["list_rows_class_entity_p"] {
 	    List-Utf8 agg_columns "['text']"
@@ -1725,7 +1767,7 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "select_cols_class_entity_s"
         Utf8 operator "GroupBy"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_rows_class_entity_p["select_rows_class_entity_p"] {
         List-Utf8 as_columns "['subject','dataset','text_List']"
@@ -1733,7 +1775,8 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "list_rows_class_entity_s"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     apply_template_class_entity_p["apply_template_class_entity_p"] {
         List-Utf8 as_columns "['chunk_id','document_id','text']"
@@ -1742,7 +1785,8 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "select_rows_class_entity_s"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     concat_cols_object_property_entity_p["concat_cols_object_property_entity_p"] {
         List-Utf8 as_columns "['','','','','predicate_rdfs_label-Cast','object_obo_IAO_0000115-Cast','object-Concat','text']"
@@ -1753,14 +1797,16 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "select_objects_object_property_entity_s"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     select_cols_object_property_entity_p["select_cols_object_property_entity_p"] {
         List-Utf8 lhs_values "['entity','subject','graph','dataset','text']"
         Boolean cpu "false"
         Utf8 lhs_name "concat_cols_object_property_entity_s"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     list_rows_object_property_entity_p["list_rows_object_property_entity_p"] {
 	    List-Utf8 agg_columns "['text']"
@@ -1769,7 +1815,7 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "select_cols_object_property_entity_s"
         Utf8 operator "GroupBy"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_rows_object_property_entity_p["select_rows_object_property_entity_p"] {
         List-Utf8 as_columns "['subject','dataset','text_List']"
@@ -1777,7 +1823,8 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "list_rows_object_property_entity_s"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
     apply_template_object_property_entity_p["apply_template_object_property_entity_p"] {
         List-Utf8 as_columns "['chunk_id','document_id','text']"
@@ -1786,7 +1833,8 @@ impl<'a> ExtractOntologySession<'a> {
         Boolean cpu "false"
         Utf8 lhs_name "select_rows_object_property_entity_s"
         Utf8 operator "Select"
-        Utf8 stream "StreamLHSStreamRHS"
+        Utf8 lhs_stream "Stream"
+        Utf8 rhs_stream "Stream"
     }
 	Documents["Documents"] {
         Utf8 chunk_id

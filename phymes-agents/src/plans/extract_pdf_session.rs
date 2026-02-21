@@ -62,7 +62,7 @@ impl<'a> ExtractPDFSession<'a> {
         Utf8 lhs_pk "filename"
         List-Utf8 lhs_values "['bytes']"
         Utf8 operator "ExtractPDF"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     extract_pdf_s["extract_pdf_s"] {
         Utf8 chunk_id
@@ -76,7 +76,7 @@ impl<'a> ExtractPDFSession<'a> {
         Utf8 lhs_pk "chunk_id"
         List-Utf8 lhs_values "['text']"
         Utf8 operator "ChunkDocuments"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
 	Documents["Documents"] {
         Utf8 chunk_id

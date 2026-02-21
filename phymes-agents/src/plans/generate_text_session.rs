@@ -117,14 +117,14 @@ impl<'a> GenerateTextSession<'a> {
         Boolean cpu "false"
         List-Utf8 lhs_values "['timestamp']"
         Utf8 operator "Sort"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     aggregate_messages_user_interface_p["aggregate_messages_user_interface_p"] {
         Boolean asc "true"
         Boolean cpu "false"
         List-Utf8 lhs_values "['timestamp']"
         Utf8 operator "Sort"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     AggregatedMessages["AggregatedMessages"] {
         Utf8 role

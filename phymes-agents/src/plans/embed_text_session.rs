@@ -98,7 +98,7 @@ impl<'a> EmbedTextSession<'a> {
         List-Utf8 lhs_values "['timestamp','content']"
         Utf8 operator "Select"
         List-Utf8 rhs_values "['','']"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     UserQueries["UserQueries"] {
         Utf8 query_id

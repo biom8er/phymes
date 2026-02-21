@@ -609,7 +609,7 @@ impl<'a> NextTaskSession<'a> {
         Utf8 lhs_name "SessionTasksRunLog"
         List-Utf8 lhs_values "['task_name']"
         Utf8 operator "GroupBy"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_tasks_run_log_timestamp_p["select_tasks_run_log_timestamp_p"] {
         List-Utf8 as_columns "['','timestamp']"
@@ -617,7 +617,7 @@ impl<'a> NextTaskSession<'a> {
         Utf8 lhs_name "group_by_tasks_run_log_timestamp_s"
         List-Utf8 lhs_values "['task_name','timestamp-Max']"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_tasks_run_log_timestamp_s["select_tasks_run_log_timestamp_s"] {
         Utf8 task_name
@@ -641,7 +641,7 @@ impl<'a> NextTaskSession<'a> {
         Utf8 lhs_name "SessionProcessors"
         List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','update_type','is_subscription','subscription']"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     filter_processors_subscriptions_p["filter_processors_subscriptions_p"] {
         List-Utf8 cmp_columns "['subscription']"
@@ -651,14 +651,14 @@ impl<'a> NextTaskSession<'a> {
         Utf8 lhs_name "cmp_processors_subscriptions_s"
         List-Utf8 lhs_values "['is_subscription']"
         Utf8 operator "Filter"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_processors_subscriptions_p["select_processors_subscriptions_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "filter_processors_subscriptions_s"
         List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','update_type','is_subscription']"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_processors_subscriptions_s["select_processors_subscriptions_s"] {
         Utf8 session_name
@@ -678,7 +678,7 @@ impl<'a> NextTaskSession<'a> {
         Utf8 lhs_name "SessionProcessors"
         List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','update_type','is_subscription','publication']"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     filter_processors_publications_p["filter_processors_publications_p"] {
         List-Utf8 cmp_columns "['publication']"
@@ -688,14 +688,14 @@ impl<'a> NextTaskSession<'a> {
         Utf8 lhs_name "cmp_processors_publications_s"
         List-Utf8 lhs_values "['is_subscription']"
         Utf8 operator "Filter"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_processors_publications_p["select_processors_publications_p"] {
         Boolean cpu "false"
         Utf8 lhs_name "filter_processors_publications_s"
         List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name','publication_subscription_table_name','subscribe_type','update_type','is_subscription']"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_processors_publications_s["select_processors_publications_s"] {
         Utf8 session_name
@@ -721,7 +721,7 @@ impl<'a> NextTaskSession<'a> {
         Utf8 lhs_name "SubjectsChangeLog"
         List-Utf8 lhs_values "['subject_name']"
         Utf8 operator "GroupBy"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     join_tasks_run_log_timestamp_p["join_tasks_run_log_timestamp_p"] {
         Boolean cpu "false"
@@ -732,7 +732,7 @@ impl<'a> NextTaskSession<'a> {
         Utf8 rhs_fk "task_name"
         Utf8 rhs_name "SessionTasks"
         Utf8 rhs_pk "task_name"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     SessionTasks["SessionTasks"] {
         Utf8 session_name
@@ -749,7 +749,7 @@ impl<'a> NextTaskSession<'a> {
         Utf8 rhs_fk "processor_name"
         Utf8 rhs_name "select_processors_subscriptions_s"
         Utf8 rhs_pk "processor_name"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     join_tasks_processors_subscriptions_subjects_p["join_tasks_processors_subscriptions_subjects_p"] {
         Boolean cpu "false"
@@ -760,7 +760,7 @@ impl<'a> NextTaskSession<'a> {
         Utf8 rhs_fk "subject_name"
         Utf8 rhs_name "group_by_subject_change_log_timestamp_s"
         Utf8 rhs_pk "subject_name"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_tasks_processors_subscriptions_subjects_p["select_tasks_processors_subscriptions_subjects_p"] {
         List-Utf8 as_columns "['','','','','subscription_name','subscription_table_name','','','','']"
@@ -768,7 +768,7 @@ impl<'a> NextTaskSession<'a> {
         Utf8 lhs_name "join_tasks_processors_subscriptions_subjects_s"
         List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type','publication_subscription_name','subject_name','subscribe_type','update_type','timestamp','timestamp-Max']"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_tasks_processors_subscriptions_subjects_s["select_tasks_processors_subscriptions_subjects_s"] {
         Utf8 session_name
@@ -789,7 +789,7 @@ impl<'a> NextTaskSession<'a> {
         Utf8 lhs_name "select_tasks_processors_subscriptions_subjects_s"
         List-Utf8 lhs_values "['session_name','task_name','processor_type','processor_name']"
         Utf8 operator "GroupBy"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     SessionTasksSubscribeAggregate["SessionTasksSubscribeAggregate"] {
         Utf8 session_name
@@ -818,7 +818,7 @@ impl<'a> NextTaskSession<'a> {
         Utf8 lhs_name "SessionTasksSubscribe"
         List-Utf8 lhs_values "['session_name','task_name','processor_type','processor_name']"
         Utf8 operator "GroupBy"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     group_by_tasks_processors_publications_p["group_by_tasks_processors_publications_p"] {
         List-Utf8 agg_columns "['publication_subscription_name','publication_subscription_table_name']"
@@ -827,7 +827,7 @@ impl<'a> NextTaskSession<'a> {
         Utf8 lhs_name "select_processors_publications_s"
         List-Utf8 lhs_values "['session_name','processor_type','processor_name']"
         Utf8 operator "GroupBy"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     join_tasks_processors_publications_p["join_tasks_processors_publications_p"] {
         Boolean cpu "false"
@@ -838,7 +838,7 @@ impl<'a> NextTaskSession<'a> {
         Utf8 rhs_fk "processor_name"
         Utf8 rhs_name "group_by_tasks_processors_publications_s"
         Utf8 rhs_pk "processor_name"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     select_tasks_processors_publications_p["select_tasks_processors_publications_p"] {
         Boolean cpu "false"
@@ -846,7 +846,7 @@ impl<'a> NextTaskSession<'a> {
         List-Utf8 as_columns "['','','','','subscription_names','subscription_table_names','publication_names','publication_table_names']"
         List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type','subscription_name-List','subscription_table_name-List','publication_subscription_name-List','publication_subscription_table_name-List']"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     SessionTasksSubscribePublish["SessionTasksSubscribePublish"] {
         Utf8 session_name

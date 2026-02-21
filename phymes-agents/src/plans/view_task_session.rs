@@ -162,7 +162,7 @@ impl<'a> ViewTaskSession<'a> {
         Utf8 lhs_name "select_processors_subscriptions_s"
         List-Utf8 lhs_values "['session_name','processor_type','processor_name']"
         Utf8 operator "GroupBy"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }}
     select_processors_subscriptions_aggregated_p["select_processors_subscriptions_aggregated_p"] {{
         List-Utf8 as_columns "['','','','subscription_names','subscription_table_names']"
@@ -170,7 +170,7 @@ impl<'a> ViewTaskSession<'a> {
         Utf8 lhs_name "group_by_processors_subscriptions_s"
         List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name-List','publication_subscription_table_name-List']"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }}
     select_processors_subscriptions_aggregated_s["select_processors_subscriptions_aggregated_s"] {{
         Utf8 session_name
@@ -186,7 +186,7 @@ impl<'a> ViewTaskSession<'a> {
         Utf8 lhs_name "select_processors_publications_s"
         List-Utf8 lhs_values "['session_name','processor_type','processor_name']"
         Utf8 operator "GroupBy"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }}
     select_processors_publications_aggregated_p["select_processors_publications_aggregated_p"] {{
         List-Utf8 as_columns "['','','','publication_names','publication_table_names']"
@@ -194,7 +194,7 @@ impl<'a> ViewTaskSession<'a> {
         Utf8 lhs_name "group_by_processors_publications_s"
         List-Utf8 lhs_values "['session_name','processor_name','processor_type','publication_subscription_name-List','publication_subscription_table_name-List']"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }}
     select_processors_publications_aggregated_s["select_processors_publications_aggregated_s"] {{
         Utf8 session_name
@@ -212,7 +212,7 @@ impl<'a> ViewTaskSession<'a> {
         Utf8 rhs_fk "processor_name"
         Utf8 rhs_name "select_processors_publications_aggregated_s"
         Utf8 rhs_pk "processor_name"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }}
     SessionTasks["SessionTasks"] {{
         Utf8 session_name
@@ -229,14 +229,14 @@ impl<'a> ViewTaskSession<'a> {
         Utf8 rhs_fk "processor_name"
         Utf8 rhs_name "SessionTasks"
         Utf8 rhs_pk "processor_name"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }}
     select_tasks_processors_subscriptions_publications_aggregated_p["select_tasks_processors_subscriptions_publications_aggregated_p"] {{
         Boolean cpu "false"
         Utf8 lhs_name "join_tasks_processors_subscriptions_publications_aggregated_s"
         List-Utf8 lhs_values "['session_name','task_name','processor_name','processor_type','subscription_names','subscription_table_names','publication_names','publication_table_names']"
         Utf8 operator "Select"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }}
     select_tasks_processors_subscriptions_publications_aggregated_s["select_tasks_processors_subscriptions_publications_aggregated_s"] {{
         Utf8 session_name

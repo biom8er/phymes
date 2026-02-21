@@ -135,7 +135,7 @@ impl<'a> RetrieveTextSession<'a> {
 	    Utf8 rhs_name "DocumentEmbeddings"
 	    Utf8 rhs_pk "chunk_id"
 	    List-Utf8 rhs_values "['embedding']"
-	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	    Utf8 lhs_stream "Accumulate"
 	}
 	threshold_scores_p["threshold_scores_p"] {
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Float32','Float32']"
@@ -146,7 +146,7 @@ impl<'a> RetrieveTextSession<'a> {
 	    Boolean cpu "false"
 	    Utf8 lhs_name "vector_distance_s"
 	    Utf8 operator "Select"
-	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	    Utf8 lhs_stream "Accumulate"
 	}
 	filter_scores_p["filter_scores_p"] {    
 	    List-Utf8 cmp_columns "['threshold']"
@@ -156,14 +156,14 @@ impl<'a> RetrieveTextSession<'a> {
 	    Utf8 lhs_name "threshold_scores_s"
 	    List-Utf8 lhs_values "['score']"
 	    Utf8 operator "Filter"
-	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	    Utf8 lhs_stream "Accumulate"
 	}
 	select_scores_p["select_scores_p"] {
 	    List-Utf8 lhs_values "['chunk_id','query_id','score']"
 	    Boolean cpu "false"
 	    Utf8 lhs_name "filter_scores_s"
 	    Utf8 operator "Select"
-	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	    Utf8 lhs_stream "Accumulate"
 	}
 	sort_scores_p["sort_scores_p"] {
 	    Boolean cpu "false"
@@ -171,7 +171,7 @@ impl<'a> RetrieveTextSession<'a> {
 	    List-Utf8 lhs_values "['score']"
 		Boolean asc "false"
 	    Utf8 operator "Sort"
-	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	    Utf8 lhs_stream "Accumulate"
 	}
 	limit_scores_p["limit_scores_p"] {
 	    Int64 fetch "5"
@@ -197,14 +197,14 @@ impl<'a> RetrieveTextSession<'a> {
 	    Utf8 rhs_fk "chunk_id"
 	    Utf8 rhs_name "Documents"
 	    Utf8 rhs_pk "chunk_id"
-	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	    Utf8 lhs_stream "Accumulate"
 	}
 	select_documents_scores_p["select_documents_scores_p"] {
 	    List-Utf8 lhs_values "['text']"
 	    Boolean cpu "false"
 	    Utf8 lhs_name "join_documents_scores_s"
 	    Utf8 operator "Select"
-	    Utf8 stream "AccumulateLHSAccumulateRHS"
+	    Utf8 lhs_stream "Accumulate"
 	}
 	summarize_documents_scores_p["summarize_documents_scores_p"] {
 	    Utf8 summary_format "None"

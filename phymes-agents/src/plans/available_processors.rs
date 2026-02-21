@@ -185,7 +185,7 @@ impl DataConfigTrait for AvailableProcessors {
                 format: Some(DataFormat::Html),
                 cpu: false,
                 operator: AvailableCandleOperators::ApplyTemplate,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::VectorDistance => serde_json::to_vec(&DataConfig {
@@ -198,7 +198,7 @@ impl DataConfigTrait for AvailableProcessors {
                 dist_operator: Some(DataDistanceOperator::NormalizedDotProduct),
                 cpu: false,
                 operator: AvailableCandleOperators::VectorDistance,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::Sort => serde_json::to_vec(&DataConfig {
@@ -207,7 +207,7 @@ impl DataConfigTrait for AvailableProcessors {
                 asc: Some(true),
                 cpu: false,
                 operator: AvailableCandleOperators::Sort,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::HumanInTheLoop => serde_json::to_vec(&DataConfig {
@@ -224,7 +224,7 @@ impl DataConfigTrait for AvailableProcessors {
                 chunk_overlap: Some(64),
                 cpu: false,
                 operator: AvailableCandleOperators::ChunkDocuments,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::Join => serde_json::to_vec(&DataConfig {
@@ -236,7 +236,8 @@ impl DataConfigTrait for AvailableProcessors {
                 rhs_fk: Some("rhs_fk".to_string()),
                 cpu: false,
                 operator: AvailableCandleOperators::Join,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
+                rhs_stream: Some(DataStreamManager::Accumulate),
                 ..Default::default()
             }),
             Self::ExtractPDF => serde_json::to_vec(&DataConfig {
@@ -245,7 +246,7 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 cpu: false,
                 operator: AvailableCandleOperators::ExtractPDF,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::GroupBy => serde_json::to_vec(&DataConfig {
@@ -255,7 +256,7 @@ impl DataConfigTrait for AvailableProcessors {
                 agg_operators: Some(vec![DataAggregatorOperator::Sum]),
                 cpu: false,
                 operator: AvailableCandleOperators::GroupBy,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::Filter => serde_json::to_vec(&DataConfig {
@@ -266,7 +267,7 @@ impl DataConfigTrait for AvailableProcessors {
                 cmp_predicate: Some(DataComparatorPredicate::All),
                 cpu: false,
                 operator: AvailableCandleOperators::Filter,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::ExtractTabular => serde_json::to_vec(&DataConfig {
@@ -276,7 +277,7 @@ impl DataConfigTrait for AvailableProcessors {
                 schema: Some(AvailableSubjects::default()),
                 cpu: false,
                 operator: AvailableCandleOperators::ExtractTabular,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::ExtractXML => serde_json::to_vec(&DataConfig {
@@ -286,7 +287,7 @@ impl DataConfigTrait for AvailableProcessors {
                 schema: Some(AvailableSubjects::default()),
                 cpu: false,
                 operator: AvailableCandleOperators::ExtractXML,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::Select => serde_json::to_vec(&DataConfig {
@@ -300,7 +301,7 @@ impl DataConfigTrait for AvailableProcessors {
                 cast_templates: Some(vec!["cast_template".to_string()]),
                 cpu: false,
                 operator: AvailableCandleOperators::Select,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::Pivot => serde_json::to_vec(&DataConfig {
@@ -312,7 +313,7 @@ impl DataConfigTrait for AvailableProcessors {
                 pvt_columns: Some(vec!["pvt_columns".to_string()]),
                 cpu: false,
                 operator: AvailableCandleOperators::Pivot,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::Melt => serde_json::to_vec(&DataConfig {
@@ -321,7 +322,7 @@ impl DataConfigTrait for AvailableProcessors {
                 pvt_columns: Some(vec!["pvt_columns".to_string()]),
                 cpu: false,
                 operator: AvailableCandleOperators::Melt,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::NormalizeTime => serde_json::to_vec(&DataConfig {
@@ -329,14 +330,14 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 cpu: false,
                 operator: AvailableCandleOperators::NormalizeTime,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::PackTabular => serde_json::to_vec(&DataConfig {
                 format: Some(DataFormat::None),
                 cpu: false,
                 operator: AvailableCandleOperators::PackTabular,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::LimitProcessor => serde_json::to_vec(&LimitConfig {
@@ -353,7 +354,7 @@ impl DataConfigTrait for AvailableProcessors {
                 asc: Some(true),
                 cpu: false,
                 operator: AvailableCandleOperators::Sort,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::CandleChatProcessor => serde_json::to_vec(&CandleChatConfig {
@@ -387,7 +388,7 @@ impl DataConfigTrait for AvailableProcessors {
                 asc: Some(true),
                 cpu: false,
                 operator: AvailableCandleOperators::Sort,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::MessageParserProcessor => serde_json::to_vec(&CandleChatConfig {

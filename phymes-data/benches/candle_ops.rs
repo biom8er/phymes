@@ -31,10 +31,10 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
 
     // Cases for stream and accumulation options
     let stream_vec = [
-        // CandleOpsStreamManager::AccumulateLHSStreamRHS,
-        DataStreamManager::AccumulateLHSAccumulateRHS,
-        // CandleOpsStreamManager::StreamLHSStreamRHS,
-        // CandleOpsStreamManager::StreamLHSAccumulateRHS,
+        // (DataStreamManager::Accumulate, DataStreamManager::Stream),
+        (DataStreamManager::Accumulate, DataStreamManager::Accumulate)
+        // (DataStreamManager::Stream, DataStreamManager::Stream),
+        // (DataStreamManager::Stream, DataStreamManager::Accumulate),
     ];
 
     // Cases for the ops functions
@@ -140,7 +140,8 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
 
                 // Update the config
                 let mut config = config.clone();
-                config.stream = stream.to_owned();
+                config.lhs_stream = stream.0.to_owned();
+                config.rhs_stream = Some(stream.1.to_owned());
                 config.lhs_name = Some(lhs_name.to_owned());
                 config.rhs_name = Some(rhs_name.to_owned());
 

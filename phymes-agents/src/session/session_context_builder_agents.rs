@@ -1486,7 +1486,7 @@ mod tests {
             lhs_name: Some("state_1".to_string()),
             rhs_name: Some("missing_state".to_string()),
             operator: AvailableCandleOperators::Join,
-            stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+            lhs_stream: DataStreamManager::Accumulate,
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
@@ -1526,7 +1526,7 @@ mod tests {
             lhs_pk: Some("title".to_string()),
             rhs_pk: Some("missing_pk".to_string()),
             operator: AvailableCandleOperators::Join,
-            stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+            lhs_stream: DataStreamManager::Accumulate,
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
@@ -1645,7 +1645,7 @@ mod tests {
             lhs_values: Some(vec!["id".to_string()]),
             cpu: false,
             operator: AvailableCandleOperators::NormalizeTime,
-            stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+            lhs_stream: DataStreamManager::Accumulate,
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();

@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, CsvFormat, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType, create_blob_batch, create_chat_record_batch, open_alex
+    BuildableTrait, BuilderTrait, CsvFormat, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType, create_blob_batch, create_chat_record_batch
 };
 use phymes_diagnostics::create_timestamp_micros;
 use serde::{Deserialize, Serialize};
@@ -285,7 +285,7 @@ mod tests {
 
         // Check the results
         assert_eq!(partitions.count_rows(), 1);
-        assert_eq!(partitions.get_column_as_vec_str("filename"), ["lhs_name"]);
+        assert_eq!(partitions.get_column_as_vec_str("filename"), ["pack_tabular"]);
         assert_eq!(partitions.get_column_as_vec_str("extension"), ["csv"]);
         assert_eq!(partitions.get_column_as_vec_str("metadata"), ["assistant"]);
         let contents_vec = partitions.get_column_as_vec_nested_primitive::<u8>("bytes")?;
