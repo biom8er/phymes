@@ -122,7 +122,7 @@ impl<'a> DownloadContentSession<'a> {
         Int64 timestamp
     }
     download_pdf_p["download_pdf_p"] {
-        Utf8 values
+        List-UInt8 bytes
     }
     UserPdf["UserPdf"] {
         Utf8 filename
@@ -137,7 +137,7 @@ impl<'a> DownloadContentSession<'a> {
         Int64 timestamp
     }
     download_json_p["download_json_p"] {
-        Utf8 values
+        List-UInt8 bytes
     }
     UserJson["UserJson"] {
         Utf8 filename
@@ -159,7 +159,7 @@ mod tests {
     use phymes_core::{
         BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait,
         MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
-        create_values_record_batch,
+        create_bytes_record_batch,
     };
     use phymes_data::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
     use phymes_diagnostics::HashMap;
@@ -211,9 +211,9 @@ mod tests {
                 request_schema: HTTPClientRequestSchemas::Blob,
                 ..Default::default()
             };
-            let http_client_config_json = serde_json::to_string(&http_client_config)?;
+            let http_client_config_json = serde_json::to_vec(&http_client_config)?;
             let http_client_config_batch =
-                create_values_record_batch(vec![http_client_config_json])?;
+                create_bytes_record_batch(vec![http_client_config_json])?;
             let http_client_config_table = TableBuilder::new()
                 .with_name(name)
                 .with_record_batches(vec![http_client_config_batch])?
@@ -275,9 +275,9 @@ mod tests {
                 request_schema: HTTPClientRequestSchemas::Blob,
                 ..Default::default()
             };
-            let http_client_config_json = serde_json::to_string(&http_client_config)?;
+            let http_client_config_json = serde_json::to_vec(&http_client_config)?;
             let http_client_config_batch =
-                create_values_record_batch(vec![http_client_config_json])?;
+                create_bytes_record_batch(vec![http_client_config_json])?;
             let http_client_config_table = TableBuilder::new()
                 .with_name(name)
                 .with_record_batches(vec![http_client_config_batch])?
@@ -437,9 +437,9 @@ mod tests {
                 json: Some(download_url),
                 ..Default::default()
             };
-            let http_client_config_json = serde_json::to_string(&http_client_config)?;
+            let http_client_config_json = serde_json::to_vec(&http_client_config)?;
             let http_client_config_batch =
-                create_values_record_batch(vec![http_client_config_json])?;
+                create_bytes_record_batch(vec![http_client_config_json])?;
             let http_client_config_table = TableBuilder::new()
                 .with_name(name)
                 .with_record_batches(vec![http_client_config_batch])?
@@ -485,9 +485,9 @@ mod tests {
                 json: Some(esearch_url),
                 ..Default::default()
             };
-            let http_client_config_json = serde_json::to_string(&http_client_config)?;
+            let http_client_config_json = serde_json::to_vec(&http_client_config)?;
             let http_client_config_batch =
-                create_values_record_batch(vec![http_client_config_json])?;
+                create_bytes_record_batch(vec![http_client_config_json])?;
             let http_client_config_table = TableBuilder::new()
                 .with_name(name)
                 .with_record_batches(vec![http_client_config_batch])?
