@@ -3,11 +3,7 @@ use crate::{
     TensorProcessorTrait, device,
 };
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait,
-    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait,
-    create_values_fields, remove_message_by_subject,
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait, create_bytes_fields, create_values_fields, remove_message_by_subject
 };
 
 use arrow::{
@@ -204,6 +200,18 @@ impl Stream for CandleDataStream {
                 .contains(&create_values_fields())
             {
                 let config_json = config_table.get_column_as_vec_str("values").join("");
+                let config = serde_json::from_str::<DataConfig>(&config_json)?;
+                self.config.replace(config);
+            } else if config_table
+                .get_schema()
+                .fields()
+                .contains(&create_bytes_fields())
+            {
+                let config_json = config_table.get_column_as_vec_nested_primitive::<u8>("bytes")?
+                    .into_iter()
+                    .map(|b| String::from_utf8(b).unwrap())
+                    .collect::<Vec<_>>()
+                    .join("");
                 let config = serde_json::from_str::<DataConfig>(&config_json)?;
                 self.config.replace(config);
             } else {
