@@ -958,6 +958,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
 
         // Summary top K
         let top_k_summary_config = DataConfig {
+            lhs_name: Some(self.state_top_k_limit_docs_table_name.to_string()),
             format: Some(DataFormat::None),
             cpu: false,
             operator: AvailableCandleOperators::PackTabular,

@@ -826,6 +826,19 @@ mod tests {
                 .try_read()
                 .unwrap()
                 .get_states()
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            0
+        );
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -845,7 +858,7 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            2
+            1
         );
         assert_eq!(
             session_context_arc
@@ -898,19 +911,6 @@ mod tests {
                 .get_record_batches()
                 .len(),
             1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            0
         );
         assert_eq!(
             session_context_arc
@@ -2392,8 +2392,22 @@ mod tests {
         )?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let response =
-            SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input).await;
-        assert!(response.is_err());
+            SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input).await?;
+        assert!(response.is_none());
+
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
 
         Ok(())
     }

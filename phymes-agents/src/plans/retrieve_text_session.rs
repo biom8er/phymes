@@ -207,7 +207,11 @@ impl<'a> RetrieveTextSession<'a> {
 	    Utf8 lhs_stream "Accumulate"
 	}
 	summarize_documents_scores_p["summarize_documents_scores_p"] {
-	    Utf8 summary_format "None"
+	    Utf8 lhs_name "select_documents_scores_s"
+	    Boolean cpu "false"
+	    Utf8 operator "PackTabular"
+	    Utf8 lhs_stream "Accumulate"
+	    Utf8 format "None"
 	}
 	ToolMessages["ToolMessages"] {
 	    Utf8 role

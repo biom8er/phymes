@@ -296,6 +296,7 @@ impl TablePublicationTrait for Table {
                                     .with_bytes(&bytes)?
                                     .build()?
                                     .get_record_batches_own();
+                                dbg!(&batches);
                                 Ok(batches)
                             }
                             _ => Err(anyhow!(

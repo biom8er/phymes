@@ -8,8 +8,7 @@ use phymes_core::{
     create_schema_from_fields, create_tools_record_batch,
 };
 use phymes_data::{
-    AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
-    DataConfig, LimitConfig, ToolTrait,
+    AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator, DataConfig, DataStreamManager, ToolTrait
 };
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 
@@ -652,6 +651,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             lhs_name: Some(AvailableInterfaceSubjects::UserCsv.to_string()),
             lhs_values: Some(vec!["bytes".to_string()]),
             format: Some(DataFormat::CsvDefault),
+            schema: Some(AvailableSubjects::Empty), //DM: not used for CSV
             operator: AvailableCandleOperators::ExtractTabular,
             ..Default::default()
         };
@@ -716,6 +716,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         let attachment_config = DataConfig {
             format: Some(DataFormat::CsvDefault),
             cpu: false,
+            lhs_stream: DataStreamManager::Accumulate,
             operator: AvailableCandleOperators::PackTabular,
             ..Default::default()
         };
@@ -728,7 +729,12 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .unwrap();
 
         // Summary config
-        let summary_config = LimitConfig {
+        let summary_config = DataConfig {
+            operator: AvailableCandleOperators::PackTabular,
+            format: Some(DataFormat::None),
+            cpu: false,
+            lhs_stream: DataStreamManager::Accumulate,
+            lhs_name: Some(self.tool_summary_task_name.to_string()),
             ..Default::default()
         };
         let summary_config_json = serde_json::to_vec(&summary_config).unwrap();
@@ -738,6 +744,15 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .unwrap()
             .build()
             .unwrap();
+        let summary_config = DataConfig {
+            operator: AvailableCandleOperators::PackTabular,
+            format: Some(DataFormat::None),
+            cpu: false,
+            lhs_stream: DataStreamManager::Accumulate,
+            lhs_name: Some(AvailableInterfaceSubjects::AssistantMessages.to_string()),
+            ..Default::default()
+        };
+        let summary_config_json = serde_json::to_vec(&summary_config).unwrap();
         let summary_state_2 = TableBuilder::new()
             .with_name(self.hitl_summary_processor_name)
             .with_json(&summary_config_json, 1)

@@ -5,12 +5,7 @@ use std::{
 };
 
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat,
-    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream,
-    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, ToolCall,
-    create_chat_record_batch, create_route_bytes_record_batch, remove_message_by_subject,
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, ToolCall, create_bytes_record_batch, create_chat_record_batch, create_route_bytes_record_batch, remove_message_by_subject
 };
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
@@ -258,7 +253,16 @@ impl Stream for MessageParserStream {
                                     .to_string(),
                             ),
                         );
-                        values_vec.push(serde_json::to_string(&values)?.into_bytes());
+
+                        // Wrap into a `Bytes` record batch
+                        let batch = create_bytes_record_batch(vec![serde_json::to_vec(&values)?])?;
+                        let bytes = Table::get_builder()
+                            .with_name("message_parser_processor serde_json::Value")
+                            .with_record_batches(vec![batch])?
+                            .build()?
+                            .to_bytes()?
+                            .to_vec();
+                        values_vec.push(bytes);
                     }
                     create_route_bytes_record_batch(
                         names_vec,
@@ -318,7 +322,16 @@ impl Stream for MessageParserStream {
                                     "operator".to_string(),
                                     serde_json::Value::String(name),
                                 );
-                                values_vec.push(serde_json::to_string(&map)?.into_bytes());
+
+                                // Wrap into a `Bytes` record batch
+                                let batch = create_bytes_record_batch(vec![serde_json::to_vec(&map)?])?;
+                                let bytes = Table::get_builder()
+                                    .with_name("message_parser_processor serde_json::Value")
+                                    .with_record_batches(vec![batch])?
+                                    .build()?
+                                    .to_bytes()?
+                                    .to_vec();
+                                values_vec.push(bytes);
                             }
                             create_route_bytes_record_batch(
                                 names_vec,
@@ -384,7 +397,7 @@ impl RecordBatchStream for MessageParserStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{TableBuilder, TablePublication};
+    use phymes_core::{TableBuilder, TablePublication, create_bytes_fields};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use crate::AvailableCandleAssets;
@@ -497,7 +510,15 @@ mod tests {
         let test: Vec<String> = partitions
             .get_column_as_vec_nested_primitive::<u8>("bytes")?
             .into_iter()
-            .map(|b| String::from_utf8(b).unwrap())
+            .flat_map(|b| Table::get_builder()
+                .with_name("test_message_parser")
+                .with_schema(AvailableSubjects::Bytes.to_schema())
+                .with_bytes(&b).unwrap()
+                .build().unwrap()
+                .get_column_as_vec_nested_primitive::<u8>("bytes").unwrap()
+                .into_iter()
+                    .map(|b| String::from_utf8(b).unwrap())
+                    .collect::<Vec<_>>())
             .collect();
         assert_eq!(
             test,
@@ -610,7 +631,15 @@ mod tests {
         let test: Vec<String> = partitions
             .get_column_as_vec_nested_primitive::<u8>("bytes")?
             .into_iter()
-            .map(|b| String::from_utf8(b).unwrap())
+            .flat_map(|b| Table::get_builder()
+                .with_name("test_message_parser")
+                .with_schema(AvailableSubjects::Bytes.to_schema())
+                .with_bytes(&b).unwrap()
+                .build().unwrap()
+                .get_column_as_vec_nested_primitive::<u8>("bytes").unwrap()
+                .into_iter()
+                    .map(|b| String::from_utf8(b).unwrap())
+                    .collect::<Vec<_>>())
             .collect();
         assert_eq!(
             test,

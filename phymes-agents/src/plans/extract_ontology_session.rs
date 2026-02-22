@@ -2015,7 +2015,6 @@ mod tests {
                 .get(AvailableSubjects::ParseOwl.to_string().as_str())
                 .unwrap()
                 .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
             assert_eq!(table_reading.count_rows(), 30);
             let column = table_reading.get_column_as_vec_str("entity");
             assert_eq!(
@@ -2031,19 +2030,19 @@ mod tests {
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115"
             );
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.last().unwrap(), &"http://purl.obolibrary.org/obo/ro.owl");
             let column = table_reading.get_column_as_vec_str("predicate");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/IAO_0000115");
+            assert_eq!(column.last().unwrap(), &"http://purl.org/dc/terms/title");
             let column = table_reading.get_column_as_vec_str("object");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"The official definition, explaining the meaning of a class or property. Shall be Aristotelian, formalized and normalized. Can be augmented with colloquial definitions.");
+            assert_eq!(column.last().unwrap(), &"OBO Relations Ontology");
             let column = table_reading.get_column_as_vec_str("graph");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/IAO_0000115-http://purl.obolibrary.org/obo/IAO_0000115-The official definition, explaining the meaning of a class or property. Shall be Aristotelian, formalized and normalized. Can be augmented with colloquial definitions.");
+            assert_eq!(column.last().unwrap(), &"http://purl.obolibrary.org/obo/ro.owl-http://purl.org/dc/terms/title-OBO Relations Ontology");
             let column = table_reading.get_column_as_vec_str("dataset");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"UserScript");
+            assert_eq!(column.last().unwrap(), &"UserScript");
         }
 
         // Run the second superstep
@@ -2054,16 +2053,16 @@ mod tests {
         .await?
         .unwrap();
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
+        // {
+        //     // Debug any errors
+        //     let subjects_reading = session_ctx_arc.read();
+        //     let table_reading = subjects_reading
+        //         .get_states()
+        //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
+        //         .unwrap()
+        //         .read();
+        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        // }
 
         assert_eq!(response.len(), 0);
         println!("Starting second superstep...");
@@ -2076,51 +2075,49 @@ mod tests {
                 .get("select_ontology_entity_s")
                 .unwrap()
                 .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
             assert_eq!(table_reading.count_rows(), 2);
             let column = table_reading.get_column_as_vec_str("entity");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://www.w3.org/2002/07/owl#Ontology");
+            assert_eq!(column.last().unwrap(), &"http://www.w3.org/2002/07/owl#Ontology");
             let column = table_reading.get_column_as_vec_str("subject");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/ro.owl");
+            assert_eq!(column.last().unwrap(), &"http://purl.obolibrary.org/obo/ro.owl");
             let column = table_reading.get_column_as_vec_str("predicate");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://purl.org/dc/terms/description");
+            assert_eq!(column.last().unwrap(), &"http://purl.org/dc/terms/title");
             let column = table_reading.get_column_as_vec_str("object");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"The OBO Relations Ontology (RO) is a collection of OWL relations (ObjectProperties) intended for use across a wide variety of biological ontologies.");
+            assert_eq!(column.last().unwrap(), &"OBO Relations Ontology");
             let column = table_reading.get_column_as_vec_str("graph");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/ro.owl-http://purl.org/dc/terms/description-The OBO Relations Ontology (RO) is a collection of OWL relations (ObjectProperties) intended for use across a wide variety of biological ontologies.");
+            assert_eq!(column.last().unwrap(), &"http://purl.obolibrary.org/obo/ro.owl-http://purl.org/dc/terms/title-OBO Relations Ontology");
             let column = table_reading.get_column_as_vec_str("dataset");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"UserScript");
+            assert_eq!(column.last().unwrap(), &"UserScript");
             let table_reading = session_reading
                 .get_states()
                 .get("select_annotation_property_entity_s")
                 .unwrap()
                 .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
             assert_eq!(table_reading.count_rows(), 17);
             let column = table_reading.get_column_as_vec_str("entity");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://www.w3.org/2002/07/owl#AnnotationProperty");
+            assert_eq!(column.last().unwrap(), &"http://www.w3.org/2002/07/owl#AnnotationProperty");
             let column = table_reading.get_column_as_vec_str("subject");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/IAO_0000115");
+            assert_eq!(column.last().unwrap(), &"http://www.w3.org/2000/01/rdf-schema#subPropertyOf");
             let column = table_reading.get_column_as_vec_str("predicate");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/IAO_0000115");
+            assert_eq!(column.last().unwrap(), &"http://www.w3.org/2000/01/rdf-schema#label");
             let column = table_reading.get_column_as_vec_str("object");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"The official definition, explaining the meaning of a class or property. Shall be Aristotelian, formalized and normalized. Can be augmented with colloquial definitions.");
+            assert_eq!(column.last().unwrap(), &"subPropertyOf");
             let column = table_reading.get_column_as_vec_str("graph");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/IAO_0000115-http://purl.obolibrary.org/obo/IAO_0000115-The official definition, explaining the meaning of a class or property. Shall be Aristotelian, formalized and normalized. Can be augmented with colloquial definitions.");
+            assert_eq!(column.last().unwrap(), &"http://www.w3.org/2000/01/rdf-schema#subPropertyOf-http://www.w3.org/2000/01/rdf-schema#label-subPropertyOf");
             let column = table_reading.get_column_as_vec_str("dataset");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"UserScript");
+            assert_eq!(column.last().unwrap(), &"UserScript");
             let table_reading = session_reading
                 .get_states()
                 .get("select_datatype_property_entity_s")
@@ -2132,76 +2129,67 @@ mod tests {
                 .get("select_class_entity_s")
                 .unwrap()
                 .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
             assert_eq!(table_reading.count_rows(), 5);
             let column = table_reading.get_column_as_vec_str("entity");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://www.w3.org/2002/07/owl#Class");
+            assert_eq!(column.last().unwrap(), &"http://www.w3.org/2002/07/owl#Class");
             let column = table_reading.get_column_as_vec_str("subject");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/BFO_0000003");
+            assert_eq!(column.last().unwrap(), &"http://purl.obolibrary.org/obo/BFO_0000003");
             let column = table_reading.get_column_as_vec_str("predicate");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/IAO_0000115");
+            assert_eq!(column.last().unwrap(), &"http://www.w3.org/2000/01/rdf-schema#label");
             let column = table_reading.get_column_as_vec_str("object");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"An entity that has temporal parts and that happens, unfolds or develops through time.");
+            assert_eq!(column.last().unwrap(), &"occurrent");
             let column = table_reading.get_column_as_vec_str("graph");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/BFO_0000003-http://purl.obolibrary.org/obo/IAO_0000115-An entity that has temporal parts and that happens, unfolds or develops through time.");
+            assert_eq!(column.last().unwrap(), &"http://purl.obolibrary.org/obo/BFO_0000003-http://www.w3.org/2000/01/rdf-schema#label-occurrent");
             let column = table_reading.get_column_as_vec_str("dataset");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"UserScript");
+            assert_eq!(column.last().unwrap(), &"UserScript");
             let table_reading = session_reading
                 .get_states()
                 .get("select_object_property_entity_s")
                 .unwrap()
                 .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
             assert_eq!(table_reading.count_rows(), 5);
             let column = table_reading.get_column_as_vec_str("entity");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://www.w3.org/2002/07/owl#ObjectProperty");
+            assert_eq!(column.last().unwrap(), &"http://www.w3.org/2002/07/owl#ObjectProperty");
             let column = table_reading.get_column_as_vec_str("subject");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/BFO_0000050");
+            assert_eq!(column.last().unwrap(), &"http://purl.obolibrary.org/obo/RO_0002131");
             let column = table_reading.get_column_as_vec_str("predicate");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/IAO_0000115");
+            assert_eq!(column.last().unwrap(), &"http://www.w3.org/2000/01/rdf-schema#label");
             let column = table_reading.get_column_as_vec_str("object");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"a core relation that holds between a part and its whole");
+            assert_eq!(column.last().unwrap(), &"overlaps");
             let column = table_reading.get_column_as_vec_str("graph");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/BFO_0000050-http://purl.obolibrary.org/obo/IAO_0000115-a core relation that holds between a part and its whole");
+            assert_eq!(column.last().unwrap(), &"http://purl.obolibrary.org/obo/RO_0002131-http://www.w3.org/2000/01/rdf-schema#label-overlaps");
             let column = table_reading.get_column_as_vec_str("dataset");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"UserScript");
+            assert_eq!(column.last().unwrap(), &"UserScript");
             let table_reading = session_reading
                 .get_states()
                 .get("select_named_individual_entity_s")
                 .unwrap()
                 .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
             assert_eq!(table_reading.count_rows(), 1);
             let column = table_reading.get_column_as_vec_str("entity");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://www.w3.org/2002/07/owl#NamedIndividual");
             let column = table_reading.get_column_as_vec_str("subject");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/ENVO_01001569");
             let column = table_reading.get_column_as_vec_str("predicate");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://www.w3.org/2000/01/rdf-schema#label");
             let column = table_reading.get_column_as_vec_str("object");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"Western Australian Mulga Shrublands Ecoregion");
             let column = table_reading.get_column_as_vec_str("graph");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/ENVO_01001569-http://www.w3.org/2000/01/rdf-schema#label-Western Australian Mulga Shrublands Ecoregion");
             let column = table_reading.get_column_as_vec_str("dataset");
-            assert_eq!(column.first().unwrap(), &"");
-            assert_eq!(column.last().unwrap(), &"");
+            assert_eq!(column.first().unwrap(), &"UserScript");
             let table_reading = session_reading
                 .get_states()
                 .get("select_axiom_entity_s")

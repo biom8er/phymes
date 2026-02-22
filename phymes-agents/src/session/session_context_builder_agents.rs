@@ -669,7 +669,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() != "LimitConfig" {
                         return Err(anyhow!(
-                            "Schema for `LimitConfig` from subject `{}` for processor type `{}` does not match the expected processor type PackTabular.",
+                            "Schema for `LimitConfig` from subject `{}` for processor type `{}` does not match the expected processor type BatchCoalesceProcessor and LimitProcessor.",
                             table.get_name(),
                             r#type
                         ));
@@ -1631,7 +1631,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Schema for `LimitConfig` from subject `processor_3` for processor type `Join` does not match the expected processor type PackTabular."
+                "Schema for `LimitConfig` from subject `processor_3` for processor type `Join` does not match the expected processor type BatchCoalesceProcessor and LimitProcessor."
             ),
         }
 

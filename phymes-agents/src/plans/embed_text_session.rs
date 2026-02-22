@@ -70,9 +70,9 @@ impl<'a> Default for EmbedTextSession<'a> {
             )
         };
         let generate_text_inference = if cfg!(all(feature = "api", not(feature = "candle"))) {
-            "OpenAIChatProcessor"
+            "OpenAIEmbedProcessor"
         } else {
-            "CandleChatProcessor"
+            "CandleEmbedProcessor"
         };
         Self {
             session_context_name: "generate_text_session",

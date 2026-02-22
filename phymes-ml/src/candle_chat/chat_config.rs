@@ -122,17 +122,16 @@ impl DataConfigTrait for CandleChatConfig {
             .map(|f| f.name().to_string())
             .collect::<HashSet<_>>();
         if !((column_names.contains("candle_asset") || column_names.contains("openai_asset"))
-            // && column_names.contains("max_tokens")
-            // && column_names.contains("temperature")
-            // && column_names.contains("seed")
-            // && column_names.contains("repeat_penalty")
-            // && column_names.contains("repeat_last_n")
-            // && column_names.contains("frequency_penalty")
+            && column_names.contains("max_tokens")
+            && column_names.contains("temperature")
+            && column_names.contains("seed")
+            && column_names.contains("repeat_penalty")
+            && column_names.contains("repeat_last_n")
+            && column_names.contains("frequency_penalty")
             && column_names.contains("messages"))
         {
             return Err(anyhow!(
-                // "Table {} is missing required Field for `candle_asset`, `openai_asset`, `max_tokens`, `temperature`, `seed`, `repeat_penalty`, `repeat_last_n`, `messages`, or `frequency_penalty` in CandleChatConfig.",
-                "Table {} is missing required Field for `candle_asset`, `openai_asset`, or `messages` in CandleChatConfig.",
+                "Table {} is missing required Field for `candle_asset`, `openai_asset`, `max_tokens`, `temperature`, `seed`, `repeat_penalty`, `repeat_last_n`, `messages`, or `frequency_penalty` in CandleChatConfig.",
                 table.get_name()
             ));
         }
