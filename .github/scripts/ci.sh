@@ -22,6 +22,7 @@ cargo run --package phymes-ml --features wsl,gpu,candle --release --example chat
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat_agent_session
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example doc_rag_session
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example tool_agent_session
+cargo test --features wsl,candle,api
 cargo check --all-targets
 cargo check -p phymes-diagnostics --all-targets --no-default-features --features wsl
 cargo check -p phymes-core --all-targets --no-default-features --features wsl
