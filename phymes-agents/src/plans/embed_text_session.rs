@@ -359,70 +359,78 @@ mod tests {
             .build()?;
         let message_map = create_message_map(vec![chat_message, document_message]);
 
-        // Run the first superstep
-        let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map)
+        // Avoid running with Candle without GPU acceleration
+        if cfg!(any(
+            all(not(feature = "candle"), feature = "wsl"),
+            all(not(feature = "candle"), feature = "wasip2"),
+            feature = "gpu"
+        )) {
+
+            // Run the first superstep
+            let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map)
+                .await?
+                .unwrap();
+
+            assert_eq!(response.len(), 0);
+
+            {
+                // Test supsersteps
+                let session_reading = session_ctx_arc.read();
+                let table_reading = session_reading
+                    .get_states()
+                    .get(AvailableInterfaceSubjects::UserQueries.to_string().as_str())
+                    .unwrap()
+                    .read();
+                assert_eq!(table_reading.count_rows(), 1);
+                let column = table_reading.get_column_as_vec_str("query_id");
+                assert!(!column.is_empty());
+                let column = table_reading.get_column_as_vec_str("text");
+                assert_eq!(
+                    column.first().unwrap(),
+                    &"What are the four molecules that compose DNA?"
+                );
+            }
+
+            // Run the second superstep
+            let response = SessionStreamStep::run_superstep(
+                Arc::clone(&session_ctx_arc),
+                HashMap::<String, IPCMessage>::new(),
+            )
             .await?
             .unwrap();
 
-        assert_eq!(response.len(), 0);
+            assert_eq!(response.len(), 0);
 
-        {
-            // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get(AvailableInterfaceSubjects::UserQueries.to_string().as_str())
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 1);
-            let column = table_reading.get_column_as_vec_str("query_id");
-            assert!(!column.is_empty());
-            let column = table_reading.get_column_as_vec_str("text");
-            assert_eq!(
-                column.first().unwrap(),
-                &"What are the four molecules that compose DNA?"
-            );
-        }
-
-        // Run the second superstep
-        let response = SessionStreamStep::run_superstep(
-            Arc::clone(&session_ctx_arc),
-            HashMap::<String, IPCMessage>::new(),
-        )
-        .await?
-        .unwrap();
-
-        assert_eq!(response.len(), 0);
-
-        {
-            // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get(AvailableSubjects::QueryEmbeddings.to_string().as_str())
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 1);
-            let column = table_reading.get_column_as_vec_str("query_id");
-            assert!(!column.is_empty());
-            let column = table_reading.get_column_as_vec_nested_primitive::<f32>("embedding")?;
-            assert_eq!(column.len(), 1);
-            assert_eq!(column.first().unwrap().len(), 384);
-            let table_reading = session_reading
-                .get_states()
-                .get(AvailableSubjects::DocumentEmbeddings.to_string().as_str())
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 8);
-            let column = table_reading.get_column_as_vec_str("chunk_id");
-            assert_eq!(column.first().unwrap(), &"WikiBioComponents_2_0");
-            assert_eq!(column.last().unwrap(), &"WikiBioComponents_3_0");
-            let column = table_reading.get_column_as_vec_str("document_id");
-            assert_eq!(column.first().unwrap(), &"WikiBioComponents");
-            assert_eq!(column.last().unwrap(), &"WikiBioComponents");
-            let column = table_reading.get_column_as_vec_nested_primitive::<f32>("embedding")?;
-            assert_eq!(column.len(), 8);
-            assert_eq!(column.first().unwrap().len(), 384);
+            {
+                // Test supsersteps
+                let session_reading = session_ctx_arc.read();
+                let table_reading = session_reading
+                    .get_states()
+                    .get(AvailableSubjects::QueryEmbeddings.to_string().as_str())
+                    .unwrap()
+                    .read();
+                assert_eq!(table_reading.count_rows(), 1);
+                let column = table_reading.get_column_as_vec_str("query_id");
+                assert!(!column.is_empty());
+                let column = table_reading.get_column_as_vec_nested_primitive::<f32>("embedding")?;
+                assert_eq!(column.len(), 1);
+                assert_eq!(column.first().unwrap().len(), 384);
+                let table_reading = session_reading
+                    .get_states()
+                    .get(AvailableSubjects::DocumentEmbeddings.to_string().as_str())
+                    .unwrap()
+                    .read();
+                assert_eq!(table_reading.count_rows(), 8);
+                let column = table_reading.get_column_as_vec_str("chunk_id");
+                assert_eq!(column.first().unwrap(), &"WikiBioComponents_2_0");
+                assert_eq!(column.last().unwrap(), &"WikiBioComponents_3_0");
+                let column = table_reading.get_column_as_vec_str("document_id");
+                assert_eq!(column.first().unwrap(), &"WikiBioComponents");
+                assert_eq!(column.last().unwrap(), &"WikiBioComponents");
+                let column = table_reading.get_column_as_vec_nested_primitive::<f32>("embedding")?;
+                assert_eq!(column.len(), 8);
+                assert_eq!(column.first().unwrap().len(), 384);
+            }
         }
         Ok(())
     }
