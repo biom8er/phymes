@@ -2604,15 +2604,17 @@ mod tests {
                 .get(AvailableSubjects::Documents.to_string().as_str())
                 .unwrap()
                 .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
             assert_eq!(table_reading.count_rows(), 3);
-            let column = table_reading.get_column_as_vec_str("chunk_id");
+            let mut column = table_reading.get_column_as_vec_str("chunk_id");
+            column.sort();
             assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/BFO_0000003");
             assert_eq!(column.last().unwrap(), &"http://purl.obolibrary.org/obo/RO_0002131");
-            let column = table_reading.get_column_as_vec_str("document_id");
+            let mut column = table_reading.get_column_as_vec_str("document_id");
+            column.sort();
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
-            let column = table_reading.get_column_as_vec_str("text");
+            let mut column = table_reading.get_column_as_vec_str("text");
+            column.sort();
             assert_eq!(column.first().unwrap(), &"**definition** An entity that has temporal parts and that happens, unfolds or develops through time.\n**has exact synonym** has temporal part\n**has exact synonym** through time\n**has exact synonym** unfolds in time\n**label** occurrent");
             assert_eq!(column.last().unwrap(), &"**definition** x overlaps y if and only if there exists some z such that x has part z and z part of y\n**label** overlaps");
         }

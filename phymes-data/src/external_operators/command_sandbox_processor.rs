@@ -17,7 +17,7 @@ use phymes_core::{
     SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait,
-    create_chat_record_batch, create_values_fields, remove_message_by_subject,
+    create_chat_record_batch, create_values_fields, remove_message_by_subject, create_bytes_fields
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,

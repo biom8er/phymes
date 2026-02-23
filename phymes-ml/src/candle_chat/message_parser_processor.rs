@@ -397,7 +397,7 @@ impl RecordBatchStream for MessageParserStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{TableBuilder, TablePublication, create_bytes_fields};
+    use phymes_core::{TableBuilder, TablePublication};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use crate::AvailableCandleAssets;
