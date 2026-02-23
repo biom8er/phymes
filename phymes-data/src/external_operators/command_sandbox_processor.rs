@@ -2383,7 +2383,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-arrow = "53.0.0"
+arrow = "58.0.0"
 clap = { version = "4.5.4", features = ["derive"] }"#;
         let _ = requirements_file.write(requirements_str.as_bytes())?;
         requirements_file.flush()?;

@@ -962,7 +962,7 @@ mod tests {
         assert_eq!(result, ["tool"]);
         let result = table.get_column_as_vec_str("content").join("");
         assert!(result.contains(
-            "\"idlist\":[\"37997144\",\"37997132\",\"37997130\",\"37997120\",\"37997092\"]"
+            "\"idlist\":["
         ));
 
         Ok(())

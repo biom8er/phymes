@@ -28,70 +28,7 @@ curl -L -o ~/.cache/hf/models--Alibaba-NLP--gte-Qwen2-1.5B-instruct/gte-Qwen2-1.
 ## Tests
 
 The following runs all tests with all CPU, GPU, and WASM features and targets
-
-```bash
-cargo test
-dx build -p phymes-app
-cargo check --features wsl,gpu,candle --all-targets
-cargo test --features wsl,gpu,candle
-cargo run --package phymes-ml --features wsl,gpu,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --messages "messages" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
-cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat_agent_session
-cargo run --package phymes-agents --features wsl,gpu,candle --release --example doc_rag_session
-cargo run --package phymes-agents --features wsl,gpu,candle --release --example tool_agent_session
-cargo check --all-targets
-cargo check -p phymes-diagnostics --all-targets --no-default-features --features wsl
-cargo check -p phymes-core --all-targets --no-default-features --features wsl
-cargo check -p phymes-data --all-targets --no-default-features --features wsl
-cargo check -p phymes-ml --all-targets --no-default-features --features wsl
-cargo check -p phymes-ml --all-targets --no-default-features --features wsl,hf_hub,candle
-cargo check -p phymes-ml --all-targets --no-default-features --features wsl,api
-cargo check -p phymes-agents --all-targets --no-default-features --features wsl
-cargo check -p phymes-agents --all-targets --no-default-features --features wsl,hf_hub,candle
-cargo check -p phymes-agents --all-targets --no-default-features --features wsl,api
-cargo check -p phymes-server --all-targets --no-default-features --features wsl
-cargo check -p phymes-server --all-targets --no-default-features --features wsl,hf_hub,candle
-cargo check -p phymes-server --all-targets --no-default-features --features wsl,api
-cargo check -p phymes-app --all-targets --no-default-features --features mobile
-cargo check -p phymes-app --all-targets --no-default-features --features desktop
-cargo clippy --all-targets -- -D warnings
-cargo fmt --all -- --check
-cargo check -p phymes-diagnostics --features wasip2 --no-default-features --target wasm32-unknown-unknown
-cargo test -p phymes-diagnostics --features wasip2 --no-default-features --target wasm32-wasip2 --no-run --release
-for file in target/wasm32-wasip2/release/deps/phymes_diagnostics-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
-cargo check -p phymes-core --features wasip2 --no-default-features --target wasm32-unknown-unknown
-cargo test -p phymes-core --features wasip2 --no-default-features --target wasm32-wasip2 --no-run --release
-for file in target/wasm32-wasip2/release/deps/phymes_core-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
-cargo check -p phymes-data --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
-cargo test -p phymes-data --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
-for file in target/wasm32-wasip2/release/deps/phymes_data-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
-cargo check -p phymes-ml --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
-cargo test -p phymes-ml --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
-for file in target/wasm32-wasip2/release/deps/phymes_agents-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
-cargo build --package phymes-ml --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat
-wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat.wasm --messages "messages" --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
-cargo check -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
-cargo test -p phymes-agents --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
-for file in target/wasm32-wasip2/release/deps/phymes_agents-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
-cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example chat_agent_session
-wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/chat_agent_session.wasm
-cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example doc_rag_session
-wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/doc_rag_session.wasm
-cargo build --package phymes-agents --target wasm32-wasip2 --no-default-features --features wasip2,candle --release --example tool_agent_session
-wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME target/wasm32-wasip2/release/examples/tool_agent_session.wasm
-cargo check -p phymes-server --no-default-features --features wasip2,candle --target wasm32-unknown-unknown
-cargo test -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
-for file in target/wasm32-wasip2/release/deps/phymes_server-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
-cargo build -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --release
-mdbook test phymes-book
-mdbook build phymes-book
-cargo doc --document-private-items --no-deps -p phymes-diagnostics
-cargo doc --document-private-items --no-deps -p phymes-core
-cargo doc --document-private-items --no-deps -p phymes-ml
-cargo doc --document-private-items --no-deps -p phymes-data
-cargo doc --document-private-items --no-deps -p phymes-agents
-cargo doc --document-private-items --no-deps -p phymes-server
-cargo doc --document-private-items --no-deps -p phymes-app
-```
+see [script](ci.sh)
 
 ## Additional cache resources for benchmarking
 

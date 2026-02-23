@@ -8,7 +8,7 @@ use phymes_core::{
     AvailableSchemaTrait, AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait,
     BuilderTrait, MappableTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait,
     StateMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap,
-    TaskPlan, create_values_fields,
+    TaskPlan, create_bytes_fields, create_values_fields,
 };
 use phymes_data::{AvailableCandleOperators, DataConfig, DataConfigTrait, LimitConfig, device};
 #[cfg(feature = "api")]
@@ -560,6 +560,9 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 continue;
             // Check for `values` schema
             } else if table.get_schema().fields() == &create_values_fields() {
+                continue;
+            // Check for `bytes` schema
+            } else if table.get_schema().fields() == &create_bytes_fields() {
                 continue;
             // Ignore Echo processors
             } else if let Ok(processor) = AvailableProcessors::from_str(r#type, false)

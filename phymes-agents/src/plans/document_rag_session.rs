@@ -295,7 +295,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 )
                 .build()
                 .unwrap(),
-            #[cfg(feature = "api")]
+            #[cfg(all(feature = "api", not(feature = "candle")))]
             ProcessorPlanBuilder::default()
                 .with_processor(
                     AvailableProcessors::OpenAIChatProcessor.build_arc(self.chat_processor_name),
@@ -380,7 +380,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 )
                 .build()
                 .unwrap(),
-            #[cfg(feature = "api")]
+            #[cfg(all(feature = "api", not(feature = "candle")))]
             ProcessorPlanBuilder::default()
                 .with_processor(
                     AvailableProcessors::OpenAIEmbedProcessor
@@ -402,7 +402,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 )
                 .build()
                 .unwrap(),
-            #[cfg(feature = "api")]
+            #[cfg(all(feature = "api", not(feature = "candle")))]
             ProcessorPlanBuilder::default()
                 .with_processor(
                     AvailableProcessors::OpenAIEmbedProcessor

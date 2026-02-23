@@ -2222,6 +2222,7 @@ pub struct Meta {
     pub timing: Option<Timing>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RateLimitResponse {
     pub api_key: String,
@@ -2229,6 +2230,7 @@ pub struct RateLimitResponse {
     pub page: u32,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RateLimit {
     pub credits_limit: u32,
@@ -2238,6 +2240,7 @@ pub struct RateLimit {
     pub credit_costs: CreditCosts,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreditCosts {
     pub singleton: u32,
