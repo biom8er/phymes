@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[command(author, version, about, long_about = None)]
 pub struct ServerlessConfig {
     /// The application route to call e.g., app/v1/chat
-    #[arg(long)]
+    #[arg(long, default_value = "app/v1/sign_in")]
     pub route: String,
 
     /// Basic authentication credentials e.g., email:password

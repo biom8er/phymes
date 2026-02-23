@@ -3,24 +3,24 @@ use serde::{Deserialize, Serialize};
 
 /// Struct for parsing ESearch JSON response
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct ESearchResponse {
-    pub(crate) esearchresult: ESearchResult,
+pub struct ESearchResponse {
+    pub esearchresult: ESearchResult,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct ESearchResult {
-    pub(crate) idlist: Vec<String>,
+pub struct ESearchResult {
+    pub idlist: Vec<String>,
 }
 
 /// Struct for parsing EFetch XML response (simplified)
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct PubmedArticleSet {
+pub struct PubmedArticleSet {
     #[serde(rename = "PubmedArticle", default)]
-    pub(crate) articles: Vec<PubmedArticle>,
+    pub articles: Vec<PubmedArticle>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct PubmedArticle {
+pub struct PubmedArticle {
     #[serde(rename = "MedlineCitation")]
     citation: MedlineCitation,
     #[serde(rename = "PubmedData")]
@@ -28,7 +28,7 @@ pub(crate) struct PubmedArticle {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct MedlineCitation {
+pub struct MedlineCitation {
     #[serde(rename = "Article")]
     article: Article,
     #[serde(rename = "MeshHeadingList", default)]
@@ -36,7 +36,7 @@ pub(crate) struct MedlineCitation {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct Article {
+pub struct Article {
     #[serde(rename = "ArticleTitle")]
     title: String,
     #[serde(rename = "Abstract", default)]
@@ -52,7 +52,7 @@ pub(crate) struct Article {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct Journal {
+pub struct Journal {
     #[serde(rename = "Title")]
     title: String,
     #[serde(rename = "ISSN", default)]
@@ -62,7 +62,7 @@ pub(crate) struct Journal {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct JournalIssue {
+pub struct JournalIssue {
     #[serde(rename = "PubDate")]
     pub_date: PubDate,
     #[serde(rename = "Volume", default)]
@@ -72,7 +72,7 @@ pub(crate) struct JournalIssue {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct PubDate {
+pub struct PubDate {
     #[serde(rename = "Year", default)]
     year: Option<String>,
     #[serde(rename = "Month", default)]
@@ -82,7 +82,7 @@ pub(crate) struct PubDate {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct AbstractText {
+pub struct AbstractText {
     #[serde(rename = "AbstractText", default)]
     text: Vec<String>,
 }
@@ -137,19 +137,19 @@ struct MeshHeading {
 
 /// Struct for PMC ID extraction
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct PubmedData {
+pub struct PubmedData {
     #[serde(rename = "ArticleIdList")]
     id_list: ArticleIdList,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct ArticleIdList {
+pub struct ArticleIdList {
     #[serde(rename = "ArticleId", default)]
     ids: Vec<ArticleId>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct ArticleId {
+pub struct ArticleId {
     #[serde(rename = "$value")]
     value: String,
     #[serde(rename = "IdType", default)]

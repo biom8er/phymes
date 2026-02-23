@@ -70,7 +70,7 @@ impl<'a> Default for GenerateTextSession<'a> {
                 None,
             )
         };
-        let generate_text_inference = if cfg!(all(feature = "api", not(feature = "candle"))) {
+        let chat_processor = if cfg!(all(feature = "api", not(feature = "candle"))) {
             "OpenAIChatProcessor"
         } else {
             "CandleChatProcessor"
@@ -84,12 +84,40 @@ impl<'a> Default for GenerateTextSession<'a> {
             tokenizer_config_file,
             tokenizer_file,
             api_url,
-            chat_processor: generate_text_inference,
+            chat_processor,
         }
     }
 }
 
 impl<'a> GenerateTextSession<'a> {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        session_context_name: &'a str,
+        candle_asset: Option<String>,
+        openai_asset: Option<String>,
+        weights_config_file: Option<String>,
+        weights_file: Option<String>,
+        tokenizer_file: Option<String>,
+        tokenizer_config_file: Option<String>,
+        api_url: Option<String>,
+    ) -> Self {
+        let chat_processor = if cfg!(all(feature = "api", not(feature = "candle"))) {
+            "OpenAIChatProcessor"
+        } else {
+            "CandleChatProcessor"
+        };
+        GenerateTextSession {
+            session_context_name,
+            candle_asset,
+            openai_asset,
+            weights_config_file,
+            weights_file,
+            tokenizer_file,
+            tokenizer_config_file,
+            api_url,
+            chat_processor,
+        }
+    }
     fn generate_text_inference_p(&self) -> String {
         let mut lines = Vec::new();
         if let Some(candle_asset) = &self.candle_asset {
@@ -462,7 +490,28 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_generate_text_session_tool_call() -> Result<()> {
         // Initialize the session
-        let generate_text_session = GenerateTextSession::default();
+        let generate_text_session = GenerateTextSession::new(
+            "generate_text_session",
+            Some("QwenV2p5_1p5bChat".to_string()),
+            None,
+            Some(format!(
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/config.json",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            Some(format!(
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            Some(format!(
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer.json",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            Some(format!(
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer_config.json",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            None,
+        );
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
             &generate_text_session.as_mermaid_flowchart(),
             false,
@@ -907,7 +956,28 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_generate_text_session_error_response() -> Result<()> {
         // Initialize the session
-        let generate_text_session = GenerateTextSession::default();
+        let generate_text_session = GenerateTextSession::new(
+            "generate_text_session",
+            Some("QwenV2p5_1p5bChat".to_string()),
+            None,
+            Some(format!(
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/config.json",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            Some(format!(
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            Some(format!(
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer.json",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            Some(format!(
+                "{}/.cache/hf/models--Qwen--Qwen2-0.5B-Instruct/tokenizer_config.json",
+                std::env::var("HOME").unwrap_or("".to_string())
+            )),
+            None,
+        );
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
             &generate_text_session.as_mermaid_flowchart(),
             false,
