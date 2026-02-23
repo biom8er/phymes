@@ -1,12 +1,12 @@
 use dioxus::prelude::*;
 use phymes_agents::{
     AvailableSessionPlans, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-    SessionContextBuilderMermaidTrait,
+    SessionContextBuilderMermaidTrait, SessionInterfaceMessage,
+    SessionInterfaceMessageBuilderTrait,
 };
 use phymes_core::{
     create_session_mermaid_batch, AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat,
-    MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait, Table,
-    TableBuilderTrait, TablePublication, TableTrait,
+    MessageBuilderTrait, Table, TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_server::create_session_name;
@@ -283,14 +283,14 @@ pub fn builds_dropdown_view(
                             build_errors.set(String::new());
 
                             // Check if the current session can be built
-                            let mut builder = match SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), true) {
+                            let mut builder = match SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), false) {
                                 Ok(builder) => builder,
                                 Err(err) => {
                                     build_errors.write().push_str(format!("{err:?}").as_str());
                                     return;
                                 },
                             };
-                            builder = match builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), true, true) {
+                            builder = match builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), false, true) {
                                 Ok(builder) => builder,
                                 Err(err) => {
                                     build_errors.write().push_str(format!("{err:?}").as_str());
@@ -478,16 +478,16 @@ pub fn builds_dropdown_view(
                         class: "p-2 hover:bg-neutral-700 rounded bg-neutral-800 cursor-pointer",
                         onclick: move |_| async move {
                             // Generate defaults if possible
-                            match SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), true) {
+                            match SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), false) {
                                 // Read in what information is available and update the rest
                                 Ok(builder) => {
                                     let builder = if active_er_diagram().is_empty() {
                                         builder
-                                    } else if let Ok(builder) = builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), true, true) {
+                                    } else if let Ok(builder) = builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), false, true) {
                                         builder
                                     } else {
                                         // Revert
-                                        SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), true).unwrap()
+                                        SessionContextBuilder::from_mermaid_flowchart(&active_flowchart_diagram(), false).unwrap()
                                     };
                                     match builder.with_name(&active_session_name()).add_processor_subjects() {
                                         // Include the last row of data during the prototyping stage

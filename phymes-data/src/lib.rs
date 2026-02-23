@@ -8,15 +8,16 @@ pub use candle_data::{
     AggregatorStream, AttachmentAggregatorProcessor, CandleDataProcessor, CandleTensorService,
     CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator,
     DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait,
-    DataDistanceOperator, DataStreamManager, DataSummaryConfig, DataSummaryProcessor,
-    LimitProcessor, TensorProcessorTrait, collect_messages_by_schema, device,
+    DataDistanceOperator, DataStreamManager, LimitConfig, LimitProcessor, TensorProcessorTrait,
+    collect_messages_by_schema, device,
 };
 pub use candle_operators::{
     ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait, ExtractPDF,
     ExtractTabular, ExtractXML, Filter, FromTasksToParticipants, FromTracesToMessages, GroupBy,
-    HumanInTheLoop, Join, NormalizeTime, Pivot, Select, Sort, ToolTrait, VectorDistance,
-    convert_destinations_to_tools, extract_xml, filter, group_by, make_pdf_document, sort,
-    test_extract_tabular_data,
+    HumanInTheLoop, Join, NormalizeTime, PackTabular, Pivot, Select, Sort, ToolTrait,
+    VectorDistance, convert_destinations_to_tools, extract_pdf, extract_xml, filter, filter_pdf,
+    group_by, load_pdf_document, make_pdf_document, pack_tabular, sort,
+    table_and_data_format_to_record_batch, test_extract_tabular_data,
 };
 #[cfg(feature = "api")]
 pub use external_operators::{

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use tracing::instrument;
 
-use minijinja::{Environment, ErrorKind, Template};
+use minijinja::{Environment, ErrorKind, Template, context};
 use minijinja_contrib::pycompat;
 
 /// Raise a exception (custom function) used in the chat templates
@@ -54,10 +54,31 @@ impl TableScript {
     }
 }
 
+/// Utility function to create ER Diagram safe columns
+pub fn items_to_list(items: &[&str]) -> Result<String> {
+    let mut env = Environment::new();
+    let template = r#"
+{%- for item in items -%}
+'{{ item }}'{% if not loop.last %},{% endif %}
+{%- endfor %}"#;
+    env.add_template("list", template)?;
+    let tmpl = env.get_template("list")?;
+    let rendered = tmpl.render(context! {items => items})?;
+    Ok(rendered)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::table::table_trait::{TableTrait, test_table::make_test_table_chat};
+
+    #[test]
+    fn test_items_to_list() -> Result<()> {
+        let items = &["Casenr", "Age','Gender", "Ethnicity", "Education"];
+        let rendered = items_to_list(items)?;
+        assert_eq!(rendered, "'Casenr','Age','Gender','Ethnicity','Education'");
+        Ok(())
+    }
 
     #[test]
     fn test_to_from_script_with_template() -> Result<()> {

@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
-use phymes_core::{DataFormat, MappableTrait, Table, TableTrait};
+use phymes_core::{AvailableSubjects, DataFormat, MappableTrait, Table, TableTrait};
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
@@ -10,31 +10,20 @@ use crate::{AvailableJinja2Templates, candle_operators::AvailableCandleOperators
 
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
 pub enum DataStreamManager {
-    /// Accumulate the LHS record batches before
-    /// streaming operations for each RHS record batch
-    #[value(name = "accumulate-lhs-stream-rhs")]
-    AccumulateLHSStreamRHS,
-    /// Accumulate the LHS and RHS record batches before
-    /// operating over the accumulated record batches
+    /// Accumulate the record batches before streaming operations for each record batch
     #[default]
-    #[value(name = "accumulate-lhs-accumulate-rhs")]
-    AccumulateLHSAccumulateRHS,
-    /// Stream LHS and RHS record batches
-    #[value(name = "stream-lhs-stream-rhs")]
-    StreamLHSStreamRHS,
-    /// Stream LHS and RHS record batches but
-    /// accumulating the RHS results
-    #[value(name = "stream-lhs-accumulate-rhs")]
-    StreamLHSAccumulateRHS,
+    #[value(name = "Accumulate")]
+    Accumulate,
+    /// Stream the record batches
+    #[value(name = "Stream")]
+    Stream,
 }
 
 impl Display for DataStreamManager {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::AccumulateLHSStreamRHS => write!(f, "AccumulateLHSStreamRHS"),
-            Self::AccumulateLHSAccumulateRHS => write!(f, "AccumulateLHSAccumulateRHS"),
-            Self::StreamLHSStreamRHS => write!(f, "StreamLHSStreamRHS"),
-            Self::StreamLHSAccumulateRHS => write!(f, "StreamLHSAccumulateRHS"),
+            Self::Accumulate => write!(f, "Accumulate"),
+            Self::Stream => write!(f, "Stream"),
         }
     }
 }
@@ -334,6 +323,8 @@ pub enum DataColumnOperator {
     BroadcastList,
     #[value(name = "BroadcastSet")]
     BroadcastSet,
+    #[value(name = "CumSum")]
+    CumSum,
 }
 
 impl DataColumnOperator {
@@ -369,7 +360,8 @@ impl DataColumnOperator {
             | Self::BroadcastVar
             | Self::BroadcastCount
             | Self::BroadcastList
-            | Self::BroadcastSet => false,
+            | Self::BroadcastSet
+            | Self::CumSum => false,
         }
     }
 
@@ -403,6 +395,7 @@ impl DataColumnOperator {
             | Self::BroadcastCount
             | Self::BroadcastList
             | Self::BroadcastSet
+            | Self::CumSum
             | Self::Not
             | Self::Len
             | Self::None => true,
@@ -437,6 +430,7 @@ impl DataColumnOperator {
             | Self::BroadcastCount
             | Self::BroadcastList
             | Self::BroadcastSet
+            | Self::CumSum
             | Self::None => false,
             Self::Zeros | Self::Ones | Self::String | Self::Value => true,
         }
@@ -476,6 +470,7 @@ impl Display for DataColumnOperator {
             Self::BroadcastCount => write!(f, "BroadcastCount"),
             Self::BroadcastList => write!(f, "BroadcastList"),
             Self::BroadcastSet => write!(f, "BroadcastSet"),
+            Self::CumSum => write!(f, "CumSum"),
         }
     }
 }
@@ -496,7 +491,7 @@ pub trait DataConfigTrait {
         Self: Sized;
 }
 
-#[derive(Parser, Debug, Serialize, Deserialize, Clone)]
+#[derive(Parser, Debug, Serialize, Deserialize, Clone, Default)]
 #[command(author, version, about, long_about = None)]
 #[serde(default)]
 pub struct DataConfig {
@@ -562,9 +557,14 @@ pub struct DataConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub op_kwargs: Option<String>,
 
-    /// The streaming strategy to use
+    /// The streaming strategy to use for the LHS
     #[arg(long)]
-    pub stream: DataStreamManager,
+    pub lhs_stream: DataStreamManager,
+
+    /// The streaming strategy to use for the RHS if different than the LHS
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rhs_stream: Option<DataStreamManager>,
 
     /// The operator to invoke
     #[arg(long)]
@@ -602,6 +602,11 @@ pub struct DataConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<DataFormat>,
+
+    /// The data schema to extract with
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub schema: Option<AvailableSubjects>,
 
     /// Vec of Strings for the comparator columns
     #[arg(long)]
@@ -682,48 +687,6 @@ pub struct DataConfig {
     pub dist_operator: Option<DataDistanceOperator>,
 }
 
-impl Default for DataConfig {
-    fn default() -> Self {
-        Self {
-            cpu: false,
-            lhs_name: None,
-            rhs_name: None,
-            lhs_pk: None,
-            rhs_pk: None,
-            lhs_fk: None,
-            rhs_fk: None,
-            lhs_values: None,
-            rhs_values: None,
-            lhs_args: None,
-            rhs_args: None,
-            op_kwargs: None,
-            stream: DataStreamManager::AccumulateLHSAccumulateRHS,
-            operator: AvailableCandleOperators::HumanInTheLoop,
-            doc_template: None,
-            doc_name: None,
-            doc_input: None,
-            chunk_size: None,
-            chunk_overlap: None,
-            format: None,
-            cmp_columns: None,
-            cmp_operators: None,
-            cmp_predicate: None,
-            agg_columns: None,
-            agg_operators: None,
-            as_columns: None,
-            reorder_columns: None,
-            column_operators: None,
-            cast_operators: None,
-            cast_datatypes: None,
-            cast_templates: None,
-            asc: None,
-            pvt_columns: None,
-            default_values: None,
-            dist_operator: None,
-        }
-    }
-}
-
 impl DataConfigTrait for DataConfig {
     fn to_example_json(&self) -> Result<Vec<u8>, serde_json::Error> {
         serde_json::to_vec(&Self::default())
@@ -739,9 +702,12 @@ impl DataConfigTrait for DataConfig {
             .iter()
             .map(|f| f.name().to_string())
             .collect::<HashSet<_>>();
-        if !(column_names.contains("operator") && column_names.contains("cpu")) {
+        if !(column_names.contains("operator")
+            && column_names.contains("cpu")
+            && column_names.contains("lhs_stream"))
+        {
             return Err(anyhow!(
-                "Table {} is missing required Field for `operator` or `cpu` in DataConfig.",
+                "Table {} is missing required Field for `operator`, `cpu`, or `lhs_stream` in DataConfig.",
                 table.get_name()
             ));
         }

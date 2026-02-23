@@ -9,10 +9,11 @@ use axum::{
 
 // General imports
 use anyhow::Result;
+use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, CsvFormat, DataFormat,
-    JoinUserInboxSessionContextsMermaidDiagrams, MessageTrait, SessionInterfaceMessage,
-    SessionInterfaceMessageTrait, TableBuilder, TableBuilderTrait, TableTrait,
+    AvailableSchemaTrait, AvailableSubjects, BuilderTrait, CsvFormat, DataFormat,
+    JoinUserInboxSessionContextsMermaidDiagrams, MessageTrait, TableBuilder, TableBuilderTrait,
+    TableTrait,
 };
 
 // Library imports

@@ -5,16 +5,16 @@ use arrow::{array::RecordBatch, datatypes::Schema};
 use clap::ValueEnum;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
+    AvailableSchemaTrait, AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait,
     BuilderTrait, MappableTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait,
     StateMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap,
-    TaskPlan,
+    TaskPlan, create_values_fields,
 };
-use phymes_data::{
-    AvailableCandleOperators, DataConfig, DataConfigTrait, DataSummaryConfig, device,
-};
+use phymes_data::{AvailableCandleOperators, DataConfig, DataConfigTrait, LimitConfig, device};
+#[cfg(feature = "api")]
+use phymes_data::{CommandSandboxConfig, HTTPClientConfig};
 use phymes_diagnostics::{HashMap, HashSet};
-use phymes_ml::{CandleChatConfig, CandleEmbedConfig};
+use phymes_ml::{CandleChatConfig, CandleEmbedConfig, ToolCallConfig};
 
 use crate::{
     AvailableInterfaceSubjects, AvailableProcessors, SessionContext, SessionContextBuilder,
@@ -47,6 +47,8 @@ pub trait SessionContextBuilderAgentsTrait {
     /// # Notes
     /// 1. Check for consistency between the `lhs_name` and `rhs_name` in any [DataConfig]s and the subscriptions of the [ProcessorTrait]s
     /// 2. Check for consistency between the `lhs_pk`, `rhs_pk`, `lhs_fk`, `rhs_fk`, `lhs_values`, and `rhs_values` in any [DataConfig]s and the subscriptions of the [ProcessorTrait]s
+    ///
+    /// [ProcessorTrait]: phymes_core::ProcessorTrait
     fn check_data_config_subjects(&self) -> Result<()>;
 
     /// Check that all processor configs can be built
@@ -61,6 +63,8 @@ pub trait SessionContextBuilderAgentsTrait {
     fn check_processor_config_builds(&self) -> Result<()>;
 
     /// Check that all [ProcessorTrait]s subscribe to a subject of the same name
+    ///
+    /// [ProcessorTrait]: phymes_core::ProcessorTrait
     fn check_processor_config_subjects(&self) -> Result<()>;
 
     /// Add processor subjects to the state with defaults
@@ -85,7 +89,7 @@ pub trait SessionContextBuilderAgentsTrait {
     /// Add tasks that automatically update the number of subject rows
     ///
     /// # Notes
-    /// * See [SubjectsNumRowsSession] for stand alone session and testing
+    /// * See [CountSubjectRowsSession] for stand alone session and testing
     fn add_subjects_num_rows(self) -> Result<Self>
     where
         Self: Sized;
@@ -253,6 +257,55 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         "A subscriptions with the same name as the `EmbedConfig` documents was not found for processor {} with documents {name}.",
                         processor.get_name()
                     ));
+                }
+            }
+
+            // Check the subject_name entries
+            if column_names.contains("subject_name") {
+                let vec_str = table.get_column_as_vec_str("subject_name");
+                let name = vec_str.last().unwrap();
+
+                let subscriptions = processor
+                    .get_subscriptions()
+                    .iter()
+                    .filter_map(|s| {
+                        if &s.get_table_name() == name {
+                            Some(name.to_string())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                if subscriptions.is_empty() {
+                    return Err(anyhow!(
+                        "A subscriptions with the same name as the `Config` subject_name was not found for processor {} with subject_name {name}.",
+                        processor.get_name()
+                    ));
+                }
+            }
+
+            // Check the subject_names entries
+            if column_names.contains("subject_names") {
+                let mut vec_str =
+                    table.get_column_as_vec_nested_nonprimitive::<String>("subject_names")?;
+                if let Some(names) = vec_str.pop() {
+                    let subscriptions = processor
+                        .get_subscriptions()
+                        .iter()
+                        .filter_map(|s| {
+                            if names.contains(&s.get_table_name().to_string()) {
+                                Some(s.get_table_name().to_string())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    if subscriptions.is_empty() {
+                        return Err(anyhow!(
+                            "A subscriptions with the same name as the `ToolCallProcessor` subject_names was not found for processor {} with subject_name {names:?}.",
+                            processor.get_name()
+                        ));
+                    }
                 }
             }
 
@@ -505,13 +558,57 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             // Check for processors names that are tasks names with empty rows
             if tasks.contains(name) && table.count_rows() == 0 {
                 continue;
-            }
-
+            // Check for `values` schema
+            } else if table.get_schema().fields() == &create_values_fields() {
+                continue;
             // Ignore Echo processors
-            if let Ok(processor) = AvailableProcessors::from_str(r#type, false)
+            } else if let Ok(processor) = AvailableProcessors::from_str(r#type, false)
                 && processor == AvailableProcessors::ProcessorEcho
             {
                 continue;
+            }
+
+            // Check guarded configs
+            let mut passed_config_checks = false;
+            #[cfg(feature = "api")]
+            if let Ok(_config) = HTTPClientConfig::from_table(table) {
+                if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
+                    if processor.config_type() != "HTTPClientConfig" {
+                        return Err(anyhow!(
+                            "Schema for `HTTPClientConfig` from subject `{}` for processor type `{}` does not match the expected processor type HTTPClientRequestProcessor.",
+                            table.get_name(),
+                            r#type
+                        ));
+                    } else {
+                        passed_config_checks = true;
+                    }
+                } else {
+                    return Err(anyhow!(
+                        "Processor type `{}` for `HTTPClientConfig` from subject `{}` does not match any of the supported processor types {:?}.",
+                        r#type,
+                        table.get_name(),
+                        AvailableProcessors::all_varient_names()
+                    ));
+                }
+            } else if let Ok(_config) = CommandSandboxConfig::from_table(table) {
+                if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
+                    if processor.config_type() != "CommandSandboxConfig" {
+                        return Err(anyhow!(
+                            "Schema for `CommandSandboxConfig` from subject `{}` for processor type `{}` does not match the expected processor type CommandSandboxProcessor.",
+                            table.get_name(),
+                            r#type
+                        ));
+                    } else {
+                        passed_config_checks = true;
+                    }
+                } else {
+                    return Err(anyhow!(
+                        "Processor type `{}` for `CommandSandboxConfig` from subject `{}` does not match any of the supported processor types {:?}.",
+                        r#type,
+                        table.get_name(),
+                        AvailableProcessors::all_varient_names()
+                    ));
+                }
             }
 
             // Check everything else
@@ -523,6 +620,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                             table.get_name(),
                             r#type
                         ));
+                    } else {
+                        passed_config_checks = true;
                     }
                 } else {
                     return Err(anyhow!(
@@ -540,6 +639,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                             table.get_name(),
                             r#type
                         ));
+                    } else {
+                        passed_config_checks = true;
                     }
                 } else {
                     return Err(anyhow!(
@@ -549,18 +650,39 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         AvailableProcessors::all_varient_names()
                     ));
                 }
-            } else if let Ok(_config) = DataSummaryConfig::from_table(table) {
+            } else if let Ok(_config) = ToolCallConfig::from_table(table) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
-                    if processor.config_type() != "DataSummaryConfig" {
+                    if processor.config_type() != "ToolCallConfig" {
                         return Err(anyhow!(
-                            "Schema for `DataSummaryConfig` from subject `{}` for processor type `{}` does not match the expected processor type DataSummaryProcessor.",
+                            "Schema for `ToolCallConfig` from subject `{}` for processor type `{}` does not match the expected processor types ToolCallProcessor.",
                             table.get_name(),
                             r#type
                         ));
+                    } else {
+                        passed_config_checks = true;
                     }
                 } else {
                     return Err(anyhow!(
-                        "Processor type `{}` for `DataSummaryConfig` from subject `{}` does not match any of the supported processor types {:?}.",
+                        "Processor type `{}` for `ToolCallConfig` from subject `{}` does not match any of the supported processor types {:?}.",
+                        r#type,
+                        table.get_name(),
+                        AvailableProcessors::all_varient_names()
+                    ));
+                }
+            } else if let Ok(_config) = LimitConfig::from_table(table) {
+                if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
+                    if processor.config_type() != "LimitConfig" {
+                        return Err(anyhow!(
+                            "Schema for `LimitConfig` from subject `{}` for processor type `{}` does not match the expected processor type BatchCoalesceProcessor and LimitProcessor.",
+                            table.get_name(),
+                            r#type
+                        ));
+                    } else {
+                        passed_config_checks = true;
+                    }
+                } else {
+                    return Err(anyhow!(
+                        "Processor type `{}` for `LimitConfig` from subject `{}` does not match any of the supported processor types {:?}.",
                         r#type,
                         table.get_name(),
                         AvailableProcessors::all_varient_names()
@@ -611,6 +733,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                                 AvailableProcessors::AttachmentAggregatorProcessor,
                                 AvailableProcessors::MessageAggregatorProcessor
                             ));
+                        } else {
+                            passed_config_checks = true;
                         }
                     } else {
                         return Err(anyhow!(
@@ -629,11 +753,21 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     ));
                 }
                 data_config_vec.push((config, table.get_name().to_string()));
-            } else {
-                return Err(anyhow!(
-                    "Config could not be built for subject {}.",
-                    table.get_name()
-                ));
+            }
+
+            // Return an error if the config didn't pass one of the checks
+            if !passed_config_checks {
+                if let Err(err) = DataConfig::from_table(table) {
+                    return Err(anyhow!(
+                        "Config could not be built for subject `{}` and Error `{err}` when trying to build for DataConfig with table `{table:?}`.",
+                        table.get_name()
+                    ));
+                } else {
+                    return Err(anyhow!(
+                        "Config could not be built for subject `{}` and table `{table:?}`.",
+                        table.get_name()
+                    ));
+                }
             }
         }
 
@@ -1195,11 +1329,8 @@ pub mod test_session_context_builder_agents {
 
 #[cfg(test)]
 mod tests {
-
     use crate::test_session_context_builder;
-    use phymes_core::{
-        BuildableTrait, BuilderTrait, DataFormat, TableBuilderTrait, TaskTrait, test_task,
-    };
+    use phymes_core::{BuildableTrait, BuilderTrait, TableBuilderTrait, TaskTrait, test_task};
     use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager};
 
     use super::*;
@@ -1355,7 +1486,7 @@ mod tests {
             lhs_name: Some("state_1".to_string()),
             rhs_name: Some("missing_state".to_string()),
             operator: AvailableCandleOperators::Join,
-            stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+            lhs_stream: DataStreamManager::Accumulate,
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
@@ -1395,7 +1526,7 @@ mod tests {
             lhs_pk: Some("title".to_string()),
             rhs_pk: Some("missing_pk".to_string()),
             operator: AvailableCandleOperators::Join,
-            stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+            lhs_stream: DataStreamManager::Accumulate,
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
@@ -1476,8 +1607,8 @@ mod tests {
         let state = test_session_context_builder_agents::make_test_state_agents()?;
 
         // Test for mismatch between processor and config types
-        let join_config = DataSummaryConfig {
-            summary_format: DataFormat::None,
+        let join_config = LimitConfig {
+            fetch: 0,
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
@@ -1504,7 +1635,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Schema for `DataSummaryConfig` from subject `processor_3` for processor type `Join` does not match the expected processor type DataSummaryProcessor."
+                "Schema for `LimitConfig` from subject `processor_3` for processor type `Join` does not match the expected processor type BatchCoalesceProcessor and LimitProcessor."
             ),
         }
 
@@ -1514,7 +1645,7 @@ mod tests {
             lhs_values: Some(vec!["id".to_string()]),
             cpu: false,
             operator: AvailableCandleOperators::NormalizeTime,
-            stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+            lhs_stream: DataStreamManager::Accumulate,
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();

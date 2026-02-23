@@ -14,7 +14,7 @@ mod table_update_policy;
 
 pub use available_table_subscribe_policies::AvailableTableSubscribePolicies;
 pub use available_table_update_policies::AvailableTableUpdatePolicies;
-pub use data_format::{CsvFormat, DataFormat, JsonFormat, OwlFormat};
+pub use data_format::{CsvFormat, DataFormat, JsonFormat};
 pub use data_types::{from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type};
 pub use stream::{
     IPCRecordBatchStream, RecordBatchStream, SendableIPCRecordBatchStream,
@@ -26,7 +26,7 @@ pub use stream_adapter::{
 };
 pub use table_builder::{TableBuilder, TableBuilderTrait};
 pub use table_publication::{TablePublication, TablePublicationTrait};
-pub use table_script::TableScript;
+pub use table_script::{TableScript, items_to_list};
 pub use table_subscribe_policy::TableSubscribePolicyTrait;
 pub(crate) use table_subscribe_policy::{
     AllTableNamesSubscribe, AllTableSchemasSubscribe, AlwaysSubscribe, AnyTableNameSubscribe,

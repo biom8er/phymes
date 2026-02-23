@@ -6,7 +6,7 @@ use phymes_core::{
 };
 use phymes_data::{
     AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
-    DataDistanceOperator, DataSummaryConfig,
+    DataDistanceOperator, DataStreamManager, LimitConfig,
 };
 #[cfg(feature = "api")]
 use phymes_ml::AvailableOpenAIAssets;
@@ -577,8 +577,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::DataSummaryProcessor
-                        .build_arc(self.top_k_summary_processor_name),
+                    AvailableProcessors::PackTabular.build_arc(self.top_k_summary_processor_name),
                 )
                 .with_publications(&[TablePublication::Replace {
                     table_name: self.state_top_k_summary_docs_table_name.to_string(),
@@ -927,10 +926,9 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             .unwrap();
 
         // Limit top K config
-        let top_k_limit_config = DataSummaryConfig {
-            fetch: Some(3),
+        let top_k_limit_config = LimitConfig {
+            fetch: 3,
             skip: Some(0),
-            summary_format: DataFormat::None,
         };
         let top_k_limit_config_json = serde_json::to_vec(&top_k_limit_config).unwrap();
         let top_k_limit_state = TableBuilder::new()
@@ -961,8 +959,12 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             .unwrap();
 
         // Summary top K
-        let top_k_summary_config = DataSummaryConfig {
-            summary_format: DataFormat::None,
+        let top_k_summary_config = DataConfig {
+            lhs_name: Some(self.state_top_k_limit_docs_table_name.to_string()),
+            format: Some(DataFormat::None),
+            cpu: false,
+            operator: AvailableCandleOperators::PackTabular,
+            lhs_stream: DataStreamManager::Accumulate,
             ..Default::default()
         };
         let top_k_summary_config_json = serde_json::to_vec(&top_k_summary_config).unwrap();

@@ -3,13 +3,16 @@ use std::fmt::Display;
 use anyhow::Result;
 use arrow::array::RecordBatch;
 use clap::ValueEnum;
-use phymes_core::{AvailableSubjects, AvailableSubjectsTrait, MappableTrait, Table, TableBuilder};
+use phymes_core::{
+    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, MappableTrait, Table,
+    TableBuilder,
+};
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 
 /// Check that one or more of the [AvailableInterfaceSubjects] are provided in the [SessionContextBuilder]
 ///
-/// [SessionContextBuilder]: phymes_core::SessionContextBuilder
+/// [SessionContextBuilder]: crate::SessionContextBuilder
 pub fn check_agent_subjects(subjects: &[String]) -> Result<()> {
     let mut has_messaging_publish = false;
     let mut has_message_subscribe = false;
@@ -188,6 +191,9 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             }
         }
     }
+}
+
+impl AvailableSchemaTrait for AvailableInterfaceSubjects {
     fn to_schema(&self) -> arrow::datatypes::SchemaRef {
         match self {
             Self::UserMessages

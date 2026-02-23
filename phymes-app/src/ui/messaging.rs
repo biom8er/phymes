@@ -9,10 +9,12 @@ use phymes_diagnostics::{convert_timestamp_micros_to_str, create_timestamp_micro
 use reqwest::{self, header::CONTENT_TYPE};
 
 // Phymes imports
+use phymes_agents::{
+    SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
+};
 use phymes_core::{
     AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, DataFormat,
-    MappableTrait, MessageBuilderTrait, SessionInterfaceMessage, SessionInterfaceMessageBuilder,
-    SessionInterfaceMessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication,
+    MappableTrait, MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication,
     TableTrait,
 };
 use phymes_server::create_session_name;

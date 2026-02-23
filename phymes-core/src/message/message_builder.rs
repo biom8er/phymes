@@ -4,6 +4,14 @@ use crate::{IPCMessage, SendableRecordBatchStreamMessage};
 
 use anyhow::{Result, anyhow};
 
+/// Utility function to create a random ID
+pub fn make_random_id() -> Result<u128> {
+    let mut buf = [0u8; 16];
+    getrandom::fill(&mut buf).map_err(|e| anyhow!("{e:?}"))?;
+    let hash = u128::from_ne_bytes(buf);
+    Ok(hash)
+}
+
 pub trait MessageBuilderTrait: BuilderTrait + Send {
     type T;
     fn with_subject(self, name: &str) -> Self;
@@ -96,9 +104,7 @@ impl MessageBuilderTrait for IPCMessageBuilder {
     where
         Self: Sized,
     {
-        let mut buf = [0u8; 16];
-        getrandom::fill(&mut buf).map_err(|e| anyhow!("{e:?}"))?;
-        let hash = u128::from_ne_bytes(buf);
+        let hash = make_random_id()?;
         let subject = match self.subject {
             Some(ref s) => s,
             None => return Err(anyhow!("Cannot make name without subject name")),
@@ -202,9 +208,7 @@ impl MessageBuilderTrait for SendableRecordBatchStreamMessageBuilder {
     where
         Self: Sized,
     {
-        let mut buf = [0u8; 16];
-        getrandom::fill(&mut buf).map_err(|e| anyhow!("{e:?}"))?;
-        let hash = u128::from_ne_bytes(buf);
+        let hash = make_random_id()?;
         let subject = match self.subject {
             Some(ref s) => s,
             None => return Err(anyhow!("Cannot make name without subject name")),

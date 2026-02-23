@@ -10,6 +10,8 @@ use std::sync::Arc;
 use tracing::{Level, event};
 
 /// Processor that returns (i.e., echos) the [RecordBatch]es
+///
+/// [RecordBatch]: arrow::record_batch::RecordBatch
 #[derive(Debug)]
 pub struct ProcessorEcho {
     name: String,

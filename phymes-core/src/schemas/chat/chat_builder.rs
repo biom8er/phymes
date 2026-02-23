@@ -1,55 +1,18 @@
-use std::sync::Arc;
-
-use crate::table::{
+use crate::{
     RecordBatchReceiverStream, SendableRecordBatchStream, Table, TableBuilder, TableBuilderTrait,
-    TableScript, TableTrait,
+    TableScript, TableTrait, create_chat_record_batch,
 };
 
 use anyhow::Result;
 use arrow::{
-    array::{ArrayRef, Int64Array, StringArray},
-    datatypes::{DataType, Field, Fields},
+    array::{Int64Array, StringArray},
     record_batch::RecordBatch,
 };
 use futures::StreamExt;
 use phymes_diagnostics::create_timestamp_micros;
 use tracing::{Level, event};
 
-use super::chat_completion::{self, ChatCompletionMessage, Content, MessageRole, ToolCall};
-
-pub fn create_chat_fields() -> Fields {
-    let field_names = ["role", "content"];
-    let mut fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    fields_vec.push(Field::new("timestamp", DataType::Int64, false));
-    Fields::from(fields_vec)
-}
-
-/// In combination with [ChatTraitExt]
-#[allow(dead_code)]
-pub struct ChatSubject {
-    pub role: String,
-    pub content: String,
-    pub timestamp: i64,
-}
-
-pub fn create_chat_record_batch(
-    role: Vec<String>,
-    content: Vec<String>,
-    timestamp: Vec<i64>,
-) -> Result<RecordBatch> {
-    let role: ArrayRef = Arc::new(StringArray::from(role));
-    let content: ArrayRef = Arc::new(StringArray::from(content));
-    let timestamp: ArrayRef = Arc::new(Int64Array::from(timestamp));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("role", role),
-        ("content", content),
-        ("timestamp", timestamp),
-    ])?;
-    Ok(batch)
-}
+use super::openai_chat_completion::{self, ChatCompletionMessage, Content, MessageRole, ToolCall};
 
 pub trait ChatTraitExt: Sized {
     /// Apply a template to build the message
@@ -59,7 +22,7 @@ pub trait ChatTraitExt: Sized {
         bos_token: Option<&str>,
         eos_token: Option<&str>,
         add_generation_prompt: bool,
-        tools: Option<Vec<chat_completion::Tool>>,
+        tools: Option<Vec<openai_chat_completion::Tool>>,
     ) -> Result<String>;
 
     fn to_openai_messages(self) -> Vec<ChatCompletionMessage>;
@@ -72,7 +35,7 @@ impl ChatTraitExt for Table {
         bos_token: Option<&str>,
         eos_token: Option<&str>,
         add_generation_prompt: bool,
-        tools: Option<Vec<chat_completion::Tool>>,
+        tools: Option<Vec<openai_chat_completion::Tool>>,
     ) -> Result<String> {
         // // Trim all white spaces from the prompt
         // let template = chat_template
@@ -432,11 +395,12 @@ mod test_messages {
                             .with_name("messages")
                             .with_record_batches(batches)?
                             .build()?;
-                        let tool_vec: Vec<chat_completion::Tool> = tool_table
+                        let tool_vec: Vec<openai_chat_completion::Tool> = tool_table
                             .get_column_as_vec_str("tool")
                             .iter()
                             .map(|s| {
-                                let tool: chat_completion::Tool = serde_json::from_str(s).unwrap();
+                                let tool: openai_chat_completion::Tool =
+                                    serde_json::from_str(s).unwrap();
                                 tool
                             })
                             .collect::<Vec<_>>();
@@ -505,7 +469,7 @@ mod test_messages {
 mod tests {
     use std::sync::Arc;
 
-    use super::chat_completion::Tool;
+    use super::openai_chat_completion::Tool;
     use crate::{
         BuildableTrait, BuilderTrait, MessageBuilderTrait, ProcessorTrait, RuntimeEnv,
         RuntimeEnvTrait, SendableRecordBatchStreamMessage, TablePublication,

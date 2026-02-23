@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait,
     MessageBuilderTrait, MessageTrait, ProcessorTrait, RuntimeEnv,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
     SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
@@ -17,9 +17,8 @@ use tracing::{Level, event, instrument};
 ///
 /// # Notes
 ///
-/// - There is no guarantee that the order of incoming
-///   messages is preserved
-/// - All incoming meessages MUST have the same schema
+/// - There is no guarantee that the order of incoming messages is preserved
+/// - All incoming meessages MUST have the same (chat) schema
 #[derive(Debug)]
 pub struct MessageAggregatorProcessor {
     name: String,

@@ -5,12 +5,13 @@ use std::{
 };
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait,
-    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat,
+    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream,
+    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, ToolCall,
-    create_chat_record_batch, create_values_record_batch, remove_message_by_subject,
+    create_bytes_record_batch, create_chat_record_batch, create_route_bytes_record_batch,
+    remove_message_by_subject,
 };
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
@@ -20,7 +21,6 @@ use phymes_diagnostics::{
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{Stream, StreamExt};
-use serde_json::json;
 use tracing::{Level, event, instrument};
 
 use crate::candle_chat::{chat_config::CandleChatConfig, tool_parser::format_tool_calls_str};
@@ -32,16 +32,13 @@ use super::tool_parser::extract_tool_calls_str;
 ///
 /// # Notes
 ///
-/// - The user will need to implement their custom logic
-///   to determine how messages should be split and
-///   to determine the destination that messages should be sent
-/// - Please use the below as a template
+/// - Supports OpenAI and Llama tool response formats
+/// - Parsed messages are routed based on the function call
+/// - Messages that cannot be parsed are sent the default publish subject
 ///
-/// # Assumptions
+/// # Todo
 ///
-/// - There needs to be a subject called `Error` that any
-///   message content that cannot be parsed can be sent to
-///   for a retry
+/// - Better support different tool response formats through the config
 #[derive(Debug)]
 pub struct MessageParserProcessor {
     name: String,
@@ -128,7 +125,7 @@ impl MessageParserStream {
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
-            schema: AvailableSubjects::Values.to_schema(),
+            schema: AvailableSubjects::RouteBytes.to_schema(),
             messages,
             config_stream,
             runtime_env,
@@ -210,8 +207,8 @@ impl Stream for MessageParserStream {
             event!(Level::DEBUG, "Extracted content: {}", content.as_str());
 
             // Extract out the function arguments
-            // First try the OpenAI `ToolCall` schema and
-            // Second try the Candle `serde_json::Value` schema after parsing the raw content
+            // 1. try the OpenAI `ToolCall` schema and
+            // 2. try the Candle `serde_json::Value` schema after parsing the raw content
             let batch = match serde_json::from_str::<Vec<ToolCall>>(&content) {
                 Ok(tool_calls) => {
                     event!(Level::DEBUG, "ToolCall content: {:?}", &tool_calls);
@@ -220,6 +217,7 @@ impl Stream for MessageParserStream {
                     let mut names_vec = Vec::new();
                     let mut publishers_vec = Vec::new();
                     let mut subjects_vec = Vec::new();
+                    let mut formats_vec = Vec::new();
                     let mut values_vec = Vec::new();
                     for tool_call in tool_calls.iter() {
                         names_vec.push(
@@ -241,18 +239,44 @@ impl Stream for MessageParserStream {
                                 .as_str()
                                 .to_string(),
                         );
+                        formats_vec.push(DataFormat::Bytes.to_string());
 
                         // Parse the arguments and rebuild the as a `serde_json::Value`
-                        let arguments = serde_json::from_str::<serde_json::Value>(
-                            tool_call.function.arguments.as_ref().unwrap().as_str(),
-                        )?;
-                        let values = json!({
-                            "name": tool_call.function.name.as_ref().unwrap().as_str(),
-                            "arguments": arguments
-                        });
-                        values_vec.push(serde_json::to_string(&values)?);
+                        //  that is compatible with `DataConfig`-like subject targets
+                        let mut values =
+                            serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(
+                                tool_call.function.arguments.as_ref().unwrap().as_str(),
+                            )?;
+                        let _ = values.insert(
+                            "operator".to_string(),
+                            serde_json::Value::String(
+                                tool_call
+                                    .function
+                                    .name
+                                    .as_ref()
+                                    .unwrap()
+                                    .as_str()
+                                    .to_string(),
+                            ),
+                        );
+
+                        // Wrap into a `Bytes` record batch
+                        let batch = create_bytes_record_batch(vec![serde_json::to_vec(&values)?])?;
+                        let bytes = Table::get_builder()
+                            .with_name("message_parser_processor serde_json::Value")
+                            .with_record_batches(vec![batch])?
+                            .build()?
+                            .to_bytes()?
+                            .to_vec();
+                        values_vec.push(bytes);
                     }
-                    create_values_record_batch(names_vec, publishers_vec, subjects_vec, values_vec)?
+                    create_route_bytes_record_batch(
+                        names_vec,
+                        publishers_vec,
+                        subjects_vec,
+                        formats_vec,
+                        values_vec,
+                    )?
                 }
                 Err(_e) => {
                     // Parse for Qwen
@@ -267,6 +291,7 @@ impl Stream for MessageParserStream {
                         .replace("}}<|python_tag|>{", "}},{")
                         .replace("<|python_tag|>", "")
                         .replace("|>", "")
+                        // DM: convert Llama-style to OpenAI-style
                         .replace("\"parameters\":", "\"arguments\":")
                         .replace("\"function\":", "\"name\":");
 
@@ -279,31 +304,47 @@ impl Stream for MessageParserStream {
                             let mut names_vec = Vec::new();
                             let mut publishers_vec = Vec::new();
                             let mut subjects_vec = Vec::new();
+                            let mut formats_vec = Vec::new();
                             let mut values_vec = Vec::new();
                             for json_value in json_values.into_iter() {
-                                names_vec.push(
-                                    json_value
-                                        .get("name")
-                                        .unwrap()
-                                        .as_str()
-                                        .unwrap()
-                                        .to_string(),
-                                );
+                                let name = json_value
+                                    .get("name")
+                                    .unwrap()
+                                    .as_str()
+                                    .unwrap()
+                                    .to_string();
+                                names_vec.push(name.to_owned());
                                 publishers_vec.push("message_parser_processor".to_string());
-                                subjects_vec.push(
-                                    json_value
-                                        .get("name")
-                                        .unwrap()
-                                        .as_str()
-                                        .unwrap()
-                                        .to_string(),
+                                subjects_vec.push(name.to_owned());
+                                formats_vec.push(DataFormat::Bytes.to_string());
+
+                                // Parse the arguments and rebuild the as a `serde_json::Value`
+                                //  that is compatible with `DataConfig`-like subject targets
+                                let s = json_value.get("arguments").ok_or(anyhow!("Missing object for `arguments` when parsing JSON message response `{json_value}`."))?;
+                                let mut map = serde_json::from_value::<
+                                    serde_json::Map<String, serde_json::Value>,
+                                >(s.to_owned())?;
+                                let _ = map.insert(
+                                    "operator".to_string(),
+                                    serde_json::Value::String(name),
                                 );
-                                values_vec.push(serde_json::to_string(&json_value)?);
+
+                                // Wrap into a `Bytes` record batch
+                                let batch =
+                                    create_bytes_record_batch(vec![serde_json::to_vec(&map)?])?;
+                                let bytes = Table::get_builder()
+                                    .with_name("message_parser_processor serde_json::Value")
+                                    .with_record_batches(vec![batch])?
+                                    .build()?
+                                    .to_bytes()?
+                                    .to_vec();
+                                values_vec.push(bytes);
                             }
-                            create_values_record_batch(
+                            create_route_bytes_record_batch(
                                 names_vec,
                                 publishers_vec,
                                 subjects_vec,
+                                formats_vec,
                                 values_vec,
                             )?
                         }
@@ -371,7 +412,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_message_processor_candle() -> Result<()> {
+    async fn test_message_parser_processor_candle() -> Result<()> {
         // Create the input
         let role: ArrayRef = Arc::new(StringArray::from(vec![
             "assistant".to_string(),
@@ -470,10 +511,32 @@ mod tests {
             ["get_current_weather", "get_weather"]
         );
         assert_eq!(
-            partitions.get_column_as_vec_str("values"),
+            partitions.get_column_as_vec_str("format"),
+            [DataFormat::Bytes.to_string(), DataFormat::Bytes.to_string()]
+        );
+        let test: Vec<String> = partitions
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .flat_map(|b| {
+                Table::get_builder()
+                    .with_name("test_message_parser")
+                    .with_schema(AvailableSubjects::Bytes.to_schema())
+                    .with_bytes(&b)
+                    .unwrap()
+                    .build()
+                    .unwrap()
+                    .get_column_as_vec_nested_primitive::<u8>("bytes")
+                    .unwrap()
+                    .into_iter()
+                    .map(|b| String::from_utf8(b).unwrap())
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        assert_eq!(
+            test,
             [
-                "{\"arguments\":{\"format\":\"celsius\",\"location\":\"San Francisco, CA\"},\"name\":\"get_current_weather\"}",
-                "{\"arguments\":{\"location\":\"Santa Ana, CA\",\"time\":\"08:00\"},\"name\":\"get_weather\"}"
+                "{\"format\":\"celsius\",\"location\":\"San Francisco, CA\",\"operator\":\"get_current_weather\"}",
+                "{\"location\":\"Santa Ana, CA\",\"operator\":\"get_weather\",\"time\":\"08:00\"}"
             ]
         );
 
@@ -481,7 +544,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_message_processor_openai() -> Result<()> {
+    async fn test_message_parser_processor_openai() -> Result<()> {
         // Create the input
         let role: ArrayRef = Arc::new(StringArray::from(vec!["assistant".to_string()]));
         let content: ArrayRef = Arc::new(StringArray::from(vec![
@@ -574,18 +637,39 @@ mod tests {
             ["get_current_weather"]
         );
         assert_eq!(
-            partitions.get_column_as_vec_str("values"),
+            partitions.get_column_as_vec_str("format"),
+            [DataFormat::Bytes.to_string()]
+        );
+        let test: Vec<String> = partitions
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .flat_map(|b| {
+                Table::get_builder()
+                    .with_name("test_message_parser")
+                    .with_schema(AvailableSubjects::Bytes.to_schema())
+                    .with_bytes(&b)
+                    .unwrap()
+                    .build()
+                    .unwrap()
+                    .get_column_as_vec_nested_primitive::<u8>("bytes")
+                    .unwrap()
+                    .into_iter()
+                    .map(|b| String::from_utf8(b).unwrap())
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        assert_eq!(
+            test,
             [
-                "{\"arguments\":{\"format\":\"celsius\",\"location\":\"San Francisco, CA\"},\"name\":\"get_current_weather\"}"
+                "{\"format\":\"celsius\",\"location\":\"San Francisco, CA\",\"operator\":\"get_current_weather\"}"
             ]
         );
 
         Ok(())
     }
 
-    //#[ignore = "dynamic schema update breaks `RecordBatchStream` in tests"]
     #[tokio::test]
-    async fn test_message_processor_error() -> Result<()> {
+    async fn test_message_parser_processor_error() -> Result<()> {
         // Create the input
         let role: ArrayRef = Arc::new(StringArray::from(vec!["assistant"]));
         let content: ArrayRef = Arc::new(StringArray::from(vec![

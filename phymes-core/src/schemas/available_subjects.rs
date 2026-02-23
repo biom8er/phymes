@@ -1,12 +1,19 @@
 use crate::{
+    create_bytes_fields, create_chat_fields,
     runtime_env::{BuildableTrait, BuilderTrait},
     schemas::{
-        blob::create_blob_fields,
-        chat::create_chat_fields,
+        chat::create_values_fields,
+        create_blob_fields, create_document_embeddings_fields, create_documents_fields,
+        create_embeddings_scores_fields, create_join_chunks_scores_fields, create_queries_fields,
+        create_query_embeddings_fields, create_route_bytes_fields, create_tools_fields,
         diagnostics::{
             create_events_fields, create_metrics_fields, create_metrics_mermaid_gantt_fields,
             create_metrics_pivot_fields, create_metrics_pivot_norm_time_fields,
             create_traces_fields,
+        },
+        graph::{
+            create_n_quads_fields, create_n_triples_fields, create_parse_owl_fields,
+            create_parse_xml_fields,
         },
         mermaid::{
             create_mermaid_content_template_fields,
@@ -20,7 +27,6 @@ use crate::{
             create_mermaid_visualization_fields, create_mermaid_xychart_template_fields,
             create_session_mermaid_fields,
         },
-        queries::create_queries_fields,
         session::{
             create_session_processors_fields, create_session_runtime_envs_fields,
             create_session_subjects_fields, create_session_superstep_max_fields,
@@ -30,7 +36,6 @@ use crate::{
             create_session_tasks_subscribe_aggregate_fields, create_session_tasks_subscribe_fields,
             create_session_tasks_subscribe_publish_fields,
         },
-        set_data::{create_parse_owl_fields, create_parse_xml_fields},
         subjects::{create_subjects_change_log_fields, create_subjects_num_rows_fields},
         user::{
             create_join_user_inbox_session_contexts_fields,
@@ -43,8 +48,7 @@ use crate::{
 
 use anyhow::Result;
 use arrow::{
-    array::{ArrayRef, StringArray},
-    datatypes::{DataType, Field, Fields, Schema, SchemaRef},
+    datatypes::{Fields, Schema, SchemaRef},
     record_batch::RecordBatch,
 };
 use clap::ValueEnum;
@@ -55,119 +59,20 @@ pub fn create_schema_from_fields(f: &dyn Fn() -> Fields) -> SchemaRef {
     Arc::new(Schema::new(f()))
 }
 
-pub fn create_values_fields() -> Fields {
-    let field_names = ["name", "publisher", "subject", "values"];
-    let fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    Fields::from(fields_vec)
+/// Convert a possible nested Json-like structure into a single [RecordBatch]
+pub trait JsonSchemaTrait {
+    fn to_record_batch(self, publisher: &str) -> Result<RecordBatch>;
 }
 
-pub fn create_values_record_batch(
-    names: Vec<String>,
-    publishers: Vec<String>,
-    subjects: Vec<String>,
-    values: Vec<String>,
-) -> Result<RecordBatch> {
-    let names: ArrayRef = Arc::new(StringArray::from(names));
-    let publishers: ArrayRef = Arc::new(StringArray::from(publishers));
-    let subjects: ArrayRef = Arc::new(StringArray::from(subjects));
-    let values: ArrayRef = Arc::new(StringArray::from(values));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("name", names),
-        ("publisher", publishers),
-        ("subject", subjects),
-        ("values", values),
-    ])?;
-    Ok(batch)
+/// Materialize the [Schema] for the object
+pub trait AvailableSchemaTrait {
+    fn to_schema(&self) -> SchemaRef;
 }
 
-pub fn create_config_fields() -> Fields {
-    let field_names = ["values"];
-    let fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    Fields::from(fields_vec)
-}
-
-pub fn create_tools_fields() -> Fields {
-    let field_names = ["tool_id", "tool"];
-    let fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    Fields::from(fields_vec)
-}
-
-pub fn create_tools_record_batch(tool_ids: Vec<String>, tools: Vec<String>) -> Result<RecordBatch> {
-    let tool_ids: ArrayRef = Arc::new(StringArray::from(tool_ids));
-    let tools: ArrayRef = Arc::new(StringArray::from(tools));
-    let batch = RecordBatch::try_from_iter(vec![("tool_id", tool_ids), ("tool", tools)])?;
-    Ok(batch)
-}
-
-pub fn create_documents_fields() -> Fields {
-    let field_names = ["chunk_id", "document_id", "text"];
-    let fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    Fields::from(fields_vec)
-}
-
-pub fn create_documents_batch(
-    chunk_id: Vec<String>,
-    document_id: Vec<String>,
-    text: Vec<String>,
-) -> Result<RecordBatch> {
-    let chunk_id: ArrayRef = Arc::new(StringArray::from(chunk_id));
-    let document_id: ArrayRef = Arc::new(StringArray::from(document_id));
-    let text: ArrayRef = Arc::new(StringArray::from(text));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("chunk_id", chunk_id),
-        ("document_id", document_id),
-        ("text", text),
-    ])?;
-    Ok(batch)
-}
-
-pub fn create_document_embeddings_fields() -> Fields {
-    let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
-    let document_id = Field::new("document_id", DataType::Utf8, false);
-    let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Float32, false)));
-    let embedding = Field::new("embedding", list_data_type, false);
-    Fields::from(vec![chunk_id, document_id, embedding])
-}
-
-pub fn create_query_embeddings_fields() -> Fields {
-    let query_id = Field::new("query_id", DataType::Utf8, false);
-    let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Float32, false)));
-    let embedding = Field::new("embedding", list_data_type, false);
-    Fields::from(vec![query_id, embedding])
-}
-
-pub fn create_embeddings_scores_fields() -> Fields {
-    let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
-    let query_id = Field::new("query_id", DataType::Utf8, false);
-    let score = Field::new("score", DataType::Float32, false);
-    Fields::from(vec![chunk_id, query_id, score])
-}
-
-pub fn create_join_chunks_scores_fields() -> Fields {
-    let chunk_id = Field::new("chunk_id", DataType::Utf8, false);
-    let query_id = Field::new("query_id", DataType::Utf8, false);
-    let score = Field::new("score", DataType::Float32, false);
-    let document_id = Field::new("document_id", DataType::Utf8, false);
-    let text = Field::new("text", DataType::Utf8, false);
-    Fields::from(vec![chunk_id, query_id, score, document_id, text])
-}
-
-pub trait AvailableSubjectsTrait {
+/// Materialize the [Table] or [TableBuilder] for building the table for the object
+pub trait AvailableSubjectsTrait: AvailableSchemaTrait {
     fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Table>;
     fn to_table_builder(&self, name: Option<&str>) -> TableBuilder;
-    fn to_schema(&self) -> SchemaRef;
 }
 
 /// The available subject schmeas
@@ -180,8 +85,10 @@ pub enum AvailableSubjects {
     #[default]
     #[value(name = "Values")]
     Values,
-    #[value(name = "Configs")]
-    Configs,
+    #[value(name = "RouteBytes")]
+    RouteBytes,
+    #[value(name = "Bytes")]
+    Bytes,
     #[value(name = "Tools")]
     Tools,
     #[value(name = "Documents")]
@@ -276,6 +183,10 @@ pub enum AvailableSubjects {
     ParseXml,
     #[value(name = "ParseOwl")]
     ParseOwl,
+    #[value(name = "NTriples")]
+    NTriples,
+    #[value(name = "NQuads")]
+    NQuads,
     #[value(name = "SessionTasksCheck")]
     SessionTasksCheck,
     #[value(name = "SessionTasksSubscribe")]
@@ -292,6 +203,22 @@ pub enum AvailableSubjects {
     SessionSupersteps,
     #[value(name = "SessionSuperstepMax")]
     SessionSuperstepMax,
+    #[value(name = "OpenAlexResponseWorks")]
+    OpenAlexResponseWorks,
+    #[value(name = "OpenAlexResponseAuthors")]
+    OpenAlexResponseAuthors,
+    #[value(name = "OpenAlexResponseInstitutions")]
+    OpenAlexResponseInstitutions,
+    #[value(name = "OpenAlexResponseTopics")]
+    OpenAlexResponseTopics,
+    #[value(name = "OpenAlexResponseAwards")]
+    OpenAlexResponseAwards,
+    #[value(name = "OpenAlexResponseFunders")]
+    OpenAlexResponseFunders,
+    #[value(name = "OpenAlexResponsePublishers")]
+    OpenAlexResponsePublishers,
+    #[value(name = "OpenAlexResponseSources")]
+    OpenAlexResponseSources,
 }
 
 impl Display for AvailableSubjects {
@@ -300,7 +227,8 @@ impl Display for AvailableSubjects {
             AvailableSubjects::Empty => write!(f, "Empty"),
             AvailableSubjects::Messages => write!(f, "Messages"),
             AvailableSubjects::Values => write!(f, "Values"),
-            AvailableSubjects::Configs => write!(f, "Configs"),
+            AvailableSubjects::RouteBytes => write!(f, "RouteBytes"),
+            AvailableSubjects::Bytes => write!(f, "Bytes"),
             AvailableSubjects::Tools => write!(f, "Tools"),
             AvailableSubjects::Documents => write!(f, "Documents"),
             AvailableSubjects::Queries => write!(f, "Queries"),
@@ -364,6 +292,8 @@ impl Display for AvailableSubjects {
             }
             AvailableSubjects::ParseXml => write!(f, "ParseXml"),
             AvailableSubjects::ParseOwl => write!(f, "ParseOwl"),
+            AvailableSubjects::NTriples => write!(f, "NTriples"),
+            AvailableSubjects::NQuads => write!(f, "NQuads"),
             AvailableSubjects::SessionTasksCheck => write!(f, "SessionTasksCheck"),
             AvailableSubjects::SessionTasksSubscribe => write!(f, "SessionTasksSubscribe"),
             AvailableSubjects::SessionTasksPublish => write!(f, "SessionTasksPublish"),
@@ -378,6 +308,18 @@ impl Display for AvailableSubjects {
             }
             AvailableSubjects::SessionSupersteps => write!(f, "SessionSupersteps"),
             AvailableSubjects::SessionSuperstepMax => write!(f, "SessionSuperstepMax"),
+            AvailableSubjects::OpenAlexResponseWorks => write!(f, "OpenAlexResponseWorks"),
+            AvailableSubjects::OpenAlexResponseAuthors => write!(f, "OpenAlexResponseAuthors"),
+            AvailableSubjects::OpenAlexResponseInstitutions => {
+                write!(f, "OpenAlexResponseInstitutions")
+            }
+            AvailableSubjects::OpenAlexResponseTopics => write!(f, "OpenAlexResponseTopics"),
+            AvailableSubjects::OpenAlexResponseAwards => write!(f, "OpenAlexResponseAwards"),
+            AvailableSubjects::OpenAlexResponseFunders => write!(f, "OpenAlexResponseFunders"),
+            AvailableSubjects::OpenAlexResponsePublishers => {
+                write!(f, "OpenAlexResponsePublishers")
+            }
+            AvailableSubjects::OpenAlexResponseSources => write!(f, "OpenAlexResponseSources"),
         }
     }
 }
@@ -397,12 +339,16 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             .with_name(&name)
             .with_schema(self.to_schema())
     }
+}
+
+impl AvailableSchemaTrait for AvailableSubjects {
     fn to_schema(&self) -> SchemaRef {
         match self {
             AvailableSubjects::Empty => Arc::new(Schema::empty()),
             AvailableSubjects::Messages => create_schema_from_fields(&create_chat_fields),
             AvailableSubjects::Values => create_schema_from_fields(&create_values_fields),
-            AvailableSubjects::Configs => create_schema_from_fields(&create_config_fields),
+            AvailableSubjects::RouteBytes => create_schema_from_fields(&create_route_bytes_fields),
+            AvailableSubjects::Bytes => create_schema_from_fields(&create_bytes_fields),
             AvailableSubjects::Tools => create_schema_from_fields(&create_tools_fields),
             AvailableSubjects::Documents => create_schema_from_fields(&create_documents_fields),
             AvailableSubjects::Queries => create_schema_from_fields(&create_queries_fields),
@@ -516,6 +462,8 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             }
             AvailableSubjects::ParseXml => create_schema_from_fields(&create_parse_xml_fields),
             AvailableSubjects::ParseOwl => create_schema_from_fields(&create_parse_owl_fields),
+            AvailableSubjects::NTriples => create_schema_from_fields(&create_n_triples_fields),
+            AvailableSubjects::NQuads => create_schema_from_fields(&create_n_quads_fields),
             AvailableSubjects::SessionTasksCheck => {
                 create_schema_from_fields(&create_session_tasks_check_fields)
             }
@@ -540,6 +488,14 @@ impl AvailableSubjectsTrait for AvailableSubjects {
             AvailableSubjects::SessionSuperstepMax => {
                 create_schema_from_fields(&create_session_superstep_max_fields)
             }
+            AvailableSubjects::OpenAlexResponseWorks => Arc::new(Schema::empty()),
+            AvailableSubjects::OpenAlexResponseAuthors => Arc::new(Schema::empty()),
+            AvailableSubjects::OpenAlexResponseInstitutions => Arc::new(Schema::empty()),
+            AvailableSubjects::OpenAlexResponseTopics => Arc::new(Schema::empty()),
+            AvailableSubjects::OpenAlexResponseAwards => Arc::new(Schema::empty()),
+            AvailableSubjects::OpenAlexResponseFunders => Arc::new(Schema::empty()),
+            AvailableSubjects::OpenAlexResponsePublishers => Arc::new(Schema::empty()),
+            AvailableSubjects::OpenAlexResponseSources => Arc::new(Schema::empty()),
         }
     }
 }

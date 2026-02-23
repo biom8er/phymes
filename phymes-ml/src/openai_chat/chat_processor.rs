@@ -8,7 +8,7 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatCompletionRequest,
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, ChatCompletionRequest,
     ChatCompletionResponse, ChatTraitExt, FinishReason, MappableTrait, MessageBuilderTrait,
     MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
@@ -353,6 +353,8 @@ impl Stream for OpenAIChatStream {
                     Poll::Ready(Some(Err(anyhow!(err.to_string()))))
                 }
             },
+            HTTPClientRequestState::ToBytes(_fut) => Poll::Ready(None),
+            HTTPClientRequestState::Ready(_batches) => Poll::Ready(None),
             HTTPClientRequestState::Done => Poll::Ready(None),
         }
     }
@@ -381,7 +383,7 @@ mod tests {
     use crate::AvailableOpenAIAssets;
     use phymes_core::RuntimeEnvTrait;
 
-    #[cfg(not(feature = "candle"))]
+    // #[cfg(not(feature = "candle"))]
     #[tokio::test]
     async fn test_openai_chat_processor() -> Result<()> {
         let name = "OpenAIChatProcessor";

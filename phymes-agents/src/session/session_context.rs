@@ -8,10 +8,11 @@ use phymes_core::{
     MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjects, ProcessorSubjectsBuilder,
     ProcessorSubjectsMap, RuntimeEnv, StateMap, Table, TableBuilder, TableBuilderTrait,
     TablePublication, TablePublicationTrait, TableSubscription, TableTrait, TaskMap,
-    create_session_supersteps_batch, create_session_tasks_subscribe_batch,
-    create_subjects_change_log_batch, create_subjects_num_rows_batch, from_diagnostics_to_tables,
+    create_chat_record_batch, create_session_supersteps_batch,
+    create_session_tasks_subscribe_batch, create_subjects_change_log_batch,
+    create_subjects_num_rows_batch, from_diagnostics_to_tables,
 };
-use phymes_diagnostics::{Diagnostics, HashMap};
+use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
 use std::sync::Arc;
 use tracing::{Level, event};
 
@@ -355,7 +356,11 @@ impl SessionContext {
             .make_name()?
             .build()?;
         let messages = create_message_map(vec![message]);
-        let _ = self.update_subjects_from_messages(messages)?;
+        let (_update, errors) = self.update_subjects_from_messages(messages);
+        if let Some(table) = errors {
+            let error = table.get_column_as_vec_str("content").join("; ");
+            return Err(anyhow!(error));
+        }
 
         Ok(())
     }
@@ -657,7 +662,11 @@ impl SessionContext {
                 .build()?
         };
         let messages = create_message_map(vec![superstep_message]);
-        let _ = self.update_subjects_from_messages(messages)?;
+        let (_update, errors) = self.update_subjects_from_messages(messages);
+        if let Some(table) = errors {
+            let error = table.get_column_as_vec_str("content").join("; ");
+            return Err(anyhow!(error));
+        }
         Ok(next_superstep)
     }
 
@@ -797,13 +806,19 @@ impl SessionContext {
     }
 
     /// Update the state from the published messages
-    /// and return a map of changed subscriptions along with their publishers
-    pub fn update_subjects_from_messages(&self, messages: IPCMessageMap) -> Result<Table> {
+    ///   and return a table of subject change logs and any errors
+    pub fn update_subjects_from_messages(
+        &self,
+        messages: IPCMessageMap,
+    ) -> (Option<Table>, Option<Table>) {
         let mut subject_names = Vec::new();
         let mut task_names = Vec::new();
         let mut session_names = Vec::new();
         let mut num_rows_deltas = Vec::new();
         let mut timestamps = Vec::new();
+        let mut errors = Vec::new();
+
+        // Update the subjects with each of the messages
         let step = self.current_superstep().unwrap_or_default();
         for (_name, message) in messages.into_iter() {
             // Should the subject be updated?
@@ -817,41 +832,90 @@ impl SessionContext {
             if let Some(state) = self.get_states().get(table_name.as_str()) {
                 let publisher = message.get_publisher().to_string();
 
-                // Check for any inconsistencies in the message and intercept any errors
-                let table = TableBuilder::new_from_ipc_stream(&message.get_message_own())?
-                    .with_name(table_name.as_str())
-                    .build()?;
-                let _num_rows = table.count_rows(); // DM: not used currently...
-                let batches = table.get_record_batches_own();
+                // Handle any inconsistencies in the message
+                // DM, todo!(): Mostly an issue with empty batches which should be ignored anyway
+                match TableBuilder::new_from_ipc_stream(&message.get_message_own()) {
+                    Ok(builder) => {
+                        let table = builder.with_name(table_name.as_str()).build().unwrap();
+                        let _num_rows = table.count_rows(); // DM: not used currently...
+                        let batches = table.get_record_batches_own();
 
-                // Update the state
-                // Check for a mismatch in the schema and intercept any errors
-                let num_rows_old = state.read().count_rows();
-                state.write().publish_to_table(batches, update)?;
-                let num_rows_new = state.read().count_rows();
+                        // Update the state
+                        // Check for a mismatch in the schema and intercept any errors
+                        let num_rows_old = state.read().count_rows();
+                        if let Err(err) = state.write().publish_to_table(batches, update) {
+                            let error = format!(
+                                "Subject `{table_name}` from publisher `{publisher}` failed to update the target table with error `{err:?}`"
+                            );
+                            errors.push(error);
+                            continue;
+                        }
+                        let num_rows_new = state.read().count_rows();
 
-                // Record the table name that was updated and the pubisher who updated it
-                subject_names.push(state.read().get_name().to_string());
-                task_names.push(publisher);
-                session_names.push(self.get_name().to_string());
-                num_rows_deltas.push(num_rows_new as i64 - num_rows_old as i64);
-                timestamps.push(step as i64);
+                        // Record the table name that was updated and the pubisher who updated it
+                        subject_names.push(state.read().get_name().to_string());
+                        task_names.push(publisher);
+                        session_names.push(self.get_name().to_string());
+                        num_rows_deltas.push(num_rows_new as i64 - num_rows_old as i64);
+                        timestamps.push(step as i64);
+                    }
+                    Err(err) => {
+                        let error = format!(
+                            "Subject `{table_name}` with update `{update:?}` from publisher `{publisher}` failed to build the Table with error `{err:?}`"
+                        );
+                        errors.push(error);
+                    }
+                }
             } else {
                 // Mismatch in table names of the update and state
-                return Err(anyhow!(
-                    "Subject '{table_name}' with update '{update:?}' is not in the session state tables! Available tables are {:?}",
+                let error = format!(
+                    "Subject `{table_name}` with update `{update:?}` is not in the session state tables! Available tables are {:?}",
                     self.get_states().keys()
-                ));
+                );
+                errors.push(error);
             }
         }
-        let batches = create_subjects_change_log_batch(
-            subject_names,
-            task_names,
-            session_names,
-            num_rows_deltas,
-            timestamps,
-        )?;
-        AvailableSubjects::SubjectsChangeLog.to_table(None, Some(vec![batches]))
+
+        // Prepare the change log table
+        let change_log = if !subject_names.is_empty() {
+            let batch = create_subjects_change_log_batch(
+                subject_names,
+                task_names,
+                session_names,
+                num_rows_deltas,
+                timestamps,
+            )
+            .unwrap();
+            Some(
+                AvailableSubjects::SubjectsChangeLog
+                    .to_table(None, Some(vec![batch]))
+                    .unwrap(),
+            )
+        } else {
+            None
+        };
+
+        // Prepare the errors table
+        let error_log = if !errors.is_empty() {
+            let tools = errors
+                .iter()
+                .map(|_| "tool".to_string())
+                .collect::<Vec<_>>();
+            let timestamps = errors
+                .iter()
+                .map(|_| create_timestamp_micros())
+                .collect::<Vec<_>>();
+            let batch = create_chat_record_batch(tools, errors, timestamps).unwrap();
+            Some(
+                AvailableSubjects::SessionErrors
+                    .to_table(None, Some(vec![batch]))
+                    .unwrap(),
+            )
+        } else {
+            None
+        };
+
+        (change_log, error_log)
     }
 }
 
@@ -1030,10 +1094,11 @@ mod tests {
             &TablePublication::None,
             true,
         )?;
-        let updates = session_context.update_subjects_from_messages(input)?;
+        let (updates, errors) = session_context.update_subjects_from_messages(input);
 
         // check the updates
-        assert_eq!(updates.count_rows(), 0);
+        assert!(updates.is_none());
+        assert!(errors.is_none());
 
         // check the session
         assert_eq!(
@@ -1094,17 +1159,27 @@ mod tests {
             },
             true,
         )?;
-        let updates = session_context.update_subjects_from_messages(input)?;
+        let (updates, errors) = session_context.update_subjects_from_messages(input);
 
         // check the updates
-        assert_eq!(updates.count_rows(), 1);
-        let col = updates.get_column_as_vec_str("subject_name");
+        assert_eq!(updates.as_ref().unwrap().count_rows(), 1);
+        assert!(errors.is_none());
+        let col = updates
+            .as_ref()
+            .unwrap()
+            .get_column_as_vec_str("subject_name");
         assert_eq!(col, ["state_1"]);
-        let col = updates.get_column_as_vec_str("task_name");
+        let col = updates.as_ref().unwrap().get_column_as_vec_str("task_name");
         assert_eq!(col, ["session_1"]);
-        let col = updates.get_column_as_vec_str("session_name");
+        let col = updates
+            .as_ref()
+            .unwrap()
+            .get_column_as_vec_str("session_name");
         assert_eq!(col, ["session_1"]);
-        let col = updates.get_column_as_vec_primitive::<i64>("num_rows_delta")?;
+        let col = updates
+            .as_ref()
+            .unwrap()
+            .get_column_as_vec_primitive::<i64>("num_rows_delta")?;
         assert_eq!(col, [12]);
 
         // check the session context
@@ -1166,8 +1241,10 @@ mod tests {
             },
             false,
         )?;
-        let updates = session_context.update_subjects_from_messages(input);
-        assert!(updates.is_err());
+        let (updates, errors) = session_context.update_subjects_from_messages(input);
+        assert!(updates.is_none());
+        assert!(errors.is_some());
+        assert_eq!(errors.unwrap().count_rows(), 1);
 
         // Case 4: Error due to mismatching table names
         let message = IPCMessage::new(
@@ -1181,8 +1258,10 @@ mod tests {
         );
         let mut input = HashMap::<String, IPCMessage>::new();
         input.insert(message.get_name().to_string(), message);
-        let updates = session_context.update_subjects_from_messages(input);
-        assert!(updates.is_err());
+        let (updates, errors) = session_context.update_subjects_from_messages(input);
+        assert!(updates.is_none());
+        assert!(errors.is_some());
+        assert_eq!(errors.unwrap().count_rows(), 1);
 
         Ok(())
     }

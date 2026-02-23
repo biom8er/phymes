@@ -9,7 +9,7 @@ use phymes_core::{
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
-    DataConfig, DataSummaryConfig, ToolTrait,
+    DataConfig, DataStreamManager, ToolTrait,
 };
 #[cfg(feature = "api")]
 use phymes_ml::AvailableOpenAIAssets;
@@ -473,8 +473,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::DataSummaryProcessor
-                        .build_arc(self.tool_attachment_processor_name),
+                    AvailableProcessors::PackTabular.build_arc(self.tool_attachment_processor_name),
                 )
                 .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
@@ -494,8 +493,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::DataSummaryProcessor
-                        .build_arc(self.tool_summary_processor_name),
+                    AvailableProcessors::PackTabular.build_arc(self.tool_summary_processor_name),
                 )
                 .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
@@ -515,8 +513,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::DataSummaryProcessor
-                        .build_arc(self.hitl_summary_processor_name),
+                    AvailableProcessors::PackTabular.build_arc(self.hitl_summary_processor_name),
                 )
                 .with_publications(&[TablePublication::Extend {
                     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
@@ -657,6 +654,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             lhs_name: Some(AvailableInterfaceSubjects::UserCsv.to_string()),
             lhs_values: Some(vec!["bytes".to_string()]),
             format: Some(DataFormat::CsvDefault),
+            schema: Some(AvailableSubjects::Empty), //DM: not used for CSV
             operator: AvailableCandleOperators::ExtractTabular,
             ..Default::default()
         };
@@ -718,8 +716,12 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .unwrap();
 
         // Attachment config
-        let attachment_config = DataSummaryConfig {
-            summary_format: DataFormat::CsvDefault,
+        let attachment_config = DataConfig {
+            format: Some(DataFormat::CsvDefault),
+            cpu: false,
+            lhs_stream: DataStreamManager::Accumulate,
+            operator: AvailableCandleOperators::PackTabular,
+            lhs_name: Some(self.tool_summary_task_name.to_string()),
             ..Default::default()
         };
         let attachmen_config_json = serde_json::to_vec(&attachment_config).unwrap();
@@ -731,7 +733,12 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .unwrap();
 
         // Summary config
-        let summary_config = DataSummaryConfig {
+        let summary_config = DataConfig {
+            operator: AvailableCandleOperators::PackTabular,
+            format: Some(DataFormat::None),
+            cpu: false,
+            lhs_stream: DataStreamManager::Accumulate,
+            lhs_name: Some(self.tool_summary_task_name.to_string()),
             ..Default::default()
         };
         let summary_config_json = serde_json::to_vec(&summary_config).unwrap();
@@ -741,6 +748,15 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .unwrap()
             .build()
             .unwrap();
+        let summary_config = DataConfig {
+            operator: AvailableCandleOperators::PackTabular,
+            format: Some(DataFormat::None),
+            cpu: false,
+            lhs_stream: DataStreamManager::Accumulate,
+            lhs_name: Some(AvailableInterfaceSubjects::AssistantMessages.to_string()),
+            ..Default::default()
+        };
+        let summary_config_json = serde_json::to_vec(&summary_config).unwrap();
         let summary_state_2 = TableBuilder::new()
             .with_name(self.hitl_summary_processor_name)
             .with_json(&summary_config_json, 1)
@@ -810,10 +826,10 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             AvailableSubjects::Messages
                 .to_table(Some(self.message_parser_task_name), None)
                 .unwrap(),
-            AvailableSubjects::Configs
+            AvailableSubjects::Bytes
                 .to_table(Some(self.tool_task_name), None)
                 .unwrap(),
-            AvailableSubjects::Configs
+            AvailableSubjects::Bytes
                 .to_table(Some(self.hitl_task_name), None)
                 .unwrap(),
             AvailableInterfaceSubjects::AssistantCsv

@@ -6,7 +6,7 @@ use candle_core::Device;
 use phymes_core::{
     BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine,
     JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableScript, TableTrait, Tool,
-    ToolType, create_mermaid_content_template_batch, create_values_record_batch,
+    ToolType, create_bytes_record_batch, create_mermaid_content_template_batch,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -14,8 +14,8 @@ use tracing::instrument;
 
 use crate::{
     AvailableJinja2Templates, ToolTrait,
-    candle_data::{DataConfig, table_and_data_format_to_record_batch},
-    candle_operators::DataOperatorTrait,
+    candle_data::DataConfig,
+    candle_operators::{DataOperatorTrait, table_and_data_format_to_record_batch},
     jinja2_templates::{TEMPLATE_HEADER_EXPRESSION, TEMPLATE_TABLE_EXPRESSION},
 };
 
@@ -219,12 +219,7 @@ pub fn apply_template(
     // Wrap into a table
     let batch = match format {
         DataFormat::None => create_mermaid_content_template_batch(vec![document])?,
-        _ => create_values_record_batch(
-            vec![String::new()],
-            vec![String::new()],
-            vec![String::new()],
-            vec![document],
-        )?,
+        _ => create_bytes_record_batch(vec![document.as_bytes().to_vec()])?,
     };
     let table = Table::get_builder()
         .with_name(doc_name)

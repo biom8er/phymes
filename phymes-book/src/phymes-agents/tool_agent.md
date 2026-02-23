@@ -99,8 +99,8 @@ flowchart TD
 	message_parser_processor_1-processor@{shape: rect, label: MessageParserProcessor}
 	Sort-processor@{shape: rect, label: CandleDataProcessor}
 	HumanInTheLoop-processor@{shape: rect, label: CandleDataProcessor}
-	summary_processor_1-processor@{shape: rect, label: DataSummaryProcessor}
-	summary_processor_2-processor@{shape: rect, label: DataSummaryProcessor}
+	summary_processor_1-processor@{shape: rect, label: PackTabular}
+	summary_processor_2-processor@{shape: rect, label: PackTabular}
 	session_context_1-processor@{shape: rect, label: ArrowProcessorEcho}
 	chat_rt_1-rt@{shape: subproc, label: chat_rt_1}
 	message_aggregator_rt_1-rt@{shape: subproc, label: message_aggregator_rt_1}

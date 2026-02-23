@@ -160,32 +160,32 @@ impl UserState {
         let message_map = create_message_map(vec![user_session_contexts_message, mermaid_message]);
 
         // Update the session state with the new message
-        let update = self
+        let (update, _errors) = self
             .users
             .try_write()
             .unwrap()
-            .update_subjects_from_messages(message_map)
-            .unwrap();
+            .update_subjects_from_messages(message_map);
 
         // Update the subjects change log
-        let messages = create_message_map(vec![
-            IPCMessageBuilder::new()
-                .with_name(update.get_name())
-                .with_subject(update.get_name())
-                .with_publisher("")
-                .with_update(&phymes_core::TablePublication::Extend {
-                    table_name: update.get_name().to_string(),
-                })
-                .with_message(update.to_ipc_stream().unwrap())
-                .build()
-                .unwrap(),
-        ]);
-        let _ = self
-            .users
-            .try_write()
-            .unwrap()
-            .update_subjects_from_messages(messages)
-            .unwrap();
+        if let Some(update) = update {
+            let messages = create_message_map(vec![
+                IPCMessageBuilder::new()
+                    .with_name(update.get_name())
+                    .with_subject(update.get_name())
+                    .with_publisher("")
+                    .with_update(&phymes_core::TablePublication::Extend {
+                        table_name: update.get_name().to_string(),
+                    })
+                    .with_message(update.to_ipc_stream().unwrap())
+                    .build()
+                    .unwrap(),
+            ]);
+            let (_update, _errors) = self
+                .users
+                .try_write()
+                .unwrap()
+                .update_subjects_from_messages(messages);
+        }
 
         Ok(())
     }

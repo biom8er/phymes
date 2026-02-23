@@ -138,56 +138,61 @@ pub trait SessionStreamStepTrait {
         messages: IPCMessageMap,
     ) -> Result<()> {
         // Update the session_context and handle any errors
-        let mut error_messages = HashMap::<String, IPCMessage>::new();
         let session_context_name = session_context.read().get_name().to_string();
-        let update = match session_context
+        let (update, errors) = session_context
             .write()
-            .update_subjects_from_messages(messages)
-        {
-            Ok(update) => update,
-            Err(err) => {
-                let message_map = create_error_message_map(&err, &session_context_name, true)?;
-                error_messages.extend(message_map);
-                AvailableSubjects::SubjectsChangeLog.to_table(None, None)?
-            }
-        };
+            .update_subjects_from_messages(messages);
 
-        let mut messages = vec![
-            IPCMessageBuilder::new()
-                .with_subject(update.get_name())
+        let mut messages = Vec::new();
+        if let Some(table) = update {
+            let message = IPCMessageBuilder::new()
+                .with_subject(table.get_name())
                 .with_publisher(&session_context_name)
                 .with_update(&TablePublication::Extend {
-                    table_name: update.get_name().to_string(),
+                    table_name: table.get_name().to_string(),
                 })
-                .with_message(update.to_ipc_stream()?)
+                .with_message(table.to_ipc_stream()?)
                 .make_random_name()?
-                .build()?,
-        ];
+                .build()?;
+            messages.push(message);
+        }
 
         // Update the errors
-        if !error_messages.is_empty() {
-            let errors_update = session_context
+        if let Some(table) = errors {
+            let message = IPCMessageBuilder::new()
+                .with_subject(table.get_name())
+                .with_publisher(&session_context_name)
+                .with_update(&TablePublication::Extend {
+                    table_name: AvailableSubjects::SessionErrors.to_string(),
+                })
+                .with_message(table.to_ipc_stream()?)
+                .make_random_name()?
+                .build()?;
+            let mut message_map = HashMap::<String, IPCMessage>::new();
+            let _ = message_map.insert(message.get_name().to_string(), message);
+            let (update, _errors) = session_context
                 .write()
-                .update_subjects_from_messages(error_messages)?;
+                .update_subjects_from_messages(message_map);
 
-            messages.push(
-                IPCMessageBuilder::new()
-                    .with_subject(errors_update.get_name())
+            if let Some(table) = update {
+                let message = IPCMessageBuilder::new()
+                    .with_subject(table.get_name())
                     .with_publisher(&session_context_name)
                     .with_update(&TablePublication::Extend {
-                        table_name: errors_update.get_name().to_string(),
+                        table_name: table.get_name().to_string(),
                     })
-                    .with_message(errors_update.to_ipc_stream()?)
+                    .with_message(table.to_ipc_stream()?)
                     .make_random_name()?
-                    .build()?,
-            );
+                    .build()?;
+                messages.push(message);
+            }
         }
 
         // Update the subjects change log
         let messages = create_message_map(messages);
         let _ = session_context
             .write()
-            .update_subjects_from_messages(messages)?;
+            .update_subjects_from_messages(messages);
 
         Ok(())
     }
@@ -221,25 +226,35 @@ pub trait SessionStreamStepTrait {
         ]);
 
         // Update the tasks run log
-        let state_update = session_context
+        let (update, errors) = session_context
             .write()
-            .update_subjects_from_messages(messages)?;
+            .update_subjects_from_messages(messages);
+        if let Some(table) = errors {
+            let error = table.get_column_as_vec_str("content").join("; ");
+            return Err(anyhow!(error));
+        }
 
         // Update the subjects change log
-        let messages = create_message_map(vec![
-            IPCMessageBuilder::new()
-                .with_subject(state_update.get_name())
-                .with_publisher(&session_context_name)
-                .with_update(&TablePublication::Extend {
-                    table_name: state_update.get_name().to_string(),
-                })
-                .with_message(state_update.to_ipc_stream()?)
-                .make_random_name()?
-                .build()?,
-        ]);
-        let _ = session_context
-            .write()
-            .update_subjects_from_messages(messages)?;
+        if let Some(table) = update {
+            let messages = create_message_map(vec![
+                IPCMessageBuilder::new()
+                    .with_subject(table.get_name())
+                    .with_publisher(&session_context_name)
+                    .with_update(&TablePublication::Extend {
+                        table_name: table.get_name().to_string(),
+                    })
+                    .with_message(table.to_ipc_stream()?)
+                    .make_random_name()?
+                    .build()?,
+            ]);
+            let (_update, errors) = session_context
+                .write()
+                .update_subjects_from_messages(messages);
+            if let Some(table) = errors {
+                let error = table.get_column_as_vec_str("content").join("; ");
+                return Err(anyhow!(error));
+            }
+        }
 
         Ok(())
     }
@@ -521,7 +536,8 @@ pub trait SessionStreamStepTrait {
 }
 
 /// A single step of a [SessionStream]
-/// [SessionStream]: crate::session::session_stream::SessionStream
+///
+/// [SessionStream]: crate::SessionStream
 pub struct SessionStreamStep {}
 
 impl SessionStreamStepTrait for SessionStreamStep {
@@ -548,6 +564,7 @@ impl SessionStreamStepTrait for SessionStreamStep {
 
         // Retrieve the task subscriptions and corresponding publications
         let tasks = Self::next_tasks(&session_context).await;
+        // dbg!(&tasks);
 
         // Break if there is nothing to update
         if tasks.is_empty() {
@@ -612,7 +629,8 @@ impl SessionStreamStepTrait for SessionStreamStep {
 }
 
 /// A single step of a minimal [SessionStream] that does not including logging and diagnostics
-/// [SessionStream]: crate::session::session_stream::SessionStream
+///
+/// [SessionStream]: crate::SessionStream
 pub struct SessionStreamStepMinimal {}
 
 impl SessionStreamStepTrait for SessionStreamStepMinimal {
@@ -674,9 +692,13 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
     ) -> Result<Option<IPCMessageMap>> {
         // Update the session context with the incoming messages
         if !messages.is_empty() {
-            let _ = session_context
+            let (_update, errors) = session_context
                 .write()
-                .update_subjects_from_messages(messages)?;
+                .update_subjects_from_messages(messages);
+            if let Some(table) = errors {
+                let error = table.get_column_as_vec_str("content").join("; ");
+                return Err(anyhow!(error));
+            }
         }
 
         // Retrieve the task subscriptions and corresponding publications
@@ -692,9 +714,13 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
 
             // Update the session context with the incoming messages
             if !subject_batches.is_empty() {
-                let _ = session_context
+                let (_update, errors) = session_context
                     .write()
-                    .update_subjects_from_messages(subject_batches)?;
+                    .update_subjects_from_messages(subject_batches);
+                if let Some(table) = errors {
+                    let error = table.get_column_as_vec_str("content").join("; ");
+                    return Err(anyhow!(error));
+                }
             }
         }
 
@@ -802,6 +828,19 @@ mod tests {
                 .try_read()
                 .unwrap()
                 .get_states()
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            0
+        );
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -821,7 +860,7 @@ mod tests {
                 .unwrap()
                 .get_record_batches()
                 .len(),
-            2
+            1
         );
         assert_eq!(
             session_context_arc
@@ -874,19 +913,6 @@ mod tests {
                 .get_record_batches()
                 .len(),
             1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            0
         );
         assert_eq!(
             session_context_arc
@@ -2368,8 +2394,22 @@ mod tests {
         )?;
         let session_context_arc = Arc::new(RwLock::new(session_context));
         let response =
-            SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input).await;
-        assert!(response.is_err());
+            SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input).await?;
+        assert!(response.is_none());
+
+        assert_eq!(
+            session_context_arc
+                .try_read()
+                .unwrap()
+                .get_states()
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                .unwrap()
+                .try_read()
+                .unwrap()
+                .get_record_batches()
+                .len(),
+            1
+        );
 
         Ok(())
     }

@@ -26,6 +26,8 @@ pub async fn run_main() -> Result<()> {
     let session_ctx = user_agent_session
         .build()
         .with_name(user_agent_session.session_context_name)
+        .add_next_tasks()?
+        .add_next_supersteps()?
         .build_with_tables()?;
     let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 

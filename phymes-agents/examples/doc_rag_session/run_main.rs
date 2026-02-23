@@ -32,6 +32,8 @@ pub async fn run_main() -> Result<()> {
         .build()
         .with_name(doc_rag_session.session_context_name)
         .add_session_interface(None)?
+        .add_next_tasks()?
+        .add_next_supersteps()?
         .build_with_tables()?;
     let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 

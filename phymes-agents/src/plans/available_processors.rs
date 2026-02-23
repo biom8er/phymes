@@ -4,19 +4,27 @@ use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
 use phymes_core::{
-    DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Table,
+    AvailableSubjects, DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait,
+    Table,
     test_processor::{ProcessorError, ProcessorMock},
 };
 use phymes_data::{
     AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,
     CandleDataProcessor, CoalesceProcessor, DataAggregatorOperator, DataCastOperator,
     DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig,
-    DataConfigTrait, DataDistanceOperator, DataStreamManager, DataSummaryConfig,
-    DataSummaryProcessor, LimitProcessor, ToolTrait,
+    DataConfigTrait, DataDistanceOperator, DataStreamManager, LimitConfig, LimitProcessor,
+    ToolTrait,
+};
+#[cfg(feature = "api")]
+use phymes_data::{
+    CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxProcessor,
+    CommandSandboxRunners, DataIOMethod, HTTPClientConfig, HTTPClientRequestProcessor,
+    HTTPClientRequestSchemas, HTTPClientRequestType,
 };
 use phymes_ml::{
     AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, CandleEmbedConfig,
-    CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor,
+    CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor, ToolCallConfig,
+    ToolCallProcessor,
 };
 #[cfg(feature = "api")]
 use phymes_ml::{AvailableOpenAIAssets, OpenAIChatProcessor, OpenAIEmbedProcessor};
@@ -64,8 +72,8 @@ pub enum AvailableProcessors {
     Melt,
     #[value(name = "NormalizeTime")]
     NormalizeTime,
-    #[value(name = "DataSummaryProcessor")]
-    DataSummaryProcessor,
+    #[value(name = "PackTabular")]
+    PackTabular,
     #[value(name = "CoalesceProcessor")]
     CoalesceProcessor,
     #[value(name = "LimitProcessor")]
@@ -78,8 +86,16 @@ pub enum AvailableProcessors {
     MessageAggregatorProcessor,
     #[value(name = "MessageParserProcessor")]
     MessageParserProcessor,
+    #[value(name = "ToolCallProcessor")]
+    ToolCallProcessor,
     #[value(name = "CandleEmbedProcessor")]
     CandleEmbedProcessor,
+    #[cfg(feature = "api")]
+    #[value(name = "HTTPClientRequestProcessor")]
+    HTTPClientRequestProcessor,
+    #[cfg(feature = "api")]
+    #[value(name = "CommandSandboxProcessor")]
+    CommandSandboxProcessor,
     #[cfg(feature = "api")]
     #[value(name = "OpenAIChatProcessor")]
     OpenAIChatProcessor,
@@ -118,7 +134,7 @@ impl Display for AvailableProcessors {
             Self::ProcessorMock => write!(f, "{}", ProcessorMock::get_static_name()),
             Self::ProcessorEcho => write!(f, "{}", ProcessorEcho::get_static_name()),
             Self::CandleDataProcessor => write!(f, "{}", CandleDataProcessor::get_static_name()),
-            Self::DataSummaryProcessor => write!(f, "{}", DataSummaryProcessor::get_static_name()),
+            Self::PackTabular => write!(f, "{}", AvailableCandleOperators::PackTabular),
             Self::CoalesceProcessor => write!(f, "{}", CoalesceProcessor::get_static_name()),
             Self::LimitProcessor => write!(f, "{}", LimitProcessor::get_static_name()),
             Self::AttachmentAggregatorProcessor => {
@@ -131,7 +147,18 @@ impl Display for AvailableProcessors {
             Self::MessageParserProcessor => {
                 write!(f, "{}", MessageParserProcessor::get_static_name())
             }
+            Self::ToolCallProcessor => {
+                write!(f, "{}", ToolCallProcessor::get_static_name())
+            }
             Self::CandleEmbedProcessor => write!(f, "{}", CandleEmbedProcessor::get_static_name()),
+            #[cfg(feature = "api")]
+            Self::HTTPClientRequestProcessor => {
+                write!(f, "{}", HTTPClientRequestProcessor::get_static_name())
+            }
+            #[cfg(feature = "api")]
+            Self::CommandSandboxProcessor => {
+                write!(f, "{}", CommandSandboxProcessor::get_static_name())
+            }
             #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => write!(f, "{}", OpenAIChatProcessor::get_static_name()),
             #[cfg(feature = "api")]
@@ -159,7 +186,7 @@ impl DataConfigTrait for AvailableProcessors {
                 format: Some(DataFormat::Html),
                 cpu: false,
                 operator: AvailableCandleOperators::ApplyTemplate,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::VectorDistance => serde_json::to_vec(&DataConfig {
@@ -172,7 +199,7 @@ impl DataConfigTrait for AvailableProcessors {
                 dist_operator: Some(DataDistanceOperator::NormalizedDotProduct),
                 cpu: false,
                 operator: AvailableCandleOperators::VectorDistance,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::Sort => serde_json::to_vec(&DataConfig {
@@ -181,7 +208,7 @@ impl DataConfigTrait for AvailableProcessors {
                 asc: Some(true),
                 cpu: false,
                 operator: AvailableCandleOperators::Sort,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::HumanInTheLoop => serde_json::to_vec(&DataConfig {
@@ -198,7 +225,7 @@ impl DataConfigTrait for AvailableProcessors {
                 chunk_overlap: Some(64),
                 cpu: false,
                 operator: AvailableCandleOperators::ChunkDocuments,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::Join => serde_json::to_vec(&DataConfig {
@@ -210,7 +237,8 @@ impl DataConfigTrait for AvailableProcessors {
                 rhs_fk: Some("rhs_fk".to_string()),
                 cpu: false,
                 operator: AvailableCandleOperators::Join,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
+                rhs_stream: Some(DataStreamManager::Accumulate),
                 ..Default::default()
             }),
             Self::ExtractPDF => serde_json::to_vec(&DataConfig {
@@ -219,7 +247,7 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 cpu: false,
                 operator: AvailableCandleOperators::ExtractPDF,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::GroupBy => serde_json::to_vec(&DataConfig {
@@ -229,7 +257,7 @@ impl DataConfigTrait for AvailableProcessors {
                 agg_operators: Some(vec![DataAggregatorOperator::Sum]),
                 cpu: false,
                 operator: AvailableCandleOperators::GroupBy,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::Filter => serde_json::to_vec(&DataConfig {
@@ -240,25 +268,27 @@ impl DataConfigTrait for AvailableProcessors {
                 cmp_predicate: Some(DataComparatorPredicate::All),
                 cpu: false,
                 operator: AvailableCandleOperators::Filter,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::ExtractTabular => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 format: Some(DataFormat::CsvDefault),
+                schema: Some(AvailableSubjects::default()),
                 cpu: false,
                 operator: AvailableCandleOperators::ExtractTabular,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::ExtractXML => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
-                format: Some(DataFormat::OwlDefault),
+                format: Some(DataFormat::Owl),
+                schema: Some(AvailableSubjects::default()),
                 cpu: false,
                 operator: AvailableCandleOperators::ExtractXML,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::Select => serde_json::to_vec(&DataConfig {
@@ -272,7 +302,7 @@ impl DataConfigTrait for AvailableProcessors {
                 cast_templates: Some(vec!["cast_template".to_string()]),
                 cpu: false,
                 operator: AvailableCandleOperators::Select,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::Pivot => serde_json::to_vec(&DataConfig {
@@ -284,7 +314,7 @@ impl DataConfigTrait for AvailableProcessors {
                 pvt_columns: Some(vec!["pvt_columns".to_string()]),
                 cpu: false,
                 operator: AvailableCandleOperators::Pivot,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::Melt => serde_json::to_vec(&DataConfig {
@@ -293,7 +323,7 @@ impl DataConfigTrait for AvailableProcessors {
                 pvt_columns: Some(vec!["pvt_columns".to_string()]),
                 cpu: false,
                 operator: AvailableCandleOperators::Melt,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::NormalizeTime => serde_json::to_vec(&DataConfig {
@@ -301,20 +331,22 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_values: Some(vec!["lhs_values".to_string()]),
                 cpu: false,
                 operator: AvailableCandleOperators::NormalizeTime,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
-            Self::DataSummaryProcessor => serde_json::to_vec(&DataSummaryConfig {
-                summary_format: DataFormat::None,
+            Self::PackTabular => serde_json::to_vec(&DataConfig {
+                format: Some(DataFormat::None),
+                cpu: false,
+                operator: AvailableCandleOperators::PackTabular,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
-            Self::LimitProcessor => serde_json::to_vec(&DataSummaryConfig {
+            Self::LimitProcessor => serde_json::to_vec(&LimitConfig {
                 skip: Some(0),
-                fetch: Some(100),
-                ..Default::default()
+                fetch: 100,
             }),
-            Self::CoalesceProcessor => serde_json::to_vec(&DataSummaryConfig {
-                fetch: Some(100),
+            Self::CoalesceProcessor => serde_json::to_vec(&LimitConfig {
+                fetch: 100,
                 ..Default::default()
             }),
             Self::AttachmentAggregatorProcessor => serde_json::to_vec(&DataConfig {
@@ -322,10 +354,11 @@ impl DataConfigTrait for AvailableProcessors {
                 asc: Some(true),
                 cpu: false,
                 operator: AvailableCandleOperators::Sort,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::CandleChatProcessor => serde_json::to_vec(&CandleChatConfig {
+                messages: "messages".to_string(),
                 max_tokens: 1000,
                 temperature: 0.8,
                 seed: 299792458,
@@ -355,10 +388,11 @@ impl DataConfigTrait for AvailableProcessors {
                 asc: Some(true),
                 cpu: false,
                 operator: AvailableCandleOperators::Sort,
-                stream: DataStreamManager::AccumulateLHSAccumulateRHS,
+                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::MessageParserProcessor => serde_json::to_vec(&CandleChatConfig {
+                messages: "messages".to_string(),
                 max_tokens: 1000,
                 temperature: 0.8,
                 seed: 299792458,
@@ -383,7 +417,17 @@ impl DataConfigTrait for AvailableProcessors {
                 candle_asset: Some(AvailableCandleAssets::SmolLM2_135MChat),
                 ..Default::default()
             }),
+            Self::ToolCallProcessor => serde_json::to_vec(&ToolCallConfig {
+                subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+                subject_names: vec!["processor_1".to_string()],
+                subscription_table_names: vec!["lhs_name".to_string()],
+                ..Default::default()
+            }),
             Self::CandleEmbedProcessor => serde_json::to_vec(&CandleEmbedConfig {
+                documents: "documents".to_string(),
+                encoding_format: "float".to_string(),
+                modality: "text".to_string(),
+                input_type: "query".to_string(),
                 weights_config_file: Some(format!(
                     "{}/.cache/hf/models--sentence-transformers--all-MiniLM-L6-v2/config.json",
                     std::env::var("HOME").unwrap_or("".to_string())
@@ -404,7 +448,31 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             #[cfg(feature = "api")]
+            Self::HTTPClientRequestProcessor => serde_json::to_vec(&HTTPClientConfig {
+                timeout: 5,
+                request_type: HTTPClientRequestType::Get,
+                user_agent_type: Some("rust-openalex-client/2.0".to_string()),
+                base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?".to_string(),
+                subject_name: Some("messages".to_string()),
+                request_schema: HTTPClientRequestSchemas::Messages,
+                json: Some("db=pubmed&retmode=json&retmax=5&mindate=2020&maxdate=2023".to_string()),
+                ..Default::default()
+            }),
+            #[cfg(feature = "api")]
+            Self::CommandSandboxProcessor => serde_json::to_vec(&CommandSandboxConfig {
+                runner: CommandSandboxRunners::Docker,
+                environment: CommandSandboxEnvironments::Bash,
+                container_image: "alpine".to_string(),
+                data_i: DataIOMethod::None,
+                data_o: DataIOMethod::None,
+                command: Some("echo".to_string()),
+                timeout: 5,
+                cli_args: Some(vec!["Hello from Docker!".to_string()]),
+                ..Default::default()
+            }),
+            #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => serde_json::to_vec(&CandleChatConfig {
+                messages: "messages".to_string(),
                 max_tokens: 1000,
                 temperature: 0.8,
                 seed: 299792458,
@@ -421,12 +489,13 @@ impl DataConfigTrait for AvailableProcessors {
             }),
             #[cfg(feature = "api")]
             Self::OpenAIEmbedProcessor => serde_json::to_vec(&CandleEmbedConfig {
-                openai_asset: Some(AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2),
-                api_url: Some("http://0.0.0.0:8001/v1".to_string()),
-                input_type: "query".to_string(),
-                candle_asset: None,
+                documents: "documents".to_string(),
                 encoding_format: "float".to_string(),
                 modality: "text".to_string(),
+                input_type: "query".to_string(),
+                openai_asset: Some(AvailableOpenAIAssets::NvidiaLlamaV3p2NvEmbedQA1BV2),
+                api_url: Some("http://0.0.0.0:8001/v1".to_string()),
+                candle_asset: None,
                 ..Default::default()
             }),
         }
@@ -461,14 +530,19 @@ impl ToolTrait for AvailableProcessors {
             Self::Sort => AvailableCandleOperators::Sort.get_description(),
             Self::VectorDistance => AvailableCandleOperators::VectorDistance.get_description(),
             Self::ApplyTemplate => AvailableCandleOperators::ApplyTemplate.get_description(),
+            Self::PackTabular => AvailableCandleOperators::PackTabular.get_description(),
             Self::AttachmentAggregatorProcessor => todo!(),
             Self::MessageAggregatorProcessor => todo!(),
-            Self::DataSummaryProcessor => todo!(),
             Self::CoalesceProcessor => todo!(),
             Self::LimitProcessor => todo!(),
             Self::CandleChatProcessor => todo!(),
             Self::MessageParserProcessor => todo!(),
+            Self::ToolCallProcessor => todo!(),
             Self::CandleEmbedProcessor => todo!(),
+            #[cfg(feature = "api")]
+            Self::HTTPClientRequestProcessor => todo!(),
+            #[cfg(feature = "api")]
+            Self::CommandSandboxProcessor => todo!(),
             #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => todo!(),
             #[cfg(feature = "api")]
@@ -496,14 +570,19 @@ impl ToolTrait for AvailableProcessors {
             Self::Sort => AvailableCandleOperators::Sort.to_json_tool_schema(),
             Self::VectorDistance => AvailableCandleOperators::VectorDistance.to_json_tool_schema(),
             Self::ApplyTemplate => AvailableCandleOperators::ApplyTemplate.to_json_tool_schema(),
+            Self::PackTabular => AvailableCandleOperators::PackTabular.to_json_tool_schema(),
             Self::AttachmentAggregatorProcessor => todo!(),
             Self::MessageAggregatorProcessor => todo!(),
-            Self::DataSummaryProcessor => todo!(),
             Self::CoalesceProcessor => todo!(),
             Self::LimitProcessor => todo!(),
             Self::CandleChatProcessor => todo!(),
             Self::MessageParserProcessor => todo!(),
+            Self::ToolCallProcessor => todo!(),
             Self::CandleEmbedProcessor => todo!(),
+            #[cfg(feature = "api")]
+            Self::HTTPClientRequestProcessor => todo!(),
+            #[cfg(feature = "api")]
+            Self::CommandSandboxProcessor => todo!(),
             #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => todo!(),
             #[cfg(feature = "api")]
@@ -535,14 +614,19 @@ impl AvailableProcessors {
             AvailableProcessors::ExtractXML.to_string(),
             AvailableProcessors::Melt.to_string(),
             AvailableProcessors::NormalizeTime.to_string(),
-            AvailableProcessors::DataSummaryProcessor.to_string(),
+            AvailableProcessors::PackTabular.to_string(),
             AvailableProcessors::CoalesceProcessor.to_string(),
             AvailableProcessors::LimitProcessor.to_string(),
             AvailableProcessors::AttachmentAggregatorProcessor.to_string(),
             AvailableProcessors::CandleChatProcessor.to_string(),
             AvailableProcessors::MessageAggregatorProcessor.to_string(),
             AvailableProcessors::MessageParserProcessor.to_string(),
+            AvailableProcessors::ToolCallProcessor.to_string(),
             AvailableProcessors::CandleEmbedProcessor.to_string(),
+            #[cfg(feature = "api")]
+            AvailableProcessors::HTTPClientRequestProcessor.to_string(),
+            #[cfg(feature = "api")]
+            AvailableProcessors::CommandSandboxProcessor.to_string(),
             #[cfg(feature = "api")]
             AvailableProcessors::OpenAIChatProcessor.to_string(),
             #[cfg(feature = "api")]
@@ -596,8 +680,8 @@ impl AvailableProcessors {
             Ok(AvailableProcessors::NormalizeTime)
         } else if line.contains(&AvailableProcessors::CandleDataProcessor.to_string()) {
             Ok(AvailableProcessors::CandleDataProcessor)
-        } else if line.contains(&AvailableProcessors::DataSummaryProcessor.to_string()) {
-            Ok(AvailableProcessors::DataSummaryProcessor)
+        } else if line.contains(&AvailableProcessors::PackTabular.to_string()) {
+            Ok(AvailableProcessors::PackTabular)
         } else if line.contains(&AvailableProcessors::CoalesceProcessor.to_string()) {
             Ok(AvailableProcessors::CoalesceProcessor)
         } else if line.contains(&AvailableProcessors::LimitProcessor.to_string()) {
@@ -610,11 +694,17 @@ impl AvailableProcessors {
             Ok(AvailableProcessors::MessageAggregatorProcessor)
         } else if line.contains(&AvailableProcessors::MessageParserProcessor.to_string()) {
             Ok(AvailableProcessors::MessageParserProcessor)
+        } else if line.contains(&AvailableProcessors::ToolCallProcessor.to_string()) {
+            Ok(AvailableProcessors::ToolCallProcessor)
         } else if line.contains(&AvailableProcessors::CandleEmbedProcessor.to_string()) {
             Ok(AvailableProcessors::CandleEmbedProcessor)
         } else {
             #[cfg(feature = "api")]
-            if line.contains(&AvailableProcessors::OpenAIChatProcessor.to_string()) {
+            if line.contains(&AvailableProcessors::HTTPClientRequestProcessor.to_string()) {
+                Ok(AvailableProcessors::HTTPClientRequestProcessor)
+            } else if line.contains(&AvailableProcessors::CommandSandboxProcessor.to_string()) {
+                Ok(AvailableProcessors::CommandSandboxProcessor)
+            } else if line.contains(&AvailableProcessors::OpenAIChatProcessor.to_string()) {
                 Ok(AvailableProcessors::OpenAIChatProcessor)
             } else if line.contains(&AvailableProcessors::OpenAIEmbedProcessor.to_string()) {
                 Ok(AvailableProcessors::OpenAIEmbedProcessor)
@@ -653,11 +743,9 @@ impl AvailableProcessors {
             | Self::Select
             | Self::Sort
             | Self::VectorDistance
-            | Self::ApplyTemplate => {
+            | Self::ApplyTemplate
+            | Self::PackTabular => {
                 Arc::new(CandleDataProcessor::new(name, self.to_string().as_str()))
-            }
-            Self::DataSummaryProcessor => {
-                Arc::new(DataSummaryProcessor::new(name, self.to_string().as_str()))
             }
             Self::CoalesceProcessor => {
                 Arc::new(CoalesceProcessor::new(name, self.to_string().as_str()))
@@ -677,9 +765,22 @@ impl AvailableProcessors {
             Self::MessageParserProcessor => {
                 Arc::new(MessageParserProcessor::new(name, self.to_string().as_str()))
             }
+            Self::ToolCallProcessor => {
+                Arc::new(ToolCallProcessor::new(name, self.to_string().as_str()))
+            }
             Self::CandleEmbedProcessor => {
                 Arc::new(CandleEmbedProcessor::new(name, self.to_string().as_str()))
             }
+            #[cfg(feature = "api")]
+            Self::HTTPClientRequestProcessor => Arc::new(HTTPClientRequestProcessor::new(
+                name,
+                self.to_string().as_str(),
+            )),
+            #[cfg(feature = "api")]
+            Self::CommandSandboxProcessor => Arc::new(CommandSandboxProcessor::new(
+                name,
+                self.to_string().as_str(),
+            )),
             #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => {
                 Arc::new(OpenAIChatProcessor::new(name, self.to_string().as_str()))
@@ -712,8 +813,8 @@ impl AvailableProcessors {
             | Self::Select
             | Self::Sort
             | Self::VectorDistance
-            | Self::ApplyTemplate => builder.build_arc::<CandleDataProcessor>(),
-            Self::DataSummaryProcessor => builder.build_arc::<DataSummaryProcessor>(),
+            | Self::ApplyTemplate
+            | Self::PackTabular => builder.build_arc::<CandleDataProcessor>(),
             Self::CoalesceProcessor => builder.build_arc::<CoalesceProcessor>(),
             Self::LimitProcessor => builder.build_arc::<LimitProcessor>(),
             Self::AttachmentAggregatorProcessor => {
@@ -722,7 +823,12 @@ impl AvailableProcessors {
             Self::CandleChatProcessor => builder.build_arc::<CandleChatProcessor>(),
             Self::MessageAggregatorProcessor => builder.build_arc::<MessageAggregatorProcessor>(),
             Self::MessageParserProcessor => builder.build_arc::<MessageParserProcessor>(),
+            Self::ToolCallProcessor => builder.build_arc::<ToolCallProcessor>(),
             Self::CandleEmbedProcessor => builder.build_arc::<CandleEmbedProcessor>(),
+            #[cfg(feature = "api")]
+            Self::HTTPClientRequestProcessor => builder.build_arc::<HTTPClientRequestProcessor>(),
+            #[cfg(feature = "api")]
+            Self::CommandSandboxProcessor => builder.build_arc::<CommandSandboxProcessor>(),
             #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => builder.build_arc::<OpenAIChatProcessor>(),
             #[cfg(feature = "api")]
@@ -753,12 +859,16 @@ impl AvailableProcessors {
             | Self::VectorDistance
             | Self::ApplyTemplate
             | Self::AttachmentAggregatorProcessor
-            | Self::MessageAggregatorProcessor => "DataConfig",
-            Self::DataSummaryProcessor | Self::CoalesceProcessor | Self::LimitProcessor => {
-                "DataSummaryConfig"
-            }
+            | Self::MessageAggregatorProcessor
+            | Self::PackTabular => "DataConfig",
+            Self::CoalesceProcessor | Self::LimitProcessor => "LimitConfig",
+            Self::ToolCallProcessor => "ToolCallConfig",
             Self::CandleChatProcessor | Self::MessageParserProcessor => "CandleChatConfig",
             Self::CandleEmbedProcessor => "CandleEmbedConfig",
+            #[cfg(feature = "api")]
+            Self::HTTPClientRequestProcessor => "HTTPClientConfig",
+            #[cfg(feature = "api")]
+            Self::CommandSandboxProcessor => "CommandSandboxConfig",
             #[cfg(feature = "api")]
             Self::OpenAIChatProcessor => "CandleChatConfig",
             #[cfg(feature = "api")]

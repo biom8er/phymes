@@ -7,7 +7,7 @@ use phymes_core::{BuilderTrait, MappableTrait, Table, TableBuilder, TableBuilder
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ExtractXML, ToolTrait,
+    ExtractXML, PackTabular, ToolTrait,
     candle_data::DataConfig,
     candle_operators::{
         ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDF, ExtractTabular, Filter,
@@ -46,6 +46,9 @@ pub enum AvailableCandleOperators {
     #[value(name = "ExtractTabular")]
     #[serde(alias = "extract-tabular")]
     ExtractTabular,
+    #[value(name = "PackTabular")]
+    #[serde(alias = "pack-tabular")]
+    PackTabular,
     #[value(name = "Select")]
     #[serde(alias = "select")]
     Select,
@@ -86,6 +89,7 @@ impl Display for AvailableCandleOperators {
                 write!(f, "{}", Filter::get_static_name())
             }
             Self::ExtractTabular => write!(f, "{}", ExtractTabular::get_static_name()),
+            Self::PackTabular => write!(f, "{}", PackTabular::get_static_name()),
             Self::Select => write!(f, "{}", Select::get_static_name()),
             Self::ApplyTemplate => write!(f, "{}", ApplyTemplate::get_static_name()),
             Self::Pivot => write!(f, "{}", Pivot::get_static_name()),
@@ -112,6 +116,7 @@ impl ToolTrait for AvailableCandleOperators {
             Self::GroupBy => GroupBy::default().to_json_tool_schema(),
             Self::Filter => Filter::default().to_json_tool_schema(),
             Self::ExtractTabular => ExtractTabular::default().to_json_tool_schema(),
+            Self::PackTabular => PackTabular::default().to_json_tool_schema(),
             Self::Select => Select::default().to_json_tool_schema(),
             Self::ApplyTemplate => ApplyTemplate::default().to_json_tool_schema(),
             Self::Pivot => Pivot::default().to_json_tool_schema(),
@@ -133,6 +138,7 @@ impl ToolTrait for AvailableCandleOperators {
             Self::GroupBy => GroupBy::default().get_description(),
             Self::Filter => Filter::default().get_description(),
             Self::ExtractTabular => ExtractTabular::default().get_description(),
+            Self::PackTabular => PackTabular::default().get_description(),
             Self::Select => Select::default().get_description(),
             Self::ApplyTemplate => ApplyTemplate::default().get_description(),
             Self::Pivot => Pivot::default().get_description(),
@@ -157,6 +163,7 @@ impl AvailableCandleOperators {
             Self::GroupBy.to_string(),
             Self::Filter.to_string(),
             Self::ExtractTabular.to_string(),
+            Self::PackTabular.to_string(),
             Self::Select.to_string(),
             Self::Pivot.to_string(),
             Self::ExtractXML.to_string(),
@@ -180,6 +187,7 @@ impl AvailableCandleOperators {
             Self::GroupBy => Ok(Box::new(GroupBy::new(config)?)),
             Self::Filter => Ok(Box::new(Filter::new(config)?)),
             Self::ExtractTabular => Ok(Box::new(ExtractTabular::new(config)?)),
+            Self::PackTabular => Ok(Box::new(PackTabular::new(config)?)),
             Self::Select => Ok(Box::new(Select::new(config)?)),
             Self::ApplyTemplate => Ok(Box::new(ApplyTemplate::new(config)?)),
             Self::Pivot => Ok(Box::new(Pivot::new(config)?)),
@@ -236,6 +244,7 @@ mod tests {
                 "GroupBy".to_string(),
                 "Filter".to_string(),
                 "ExtractTabular".to_string(),
+                "PackTabular".to_string(),
                 "Select".to_string(),
                 "ApplyTemplate".to_string(),
                 "Pivot".to_string(),
@@ -258,6 +267,7 @@ mod tests {
                 "GroupBy",
                 "Filter",
                 "ExtractTabular",
+                "PackTabular",
                 "Select",
                 "ApplyTemplate",
                 "Pivot",

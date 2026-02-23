@@ -8,39 +8,25 @@ use serde::{Deserialize, Serialize};
 
 use crate::DataConfigTrait;
 
-/// The HTTP client request types
-#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
+/// Schema to use when packaging the HTTP client request response
+///
+/// More complex parsing should be handled by one of the extractor `DataProcessor`s
+///   e.g., tabular for JSON Line, xml for XML, and PDF for PDFs
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default, PartialEq)]
 pub enum HTTPClientRequestSchemas {
-    /// No parsing of the response
     #[default]
-    #[value(name = "None")]
-    None,
-    #[value(name = "OpenAlex")]
-    OpenAlex,
-    /// EUtils ESearch utility
-    ///
-    /// MUST use `retmode=json`
-    #[value(name = "ESearch")]
-    ESearch,
-    /// EUtils Efetch utility
-    ///
-    /// MUST use `retmode=xml`
-    #[value(name = "EFetch")]
-    EFetch,
-    /// Semantic Scholar Recomendations API
-    #[value(name = "SemanticScholarRecomendations")]
-    SemanticScholarRecomendations,
+    #[value(name = "Messages")]
+    Messages,
+    #[value(name = "Blob")]
+    Blob,
     #[value(skip)]
     Custom(String),
 }
 impl Display for HTTPClientRequestSchemas {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::None => write!(f, "None"),
-            Self::OpenAlex => write!(f, "OpenAlex"),
-            Self::ESearch => write!(f, "ESearch"),
-            Self::EFetch => write!(f, "EFetch"),
-            Self::SemanticScholarRecomendations => write!(f, "SemanticScholarRecomendations"),
+            Self::Messages => write!(f, "Messages"),
+            Self::Blob => write!(f, "Blob"),
             Self::Custom(s) => write!(f, "{s}"),
         }
     }
@@ -88,6 +74,11 @@ pub struct HTTPClientConfig {
     #[arg(long, default_value_t = HTTPClientRequestType::Get)]
     pub request_type: HTTPClientRequestType,
 
+    /// The request header user agent type
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_agent_type: Option<String>,
+
     /// The request header content type or header value
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -99,6 +90,9 @@ pub struct HTTPClientConfig {
     pub bearer_auth: Option<String>,
 
     /// The base URL of the request
+    ///
+    /// # Notes
+    /// - Can range from just scheme to the port number and all the way to the query string separator or fragment
     #[arg(long)]
     pub base_url: String,
 
@@ -108,8 +102,14 @@ pub struct HTTPClientConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub json: Option<String>,
 
+    /// The name of the streaming subject with the JSON application data to send in the request if POST
+    /// or the query URL to join with the base URL if GET
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject_name: Option<String>,
+
     /// The request schema to try and parse responses into
-    #[arg(long, default_value_t = HTTPClientRequestSchemas::None)]
+    #[arg(long, default_value_t = HTTPClientRequestSchemas::Messages)]
     pub request_schema: HTTPClientRequestSchemas,
 }
 
@@ -128,9 +128,7 @@ impl HTTPClientConfig {
     /// Make the full url for GET requests
     pub fn url(&self, query_url: Option<&str>) -> String {
         if let Some(query_url) = query_url {
-            format!("{}?{query_url}", &self.base_url)
-        } else if let Some(query_url) = &self.json {
-            format!("{}?{query_url}", &self.base_url)
+            format!("{}{query_url}", &self.base_url)
         } else {
             self.base_url.to_string()
         }
@@ -142,11 +140,13 @@ impl Default for HTTPClientConfig {
         Self {
             timeout: 15,
             request_type: HTTPClientRequestType::Get,
+            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             content_type: Some("application/json".to_string()),
             bearer_auth: None,
             base_url: "".to_string(),
+            subject_name: None,
             json: None,
-            request_schema: HTTPClientRequestSchemas::None,
+            request_schema: HTTPClientRequestSchemas::Messages,
         }
     }
 }
@@ -168,11 +168,10 @@ impl DataConfigTrait for HTTPClientConfig {
             .collect::<HashSet<_>>();
         if !(column_names.contains("timeout")
             && column_names.contains("request_type")
-            && column_names.contains("content_type")
             && column_names.contains("request_schema"))
         {
             return Err(anyhow!(
-                "Table {} is missing required Field for `timeout`, `request_type`, `content_type`, and `request_schema` in HTTPClientConfig.",
+                "Table {} is missing required Field for `timeout`, `request_type`, and `request_schema` in HTTPClientConfig.",
                 table.get_name()
             ));
         }

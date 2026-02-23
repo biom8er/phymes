@@ -14,7 +14,7 @@ use candle_transformers::generation::{LogitsProcessor, Sampling};
 use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatTraitExt,
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, ChatTraitExt,
     MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream,
     RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,

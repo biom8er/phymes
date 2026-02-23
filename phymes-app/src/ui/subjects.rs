@@ -1,8 +1,10 @@
 use dioxus::prelude::*;
-use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait,
+use phymes_agents::{
     SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
-    TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
+};
+use phymes_core::{
+    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, TableBuilder,
+    TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_server::create_session_name;
 

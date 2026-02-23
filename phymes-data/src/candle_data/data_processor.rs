@@ -7,12 +7,11 @@ use phymes_core::{
     RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait,
-    remove_message_by_subject,
+    create_bytes_fields, create_values_fields, remove_message_by_subject,
 };
 
 use arrow::{
-    array::StringArray,
-    datatypes::{DataType, Field, Fields, Schema, SchemaRef},
+    datatypes::{Schema, SchemaRef},
     record_batch::RecordBatch,
 };
 
@@ -80,12 +79,6 @@ impl ProcessorTrait for CandleDataProcessor {
                 ));
             }
         };
-
-        // Re-index the messages by the subject name which needs to be unique at this stage
-        let message = message
-            .into_iter()
-            .map(|(_k, v)| (v.get_subject().to_string(), v))
-            .collect::<HashMap<_, _>>();
 
         // Run the ops
         let out = Box::pin(CandleDataStream::new(
@@ -201,36 +194,32 @@ impl Stream for CandleDataStream {
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
-            let values = Fields::from_iter(vec![Field::new("values", DataType::Utf8, false)]);
-            if batches
-                .first()
-                .ok_or(anyhow!("Config stream for CandleDataStream is empty"))?
-                .schema()
+            let config_table = TableBuilder::new()
+                .with_name("config")
+                .with_record_batches(batches)?
+                .build()?;
+            if config_table
+                .get_schema()
                 .fields()
-                .contains(&values)
+                .contains(&create_values_fields())
             {
-                let config_json = batches
-                    .first()
-                    .unwrap()
-                    .column_by_name("values")
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<StringArray>()
-                    .unwrap()
-                    .iter()
-                    .map(|s| s.unwrap_or_default())
+                let config_json = config_table.get_column_as_vec_str("values").join("");
+                let config = serde_json::from_str::<DataConfig>(&config_json)?;
+                self.config.replace(config);
+            } else if config_table
+                .get_schema()
+                .fields()
+                .contains(&create_bytes_fields())
+            {
+                let config_json = config_table
+                    .get_column_as_vec_nested_primitive::<u8>("bytes")?
+                    .into_iter()
+                    .map(|b| String::from_utf8(b).unwrap())
                     .collect::<Vec<_>>()
                     .join("");
-                let mut config_values: serde_json::Value = serde_json::from_str(&config_json)?;
-                config_values["arguments"]["operator"] = config_values["name"].clone();
-                let config: DataConfig =
-                    serde_json::from_value(config_values.get("arguments").unwrap().clone())?;
+                let config = serde_json::from_str::<DataConfig>(&config_json)?;
                 self.config.replace(config);
             } else {
-                let config_table = TableBuilder::new()
-                    .with_name("config")
-                    .with_record_batches(batches)?
-                    .build()?;
                 let config = DataConfig::from_table(&config_table)?;
                 self.config.replace(config);
             }
@@ -259,7 +248,7 @@ impl Stream for CandleDataStream {
         }
 
         // Collect the LHS batches
-        let stream = self.config.as_ref().unwrap().stream.clone();
+        let lhs_stream = self.config.as_ref().unwrap().lhs_stream.clone();
         if self.lhs_inbox.is_empty() && self.config.as_ref().unwrap().lhs_name.is_some() {
             let lhs_name = self
                 .config
@@ -274,20 +263,19 @@ impl Stream for CandleDataStream {
                 .clone();
 
             // Poll all the LHS batches (accumulation) or the next LHS batch (stream)
-            let lhs = match self.messages.get_mut(lhs_name.as_str()) {
-                Some(lhs) => match stream {
-                    DataStreamManager::AccumulateLHSAccumulateRHS
-                    | DataStreamManager::AccumulateLHSStreamRHS => {
+            let lhs = match remove_message_by_subject(lhs_name.as_str(), &mut self.messages) {
+                Some(mut lhs) => match lhs_stream {
+                    DataStreamManager::Accumulate => {
                         let mut batches = Vec::new();
                         while let Some(Ok(batch)) =
                             ready!(lhs.get_message_mut().poll_next_unpin(cx))
                         {
                             batches.push(batch);
                         }
+                        self.messages.insert(lhs.get_name().to_string(), lhs);
                         batches
                     }
-                    DataStreamManager::StreamLHSAccumulateRHS
-                    | DataStreamManager::StreamLHSStreamRHS => {
+                    DataStreamManager::Stream => {
                         let mut batches = Vec::new();
                         while let Some(Ok(batch)) =
                             ready!(lhs.get_message_mut().poll_next_unpin(cx))
@@ -297,13 +285,13 @@ impl Stream for CandleDataStream {
                                 break;
                             }
                         }
+                        self.messages.insert(lhs.get_name().to_string(), lhs);
                         batches
                     }
                 },
                 // Check for the LHS in the config (accumulation only)
-                None => match stream {
-                    DataStreamManager::AccumulateLHSAccumulateRHS
-                    | DataStreamManager::AccumulateLHSStreamRHS => {
+                None => match lhs_stream {
+                    DataStreamManager::Accumulate => {
                         // Extract the input from the config
                         match self.config.as_ref().unwrap().lhs_args.as_ref() {
                             Some(qs) => {
@@ -316,17 +304,16 @@ impl Stream for CandleDataStream {
                             None => {
                                 self.is_finished = true;
                                 return Poll::Ready(Some(Err(anyhow!(
-                                    "lhs_name {lhs_name} does not exist. Available options are {:?}",
+                                    "lhs_name `{lhs_name}` does not exist. Available options are {:?}",
                                     self.messages.keys()
                                 ))));
                             }
                         }
                     }
-                    DataStreamManager::StreamLHSAccumulateRHS
-                    | DataStreamManager::StreamLHSStreamRHS => {
+                    DataStreamManager::Stream => {
                         self.is_finished = true;
                         return Poll::Ready(Some(Err(anyhow!(
-                            "lhs_name {lhs_name} does not exist. Available options are {:?}",
+                            "lhs_name `{lhs_name}` does not exist. Available options are {:?}",
                             self.messages.keys()
                         ))));
                     }
@@ -354,6 +341,13 @@ impl Stream for CandleDataStream {
         // };
 
         // Collect the RHS batches through accumulating or as stream
+        let rhs_stream = self
+            .config
+            .as_ref()
+            .unwrap()
+            .rhs_stream
+            .clone()
+            .unwrap_or_default();
         if self.rhs_inbox.is_empty() && self.config.as_ref().unwrap().rhs_name.is_some() {
             let rhs_name = self
                 .config
@@ -368,20 +362,19 @@ impl Stream for CandleDataStream {
                 .clone();
 
             // Poll all the RHS batches (accumulation) or the next RHS batch (stream)
-            let rhs = match self.messages.get_mut(rhs_name.as_str()) {
-                Some(rhs) => match stream {
-                    DataStreamManager::AccumulateLHSAccumulateRHS
-                    | DataStreamManager::StreamLHSAccumulateRHS => {
+            let rhs = match remove_message_by_subject(rhs_name.as_str(), &mut self.messages) {
+                Some(mut rhs) => match rhs_stream {
+                    DataStreamManager::Accumulate => {
                         let mut batches = Vec::new();
                         while let Some(Ok(batch)) =
                             ready!(rhs.get_message_mut().poll_next_unpin(cx))
                         {
                             batches.push(batch);
                         }
+                        self.messages.insert(rhs.get_name().to_string(), rhs);
                         batches
                     }
-                    DataStreamManager::StreamLHSStreamRHS
-                    | DataStreamManager::AccumulateLHSStreamRHS => {
+                    DataStreamManager::Stream => {
                         let mut batches = Vec::new();
                         while let Some(Ok(batch)) =
                             ready!(rhs.get_message_mut().poll_next_unpin(cx))
@@ -391,13 +384,13 @@ impl Stream for CandleDataStream {
                                 break;
                             }
                         }
+                        self.messages.insert(rhs.get_name().to_string(), rhs);
                         batches
                     }
                 },
                 // Check for the RHS in the config (accumulation only)
-                None => match stream {
-                    DataStreamManager::AccumulateLHSAccumulateRHS
-                    | DataStreamManager::StreamLHSAccumulateRHS => {
+                None => match rhs_stream {
+                    DataStreamManager::Accumulate => {
                         // Extract the input from the config
                         match self.config.as_ref().unwrap().rhs_args.as_ref() {
                             Some(qs) => {
@@ -416,8 +409,7 @@ impl Stream for CandleDataStream {
                             }
                         }
                     }
-                    DataStreamManager::StreamLHSStreamRHS
-                    | DataStreamManager::AccumulateLHSStreamRHS => {
+                    DataStreamManager::Stream => {
                         self.is_finished = true;
                         return Poll::Ready(Some(Err(anyhow!(
                             "rhs_name {rhs_name} does not exist. Available options are {:?}",
@@ -499,8 +491,8 @@ impl Stream for CandleDataStream {
         // };
 
         // Reset the inboxes for the next poll and return the current poll
-        match stream {
-            DataStreamManager::AccumulateLHSAccumulateRHS => {
+        match (lhs_stream, rhs_stream) {
+            (DataStreamManager::Accumulate, DataStreamManager::Accumulate) => {
                 self.is_finished = true;
                 let poll = Poll::Ready(Some(Ok(batch)));
                 if let Some(baseline_metrics) = &baseline_metrics {
@@ -509,7 +501,7 @@ impl Stream for CandleDataStream {
                     poll
                 }
             }
-            DataStreamManager::AccumulateLHSStreamRHS => {
+            (DataStreamManager::Accumulate, DataStreamManager::Stream) => {
                 self.rhs_inbox.clear();
                 let poll = Poll::Ready(Some(Ok(batch)));
                 if let Some(baseline_metrics) = &baseline_metrics {
@@ -518,7 +510,7 @@ impl Stream for CandleDataStream {
                     poll
                 }
             }
-            DataStreamManager::StreamLHSAccumulateRHS => {
+            (DataStreamManager::Stream, DataStreamManager::Accumulate) => {
                 self.lhs_inbox.clear();
                 let poll = Poll::Ready(Some(Ok(batch)));
                 if let Some(baseline_metrics) = &baseline_metrics {
@@ -527,7 +519,7 @@ impl Stream for CandleDataStream {
                     poll
                 }
             }
-            DataStreamManager::StreamLHSStreamRHS => {
+            (DataStreamManager::Stream, DataStreamManager::Stream) => {
                 self.lhs_inbox.clear();
                 self.rhs_inbox.clear();
                 let poll = Poll::Ready(Some(Ok(batch)));
@@ -612,7 +604,7 @@ pub mod test_candle_ops_processor {
 #[cfg(test)]
 mod tests {
     use crate::{DataDistanceOperator, candle_operators::AvailableCandleOperators};
-    use arrow::array::Float32Array;
+    use arrow::array::{Float32Array, StringArray};
     use futures::TryStreamExt;
     use phymes_core::{Table, TablePublication};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
@@ -661,7 +653,7 @@ mod tests {
             SendableRecordBatchStreamMessage::get_builder()
                 .with_name(lhs_table.get_name())
                 .with_publisher("s1")
-                .with_subject("d1")
+                .with_subject(lhs_table.get_name())
                 .with_update(&TablePublication::None)
                 .with_message(lhs_table.clone().to_record_batch_stream())
                 .build()?,
@@ -671,7 +663,7 @@ mod tests {
             SendableRecordBatchStreamMessage::get_builder()
                 .with_name(rhs_table.get_name())
                 .with_publisher("s1")
-                .with_subject("d1")
+                .with_subject(rhs_table.get_name())
                 .with_update(&TablePublication::None)
                 .with_message(rhs_table.clone().to_record_batch_stream())
                 .build()?,
@@ -871,7 +863,7 @@ mod tests {
             SendableRecordBatchStreamMessage::get_builder()
                 .with_name(lhs_table.get_name())
                 .with_publisher("s1")
-                .with_subject("d1")
+                .with_subject(lhs_table.get_name())
                 .with_update(&TablePublication::None)
                 .with_message(lhs_table.clone().to_record_batch_stream())
                 .build()?,
@@ -881,7 +873,7 @@ mod tests {
             SendableRecordBatchStreamMessage::get_builder()
                 .with_name(rhs_table.get_name())
                 .with_publisher("s1")
-                .with_subject("d1")
+                .with_subject(rhs_table.get_name())
                 .with_update(&TablePublication::None)
                 .with_message(rhs_table.clone().to_record_batch_stream())
                 .build()?,
@@ -962,7 +954,8 @@ mod tests {
             rhs_values: Some(vec!["embedding".to_string()]),
             dist_operator: Some(DataDistanceOperator::NormalizedDotProduct),
             operator: AvailableCandleOperators::VectorDistance,
-            stream: DataStreamManager::AccumulateLHSStreamRHS,
+            lhs_stream: DataStreamManager::Accumulate,
+            rhs_stream: Some(DataStreamManager::Stream),
             ..Default::default()
         };
         let config_table = Table::get_builder()
@@ -977,7 +970,7 @@ mod tests {
             SendableRecordBatchStreamMessage::get_builder()
                 .with_name(lhs_table.get_name())
                 .with_publisher("s1")
-                .with_subject("d1")
+                .with_subject(lhs_table.get_name())
                 .with_update(&TablePublication::None)
                 .with_message(lhs_table.clone().to_record_batch_stream())
                 .build()?,
@@ -987,7 +980,7 @@ mod tests {
             SendableRecordBatchStreamMessage::get_builder()
                 .with_name(rhs_table.get_name())
                 .with_publisher("s1")
-                .with_subject("d1")
+                .with_subject(rhs_table.get_name())
                 .with_update(&TablePublication::None)
                 .with_message(rhs_table.clone().to_record_batch_stream())
                 .build()?,
@@ -1068,7 +1061,8 @@ mod tests {
             rhs_values: Some(vec!["embedding".to_string()]),
             dist_operator: Some(DataDistanceOperator::NormalizedDotProduct),
             operator: AvailableCandleOperators::VectorDistance,
-            stream: DataStreamManager::StreamLHSStreamRHS,
+            lhs_stream: DataStreamManager::Stream,
+            rhs_stream: Some(DataStreamManager::Stream),
             ..Default::default()
         };
         let config_table = Table::get_builder()
@@ -1083,7 +1077,7 @@ mod tests {
             SendableRecordBatchStreamMessage::get_builder()
                 .with_name(lhs_table.get_name())
                 .with_publisher("s1")
-                .with_subject("d1")
+                .with_subject(lhs_table.get_name())
                 .with_update(&TablePublication::None)
                 .with_message(lhs_table.clone().to_record_batch_stream())
                 .build()?,
@@ -1093,7 +1087,7 @@ mod tests {
             SendableRecordBatchStreamMessage::get_builder()
                 .with_name(rhs_table.get_name())
                 .with_publisher("s1")
-                .with_subject("d1")
+                .with_subject(rhs_table.get_name())
                 .with_update(&TablePublication::None)
                 .with_message(rhs_table.clone().to_record_batch_stream())
                 .build()?,
@@ -1172,7 +1166,8 @@ mod tests {
             rhs_values: Some(vec!["embedding".to_string()]),
             dist_operator: Some(DataDistanceOperator::NormalizedDotProduct),
             operator: AvailableCandleOperators::VectorDistance,
-            stream: DataStreamManager::StreamLHSAccumulateRHS,
+            lhs_stream: DataStreamManager::Stream,
+            rhs_stream: Some(DataStreamManager::Accumulate),
             ..Default::default()
         };
         let config_table = Table::get_builder()
@@ -1187,7 +1182,7 @@ mod tests {
             SendableRecordBatchStreamMessage::get_builder()
                 .with_name(lhs_table.get_name())
                 .with_publisher("s1")
-                .with_subject("d1")
+                .with_subject(lhs_table.get_name())
                 .with_update(&TablePublication::None)
                 .with_message(lhs_table.clone().to_record_batch_stream())
                 .build()?,
@@ -1197,7 +1192,7 @@ mod tests {
             SendableRecordBatchStreamMessage::get_builder()
                 .with_name(rhs_table.get_name())
                 .with_publisher("s1")
-                .with_subject("d1")
+                .with_subject(rhs_table.get_name())
                 .with_update(&TablePublication::None)
                 .with_message(rhs_table.clone().to_record_batch_stream())
                 .build()?,

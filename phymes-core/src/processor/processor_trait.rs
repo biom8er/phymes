@@ -70,7 +70,7 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     ///
     /// [`spawn`]: tokio::task::spawn
     /// [`JoinSet`]: tokio::task::JoinSet
-    /// [`SessionStreamStep`]: crate::session::SessionStreamStep
+    /// [`SessionStreamStep`]: phymes_agents::SessionStreamStep
     /// [`RecordBatchReceiverStreamBuilder`]: crate::table::RecordBatchReceiverStreamBuilder
     ///
     /// # Messages handling

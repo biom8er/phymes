@@ -7,10 +7,12 @@ use phymes_diagnostics::convert_timestamp_micros_to_str;
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
 
+use phymes_agents::{
+    SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
+};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, SessionInterfaceMessage,
-    SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait, TableBuilder,
-    TableBuilderTrait, TablePublication, TableTrait,
+    BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, TableBuilder, TableBuilderTrait,
+    TablePublication, TableTrait,
 };
 use phymes_server::create_session_name;
 

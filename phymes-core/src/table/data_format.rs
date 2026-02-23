@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 
-#[derive(Parser, Debug, Copy, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[derive(Parser, Debug, Copy, PartialEq, Eq, Serialize, Deserialize, Clone, Hash)]
 pub struct CsvFormat {
     pub delimiter: u8,
     pub header: bool,
@@ -21,7 +21,7 @@ impl Default for CsvFormat {
     }
 }
 
-#[derive(Parser, Debug, Copy, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[derive(Parser, Debug, Copy, PartialEq, Eq, Serialize, Deserialize, Clone, Hash)]
 pub struct JsonFormat {
     pub batch_size: usize,
 }
@@ -32,188 +32,7 @@ impl Default for JsonFormat {
     }
 }
 
-/// How to extract out the OWL triples
-///
-/// # Notes
-/// * the resultant schema is subject, predicate, object
-/// * subject = serialized {attr: val}
-/// * predicate = predicate tag
-/// * object = serialized {attr: val} or text
-#[derive(Parser, Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Default)]
-pub struct OwlFormat {
-    /// Slice of Strings for the subject tags to consider (e.g., rdf:Description)
-    /// empty indicates all
-    pub subject_tags: Vec<String>,
-    /// Slice of Strings of attributes to identify the subject (i.e., rdf:about)
-    /// empty indicates all
-    pub subject_attributes: Vec<String>,
-    /// Slice of Strings for the predicate tags to consider (e.g., rdfs:label)
-    /// empty indicates all
-    pub predicate_tags: Vec<String>,
-    /// Slice of Strings of attributes to identify the object within the predicate element (i.e., rdf:resource) if specified
-    /// empty indicates all
-    pub predicate_attributes: Vec<String>,
-}
-
-impl OwlFormat {
-    pub fn owl_format_ontology() -> Self {
-        let subject_tags = ["owl:Ontology"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
-        let subject_attributes = ["rdf:about"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
-        let predicate_tags = [
-            "owl:versionIRI",
-            "obo:IAO_0000700",
-            "dc:description",
-            "dc:title",
-            "terms:license",
-            "terms:description",
-            "terms:title",
-            "oboInOwl:default-namespace",
-            "oboInOwl:hasOBOFormatVersion",
-            "owl:versionInfo",
-            "foaf:homepage",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
-        let predicate_attributes = ["rdf:resource"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
-        OwlFormat {
-            subject_tags,
-            subject_attributes,
-            predicate_tags,
-            predicate_attributes,
-        }
-    }
-    pub fn owl_format_class() -> Self {
-        let subject_tags = ["owl:Class"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
-        let subject_attributes = ["rdf:about"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
-        let predicate_tags = [
-            "rdf:type",
-            "rdfs:label",
-            "rdfs:seeAlso",
-            "obo:IAO_0000115",
-            "oboInOwl:hasOBONamespace",
-            "oboInOwl:id",
-            "oboInOwl:hasRelatedSynonym",
-            "oboInOwl:hasExactSynonym",
-            "oboInOwl:hasBroadSynonym",
-            "oboInOwl:hasNarrowSynonym",
-            "owl:sameAs",
-            "skos:closeMatch",
-            "skos:exactMatch",
-            "skos:broadMatch",
-            "skos:narrowMatch",
-            "skos:relatedMatch",
-            "skos:semanticRelation",
-            "skos:broader",
-            "skos:narrower",
-            "skos:related",
-            "skos:broaderTransitive",
-            "skos:narrowerTransitive",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
-        let predicate_attributes = ["rdf:resource"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
-        OwlFormat {
-            subject_tags,
-            subject_attributes,
-            predicate_tags,
-            predicate_attributes,
-        }
-    }
-    pub fn owl_format_object_property() -> Self {
-        let subject_tags = ["owl:ObjectProperty"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
-        let subject_attributes = ["rdf:about"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
-        let predicate_tags = [
-            "rdf:type",
-            "rdfs:label",
-            "rdfs:seeAlso",
-            "obo:IAO_0000115",
-            "oboInOwl:hasOBONamespace",
-            "oboInOwl:id",
-            "oboInOwl:hasRelatedSynonym",
-            "oboInOwl:hasExactSynonym",
-            "oboInOwl:hasBroadSynonym",
-            "oboInOwl:hasNarrowSynonym",
-            "owl:sameAs",
-            "owl:inverseOf ",
-            "rdfs:subPropertyOf",
-            "rdfs:domain",
-            "rdfs:range",
-            "skos:closeMatch",
-            "skos:exactMatch",
-            "skos:broadMatch",
-            "skos:narrowMatch",
-            "skos:relatedMatch",
-            "skos:semanticRelation",
-            "skos:broader",
-            "skos:narrower",
-            "skos:related",
-            "skos:broaderTransitive",
-            "skos:narrowerTransitive",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
-        let predicate_attributes = ["rdf:resource"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
-        OwlFormat {
-            subject_tags,
-            subject_attributes,
-            predicate_tags,
-            predicate_attributes,
-        }
-    }
-    pub fn owl_format_named_individual() -> Self {
-        let subject_tags = ["owl:NamedIndividual"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
-        let subject_attributes = ["rdf:about"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
-        let predicate_tags = Vec::new();
-        let predicate_attributes = ["rdf:resource"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
-        OwlFormat {
-            subject_tags,
-            subject_attributes,
-            predicate_tags,
-            predicate_attributes,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, ValueEnum, Deserialize, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, ValueEnum, Deserialize, Default, Hash)]
 pub enum DataFormat {
     /// Comma Seperated Values string
     #[value(name = "CsvDefault")]
@@ -221,12 +40,19 @@ pub enum DataFormat {
     #[clap(skip)]
     #[value(name = "Csv")]
     Csv(CsvFormat),
-    /// Json attachment
+    /// Json attachment with common defaults
     #[value(name = "JsonDefault")]
     JsonDefault,
+    /// Json attachment
     #[clap(skip)]
     #[value(name = "Json")]
     Json(JsonFormat),
+    /// Json attachment with a specified schema
+    ///   and `JsonSchemaTrait` to parse to [RecordBatch]es
+    ///
+    /// [RecordBatch]: arrow::record_batch::RecordBatch
+    #[value(name = "JsonSchema")]
+    JsonSchema,
     /// Pdf attachment
     #[value(name = "Pdf")]
     Pdf,
@@ -252,21 +78,8 @@ pub enum DataFormat {
     #[value(name = "Xml")]
     Xml,
     /// OWL format
-    #[value(name = "OwlDefault")]
-    OwlDefault,
-    /// OWL format
-    #[value(name = "OwlOntology")]
-    OwlOntology,
-    #[value(name = "OwlClass")]
-    OwlClass,
-    #[value(name = "OwlObjectProperty")]
-    OwlObjectProperty,
-    #[value(name = "OwlNamedIndividual")]
-    OwlNamedIndividual,
-    /// OWL format
-    #[clap(skip)]
     #[value(name = "Owl")]
-    Owl(OwlFormat),
+    Owl,
 }
 
 impl DataFormat {
@@ -281,7 +94,7 @@ impl DataFormat {
             "html" => DataFormat::Html,
             "txt" => DataFormat::Txt,
             "xml" => DataFormat::Xml,
-            "owl" => DataFormat::OwlDefault,
+            "owl" => DataFormat::Owl,
             _ => {
                 return Err(anyhow!(
                     "File extension {extension} was not recognized. Supported extensions are .csv, .json, .pdf, .bytes, .ipc, .txt, .xml,, .owl, and .html"
@@ -295,19 +108,14 @@ impl DataFormat {
     pub fn to_extension(&self) -> &str {
         match self {
             Self::Csv(_) | Self::CsvDefault => "csv",
-            Self::Json(_) | Self::JsonDefault => "json",
+            Self::Json(_) | Self::JsonDefault | Self::JsonSchema => "json",
             Self::Bytes => "bytes",
             Self::Ipc => "ipc",
             Self::Pdf => "pdf",
             Self::Html => "html",
             Self::Txt => "txt",
             Self::Xml => "xml",
-            Self::Owl(_)
-            | Self::OwlDefault
-            | Self::OwlOntology
-            | Self::OwlClass
-            | Self::OwlObjectProperty
-            | Self::OwlNamedIndividual => "owl",
+            Self::Owl => "owl",
             Self::None => "",
         }
     }
@@ -320,18 +128,14 @@ impl Display for DataFormat {
             Self::CsvDefault => write!(f, "CsvDefault"),
             Self::Json(_) => write!(f, "Json"),
             Self::JsonDefault => write!(f, "JsonDefault"),
+            Self::JsonSchema => write!(f, "JsonSchema"),
             Self::Bytes => write!(f, "Bytes"),
             Self::Ipc => write!(f, "Ipc"),
             Self::Pdf => write!(f, "Pdf"),
             Self::Html => write!(f, "Html"),
             Self::Txt => write!(f, "Txt"),
             Self::Xml => write!(f, "Xml"),
-            Self::Owl(_) => write!(f, "Owl"),
-            Self::OwlDefault => write!(f, "OwlDefault"),
-            Self::OwlOntology => write!(f, "OwlOntology"),
-            Self::OwlClass => write!(f, "OwlClass"),
-            Self::OwlObjectProperty => write!(f, "OwlObjectProperty"),
-            Self::OwlNamedIndividual => write!(f, "OwlNamedIndividual"),
+            Self::Owl => write!(f, "Owl"),
             Self::None => write!(f, "None"),
         }
     }

@@ -23,12 +23,6 @@ impl Default for NextSuperstepSession<'_> {
 
 impl<'a> NextSuperstepSession<'a> {
     /// Return the pre-compiled task subscriptions and publications as messages
-    ///
-    /// # Notes
-    /// * Messages 1, 2, and 4 trigger SuperSteps
-    /// * Message 3 is empty and is meant to trigger `tasks_subscribe` method of [SessionContext]
-    ///
-    /// [SessionContext]: crate::SessionContext
     pub fn as_task_messages(&self) -> Result<Vec<IPCMessageMap>> {
         // 1. Message to trigger the first superstep
         let task_names = vec!["max_superstep_t"]
@@ -134,7 +128,7 @@ impl<'a> NextSuperstepSession<'a> {
         Utf8 lhs_name "SessionSupersteps"
         List-Utf8 lhs_values "['session_name']"
         Utf8 operator "GroupBy"
-        Utf8 stream "AccumulateLHSAccumulateRHS"
+        Utf8 lhs_stream "Accumulate"
     }
     SessionSuperstepMax["SessionSuperstepMax"] {
         Utf8 session_name
