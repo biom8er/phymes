@@ -66,7 +66,7 @@ impl IPCMessage {
     ///   where `bytes` is a serializable payload
     /// - It is up to the implementer to assure that the `values`
     ///   can be deserialized to the intended schema
-    /// 
+    ///
     /// [RecordBatch]: arrow::record_batch::RecordBatch
     pub fn to_map(self) -> Result<IPCMessageMap> {
         // Expected fields if it is an aggregated message

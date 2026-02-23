@@ -11,6 +11,8 @@ use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
     DataConfig, DataStreamManager, ToolTrait,
 };
+#[cfg(feature = "api")]
+use phymes_ml::AvailableOpenAIAssets;
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 
 use arrow::datatypes::{DataType, Field, Fields};

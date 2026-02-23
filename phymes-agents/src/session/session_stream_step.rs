@@ -536,7 +536,7 @@ pub trait SessionStreamStepTrait {
 }
 
 /// A single step of a [SessionStream]
-/// 
+///
 /// [SessionStream]: crate::SessionStream
 pub struct SessionStreamStep {}
 
@@ -629,7 +629,7 @@ impl SessionStreamStepTrait for SessionStreamStep {
 }
 
 /// A single step of a minimal [SessionStream] that does not including logging and diagnostics
-/// 
+///
 /// [SessionStream]: crate::SessionStream
 pub struct SessionStreamStepMinimal {}
 

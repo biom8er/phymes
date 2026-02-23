@@ -47,7 +47,7 @@ pub trait SessionContextBuilderAgentsTrait {
     /// # Notes
     /// 1. Check for consistency between the `lhs_name` and `rhs_name` in any [DataConfig]s and the subscriptions of the [ProcessorTrait]s
     /// 2. Check for consistency between the `lhs_pk`, `rhs_pk`, `lhs_fk`, `rhs_fk`, `lhs_values`, and `rhs_values` in any [DataConfig]s and the subscriptions of the [ProcessorTrait]s
-    /// 
+    ///
     /// [ProcessorTrait]: phymes_core::ProcessorTrait
     fn check_data_config_subjects(&self) -> Result<()>;
 
@@ -63,7 +63,7 @@ pub trait SessionContextBuilderAgentsTrait {
     fn check_processor_config_builds(&self) -> Result<()>;
 
     /// Check that all [ProcessorTrait]s subscribe to a subject of the same name
-    /// 
+    ///
     /// [ProcessorTrait]: phymes_core::ProcessorTrait
     fn check_processor_config_subjects(&self) -> Result<()>;
 

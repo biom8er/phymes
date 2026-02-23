@@ -49,7 +49,7 @@ pub enum DataFormat {
     Json(JsonFormat),
     /// Json attachment with a specified schema
     ///   and `JsonSchemaTrait` to parse to [RecordBatch]es
-    /// 
+    ///
     /// [RecordBatch]: arrow::record_batch::RecordBatch
     #[value(name = "JsonSchema")]
     JsonSchema,
