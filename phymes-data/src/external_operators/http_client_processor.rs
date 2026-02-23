@@ -16,7 +16,8 @@ use phymes_core::{
     SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait,
-    create_blob_batch, create_chat_record_batch, create_values_fields, remove_message_by_subject, create_bytes_fields
+    create_blob_batch, create_bytes_fields, create_chat_record_batch, create_values_fields,
+    remove_message_by_subject,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
@@ -196,14 +197,15 @@ impl Stream for HTTPClientRequestStream {
                         .fields()
                         .contains(&create_bytes_fields())
                     {
-                        let config_json = config_table.get_column_as_vec_nested_primitive::<u8>("bytes")?
+                        let config_json = config_table
+                            .get_column_as_vec_nested_primitive::<u8>("bytes")?
                             .into_iter()
                             .map(|b| String::from_utf8(b).unwrap())
                             .collect::<Vec<_>>()
                             .join("");
                         let config = serde_json::from_str::<HTTPClientConfig>(&config_json)?;
                         self.config.replace(config);
-                    }  else {
+                    } else {
                         let config = HTTPClientConfig::from_table(&config_table)?;
                         self.config.replace(config);
                     }

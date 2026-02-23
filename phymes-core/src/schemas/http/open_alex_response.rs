@@ -50,7 +50,7 @@ pub struct OpenAlexResponseWorks {
 }
 
 impl JsonSchemaTrait for OpenAlexResponseWorks {
-    /// Parse the OpenAlexResponseWorks object into tables following the [create_ipc_fields] schema
+    /// Parse the OpenAlexResponseWorks object into tables following the `create_ipc_fields` schema
     ///   where each row is routed to a different table
     fn to_record_batch(self, publisher: &str) -> Result<RecordBatch> {
         let mut work_tables = Vec::new();

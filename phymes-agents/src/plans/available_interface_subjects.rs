@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 /// Check that one or more of the [AvailableInterfaceSubjects] are provided in the [SessionContextBuilder]
 ///
-/// [SessionContextBuilder]: phymes_core::SessionContextBuilder
+/// [SessionContextBuilder]: crate::SessionContextBuilder
 pub fn check_agent_subjects(subjects: &[String]) -> Result<()> {
     let mut has_messaging_publish = false;
     let mut has_message_subscribe = false;

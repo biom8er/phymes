@@ -358,106 +358,102 @@ mod tests {
 
         let message_map = create_message_map(vec![chat_message]);
 
-        // Run the session
-        let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
-        let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        // Avoid running with Candle without GPU acceleration
+        if cfg!(any(
+            all(not(feature = "candle"), feature = "wsl"),
+            all(not(feature = "candle"), feature = "wasip2"),
+            feature = "gpu"
+        )) {
+            // Run the session
+            let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
+            let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-        // {
-        //     // Debug any errors
-        //     let subjects_reading = session_ctx_arc.read();
-        //     let table_reading = subjects_reading
-        //         .get_states()
-        //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
-        //         .unwrap()
-        //         .read();
-        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        // }
+            assert_eq!(response.len(), 0);
 
-        assert_eq!(response.len(), 0);
-
-        {
-            // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .get_states()
-                .get(
-                    AvailableInterfaceSubjects::AssistantMessages
-                        .to_string()
-                        .as_str(),
-                )
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 1);
-            let column = table_reading.get_column_as_vec_str("role");
-            assert_eq!(column.first().unwrap(), &"assistant");
-            let column = table_reading.get_column_as_vec_str("content");
-            let assistant_content = column.first().unwrap();
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-            for t in column {
-                assert!(t > 0);
-            }
-            let table_reading = session_reading
-                .get_states()
-                .get(
-                    AvailableInterfaceSubjects::ToolMessages
-                        .to_string()
-                        .as_str(),
-                )
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 0);
-            let table_reading = session_reading
-                .get_states()
-                .get(
-                    AvailableInterfaceSubjects::AggregatedMessages
-                        .to_string()
-                        .as_str(),
-                )
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 2);
-            let column = table_reading.get_column_as_vec_str("role");
-            assert_eq!(column.first().unwrap(), &"user");
-            assert_eq!(column.last().unwrap(), &"assistant");
-            let column = table_reading.get_column_as_vec_str("content");
-            assert_eq!(
-                column.first().unwrap(),
-                &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
-            );
-            assert_eq!(column.last().unwrap(), assistant_content);
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-            for t in column {
-                assert!(t > 0);
-            }
-            let table_reading = session_reading
-                .get_states()
-                .get("aggregate_messages_generate_text_s")
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 1);
-            let column = table_reading.get_column_as_vec_str("role");
-            assert_eq!(column.first().unwrap(), &"user");
-            let column = table_reading.get_column_as_vec_str("content");
-            assert_eq!(
-                column.first().unwrap(),
-                &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
-            );
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-            for t in column {
-                assert!(t > 0);
-            }
-            let table_reading = session_reading
-                .get_states()
-                .get("generate_text_inference_s")
-                .unwrap()
-                .read();
-            assert!(table_reading.count_rows() > 1);
-            let column = table_reading.get_column_as_vec_str("role");
-            assert_eq!(column.first().unwrap(), &"assistant");
-            assert_eq!(column.last().unwrap(), &"assistant");
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-            for t in column {
-                assert!(t > 0);
+            {
+                // Test supsersteps
+                let session_reading = session_ctx_arc.read();
+                let table_reading = session_reading
+                    .get_states()
+                    .get(
+                        AvailableInterfaceSubjects::AssistantMessages
+                            .to_string()
+                            .as_str(),
+                    )
+                    .unwrap()
+                    .read();
+                assert_eq!(table_reading.count_rows(), 1);
+                let column = table_reading.get_column_as_vec_str("role");
+                assert_eq!(column.first().unwrap(), &"assistant");
+                let column = table_reading.get_column_as_vec_str("content");
+                let assistant_content = column.first().unwrap();
+                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                for t in column {
+                    assert!(t > 0);
+                }
+                let table_reading = session_reading
+                    .get_states()
+                    .get(
+                        AvailableInterfaceSubjects::ToolMessages
+                            .to_string()
+                            .as_str(),
+                    )
+                    .unwrap()
+                    .read();
+                assert_eq!(table_reading.count_rows(), 0);
+                let table_reading = session_reading
+                    .get_states()
+                    .get(
+                        AvailableInterfaceSubjects::AggregatedMessages
+                            .to_string()
+                            .as_str(),
+                    )
+                    .unwrap()
+                    .read();
+                assert_eq!(table_reading.count_rows(), 2);
+                let column = table_reading.get_column_as_vec_str("role");
+                assert_eq!(column.first().unwrap(), &"user");
+                assert_eq!(column.last().unwrap(), &"assistant");
+                let column = table_reading.get_column_as_vec_str("content");
+                assert_eq!(
+                    column.first().unwrap(),
+                    &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
+                );
+                assert_eq!(column.last().unwrap(), assistant_content);
+                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                for t in column {
+                    assert!(t > 0);
+                }
+                let table_reading = session_reading
+                    .get_states()
+                    .get("aggregate_messages_generate_text_s")
+                    .unwrap()
+                    .read();
+                assert_eq!(table_reading.count_rows(), 1);
+                let column = table_reading.get_column_as_vec_str("role");
+                assert_eq!(column.first().unwrap(), &"user");
+                let column = table_reading.get_column_as_vec_str("content");
+                assert_eq!(
+                    column.first().unwrap(),
+                    &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
+                );
+                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                for t in column {
+                    assert!(t > 0);
+                }
+                let table_reading = session_reading
+                    .get_states()
+                    .get("generate_text_inference_s")
+                    .unwrap()
+                    .read();
+                assert!(table_reading.count_rows() > 1);
+                let column = table_reading.get_column_as_vec_str("role");
+                assert_eq!(column.first().unwrap(), &"assistant");
+                assert_eq!(column.last().unwrap(), &"assistant");
+                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                for t in column {
+                    assert!(t > 0);
+                }
             }
         }
         Ok(())
@@ -552,7 +548,6 @@ mod tests {
             all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
-
             // Run the session
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
@@ -675,7 +670,8 @@ mod tests {
                     .unwrap()
                     .read();
                 assert_eq!(table_reading.count_rows(), 1);
-                let column = table_reading.get_column_as_vec_nested_primitive::<u8>("bytes")?
+                let column = table_reading
+                    .get_column_as_vec_nested_primitive::<u8>("bytes")?
                     .into_iter()
                     .map(|b| String::from_utf8(b).unwrap())
                     .collect::<Vec<_>>();
@@ -791,7 +787,6 @@ mod tests {
             all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
-
             // Run the session
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
@@ -1012,7 +1007,6 @@ mod tests {
             all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
-
             // Run the session
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;

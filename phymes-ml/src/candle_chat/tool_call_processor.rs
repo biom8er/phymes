@@ -5,7 +5,12 @@ use std::{
 };
 
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, create_bytes_fields, create_session_tasks_subscribe_publish_batch, create_values_fields, remove_message_by_subject
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait,
+    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
+    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, create_bytes_fields,
+    create_session_tasks_subscribe_publish_batch, create_values_fields, remove_message_by_subject,
 };
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
@@ -15,7 +20,7 @@ use phymes_diagnostics::{
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{Stream, StreamExt};
-use serde_json::Value;
+use serde_json::{Map, Value};
 use tracing::{Level, event, instrument};
 
 use crate::candle_chat::tool_call_config::ToolCallConfig;
@@ -295,50 +300,76 @@ impl Stream for ToolCallStream {
                         batches.push(batch);
                     }
 
-                    // Extract the subscription configuration tables
+                    // Extract the subscription configuration batches
                     let table = Table::get_builder()
                         .with_name("Tool call subscription subject")
                         .with_record_batches(batches)?
                         .build()?;
 
-                    // Check for values or bytes
-                    let table = if table.get_schema().fields().contains(&create_values_fields()) {
-                        let values = table.get_column_as_vec_str("values")
-                            .into_iter()
-                            .map(|b| serde_json::from_str::<Value>(&b).unwrap())
-                            .collect::<Vec<_>>();
-                        Table::get_builder()                            
-                            .with_name("Tool call subscription subject from Values")
-                            .with_json_values(&values)?
-                            .build()?
-                    } else if table.get_schema().fields().contains(&create_bytes_fields()) {
-                        let values = table.get_column_as_vec_nested_primitive::<u8>("bytes")?
-                            .into_iter()
-                            .map(|b| serde_json::from_slice::<Value>(&b).unwrap())
-                            .collect::<Vec<_>>();
-                        Table::get_builder()                            
-                            .with_name("Tool call subscription subject from Bytes")
-                            .with_json_values(&values)?
-                            .build()?
-                    } else {
-                        table
-                    };
-
-                    // Extract the tool call subscription table names
-                    let tool_call_subject_names: Vec<String> = table
+                    // Extract the tool call subscription table names directly from the table or
+                    //  or from values/bytes schemas used with tool calls
+                    let tool_call_subject_names = if table
                         .get_schema()
                         .fields()
-                        .iter()
-                        .filter_map(|field| {
-                            if subscription_table_names_set.contains(field.name()) {
-                                let subscription_table_name =
-                                    table.get_column_as_vec_str(field.name());
-                                subscription_table_name.last().map(|name| name.to_string())
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
+                        .contains(&create_values_fields())
+                    {
+                        table
+                            .get_column_as_vec_str("values")
+                            .last()
+                            .map(|b| {
+                                serde_json::from_str::<Map<String, Value>>(b)
+                                    .unwrap()
+                                    .into_iter()
+                                    .filter_map(|(k, v)| {
+                                        if subscription_table_names_set.contains(&k) {
+                                            Some(v.as_str().unwrap().to_string())
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                            .ok_or(anyhow!(
+                                "Missing `values` for subscription `{}` in tool_call_processor",
+                                table.get_name()
+                            ))?
+                    } else if table.get_schema().fields().contains(&create_bytes_fields()) {
+                        table
+                            .get_column_as_vec_nested_primitive::<u8>("bytes")?
+                            .last()
+                            .map(|b| {
+                                serde_json::from_slice::<Map<String, Value>>(b)
+                                    .unwrap()
+                                    .into_iter()
+                                    .filter_map(|(k, v)| {
+                                        if subscription_table_names_set.contains(&k) {
+                                            Some(v.as_str().unwrap().to_string())
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                            .ok_or(anyhow!(
+                                "Missing `bytes` for subscription `{}` in tool_call_processor",
+                                table.get_name()
+                            ))?
+                    } else {
+                        table
+                            .get_schema()
+                            .fields()
+                            .iter()
+                            .filter_map(|field| {
+                                if subscription_table_names_set.contains(field.name()) {
+                                    let subscription_table_name =
+                                        table.get_column_as_vec_str(field.name());
+                                    subscription_table_name.last().map(|name| name.to_string())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<Vec<String>>()
+                    };
 
                     // Create the `SessionTasksSubscribePublish` batches
                     if let Some(all_subscribe_publish) =

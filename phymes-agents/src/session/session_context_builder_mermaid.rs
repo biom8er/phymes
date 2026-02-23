@@ -58,7 +58,7 @@ pub trait SessionContextBuilderMermaidTrait {
     /// * `flowchart`: the flowchart diagram String
     /// * `agent_subjects`: whether to check for the presence of [AvailableInterfaceSubjects] with [check_agent_subjects]
     ///
-    /// [AvailableInterfaceSubjects]: crate::session_plans::AvailableInterfaceSubjects
+    /// [AvailableInterfaceSubjects]: crate::AvailableInterfaceSubjects
     fn from_mermaid_flowchart(flowchart: &str, agent_subjects: bool) -> Result<Self>
     where
         Self: Sized;
@@ -70,7 +70,7 @@ pub trait SessionContextBuilderMermaidTrait {
     /// * `agent_subjects`: whether to check for the presence of [AvailableInterfaceSubjects] with [check_agent_subjects]
     /// * `with_values`: whether to add the example values or leave the [RecordBatch]es empty
     ///
-    /// [AvailableInterfaceSubjects]: crate::session_plans::AvailableInterfaceSubjects
+    /// [AvailableInterfaceSubjects]: crate::AvailableInterfaceSubjects
     fn with_state_from_mermaid_erdiagram(
         self,
         erdiagram: &str,

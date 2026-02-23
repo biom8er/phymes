@@ -8,7 +8,8 @@ use phymes_core::{
     create_schema_from_fields, create_tools_record_batch,
 };
 use phymes_data::{
-    AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator, DataConfig, DataStreamManager, ToolTrait
+    AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
+    DataConfig, DataStreamManager, ToolTrait,
 };
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 
@@ -718,6 +719,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             cpu: false,
             lhs_stream: DataStreamManager::Accumulate,
             operator: AvailableCandleOperators::PackTabular,
+            lhs_name: Some(self.tool_summary_task_name.to_string()),
             ..Default::default()
         };
         let attachmen_config_json = serde_json::to_vec(&attachment_config).unwrap();

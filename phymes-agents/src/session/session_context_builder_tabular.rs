@@ -100,7 +100,7 @@ pub trait SessionContextBuilderTabularTrait {
     ///   optional subject tables with the actual data
     /// * `state` - Optionally the subject data. If none the subject tables will be initialized.
     ///
-    /// [SessionContext]: phymes_core::SessionContext
+    /// [SessionContext]: crate::SessionContext
     fn from_arrow_tables(tables: &[&Table], state: Option<Vec<Table>>) -> Result<Self>
     where
         Self: Sized;

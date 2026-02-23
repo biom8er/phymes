@@ -27,7 +27,7 @@ use crate::{
 ///
 /// Result = Task (t1) -> Task (t2) -> Task (t3)
 /// where t3 represents the leaf node in the computation and t1 and t2 represent
-///   intermediate nodes in the computation tree. The `run` method of [`RunnableTrait`] of
+///   intermediate nodes in the computation tree. The `run` method of `RunnableTrait` of
 ///   t3 will most likely just produce a stream of its underlying [`RecordBatch`]s
 ///   while t1 and t2 will operate over incoming streams of [`RecordBatch`]s
 ///
@@ -213,10 +213,9 @@ pub mod test_task {
         // mock config for the task
         let a: ArrayRef = Arc::new(StringArray::from(vec!["HumanInTheLoop".to_string()]));
         let b: ArrayRef = Arc::new(BooleanArray::from(vec![true]));
-        let c: ArrayRef = Arc::new(StringArray::from(vec![
-            "Accumulate".to_string(),
-        ]));
-        let batch = RecordBatch::try_from_iter(vec![("operator", a), ("cpu", b), ("lhs_stream", c)])?;
+        let c: ArrayRef = Arc::new(StringArray::from(vec!["Accumulate".to_string()]));
+        let batch =
+            RecordBatch::try_from_iter(vec![("operator", a), ("cpu", b), ("lhs_stream", c)])?;
         let config = TableBuilder::new()
             .with_name(config_name)
             .with_record_batches(vec![batch])?
@@ -237,10 +236,9 @@ pub mod test_task {
         // mock config for the task
         let a: ArrayRef = Arc::new(StringArray::from(vec!["".to_string()]));
         let b: ArrayRef = Arc::new(BooleanArray::from(vec![true]));
-        let c: ArrayRef = Arc::new(StringArray::from(vec![
-            "".to_string(),
-        ]));
-        let batch = RecordBatch::try_from_iter(vec![("operator", a), ("cpu", b), ("lhs_stream", c)])?;
+        let c: ArrayRef = Arc::new(StringArray::from(vec!["".to_string()]));
+        let batch =
+            RecordBatch::try_from_iter(vec![("operator", a), ("cpu", b), ("lhs_stream", c)])?;
         let config = TableBuilder::new()
             .with_name(config_name)
             .with_record_batches(vec![batch])?

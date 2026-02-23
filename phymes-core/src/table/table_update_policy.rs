@@ -31,6 +31,7 @@ pub trait TableUpdatePolicyTrait: MappableTrait + Debug + Send + Sync {
 }
 
 /// If a table has [RecordBatch]es, consider the table updated
+/// 
 /// [RecordBatch]: arrow::record_batch::RecordBatch
 #[derive(Default, Debug, Clone)]
 pub struct TableHasBatchesUpdate {}

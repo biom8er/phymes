@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 /// Configuration for [ToolCallProcessor]
 ///
-/// [ToolCallProcessor]: phymes_ml::ToolCallProcessor
+/// [ToolCallProcessor]: crate::ToolCallProcessor
 #[derive(Parser, Debug, Serialize, Deserialize, Default, Clone)]
 #[command(author, version, about, long_about = None)]
 pub struct ToolCallConfig {

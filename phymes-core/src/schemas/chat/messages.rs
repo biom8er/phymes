@@ -18,6 +18,8 @@ pub fn create_chat_fields() -> Fields {
 }
 
 /// In combination with [ChatTraitExt]
+/// 
+/// [ChatTraitExt]: crate::ChatTraitExt
 #[allow(dead_code)]
 pub struct ChatSubject {
     pub role: String,

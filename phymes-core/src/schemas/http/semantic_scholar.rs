@@ -168,7 +168,7 @@ pub(crate) struct Paper {
 }
 
 /// Author search response
-/// "https://api.semanticscholar.org/graph/v1/author/search?query=geoffrey+hinton&fields=name,url,affiliations,paperCount,citationCount,hIndex&limit=3";
+/// "<https://api.semanticscholar.org/graph/v1/author/search?query=geoffrey+hinton&fields=name,url,affiliations,paperCount,citationCount,hIndex&limit=3>";
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct AuthorSearchResponse {
     total: Option<u32>,

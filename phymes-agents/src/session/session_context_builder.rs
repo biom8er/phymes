@@ -19,10 +19,14 @@ pub trait SessionContextBuilderTrait: BuilderTrait {
     /// Check that the [TaskPlan] and `name are given
     fn check_tasks(&self) -> Result<()>;
     /// Check that all [ProcessorTrait]s defined in the [TaskPlan] are accounted for
+    /// 
+    /// [ProcessorTrait]: phymes_core::ProcessorTrait
     fn check_processors(&self) -> Result<()>;
     /// Check that all [RuntimeEnv]s defined in the [TaskPlan] are accounted for
     fn check_runtime_envs(&self) -> Result<()>;
     /// Check that all subject [Table]s defined in the state and subscribed to by the [ProcessorTrait]s are accounted for
+    /// 
+    /// [ProcessorTrait]: phymes_core::ProcessorTrait
     fn check_state(&self) -> Result<()>;
 }
 

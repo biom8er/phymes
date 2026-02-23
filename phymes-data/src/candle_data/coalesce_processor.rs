@@ -350,8 +350,8 @@ impl RecordBatchStream for CoalesceStream {
     }
 }
 
-/// Indicates the state of the [`CoalescerStream`] buffer after the
-/// [`BatchCoalescer::push_batch()`] operation.
+/// Indicates the state of the [CoalesceStream] buffer after the
+/// `BatchCoalescer::push_batch()` operation.
 ///
 /// The caller should take different actions, depending on the variant returned.
 pub enum CoalescerState {
@@ -361,7 +361,7 @@ pub enum CoalescerState {
     Continue,
     /// The limit has been reached.
     ///
-    /// Action: call [`BatchCoalescer::finish_batch()`] to get the final
+    /// Action: call `BatchCoalescer::finish_batch()` to get the final
     /// buffered results as a batch and then continue pushing batches if not in overflow.
     LimitReached,
 }

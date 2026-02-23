@@ -365,11 +365,11 @@ mod tests {
             all(not(feature = "candle"), feature = "wasip2"),
             feature = "gpu"
         )) {
-
             // Run the first superstep
-            let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map)
-                .await?
-                .unwrap();
+            let response =
+                SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map)
+                    .await?
+                    .unwrap();
 
             assert_eq!(response.len(), 0);
 
@@ -412,8 +412,12 @@ mod tests {
                 assert_eq!(table_reading.count_rows(), 1);
                 let column = table_reading.get_column_as_vec_str("query_id");
                 assert!(!column.is_empty());
-                let column = table_reading.get_column_as_vec_nested_primitive::<f32>("embedding")?;
+                let column =
+                    table_reading.get_column_as_vec_nested_primitive::<f32>("embedding")?;
                 assert_eq!(column.len(), 1);
+                #[cfg(feature = "hf_hub")]
+                assert_eq!(column.first().unwrap().len(), 1536);
+                #[cfg(not(feature = "hf_hub"))]
                 assert_eq!(column.first().unwrap().len(), 384);
                 let table_reading = session_reading
                     .get_states()
@@ -427,8 +431,12 @@ mod tests {
                 let column = table_reading.get_column_as_vec_str("document_id");
                 assert_eq!(column.first().unwrap(), &"WikiBioComponents");
                 assert_eq!(column.last().unwrap(), &"WikiBioComponents");
-                let column = table_reading.get_column_as_vec_nested_primitive::<f32>("embedding")?;
+                let column =
+                    table_reading.get_column_as_vec_nested_primitive::<f32>("embedding")?;
                 assert_eq!(column.len(), 8);
+                #[cfg(feature = "hf_hub")]
+                assert_eq!(column.first().unwrap().len(), 1536);
+                #[cfg(not(feature = "hf_hub"))]
                 assert_eq!(column.first().unwrap().len(), 384);
             }
         }
