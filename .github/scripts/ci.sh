@@ -13,15 +13,29 @@ exec > >(tee -a "$LOG_FILE") 2>&1
 echo "Local CI run started. All output will be saved to: $LOG_FILE"
 echo "-----------------------------------------------"
 
-# The following runs all tests with all CPU, GPU, and WASM features and targets
+# Tests and examples
+echo "Tests and examples for default features for Linux targets."
+echo "-----------------------------------------------"
 cargo test
 dx build -p phymes-app
+
+echo "Tests and examples for gpu feature for Linux targets."
+echo "-----------------------------------------------"
 cargo check --features wsl,gpu,candle --all-targets
 cargo test --features wsl,gpu,candle
 cargo run --package phymes-ml --features wsl,gpu,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --messages "messages" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat_agent_session
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example doc_rag_session
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example tool_agent_session
+
+echo "Tests and examples for api feature for Linux targets."
+echo "-----------------------------------------------"
+cargo check --features wsl,api,candle --all-targets
+cargo test --features wsl,api,candle
+
+echo "Compilation checks for Linux targets."
+echo "-----------------------------------------------"
+cargo test --features wsl,candle,api
 cargo check --all-targets
 cargo check -p phymes-diagnostics --all-targets --no-default-features --features wsl
 cargo check -p phymes-core --all-targets --no-default-features --features wsl
@@ -39,6 +53,9 @@ cargo check -p phymes-app --all-targets --no-default-features --features mobile
 cargo check -p phymes-app --all-targets --no-default-features --features desktop
 cargo clippy --all-targets -- -D warnings
 cargo fmt --all -- --check
+
+echo "Tests and examples for WASM target"
+echo "-----------------------------------------------"
 cargo check -p phymes-diagnostics --features wasip2 --no-default-features --target wasm32-unknown-unknown
 cargo test -p phymes-diagnostics --features wasip2 --no-default-features --target wasm32-wasip2 --no-run --release
 for file in target/wasm32-wasip2/release/deps/phymes_diagnostics-*.wasm; do [ -f "$file" ] && wasmtime "$file"; done
@@ -66,6 +83,9 @@ cargo check -p phymes-server --no-default-features --features wasip2,candle --ta
 cargo test -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --no-run --release
 for file in target/wasm32-wasip2/release/deps/phymes_server-*.wasm; do [ -f "$file" ] && wasmtime --dir=$HOME/.cache/hf --env=HOME=$HOME "$file"; done
 cargo build -p phymes-server --no-default-features --features wasip2,candle --target wasm32-wasip2 --release
+
+echo "Tests and examples for WASM target"
+echo "-----------------------------------------------"
 mdbook test phymes-book
 mdbook build phymes-book
 cargo doc --document-private-items --no-deps -p phymes-diagnostics

@@ -93,6 +93,7 @@ pub enum Currency {
     Unknown,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ConceptLevel {

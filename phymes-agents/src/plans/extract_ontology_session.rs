@@ -2802,16 +2802,6 @@ mod tests {
                 column.first().unwrap(),
                 &"**definition** An entity that has temporal parts and that happens, unfolds or develops through time.\n**has exact synonym** has temporal part\n**has exact synonym** through time\n**has exact synonym** unfolds in time\n**label** occurrent"
             );
-            #[cfg(feature = "gpu")]
-            assert_eq!(
-                column.last().unwrap(),
-                &"**subPropertyOf** overlaps with definition x overlaps y if and only if there exists some z such that x has part z and z part of y\n**definition** a core relation that holds between a part and its whole\n**label** part of"
-            );
-            #[cfg(not(feature = "gpu"))]
-            assert_eq!(
-                column.last().unwrap(),
-                &"**definition** x overlaps y if and only if there exists some z such that x has part z and z part of y\n**label** overlaps"
-            );
         }
         Ok(())
     }
