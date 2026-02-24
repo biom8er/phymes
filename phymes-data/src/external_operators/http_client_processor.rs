@@ -961,9 +961,7 @@ mod tests {
         let result = table.get_column_as_vec_str("role");
         assert_eq!(result, ["tool"]);
         let result = table.get_column_as_vec_str("content").join("");
-        assert!(result.contains(
-            "\"idlist\":["
-        ));
+        assert!(result.contains("\"idlist\":["));
 
         Ok(())
     }
