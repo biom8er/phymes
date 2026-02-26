@@ -42,7 +42,8 @@ use crate::{
 /// * We need to capture each stage of the request so that the connection
 ///   is not dropped during repeated polling of the stream.
 pub enum CommandSandboxStreamState {
-    NotStarted,
+    NewPoll,
+    ExistingPoll,
     Output(Pin<Box<dyn Future<Output = std::io::Result<Output>> + Send + 'static>>),
     Done,
 }
@@ -102,7 +103,9 @@ impl CommandSandboxRunnerInfo {
 #[derive(Debug)]
 pub enum CommandSandboxRunnerState {
     NotStarted,
-    /// Initializing runner and installing any dependencies
+    /// Starting the runner
+    Starting(CommandSandboxRunnerInfo),
+    /// Initializing runner running environment and installing any additional dependencies
     Initializing(CommandSandboxRunnerInfo),
     /// Running the runner for each each streaming batch
     Running(CommandSandboxRunnerInfo),
@@ -212,7 +215,7 @@ impl CommandSandboxStream {
             config_stream,
             _runtime_env: runtime_env,
             config: None,
-            stream_state: CommandSandboxStreamState::NotStarted,
+            stream_state: CommandSandboxStreamState::NewPoll,
             runner_state: CommandSandboxRunnerState::NotStarted,
             message_inbox: None,
             from_cli_args: false,
@@ -224,9 +227,9 @@ impl Stream for CommandSandboxStream {
     type Item = Result<RecordBatch>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        // Iterate through each state until the API request is completed
+        // Iterate through each state until the Command queue is completed
         match &mut self.stream_state {
-            CommandSandboxStreamState::NotStarted => {
+            CommandSandboxStreamState::NewPoll => {
                 // Initialize the config
                 if self.config.is_none() {
                     let mut batches = Vec::new();
@@ -319,7 +322,8 @@ impl Stream for CommandSandboxStream {
                     self.stream_state = CommandSandboxStreamState::Done;
                     match &self.runner_state {
                         CommandSandboxRunnerState::NotStarted => return Poll::Ready(None),
-                        CommandSandboxRunnerState::Initializing(runner_info)
+                        CommandSandboxRunnerState::Starting(runner_info)
+                        | CommandSandboxRunnerState::Initializing(runner_info)
                         | CommandSandboxRunnerState::Running(runner_info)
                         | CommandSandboxRunnerState::Done(runner_info) => {
                             // Cleanup resources
@@ -329,7 +333,12 @@ impl Stream for CommandSandboxStream {
                     }
                 }
 
-                // Create the input/output file or content for the next batch based on the runner state
+                self.stream_state = CommandSandboxStreamState::ExistingPoll;
+                self.poll_next(cx)
+            }
+            CommandSandboxStreamState::ExistingPoll => {
+                // Build the `CommandSandboxRunnerInfo` for the command
+                // NOTE!: we have to declare and initialize ALL mount directories and files when the runner is first called
                 match &self.runner_state {
                     CommandSandboxRunnerState::NotStarted => {
                         // Make a random name for the runner
@@ -548,18 +557,33 @@ impl Stream for CommandSandboxStream {
                             }
                         };
 
-                        // Change to initialize state
-                        if let Some(initialization_file) = initialization_file_path {
-                            runner_info =
-                                runner_info.with_initialization_file(&initialization_file);
-                        }
+                        // Update the runner info with the init and run filepaths
                         if let Some(run_file) = run_file_path {
                             runner_info = runner_info.with_run_file(&run_file);
                         }
-                        self.runner_state = CommandSandboxRunnerState::Initializing(runner_info);
+                        if let Some(initialization_file) = initialization_file_path {
+                            runner_info =
+                                runner_info.with_initialization_file(&initialization_file); 
+                        }
+
+                        // Determine the runner state
+                        match &self.config.as_ref().unwrap().runner {
+                            CommandSandboxRunners::Docker | CommandSandboxRunners::DockerUnsafe => {
+                                self.runner_state = CommandSandboxRunnerState::Starting(runner_info);
+                            }
+                            CommandSandboxRunners::Wasmtime => {
+                                self.runner_state = CommandSandboxRunnerState::Running(runner_info);
+                            }
+                            CommandSandboxRunners::Custom(_) => unimplemented!(),
+                        }
                     }
-                    CommandSandboxRunnerState::Initializing(runner_info)
-                    | CommandSandboxRunnerState::Running(runner_info) => {
+                    CommandSandboxRunnerState::Starting(_runner_info) => unreachable!(),
+                    CommandSandboxRunnerState::Initializing(runner_info) => {
+                        if runner_info.initialization_file.is_none() {
+                            self.runner_state = CommandSandboxRunnerState::Running(runner_info.to_owned());
+                        }
+                    }
+                    CommandSandboxRunnerState::Running(runner_info) => {
                         // Clear the temporary input file and/or create the stdin content
                         let runner_info = match (
                             &self.config.as_ref().unwrap().data_i,
@@ -672,7 +696,7 @@ impl Stream for CommandSandboxStream {
                             match (&self.config.as_ref().unwrap().runner, &self.runner_state) {
                                 (
                                     CommandSandboxRunners::Docker,
-                                    CommandSandboxRunnerState::Initializing(runner_info),
+                                    CommandSandboxRunnerState::Starting(runner_info),
                                 ) => {
                                     let mut command_args = vec![
                                         "run".to_string(),
@@ -682,7 +706,6 @@ impl Stream for CommandSandboxStream {
                                             .as_ref()
                                             .expect("Missing name for runner.")
                                             .to_string(),
-                                        //"--rm".to_string(), // Remove the container after exit
                                         "--network".to_string(),
                                         "none".to_string(), // No network
                                         "--memory".to_string(),
@@ -692,12 +715,10 @@ impl Stream for CommandSandboxStream {
                                         "--read-only".to_string(), // Entire container FS read-only
                                         "--pids-limit".to_string(),
                                         "50".to_string(), // Process limit
+                                        "-d".to_string(), // Datach to run in the background
+                                        "-i".to_string(), // Interactive for subsequent calls
+                                        "-t".to_string(), // TTY for subsequent calls
                                     ];
-
-                                    // // Detach for subsequent calls
-                                    // if runner_info.initialization_file.is_some() {
-                                    //     command_args.push("-d".to_string());
-                                    // }
 
                                     // Mount the project dir if it exists
                                     if let (Some(project_dir), Some(container_project_dir)) = (
@@ -719,7 +740,7 @@ impl Stream for CommandSandboxStream {
                                 }
                                 (
                                     CommandSandboxRunners::DockerUnsafe,
-                                    CommandSandboxRunnerState::Initializing(runner_info),
+                                    CommandSandboxRunnerState::Starting(runner_info),
                                 ) => {
                                     let mut command_args = vec![
                                         "run".to_string(),
@@ -730,11 +751,6 @@ impl Stream for CommandSandboxStream {
                                             .expect("Missing name for runner.")
                                             .to_string(),
                                     ];
-
-                                    // // Detach for subsequent calls
-                                    // if runner_info.initialization_file.is_some() {
-                                    //     command_args.push("-d".to_string());
-                                    // }
 
                                     // User defined container arguments allowed only in an unsafe environment
                                     if let Some(args) =
@@ -764,23 +780,20 @@ impl Stream for CommandSandboxStream {
                                 }
                                 (
                                     CommandSandboxRunners::Docker,
-                                    CommandSandboxRunnerState::Running(runner_info),
-                                )
-                                | (
+                                    CommandSandboxRunnerState::Initializing(_runner_info),
+                                ) | (
                                     CommandSandboxRunners::DockerUnsafe,
-                                    CommandSandboxRunnerState::Running(runner_info),
+                                    CommandSandboxRunnerState::Initializing(_runner_info),
+                                ) | (
+                                    CommandSandboxRunners::Docker,
+                                    CommandSandboxRunnerState::Running(_runner_info),
+                                ) | (
+                                    CommandSandboxRunners::DockerUnsafe,
+                                    CommandSandboxRunnerState::Running(_runner_info),
                                 ) => {
                                     let mut command_args = vec![
-                                        "start".to_string(),
-                                        runner_info
-                                            .name
-                                            .as_ref()
-                                            .expect("Missing name for runner.")
-                                            .to_string(),
-                                        "&&".to_string(),
-                                        "docker".to_string(),
                                         "exec".to_string(),
-                                        // "-it".to_string(), // Interactive mode to keep STDIN open
+                                        "-it".to_string(), // Interactive mode to keep STDIN open
                                     ];
 
                                     // Mount the project dir if it exists
@@ -810,11 +823,14 @@ impl Stream for CommandSandboxStream {
                         // Add docker image/command CLI arguments depending upon the runner state
                         match &self.runner_state {
                             CommandSandboxRunnerState::NotStarted => unreachable!(),
-                            CommandSandboxRunnerState::Initializing(runner_info) => {
-                                // Add docker image, initialization/run script, and optional command
+                            CommandSandboxRunnerState::Starting(_runner_info) => {
+                                // Add docker image and command
                                 command_args.push(
                                     self.config.as_ref().unwrap().container_image.to_string(),
                                 );
+                            }
+                            CommandSandboxRunnerState::Initializing(runner_info) => {
+                                // Add initialization/run script, and optional command
                                 match self.config.as_ref().unwrap().environment {
                                     CommandSandboxEnvironments::Python => {
                                         if let (
@@ -931,13 +947,13 @@ impl Stream for CommandSandboxStream {
                                     }
                                 }
 
-                                // User defined CLI arguments
-                                if let Some(args) = self.config.as_ref().unwrap().cli_args.as_ref()
-                                {
-                                    for arg in args {
-                                        command_args.push(arg.to_string());
-                                    }
-                                }
+                                // // User defined CLI arguments
+                                // if let Some(args) = self.config.as_ref().unwrap().cli_args.as_ref()
+                                // {
+                                //     for arg in args {
+                                //         command_args.push(arg.to_string());
+                                //     }
+                                // }
 
                                 // Add the data
                                 if runner_info.initialization_file.is_none() {
@@ -1201,9 +1217,10 @@ impl Stream for CommandSandboxStream {
                     CommandSandboxRunners::Wasmtime => {
                         // Build wasmtime args
                         let command_args = match &self.runner_state {
-                            CommandSandboxRunnerState::NotStarted => unreachable!(),
-                            CommandSandboxRunnerState::Initializing(runner_info)
-                            | CommandSandboxRunnerState::Running(runner_info) => {
+                            CommandSandboxRunnerState::NotStarted
+                            | CommandSandboxRunnerState::Starting(_)
+                            | CommandSandboxRunnerState::Initializing(_) => unreachable!(),
+                            CommandSandboxRunnerState::Running(runner_info) => {
                                 let mut command_args = Vec::new();
 
                                 // Add run for the component model
@@ -1472,30 +1489,31 @@ impl Stream for CommandSandboxStream {
                     //     dbg!(stdout);
                     // }
 
-                    // Parse the response if running and skip if initializing or done
-                    let batch = match (&self.config.as_ref().unwrap().data_o, &self.runner_state) {
-                        (DataIOMethod::None, CommandSandboxRunnerState::Running(_runner_info)) => {
+                    // Parse the response if running and skip if starting, initializing, or done
+                    let (batch, stream_state, runner_state) = match (&self.config.as_ref().unwrap().data_o, &self.runner_state) {
+                        (DataIOMethod::None, CommandSandboxRunnerState::Running(runner_info)) => {
                             let stdout = String::from_utf8_lossy(&output.stdout);
-                            create_chat_record_batch(
+                            let batch = create_chat_record_batch(
                                 vec!["tool".to_string()],
                                 vec![stdout.to_string()],
                                 vec![create_timestamp_micros()],
-                            )?
+                            )?;
+                            (Some(batch), CommandSandboxStreamState::NewPoll, CommandSandboxRunnerState::Running(runner_info.to_owned()))
                         }
-                        (DataIOMethod::Stdio, CommandSandboxRunnerState::Running(_runner_info)) => {
+                        (DataIOMethod::Stdio, CommandSandboxRunnerState::Running(runner_info)) => {
                             let json_values = serde_json::from_slice::<Vec<Value>>(&output.stdout)?;
                             let table = TableBuilder::new()
                                 .with_name("sandbox_stdio_running")
                                 .with_schema(self.schema.clone())
                                 .with_json_values(&json_values)?
                                 .build()?;
-                            table.get_record_batches_own().pop().unwrap()
+                            let batch = table.get_record_batches_own().pop().unwrap();
+                            (Some(batch), CommandSandboxStreamState::NewPoll, CommandSandboxRunnerState::Running(runner_info.to_owned()))
                         }
                         (
                             DataIOMethod::TempFile,
                             CommandSandboxRunnerState::Running(runner_info),
                         ) => {
-                            // dbg!(&runner_info);
                             let file = fs::File::open(
                                 runner_info
                                     .output_file
@@ -1505,96 +1523,45 @@ impl Stream for CommandSandboxStream {
                             let table = TableBuilder::new_from_ipc_file(file)?
                                 .with_name("sandbox_tempfile_running")
                                 .build()?;
-                            table.get_record_batches_own().pop().unwrap()
+                            let batch = table.get_record_batches_own().pop().unwrap();
+                            (Some(batch), CommandSandboxStreamState::NewPoll, CommandSandboxRunnerState::Running(runner_info.to_owned()))
                         }
                         (
                             DataIOMethod::None,
-                            CommandSandboxRunnerState::Initializing(_runner_info),
-                        ) => {
-                            if self
-                                .config
-                                .as_ref()
-                                .unwrap()
-                                .initialization_script
-                                .is_some()
-                            {
-                                self.stream_state = CommandSandboxStreamState::NotStarted;
-                                return self.poll_next(cx);
-                            } else {
-                                let stdout = String::from_utf8_lossy(&output.stdout);
-                                create_chat_record_batch(
-                                    vec!["tool".to_string()],
-                                    vec![stdout.to_string()],
-                                    vec![create_timestamp_micros()],
-                                )?
-                            }
-                        }
-                        (
+                            CommandSandboxRunnerState::Initializing(runner_info),
+                        ) | (
                             DataIOMethod::Stdio,
-                            CommandSandboxRunnerState::Initializing(_runner_info),
-                        ) => {
-                            if self
-                                .config
-                                .as_ref()
-                                .unwrap()
-                                .initialization_script
-                                .is_some()
-                            {
-                                self.stream_state = CommandSandboxStreamState::NotStarted;
-                                return self.poll_next(cx);
-                            } else {
-                                let json_values =
-                                    serde_json::from_slice::<Vec<Value>>(&output.stdout)?;
-                                let table = TableBuilder::new()
-                                    .with_name("sandbox_stdio_initializing")
-                                    .with_schema(self.schema.clone())
-                                    .with_json_values(&json_values)?
-                                    .build()?;
-                                table.get_record_batches_own().pop().unwrap()
-                            }
-                        }
-                        (
+                            CommandSandboxRunnerState::Initializing(runner_info),
+                        ) | (
                             DataIOMethod::TempFile,
                             CommandSandboxRunnerState::Initializing(runner_info),
-                        ) => {
-                            if self
-                                .config
-                                .as_ref()
-                                .unwrap()
-                                .initialization_script
-                                .is_some()
-                            {
-                                self.stream_state = CommandSandboxStreamState::NotStarted;
-                                return self.poll_next(cx);
-                            } else {
-                                let file = fs::File::open(
-                                    runner_info
-                                        .output_file
-                                        .as_ref()
-                                        .expect("Missing output TempFile from runner."),
-                                )?;
-                                let table = TableBuilder::new_from_ipc_file(file)?
-                                    .with_name("sandbox_tempfile_initializing")
-                                    .build()?;
-                                table.get_record_batches_own().pop().unwrap()
-                            }
-                        }
-                        (_, CommandSandboxRunnerState::Done(_runner_info)) => {
-                            self.stream_state = CommandSandboxStreamState::Done;
-                            return self.poll_next(cx);
-                        }
+                        ) => (None, CommandSandboxStreamState::ExistingPoll, CommandSandboxRunnerState::Running(runner_info.to_owned())),
+                        (
+                            DataIOMethod::None,
+                            CommandSandboxRunnerState::Starting(runner_info),
+                        ) | (
+                            DataIOMethod::Stdio,
+                            CommandSandboxRunnerState::Starting(runner_info),
+                        ) | (
+                            DataIOMethod::TempFile,
+                            CommandSandboxRunnerState::Starting(runner_info),
+                        ) => (None, CommandSandboxStreamState::ExistingPoll, CommandSandboxRunnerState::Initializing(runner_info.to_owned())),
+                        (_, CommandSandboxRunnerState::Done(runner_info)) => (None, CommandSandboxStreamState::Done, CommandSandboxRunnerState::Done(runner_info.to_owned())),
                         _ => unreachable!(),
                     };
 
-                    // Reset the state to poll the next batch
-                    self.stream_state = CommandSandboxStreamState::NotStarted;
-
-                    // record the poll
-                    let poll = Poll::Ready(Some(Ok(batch)));
-                    if let Some(baseline_metrics) = &baseline_metrics {
-                        baseline_metrics.record_poll(poll)
+                    // Record the poll
+                    self.stream_state = stream_state;
+                    self.runner_state = runner_state;
+                    if let Some(batch) = batch {
+                        let poll = Poll::Ready(Some(Ok(batch)));
+                        if let Some(baseline_metrics) = &baseline_metrics {
+                            baseline_metrics.record_poll(poll)
+                        } else {
+                            poll
+                        }
                     } else {
-                        poll
+                        self.poll_next(cx)
                     }
                 }
                 Err(err) => {
@@ -1605,7 +1572,8 @@ impl Stream for CommandSandboxStream {
             CommandSandboxStreamState::Done => {
                 match &self.runner_state {
                     CommandSandboxRunnerState::NotStarted => Poll::Ready(None),
-                    CommandSandboxRunnerState::Initializing(runner_info)
+                    CommandSandboxRunnerState::Starting(runner_info)
+                    | CommandSandboxRunnerState::Initializing(runner_info)
                     | CommandSandboxRunnerState::Running(runner_info) => {
                         self.runner_state = CommandSandboxRunnerState::Done(runner_info.to_owned());
                         self.poll_next(cx)
@@ -1896,7 +1864,7 @@ mod tests {
         let result = table.get_column_as_vec_str("role");
         assert_eq!(result, ["tool"]);
         let result = table.get_column_as_vec_str("content");
-        assert_eq!(result, ["Hello from Docker!\n"]);
+        assert!(result.first().unwrap().contains("Hello from Docker"));
 
         // --- From Stdio ---
 
@@ -2127,7 +2095,7 @@ mod tests {
         let result = table.get_column_as_vec_str("role");
         assert_eq!(result, ["tool"]);
         let result = table.get_column_as_vec_str("content");
-        assert_eq!(result, ["[{\"name\": \"Alice\"}, {\"name\": \"Bob\"}]\n"]);
+        assert!(result.first().unwrap().contains("[{\"name\": \"Alice\"}, {\"name\": \"Bob\"}]"));
 
         // --- From Stdio ---
 
@@ -2218,7 +2186,7 @@ mod tests {
     }
 
     /// Python code execution example
-    #[ignore = "Pip cache not updating within the container resulting in `Command exited with code 127, stderr , and stdout OCI runtime exec failed: exec failed: unable to start container process: exec: \"/home/sandbox/.venv/bin/python\": stat /home/sandbox/.venv/bin/python: no such file or directory: unknown`."]
+    //#[ignore = "Pip cache not updating within the container resulting in `Command exited with code 127, stderr , and stdout OCI runtime exec failed: exec failed: unable to start container process: exec: \"/home/sandbox/.venv/bin/python\": stat /home/sandbox/.venv/bin/python: no such file or directory: unknown`."]
     #[tokio::test]
     async fn test_command_sandbox_processor_docker_py_install() -> Result<()> {
         let name = "CommandSandboxProcessor";
@@ -2366,9 +2334,6 @@ if __name__ == '__main__':
 
     /// Rust code execution example
     /// DM, examples: code execution loop which requires diff'ing https://github.com/AnubhabB/diff-match-patch-rs
-    /// docker run --name phymes-sandbox_64924993032218978991343430064453949968 -d -i -t -v /tmp/phymes-rs-project:/home/sandbox -w /home/sandbox amd64/rust bash
-    /// docker exec -it -w /home/sandbox phymes-sandbox_64924993032218978991343430064453949968 bash /home/sandbox/install.sh
-    /// docker exec -it -w /home/sandbox phymes-sandbox_64924993032218978991343430064453949968 cargo run --release -- --input-file /home/sandbox/input.ipc --output-file /home/sandbox/output.ipc
     #[tokio::test]
     async fn test_command_sandbox_processor_docker_rs_install() -> Result<()> {
         let name = "CommandSandboxProcessor";
@@ -2404,10 +2369,7 @@ clap = { version = "4.5.4", features = ["derive"] }"#;
         // Create the initialization script
         let initialization_str = r#"#!/bin/bash
 apt update
-apt install --assume-yes protobuf-compiler clang
-#rustup toolchain install stable --target x86_64-unknown-linux-gnu
-#rustup default stable
-#curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash"#;
+apt install --assume-yes protobuf-compiler clang"#;
 
         // Create the run script
         let run_str = r#"use arrow::array::ArrayRef;
