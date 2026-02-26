@@ -694,10 +694,10 @@ impl Stream for CommandSandboxStream {
                                         "50".to_string(), // Process limit
                                     ];
 
-                                    // Detach for subsequent calls
-                                    if runner_info.initialization_file.is_some() {
-                                        command_args.push("-d".to_string());
-                                    }
+                                    // // Detach for subsequent calls
+                                    // if runner_info.initialization_file.is_some() {
+                                    //     command_args.push("-d".to_string());
+                                    // }
 
                                     // Mount the project dir if it exists
                                     if let (Some(project_dir), Some(container_project_dir)) = (
@@ -731,10 +731,10 @@ impl Stream for CommandSandboxStream {
                                             .to_string(),
                                     ];
 
-                                    // Detach for subsequent calls
-                                    if runner_info.initialization_file.is_some() {
-                                        command_args.push("-d".to_string());
-                                    }
+                                    // // Detach for subsequent calls
+                                    // if runner_info.initialization_file.is_some() {
+                                    //     command_args.push("-d".to_string());
+                                    // }
 
                                     // User defined container arguments allowed only in an unsafe environment
                                     if let Some(args) =
@@ -764,15 +764,23 @@ impl Stream for CommandSandboxStream {
                                 }
                                 (
                                     CommandSandboxRunners::Docker,
-                                    CommandSandboxRunnerState::Running(_runner_info),
+                                    CommandSandboxRunnerState::Running(runner_info),
                                 )
                                 | (
                                     CommandSandboxRunners::DockerUnsafe,
-                                    CommandSandboxRunnerState::Running(_runner_info),
+                                    CommandSandboxRunnerState::Running(runner_info),
                                 ) => {
                                     let mut command_args = vec![
+                                        "start".to_string(),
+                                        runner_info
+                                            .name
+                                            .as_ref()
+                                            .expect("Missing name for runner.")
+                                            .to_string(),
+                                        "&&".to_string(),
+                                        "docker".to_string(),
                                         "exec".to_string(),
-                                        "-it".to_string(), // Interactive mode to keep STDIN open
+                                        // "-it".to_string(), // Interactive mode to keep STDIN open
                                     ];
 
                                     // Mount the project dir if it exists
@@ -1187,7 +1195,7 @@ impl Stream for CommandSandboxStream {
                         }
 
                         // Run the command
-                        // dbg!(&command_args);
+                        dbg!(&command_args);
                         Command::new("docker").args(&command_args).output()
                     }
                     CommandSandboxRunners::Wasmtime => {
@@ -2220,6 +2228,7 @@ mod tests {
         let project_name = "phymes-py-project";
         let project_dir = std::env::temp_dir().join(project_name);
         let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
+        // DM: in some instances, `rm -rf /tmp/phymes-py-project` is needed to delete the temporary project directory
         fs::create_dir(&project_dir).expect("Failed to create project directory");
 
         // Create src directory
@@ -2357,6 +2366,9 @@ if __name__ == '__main__':
 
     /// Rust code execution example
     /// DM, examples: code execution loop which requires diff'ing https://github.com/AnubhabB/diff-match-patch-rs
+    /// docker run --name phymes-sandbox_64924993032218978991343430064453949968 -d -i -t -v /tmp/phymes-rs-project:/home/sandbox -w /home/sandbox amd64/rust bash
+    /// docker exec -it -w /home/sandbox phymes-sandbox_64924993032218978991343430064453949968 bash /home/sandbox/install.sh
+    /// docker exec -it -w /home/sandbox phymes-sandbox_64924993032218978991343430064453949968 cargo run --release -- --input-file /home/sandbox/input.ipc --output-file /home/sandbox/output.ipc
     #[tokio::test]
     async fn test_command_sandbox_processor_docker_rs_install() -> Result<()> {
         let name = "CommandSandboxProcessor";
@@ -2366,6 +2378,7 @@ if __name__ == '__main__':
         let project_name = "phymes-rs-project";
         let project_dir = std::env::temp_dir().join(project_name);
         let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
+        // DM: in some instances, `rm -rf /tmp/phymes-rs-project` is needed to delete the temporary project directory
         fs::create_dir(&project_dir).expect("Failed to create project directory");
 
         // Create src directory
@@ -2392,9 +2405,9 @@ clap = { version = "4.5.4", features = ["derive"] }"#;
         let initialization_str = r#"#!/bin/bash
 apt update
 apt install --assume-yes protobuf-compiler clang
-rustup toolchain install stable --target x86_64-unknown-linux-gnu
-rustup default stable
-curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash"#;
+#rustup toolchain install stable --target x86_64-unknown-linux-gnu
+#rustup default stable
+#curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash"#;
 
         // Create the run script
         let run_str = r#"use arrow::array::ArrayRef;
@@ -2456,8 +2469,8 @@ fn main() -> Result<()> {
 
     // --- Step 1: Read Feather/IPC file ---
     let file = File::open(input_path)?;
-    let mut reader = FileReader::try_new(file, None)?;
-    let mut batches: Vec<RecordBatch> = reader.collect::<Result<_>>()?;
+    let reader = FileReader::try_new(file, None)?;
+    let batches: Vec<RecordBatch> = reader.collect::<Result<_>>()?;
 
     // --- Step 2: Modify the batches ---
     let batches = batches.into_iter()
