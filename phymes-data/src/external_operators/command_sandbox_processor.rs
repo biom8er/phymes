@@ -460,7 +460,7 @@ impl Stream for CommandSandboxStream {
                             (None, None, None, None)
                         };
 
-                        // Create the temporary input and output files with content or stdin content ONLY if there is no initialization script else just create an empty temporary file
+                        // Create the temporary input and output files with content or stdin content
                         let mut runner_info = match (
                             &self.config.as_ref().unwrap().data_i,
                             &self.config.as_ref().unwrap().data_o,
@@ -472,36 +472,25 @@ impl Stream for CommandSandboxStream {
                             }
                             (DataIOMethod::Stdio, DataIOMethod::None)
                             | (DataIOMethod::Stdio, DataIOMethod::Stdio) => {
-                                if initialization_file_path.is_none() {
-                                    let content =
-                                        self.message_inbox.take().unwrap().to_json_object()?;
-                                    let content = serde_json::to_string(&content)?;
-                                    CommandSandboxRunnerInfo::new()
-                                        .with_name(&name)
-                                        .with_content(&content)
-                                } else {
-                                    CommandSandboxRunnerInfo::new().with_name(&name)
-                                }
+                                let content =
+                                    self.message_inbox.take().unwrap().to_json_object()?;
+                                let content = serde_json::to_string(&content)?;
+                                CommandSandboxRunnerInfo::new()
+                                    .with_name(&name)
+                                    .with_content(&content)
                             }
                             (DataIOMethod::TempFile, DataIOMethod::None)
                             | (DataIOMethod::TempFile, DataIOMethod::Stdio) => {
                                 let input_file = NamedTempFile::new()?;
                                 let input_persist_path = input_file_path.ok_or(anyhow!("Missing input file path for data input method {} and data output method {}.", &self.config.as_ref().unwrap().data_i, &self.config.as_ref().unwrap().data_o))?;
-                                if initialization_file_path.is_none() {
-                                    let mut input_file = input_file.persist(&input_persist_path)?;
-                                    self.message_inbox
-                                        .take()
-                                        .unwrap()
-                                        .to_ipc_file(&mut input_file)?;
-                                    CommandSandboxRunnerInfo::new()
-                                        .with_name(&name)
-                                        .with_input_file(&input_persist_path)
-                                } else {
-                                    let _input_file = input_file.persist(&input_persist_path)?;
-                                    CommandSandboxRunnerInfo::new()
-                                        .with_name(&name)
-                                        .with_input_file(&input_persist_path)
-                                }
+                                let mut input_file = input_file.persist(&input_persist_path)?;
+                                self.message_inbox
+                                    .take()
+                                    .unwrap()
+                                    .to_ipc_file(&mut input_file)?;
+                                CommandSandboxRunnerInfo::new()
+                                    .with_name(&name)
+                                    .with_input_file(&input_persist_path)
                             }
                             (DataIOMethod::None, DataIOMethod::TempFile) => {
                                 let output_file = NamedTempFile::new()?;
@@ -516,44 +505,28 @@ impl Stream for CommandSandboxStream {
                                 let input_persist_path = input_file_path.ok_or(anyhow!("Missing input file path for data input method {} and data output method {}.", &self.config.as_ref().unwrap().data_i, &self.config.as_ref().unwrap().data_o))?;
                                 let output_file = NamedTempFile::new()?;
                                 let output_persist_path = output_file_path.ok_or(anyhow!("Missing output file path for data input method {} and data output method {}.", &self.config.as_ref().unwrap().data_i, &self.config.as_ref().unwrap().data_o))?;
-                                if initialization_file_path.is_none() {
-                                    let mut input_file = input_file.persist(&input_persist_path)?;
-                                    self.message_inbox
-                                        .take()
-                                        .unwrap()
-                                        .to_ipc_file(&mut input_file)?;
-                                    let _output_file = output_file.persist(&output_persist_path)?;
-                                    CommandSandboxRunnerInfo::new()
-                                        .with_name(&name)
-                                        .with_input_file(&input_persist_path)
-                                        .with_output_file(&output_persist_path)
-                                } else {
-                                    let _input_file = input_file.persist(&input_persist_path)?;
-                                    let _output_file = output_file.persist(&output_persist_path)?;
-                                    CommandSandboxRunnerInfo::new()
-                                        .with_name(&name)
-                                        .with_input_file(&input_persist_path)
-                                        .with_output_file(&output_persist_path)
-                                }
+                                let mut input_file = input_file.persist(&input_persist_path)?;
+                                self.message_inbox
+                                    .take()
+                                    .unwrap()
+                                    .to_ipc_file(&mut input_file)?;
+                                let _output_file = output_file.persist(&output_persist_path)?;
+                                CommandSandboxRunnerInfo::new()
+                                    .with_name(&name)
+                                    .with_input_file(&input_persist_path)
+                                    .with_output_file(&output_persist_path)
                             }
                             (DataIOMethod::Stdio, DataIOMethod::TempFile) => {
                                 let output_file = NamedTempFile::new()?;
                                 let output_persist_path = output_file_path.ok_or(anyhow!("Missing output file path for data input method {} and data output method {}.", &self.config.as_ref().unwrap().data_i, &self.config.as_ref().unwrap().data_o))?;
-                                if initialization_file_path.is_none() {
-                                    let messages = self.message_inbox.take().unwrap();
-                                    let content = messages.to_json_object()?;
-                                    let content = serde_json::to_string(&content)?;
-                                    let _output_file = output_file.persist(&output_persist_path)?;
-                                    CommandSandboxRunnerInfo::new()
-                                        .with_name(&name)
-                                        .with_content(&content)
-                                        .with_output_file(&output_persist_path)
-                                } else {
-                                    let _output_file = output_file.persist(&output_persist_path)?;
-                                    CommandSandboxRunnerInfo::new()
-                                        .with_name(&name)
-                                        .with_output_file(&output_persist_path)
-                                }
+                                let messages = self.message_inbox.take().unwrap();
+                                let content = messages.to_json_object()?;
+                                let content = serde_json::to_string(&content)?;
+                                let _output_file = output_file.persist(&output_persist_path)?;
+                                CommandSandboxRunnerInfo::new()
+                                    .with_name(&name)
+                                    .with_content(&content)
+                                    .with_output_file(&output_persist_path)
                             }
                         };
 
@@ -563,13 +536,14 @@ impl Stream for CommandSandboxStream {
                         }
                         if let Some(initialization_file) = initialization_file_path {
                             runner_info =
-                                runner_info.with_initialization_file(&initialization_file); 
+                                runner_info.with_initialization_file(&initialization_file);
                         }
 
                         // Determine the runner state
                         match &self.config.as_ref().unwrap().runner {
                             CommandSandboxRunners::Docker | CommandSandboxRunners::DockerUnsafe => {
-                                self.runner_state = CommandSandboxRunnerState::Starting(runner_info);
+                                self.runner_state =
+                                    CommandSandboxRunnerState::Starting(runner_info);
                             }
                             CommandSandboxRunners::Wasmtime => {
                                 self.runner_state = CommandSandboxRunnerState::Running(runner_info);
@@ -580,7 +554,8 @@ impl Stream for CommandSandboxStream {
                     CommandSandboxRunnerState::Starting(_runner_info) => unreachable!(),
                     CommandSandboxRunnerState::Initializing(runner_info) => {
                         if runner_info.initialization_file.is_none() {
-                            self.runner_state = CommandSandboxRunnerState::Running(runner_info.to_owned());
+                            self.runner_state =
+                                CommandSandboxRunnerState::Running(runner_info.to_owned());
                         }
                     }
                     CommandSandboxRunnerState::Running(runner_info) => {
@@ -685,7 +660,6 @@ impl Stream for CommandSandboxStream {
                         // Do nothing
                     }
                 }
-                // dbg!(&self.runner_state);
 
                 // Execute the command
                 // DM: A future optimization maybe to treat each row as a parallel Command
@@ -717,7 +691,6 @@ impl Stream for CommandSandboxStream {
                                         "50".to_string(), // Process limit
                                         "-d".to_string(), // Datach to run in the background
                                         "-i".to_string(), // Interactive for subsequent calls
-                                        "-t".to_string(), // TTY for subsequent calls
                                     ];
 
                                     // Mount the project dir if it exists
@@ -750,6 +723,8 @@ impl Stream for CommandSandboxStream {
                                             .as_ref()
                                             .expect("Missing name for runner.")
                                             .to_string(),
+                                        "-d".to_string(), // Datach to run in the background
+                                        "-i".to_string(), // Interactive for subsequent calls
                                     ];
 
                                     // User defined container arguments allowed only in an unsafe environment
@@ -781,19 +756,22 @@ impl Stream for CommandSandboxStream {
                                 (
                                     CommandSandboxRunners::Docker,
                                     CommandSandboxRunnerState::Initializing(_runner_info),
-                                ) | (
+                                )
+                                | (
                                     CommandSandboxRunners::DockerUnsafe,
                                     CommandSandboxRunnerState::Initializing(_runner_info),
-                                ) | (
+                                )
+                                | (
                                     CommandSandboxRunners::Docker,
                                     CommandSandboxRunnerState::Running(_runner_info),
-                                ) | (
+                                )
+                                | (
                                     CommandSandboxRunners::DockerUnsafe,
                                     CommandSandboxRunnerState::Running(_runner_info),
                                 ) => {
                                     let mut command_args = vec![
                                         "exec".to_string(),
-                                        "-it".to_string(), // Interactive mode to keep STDIN open
+                                        "-i".to_string(), // Interactive mode to keep STDIN open
                                     ];
 
                                     // Mount the project dir if it exists
@@ -830,7 +808,14 @@ impl Stream for CommandSandboxStream {
                                 );
                             }
                             CommandSandboxRunnerState::Initializing(runner_info) => {
-                                // Add initialization/run script, and optional command
+                                // Add container name, initialization/run script, and optional command
+                                command_args.push(
+                                    runner_info
+                                        .name
+                                        .as_ref()
+                                        .expect("Missing name for runner.")
+                                        .to_string(),
+                                );
                                 match self.config.as_ref().unwrap().environment {
                                     CommandSandboxEnvironments::Python => {
                                         if let (
@@ -844,7 +829,6 @@ impl Stream for CommandSandboxStream {
                                                 .container_project_dir
                                                 .as_ref(),
                                         ) {
-                                            command_args.push("bash".to_string());
                                             let initialization_path =
                                                 Path::new(initialization_file);
                                             command_args.push(format!(
@@ -895,7 +879,7 @@ impl Stream for CommandSandboxStream {
                                                 .container_project_dir
                                                 .as_ref(),
                                         ) {
-                                            command_args.push("bash".to_string());
+                                            command_args.push("sudo".to_string());
                                             let initialization_path =
                                                 Path::new(initialization_file);
                                             command_args.push(format!(
@@ -1470,8 +1454,8 @@ impl Stream for CommandSandboxStream {
                         .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                     // Check for an error
-                    if let Some(exit_code) = output.status.code()
-                        && exit_code != 1
+                    if let Some(exit_code) = &output.status.code()
+                        && exit_code != &1
                         && !output.status.success()
                     {
                         self.stream_state = CommandSandboxStreamState::Done;
@@ -1490,65 +1474,101 @@ impl Stream for CommandSandboxStream {
                     // }
 
                     // Parse the response if running and skip if starting, initializing, or done
-                    let (batch, stream_state, runner_state) = match (&self.config.as_ref().unwrap().data_o, &self.runner_state) {
-                        (DataIOMethod::None, CommandSandboxRunnerState::Running(runner_info)) => {
-                            let stdout = String::from_utf8_lossy(&output.stdout);
-                            let batch = create_chat_record_batch(
-                                vec!["tool".to_string()],
-                                vec![stdout.to_string()],
-                                vec![create_timestamp_micros()],
-                            )?;
-                            (Some(batch), CommandSandboxStreamState::NewPoll, CommandSandboxRunnerState::Running(runner_info.to_owned()))
-                        }
-                        (DataIOMethod::Stdio, CommandSandboxRunnerState::Running(runner_info)) => {
-                            let json_values = serde_json::from_slice::<Vec<Value>>(&output.stdout)?;
-                            let table = TableBuilder::new()
-                                .with_name("sandbox_stdio_running")
-                                .with_schema(self.schema.clone())
-                                .with_json_values(&json_values)?
-                                .build()?;
-                            let batch = table.get_record_batches_own().pop().unwrap();
-                            (Some(batch), CommandSandboxStreamState::NewPoll, CommandSandboxRunnerState::Running(runner_info.to_owned()))
-                        }
-                        (
-                            DataIOMethod::TempFile,
-                            CommandSandboxRunnerState::Running(runner_info),
-                        ) => {
-                            let file = fs::File::open(
-                                runner_info
-                                    .output_file
-                                    .as_ref()
-                                    .expect("Missing output TempFile from runner."),
-                            )?;
-                            let table = TableBuilder::new_from_ipc_file(file)?
-                                .with_name("sandbox_tempfile_running")
-                                .build()?;
-                            let batch = table.get_record_batches_own().pop().unwrap();
-                            (Some(batch), CommandSandboxStreamState::NewPoll, CommandSandboxRunnerState::Running(runner_info.to_owned()))
-                        }
-                        (
-                            DataIOMethod::None,
-                            CommandSandboxRunnerState::Initializing(runner_info),
-                        ) | (
-                            DataIOMethod::Stdio,
-                            CommandSandboxRunnerState::Initializing(runner_info),
-                        ) | (
-                            DataIOMethod::TempFile,
-                            CommandSandboxRunnerState::Initializing(runner_info),
-                        ) => (None, CommandSandboxStreamState::ExistingPoll, CommandSandboxRunnerState::Running(runner_info.to_owned())),
-                        (
-                            DataIOMethod::None,
-                            CommandSandboxRunnerState::Starting(runner_info),
-                        ) | (
-                            DataIOMethod::Stdio,
-                            CommandSandboxRunnerState::Starting(runner_info),
-                        ) | (
-                            DataIOMethod::TempFile,
-                            CommandSandboxRunnerState::Starting(runner_info),
-                        ) => (None, CommandSandboxStreamState::ExistingPoll, CommandSandboxRunnerState::Initializing(runner_info.to_owned())),
-                        (_, CommandSandboxRunnerState::Done(runner_info)) => (None, CommandSandboxStreamState::Done, CommandSandboxRunnerState::Done(runner_info.to_owned())),
-                        _ => unreachable!(),
-                    };
+                    let (batch, stream_state, runner_state) =
+                        match (&self.config.as_ref().unwrap().data_o, &self.runner_state) {
+                            (
+                                DataIOMethod::None,
+                                CommandSandboxRunnerState::Running(runner_info),
+                            ) => {
+                                let stdout = String::from_utf8_lossy(&output.stdout);
+                                let batch = create_chat_record_batch(
+                                    vec!["tool".to_string()],
+                                    vec![stdout.to_string()],
+                                    vec![create_timestamp_micros()],
+                                )?;
+                                (
+                                    Some(batch),
+                                    CommandSandboxStreamState::NewPoll,
+                                    CommandSandboxRunnerState::Running(runner_info.to_owned()),
+                                )
+                            }
+                            (
+                                DataIOMethod::Stdio,
+                                CommandSandboxRunnerState::Running(runner_info),
+                            ) => {
+                                let json_values =
+                                    serde_json::from_slice::<Vec<Value>>(&output.stdout)?;
+                                let table = TableBuilder::new()
+                                    .with_name("sandbox_stdio_running")
+                                    .with_schema(self.schema.clone())
+                                    .with_json_values(&json_values)?
+                                    .build()?;
+                                let batch = table.get_record_batches_own().pop().unwrap();
+                                (
+                                    Some(batch),
+                                    CommandSandboxStreamState::NewPoll,
+                                    CommandSandboxRunnerState::Running(runner_info.to_owned()),
+                                )
+                            }
+                            (
+                                DataIOMethod::TempFile,
+                                CommandSandboxRunnerState::Running(runner_info),
+                            ) => {
+                                let file = fs::File::open(
+                                    runner_info
+                                        .output_file
+                                        .as_ref()
+                                        .expect("Missing output TempFile from runner."),
+                                )?;
+                                let table = TableBuilder::new_from_ipc_file(file)?
+                                    .with_name("sandbox_tempfile_running")
+                                    .build()?;
+                                let batch = table.get_record_batches_own().pop().unwrap();
+                                (
+                                    Some(batch),
+                                    CommandSandboxStreamState::NewPoll,
+                                    CommandSandboxRunnerState::Running(runner_info.to_owned()),
+                                )
+                            }
+                            (
+                                DataIOMethod::None,
+                                CommandSandboxRunnerState::Initializing(runner_info),
+                            )
+                            | (
+                                DataIOMethod::Stdio,
+                                CommandSandboxRunnerState::Initializing(runner_info),
+                            )
+                            | (
+                                DataIOMethod::TempFile,
+                                CommandSandboxRunnerState::Initializing(runner_info),
+                            ) => (
+                                None,
+                                CommandSandboxStreamState::ExistingPoll,
+                                CommandSandboxRunnerState::Running(runner_info.to_owned()),
+                            ),
+                            (
+                                DataIOMethod::None,
+                                CommandSandboxRunnerState::Starting(runner_info),
+                            )
+                            | (
+                                DataIOMethod::Stdio,
+                                CommandSandboxRunnerState::Starting(runner_info),
+                            )
+                            | (
+                                DataIOMethod::TempFile,
+                                CommandSandboxRunnerState::Starting(runner_info),
+                            ) => (
+                                None,
+                                CommandSandboxStreamState::ExistingPoll,
+                                CommandSandboxRunnerState::Initializing(runner_info.to_owned()),
+                            ),
+                            (_, CommandSandboxRunnerState::Done(runner_info)) => (
+                                None,
+                                CommandSandboxStreamState::Done,
+                                CommandSandboxRunnerState::Done(runner_info.to_owned()),
+                            ),
+                            _ => unreachable!(),
+                        };
 
                     // Record the poll
                     self.stream_state = stream_state;
@@ -2095,7 +2115,12 @@ mod tests {
         let result = table.get_column_as_vec_str("role");
         assert_eq!(result, ["tool"]);
         let result = table.get_column_as_vec_str("content");
-        assert!(result.first().unwrap().contains("[{\"name\": \"Alice\"}, {\"name\": \"Bob\"}]"));
+        assert!(
+            result
+                .first()
+                .unwrap()
+                .contains("[{\"name\": \"Alice\"}, {\"name\": \"Bob\"}]")
+        );
 
         // --- From Stdio ---
 
@@ -2186,7 +2211,6 @@ mod tests {
     }
 
     /// Python code execution example
-    //#[ignore = "Pip cache not updating within the container resulting in `Command exited with code 127, stderr , and stdout OCI runtime exec failed: exec failed: unable to start container process: exec: \"/home/sandbox/.venv/bin/python\": stat /home/sandbox/.venv/bin/python: no such file or directory: unknown`."]
     #[tokio::test]
     async fn test_command_sandbox_processor_docker_py_install() -> Result<()> {
         let name = "CommandSandboxProcessor";
@@ -2216,12 +2240,10 @@ pyarrow==17.0.0"#;
         requirements_file.flush()?;
 
         // Create the initialization script
-        // DM: add `sleep infinity` to keep the terminal open to inspect with docker
         let initialization_str = r#"#!/bin/bash
 python3 -m venv .venv
 source .venv/bin/activate
-.venv/bin/pip install --no-cache-dir -r requirements.txt
-sleep infinity"#;
+.venv/bin/pip install --no-cache-dir -r requirements.txt"#;
 
         // Create the run script
         let run_str = r#"#!/bin/bash
@@ -2234,7 +2256,7 @@ if __name__ == '__main__':
     parser.add_argument('--output-file', required=True);
     args = parser.parse_args();
     df = pd.read_feather(args.input_file);
-    df = df.drop(columns=['age']);
+    df['age'] = df['age'] + 10;
     df.to_feather(args.output_file);"#;
 
         // Runtime env
@@ -2339,6 +2361,14 @@ if __name__ == '__main__':
         let name = "CommandSandboxProcessor";
         let messages = "messages";
 
+        // Runtime env
+        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+
+        // Metrics to compute time and rows
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
         // Create project directory
         let project_name = "phymes-rs-project";
         let project_dir = std::env::temp_dir().join(project_name);
@@ -2361,20 +2391,211 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = { version = "1", default-features = false }
 arrow = "58.0.0"
+serde_json = "1.0.133"
+serde = { version = "1.0.215", features = ["derive"] }
 clap = { version = "4.5.4", features = ["derive"] }"#;
         let _ = requirements_file.write(requirements_str.as_bytes())?;
         requirements_file.flush()?;
 
-        // Create the initialization script
-        let initialization_str = r#"#!/bin/bash
-apt update
-apt install --assume-yes protobuf-compiler clang"#;
+        // Create the run script
+        let run_str = r#"use std::io::Write;
+use anyhow::Result;
+use clap::Parser;
+use serde::{Deserialize, Serialize};
+
+/// Minimal Feather/IPC editor using a single CLI argument.
+#[derive(Parser, Debug, Serialize, Deserialize)]
+#[command(author, version, about)]
+struct Args {
+    /// Input string
+    #[arg(long)]
+    input: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct Data {
+    /// Name
+    name: String,
+    /// Age
+    age: u32,
+}
+
+fn main() -> Result<()> {
+    let args = Args::parse();
+    let input = serde_json::from_str::<Vec<Data>>(&args.input)?;
+    let modified = input.into_iter()
+        .map(|d| Data { name: d.name, age: d.age + 10 })
+        .collect::<Vec<_>>();
+    let serialized = serde_json::to_string(&modified)?;
+    let _bytes = std::io::stdout().write(serialized.as_bytes())?;
+    std::io::stdout().flush().unwrap();
+
+    Ok(())
+}"#;
+
+        // --- from Config, no initialization ---
+
+        // State for the command processor config
+        let command_config = CommandSandboxConfig {
+            // We need to mount the directories when we first run the container
+            data_i: DataIOMethod::None,
+            data_o: DataIOMethod::None,
+            project_dir: Some(project_dir.clone().as_path().to_str().unwrap().to_string()),
+            container_project_dir: Some("/home/sandbox".to_string()),
+            initialization_script: None,
+            run_script: Some(run_str.to_string()),
+            runner: CommandSandboxRunners::DockerUnsafe,
+            environment: CommandSandboxEnvironments::Rust,
+            container_image: "amd64/rust".to_string(),
+            command: None,
+            timeout: 5,
+            container_args: None,
+            cli_args: Some(vec![
+                "--release".to_string(),
+                "--".to_string(),
+                "--input".to_string(),
+                "[{\"name\": \"Alice\", \"age\": 30}, {\"name\": \"Bob\", \"age\": 25}]"
+                    .to_string(),
+            ]),
+            subject_name: None,
+            ..Default::default()
+        };
+        let command_config_json = serde_json::to_vec(&command_config)?;
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor =
+            CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_name("test_command_sandbox_processor_docker_rs")
+            .with_record_batches(result)?
+            .build()?;
+
+        let result = table.get_column_as_vec_str("role");
+        assert_eq!(result, ["tool"]);
+        let result = table.get_column_as_vec_str("content");
+        assert_eq!(result, ["[{\"name\":\"Alice\",\"age\":40},{\"name\":\"Bob\",\"age\":35}]"]);
+
+        // --- from StdIO, no initialization ---
+
+        // State for the command processor config
+        let command_config = CommandSandboxConfig {
+            // We need to mount the directories when we first run the container
+            data_i: DataIOMethod::Stdio,
+            data_o: DataIOMethod::Stdio,
+            project_dir: Some(project_dir.clone().as_path().to_str().unwrap().to_string()),
+            container_project_dir: Some("/home/sandbox".to_string()),
+            initialization_script: None,
+            run_script: Some(run_str.to_string()),
+            runner: CommandSandboxRunners::DockerUnsafe,
+            environment: CommandSandboxEnvironments::Rust,
+            container_image: "amd64/rust".to_string(),
+            command: None,
+            timeout: 5,
+            container_args: None,
+            cli_args: Some(vec!["--release".to_string(), "--".to_string()]),
+            subject_name: Some(messages.to_string()),
+            ..Default::default()
+        };
+        let command_config_json = serde_json::to_vec(&command_config)?;
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
+
+        // Make the input data for the script
+        let names = vec!["Alice", "Bob"];
+        let names_arr: ArrayRef = Arc::new(StringArray::from(names));
+        let ages = vec![30, 25];
+        let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
+        let batch = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
+
+        let message_table = TableBuilder::new()
+            .with_record_batches(vec![batch.clone()])?
+            .with_name(messages)
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            messages.to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(messages)
+                .with_publisher("")
+                .with_subject(messages)
+                .with_update(&TablePublication::None)
+                .with_message(message_table.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor =
+            CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_name("test_command_sandbox_processor_docker_rs")
+            .with_record_batches(result)?
+            .build()?;
+
+        let result = table.get_column_as_vec_str("name");
+        assert_eq!(result, ["Alice", "Bob"]);
+        let result = table.get_column_as_vec_primitive::<u32>("age")?;
+        assert_eq!(result, [40, 35]);
+
+        // --- from TempFile, no initialization ---
 
         // Create the run script
-        let run_str = r#"use arrow::array::ArrayRef;
+        let run_str = r#"use arrow::array::{ArrayRef, StringArray, UInt32Array};
 use arrow::error::{ArrowError, Result};
-use arrow::datatypes::{Field, Schema};
 use arrow::ipc::reader::FileReader;
 use arrow::ipc::writer::FileWriter;
 use arrow::record_batch::RecordBatch;
@@ -2394,34 +2615,29 @@ struct Args {
     output_file: String,
 }
 
-/// Helper function to remove a RecordBatch column by name
-fn remove_column_by_name(batch: &RecordBatch, col_name: &str) -> arrow::error::Result<RecordBatch> {
-    // Find the index of the column to remove
-    let idx = batch
-        .schema()
-        .index_of(col_name)
-        .map_err(|_| ArrowError::SchemaError(format!("Column '{}' not found", col_name)))?;
-
-    // Keep all fields except the one to remove
-    let new_fields: Vec<Field> = batch
-        .schema()
-        .fields()
+/// Helper function to add 10 to years to the age column in a RecordBatch
+fn add_10_yrs_to_age(batch: &RecordBatch) -> arrow::error::Result<RecordBatch> {
+    let names = batch
+        .column_by_name("name")
+        .unwrap()
+        .as_any()
+        .downcast_ref::<StringArray>()
+        .unwrap()
         .iter()
-        .enumerate()
-        .filter_map(|(i, f)| if i != idx { Some((**f).clone()) } else { None })
-        .collect();
-
-    // Keep all arrays except the one to remove
-    let new_columns: Vec<ArrayRef> = batch
-        .columns()
+        .map(|s| s.unwrap_or_default().to_string())
+        .collect::<Vec<String>>();
+    let ages = batch
+        .column_by_name("age")
+        .unwrap()
+        .as_any()
+        .downcast_ref::<UInt32Array>()
+        .unwrap()
         .iter()
-        .enumerate()
-        .filter_map(|(i, col)| if i != idx { Some(col.clone()) } else { None })
-        .collect();
-
-    // Create new schema and RecordBatch
-    let new_schema = Arc::new(Schema::new(new_fields));
-    RecordBatch::try_new(new_schema, new_columns)
+        .map(|s| s.unwrap_or_default() + 10)
+        .collect::<Vec<u32>>();
+    let names_arr: ArrayRef = Arc::new(StringArray::from(names));
+    let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
+    RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])
 }
 
 fn main() -> Result<()> {
@@ -2436,7 +2652,7 @@ fn main() -> Result<()> {
 
     // --- Step 2: Modify the batches ---
     let batches = batches.into_iter()
-        .map(|batch| remove_column_by_name(&batch, "age").unwrap())
+        .map(|batch| add_10_yrs_to_age(&batch).unwrap())
         .collect::<Vec<_>>();
 
     // --- Step 3: Write modified batches to output file ---
@@ -2452,13 +2668,162 @@ fn main() -> Result<()> {
     Ok(())
 }"#;
 
-        // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        // State for the command processor config
+        let command_config = CommandSandboxConfig {
+            // We need to mount the directories when we first run the container
+            data_i: DataIOMethod::TempFile,
+            data_o: DataIOMethod::TempFile,
+            project_dir: Some(project_dir.clone().as_path().to_str().unwrap().to_string()),
+            container_project_dir: Some("/home/sandbox".to_string()),
+            initialization_script: None,
+            run_script: Some(run_str.to_string()),
+            runner: CommandSandboxRunners::DockerUnsafe,
+            environment: CommandSandboxEnvironments::Rust,
+            container_image: "amd64/rust".to_string(),
+            command: None,
+            timeout: 5,
+            container_args: None,
+            cli_args: Some(vec!["--release".to_string(), "--".to_string()]),
+            subject_name: Some(messages.to_string()),
+            ..Default::default()
+        };
+        let command_config_json = serde_json::to_vec(&command_config)?;
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
 
-        // Metrics to compute time and rows
-        let span = SpanBuilder::default().with_span("test").build()?;
-        let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+        // Make the input data for the script
+        let message_table = TableBuilder::new()
+            .with_record_batches(vec![batch.clone()])?
+            .with_name(messages)
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            messages.to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(messages)
+                .with_publisher("")
+                .with_subject(messages)
+                .with_update(&TablePublication::None)
+                .with_message(message_table.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor =
+            CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_name("test_command_sandbox_processor_docker_rs")
+            .with_record_batches(result)?
+            .build()?;
+
+        let result = table.get_column_as_vec_str("name");
+        assert_eq!(result, ["Alice", "Bob"]);
+        let result = table.get_column_as_vec_primitive::<u32>("age")?;
+        assert_eq!(result, [40, 35]);
+
+        // --- from TempFile (multiple batches), no initialization ---
+
+        // State for the command processor config
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
+
+        // Make the input data for the script
+        let names = vec!["Alice", "Bob"];
+        let names_arr: ArrayRef = Arc::new(StringArray::from(names));
+        let ages = vec![30, 25];
+        let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
+        let batch_1 = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
+        let names = vec!["Joe"];
+        let names_arr: ArrayRef = Arc::new(StringArray::from(names));
+        let ages = vec![40];
+        let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
+        let batch_2 = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
+
+        let message_table = TableBuilder::new()
+            .with_record_batches(vec![batch_1, batch_2])?
+            .with_name(messages)
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            messages.to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(messages)
+                .with_publisher("")
+                .with_subject(messages)
+                .with_update(&TablePublication::None)
+                .with_message(message_table.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor =
+            CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_name("test_command_sandbox_processor_docker_rs")
+            .with_record_batches(result)?
+            .build()?;
+
+        let result = table.get_column_as_vec_str("name");
+        assert_eq!(result, ["Alice", "Bob", "Joe"]);
+        let result = table.get_column_as_vec_primitive::<u32>("age")?;
+        assert_eq!(result, [40, 35, 50]);
+
+        // --- from TempFile, initialization ---
+
+        // Create the initialization script
+        let initialization_str = r#"#!/bin/bash
+apt update
+apt install --assume-yes protobuf-compiler clang"#;
 
         // State for the command processor config
         let command_config = CommandSandboxConfig {
@@ -2542,7 +2907,8 @@ fn main() -> Result<()> {
 
         let result = table.get_column_as_vec_str("name");
         assert_eq!(result, ["Alice", "Bob"]);
-        assert!(table.get_schema().column_with_name("age").is_none());
+        let result = table.get_column_as_vec_primitive::<u32>("age")?;
+        assert_eq!(result, [40, 35]);
 
         Ok(())
     }
