@@ -551,12 +551,17 @@ impl Stream for CommandSandboxStream {
                             CommandSandboxRunners::Custom(_) => unimplemented!(),
                         }
                     }
-                    CommandSandboxRunnerState::Starting(_runner_info) => unreachable!(),
-                    CommandSandboxRunnerState::Initializing(runner_info) => {
+                    CommandSandboxRunnerState::Starting(runner_info) => {
                         if runner_info.initialization_file.is_none() {
                             self.runner_state =
                                 CommandSandboxRunnerState::Running(runner_info.to_owned());
+                        } else {
+                            self.runner_state =
+                                CommandSandboxRunnerState::Initializing(runner_info.to_owned());
                         }
+                    }
+                    CommandSandboxRunnerState::Initializing(runner_info) => {
+                        CommandSandboxRunnerState::Running(runner_info.to_owned());
                     }
                     CommandSandboxRunnerState::Running(runner_info) => {
                         // Clear the temporary input file and/or create the stdin content
@@ -829,6 +834,8 @@ impl Stream for CommandSandboxStream {
                                                 .container_project_dir
                                                 .as_ref(),
                                         ) {
+                                            command_args.push("chmod".to_string());
+                                            command_args.push("+x".to_string());
                                             let initialization_path =
                                                 Path::new(initialization_file);
                                             command_args.push(format!(
@@ -850,6 +857,8 @@ impl Stream for CommandSandboxStream {
                                                 .container_project_dir
                                                 .as_ref(),
                                         ) {
+                                            command_args.push("chmod".to_string());
+                                            command_args.push("+x".to_string());
                                             command_args.push(format!(
                                                 "{container_project_dir}/.venv/bin/python"
                                             ));
@@ -879,7 +888,8 @@ impl Stream for CommandSandboxStream {
                                                 .container_project_dir
                                                 .as_ref(),
                                         ) {
-                                            command_args.push("sudo".to_string());
+                                            command_args.push("chmod".to_string());
+                                            command_args.push("+x".to_string());
                                             let initialization_path =
                                                 Path::new(initialization_file);
                                             command_args.push(format!(
@@ -1474,11 +1484,11 @@ impl Stream for CommandSandboxStream {
                     // }
 
                     // Parse the response if running and skip if starting, initializing, or done
-                    let (batch, stream_state, runner_state) =
+                    let (batch, stream_state) =
                         match (&self.config.as_ref().unwrap().data_o, &self.runner_state) {
                             (
                                 DataIOMethod::None,
-                                CommandSandboxRunnerState::Running(runner_info),
+                                CommandSandboxRunnerState::Running(_runner_info),
                             ) => {
                                 let stdout = String::from_utf8_lossy(&output.stdout);
                                 let batch = create_chat_record_batch(
@@ -1489,12 +1499,11 @@ impl Stream for CommandSandboxStream {
                                 (
                                     Some(batch),
                                     CommandSandboxStreamState::NewPoll,
-                                    CommandSandboxRunnerState::Running(runner_info.to_owned()),
                                 )
                             }
                             (
                                 DataIOMethod::Stdio,
-                                CommandSandboxRunnerState::Running(runner_info),
+                                CommandSandboxRunnerState::Running(_runner_info),
                             ) => {
                                 let json_values =
                                     serde_json::from_slice::<Vec<Value>>(&output.stdout)?;
@@ -1507,7 +1516,6 @@ impl Stream for CommandSandboxStream {
                                 (
                                     Some(batch),
                                     CommandSandboxStreamState::NewPoll,
-                                    CommandSandboxRunnerState::Running(runner_info.to_owned()),
                                 )
                             }
                             (
@@ -1526,53 +1534,48 @@ impl Stream for CommandSandboxStream {
                                 let batch = table.get_record_batches_own().pop().unwrap();
                                 (
                                     Some(batch),
-                                    CommandSandboxStreamState::NewPoll,
-                                    CommandSandboxRunnerState::Running(runner_info.to_owned()),
+                                    CommandSandboxStreamState::NewPoll
                                 )
                             }
                             (
                                 DataIOMethod::None,
-                                CommandSandboxRunnerState::Initializing(runner_info),
+                                CommandSandboxRunnerState::Initializing(_runner_info),
                             )
                             | (
                                 DataIOMethod::Stdio,
-                                CommandSandboxRunnerState::Initializing(runner_info),
+                                CommandSandboxRunnerState::Initializing(_runner_info),
                             )
                             | (
                                 DataIOMethod::TempFile,
-                                CommandSandboxRunnerState::Initializing(runner_info),
+                                CommandSandboxRunnerState::Initializing(_runner_info),
                             ) => (
                                 None,
-                                CommandSandboxStreamState::ExistingPoll,
-                                CommandSandboxRunnerState::Running(runner_info.to_owned()),
+                                CommandSandboxStreamState::ExistingPoll
                             ),
                             (
                                 DataIOMethod::None,
-                                CommandSandboxRunnerState::Starting(runner_info),
+                                CommandSandboxRunnerState::Starting(_runner_info),
                             )
                             | (
                                 DataIOMethod::Stdio,
-                                CommandSandboxRunnerState::Starting(runner_info),
+                                CommandSandboxRunnerState::Starting(_runner_info),
                             )
                             | (
                                 DataIOMethod::TempFile,
-                                CommandSandboxRunnerState::Starting(runner_info),
+                                CommandSandboxRunnerState::Starting(_runner_info),
                             ) => (
                                 None,
-                                CommandSandboxStreamState::ExistingPoll,
-                                CommandSandboxRunnerState::Initializing(runner_info.to_owned()),
+                                CommandSandboxStreamState::ExistingPoll
                             ),
-                            (_, CommandSandboxRunnerState::Done(runner_info)) => (
+                            (_, CommandSandboxRunnerState::Done(_runner_info)) => (
                                 None,
-                                CommandSandboxStreamState::Done,
-                                CommandSandboxRunnerState::Done(runner_info.to_owned()),
+                                CommandSandboxStreamState::Done
                             ),
                             _ => unreachable!(),
                         };
 
                     // Record the poll
                     self.stream_state = stream_state;
-                    self.runner_state = runner_state;
                     if let Some(batch) = batch {
                         let poll = Poll::Ready(Some(Ok(batch)));
                         if let Some(baseline_metrics) = &baseline_metrics {
@@ -2240,7 +2243,7 @@ pyarrow==17.0.0"#;
         requirements_file.flush()?;
 
         // Create the initialization script
-        let initialization_str = r#"#!/bin/bash
+        let initialization_str = r#"#!/usr/bin/env bash
 python3 -m venv .venv
 source .venv/bin/activate
 .venv/bin/pip install --no-cache-dir -r requirements.txt"#;
@@ -2821,7 +2824,7 @@ fn main() -> Result<()> {
         // --- from TempFile, initialization ---
 
         // Create the initialization script
-        let initialization_str = r#"#!/bin/bash
+        let initialization_str = r#"#!/usr/bin/env bash
 apt update
 apt install --assume-yes protobuf-compiler clang"#;
 
