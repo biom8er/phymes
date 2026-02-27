@@ -561,7 +561,7 @@ impl Stream for CommandSandboxStream {
                         }
                     }
                     CommandSandboxRunnerState::Initializing(runner_info) => {
-                        CommandSandboxRunnerState::Running(runner_info.to_owned());
+                        self.runner_state = CommandSandboxRunnerState::Running(runner_info.to_owned());
                     }
                     CommandSandboxRunnerState::Running(runner_info) => {
                         // Clear the temporary input file and/or create the stdin content
