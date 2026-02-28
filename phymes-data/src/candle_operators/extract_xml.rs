@@ -671,7 +671,7 @@ mod tests {
     use crate::device;
     use phymes_core::{
         BuildableTrait, BuilderTrait, DataFormat, Table, TableBuilderTrait, TableTrait,
-        create_blob_batch,
+        create_attachments_batch,
     };
     use phymes_diagnostics::{HashSet, create_timestamp_micros};
 
@@ -751,7 +751,7 @@ mod tests {
 </rdf:RDF>"#;
 
         // Make the xml data
-        let batch = create_blob_batch(
+        let batch = create_attachments_batch(
             vec!["attachment".to_string()],
             vec!["owl".to_string()],
             vec![owl.into()],
@@ -1036,7 +1036,7 @@ WHERE {
 </rdf:RDF>"#;
 
         // Make the xml data
-        let batch = create_blob_batch(
+        let batch = create_attachments_batch(
             vec!["attachment".to_string()],
             vec!["owl".to_string()],
             vec![owl.into()],

@@ -15,8 +15,8 @@ pub use chat::{
     create_values_record_batch,
 };
 pub use embed::{
-    BlobBuilderTraitExt, BlobSubject, EmbeddingRequest, EmbeddingResponse, EncodingFormat,
-    create_blob_batch, create_blob_fields, create_document_embeddings_fields,
+    AttachmentBuilderTraitExt, AttachmentsSubject, EmbeddingRequest, EmbeddingResponse, EncodingFormat,
+    create_attachments_batch, create_attachments_fields, create_blob_batch, create_blob_fields, create_diff_patch_batch, create_diff_patch_fields, create_document_embeddings_fields,
     create_documents_batch, create_documents_embeddings_batch, create_documents_fields,
     create_embeddings_scores_fields, create_join_chunks_scores_fields, create_queries_batch,
     create_queries_fields, create_query_embeddings_batch, create_query_embeddings_fields,

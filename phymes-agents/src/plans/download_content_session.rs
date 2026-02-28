@@ -208,7 +208,7 @@ mod tests {
                 user_agent_type: Some("rust-openalex-client/2.0".to_string()),
                 base_url: "https://arxiv.org/".to_string(),
                 subject_name: Some(messages.to_string()),
-                request_schema: HTTPClientRequestSchemas::Blob,
+                request_schema: HTTPClientRequestSchemas::Attachments,
                 ..Default::default()
             };
             let http_client_config_json = serde_json::to_vec(&http_client_config)?;
@@ -272,7 +272,7 @@ mod tests {
                 user_agent_type: Some("rust-openalex-client/2.0".to_string()),
                 base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?".to_string(),
                 subject_name: Some(messages.to_string()),
-                request_schema: HTTPClientRequestSchemas::Blob,
+                request_schema: HTTPClientRequestSchemas::Attachments,
                 ..Default::default()
             };
             let http_client_config_json = serde_json::to_vec(&http_client_config)?;
@@ -433,7 +433,7 @@ mod tests {
                 request_type: HTTPClientRequestType::Get,
                 user_agent_type: Some("rust-openalex-client/2.0".to_string()),
                 base_url: "https://arxiv.org/".to_string(),
-                request_schema: HTTPClientRequestSchemas::Blob,
+                request_schema: HTTPClientRequestSchemas::Attachments,
                 json: Some(download_url),
                 ..Default::default()
             };
@@ -481,7 +481,7 @@ mod tests {
                 request_type: HTTPClientRequestType::Get,
                 user_agent_type: Some("rust-openalex-client/2.0".to_string()),
                 base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?".to_string(),
-                request_schema: HTTPClientRequestSchemas::Blob,
+                request_schema: HTTPClientRequestSchemas::Attachments,
                 json: Some(esearch_url),
                 ..Default::default()
             };

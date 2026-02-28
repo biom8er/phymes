@@ -15,7 +15,7 @@ use phymes_agents::{
     SessionStream, UserSession, create_message_map,
 };
 use phymes_core::{
-    AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, IPCMessage,
+    AvailableSubjectsTrait, AttachmentBuilderTraitExt, BuildableTrait, BuilderTrait, IPCMessage,
     MappableTrait, MessageBuilderTrait, MessageTrait, Table, TableBuilder, TableBuilderTrait,
     TablePublication, TableTrait, create_user_inbox_batch,
 };
@@ -42,7 +42,7 @@ pub async fn run_main() -> Result<()> {
     // Wrap into the message
     let blob = AvailableInterfaceSubjects::UserJson
         .to_table_builder(None)
-        .with_blob(None, Some("json"), &bytes, None)?
+        .with_attachment(None, Some("json"), &bytes, None)?
         .build()?;
     let blob_message = IPCMessage::get_builder()
         .with_message(blob.to_ipc_stream()?)

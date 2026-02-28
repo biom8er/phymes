@@ -1731,7 +1731,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     None,
                 )
                 .unwrap(),
-            AvailableSubjects::Blob
+            AvailableSubjects::Attachments
                 .to_table(
                     Some(
                         DiagnosticsVisualizations::MetricProcessorTracesGantt
@@ -1741,7 +1741,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     None,
                 )
                 .unwrap(),
-            AvailableSubjects::Blob
+            AvailableSubjects::Attachments
                 .to_table(
                     Some(
                         DiagnosticsVisualizations::MetricElapsedComputeGantt
@@ -1751,7 +1751,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     None,
                 )
                 .unwrap(),
-            AvailableSubjects::Blob
+            AvailableSubjects::Attachments
                 .to_table(
                     Some(
                         DiagnosticsVisualizations::MetricOutputRowsGantt
@@ -1804,7 +1804,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     None,
                 )
                 .unwrap(),
-            AvailableSubjects::Blob
+            AvailableSubjects::Attachments
                 .to_table(
                     Some(
                         DiagnosticsVisualizations::TraceSequenceDiagram
@@ -1821,7 +1821,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             AvailableSubjects::MermaidKanbanTemplate
                 .to_table(Some(self.errors_select_and_cast_to_kanban_task_name), None)
                 .unwrap(),
-            AvailableSubjects::Blob
+            AvailableSubjects::Attachments
                 .to_table(
                     Some(DiagnosticsVisualizations::ErrorKanban.to_string().as_str()),
                     None,
@@ -1837,7 +1837,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             AvailableSubjects::MermaidKanbanTemplate
                 .to_table(Some(self.events_select_and_cast_to_kanban_task_name), None)
                 .unwrap(),
-            AvailableSubjects::Blob
+            AvailableSubjects::Attachments
                 .to_table(
                     Some(DiagnosticsVisualizations::EventKanban.to_string().as_str()),
                     None,

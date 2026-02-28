@@ -855,7 +855,7 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        BlobBuilderTraitExt, ChatBuilderTraitExt, CsvFormat, IPCMessage, MappableTrait,
+        AttachmentBuilderTraitExt, ChatBuilderTraitExt, CsvFormat, IPCMessage, MappableTrait,
         MessageBuilderTrait, MessageTrait, TableTrait,
     };
     use phymes_data::test_extract_tabular_data::make_scores_table;
@@ -898,7 +898,7 @@ mod tests {
             .build()?;
         let blob = AvailableInterfaceSubjects::UserCsv
             .to_table_builder(None)
-            .with_blob(None, Some("csv"), &bytes, None)?
+            .with_attachment(None, Some("csv"), &bytes, None)?
             .build()?;
         let blob_message = IPCMessage::get_builder()
             .with_message(blob.to_ipc_stream()?)

@@ -1,7 +1,7 @@
 use dioxus::{html::FileData, prelude::*};
 use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait};
 use phymes_core::{
-    create_blob_batch, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, Table,
+    create_attachments_batch, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, Table,
     TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_diagnostics::create_timestamp_micros;
@@ -113,7 +113,7 @@ pub fn attach_files_input(
 
                             // Wrap the contents into a blob batch if no active subject is set
                             let (message, format) = if is_blob {
-                                let batch = create_blob_batch(
+                                let batch = create_attachments_batch(
                                     vec![file_stem.to_string()],
                                     vec![extension.to_string()],
                                     vec![contents.into()],

@@ -12,7 +12,7 @@ use phymes_agents::{
     SessionStream, ToolAgentSession, create_message_map,
 };
 use phymes_core::{
-    AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, ChatBuilderTraitExt,
+    AvailableSubjectsTrait, AttachmentBuilderTraitExt, BuildableTrait, BuilderTrait, ChatBuilderTraitExt,
     CsvFormat, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait, TableBuilder,
     TableBuilderTrait, TablePublication, TableTrait,
 };
@@ -52,7 +52,7 @@ pub async fn run_main() -> Result<()> {
         .build()?;
     let blob = AvailableInterfaceSubjects::UserCsv
         .to_table_builder(None)
-        .with_blob(None, Some("csv"), &bytes, None)?
+        .with_attachment(None, Some("csv"), &bytes, None)?
         .build()?;
     let blob_message = IPCMessage::get_builder()
         .with_message(blob.to_ipc_stream()?)

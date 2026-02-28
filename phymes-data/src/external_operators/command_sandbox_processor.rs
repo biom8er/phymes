@@ -834,12 +834,17 @@ impl Stream for CommandSandboxStream {
                                                 .container_project_dir
                                                 .as_ref(),
                                         ) {
-                                            command_args.push("chmod".to_string());
-                                            command_args.push("+x".to_string());
+                                            command_args.push("bash".to_string());
+                                            command_args.push("-c".to_string());
                                             let initialization_path =
                                                 Path::new(initialization_file);
                                             command_args.push(format!(
-                                                "{container_project_dir}/{}",
+                                                "chmod +x {container_project_dir}/{} && {container_project_dir}/{}",
+                                                initialization_path
+                                                    .file_name()
+                                                    .unwrap()
+                                                    .to_str()
+                                                    .unwrap(),
                                                 initialization_path
                                                     .file_name()
                                                     .unwrap()
@@ -857,8 +862,6 @@ impl Stream for CommandSandboxStream {
                                                 .container_project_dir
                                                 .as_ref(),
                                         ) {
-                                            command_args.push("chmod".to_string());
-                                            command_args.push("+x".to_string());
                                             command_args.push(format!(
                                                 "{container_project_dir}/.venv/bin/python"
                                             ));
@@ -888,12 +891,17 @@ impl Stream for CommandSandboxStream {
                                                 .container_project_dir
                                                 .as_ref(),
                                         ) {
-                                            command_args.push("chmod".to_string());
-                                            command_args.push("+x".to_string());
+                                            command_args.push("bash".to_string());
+                                            command_args.push("-c".to_string());
                                             let initialization_path =
                                                 Path::new(initialization_file);
                                             command_args.push(format!(
-                                                "{container_project_dir}/{}",
+                                                "chmod +x {container_project_dir}/{} && {container_project_dir}/{}",
+                                                initialization_path
+                                                    .file_name()
+                                                    .unwrap()
+                                                    .to_str()
+                                                    .unwrap(),
                                                 initialization_path
                                                     .file_name()
                                                     .unwrap()
@@ -1204,8 +1212,9 @@ impl Stream for CommandSandboxStream {
                             }
                         }
 
-                        // Run the command
-                        dbg!(&command_args);
+                        // Run the command                        
+                        // DM: useful for debugging
+                        // dbg!(&command_args);
                         Command::new("docker").args(&command_args).output()
                     }
                     CommandSandboxRunners::Wasmtime => {
@@ -1478,6 +1487,7 @@ impl Stream for CommandSandboxStream {
                             stdout
                         ))));
                     }
+                    // DM: useful for debugging
                     // {
                     //     let stdout = String::from_utf8_lossy(&output.stdout);
                     //     dbg!(stdout);
@@ -2244,23 +2254,45 @@ pyarrow==17.0.0"#;
 
         // Create the initialization script
         let initialization_str = r#"#!/usr/bin/env bash
-python3 -m venv .venv
+set -e
+python -m venv .venv
 source .venv/bin/activate
-.venv/bin/pip install --no-cache-dir -r requirements.txt"#;
+pip install --no-cache-dir -r requirements.txt"#;
 
         // Create the run script
-        let run_str = r#"#!/bin/bash
-import pandas as pd
+        let run_str = r#"#!/usr/bin/env python3
 import argparse
-import json
+import pyarrow as pa
+import pyarrow.ipc as ipc
+import pandas as pd
+
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser();
-    parser.add_argument('--input-file', required=True);
-    parser.add_argument('--output-file', required=True);
-    args = parser.parse_args();
-    df = pd.read_feather(args.input_file);
-    df['age'] = df['age'] + 10;
-    df.to_feather(args.output_file);"#;
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input-file', required=True)
+    parser.add_argument('--output-file', required=True)
+    args = parser.parse_args()
+
+    # Read using PyArrow IPC file reader (works with Rust arrow FileWriter output)
+    with open(args.input_file, "rb") as f:
+        table = ipc.open_file(f).read_all()
+
+    # Convert to pandas for your transformation
+    df = table.to_pandas()
+
+    # Your transformation
+    df['age'] = df['age'] + 10
+    
+    # Write back out as Feather v2 (fully compatible with Pandas)
+    #df.to_feather(args.output_file, version=2)
+
+    # Convert pandas back to Arrow
+    table_out = pa.Table.from_pandas(df)
+
+    # Write Arrow IPC File format (Rust-compatible)
+    with pa.OSFile(args.output_file, "wb") as f:
+        writer = ipc.RecordBatchFileWriter(f, table_out.schema)
+        writer.write_table(table_out)
+        writer.close()"#;
 
         // Runtime env
         let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
@@ -2344,7 +2376,6 @@ if __name__ == '__main__':
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        fs::remove_dir_all(project_dir)?;
         let table = TableBuilder::new()
             .with_name("test_command_sandbox_processor_docker_py_install")
             .with_record_batches(result)?
@@ -2352,13 +2383,16 @@ if __name__ == '__main__':
 
         let result = table.get_column_as_vec_str("name");
         assert_eq!(result, ["Alice", "Bob"]);
-        assert!(table.get_schema().column_with_name("age").is_none());
+        let result = table.get_column_as_vec_primitive::<u32>("age")?;
+        assert_eq!(result, [40, 35]);
+        // DM: Some strange permission issue `Error: Permission denied (os error 13)` with Docker + Python
+        // fs::remove_dir_all(project_dir)?;
 
         Ok(())
     }
 
-    /// Rust code execution example
     /// DM, examples: code execution loop which requires diff'ing https://github.com/AnubhabB/diff-match-patch-rs
+    ///  Or, alternatively, just use `git` from the command line
     #[tokio::test]
     async fn test_command_sandbox_processor_docker_rs_install() -> Result<()> {
         let name = "CommandSandboxProcessor";
@@ -2401,6 +2435,109 @@ serde = { version = "1.0.215", features = ["derive"] }
 clap = { version = "4.5.4", features = ["derive"] }"#;
         let _ = requirements_file.write(requirements_str.as_bytes())?;
         requirements_file.flush()?;
+
+        // Create the run script
+        let run_str = r#"use std::io::Write;
+use anyhow::Result;
+use clap::Parser;
+
+/// Minimal Feather/IPC editor using a single CLI argument.
+#[derive(Parser, Debug, Serialize, Deserialize)]
+#[command(author, version, about)]
+struct Args {
+    /// Input string
+    #[arg(long)]
+    input: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Data {
+    /// Name
+    name: String,
+    /// Age
+    age: u32,
+}
+
+fn main() -> Result<()> {
+    let args = Args::parse();
+    let input = serde_json::from_str::<Vec<Data>>(&args.input)?;
+    let modified = input.into_iter()
+        .map(|d| Data { name: d.name, age: d.age + 10 })
+        .collect::<Vec<_>>();
+    let serialized = serde_json::to_string(&modified)?;
+    let _bytes = std::io::stdout().write(serialized.as_bytes())?;
+    std::io::stdout().flush().unwrap();
+
+    Ok(())
+}"#;
+
+        // --- from Config, no initialization, and Error ---
+
+        // State for the command processor config
+        let command_config = CommandSandboxConfig {
+            // We need to mount the directories when we first run the container
+            data_i: DataIOMethod::None,
+            data_o: DataIOMethod::None,
+            project_dir: Some(project_dir.clone().as_path().to_str().unwrap().to_string()),
+            container_project_dir: Some("/home/sandbox".to_string()),
+            initialization_script: None,
+            run_script: Some(run_str.to_string()),
+            runner: CommandSandboxRunners::DockerUnsafe,
+            environment: CommandSandboxEnvironments::Rust,
+            container_image: "amd64/rust".to_string(),
+            command: None,
+            timeout: 5,
+            container_args: None,
+            cli_args: Some(vec![
+                "--release".to_string(),
+                "--".to_string(),
+                "--input".to_string(),
+                "[{\"name\": \"Alice\", \"age\": 30}, {\"name\": \"Bob\", \"age\": 25}]"
+                    .to_string(),
+            ]),
+            subject_name: None,
+            ..Default::default()
+        };
+        let command_config_json = serde_json::to_vec(&command_config)?;
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor =
+            CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await;
+        if let Err(err) = &result {
+            assert!(err.to_string().contains("error: cannot find derive macro `Serialize` in this scope"));
+            assert!(err.to_string().contains("error: cannot find derive macro `Deserialize` in this scope"));
+            assert!(err.to_string().contains("error[E0277]: the trait bound `Data: serde::Deserialize<'de>` is not satisfied"));
+        } else {
+            panic!("Should have generated an Error.")
+        }
 
         // Create the run script
         let run_str = r#"use std::io::Write;

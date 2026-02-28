@@ -6,7 +6,7 @@ use candle_core::Device;
 use phymes_core::{
     BuildableTrait, BuilderTrait, CsvFormat, DataFormat, Function, FunctionParameters,
     JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableTrait, Tool,
-    ToolType, create_blob_batch, create_chat_record_batch,
+    ToolType, create_attachments_batch, create_chat_record_batch,
 };
 use phymes_diagnostics::create_timestamp_micros;
 use serde::{Deserialize, Serialize};
@@ -133,7 +133,7 @@ pub fn table_and_data_format_to_record_batch(
         DataFormat::Csv(csv_format) => {
             // Convert to CSV and wrap into a blob batch
             let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
-            create_blob_batch(
+            create_attachments_batch(
                 vec![table.get_name().to_string()],
                 vec![format.to_extension().to_string()],
                 vec![bytes],
@@ -147,7 +147,7 @@ pub fn table_and_data_format_to_record_batch(
                 ..Default::default()
             };
             let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
-            create_blob_batch(
+            create_attachments_batch(
                 vec![table.get_name().to_string()],
                 vec![format.to_extension().to_string()],
                 vec![bytes],
@@ -158,7 +158,7 @@ pub fn table_and_data_format_to_record_batch(
         DataFormat::Bytes => {
             // Convert to bytes directly
             let bytes = table.to_bytes()?;
-            create_blob_batch(
+            create_attachments_batch(
                 vec![table.get_name().to_string()],
                 vec![format.to_extension().to_string()],
                 vec![bytes.to_vec()],
@@ -169,7 +169,7 @@ pub fn table_and_data_format_to_record_batch(
         DataFormat::Json(_) | DataFormat::JsonDefault | DataFormat::JsonSchema => {
             // Convert to JSON
             let bytes = table.to_json()?;
-            create_blob_batch(
+            create_attachments_batch(
                 vec![table.get_name().to_string()],
                 vec![format.to_extension().to_string()],
                 vec![bytes],
@@ -184,7 +184,7 @@ pub fn table_and_data_format_to_record_batch(
                 .into_iter()
                 .flatten()
                 .collect::<Vec<_>>();
-            create_blob_batch(
+            create_attachments_batch(
                 vec![table.get_name().to_string()],
                 vec![format.to_extension().to_string()],
                 vec![bytes],
