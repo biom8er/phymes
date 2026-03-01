@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use diff_match_patch_rs::{DiffMatchPatch, Efficient};
 
-use crate::patch::v4a_patch::apply_v4a_patch;
+use crate::patch::apply_v4a_diff::apply_v4a_patch;
 
 #[derive(Debug, Clone, Copy)]
 pub enum PatchKind {
@@ -17,10 +17,15 @@ pub struct PatchOperation {
     pub kind: PatchKind,
 }
 
+pub trait ApplyPatchTrait {
+    fn apply_operation(&self, op: &PatchOperation) -> Result<()>;
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DiffKind {
     Dmp,
     V4A,
+    Unknown,
 }
 
 /// Heuristic classifier for V4A vs DMP.
@@ -52,25 +57,18 @@ fn classify_diff(diff: &str) -> DiffKind {
 
             if has_minus && has_plus && has_comma && has_trailing_at {
                 dmp_score += 3;
-                continue;
+            } else {
+                // Bare anchor or context-only anchor => V4A signal
+                v4a_score += 2;
             }
-
-            // Bare anchor or context-only anchor => V4A signal
-            v4a_score += 2;
-            continue;
-        }
-
-        if trimmed.starts_with("*** End Patch")
+        } else if trimmed.starts_with("*** End Patch")
             || trimmed.starts_with("*** End of File")
             || trimmed.starts_with("*** Update File:")
             || trimmed.starts_with("*** Add File:")
             || trimmed.starts_with("*** Delete File:")
         {
-            v4a_score += 3;
-            continue;
-        }
-
-        if let Some(first) = trimmed.chars().next() {
+            v4a_score += 2;
+        } else if let Some(first) = trimmed.chars().next() {
             if first == '+' || first == '-' || first == ' ' {
                 // Only count as V4A-ish if we haven't seen any strong DMP header yet.
                 if dmp_score == 0 {
@@ -80,13 +78,12 @@ fn classify_diff(diff: &str) -> DiffKind {
         }
     }
 
-    if dmp_score == 0 && v4a_score == 0 {
-        // No strong signals: default to DMP for backward compatibility.
+    if dmp_score>= 3 && v4a_score == 0 {
         DiffKind::Dmp
-    } else if dmp_score >= v4a_score {
-        DiffKind::Dmp
-    } else {
+    } else if v4a_score >= 3 && dmp_score == 0{
         DiffKind::V4A
+    } else {
+        DiffKind::Unknown
     }
 }
 
@@ -112,6 +109,7 @@ pub fn apply_patch_auto(
 
             Ok(new_content)
         }
+        DiffKind::Unknown => Err(anyhow!("Unknown diff format. Only `Universal Diff` and `V4A Diff` formats are currently supported."))
     }
 }
 
@@ -130,23 +128,32 @@ pub mod tests {
     }
 
     #[test]
-    fn v4a_bare_anchor_uses_v4a_engine_and_matches_direct() {
+    fn test_apply_patch_auto_v4a_end_patch_uses_v4a_engine_and_matches_direct() {
         let original = "";
-        let diff = "@@\n+hello\n";
-        let auto = apply_patch_auto(original, diff, true).unwrap();
+        let diff = "+hello\r\n+world\r\n*** End Patch\r\n";
         let direct = apply_v4a_patch(original, diff, true).unwrap();
+        let auto = apply_patch_auto(original, diff, true).unwrap();
         assert_eq!(auto, direct);
     }
 
     #[test]
-    fn dmp_header_uses_dmp_engine_and_matches_direct() {
+    fn test_apply_patch_auto_v4a_bare_anchor_uses_v4a_engine_and_matches_direct() {
+        let original = "";
+        let diff = "@@\n+hello\n";
+        let direct = apply_v4a_patch(original, diff, false).unwrap();
+        let auto = apply_patch_auto(original, diff, false).unwrap();
+        assert_eq!(auto, direct);
+    }
+
+    #[test]
+    fn test_apply_patch_auto_dmp_header_uses_dmp_engine_and_matches_direct() {
         let original = "a\nb\nc\n";
         let modified = "a\nB\nc\n";
         let diff = make_dmp_patch(original, modified).unwrap();
 
         let auto = apply_patch_auto(original, &diff, false).unwrap();
 
-        let mut dmp = DiffMatchPatch::new();
+        let dmp = DiffMatchPatch::new();
         let patches = dmp.patch_from_text::<Efficient>(&diff).unwrap();
         let (direct, results) = dmp.patch_apply(&patches, original).unwrap();
         assert!(results.iter().all(|b| *b));
@@ -155,7 +162,7 @@ pub mod tests {
     }
 
     #[test]
-    fn mixed_format_prefers_dmp_when_header_present() {
+    fn test_apply_patch_auto_mixed_format_to_unknown() {
         let original = "a\nb\nc\n";
         let modified = "a\nB\nc\n";
         let dmp_diff = make_dmp_patch(original, modified).unwrap();
@@ -163,18 +170,12 @@ pub mod tests {
         // Prepend a V4A-looking marker but keep a valid DMP header.
         let mixed = format!("*** End Patch\n{}", dmp_diff);
 
-        let auto = apply_patch_auto(original, &mixed, false).unwrap();
-
-        let dmp = DiffMatchPatch::new();
-        let patches = dmp.patch_from_text::<Efficient>(&dmp_diff).unwrap();
-        let (direct, results) = dmp.patch_apply(&patches, original).unwrap();
-        assert!(results.iter().all(|b| *b));
-
-        assert_eq!(auto, direct);
+        let auto = apply_patch_auto(original, &mixed, false);
+        assert!(auto.is_err());
     }
 
     #[test]
-    fn ambiguous_no_strong_signals_defaults_to_dmp_and_matches_direct() {
+    fn test_apply_patch_auto_ambiguous_no_strong_signals_to_unknown() {
         let original = "a\nb\n";
         let modified = "a\nB\n";
         let diff = make_dmp_patch(original, modified).unwrap();
@@ -186,12 +187,8 @@ pub mod tests {
             .collect::<Vec<_>>()
             .join("\n");
 
-        let auto = apply_patch_auto(original, &stripped, false).unwrap();
-        let dmp = DiffMatchPatch::new();
-        let patches = dmp.patch_from_text::<Efficient>(&stripped).unwrap();
-        let (direct, results) = dmp.patch_apply(&patches, original).unwrap();
-        assert!(results.iter().all(|b| *b));
-        assert_eq!(auto, direct);
+        let auto = apply_patch_auto(original, &stripped, false);
+        assert!(auto.is_err());
     }
 
 }

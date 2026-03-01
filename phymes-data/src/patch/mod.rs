@@ -26,14 +26,13 @@
 /// }
 /// ```
 
-pub mod apply_diff;
-pub mod v4a_patch;
-pub mod patch_engine;
+pub mod apply_v4a_diff;
+pub mod apply_patch;
 #[cfg(feature = "api")]
 pub mod workspace_editor;
 
-pub use apply_diff::{ApplyDiffMode, apply_diff};
-pub use patch_engine::{PatchKind, PatchOperation, apply_patch_auto};
+pub use apply_v4a_diff::{ApplyDiffMode, apply_v4a_diff};
+pub use apply_patch::{PatchKind, PatchOperation, apply_patch_auto};
 
 #[cfg(feature = "api")]
 pub use workspace_editor::WorkspaceEditor;

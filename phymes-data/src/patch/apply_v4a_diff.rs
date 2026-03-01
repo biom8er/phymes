@@ -1,4 +1,5 @@
 use std::fmt;
+use anyhow::{anyhow, Result};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ApplyDiffMode {
@@ -108,7 +109,7 @@ const END_SECTION_MARKERS: &[&str] = &[
     END_FILE,
 ];
 
-pub fn apply_diff(
+pub fn apply_v4a_diff(
     input: &str,
     diff: &str,
     mode: ApplyDiffMode,
@@ -251,8 +252,10 @@ fn parse_update_diff(
         }
 
         let section = read_section(&parser.lines, parser.index)?;
+        dbg!(&section);
         let find_result =
             find_context(&input_lines, &section.next_context, cursor, section.eof);
+        dbg!(&find_result);
 
         if find_result.new_index == usize::MAX {
             let ctx_text = section.next_context.join("\n");
@@ -565,6 +568,20 @@ fn apply_chunks(
     Ok(dest_lines.join(newline))
 }
 
+pub fn apply_v4a_patch(
+    original: &str,
+    diff: &str,
+    create: bool,
+) -> Result<String> {
+    let mode = if create {
+        ApplyDiffMode::Create
+    } else {
+        ApplyDiffMode::Default
+    };
+
+    apply_v4a_diff(original, diff, mode).map_err(|e| anyhow!("{e:?}"))
+}
+
 pub mod tests {
     use super::*;
 
@@ -572,101 +589,91 @@ pub mod tests {
         s.replace("\r\n", "\n")
     }
 
-    /// test_apply_diff_with_floating_hunk_adds_lines
     #[test]
-    fn apply_diff_with_floating_hunk_adds_lines() {
+    fn test_apply_v4a_diff_with_floating_hunk_adds_lines() {
         let original = "a\nb\n";
         // Floating hunk: no explicit context, just a bare anchor and additions.
         let diff = "@@\n+X\n+Y\n*** End Patch\n";
-        let result = apply_diff(original, diff, ApplyDiffMode::Default).unwrap();
+        let result = apply_v4a_diff(original, diff, ApplyDiffMode::Default).unwrap();
         // Our implementation appends the inserted lines at the start (cursor 0).
         assert_eq!(normalize(&result), "X\nY\na\nb\n");
     }
 
-    /// test_apply_diff_with_empty_input_and_crlf_diff_preserves_crlf
     #[test]
-    fn apply_diff_with_empty_input_and_crlf_diff_preserves_crlf() {
+    fn test_apply_v4a_diff_with_empty_input_and_crlf_diff_preserves_crlf() {
         let original = "";
         let diff = "+hello\r\n+world\r\n*** End Patch\r\n";
-        let result = apply_diff(original, diff, ApplyDiffMode::Create).unwrap();
+        let result = apply_v4a_diff(original, diff, ApplyDiffMode::Create).unwrap();
         assert!(result.contains("\r\n"));
         assert_eq!(result, "hello\r\nworld");
     }
 
-    /// test_apply_diff_create_mode_requires_plus_prefix
     #[test]
-    fn apply_diff_create_mode_requires_plus_prefix() {
+    fn test_apply_v4a_diff_create_mode_requires_plus_prefix() {
         let diff = "hello\n";
-        let err = apply_diff("", diff, ApplyDiffMode::Create).unwrap_err();
+        let err = apply_v4a_diff("", diff, ApplyDiffMode::Create).unwrap_err();
         let msg = err.to_string();
         assert!(msg.contains("Invalid Add File Line"));
     }
 
-    /// test_apply_diff_create_mode_perserves_trailing_newline
     #[test]
-    fn apply_diff_create_mode_preserves_trailing_newline() {
+    fn test_apply_v4a_diff_create_mode_preserves_trailing_newline() {
         let diff = "+hello\n+world\n";
-        let result = apply_diff("", diff, ApplyDiffMode::Create).unwrap();
+        let result = apply_v4a_diff("", diff, ApplyDiffMode::Create).unwrap();
         // No extra newline added/removed beyond what diff implies.
         assert_eq!(normalize(&result), "hello\nworld");
     }
 
-    /// test_apply_diff_applies_contextual_replacement
     #[test]
-    fn apply_diff_applies_contextual_replacement() {
+    fn test_apply_v4a_diff_applies_contextual_replacement() {
         let original = "header\nline1\nline2\nline3\n";
-        let diff = "@@ header\n header\n line1\n-line2\n+LINE2\n line3\n";
-        let result = apply_diff(original, diff, ApplyDiffMode::Default).unwrap();
+        let diff = "@@ header\n line1\n-line2\n+LINE2\n line3\n";
+        let result = apply_v4a_diff(original, diff, ApplyDiffMode::Default).unwrap();
         assert_eq!(normalize(&result), "header\nline1\nLINE2\nline3\n");
     }
 
-    /// test_apply_diff_raises_on_context_mismatch
     #[test]
-    fn apply_diff_raises_on_context_mismatch() {
+    fn test_apply_v4a_diff_raises_on_context_mismatch() {
         let original = "a\nb\nc\n";
         let diff = "@@\n x\n-y\n z\n";
-        let err = apply_diff(original, diff, ApplyDiffMode::Default).unwrap_err();
+        let err = apply_v4a_diff(original, diff, ApplyDiffMode::Default).unwrap_err();
         let msg = err.to_string();
         assert!(msg.contains("Invalid Context") || msg.contains("Invalid EOF Context"));
     }
 
-    /// test_apply_diff_with_crlf_input_and_lf_diff_preserves_crlf
     #[test]
-    fn apply_diff_with_crlf_input_and_lf_diff_preserves_crlf() {
+    fn test_apply_v4a_diff_with_crlf_input_and_lf_diff_preserves_crlf() {
         let original = "a\r\nb\r\nc\r\n";
         let diff = "@@\n a\n-b\n+B\n c\n";
-        let result = apply_diff(original, diff, ApplyDiffMode::Default).unwrap();
+        let result = apply_v4a_diff(original, diff, ApplyDiffMode::Default).unwrap();
         assert!(result.contains("\r\n"));
         assert_eq!(result, "a\r\nB\r\nc\r\n");
     }
 
-    /// test_apply_diff_with_lf_input_and_crlf_diff_preserves_lf
     #[test]
-    fn apply_diff_with_lf_input_and_crlf_diff_preserves_lf() {
+    fn test_apply_v4a_diff_with_lf_input_and_crlf_diff_preserves_lf() {
         let original = "a\nb\nc\n";
         let diff = "@@\r\n a\r\n-b\r\n+B\r\n c\r\n";
-        let result = apply_diff(original, diff, ApplyDiffMode::Default).unwrap();
+        let result = apply_v4a_diff(original, diff, ApplyDiffMode::Default).unwrap();
         // Input is LF, so we keep LF even if diff uses CRLF.
         assert!(!result.contains("\r\n"));
         assert_eq!(normalize(&result), "a\nB\nc\n");
     }
 
-    /// test_apply_diff_with_crlf_input_and_crlf_diff_preserves_crlf
     #[test]
-    fn apply_diff_with_crlf_input_and_crlf_diff_preserves_crlf() {
+    fn test_apply_v4a_diff_with_crlf_input_and_crlf_diff_preserves_crlf() {
         let original = "a\r\nb\r\nc\r\n";
         let diff = "@@\r\n a\r\n-b\r\n+B\r\n c\r\n";
-        let result = apply_diff(original, diff, ApplyDiffMode::Default).unwrap();
+        let result = apply_v4a_diff(original, diff, ApplyDiffMode::Default).unwrap();
         assert!(result.contains("\r\n"));
         assert_eq!(result, "a\r\nB\r\nc\r\n");
     }
 
-    /// test_apply_diff_create_mode_preserves_crlf_newlines
     #[test]
-    fn apply_diff_create_mode_preserves_crlf_newlines() {
+    fn test_apply_v4a_diff_create_mode_preserves_crlf_newlines() {
         let original = "";
         let diff = "+a\r\n+b\r\n+c\r\n";
-        let result = apply_diff(original, diff, ApplyDiffMode::Create).unwrap();
+        let result = apply_v4a_diff(original, diff, ApplyDiffMode::Create).unwrap();
         assert!(result.contains("\r\n"));
         assert_eq!(result, "a\r\nb\r\nc");
     }

@@ -5,13 +5,13 @@ use std::{
 };
 use anyhow::{anyhow, Result};
 
-use crate::patch::apply_patch::{PatchKind, PatchOperation, apply_patch_auto};
+use crate::patch::patch_engine::{PatchKind, PatchOperation, apply_patch_auto};
 
-pub struct WorkspaceEditor {
+pub struct TableEditor {
     root: PathBuf,
 }
 
-impl WorkspaceEditor {
+impl TableEditor {
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self { root: root.into() }
     }
@@ -112,14 +112,14 @@ pub mod tests {
         std::fs::read_to_string(root.path().join(rel)).unwrap()
     }
 
-    /// End-to-end: V4A diff through WorkspaceEditor.
+    /// End-to-end: V4A diff through TableEditor.
     #[test]
-    fn test_workspace_editor_applies_v4a_diff_end_to_end() {
+    fn workspace_editor_applies_v4a_diff_end_to_end() {
         let root = temp_root();
-        let editor = WorkspaceEditor::new(root.path());
+        let editor = TableEditor::new(root.path());
 
         // Create file via V4A create diff.
-        let create_diff = "+hello\n+world\n*** End Patch\n";
+        let create_diff = "@@\n+hello\n+world\n*** End Patch\n";
         let op = PatchOperation {
             path: std::path::PathBuf::from("foo.txt"),
             diff: create_diff.to_string(),
@@ -141,11 +141,11 @@ pub mod tests {
         assert_eq!(read_file(&root, "foo.txt"), "hello\nWORLD");
     }
 
-    /// End-to-end: DMP diff through WorkspaceEditor.
+    /// End-to-end: DMP diff through TableEditor.
     #[test]
-    fn test_workspace_editor_applies_dmp_diff_end_to_end() {
+    fn workspace_editor_applies_dmp_diff_end_to_end() {
         let root = temp_root();
-        let editor = WorkspaceEditor::new(root.path());
+        let editor = TableEditor::new(root.path());
 
         // Seed file directly.
         editor
@@ -155,8 +155,8 @@ pub mod tests {
         let original = "a\nb\nc\n";
         let modified = "a\nB\nc\n";
 
-        let dmp = DiffMatchPatch::new();
-        let diffs = dmp.diff_main::<Efficient>(original, modified).unwrap();
+        let mut dmp = DiffMatchPatch::new();
+        let mut diffs = dmp.diff_main::<Efficient>(original, modified).unwrap();
         let patches = dmp.patch_make(PatchInput::new_diffs(&diffs)).unwrap();
         let diff_text = dmp.patch_to_text(&patches);
 

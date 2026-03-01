@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use diff_match_patch_rs::{DiffMatchPatch, Efficient, PatchInput};
-use phymes_data::{ApplyDiffMode, apply_diff};
+use phymes_data::{ApplyDiffMode, apply_v4a_diff};
 
 fn sample_original() -> String {
     (0..1000)
@@ -35,7 +35,7 @@ fn bench_dmp_apply(c: &mut Criterion) {
                 (original, diff)
             },
             |(original, diff)| {
-                let mut dmp = DiffMatchPatch::new();
+                let dmp = DiffMatchPatch::new();
                 let patches = dmp.patch_from_text::<Efficient>(&diff).unwrap();
                 let (_new_content, _results) = dmp.patch_apply(&patches, &original).unwrap();
             },
@@ -53,7 +53,7 @@ fn bench_dmp_apply(c: &mut Criterion) {
             },
             |(original, diff)| {
                 let _new_content =
-                    apply_diff(&original, &diff, ApplyDiffMode::Default).ok();
+                    apply_v4a_diff(&original, &diff, ApplyDiffMode::Default).ok();
             },
             BatchSize::SmallInput,
         );
