@@ -1,10 +1,11 @@
-use std::sync::Arc;
+use std::{fmt::Display, path::PathBuf, sync::Arc};
 
 use anyhow::Result;
 use arrow::{
     array::{ArrayRef, Int64Array, ListBuilder, RecordBatch, StringArray, UInt8Builder},
     datatypes::{DataType, Field, Fields},
 };
+use clap::ValueEnum;
 use phymes_diagnostics::create_timestamp_micros;
 use serde::{Deserialize, Serialize};
 
@@ -189,11 +190,7 @@ pub fn create_blob_batch(
     Ok(batch)
 }
 
-/// Diff/Patch schema
-/// 
-/// # Todo
-/// - Compute Hash properly
-pub fn create_diff_patch_fields() -> Fields {
+fn create_diff_fields_vec() -> Vec<Field> {
     let field_names = ["diff", "hash", "metadata"];
     let mut fields_vec = field_names
         .iter()
@@ -206,18 +203,26 @@ pub fn create_diff_patch_fields() -> Fields {
             .map(|f| Field::new(*f, DataType::Int64, false))
             .collect::<Vec<_>>(),
     );
-    Fields::from(fields_vec)
+    fields_vec
+}
+
+/// Diff schema that could be applied to Git Unified Diff format
+/// 
+/// # Todo
+/// - Compute Hash properly
+pub fn create_diff_fields() -> Fields {
+    Fields::from(create_diff_fields_vec())
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct DiffPatchSubject {
+pub struct DiffSubject {
     pub diff: String,
     pub hash: String,
     pub metadata: String,
     pub timestamp: i64,
 }
 
-pub fn create_diff_patch_batch(
+pub fn create_diff_batch(
     diff: Vec<String>,
     hash: Vec<String>,
     metadata: Vec<String>,
@@ -228,6 +233,72 @@ pub fn create_diff_patch_batch(
     let metadata: ArrayRef = Arc::new(StringArray::from(metadata));
     let timestamp: ArrayRef = Arc::new(Int64Array::from(timestamp));
     let batch = RecordBatch::try_from_iter(vec![
+        ("diff", diff),
+        ("hash", hash),
+        ("metadata", metadata),
+        ("timestamp", timestamp),
+    ])?;
+    Ok(batch)
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, ValueEnum, Default)]
+pub enum PatchKind {
+    #[default]
+    #[value(name = "Create")]
+    Create,
+    #[value(name = "Update")]
+    Update,
+    #[value(name = "Delete")]
+    Delete,
+}
+impl Display for PatchKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Create => write!(f, "Create"),
+            Self::Update => write!(f, "Update"),
+            Self::Delete => write!(f, "Delete"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct PatchOperation {
+    /// Path of the file
+    pub path: PathBuf,
+    /// The kind of patch to apply
+    pub kind: PatchKind,
+    /// Unified diff format compatible with `diff-match-patch` crate
+    pub diff: String,
+}
+
+/// Patch schema intended to be implemented on a file by file bases depending upon the operation
+pub fn create_patch_fields() -> Fields {
+    let field_names = ["path", "operator"];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    fields_vec.extend(create_diff_fields_vec());
+    Fields::from(fields_vec)
+}
+
+pub fn create_patch_batch(
+    path: Vec<String>,
+    operator: Vec<String>,
+    diff: Vec<String>,
+    hash: Vec<String>,
+    metadata: Vec<String>,
+    timestamp: Vec<i64>,
+) -> Result<RecordBatch> {
+    let path: ArrayRef = Arc::new(StringArray::from(path));
+    let operator: ArrayRef = Arc::new(StringArray::from(operator));
+    let diff: ArrayRef = Arc::new(StringArray::from(diff));
+    let hash: ArrayRef = Arc::new(StringArray::from(hash));
+    let metadata: ArrayRef = Arc::new(StringArray::from(metadata));
+    let timestamp: ArrayRef = Arc::new(Int64Array::from(timestamp));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("path", path),
+        ("operator", operator),
         ("diff", diff),
         ("hash", hash),
         ("metadata", metadata),

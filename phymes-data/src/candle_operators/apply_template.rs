@@ -16,7 +16,7 @@ use crate::{
     AvailableJinja2Templates, ToolTrait,
     candle_data::DataConfig,
     candle_operators::{DataOperatorTrait, table_and_data_format_to_record_batch},
-    jinja2_templates::{TEMPLATE_HEADER_EXPRESSION, TEMPLATE_TABLE_EXPRESSION},
+    template::{TEMPLATE_HEADER_EXPRESSION, TEMPLATE_TABLE_EXPRESSION},
 };
 
 /// Inject a table into a string template
@@ -234,7 +234,7 @@ pub fn apply_template(
 mod tests {
     use phymes_core::test_table::make_test_table_chat;
 
-    use crate::{device, jinja2_templates::test_minimal_html};
+    use crate::{device, template::test_minimal_html};
 
     use super::*;
 

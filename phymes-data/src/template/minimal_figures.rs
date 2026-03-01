@@ -27,7 +27,7 @@ pub static MINIMAL_FIGURE_INPUT: &str = r#"{
 mod tests {
     use std::sync::Arc;
 
-    use crate::jinja2_templates::{
+    use crate::template::{
         TEMPLATE_TABLE_EXPRESSION,
         minimal_html::{MINIMAL_HTML_POST, MINIMAL_HTML_PRE},
     };

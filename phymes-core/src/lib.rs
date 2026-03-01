@@ -24,7 +24,7 @@ pub use schemas::{
     DiagnosticsVisualizations, EmbeddingRequest, EmbeddingResponse, EncodingFormat, FinishReason,
     Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
     JoinUserInboxSessionContextsMermaidDiagrams, JsonSchemaTrait, SessionMermaidSubject, Tool,
-    ToolCall, ToolChoiceType, ToolType, UserSubject, create_attachments_batch, create_attachments_fields, create_blob_batch, create_diff_patch_batch,
+    ToolCall, ToolChoiceType, ToolType, UserSubject, create_attachments_batch, create_attachments_fields, create_blob_batch, create_diff_batch,
     create_bytes_fields, create_bytes_record_batch, create_chat_fields, create_chat_record_batch,
     create_documents_batch, create_documents_embeddings_batch, create_error_message_map,
     create_error_message_map_stream, create_mermaid_content_template_batch,

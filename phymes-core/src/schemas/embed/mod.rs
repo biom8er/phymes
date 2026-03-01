@@ -4,7 +4,7 @@ mod queries;
 // Based on openai-api-rs <https://github.com/dongri/openai-api-rs>
 mod openai_embedding;
 
-pub use blob::{AttachmentBuilderTraitExt, AttachmentsSubject, create_attachments_batch, create_attachments_fields, create_blob_batch, create_blob_fields, create_diff_patch_batch, create_diff_patch_fields};
+pub use blob::{AttachmentBuilderTraitExt, AttachmentsSubject, create_attachments_batch, create_attachments_fields, create_blob_batch, create_blob_fields, create_diff_batch, create_diff_fields};
 pub use documents::{
     create_document_embeddings_fields, create_documents_batch, create_documents_embeddings_batch,
     create_documents_fields, create_embeddings_scores_fields, create_join_chunks_scores_fields,

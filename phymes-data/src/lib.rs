@@ -2,7 +2,8 @@ mod candle_data;
 mod candle_operators;
 #[cfg(feature = "api")]
 mod external_operators;
-mod jinja2_templates;
+mod template;
+mod patch;
 
 pub use candle_data::{
     AggregatorStream, AttachmentAggregatorProcessor, CandleDataProcessor, CandleTensorService,
@@ -25,7 +26,7 @@ pub use external_operators::{
     CommandSandboxRunners, DataIOMethod, HTTPClientConfig, HTTPClientRequestProcessor,
     HTTPClientRequestSchemas, HTTPClientRequestState, HTTPClientRequestType,
 };
-pub use jinja2_templates::{
+pub use template::{
     AvailableJinja2Templates, MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_INPUT,
     MERMAID_ER_DIAGRAM_RELATIONS_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE, MERMAID_FLOWCHART_INPUT,
     MERMAID_FLOWCHART_LINKS_TEMPLATE, MERMAID_FLOWCHART_NODES_TEMPLATE, MERMAID_FLOWCHART_TEMPLATE,
@@ -36,3 +37,4 @@ pub use jinja2_templates::{
     MINIMAL_FIGURE_INPUT, MINIMAL_FIGURE_TEMPLATE, MINIMAL_LIST_INPUT, MINIMAL_TABLE_INPUT,
     MINIMAL_TABLE_TEMPLATE, test_minimal_html,
 };
+pub use patch::{ApplyDiffMode, apply_diff, apply_patch_auto, PatchKind, PatchOperation};

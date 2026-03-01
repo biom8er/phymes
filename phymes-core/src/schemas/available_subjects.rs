@@ -2,7 +2,7 @@ use crate::{
     create_bytes_fields, create_chat_fields,
     runtime_env::{BuildableTrait, BuilderTrait},
     schemas::{
-        chat::create_values_fields, create_attachments_fields, create_diff_patch_fields, create_document_embeddings_fields, create_documents_fields, create_embeddings_scores_fields, create_join_chunks_scores_fields, create_queries_fields, create_query_embeddings_fields, create_blob_fields, create_route_bytes_fields, create_tools_fields, diagnostics::{
+        chat::create_values_fields, create_attachments_fields, create_diff_fields, create_document_embeddings_fields, create_documents_fields, create_embeddings_scores_fields, create_join_chunks_scores_fields, create_queries_fields, create_query_embeddings_fields, create_blob_fields, create_route_bytes_fields, create_tools_fields, diagnostics::{
             create_events_fields, create_metrics_fields, create_metrics_mermaid_gantt_fields,
             create_metrics_pivot_fields, create_metrics_pivot_norm_time_fields,
             create_traces_fields,
@@ -98,8 +98,8 @@ pub enum AvailableSubjects {
     Attachments,
     #[value(name = "Blob")]
     Blob,
-    #[value(name = "DiffPatch")]
-    DiffPatch,
+    #[value(name = "Diff")]
+    Diff,
     #[value(name = "User")]
     User,
     #[value(name = "UserSessionContexts")]
@@ -233,7 +233,7 @@ impl Display for AvailableSubjects {
             AvailableSubjects::JoinChunksScores => write!(f, "JoinChunksScores"),
             AvailableSubjects::Attachments => write!(f, "Attachments"),
             AvailableSubjects::Blob => write!(f, "Blob"),
-            AvailableSubjects::DiffPatch => write!(f, "DiffPatch"),
+            AvailableSubjects::Diff => write!(f, "Diff"),
             AvailableSubjects::User => write!(f, "User"),
             AvailableSubjects::UserSessionContexts => write!(f, "UserSessionContexts"),
             AvailableSubjects::UserInbox => write!(f, "UserInbox"),
@@ -363,7 +363,7 @@ impl AvailableSchemaTrait for AvailableSubjects {
             }
             AvailableSubjects::Attachments => create_schema_from_fields(&create_attachments_fields),
             AvailableSubjects::Blob => create_schema_from_fields(&create_blob_fields),
-            AvailableSubjects::DiffPatch => create_schema_from_fields(&create_diff_patch_fields),
+            AvailableSubjects::Diff => create_schema_from_fields(&create_diff_fields),
             AvailableSubjects::User => create_schema_from_fields(&create_user_fields),
             AvailableSubjects::UserSessionContexts => {
                 create_schema_from_fields(&create_user_session_contexts_fields)
