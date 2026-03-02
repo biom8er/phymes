@@ -498,9 +498,11 @@ pub enum DataJoinOperator {
     #[value(name = "FullOuter")]
     FullOuter,
     /// Produces a Cartesian product of two tables, pairing each row from the first table with every row from the second table.
+    /// Not yet supported.
     #[value(name = "Cross")]
     Cross,
     /// Automatically joins tables based on columns with the same name and data type, including only rows with matching values in those columns.
+    /// Not yet supported.
     #[value(name = "Natural")]
     Natural,
 }
