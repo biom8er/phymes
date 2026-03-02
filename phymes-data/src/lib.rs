@@ -7,7 +7,7 @@ mod patch;
 
 pub use candle_data::{
     AggregatorStream, AttachmentAggregatorProcessor, CandleDataProcessor, CandleTensorService,
-    CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator,
+    CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataJoinOperator,
     DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait,
     DataDistanceOperator, DataStreamManager, LimitConfig, LimitProcessor, TensorProcessorTrait,
     collect_messages_by_schema, device,

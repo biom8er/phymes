@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 use tracing::instrument;
 
 use crate::{
-    DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, PatchOperator, ToolTrait, apply_patch_auto, candle_data::DataConfig, candle_operators::{DataOperatorTrait, group_by::build_aggregator_column_list_nonprimitive, join::join, select::select}, filter
+    DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataJoinOperator, PatchOperator, ToolTrait, apply_patch_auto, candle_data::DataConfig, candle_operators::{DataOperatorTrait, group_by::build_aggregator_column_list_nonprimitive, join::join, select::select}, filter
 };
 
 /// Inject a table into a string template
@@ -218,7 +218,7 @@ pub fn apply_patch(
             ));
         }
     };
-    let lhs_delete = filter(&[lhs_pk], &lhs_delete, &["delete"], &[DataComparatorOperator::InListUtf8], &DataComparatorPredicate::All, device)?;
+    let lhs_delete = filter(&["delete"], &lhs_delete, &[lhs_pk], &[DataComparatorOperator::NotInListUtf8], &DataComparatorPredicate::All, device)?;
     let lhs_delete = select(
         &lhs_args.first().unwrap().schema().fields().iter().map(|f| f.name().as_str()).collect::<Vec<_>>(), 
         &[lhs_delete], &[], &[], &[], &[], &[], &[], &[], device)?;
@@ -231,7 +231,7 @@ pub fn apply_patch(
         &[rhs_update], &[], &[], &[], &[], &[], &[], &[], device)?;
     
     // Join LHS and filtered RHS on lhs_pk and rhs_pk
-    let lhs_update = join(lhs_pk, &[lhs_delete], rhs_pk, &[rhs_update], device)?;
+    let lhs_update = join(lhs_pk, &[lhs_delete], rhs_pk, &[rhs_update], &DataJoinOperator::LeftOuter, device)?;
 
     // Apply `Update`
     let lhs_update_table = Table::get_builder()

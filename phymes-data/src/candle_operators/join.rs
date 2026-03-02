@@ -15,12 +15,10 @@ use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 
 use crate::{
-    ToolTrait,
-    candle_data::DataConfig,
-    candle_operators::{
+    DataJoinOperator, ToolTrait, candle_data::DataConfig, candle_operators::{
         data_operator::DataOperatorTrait,
         sort::{sort, take_columns_by_indices},
-    },
+    }
 };
 
 /// Inner join along the LHS foreign key and RHS PK of two [RecordBatch] ONLY the rows with matching values in common are returned
@@ -30,6 +28,7 @@ pub struct Join {
     lhs_fk: String,
     _rhs_pk: String,
     rhs_fk: String,
+    join_operator: DataJoinOperator,
 }
 
 impl MappableTrait for Join {
@@ -140,11 +139,16 @@ impl DataOperatorTrait for Join {
             "Missing `rhs_fk` for `{}`.",
             Self::get_static_name()
         ))?;
+        let join_operator = config.join_operators.clone().ok_or(anyhow!(
+            "Missing `join_operator` for `{}`.",
+            Self::get_static_name()
+        ))?;
         Ok(Join {
             _lhs_pk: lhs_pk,
             lhs_fk,
             _rhs_pk: rhs_pk,
             rhs_fk,
+            join_operator
         })
     }
     fn forward(
@@ -161,6 +165,7 @@ impl DataOperatorTrait for Join {
                 "Missing `rhs_args` for `{}`.",
                 Self::get_static_name()
             ))?,
+            &self.join_operator,
             device,
         )
     }
@@ -226,15 +231,17 @@ Inner join along the LHS foreign key and RHS PK of two [RecordBatch]
 * `lhs_fk` - Left hand side foreign key
 * `rhs` - RecordBatch
 * `rhs_fk` - Right hand side foreign key
+* `join_operator` - The join operator to use
 * `device` - The compute device
 
 */
-#[instrument(skip(lhs_fk, lhs_args, rhs_fk, rhs_args, device))]
+#[instrument(skip(lhs_fk, lhs_args, rhs_fk, rhs_args, join_operator, device))]
 pub fn join(
     lhs_fk: &str,
     lhs_args: &[RecordBatch],
     rhs_fk: &str,
     rhs_args: &[RecordBatch],
+    join_operator: &DataJoinOperator,
     device: &Device,
 ) -> Result<RecordBatch> {
     // Presort the lhs and rhs according to PKs
@@ -272,7 +279,10 @@ pub fn join(
                 let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
                     .reshape((1, rhs_dim_0))?
                     .broadcast_as((lhs_dim_0, rhs_dim_0))?;
-                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
+                match join_operator {
+                    DataJoinOperator::Inner => join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?,
+                    _ => return Err(anyhow!("Join operator `join_operator` is not yet supported for LHS and RHS FK of type `{}`.", lhs_table.get_column_data_type(lhs_fk)?))
+                }
             }
             DataType::UInt32 => {
                 let lhs_fk_vec = lhs_table.get_column_as_vec_primitive::<u32>(lhs_fk)?;
@@ -287,7 +297,11 @@ pub fn join(
                 let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
                     .reshape((1, rhs_dim_0))?
                     .broadcast_as((lhs_dim_0, rhs_dim_0))?;
-                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
+                match join_operator {
+                    DataJoinOperator::Inner => join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?,
+                    _ => return Err(anyhow!("Join operator `join_operator` is not yet supported for LHS and RHS FK of type `{}`.", lhs_table.get_column_data_type(lhs_fk)?))
+                }
+                
             }
             DataType::Int64 => {
                 let lhs_fk_vec = lhs_table.get_column_as_vec_primitive::<i64>(lhs_fk)?;
@@ -302,7 +316,10 @@ pub fn join(
                 let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
                     .reshape((1, rhs_dim_0))?
                     .broadcast_as((lhs_dim_0, rhs_dim_0))?;
-                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
+                match join_operator {
+                    DataJoinOperator::Inner => join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?,
+                    _ => return Err(anyhow!("Join operator `join_operator` is not yet supported for LHS and RHS FK of type `{}`.", lhs_table.get_column_data_type(lhs_fk)?))
+                }
             }
             DataType::Float32 => {
                 let lhs_fk_vec = lhs_table.get_column_as_vec_primitive::<f32>(lhs_fk)?;
@@ -317,7 +334,10 @@ pub fn join(
                 let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
                     .reshape((1, rhs_dim_0))?
                     .broadcast_as((lhs_dim_0, rhs_dim_0))?;
-                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
+                match join_operator {
+                    DataJoinOperator::Inner => join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?,
+                    _ => return Err(anyhow!("Join operator `join_operator` is not yet supported for LHS and RHS FK of type `{}`.", lhs_table.get_column_data_type(lhs_fk)?))
+                }
             }
             DataType::Float64 => {
                 let lhs_fk_vec = lhs_table.get_column_as_vec_primitive::<f64>(lhs_fk)?;
@@ -332,7 +352,10 @@ pub fn join(
                 let rhs_tensor = Tensor::from_iter(rhs_fk_vec, device)?
                     .reshape((1, rhs_dim_0))?
                     .broadcast_as((lhs_dim_0, rhs_dim_0))?;
-                join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?
+                match join_operator {
+                    DataJoinOperator::Inner => join_inner_tensor(lhs_dim_0, lhs_tensor, rhs_dim_0, rhs_tensor, device)?,
+                    _ => return Err(anyhow!("Join operator `join_operator` is not yet supported for LHS and RHS FK of type `{}`.", lhs_table.get_column_data_type(lhs_fk)?)),
+                }
             }
             DataType::Utf8 => {
                 let lhs_fk_vec = lhs_table.get_column_as_vec_nonprimitive::<String>(lhs_fk)?;
@@ -340,22 +363,27 @@ pub fn join(
                 let mut lhs_indices = Vec::new();
                 let mut rhs_indices = Vec::new();
 
-                // Find matches between foreign keys
-                for (li, lfk) in lhs_fk_vec.iter().enumerate() {
-                    // check for the start of rfk_run
-                    let mut rfk_found = false;
-                    for (ri, rfk) in rhs_fk_vec.iter().enumerate() {
-                        if lfk == rfk {
-                            lhs_indices.push(li as u32);
-                            rhs_indices.push(ri as u32);
-                            rfk_found = true;
-                        }
+                match join_operator {
+                    DataJoinOperator::Inner => {
+                        // Find matches between foreign keys
+                        for (li, lfk) in lhs_fk_vec.iter().enumerate() {
+                            // check for the start of rfk_run
+                            let mut rfk_found = false;
+                            for (ri, rfk) in rhs_fk_vec.iter().enumerate() {
+                                if lfk == rfk {
+                                    lhs_indices.push(li as u32);
+                                    rhs_indices.push(ri as u32);
+                                    rfk_found = true;
+                                }
 
-                        // take advantage of the presorting of fks to break early
-                        if lfk != rfk && rfk_found {
-                            break;
+                                // take advantage of the presorting of fks to break early
+                                if lfk != rfk && rfk_found {
+                                    break;
+                                }
+                            }
                         }
                     }
+                    _ => return Err(anyhow!("Join operator `join_operator` is not yet supported for LHS and RHS FK of type `{}`.", lhs_table.get_column_data_type(lhs_fk)?)),
                 }
                 let lhs_tensor = Tensor::from_iter(
                     lhs_indices.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
@@ -435,7 +463,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_join() -> Result<()> {
+    fn test_join_inner() -> Result<()> {
         // ------ FK = String ------
         // Make the test record batches
         let lhs_ids_vec_1 = vec!["0", "1"];
@@ -481,6 +509,7 @@ mod tests {
             &[lhs_batch_1, lhs_batch_2],
             "rhs_pk",
             &[rhs_batch_1],
+            &DataJoinOperator::Inner,
             &device,
         )?;
 
@@ -587,6 +616,7 @@ mod tests {
             &[lhs_batch_1, lhs_batch_2],
             "rhs_pk",
             &[rhs_batch_1],
+            &DataJoinOperator::Inner,
             &device,
         )?;
 

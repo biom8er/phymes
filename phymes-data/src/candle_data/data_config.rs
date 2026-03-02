@@ -481,6 +481,43 @@ impl Display for DataColumnOperator {
     }
 }
 
+/// Data Join Operators
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
+pub enum DataJoinOperator {
+    /// Combines rows from two tables where there is a match in the specified column(s) of both tables. Only matching rows are included in the result.
+    #[default]
+    #[value(name = "Inner")]
+    Inner,
+    /// Returns all rows from the left table and the matching rows from the right table. If no match exists, NULL values are returned for the right table's columns
+    #[value(name = "LeftOuter")]
+    LeftOuter,
+    /// Returns all rows from the right table and the matching rows from the left table. If no match exists, NULL values are returned for the left table's columns.
+    #[value(name = "RightOuter")]
+    RightOuter,
+    /// Combines the results of both LEFT JOIN and RIGHT JOIN. Returns all rows from both tables, with NULLs for non-matching rows in either table.
+    #[value(name = "FullOuter")]
+    FullOuter,
+    /// Produces a Cartesian product of two tables, pairing each row from the first table with every row from the second table.
+    #[value(name = "Cross")]
+    Cross,
+    /// Automatically joins tables based on columns with the same name and data type, including only rows with matching values in those columns.
+    #[value(name = "Natural")]
+    Natural,
+}
+
+impl Display for DataJoinOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Inner => write!(f, "Inner"),
+            Self::LeftOuter => write!(f, "LeftOuter"),
+            Self::RightOuter => write!(f, "RightOuter"),
+            Self::FullOuter => write!(f, "FullOuter"),
+            Self::Cross => write!(f, "Cross"),
+            Self::Natural => write!(f, "Natural"),
+        }
+    }
+}
+
 /// Traits for all configs
 pub trait DataConfigTrait {
     /// Create an example and serialize to JSON
@@ -575,6 +612,11 @@ pub struct DataConfig {
     /// The operator to invoke
     #[arg(long)]
     pub operator: AvailableCandleOperators,
+
+    /// [DataJoinOperator] specifying the join operator to apply between tables
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub join_operators: Option<DataJoinOperator>,
 
     /// Minijinja [String] template
     #[arg(long)]
