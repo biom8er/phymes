@@ -48,7 +48,7 @@ getrandom = { version = "0.3.1", features = ["wasm_js"] }
 getrandom_0_2 = { package = "getrandom", version = "0.2.15", features = ["js"] }
 chrono = "0.4.41"
 rayon = { version = "1.6"}
-lopdf = { version = "0.38.0", default-features = false, features = ["rayon"], optional = true }
+lopdf = { version = "0.39.0", default-features = false, features = ["rayon"], optional = true }
 num-traits = { version = "0.2", default-features = false }
 quick-xml = { version = "0.39.0", default-features = false, optional = true }
 reqwest = { version = "0.13.2", features = ["json", "stream"], default-features = false, optional = true }
