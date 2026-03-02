@@ -190,6 +190,33 @@ pub fn create_blob_batch(
     Ok(batch)
 }
 
+/// Minimal Blob schema needed for code generation application
+/// 
+/// # Notes
+/// 
+/// - `content` is used for both the source code and the source code diff/patch
+pub fn create_source_code_fields() -> Fields {
+    let field_names = ["path", "content"];
+    let fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    Fields::from(fields_vec)
+}
+
+pub fn create_source_code_batch(
+    path: Vec<String>,
+    content: Vec<String>,
+) -> Result<RecordBatch> {
+    let path: ArrayRef = Arc::new(StringArray::from(path));
+    let content: ArrayRef = Arc::new(StringArray::from(content));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("path", path),
+        ("content", content),
+    ])?;
+    Ok(batch)
+}
+
 fn create_diff_fields_vec() -> Vec<Field> {
     let field_names = ["diff", "hash", "metadata"];
     let mut fields_vec = field_names

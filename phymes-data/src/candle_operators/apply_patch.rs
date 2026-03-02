@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{Result, anyhow};
-use arrow::{array::RecordBatch, datatypes::{DataType, Field, Schema}};
+use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray, UInt32Array}, datatypes::{DataType, Field, Int64Type, Schema, UInt32Type}};
 use candle_core::Device;
 use phymes_core::{
     BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine,
@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 use tracing::instrument;
 
 use crate::{
-    DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataJoinOperator, PatchOperator, ToolTrait, apply_patch_auto, candle_data::DataConfig, candle_operators::{DataOperatorTrait, group_by::build_aggregator_column_list_nonprimitive, join::join, select::select}, filter
+    DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataJoinOperator, PatchOperator, ToolTrait, apply_patch_auto, candle_data::DataConfig, candle_operators::{DataOperatorTrait, group_by::{build_aggregator_column_list_nonprimitive, build_aggregator_column_list_primitive}, join::join, select::select}, filter
 };
 
 /// Inject a table into a string template
@@ -175,10 +175,7 @@ pub fn apply_patch(
 
     // Filter RHS for `Delete`
     let rhs_delete = select(&["delete"], rhs_args, &[], &[], &[], &[DataColumnOperator::Value], &[], &[DataType::Utf8], &[PatchOperator::Delete.to_string().as_str()], device)?;
-    let rhs_delete = filter(&[operator_column], &[rhs_delete], &["delete"], &[DataComparatorOperator::Like], &DataComparatorPredicate::All, device)?;
-    // let rhs_delete = select(
-    //     &rhs_args.first().unwrap().schema().fields().iter().map(|f| f.name().as_str()).collect::<Vec<_>>(), 
-    //     &[rhs_delete], &[], &[], &[], &[], &[], &[], &[], device)?;    
+    let rhs_delete = filter(&[operator_column], &[rhs_delete], &["delete"], &[DataComparatorOperator::Like], &DataComparatorPredicate::All, device)?; 
 
     // Apply `Delete`
     let rhs_table = Table::get_builder()
@@ -186,18 +183,18 @@ pub fn apply_patch(
         .with_record_batches(vec![rhs_delete])?
         .build()?;
     let lhs_delete = match rhs_table.get_column_data_type(rhs_pk)? {
-        // DM: and the other primitive types...
-        DataType::Utf8 => {
-            let values_vec = rhs_table.get_column_as_vec_nonprimitive::<String>(rhs_pk)?;
+        DataType::UInt32 => {
+            let values_vec = rhs_table.get_column_as_vec_primitive::<u32>(rhs_pk)?;
             let lhs_deleted: Result<Vec<RecordBatch>> = lhs_args.iter()
                 .map(|batch| {
                     // New colum
                     let agg_vec = (0..batch.num_rows()).map(|_| values_vec.clone()).collect::<Vec<_>>();
-                    let new_arr = build_aggregator_column_list_nonprimitive::<String>(agg_vec, DataType::Utf8);
+                    let new_arr = build_aggregator_column_list_primitive::<u32, UInt32Type>(agg_vec, DataType::UInt32);
 
-                    // New schema               
+                    // New schema
+                    let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::UInt32, false)));           
                     let new_fields = batch.schema().fields().iter().cloned()
-                        .chain([Arc::new(Field::new("delete", DataType::Utf8, false))])
+                        .chain([Arc::new(Field::new("delete", list_data_type, false))])
                         .collect::<Vec<_>>();
                     let new_schema = Arc::new(Schema::new(new_fields));
 
@@ -208,7 +205,55 @@ pub fn apply_patch(
                     Ok(new_batch)
                 })
                 .collect();
-            lhs_deleted?
+            filter(&["delete"], &lhs_deleted?, &[lhs_pk], &[DataComparatorOperator::NotInList], &DataComparatorPredicate::All, device)?
+        }
+        DataType::Int64 => {
+            let values_vec = rhs_table.get_column_as_vec_primitive::<i64>(rhs_pk)?;
+            let lhs_deleted: Result<Vec<RecordBatch>> = lhs_args.iter()
+                .map(|batch| {
+                    // New colum
+                    let agg_vec = (0..batch.num_rows()).map(|_| values_vec.clone()).collect::<Vec<_>>();
+                    let new_arr = build_aggregator_column_list_primitive::<i64, Int64Type>(agg_vec, DataType::Int64);
+
+                    // New schema
+                    let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Int64, false)));           
+                    let new_fields = batch.schema().fields().iter().cloned()
+                        .chain([Arc::new(Field::new("delete", list_data_type, false))])
+                        .collect::<Vec<_>>();
+                    let new_schema = Arc::new(Schema::new(new_fields));
+
+                    // New batches
+                    let mut new_columns = batch.columns().to_vec();
+                    new_columns.push(new_arr);
+                    let new_batch = RecordBatch::try_new(new_schema.clone(), new_columns)?;
+                    Ok(new_batch)
+                })
+                .collect();
+            filter(&["delete"], &lhs_deleted?, &[lhs_pk], &[DataComparatorOperator::NotInList], &DataComparatorPredicate::All, device)?
+        }
+        DataType::Utf8 => {
+            let values_vec = rhs_table.get_column_as_vec_nonprimitive::<String>(rhs_pk)?;
+            let lhs_deleted: Result<Vec<RecordBatch>> = lhs_args.iter()
+                .map(|batch| {
+                    // New colum
+                    let agg_vec = (0..batch.num_rows()).map(|_| values_vec.clone()).collect::<Vec<_>>();
+                    let new_arr = build_aggregator_column_list_nonprimitive::<String>(agg_vec, DataType::Utf8);
+
+                    // New schema
+                    let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Utf8, false)));      
+                    let new_fields = batch.schema().fields().iter().cloned()
+                        .chain([Arc::new(Field::new("delete", list_data_type, false))])
+                        .collect::<Vec<_>>();
+                    let new_schema = Arc::new(Schema::new(new_fields));
+
+                    // New batches
+                    let mut new_columns = batch.columns().to_vec();
+                    new_columns.push(new_arr);
+                    let new_batch = RecordBatch::try_new(new_schema.clone(), new_columns)?;
+                    Ok(new_batch)
+                })
+                .collect();
+            filter(&["delete"], &lhs_deleted?, &[lhs_pk], &[DataComparatorOperator::NotInListUtf8], &DataComparatorPredicate::All, device)?
         }
         // DM: and the other nested types...
         _ => {
@@ -218,7 +263,6 @@ pub fn apply_patch(
             ));
         }
     };
-    let lhs_delete = filter(&["delete"], &lhs_delete, &[lhs_pk], &[DataComparatorOperator::NotInListUtf8], &DataComparatorPredicate::All, device)?;
     let lhs_delete = select(
         &lhs_args.first().unwrap().schema().fields().iter().map(|f| f.name().as_str()).collect::<Vec<_>>(), 
         &[lhs_delete], &[], &[], &[], &[], &[], &[], &[], device)?;
@@ -242,28 +286,208 @@ pub fn apply_patch(
     let patches = lhs_update_table.get_column_as_vec_str(diff_column);
     let modified: Result<Vec<String>> = original.into_iter()
         .zip(patches.into_iter())
-        .map(|(o, p)| apply_patch_auto(o, p, false))
+        .map(|(o, p)| if p.is_empty() {
+            Ok(o.to_string())
+        } else {
+            apply_patch_auto(o, p, false)
+        })
         .collect();
+    let modified_arr: ArrayRef = Arc::new(StringArray::from(modified?));
     let mut lhs_updated_batch_vec = Vec::new();
+    for field in lhs_args.first().unwrap().schema().fields() {
+        if field.name() == lhs_values {
+            lhs_updated_batch_vec.push((field.name().to_string(), modified_arr.clone()))
+        } else {
+            lhs_updated_batch_vec.push((field.name().to_string(), lhs_update_table.get_column_as_array(field.name())?))
+        }
+    }
+    let lhs_update = RecordBatch::try_from_iter(lhs_updated_batch_vec)?;
 
-    // Apply `Create`
+    // Filter RHS for `Create`
     let rhs_create = select(&["create"], rhs_args, &[], &[], &[], &[DataColumnOperator::Value], &[], &[DataType::Utf8], &[PatchOperator::Create.to_string().as_str()], device)?;
     let rhs_create = filter(&[operator_column], &[rhs_create], &["create"], &[DataComparatorOperator::Like], &DataComparatorPredicate::All, device)?;
     
-    let batch = RecordBatch::new_empty(Arc::new(Schema::empty()));
+    // Join LHS and filtered RHS on lhs_pk and rhs_pk
+    let lhs_create = join(lhs_pk, &[lhs_update], rhs_pk, &[rhs_create], &DataJoinOperator::FullOuter, device)?;
+
+    // Apply `Create`
+    let lhs_create_table = Table::get_builder()
+        .with_name("apply_patch lhs_create")
+        .with_record_batches(vec![lhs_create])?
+        .build()?;
+    let original = lhs_create_table.get_column_as_vec_str(lhs_values);
+    let patches = lhs_create_table.get_column_as_vec_str(diff_column);
+    let (modified_arr, pks_arr) = match lhs_create_table.get_column_data_type(lhs_pk)? {
+        DataType::UInt32 => {
+            let lhs_pks = lhs_create_table.get_column_as_vec_primitive::<u32>(lhs_pk)?;
+            let rhs_pks = lhs_create_table.get_column_as_vec_primitive::<u32>(rhs_pk)?;
+            let modified_pks: Result<(Vec<String>, Vec<u32>)> = original.into_iter()
+                .zip(patches.into_iter())
+                .zip(lhs_pks.into_iter())
+                .zip(rhs_pks.into_iter())
+                .map(|(((o, p), lhs_pk), rhs_pk) | {
+                    if p.is_empty() {
+                        Ok((o.to_string(), lhs_pk))
+                    } else {
+                        let modified = apply_patch_auto(o, p, true)?;
+                        Ok((modified, rhs_pk))
+                    }
+                })
+                .collect();
+            let (modified, pks) = modified_pks?;
+            let modified_arr: ArrayRef = Arc::new(StringArray::from(modified));
+            let pks_arr: ArrayRef = Arc::new(UInt32Array::from(pks));
+            (modified_arr, pks_arr)
+        }
+        DataType::Int64 => {
+            let lhs_pks = lhs_create_table.get_column_as_vec_primitive::<i64>(lhs_pk)?;
+            let rhs_pks = lhs_create_table.get_column_as_vec_primitive::<i64>(rhs_pk)?;
+            let modified_pks: Result<(Vec<String>, Vec<i64>)> = original.into_iter()
+                .zip(patches.into_iter())
+                .zip(lhs_pks.into_iter())
+                .zip(rhs_pks.into_iter())
+                .map(|(((o, p), lhs_pk), rhs_pk) | {
+                    if p.is_empty() {
+                        Ok((o.to_string(), lhs_pk))
+                    } else {
+                        let modified = apply_patch_auto(o, p, true)?;
+                        Ok((modified, rhs_pk))
+                    }
+                })
+                .collect();
+            let (modified, pks) = modified_pks?;
+            let modified_arr: ArrayRef = Arc::new(StringArray::from(modified));
+            let pks_arr: ArrayRef = Arc::new(Int64Array::from(pks));
+            (modified_arr, pks_arr)
+        }
+        DataType::Utf8 => {
+            let lhs_pks = lhs_create_table.get_column_as_vec_nonprimitive::<String>(lhs_pk)?;
+            let rhs_pks = lhs_create_table.get_column_as_vec_nonprimitive::<String>(rhs_pk)?;
+            let modified_pks: Result<(Vec<String>, Vec<String>)> = original.into_iter()
+                .zip(patches.into_iter())
+                .zip(lhs_pks.into_iter())
+                .zip(rhs_pks.into_iter())
+                .map(|(((o, p), lhs_pk), rhs_pk) | {
+                    if p.is_empty() {
+                        Ok((o.to_string(), lhs_pk))
+                    } else {
+                        let modified = apply_patch_auto(o, p, true)?;
+                        Ok((modified, rhs_pk))
+                    }
+                })
+                .collect();
+            let (modified, pks) = modified_pks?;
+            let modified_arr: ArrayRef = Arc::new(StringArray::from(modified));
+            let pks_arr: ArrayRef = Arc::new(StringArray::from(pks));
+            (modified_arr, pks_arr)
+        }
+        _ => {
+            return Err(anyhow!(
+                "Unsupported data type {} for column {lhs_pk}",
+                lhs_create_table.get_column_data_type(lhs_pk)?
+            ));
+        }
+    };
+    let mut lhs_created_batch_vec = Vec::new();
+    for field in lhs_args.first().unwrap().schema().fields() {
+        if field.name() == lhs_values {
+            lhs_created_batch_vec.push((field.name().to_string(), modified_arr.clone()))
+        } else if field.name() == lhs_pk {
+            lhs_created_batch_vec.push((field.name().to_string(), pks_arr.clone()))            
+        } else {
+            lhs_created_batch_vec.push((field.name().to_string(), lhs_create_table.get_column_as_array(field.name())?))
+        }
+    }
+
+    // Final batch
+    let batch = RecordBatch::try_from_iter(lhs_created_batch_vec)?;    
     Ok(batch)
 }
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::test_table::make_test_table_chat;
-
-    use crate::{device, template::test_minimal_html};
+    use crate::{PatchOperator, device};
 
     use super::*;
 
     #[test]
-    fn test_apply_patch_() -> Result<()> {
+    fn test_apply_patch() -> Result<()> {
+        // Create the mock repository
+        let repo_pks = vec![0, 1, 2, 3, 4];
+        let repo_paths = [
+            "/home/sandbox/Cargo.toml",
+            "/home/sandbox/src/main.rs",
+            "/home/sandbox/src/lib.rs",
+            "/home/sandbox/src/extras/mod.rs",
+            "/home/sandbox/src/extras/todo.rs",
+        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let code = [
+            r#"[package]
+name = "phymes_rs"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+anyhow = { version = "1", default-features = false }"#,
+            r#"use anyhow::Result;
+fn main() -> Result<()> {
+    Ok(())
+}"#,
+            "pub mod extra;",
+            r#"mod todo;
+pub use todo::Todo"#,
+            "pub struct Todo {}",
+        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let repo_pks: ArrayRef = Arc::new(UInt32Array::from(repo_pks));
+        let repo_paths: ArrayRef = Arc::new(StringArray::from(repo_paths));
+        let code: ArrayRef = Arc::new(StringArray::from(code));
+        let repo_batch = RecordBatch::try_from_iter(vec![
+            ("repo_pk", repo_pks),
+            ("repo_path", repo_paths),
+            ("code", code),
+        ])?;
+
+        // Create the mock patches
+        let patch_pks = vec![1, 3, 5];
+        let patch_paths = [
+            "/home/sandbox/src/main.rs",
+            "/home/sandbox/src/extras/mod.rs",
+            "/home/sandbox/src/extras/other.rs",
+        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let operations = vec![PatchOperator::Delete.to_string(), PatchOperator::Update.to_string(), PatchOperator::Create.to_string()];
+        let patches = [
+            "",
+            "@@ pub mod extra;\n+pub mod other;\n",
+            "+pub struct Other {}\n*** End Patch",
+        ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let patch_pks: ArrayRef = Arc::new(UInt32Array::from(patch_pks));
+        let patch_paths: ArrayRef = Arc::new(StringArray::from(patch_paths));
+        let operations: ArrayRef = Arc::new(StringArray::from(operations));
+        let patches: ArrayRef = Arc::new(StringArray::from(patches));
+        let patch_batch = RecordBatch::try_from_iter(vec![
+            ("patch_pk", patch_pks),
+            ("patch_path", patch_paths),
+            ("operation", operations),
+            ("patch", patches),
+        ])?;
+
+        // Make the device
+        let device = device(false)?;
+
+        // Patch the repository
+        let result = apply_patch(&[repo_batch], &[patch_batch], "code", &["patch", "operation"], "repo_path", "patch_path", &device)?;
+
+        // Check the results
+        let result_table = Table::get_builder()
+            .with_name("test_apply_patch")
+            .with_record_batches(vec![result])?
+            .build()?;
+
+        let test = result_table.get_column_as_vec_primitive::<u32>("repo_pk")?;
+        assert_eq!(test, [0]);
+        let test = result_table.get_column_as_vec_nonprimitive::<String>("repo_path")?;
+        assert_eq!(test, [""]);
+        let test = result_table.get_column_as_vec_nonprimitive::<String>("code")?;
+        assert_eq!(test, [""]);
 
         Ok(())
     }

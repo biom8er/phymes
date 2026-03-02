@@ -1,5 +1,5 @@
 use arrow::{
-    array::{Array, ArrayRef, Float32Array, Float64Array, Int64Array, StringArray, UInt8Array, UInt32Array}, compute::concat_batches, datatypes::{DataType, Float32Type, Float64Type, Int64Type, UInt8Type, UInt32Type}, record_batch::RecordBatch
+    array::{Array, ArrayRef, Float32Array, Float64Array, Int64Array, StringArray, UInt8Array, UInt32Array}, compute::concat_batches, datatypes::{DataType, Float32Type, Float64Type, Int64Type, SchemaRef, UInt8Type, UInt32Type}, record_batch::RecordBatch
 };
 
 use anyhow::{Result, anyhow};
@@ -250,10 +250,10 @@ fn take_columns_by_unmatched_indices(
 }
 
 /// Build [RecordBatch] columns filled with defaults of a specified number of rows
-fn build_default_columns(column_names: &[String], table: &Table, n_rows: usize) -> Result<Vec<(String, Arc<dyn Array>)>> {
+fn build_default_columns(column_names: &[String], schema: &SchemaRef, n_rows: usize) -> Result<Vec<(String, Arc<dyn Array>)>> {
     let mut batch_vec = Vec::new();
     for column in column_names.iter() {
-        let sorted_array: ArrayRef = match table.get_column_data_type(column)? {
+        let sorted_array: ArrayRef = match schema.field_with_name(column)?.data_type() {
             DataType::UInt8 => {
                 let values_vec = (0..n_rows).map(|_| u8::default()).collect::<Vec<_>>();
                 Arc::new(UInt8Array::from(values_vec))
@@ -280,34 +280,34 @@ fn build_default_columns(column_names: &[String], table: &Table, n_rows: usize) 
             }
             DataType::FixedSizeList(f, s) => match f.data_type() {
                 DataType::UInt8 => {                    
-                    let values_vec = (0..n_rows).map(|_| (0..s).map(|_| u8::default()).collect::<Vec<_>>()).collect::<Vec<_>>();
+                    let values_vec = (0..n_rows).map(|_| (0..*s).map(|_| u8::default()).collect::<Vec<_>>()).collect::<Vec<_>>();
                     build_aggregator_column_fixed_size_list::<u8>(values_vec, DataType::UInt8)
                 }
                 DataType::UInt32 => {
-                    let values_vec = (0..n_rows).map(|_| (0..s).map(|_| u32::default()).collect::<Vec<_>>()).collect::<Vec<_>>();
+                    let values_vec = (0..n_rows).map(|_| (0..*s).map(|_| u32::default()).collect::<Vec<_>>()).collect::<Vec<_>>();
                     build_aggregator_column_fixed_size_list::<u32>(values_vec, DataType::UInt32)
                 }
                 DataType::Int64 => {
-                    let values_vec = (0..n_rows).map(|_| (0..s).map(|_| i64::default()).collect::<Vec<_>>()).collect::<Vec<_>>();
+                    let values_vec = (0..n_rows).map(|_| (0..*s).map(|_| i64::default()).collect::<Vec<_>>()).collect::<Vec<_>>();
                     build_aggregator_column_fixed_size_list::<i64>(values_vec, DataType::Int64)
                 }
                 DataType::Float32 => {
-                    let values_vec = (0..n_rows).map(|_| (0..s).map(|_| f32::default()).collect::<Vec<_>>()).collect::<Vec<_>>();
+                    let values_vec = (0..n_rows).map(|_| (0..*s).map(|_| f32::default()).collect::<Vec<_>>()).collect::<Vec<_>>();
                     build_aggregator_column_fixed_size_list::<f32>(values_vec, DataType::Float32)
                 }
                 DataType::Float64 => {
-                    let values_vec = (0..n_rows).map(|_| (0..s).map(|_| f64::default()).collect::<Vec<_>>()).collect::<Vec<_>>();
+                    let values_vec = (0..n_rows).map(|_| (0..*s).map(|_| f64::default()).collect::<Vec<_>>()).collect::<Vec<_>>();
                     build_aggregator_column_fixed_size_list::<f64>(values_vec, DataType::Float64)
                 }
                 DataType::Utf8 => {
-                    let values_vec = (0..n_rows).map(|_| (0..s).map(|_| String::new()).collect::<Vec<_>>()).collect::<Vec<_>>();
+                    let values_vec = (0..n_rows).map(|_| (0..*s).map(|_| String::new()).collect::<Vec<_>>()).collect::<Vec<_>>();
                     build_aggregator_column_list_nonprimitive::<String>(values_vec, DataType::Utf8)
                 }
                 _ => {
                     return Err(anyhow!(
                         "Unsupported data type for column {}: {}",
                         column,
-                        table.get_column_data_type(column)?
+                        schema.field_with_name(column)?.data_type()
                     ));
                 }
             }
@@ -340,7 +340,7 @@ fn build_default_columns(column_names: &[String], table: &Table, n_rows: usize) 
                     return Err(anyhow!(
                         "Unsupported data type for column {}: {}",
                         column,
-                        table.get_column_data_type(column)?
+                        schema.field_with_name(column)?.data_type()
                     ));
                 }
             }
@@ -348,7 +348,7 @@ fn build_default_columns(column_names: &[String], table: &Table, n_rows: usize) 
                 return Err(anyhow!(
                     "Unsupported data type for column {}: {}",
                     column,
-                    table.get_column_data_type(column)?
+                    schema.field_with_name(column)?.data_type()
                 ));
             }
         };
@@ -586,7 +586,7 @@ pub fn join(
             lhs_batch_unmatched_vec.extend(lhs_take);
 
             // Build the default RHS
-            lhs_batch_unmatched_vec.extend(build_default_columns(&rhs_columns, &rhs_table, lhs_n_unmatched)?);
+            lhs_batch_unmatched_vec.extend(build_default_columns(&rhs_columns, &rhs_table.get_schema(), lhs_n_unmatched)?);
 
             // Concatenate the unmatched and matched columns
             let lhs_batch_unmatched = RecordBatch::try_from_iter(lhs_batch_unmatched_vec)?;
@@ -605,7 +605,7 @@ pub fn join(
 
             // Build the default LHS
             let mut rhs_batch_unmatched_vec = Vec::new();
-            rhs_batch_unmatched_vec.extend(build_default_columns(&lhs_columns, &lhs_table, rhs_n_unmatched)?);
+            rhs_batch_unmatched_vec.extend(build_default_columns(&lhs_columns, &lhs_table.get_schema(), rhs_n_unmatched)?);
             rhs_batch_unmatched_vec.extend(rhs_take);
 
             // Concatenate the unmatched and matched columns
@@ -626,7 +626,7 @@ pub fn join(
             lhs_batch_unmatched_vec.extend(lhs_take);
 
             // Build the default RHS
-            lhs_batch_unmatched_vec.extend(build_default_columns(&rhs_columns, &rhs_table, lhs_n_unmatched)?);
+            lhs_batch_unmatched_vec.extend(build_default_columns(&rhs_columns, &rhs_table.get_schema(), lhs_n_unmatched)?);
 
             // Build the unmatched RHS
             let (rhs_take, rhs_n_unmatched) = take_columns_by_unmatched_indices(
@@ -638,7 +638,7 @@ pub fn join(
 
             // Build the default LHS
             let mut rhs_batch_unmatched_vec = Vec::new();
-            rhs_batch_unmatched_vec.extend(build_default_columns(&lhs_columns, &lhs_table, rhs_n_unmatched)?);
+            rhs_batch_unmatched_vec.extend(build_default_columns(&lhs_columns, &lhs_table.get_schema(), rhs_n_unmatched)?);
             rhs_batch_unmatched_vec.extend(rhs_take);
 
             // Concatenate the unmatched and matched columns
