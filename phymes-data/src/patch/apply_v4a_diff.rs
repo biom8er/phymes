@@ -252,10 +252,8 @@ fn parse_update_diff(
         }
 
         let section = read_section(&parser.lines, parser.index)?;
-        dbg!(&section);
         let find_result =
             find_context(&input_lines, &section.next_context, cursor, section.eof);
-        dbg!(&find_result);
 
         if find_result.new_index == usize::MAX {
             let ctx_text = section.next_context.join("\n");

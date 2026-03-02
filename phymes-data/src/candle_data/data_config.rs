@@ -260,8 +260,7 @@ impl Display for DataCastOperator {
 /// # Notes on intialization operators
 /// - `Zeros` and `Ones` will create a new column filled with primitive zero's or one's
 /// - `String` will create a new column filled with an empty Utf8
-/// - `Value` will create a new column filled with a specified primitive or non-primitive value
-///  
+/// - `Value` will create a new column filled with a specified primitive or non-primitive value  
 ///
 /// [DataType]: arrow::datatypes::DataType
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
