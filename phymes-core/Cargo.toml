@@ -45,5 +45,5 @@ chrono = { version = "0.4.41", features = ["wasmbind"] }
 minijinja = { version = "2.16.0", features = ["json"] }
 minijinja-contrib = { version = "2.16.0", features = ["pycompat"] }
 bytes = "1.11.1"
-getrandom = { version = "0.3.1", features = ["wasm_js"] }
+getrandom = { version = "0.4.1", features = ["wasm_js"] }
 num-traits = { version = "0.2", default-features = false }
