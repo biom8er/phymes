@@ -121,6 +121,10 @@ pub enum DataComparatorOperator {
     InList,
     #[value(name = "InListUtf8")]
     InListUtf8,
+    #[value(name = "NotInList")]
+    NotInList,
+    #[value(name = "NotInListUtf8")]
+    NotInListUtf8,
     #[value(name = "RegExpIsMatch")]
     RegExpIsMatch,
     #[value(name = "StartsWith")]
@@ -144,6 +148,8 @@ impl Display for DataComparatorOperator {
             Self::NotLike => write!(f, "NotLike"),
             Self::InList => write!(f, "InList"),
             Self::InListUtf8 => write!(f, "InListUtf8"),
+            Self::NotInList => write!(f, "NotInList"),
+            Self::NotInListUtf8 => write!(f, "NotInListUtf8"),
             Self::RegExpIsMatch => write!(f, "RegExpIsMatch"),
             Self::StartsWith => write!(f, "StartsWith"),
         }
