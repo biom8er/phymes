@@ -224,7 +224,7 @@ fn take_columns_by_unmatched_indices(
     table: &Table,
     asort_arr: &ArrayRef,
     device: &Device,
-) -> Result<Vec<(String, Arc<dyn Array>)>> {
+) -> Result<(Vec<(String, Arc<dyn Array>)>, usize)> {
     let asort_vec = asort_arr
         .as_any()
         .downcast_ref::<UInt32Array>()
@@ -232,19 +232,21 @@ fn take_columns_by_unmatched_indices(
         .iter()
         .filter_map(|s| s)
         .collect::<Vec<u32>>();
-    let unmatched_vec = (0..table.count_rows() as u32).filter(|i| asort_vec.contains(i)).collect::<Vec<_>>();
+    let unmatched_vec = (0..table.count_rows() as u32).filter(|i| !asort_vec.contains(i)).collect::<Vec<_>>();
     let unmatched_tensor = Tensor::from_iter(
         unmatched_vec.iter().map(|v| v.to_owned()).collect::<Vec<_>>(),
         device,
     )?;
+    let n_unmatched = unmatched_vec.len();
     let unmatched_arr: ArrayRef = Arc::new(UInt32Array::from(unmatched_vec));
-    take_columns_by_indices(
+    let take = take_columns_by_indices(
         &column_names,
         &table,
         &unmatched_arr,
         &unmatched_tensor,
         device,
-    )
+    )?;
+    Ok((take, n_unmatched))
 }
 
 /// Build [RecordBatch] columns filled with defaults of a specified number of rows
@@ -575,15 +577,16 @@ pub fn join(
         DataJoinOperator::LeftOuter => {
             // Build the unmatched LHS
             let mut lhs_batch_unmatched_vec = Vec::new();
-            lhs_batch_unmatched_vec.extend(take_columns_by_unmatched_indices(
+            let (lhs_take, lhs_n_unmatched) = take_columns_by_unmatched_indices(
                 &lhs_columns,
                 &lhs_table,
                 &lhs_asort_arr,
                 device,
-            )?);
+            )?;
+            lhs_batch_unmatched_vec.extend(lhs_take);
 
             // Build the default RHS
-            lhs_batch_unmatched_vec.extend(build_default_columns(&rhs_columns, &rhs_table, (lhs_table.count_rows() - lhs_asort_arr.len()))?);
+            lhs_batch_unmatched_vec.extend(build_default_columns(&rhs_columns, &rhs_table, lhs_n_unmatched)?);
 
             // Concatenate the unmatched and matched columns
             let lhs_batch_unmatched = RecordBatch::try_from_iter(lhs_batch_unmatched_vec)?;
@@ -592,17 +595,18 @@ pub fn join(
             concat_batches(&schema, &[batch_matched, lhs_batch_unmatched])?
         }
         DataJoinOperator::RightOuter => {
-            // Build the default LHS
-            let mut rhs_batch_unmatched_vec = Vec::new();
-            rhs_batch_unmatched_vec.extend(build_default_columns(&lhs_columns, &lhs_table, (rhs_table.count_rows() - rhs_asort_arr.len()))?);
-
             // Build the unmatched RHS
-            rhs_batch_unmatched_vec.extend(take_columns_by_unmatched_indices(
+            let (rhs_take, rhs_n_unmatched) = take_columns_by_unmatched_indices(
                 &rhs_columns,
                 &rhs_table,
                 &rhs_asort_arr,
                 device,
-            )?);
+            )?;
+
+            // Build the default LHS
+            let mut rhs_batch_unmatched_vec = Vec::new();
+            rhs_batch_unmatched_vec.extend(build_default_columns(&lhs_columns, &lhs_table, rhs_n_unmatched)?);
+            rhs_batch_unmatched_vec.extend(rhs_take);
 
             // Concatenate the unmatched and matched columns
             let rhs_batch_unmatched = RecordBatch::try_from_iter(rhs_batch_unmatched_vec)?;
@@ -613,27 +617,29 @@ pub fn join(
         DataJoinOperator::FullOuter => {
             // Build the unmatched LHS
             let mut lhs_batch_unmatched_vec = Vec::new();
-            lhs_batch_unmatched_vec.extend(take_columns_by_unmatched_indices(
+            let (lhs_take, lhs_n_unmatched) = take_columns_by_unmatched_indices(
                 &lhs_columns,
                 &lhs_table,
                 &lhs_asort_arr,
                 device,
-            )?);
+            )?;
+            lhs_batch_unmatched_vec.extend(lhs_take);
 
             // Build the default RHS
-            lhs_batch_unmatched_vec.extend(build_default_columns(&rhs_columns, &rhs_table, (lhs_table.count_rows() - lhs_asort_arr.len()))?);
-            
-            // Build the default LHS
-            let mut rhs_batch_unmatched_vec = Vec::new();
-            rhs_batch_unmatched_vec.extend(build_default_columns(&lhs_columns, &lhs_table, (rhs_table.count_rows() - rhs_asort_arr.len()))?);
+            lhs_batch_unmatched_vec.extend(build_default_columns(&rhs_columns, &rhs_table, lhs_n_unmatched)?);
 
             // Build the unmatched RHS
-            rhs_batch_unmatched_vec.extend(take_columns_by_unmatched_indices(
+            let (rhs_take, rhs_n_unmatched) = take_columns_by_unmatched_indices(
                 &rhs_columns,
                 &rhs_table,
                 &rhs_asort_arr,
                 device,
-            )?);
+            )?;
+
+            // Build the default LHS
+            let mut rhs_batch_unmatched_vec = Vec::new();
+            rhs_batch_unmatched_vec.extend(build_default_columns(&lhs_columns, &lhs_table, rhs_n_unmatched)?);
+            rhs_batch_unmatched_vec.extend(rhs_take);
 
             // Concatenate the unmatched and matched columns
             let lhs_batch_unmatched = RecordBatch::try_from_iter(lhs_batch_unmatched_vec)?;
@@ -714,7 +720,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec!["0", "2", "2"]);
+        assert_eq!(lhs_id, ["0", "2", "2"]);
         let metadata = result
             .column_by_name("lhs_metadata")
             .unwrap()
@@ -724,7 +730,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![1, 3, 3]);
+        assert_eq!(metadata, [1, 3, 3]);
         let text = result
             .column_by_name("lhs_text")
             .unwrap()
@@ -734,7 +740,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(text, vec!["left", "left", "left"]);
+        assert_eq!(text, ["left", "left", "left"]);
         let lhs_id = result
             .column_by_name("rhs_pk")
             .unwrap()
@@ -744,7 +750,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec!["0", "2", "2"]);
+        assert_eq!(lhs_id, ["0", "2", "2"]);
         let metadata = result
             .column_by_name("rhs_metadata")
             .unwrap()
@@ -754,7 +760,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![8, 9, 10]);
+        assert_eq!(metadata, [8, 9, 10]);
         let text = result
             .column_by_name("rhs_text")
             .unwrap()
@@ -764,7 +770,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(text, vec!["right", "right", "right"]);
+        assert_eq!(text, ["right", "right", "right"]);
 
         // ------ FK = u8 ------
         // Make the test record batches
@@ -821,7 +827,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec![0, 2, 2]);
+        assert_eq!(lhs_id, [0, 2, 2]);
         let metadata = result
             .column_by_name("lhs_metadata")
             .unwrap()
@@ -831,7 +837,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![1, 3, 3]);
+        assert_eq!(metadata, [1, 3, 3]);
         let text = result
             .column_by_name("lhs_text")
             .unwrap()
@@ -841,7 +847,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(text, vec!["left", "left", "left"]);
+        assert_eq!(text, ["left", "left", "left"]);
         let lhs_id = result
             .column_by_name("rhs_pk")
             .unwrap()
@@ -851,7 +857,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec![0, 2, 2]);
+        assert_eq!(lhs_id, [0, 2, 2]);
         let metadata = result
             .column_by_name("rhs_metadata")
             .unwrap()
@@ -861,7 +867,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![8, 9, 10]);
+        assert_eq!(metadata, [8, 9, 10]);
         let text = result
             .column_by_name("rhs_text")
             .unwrap()
@@ -871,7 +877,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(text, vec!["right", "right", "right"]);
+        assert_eq!(text, ["right", "right", "right"]);
 
         Ok(())
     }
@@ -936,7 +942,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec!["0", "2", "2"]);
+        assert_eq!(lhs_id, ["0", "2", "2", "1", "3"]);
         let metadata = result
             .column_by_name("lhs_metadata")
             .unwrap()
@@ -946,7 +952,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![1, 3, 3]);
+        assert_eq!(metadata, [1, 3, 3, 2, 4]);
         let text = result
             .column_by_name("lhs_text")
             .unwrap()
@@ -956,7 +962,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(text, vec!["left", "left", "left"]);
+        assert_eq!(text, ["left", "left", "left", "left", "left"]);
         let lhs_id = result
             .column_by_name("rhs_pk")
             .unwrap()
@@ -966,7 +972,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec!["0", "2", "2"]);
+        assert_eq!(lhs_id, ["0", "2", "2", "", ""]);
         let metadata = result
             .column_by_name("rhs_metadata")
             .unwrap()
@@ -976,7 +982,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![8, 9, 10]);
+        assert_eq!(metadata, [8, 9, 10, 0, 0]);
         let text = result
             .column_by_name("rhs_text")
             .unwrap()
@@ -986,7 +992,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(text, vec!["right", "right", "right"]);
+        assert_eq!(text, ["right", "right", "right", "", ""]);
 
         // ------ FK = u8 ------
         // Make the test record batches
@@ -1043,7 +1049,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec![0, 2, 2]);
+        assert_eq!(lhs_id, [0, 2, 2, 1, 3]);
         let metadata = result
             .column_by_name("lhs_metadata")
             .unwrap()
@@ -1053,7 +1059,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![1, 3, 3]);
+        assert_eq!(metadata, [1, 3, 3, 2, 4]);
         let text = result
             .column_by_name("lhs_text")
             .unwrap()
@@ -1063,7 +1069,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(text, vec!["left", "left", "left"]);
+        assert_eq!(text, ["left", "left", "left", "left", "left"]);
         let lhs_id = result
             .column_by_name("rhs_pk")
             .unwrap()
@@ -1073,7 +1079,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec![0, 2, 2]);
+        assert_eq!(lhs_id, [0, 2, 2, 0, 0]);
         let metadata = result
             .column_by_name("rhs_metadata")
             .unwrap()
@@ -1083,7 +1089,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![8, 9, 10]);
+        assert_eq!(metadata, [8, 9, 10, 0, 0]);
         let text = result
             .column_by_name("rhs_text")
             .unwrap()
@@ -1093,7 +1099,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(text, vec!["right", "right", "right"]);
+        assert_eq!(text, ["right", "right", "right", "", ""]);
 
         Ok(())
     }
@@ -1141,10 +1147,10 @@ mod tests {
 
         // Chunk the documents
         let result = join(
-            "lhs_pk",
-            &[lhs_batch_1, lhs_batch_2],
             "rhs_pk",
             &[rhs_batch_1],
+            "lhs_pk",
+            &[lhs_batch_1, lhs_batch_2],
             &DataJoinOperator::RightOuter,
             &device,
         )?;
@@ -1158,7 +1164,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec!["0", "2", "2"]);
+        assert_eq!(lhs_id, ["0", "2", "2", "1", "3"]);
         let metadata = result
             .column_by_name("lhs_metadata")
             .unwrap()
@@ -1168,7 +1174,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![1, 3, 3]);
+        assert_eq!(metadata, [1, 3, 3, 2, 4]);
         let text = result
             .column_by_name("lhs_text")
             .unwrap()
@@ -1178,7 +1184,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(text, vec!["left", "left", "left"]);
+        assert_eq!(text, ["left", "left", "left", "left", "left"]);
         let lhs_id = result
             .column_by_name("rhs_pk")
             .unwrap()
@@ -1188,7 +1194,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec!["0", "2", "2"]);
+        assert_eq!(lhs_id, ["0", "2", "2", "", ""]);
         let metadata = result
             .column_by_name("rhs_metadata")
             .unwrap()
@@ -1198,7 +1204,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![8, 9, 10]);
+        assert_eq!(metadata, [8, 9, 10, 0, 0]);
         let text = result
             .column_by_name("rhs_text")
             .unwrap()
@@ -1208,7 +1214,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(text, vec!["right", "right", "right"]);
+        assert_eq!(text, ["right", "right", "right", "", ""]);
 
         // ------ FK = u8 ------
         // Make the test record batches
@@ -1248,10 +1254,10 @@ mod tests {
 
         // Chunk the documents
         let result = join(
-            "lhs_pk",
-            &[lhs_batch_1, lhs_batch_2],
             "rhs_pk",
             &[rhs_batch_1],
+            "lhs_pk",
+            &[lhs_batch_1, lhs_batch_2],
             &DataJoinOperator::RightOuter,
             &device,
         )?;
@@ -1265,7 +1271,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec![0, 2, 2]);
+        assert_eq!(lhs_id, [0, 2, 2, 1, 3]);
         let metadata = result
             .column_by_name("lhs_metadata")
             .unwrap()
@@ -1275,7 +1281,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![1, 3, 3]);
+        assert_eq!(metadata, [1, 3, 3, 2, 4]);
         let text = result
             .column_by_name("lhs_text")
             .unwrap()
@@ -1285,7 +1291,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(text, vec!["left", "left", "left"]);
+        assert_eq!(text, ["left", "left", "left", "left", "left"]);
         let lhs_id = result
             .column_by_name("rhs_pk")
             .unwrap()
@@ -1295,7 +1301,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec![0, 2, 2]);
+        assert_eq!(lhs_id, [0, 2, 2, 0, 0]);
         let metadata = result
             .column_by_name("rhs_metadata")
             .unwrap()
@@ -1305,7 +1311,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![8, 9, 10]);
+        assert_eq!(metadata, [8, 9, 10, 0, 0]);
         let text = result
             .column_by_name("rhs_text")
             .unwrap()
@@ -1315,7 +1321,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(text, vec!["right", "right", "right"]);
+        assert_eq!(text, ["right", "right", "right", "", ""]);
 
         Ok(())
     }
@@ -1346,7 +1352,7 @@ mod tests {
             ("lhs_text", lhs_text_array),
             ("lhs_metadata", lhs_metadata_array),
         ])?;
-        let rhs_ids_vec_1 = vec!["0", "2", "2"];
+        let rhs_ids_vec_1 = vec!["0", "4", "5"];
         let rhs_ids_array: ArrayRef = Arc::new(StringArray::from(rhs_ids_vec_1));
         let rhs_metadata_vec_1: Vec<u32> = vec![8, 9, 10];
         let rhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(rhs_metadata_vec_1));
@@ -1380,7 +1386,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec!["0", "2", "2"]);
+        assert_eq!(lhs_id, ["0", "1", "2", "3", "", ""]);
         let metadata = result
             .column_by_name("lhs_metadata")
             .unwrap()
@@ -1390,7 +1396,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![1, 3, 3]);
+        assert_eq!(metadata, [1, 2, 3, 4, 0, 0]);
         let text = result
             .column_by_name("lhs_text")
             .unwrap()
@@ -1400,7 +1406,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(text, vec!["left", "left", "left"]);
+        assert_eq!(text, ["left", "left", "left", "left", "", ""]);
         let lhs_id = result
             .column_by_name("rhs_pk")
             .unwrap()
@@ -1410,7 +1416,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec!["0", "2", "2"]);
+        assert_eq!(lhs_id, ["0", "", "", "", "4", "5"]);
         let metadata = result
             .column_by_name("rhs_metadata")
             .unwrap()
@@ -1420,7 +1426,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![8, 9, 10]);
+        assert_eq!(metadata, [8, 0, 0, 0, 9, 10]);
         let text = result
             .column_by_name("rhs_text")
             .unwrap()
@@ -1430,7 +1436,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(text, vec!["right", "right", "right"]);
+        assert_eq!(text, ["right", "", "", "", "right", "right"]);
 
         // ------ FK = u8 ------
         // Make the test record batches
@@ -1456,7 +1462,7 @@ mod tests {
             ("lhs_text", lhs_text_array),
             ("lhs_metadata", lhs_metadata_array),
         ])?;
-        let rhs_ids_vec_1: Vec<u8> = vec![0, 2, 2];
+        let rhs_ids_vec_1 = vec![0, 4, 5];
         let rhs_ids_array: ArrayRef = Arc::new(UInt8Array::from(rhs_ids_vec_1));
         let rhs_metadata_vec_1: Vec<u32> = vec![8, 9, 10];
         let rhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(rhs_metadata_vec_1));
@@ -1487,7 +1493,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec![0, 2, 2]);
+        assert_eq!(lhs_id, [0, 1, 2, 3, 0, 0]);
         let metadata = result
             .column_by_name("lhs_metadata")
             .unwrap()
@@ -1497,7 +1503,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![1, 3, 3]);
+        assert_eq!(metadata, [1, 2, 3, 4, 0, 0]);
         let text = result
             .column_by_name("lhs_text")
             .unwrap()
@@ -1507,7 +1513,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(text, vec!["left", "left", "left"]);
+        assert_eq!(text, ["left", "left", "left", "left", "", ""]);
         let lhs_id = result
             .column_by_name("rhs_pk")
             .unwrap()
@@ -1517,7 +1523,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(lhs_id, vec![0, 2, 2]);
+        assert_eq!(lhs_id, [0, 0, 0, 0, 4, 5]);
         let metadata = result
             .column_by_name("rhs_metadata")
             .unwrap()
@@ -1527,7 +1533,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(metadata, vec![8, 9, 10]);
+        assert_eq!(metadata, [8, 0, 0, 0, 9, 10]);
         let text = result
             .column_by_name("rhs_text")
             .unwrap()
@@ -1537,7 +1543,7 @@ mod tests {
             .iter()
             .map(|s| s.unwrap_or_default())
             .collect::<Vec<_>>();
-        assert_eq!(text, vec!["right", "right", "right"]);
+        assert_eq!(text, ["right", "", "", "", "right", "right"]);
 
         Ok(())
     }

@@ -244,6 +244,7 @@ pub fn apply_patch(
         .zip(patches.into_iter())
         .map(|(o, p)| apply_patch_auto(o, p, false))
         .collect();
+    let mut lhs_updated_batch_vec = Vec::new();
 
     // Apply `Create`
     let rhs_create = select(&["create"], rhs_args, &[], &[], &[], &[DataColumnOperator::Value], &[], &[DataType::Utf8], &[PatchOperator::Create.to_string().as_str()], device)?;
