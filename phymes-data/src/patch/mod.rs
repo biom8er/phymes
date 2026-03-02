@@ -32,7 +32,7 @@ pub mod apply_patch;
 pub mod workspace_editor;
 
 pub use apply_v4a_diff::{ApplyDiffMode, apply_v4a_diff};
-pub use apply_patch::{PatchKind, PatchOperation, apply_patch_auto};
+pub use apply_patch::{PatchOperator, PatchOperation, apply_patch_auto};
 
 #[cfg(feature = "api")]
 pub use workspace_editor::WorkspaceEditor;

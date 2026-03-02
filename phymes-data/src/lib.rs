@@ -37,4 +37,4 @@ pub use template::{
     MINIMAL_FIGURE_INPUT, MINIMAL_FIGURE_TEMPLATE, MINIMAL_LIST_INPUT, MINIMAL_TABLE_INPUT,
     MINIMAL_TABLE_TEMPLATE, test_minimal_html,
 };
-pub use patch::{ApplyDiffMode, apply_v4a_diff, apply_patch_auto, PatchKind, PatchOperation};
+pub use patch::{ApplyDiffMode, apply_v4a_diff, apply_patch_auto, PatchOperator, PatchOperation};

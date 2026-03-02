@@ -241,37 +241,10 @@ pub fn create_diff_batch(
     Ok(batch)
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, ValueEnum, Default)]
-pub enum PatchKind {
-    #[default]
-    #[value(name = "Create")]
-    Create,
-    #[value(name = "Update")]
-    Update,
-    #[value(name = "Delete")]
-    Delete,
-}
-impl Display for PatchKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Create => write!(f, "Create"),
-            Self::Update => write!(f, "Update"),
-            Self::Delete => write!(f, "Delete"),
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct PatchOperation {
-    /// Path of the file
-    pub path: PathBuf,
-    /// The kind of patch to apply
-    pub kind: PatchKind,
-    /// Unified diff format compatible with `diff-match-patch` crate
-    pub diff: String,
-}
-
 /// Patch schema intended to be implemented on a file by file bases depending upon the operation
+/// 
+/// # Notes
+/// - Allowable `operators` are "Create", "Update", and "Delete"
 pub fn create_patch_fields() -> Fields {
     let field_names = ["path", "operator"];
     let mut fields_vec = field_names

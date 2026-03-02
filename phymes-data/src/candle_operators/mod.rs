@@ -1,3 +1,4 @@
+mod apply_patch;
 mod apply_template;
 mod available_candle_operators;
 mod chunk_documents;

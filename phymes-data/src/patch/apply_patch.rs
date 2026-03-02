@@ -1,20 +1,36 @@
 use anyhow::{anyhow, Result};
+use clap::ValueEnum;
 use diff_match_patch_rs::{DiffMatchPatch, Efficient};
+use serde::{Deserialize, Serialize};
 
 use crate::patch::apply_v4a_diff::apply_v4a_patch;
 
-#[derive(Debug, Clone, Copy)]
-pub enum PatchKind {
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, ValueEnum, Default)]
+pub enum PatchOperator {
+    #[default]
+    #[value(name = "Create")]
     Create,
+    #[value(name = "Update")]
     Update,
+    #[value(name = "Delete")]
     Delete,
+}
+impl std::fmt::Display for PatchOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Create => write!(f, "Create"),
+            Self::Update => write!(f, "Update"),
+            Self::Delete => write!(f, "Delete"),
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct PatchOperation {
     pub path: std::path::PathBuf,
     pub diff: String,
-    pub kind: PatchKind,
+    pub operator: PatchOperator,
 }
 
 pub trait ApplyPatchTrait {

@@ -7,7 +7,7 @@ use arrow::{
         UInt8Array, UInt32Array,
     },
     compute::{
-        contains, ends_with, ilike, in_list, like, nilike, nlike, regexp_is_match, starts_with,
+        contains, ends_with, ilike, in_list, in_list_utf8, like, nilike, nlike, regexp_is_match, starts_with
     },
     datatypes::DataType,
 };
@@ -24,7 +24,7 @@ use crate::{
     ToolTrait,
     candle_data::{DataComparatorOperator, DataComparatorPredicate, DataConfig},
     candle_operators::{
-        data_operator::DataOperatorTrait, group_by::build_aggregator_column_list_primitive_v1,
+        data_operator::DataOperatorTrait, group_by::{build_aggregator_column_list_nonprimitive, build_aggregator_column_list_primitive_v1},
         sort::take_columns_by_indices,
     },
 };
@@ -453,22 +453,21 @@ pub fn filter(
                         .collect::<Vec<_>>();
                     Tensor::from_iter(predicate_vec, device)?
                 }
-                // DM: and the rest...
-                // DM: FixedSizeList and List for Utf8 is not yet supported
-                // DataType::Utf8 => {
-                //     let values_arr = build_aggregator_column_list::<String>(
-                //         lhs_table.get_column_as_vec_nested_nonprimitive::<String>(column_name)?,
-                //         DataType::Utf8);
-                //     let cmp_arr = StringArray::from_iter_values(lhs_table.get_column_as_vec_str(cmp_columns.get(index).unwrap()));
-                //     let predicate_arr = match cmp_operator.get(index).unwrap() {
-                //         DataComparatorOperator::InListUtf8 => in_list_utf8(&cmp_arr, &values_arr)?,
-                //         _ => return Err(anyhow!("Unsupported data type {} and comparator {} for column {column_name}",
-                //             lhs_table.get_column_data_type(column_name)?,
-                //             cmp_operator.get(index).unwrap().get_name())),
-                //     };
-                //     let predicate_vec = predicate_arr.into_iter().map(|s| s.unwrap_or_default() as u8).collect::<Vec<_>>();
-                //     Tensor::from_iter(predicate_vec, device)?
-                // }
+                DataType::Utf8 => {
+                    let values_arr = build_aggregator_column_list_nonprimitive::<String>(
+                        lhs_table.get_column_as_vec_nested_nonprimitive::<String>(column_name)?,
+                        DataType::Utf8);
+                    let values_arr = values_arr.as_any().downcast_ref::<ListArray>().unwrap();
+                    let cmp_arr = StringArray::from_iter_values(lhs_table.get_column_as_vec_str(cmp_columns.get(index).unwrap()));
+                    let predicate_arr = match cmp_operators.get(index).unwrap() {
+                        DataComparatorOperator::InListUtf8 => in_list_utf8(&cmp_arr, &values_arr)?,
+                        _ => return Err(anyhow!("Unsupported data type {} and comparator {} for column {column_name}",
+                            lhs_table.get_column_data_type(column_name)?,
+                            cmp_operators.get(index).unwrap())),
+                    };
+                    let predicate_vec = predicate_arr.into_iter().map(|s| s.unwrap_or_default() as u32).collect::<Vec<_>>();
+                    Tensor::from_iter(predicate_vec, device)?
+                }
                 _ => {
                     return Err(anyhow!(
                         "Unsupported data type {} for column {column_name}",

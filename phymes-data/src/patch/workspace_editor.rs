@@ -5,7 +5,7 @@ use std::{
 };
 use anyhow::{anyhow, Result};
 
-use crate::patch::apply_patch::{PatchKind, PatchOperation, apply_patch_auto};
+use crate::patch::apply_patch::{PatchOperator, PatchOperation, apply_patch_auto};
 
 pub struct WorkspaceEditor {
     root: PathBuf,
@@ -70,10 +70,10 @@ impl WorkspaceEditor {
     }
 
     pub fn apply_operation(&self, op: &PatchOperation) -> Result<()> {
-        match op.kind {
-            PatchKind::Create => self.apply_create(&op.path, &op.diff),
-            PatchKind::Update => self.apply_update(&op.path, &op.diff),
-            PatchKind::Delete => self.apply_delete(&op.path),
+        match op.operator {
+            PatchOperator::Create => self.apply_create(&op.path, &op.diff),
+            PatchOperator::Update => self.apply_update(&op.path, &op.diff),
+            PatchOperator::Delete => self.apply_delete(&op.path),
         }
     }
 
@@ -123,7 +123,7 @@ pub mod tests {
         let op = PatchOperation {
             path: std::path::PathBuf::from("foo.txt"),
             diff: create_diff.to_string(),
-            kind: PatchKind::Create,
+            operator: PatchOperator::Create,
         };
         editor.apply_operation(&op).unwrap();
 
@@ -134,7 +134,7 @@ pub mod tests {
         let op2 = PatchOperation {
             path: std::path::PathBuf::from("foo.txt"),
             diff: update_diff.to_string(),
-            kind: PatchKind::Update,
+            operator: PatchOperator::Update,
         };
         editor.apply_operation(&op2).unwrap();
 
@@ -163,7 +163,7 @@ pub mod tests {
         let op = PatchOperation {
             path: PathBuf::from("bar.txt"),
             diff: diff_text,
-            kind: PatchKind::Update,
+            operator: PatchOperator::Update,
         };
         editor.apply_operation(&op).unwrap();
 
