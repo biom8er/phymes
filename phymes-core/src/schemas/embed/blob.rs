@@ -158,6 +158,7 @@ pub struct BlobSubject {
     pub timestamp: i64,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_blob_batch(
     path: Vec<String>,
     stem: Vec<String>,
