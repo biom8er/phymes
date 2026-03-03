@@ -113,7 +113,9 @@ impl CommandSandboxEnvironments {
                 let content = [
                     r#"#!/usr/bin/env bash
 
-echo "$1""#,
+[[ -n "$1" ]] && echo "$1"
+[[ -n "$2" ]] && echo "$2"
+[[ -n "$3" ]] && echo "$3""#,
                     r#"#!/bin/sh
 apk add --no-cache bash
 chmod +x ./src/main.sh"#

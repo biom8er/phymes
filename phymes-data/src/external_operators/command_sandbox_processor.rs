@@ -2479,7 +2479,7 @@ mod tests {
         assert_eq!(result, ["tool"]);
         let result = table.get_column_as_vec_str("content");
         assert!(result.first().unwrap().contains(
-            "--input [{\"content\":\"Hello from Docker!\",\"role\":\"user\",\"timestamp\":"
+            "--input\n[{\"content\":\"Hello from Docker!\",\"role\":\"user\",\"timestamp\":"
         ));
 
         // --- From TempFile ---
@@ -2566,7 +2566,7 @@ mod tests {
             result
                 .first()
                 .unwrap()
-                .contains("--input-file /home/sandbox/input.ipc")
+                .contains("--input-file\n/home/sandbox/input.ipc")
         );
 
         Ok(())
