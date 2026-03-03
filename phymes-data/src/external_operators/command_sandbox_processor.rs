@@ -1398,6 +1398,11 @@ impl Stream for CommandSandboxStream {
                                         }
                                     }
                                 }
+
+                                // Add the container image
+                                // DM: this is a bit confusing since wasmtime does not have a "container"
+                                //  however, WASM treats executables and "container"s since they are intended to
+                                //  be resusable components...
                                 command_args.push(
                                     self.config.as_ref().unwrap().container_image.to_string(),
                                 );
