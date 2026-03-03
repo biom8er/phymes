@@ -41,6 +41,7 @@ pub use schemas::{
     create_subjects_num_rows_batch, create_tools_record_batch, create_user_batch,
     create_user_inbox_batch, create_user_session_contexts_batch, create_values_fields,
     create_values_record_batch, e_utils, from_diagnostics_to_tables, open_alex, semantic_scholar,
+    create_patch_fields, create_patch_batch, create_workspace_fields, create_workspace_batch, create_workspace_patch_fields, create_workspace_patch_batch, WorkspaceSubject
 };
 pub use table::{
     AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, CsvFormat, DataFormat,

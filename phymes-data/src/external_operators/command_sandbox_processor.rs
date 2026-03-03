@@ -33,7 +33,7 @@ use crate::{
             CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod,
         },
         http_client_processor::error_report,
-    },
+    }, patch::WorkspaceEditor,
 };
 
 /// The state of the command stream
@@ -199,6 +199,8 @@ pub struct CommandSandboxStream {
     message_inbox: Option<Table>,
     /// The inbox of CLI args to processes
     from_cli_args: bool,
+    /// The inbox of workspace files to setup
+    workspace_inbox: Option<Table>,
 }
 
 impl CommandSandboxStream {
@@ -219,6 +221,7 @@ impl CommandSandboxStream {
             runner_state: CommandSandboxRunnerState::NotStarted,
             message_inbox: None,
             from_cli_args: false,
+            workspace_inbox: None,
         })
     }
 }
@@ -264,6 +267,45 @@ impl Stream for CommandSandboxStream {
                     } else {
                         let config = CommandSandboxConfig::from_table(&config_table)?;
                         self.config.replace(config);
+                    }
+                }
+
+                // collect the workspace
+                if self.workspace_inbox.is_none() && let Some(workspace) = self.config.as_ref().unwrap().workspace.clone() {
+                    match remove_message_by_subject(&workspace, &mut self.messages) {
+                        // Poll the next batches
+                        Some(mut fut) => {
+                            // DM: where we will specify to stream batch by batch or collect all batches
+                            let mut batches = Vec::new();
+                            while let Some(Ok(batch)) =
+                                ready!(fut.get_message_mut().poll_next_unpin(cx))
+                            {
+                                // DM: need to add a check for the expected workspace schema
+                                if batch.num_rows() > 0 {
+                                    batches.push(batch);
+                                    break;
+                                }
+                            }
+                            self.messages.insert(fut.get_name().to_string(), fut);
+
+                            // Replace the inbox
+                            if !batches.is_empty() {
+                                let table = Table::get_builder()
+                                    .with_name("workspace")
+                                    .with_record_batches(batches)?
+                                    .build()?;
+                                self.schema = table.get_schema();
+                                self.workspace_inbox.replace(table);
+                            }
+                        }
+                        None => {
+                            self.stream_state = CommandSandboxStreamState::Done;
+                            let error = Err(anyhow!(
+                                "Subject `{workspace}` was not found in the messages. The available message subjects are `{:?}`",
+                                self.messages.keys()
+                            ));
+                            return Poll::Ready(Some(error));
+                        }
                     }
                 }
 
@@ -347,21 +389,32 @@ impl Stream for CommandSandboxStream {
                         let hash = u128::from_ne_bytes(buf);
                         let name = format!("phymes-sandbox_{hash}");
 
-                        // Create the initialization and runner files
+                        // Create the workspace, initialization, and runner files
                         let (
                             run_file_path,
                             initialization_file_path,
                             input_file_path,
                             output_file_path,
                         ) = if let Some(project_dir) =
-                            self.config.as_ref().unwrap().project_dir.as_ref()
+                            self.config.as_ref().unwrap().project_dir.clone()
                         {
                             // Check the directory
-                            if !Path::new(project_dir).exists() {
+                            if !Path::new(&project_dir).exists() {
                                 let err_str =
                                     format!("Project folder '{project_dir}' does not exist.");
                                 self.stream_state = CommandSandboxStreamState::Done;
                                 return Poll::Ready(Some(Err(anyhow!(err_str))));
+                            }
+
+                            // Create the workspace
+                            // DM: whether we create the workspace here or in the "container" the files will need to persist on disk
+                            if let Some(workspace) = self.workspace_inbox.take() {
+                                let workspace_editor = WorkspaceEditor::new(&project_dir);
+                                let paths_vec = workspace.get_column_as_vec_str("path");
+                                let contents_vec = workspace.get_column_as_vec_str("content");
+                                for (path, content) in paths_vec.into_iter().zip(contents_vec.into_iter()) {
+                                    workspace_editor.create_file(std::path::Path::new(path), content)?;
+                                }
                             }
 
                             // Check the run file

@@ -190,21 +190,30 @@ pub fn create_blob_batch(
     Ok(batch)
 }
 
+pub fn create_workspace_fields_vec() -> Vec<Field> {
+    let field_names = ["path", "content"];
+    field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>()
+}
+
 /// Minimal Blob schema needed for code generation application
 /// 
 /// # Notes
 /// 
 /// - `content` is used for both the source code and the source code diff/patch
-pub fn create_source_code_fields() -> Fields {
-    let field_names = ["path", "content"];
-    let fields_vec = field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    Fields::from(fields_vec)
+pub fn create_workspace_fields() -> Fields {
+    Fields::from(create_workspace_fields_vec())
 }
 
-pub fn create_source_code_batch(
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct WorkspaceSubject {
+    pub path: String,
+    pub content: String,
+}
+
+pub fn create_workspace_batch(
     path: Vec<String>,
     content: Vec<String>,
 ) -> Result<RecordBatch> {
@@ -303,6 +312,37 @@ pub fn create_patch_batch(
         ("hash", hash),
         ("metadata", metadata),
         ("timestamp", timestamp),
+    ])?;
+    Ok(batch)
+}
+
+/// Minimal Diff/Patch schema needed for code generation application
+/// 
+/// # Notes
+/// 
+/// - `content` is used for both the source code and the source code diff/patch
+pub fn create_workspace_patch_fields() -> Fields {
+    let mut fields_vec = create_workspace_fields_vec();
+    let field_names = ["operator"];
+    fields_vec.extend(field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>());
+    Fields::from(fields_vec)
+}
+
+pub fn create_workspace_patch_batch(
+    path: Vec<String>,
+    content: Vec<String>,
+    operator: Vec<String>,
+) -> Result<RecordBatch> {
+    let path: ArrayRef = Arc::new(StringArray::from(path));
+    let content: ArrayRef = Arc::new(StringArray::from(content));
+    let operator: ArrayRef = Arc::new(StringArray::from(operator));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("path", path),
+        ("content", content),
+        ("operator", operator),
     ])?;
     Ok(batch)
 }
