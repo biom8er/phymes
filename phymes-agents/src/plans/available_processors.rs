@@ -74,6 +74,8 @@ pub enum AvailableProcessors {
     NormalizeTime,
     #[value(name = "PackTabular")]
     PackTabular,
+    #[value(name = "ApplyPatch")]
+    ApplyPatch,
     #[value(name = "CoalesceProcessor")]
     CoalesceProcessor,
     #[value(name = "LimitProcessor")]
@@ -130,11 +132,12 @@ impl Display for AvailableProcessors {
             Self::ExtractXML => write!(f, "{}", AvailableCandleOperators::ExtractXML),
             Self::Melt => write!(f, "{}", AvailableCandleOperators::Melt),
             Self::NormalizeTime => write!(f, "{}", AvailableCandleOperators::NormalizeTime),
+            Self::PackTabular => write!(f, "{}", AvailableCandleOperators::PackTabular),
+            Self::ApplyPatch => write!(f, "{}", AvailableCandleOperators::ApplyPatch),
             Self::ProcessorError => write!(f, "{}", ProcessorError::get_static_name()),
             Self::ProcessorMock => write!(f, "{}", ProcessorMock::get_static_name()),
             Self::ProcessorEcho => write!(f, "{}", ProcessorEcho::get_static_name()),
             Self::CandleDataProcessor => write!(f, "{}", CandleDataProcessor::get_static_name()),
-            Self::PackTabular => write!(f, "{}", AvailableCandleOperators::PackTabular),
             Self::CoalesceProcessor => write!(f, "{}", CoalesceProcessor::get_static_name()),
             Self::LimitProcessor => write!(f, "{}", LimitProcessor::get_static_name()),
             Self::AttachmentAggregatorProcessor => {
@@ -341,6 +344,19 @@ impl DataConfigTrait for AvailableProcessors {
                 lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
+            Self::ApplyPatch => serde_json::to_vec(&DataConfig {
+                lhs_name: Some("workspace".to_string()),
+                rhs_name: Some("patches".to_string()),
+                lhs_values: Some(vec!["code".to_string()]),
+                rhs_values: Some(vec!["patch".to_string(), "operator".to_string()]),
+                lhs_pk: Some("lhs_pk".to_string()),
+                rhs_pk: Some("rhs_pk".to_string()),
+                cpu: false,
+                operator: AvailableCandleOperators::ApplyPatch,
+                lhs_stream: DataStreamManager::Accumulate,
+                rhs_stream: Some(DataStreamManager::Accumulate),
+                ..Default::default()
+            }),
             Self::LimitProcessor => serde_json::to_vec(&LimitConfig {
                 skip: Some(0),
                 fetch: 100,
@@ -359,6 +375,7 @@ impl DataConfigTrait for AvailableProcessors {
             }),
             Self::CandleChatProcessor => serde_json::to_vec(&CandleChatConfig {
                 messages: "messages".to_string(),
+                tools: Some("tools".to_string()),
                 max_tokens: 1000,
                 temperature: 0.8,
                 seed: 299792458,
@@ -468,6 +485,8 @@ impl DataConfigTrait for AvailableProcessors {
                 command: Some("echo".to_string()),
                 timeout: 5,
                 cli_args: Some(vec!["Hello from Docker!".to_string()]),
+                subject_name: Some("subject_name".to_string()),
+                workspace: Some("workspace".to_string()),
                 ..Default::default()
             }),
             #[cfg(feature = "api")]
@@ -531,6 +550,7 @@ impl ToolTrait for AvailableProcessors {
             Self::VectorDistance => AvailableCandleOperators::VectorDistance.get_description(),
             Self::ApplyTemplate => AvailableCandleOperators::ApplyTemplate.get_description(),
             Self::PackTabular => AvailableCandleOperators::PackTabular.get_description(),
+            Self::ApplyPatch => AvailableCandleOperators::ApplyPatch.get_description(),
             Self::AttachmentAggregatorProcessor => todo!(),
             Self::MessageAggregatorProcessor => todo!(),
             Self::CoalesceProcessor => todo!(),
@@ -571,6 +591,7 @@ impl ToolTrait for AvailableProcessors {
             Self::VectorDistance => AvailableCandleOperators::VectorDistance.to_json_tool_schema(),
             Self::ApplyTemplate => AvailableCandleOperators::ApplyTemplate.to_json_tool_schema(),
             Self::PackTabular => AvailableCandleOperators::PackTabular.to_json_tool_schema(),
+            Self::ApplyPatch => AvailableCandleOperators::ApplyPatch.to_json_tool_schema(),
             Self::AttachmentAggregatorProcessor => todo!(),
             Self::MessageAggregatorProcessor => todo!(),
             Self::CoalesceProcessor => todo!(),
@@ -615,6 +636,7 @@ impl AvailableProcessors {
             AvailableProcessors::Melt.to_string(),
             AvailableProcessors::NormalizeTime.to_string(),
             AvailableProcessors::PackTabular.to_string(),
+            AvailableProcessors::ApplyPatch.to_string(),
             AvailableProcessors::CoalesceProcessor.to_string(),
             AvailableProcessors::LimitProcessor.to_string(),
             AvailableProcessors::AttachmentAggregatorProcessor.to_string(),
@@ -682,6 +704,8 @@ impl AvailableProcessors {
             Ok(AvailableProcessors::CandleDataProcessor)
         } else if line.contains(&AvailableProcessors::PackTabular.to_string()) {
             Ok(AvailableProcessors::PackTabular)
+        } else if line.contains(&AvailableProcessors::ApplyPatch.to_string()) {
+            Ok(AvailableProcessors::ApplyPatch)
         } else if line.contains(&AvailableProcessors::CoalesceProcessor.to_string()) {
             Ok(AvailableProcessors::CoalesceProcessor)
         } else if line.contains(&AvailableProcessors::LimitProcessor.to_string()) {
@@ -744,7 +768,8 @@ impl AvailableProcessors {
             | Self::Sort
             | Self::VectorDistance
             | Self::ApplyTemplate
-            | Self::PackTabular => {
+            | Self::PackTabular 
+            | Self::ApplyPatch => {
                 Arc::new(CandleDataProcessor::new(name, self.to_string().as_str()))
             }
             Self::CoalesceProcessor => {
@@ -814,7 +839,8 @@ impl AvailableProcessors {
             | Self::Sort
             | Self::VectorDistance
             | Self::ApplyTemplate
-            | Self::PackTabular => builder.build_arc::<CandleDataProcessor>(),
+            | Self::PackTabular 
+            | Self::ApplyPatch => builder.build_arc::<CandleDataProcessor>(),
             Self::CoalesceProcessor => builder.build_arc::<CoalesceProcessor>(),
             Self::LimitProcessor => builder.build_arc::<LimitProcessor>(),
             Self::AttachmentAggregatorProcessor => {
@@ -860,7 +886,8 @@ impl AvailableProcessors {
             | Self::ApplyTemplate
             | Self::AttachmentAggregatorProcessor
             | Self::MessageAggregatorProcessor
-            | Self::PackTabular => "DataConfig",
+            | Self::PackTabular 
+            | Self::ApplyPatch => "DataConfig",
             Self::CoalesceProcessor | Self::LimitProcessor => "LimitConfig",
             Self::ToolCallProcessor => "ToolCallConfig",
             Self::CandleChatProcessor | Self::MessageParserProcessor => "CandleChatConfig",

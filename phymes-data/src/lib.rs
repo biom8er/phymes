@@ -13,7 +13,7 @@ pub use candle_data::{
     collect_messages_by_schema, device,
 };
 pub use candle_operators::{
-    ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait, ExtractPDF,
+    ApplyPatch, ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait, ExtractPDF,
     ExtractTabular, ExtractXML, Filter, FromTasksToParticipants, FromTracesToMessages, GroupBy,
     HumanInTheLoop, Join, NormalizeTime, PackTabular, Pivot, Select, Sort, ToolTrait,
     VectorDistance, convert_destinations_to_tools, extract_pdf, extract_xml, filter, filter_pdf,
