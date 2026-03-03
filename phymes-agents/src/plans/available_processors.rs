@@ -768,7 +768,7 @@ impl AvailableProcessors {
             | Self::Sort
             | Self::VectorDistance
             | Self::ApplyTemplate
-            | Self::PackTabular 
+            | Self::PackTabular
             | Self::ApplyPatch => {
                 Arc::new(CandleDataProcessor::new(name, self.to_string().as_str()))
             }
@@ -839,7 +839,7 @@ impl AvailableProcessors {
             | Self::Sort
             | Self::VectorDistance
             | Self::ApplyTemplate
-            | Self::PackTabular 
+            | Self::PackTabular
             | Self::ApplyPatch => builder.build_arc::<CandleDataProcessor>(),
             Self::CoalesceProcessor => builder.build_arc::<CoalesceProcessor>(),
             Self::LimitProcessor => builder.build_arc::<LimitProcessor>(),
@@ -886,7 +886,7 @@ impl AvailableProcessors {
             | Self::ApplyTemplate
             | Self::AttachmentAggregatorProcessor
             | Self::MessageAggregatorProcessor
-            | Self::PackTabular 
+            | Self::PackTabular
             | Self::ApplyPatch => "DataConfig",
             Self::CoalesceProcessor | Self::LimitProcessor => "LimitConfig",
             Self::ToolCallProcessor => "ToolCallConfig",

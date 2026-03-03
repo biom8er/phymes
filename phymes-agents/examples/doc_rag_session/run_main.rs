@@ -16,9 +16,9 @@ use phymes_agents::{
     SessionContextBuilderAgentsTrait, SessionStream, create_message_map,
 };
 use phymes_core::{
-    AvailableSubjectsTrait, AttachmentBuilderTraitExt, BuildableTrait, BuilderTrait, ChatBuilderTraitExt,
-    IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait, TableBuilder, TableBuilderTrait,
-    TablePublication, TableTrait,
+    AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
+    ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait,
+    TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
 };
 
 pub async fn run_main() -> Result<()> {

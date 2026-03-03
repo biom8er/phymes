@@ -350,7 +350,7 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjectsTrait, AttachmentBuilderTraitExt, BuildableTrait, BuilderTrait, CsvFormat,
+        AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, CsvFormat,
         IPCMessage, MappableTrait, MessageBuilderTrait, Table, TableBuilderTrait, TablePublication,
         TableTrait,
     };

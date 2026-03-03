@@ -504,9 +504,12 @@ where
 }
 
 /// Reorder the columns in a pre-[RecordBatch] vec
-pub fn reorder_batch_vec_columns(batch_vec: &[(&str, ArrayRef)], reorder_columns: &[&str]) -> Vec<(String, ArrayRef)> {
+pub fn reorder_batch_vec_columns(
+    batch_vec: &[(&str, ArrayRef)],
+    reorder_columns: &[&str],
+) -> Vec<(String, ArrayRef)> {
     let mut batch_vec_index = Vec::with_capacity(reorder_columns.len());
-    for (column, arr) in batch_vec.into_iter() {
+    for (column, arr) in batch_vec.iter() {
         for (iter, reorder) in reorder_columns.iter().enumerate() {
             if column == reorder {
                 batch_vec_index.push((iter, column, arr));
@@ -3623,7 +3626,13 @@ pub fn select(
     }
 
     // Reorder the columns
-    let batch_vec = reorder_batch_vec_columns(&batch_vec.into_iter().map(|(&a, b)| (a, b)).collect::<Vec<_>>(), reorder_columns);
+    let batch_vec = reorder_batch_vec_columns(
+        &batch_vec
+            .into_iter()
+            .map(|(&a, b)| (a, b))
+            .collect::<Vec<_>>(),
+        reorder_columns,
+    );
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Ok(batch)
 }

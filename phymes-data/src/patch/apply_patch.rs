@@ -1,10 +1,9 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::ValueEnum;
 use diff_match_patch_rs::{DiffMatchPatch, Efficient};
 use serde::{Deserialize, Serialize};
 
 use crate::patch::apply_v4a_diff::apply_v4a_patch;
-
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, ValueEnum, Default)]
 pub enum PatchOperator {
@@ -31,10 +30,6 @@ pub struct PatchOperation {
     pub path: std::path::PathBuf,
     pub diff: String,
     pub operator: PatchOperator,
-}
-
-pub trait ApplyPatchTrait {
-    fn apply_operation(&self, op: &PatchOperation) -> Result<()>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -84,61 +79,64 @@ fn classify_diff(diff: &str) -> DiffKind {
             || trimmed.starts_with("*** Delete File:")
         {
             v4a_score += 2;
-        } else if let Some(first) = trimmed.chars().next() {
-            if first == '+' || first == '-' || first == ' ' {
+        } else if let Some(first) = trimmed.chars().next()
+            && (first == '+' || first == '-' || first == ' ') {
                 // Only count as V4A-ish if we haven't seen any strong DMP header yet.
                 if dmp_score == 0 {
                     v4a_score += 1;
                 }
             }
-        }
     }
 
-    if dmp_score>= 3 && v4a_score == 0 {
+    if dmp_score >= 3 && v4a_score == 0 {
         DiffKind::Dmp
-    } else if v4a_score >= 3 && dmp_score == 0{
+    } else if v4a_score >= 3 && dmp_score == 0 {
         DiffKind::V4A
     } else {
         DiffKind::Unknown
     }
 }
 
-pub fn apply_patch_auto(
-    original: &str,
-    diff: &str,
-    create: bool,
-) -> Result<String> {
+pub fn apply_patch_auto(original: &str, diff: &str, create: bool) -> Result<String> {
     match classify_diff(diff) {
         DiffKind::V4A => apply_v4a_patch(original, diff, create),
         DiffKind::Dmp => {
             let dmp = DiffMatchPatch::new();
             let patches = dmp
-                .patch_from_text::<Efficient>(diff).map_err(|e| anyhow!("{e:?}"))?;
+                .patch_from_text::<Efficient>(diff)
+                .map_err(|e| anyhow!("{e:?}"))?;
 
-            let (new_content, results) = dmp.patch_apply(&patches, original).map_err(|e| anyhow!("{e:?}"))?;
+            let (new_content, results) = dmp
+                .patch_apply(&patches, original)
+                .map_err(|e| anyhow!("{e:?}"))?;
 
             if results.iter().any(|applied| !applied) {
-                return Err(anyhow!(
-                    "Not all DiffMatchPatch patches applied"
-                ));
+                return Err(anyhow!("Not all DiffMatchPatch patches applied"));
             }
 
             Ok(new_content)
         }
-        DiffKind::Unknown => Err(anyhow!("Unknown diff format. Only `Universal Diff` and `V4A Diff` formats are currently supported."))
+        DiffKind::Unknown => Err(anyhow!(
+            "Unknown diff format. Only `Universal Diff` and `V4A Diff` formats are currently supported."
+        )),
     }
 }
 
+#[cfg(test)]
 pub mod tests {
     use diff_match_patch_rs::PatchInput;
 
-    use super::*;    
+    use super::*;
 
     /// Helper: generate a DMP patch text for a simple change.
     fn make_dmp_patch(original: &str, modified: &str) -> Result<String> {
         let dmp = DiffMatchPatch::new();
-        let diffs = dmp.diff_main::<Efficient>(original, modified).map_err(|e| anyhow!("{e:?}"))?;
-        let patches = dmp.patch_make(PatchInput::new_diffs(&diffs)).map_err(|e| anyhow!("{e:?}"))?;
+        let diffs = dmp
+            .diff_main::<Efficient>(original, modified)
+            .map_err(|e| anyhow!("{e:?}"))?;
+        let patches = dmp
+            .patch_make(PatchInput::new_diffs(&diffs))
+            .map_err(|e| anyhow!("{e:?}"))?;
         let patch_txt = dmp.patch_to_text(&patches);
         Ok(patch_txt)
     }
@@ -206,5 +204,4 @@ pub mod tests {
         let auto = apply_patch_auto(original, &stripped, false);
         assert!(auto.is_err());
     }
-
 }

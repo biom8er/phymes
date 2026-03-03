@@ -11,8 +11,9 @@ pub use attachment_aggregator_processor::{
 };
 pub use coalesce_processor::CoalesceProcessor;
 pub use data_config::{
-    DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataJoinOperator,
-    DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataStreamManager,
+    DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator,
+    DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataJoinOperator,
+    DataStreamManager,
 };
 pub use data_processor::CandleDataProcessor;
 #[allow(unused_imports)]

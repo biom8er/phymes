@@ -8,6 +8,8 @@ pub use messages::{
 };
 #[cfg(feature = "api")]
 pub use plans::DownloadContentSession;
+#[cfg(feature = "api")]
+pub use plans::PatchWorkspaceSession;
 pub use plans::{
     AvailableInterfaceSubjects, AvailableProcessors, AvailableSessionPlans, BuilderSession,
     ChatAgentSession, DiagnosticSession, DocumentRAGSession, EmbedTextSession,

@@ -33,7 +33,8 @@ use crate::{
             CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod,
         },
         http_client_processor::error_report,
-    }, patch::WorkspaceEditor,
+    },
+    patch::WorkspaceEditor,
 };
 
 /// The state of the command stream
@@ -271,7 +272,9 @@ impl Stream for CommandSandboxStream {
                 }
 
                 // collect the workspace
-                if self.workspace_inbox.is_none() && let Some(workspace) = self.config.as_ref().unwrap().workspace.clone() {
+                if self.workspace_inbox.is_none()
+                    && let Some(workspace) = self.config.as_ref().unwrap().workspace.clone()
+                {
                     match remove_message_by_subject(&workspace, &mut self.messages) {
                         // Poll the next batches
                         Some(mut fut) => {
@@ -412,8 +415,11 @@ impl Stream for CommandSandboxStream {
                                 let workspace_editor = WorkspaceEditor::new(&project_dir);
                                 let paths_vec = workspace.get_column_as_vec_str("path");
                                 let contents_vec = workspace.get_column_as_vec_str("content");
-                                for (path, content) in paths_vec.into_iter().zip(contents_vec.into_iter()) {
-                                    workspace_editor.create_file(std::path::Path::new(path), content)?;
+                                for (path, content) in
+                                    paths_vec.into_iter().zip(contents_vec.into_iter())
+                                {
+                                    workspace_editor
+                                        .create_file(std::path::Path::new(path), content)?;
                                 }
                             }
 
@@ -614,7 +620,8 @@ impl Stream for CommandSandboxStream {
                         }
                     }
                     CommandSandboxRunnerState::Initializing(runner_info) => {
-                        self.runner_state = CommandSandboxRunnerState::Running(runner_info.to_owned());
+                        self.runner_state =
+                            CommandSandboxRunnerState::Running(runner_info.to_owned());
                     }
                     CommandSandboxRunnerState::Running(runner_info) => {
                         // Clear the temporary input file and/or create the stdin content
@@ -1172,12 +1179,10 @@ impl Stream for CommandSandboxStream {
                                                 "{container_project_dir}/src/{}",
                                                 run_path.file_name().unwrap().to_str().unwrap(),
                                             ));
-                                        } else {
-                                            if let Some(command) =
-                                                self.config.as_ref().unwrap().command.as_ref()
-                                            {
-                                                command_args.push(command.to_string());
-                                            }
+                                        } else if let Some(command) =
+                                            self.config.as_ref().unwrap().command.as_ref()
+                                        {
+                                            command_args.push(command.to_string());
                                         }
                                     }
                                     _ => {
@@ -1285,7 +1290,7 @@ impl Stream for CommandSandboxStream {
                             }
                         }
 
-                        // Run the command                        
+                        // Run the command
                         // DM: useful for debugging
                         dbg!(&command_args);
                         Command::new("docker").args(&command_args).output()
@@ -1585,10 +1590,7 @@ impl Stream for CommandSandboxStream {
                                     vec![stdout.to_string()],
                                     vec![create_timestamp_micros()],
                                 )?;
-                                (
-                                    Some(batch),
-                                    CommandSandboxStreamState::NewPoll,
-                                )
+                                (Some(batch), CommandSandboxStreamState::NewPoll)
                             }
                             (
                                 DataIOMethod::Stdio,
@@ -1602,10 +1604,7 @@ impl Stream for CommandSandboxStream {
                                     .with_json_values(&json_values)?
                                     .build()?;
                                 let batch = table.get_record_batches_own().pop().unwrap();
-                                (
-                                    Some(batch),
-                                    CommandSandboxStreamState::NewPoll,
-                                )
+                                (Some(batch), CommandSandboxStreamState::NewPoll)
                             }
                             (
                                 DataIOMethod::TempFile,
@@ -1621,10 +1620,7 @@ impl Stream for CommandSandboxStream {
                                     .with_name("sandbox_tempfile_running")
                                     .build()?;
                                 let batch = table.get_record_batches_own().pop().unwrap();
-                                (
-                                    Some(batch),
-                                    CommandSandboxStreamState::NewPoll
-                                )
+                                (Some(batch), CommandSandboxStreamState::NewPoll)
                             }
                             (
                                 DataIOMethod::None,
@@ -1637,10 +1633,7 @@ impl Stream for CommandSandboxStream {
                             | (
                                 DataIOMethod::TempFile,
                                 CommandSandboxRunnerState::Initializing(_runner_info),
-                            ) => (
-                                None,
-                                CommandSandboxStreamState::ExistingPoll
-                            ),
+                            ) => (None, CommandSandboxStreamState::ExistingPoll),
                             (
                                 DataIOMethod::None,
                                 CommandSandboxRunnerState::Starting(_runner_info),
@@ -1652,14 +1645,10 @@ impl Stream for CommandSandboxStream {
                             | (
                                 DataIOMethod::TempFile,
                                 CommandSandboxRunnerState::Starting(_runner_info),
-                            ) => (
-                                None,
-                                CommandSandboxStreamState::ExistingPoll
-                            ),
-                            (_, CommandSandboxRunnerState::Done(_runner_info)) => (
-                                None,
-                                CommandSandboxStreamState::Done
-                            ),
+                            ) => (None, CommandSandboxStreamState::ExistingPoll),
+                            (_, CommandSandboxRunnerState::Done(_runner_info)) => {
+                                (None, CommandSandboxStreamState::Done)
+                            }
                             _ => unreachable!(),
                         };
 
@@ -1922,12 +1911,12 @@ mod tests {
         let project_dir = std::env::temp_dir().join(project_name);
         let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
         // DM: in some instances, `rm -rf /tmp/phymes-wasm-project` is needed to delete the temporary project directory
-        fs::create_dir(&project_dir).expect("Failed to create project directory");        
+        fs::create_dir(&project_dir).expect("Failed to create project directory");
 
         // --- From config with wasm module env ---
 
         // Create the workspace
-        let workspace_table = CommandSandboxEnvironments::WasmModule.to_default_workspace(None)?; 
+        let workspace_table = CommandSandboxEnvironments::WasmModule.to_default_workspace(None)?;
 
         // State for the command processor config
         let command_config = CommandSandboxConfig {
@@ -1935,11 +1924,20 @@ mod tests {
             runner: CommandSandboxRunners::Wasmtime,
             environment: CommandSandboxEnvironments::WasmModule,
             project_dir: Some(project_dir.as_path().to_str().unwrap().to_string()),
-            container_image: project_dir.join("src/main.wat").as_path().to_str().unwrap().to_string(),
+            container_image: project_dir
+                .join("src/main.wat")
+                .as_path()
+                .to_str()
+                .unwrap()
+                .to_string(),
             data_i: DataIOMethod::None,
             data_o: DataIOMethod::None,
             command: None,
-            container_args: Some(vec!["run".to_string(), "--invoke".to_string(), "add".to_string()]), // DM: mimic module style CLI without WAVE
+            container_args: Some(vec![
+                "run".to_string(),
+                "--invoke".to_string(),
+                "add".to_string(),
+            ]), // DM: mimic module style CLI without WAVE
             cli_args: Some(vec!["1".to_string(), "2".to_string()]),
             workspace: Some(workspace_table.get_name().to_string()),
             ..Default::default()
@@ -1950,7 +1948,7 @@ mod tests {
             .with_json(&command_config_json, 1)?
             .build()?;
 
-        // Build the current message state        
+        // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message.insert(
             workspace_table.get_name().to_string(),
@@ -1998,14 +1996,20 @@ mod tests {
         assert_eq!(result, ["3\n"]);
 
         // --- From config with wasm component env ---
-        let workspace_table = CommandSandboxEnvironments::WasmComponent.to_default_workspace(None)?;
+        let workspace_table =
+            CommandSandboxEnvironments::WasmComponent.to_default_workspace(None)?;
 
         // State for the command processor config
         let command_config = CommandSandboxConfig {
             runner: CommandSandboxRunners::Wasmtime,
             environment: CommandSandboxEnvironments::WasmComponent,
             project_dir: Some(project_dir.as_path().to_str().unwrap().to_string()),
-            container_image: project_dir.join("src/main.wat").as_path().to_str().unwrap().to_string(),
+            container_image: project_dir
+                .join("src/main.wat")
+                .as_path()
+                .to_str()
+                .unwrap()
+                .to_string(),
             data_i: DataIOMethod::None,
             data_o: DataIOMethod::None,
             command: Some("add".to_string()),
@@ -2322,13 +2326,13 @@ mod tests {
         let project_dir = std::env::temp_dir().join(project_name);
         let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
         // DM: in some instances, `rm -rf /tmp/phymes-wasm-project` is needed to delete the temporary project directory
-        fs::create_dir(&project_dir).expect("Failed to create project directory"); 
+        fs::create_dir(&project_dir).expect("Failed to create project directory");
 
         // --- From config ---
         // based on docker run --rm alpine echo "Hello from Docker!"
 
         // Create the workspace
-        let workspace_table = CommandSandboxEnvironments::Bash.to_default_workspace(None)?; 
+        let workspace_table = CommandSandboxEnvironments::Bash.to_default_workspace(None)?;
 
         // State for the command processor config
         let command_config = CommandSandboxConfig {
@@ -2922,7 +2926,7 @@ if __name__ == '__main__':
         fs::create_dir(&project_dir).expect("Failed to create project directory");
 
         // Create the workspace
-        let workspace_table = CommandSandboxEnvironments::Python.to_default_workspace(None)?; 
+        let workspace_table = CommandSandboxEnvironments::Python.to_default_workspace(None)?;
 
         // Runtime env
         let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
@@ -3171,9 +3175,17 @@ fn main() -> Result<()> {
             .try_collect::<Vec<_>>()
             .await;
         if let Err(err) = &result {
-            assert!(err.to_string().contains("error: cannot find derive macro `Serialize` in this scope"));
-            assert!(err.to_string().contains("error: cannot find derive macro `Deserialize` in this scope"));
-            assert!(err.to_string().contains("error[E0277]: the trait bound `Data: serde::Deserialize<'de>` is not satisfied"));
+            assert!(
+                err.to_string()
+                    .contains("error: cannot find derive macro `Serialize` in this scope")
+            );
+            assert!(
+                err.to_string()
+                    .contains("error: cannot find derive macro `Deserialize` in this scope")
+            );
+            assert!(err.to_string().contains(
+                "error[E0277]: the trait bound `Data: serde::Deserialize<'de>` is not satisfied"
+            ));
         } else {
             panic!("Should have generated an Error.")
         }
@@ -3282,7 +3294,10 @@ fn main() -> Result<()> {
         let result = table.get_column_as_vec_str("role");
         assert_eq!(result, ["tool"]);
         let result = table.get_column_as_vec_str("content");
-        assert_eq!(result, ["[{\"name\":\"Alice\",\"age\":40},{\"name\":\"Bob\",\"age\":35}]"]);
+        assert_eq!(
+            result,
+            ["[{\"name\":\"Alice\",\"age\":40},{\"name\":\"Bob\",\"age\":35}]"]
+        );
 
         // --- from StdIO, no initialization ---
 
@@ -3715,7 +3730,7 @@ apt install --assume-yes protobuf-compiler clang"#;
         // --- from TempFile, initialization ---
 
         // Create the workspace
-        let workspace_table = CommandSandboxEnvironments::Rust.to_default_workspace(None)?; 
+        let workspace_table = CommandSandboxEnvironments::Rust.to_default_workspace(None)?;
 
         // State for the command processor config
         let command_config = CommandSandboxConfig {

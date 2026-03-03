@@ -93,7 +93,7 @@ mod tests {
     use anyhow::Result;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, AttachmentBuilderTraitExt, BuildableTrait,
+        AttachmentBuilderTraitExt, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
         BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, TablePublication, TableTrait,
     };
     use phymes_data::make_pdf_document;

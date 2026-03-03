@@ -15,7 +15,7 @@ use phymes_agents::{
     SessionStream, UserSession, create_message_map,
 };
 use phymes_core::{
-    AvailableSubjectsTrait, AttachmentBuilderTraitExt, BuildableTrait, BuilderTrait, IPCMessage,
+    AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage,
     MappableTrait, MessageBuilderTrait, MessageTrait, Table, TableBuilder, TableBuilderTrait,
     TablePublication, TableTrait, create_user_inbox_batch,
 };

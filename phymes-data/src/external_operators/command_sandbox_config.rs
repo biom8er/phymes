@@ -2,7 +2,10 @@ use std::{env, fmt::Display};
 
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
-use phymes_core::{BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableTrait, WorkspaceSubject, create_workspace_batch};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableTrait,
+    WorkspaceSubject, create_workspace_batch,
+};
 use phymes_diagnostics::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 
@@ -88,11 +91,21 @@ pub enum CommandSandboxEnvironments {
 
 impl CommandSandboxEnvironments {
     /// To workspace
-    pub fn to_workspace(&self, workspace_name: Option<&str>, workspace_contents: Option<&[WorkspaceSubject]>) -> Result<Table> {
+    pub fn to_workspace(
+        &self,
+        workspace_name: Option<&str>,
+        workspace_contents: Option<&[WorkspaceSubject]>,
+    ) -> Result<Table> {
         if let Some(workspace_contents) = workspace_contents {
-            let (path, content): (Vec<String>, Vec<String>) = workspace_contents.into_iter().map(|w| (w.path.to_owned(), w.content.to_owned())).unzip();
+            let (path, content): (Vec<String>, Vec<String>) = workspace_contents
+                .iter()
+                .map(|w| (w.path.to_owned(), w.content.to_owned()))
+                .unzip();
             let batch = create_workspace_batch(path, content)?;
-            Table::get_builder().with_name(self.to_string().as_str()).with_record_batches(vec![batch])?.build()
+            Table::get_builder()
+                .with_name(self.to_string().as_str())
+                .with_record_batches(vec![batch])?
+                .build()
         } else {
             self.to_default_workspace(workspace_name)
         }
@@ -106,10 +119,9 @@ impl CommandSandboxEnvironments {
         };
         match self {
             Self::Bash => {
-                let path = [
-                    format!("{root}src/main.sh"),
-                    format!("{root}install.sh"),
-                ].into_iter().collect::<Vec<_>>();
+                let path = [format!("{root}src/main.sh"), format!("{root}install.sh")]
+                    .into_iter()
+                    .collect::<Vec<_>>();
                 let content = [
                     r#"#!/usr/bin/env bash
 
@@ -118,17 +130,25 @@ impl CommandSandboxEnvironments {
 [[ -n "$3" ]] && echo "$3""#,
                     r#"#!/bin/sh
 apk add --no-cache bash
-chmod +x ./src/main.sh"#
-                ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+chmod +x ./src/main.sh"#,
+                ]
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>();
                 let batch = create_workspace_batch(path, content)?;
-                Table::get_builder().with_name(self.to_string().as_str()).with_record_batches(vec![batch])?.build()
+                Table::get_builder()
+                    .with_name(self.to_string().as_str())
+                    .with_record_batches(vec![batch])?
+                    .build()
             }
             Self::Python => {
                 let path = [
                     format!("{root}requirements.txt"),
                     format!("{root}src/main.py"),
                     format!("{root}install.sh"),
-                ].into_iter().collect::<Vec<_>>();
+                ]
+                .into_iter()
+                .collect::<Vec<_>>();
                 let content = [
                     r#"pandas==2.2.3
 pyarrow==17.0.0"#,
@@ -169,17 +189,25 @@ if __name__ == '__main__':
 set -e
 python -m venv .venv
 source .venv/bin/activate
-pip install --no-cache-dir -r requirements.txt"#
-                ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+pip install --no-cache-dir -r requirements.txt"#,
+                ]
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>();
                 let batch = create_workspace_batch(path, content)?;
-                Table::get_builder().with_name(self.to_string().as_str()).with_record_batches(vec![batch])?.build()
+                Table::get_builder()
+                    .with_name(self.to_string().as_str())
+                    .with_record_batches(vec![batch])?
+                    .build()
             }
             Self::Rust => {
                 let path = [
                     format!("{root}Cargo.toml"),
                     format!("{root}src/main.rs"),
                     format!("{root}install.sh"),
-                ].into_iter().collect::<Vec<_>>();
+                ]
+                .into_iter()
+                .collect::<Vec<_>>();
                 let content = [
                     r#"[package]
 name = "phymes_rs"
@@ -267,33 +295,42 @@ fn main() -> Result<()> {
 }"#,
                     r#"#!/usr/bin/env bash
 apt update
-apt install --assume-yes protobuf-compiler clang"#
-                ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+apt install --assume-yes protobuf-compiler clang"#,
+                ]
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>();
                 let batch = create_workspace_batch(path, content)?;
-                Table::get_builder().with_name(self.to_string().as_str()).with_record_batches(vec![batch])?.build()
+                Table::get_builder()
+                    .with_name(self.to_string().as_str())
+                    .with_record_batches(vec![batch])?
+                    .build()
             }
             Self::WasmModule => {
-                let path = [
-                    format!("{root}src/main.wat"),
-                ].into_iter().collect::<Vec<_>>();
-                let content = [
-                    r#"(module
+                let path = [format!("{root}src/main.wat")]
+                    .into_iter()
+                    .collect::<Vec<_>>();
+                let content = [r#"(module
   (func (export "add") (param i32 i32) (result i32)
     local.get 0
     local.get 1
     i32.add
   )
-)"#,
-                ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+)"#]
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>();
                 let batch = create_workspace_batch(path, content)?;
-                Table::get_builder().with_name(self.to_string().as_str()).with_record_batches(vec![batch])?.build()
+                Table::get_builder()
+                    .with_name(self.to_string().as_str())
+                    .with_record_batches(vec![batch])?
+                    .build()
             }
             Self::WasmComponent => {
-                let path = [
-                    format!("{root}src/main.wat"),
-                ].into_iter().collect::<Vec<_>>();
-                let content = [
-                    r#"(component
+                let path = [format!("{root}src/main.wat")]
+                    .into_iter()
+                    .collect::<Vec<_>>();
+                let content = [r#"(component
   ;; Define a core module
   (core module $math
     (func $add (param $a i32) (param $b i32) (result i32)
@@ -313,14 +350,20 @@ apt install --assume-yes protobuf-compiler clang"#
   (func (export "add") (param "a" u32) (param "b" u32) (result u32)
     (canon lift (core func $math-inst "add"))
   )
-)"#,
-                ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+)"#]
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>();
                 let batch = create_workspace_batch(path, content)?;
-                Table::get_builder().with_name(self.to_string().as_str()).with_record_batches(vec![batch])?.build()
+                Table::get_builder()
+                    .with_name(self.to_string().as_str())
+                    .with_record_batches(vec![batch])?
+                    .build()
             }
-            _ => Err(anyhow!("The CommandSandboxEnvironments `{self}` is not yet supported."))
+            _ => Err(anyhow!(
+                "The CommandSandboxEnvironments `{self}` is not yet supported."
+            )),
         }
-
     }
 }
 

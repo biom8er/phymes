@@ -12,9 +12,9 @@ use phymes_agents::{
     SessionStream, ToolAgentSession, create_message_map,
 };
 use phymes_core::{
-    AvailableSubjectsTrait, AttachmentBuilderTraitExt, BuildableTrait, BuilderTrait, ChatBuilderTraitExt,
-    CsvFormat, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait, TableBuilder,
-    TableBuilderTrait, TablePublication, TableTrait,
+    AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
+    ChatBuilderTraitExt, CsvFormat, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait,
+    TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_data::test_extract_tabular_data::make_scores_table;
 use phymes_diagnostics::HashMap;

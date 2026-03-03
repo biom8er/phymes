@@ -116,6 +116,7 @@ impl WorkspaceEditor {
     }
 }
 
+#[cfg(test)]
 pub mod tests {
     use diff_match_patch_rs::{DiffMatchPatch, Efficient, PatchInput};
 
@@ -195,15 +196,15 @@ pub mod tests {
             "src/main.sh",
         ];
         let content = [
-            r#"#!/bin/sh
-apk add --no-cache bash
-chmod +x ./src/main.sh"#,
             r#"#!/usr/bin/env bash
 
 [[ -n "$1" ]] && echo "$1"
 [[ -n "$2" ]] && echo "$2"
 [[ -n "$3" ]] && echo "$3""#,
-        ];
+            r#"#!/bin/sh
+apk add --no-cache bash
+chmod +x ./src/main.sh"#
+        ];;
         let workspace_subjects = path.into_iter().zip(content.into_iter())
             .map(|(p, c)| WorkspaceSubject { path: p.to_string(), content: c.to_string() })
             .collect::<Vec<_>>();

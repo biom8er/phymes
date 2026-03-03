@@ -1,5 +1,5 @@
+use anyhow::{Result, anyhow};
 use std::fmt;
-use anyhow::{anyhow, Result};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ApplyDiffMode {
@@ -21,10 +21,23 @@ impl ApplyDiffMode {
 pub enum ApplyDiffError {
     InvalidLine(String),
     InvalidAddFileLine(String),
-    InvalidContext { cursor: usize, context: String, eof: bool },
-    OverlappingChunk { orig_index: usize, cursor: usize },
-    ChunkOutOfBounds { orig_index: usize, len: usize },
-    EmptySection { index: usize, next_line: String },
+    InvalidContext {
+        cursor: usize,
+        context: String,
+        eof: bool,
+    },
+    OverlappingChunk {
+        orig_index: usize,
+        cursor: usize,
+    },
+    ChunkOutOfBounds {
+        orig_index: usize,
+        len: usize,
+    },
+    EmptySection {
+        index: usize,
+        next_line: String,
+    },
     Other(String),
 }
 
@@ -32,31 +45,31 @@ impl fmt::Display for ApplyDiffError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use ApplyDiffError::*;
         match self {
-            InvalidLine(line) => write!(f, "Invalid Line:\n{}", line),
-            InvalidAddFileLine(line) => write!(f, "Invalid Add File Line: {}", line),
-            InvalidContext { cursor, context, eof } => {
+            InvalidLine(line) => write!(f, "Invalid Line:\n{line}"),
+            InvalidAddFileLine(line) => write!(f, "Invalid Add File Line: {line}"),
+            InvalidContext {
+                cursor,
+                context,
+                eof,
+            } => {
                 if *eof {
-                    write!(f, "Invalid EOF Context {}:\n{}", cursor, context)
+                    write!(f, "Invalid EOF Context {cursor}:\n{context}")
                 } else {
-                    write!(f, "Invalid Context {}:\n{}", cursor, context)
+                    write!(f, "Invalid Context {cursor}:\n{context}")
                 }
             }
             OverlappingChunk { orig_index, cursor } => write!(
                 f,
-                "applyDiff: overlapping chunk at {} (cursor {})",
-                orig_index, cursor
+                "applyDiff: overlapping chunk at {orig_index} (cursor {cursor})"
             ),
             ChunkOutOfBounds { orig_index, len } => write!(
                 f,
-                "applyDiff: chunk.origIndex {} > input length {}",
-                orig_index, len
+                "applyDiff: chunk.origIndex {orig_index} > input length {len}"
             ),
-            EmptySection { index, next_line } => write!(
-                f,
-                "Nothing in this section - index={} {}",
-                index, next_line
-            ),
-            Other(msg) => write!(f, "{}", msg),
+            EmptySection { index, next_line } => {
+                write!(f, "Nothing in this section - index={index} {next_line}")
+            }
+            Other(msg) => write!(f, "{msg}"),
         }
     }
 }
@@ -133,20 +146,15 @@ fn normalize_diff_lines(diff: &str) -> Vec<String> {
         .map(|l| l.trim_end_matches('\r').to_string())
         .collect();
 
-    if let Some(last) = lines.last() {
-        if last.is_empty() {
+    if let Some(last) = lines.last()
+        && last.is_empty() {
             lines.pop();
         }
-    }
     lines
 }
 
 fn detect_newline_from_text(text: &str) -> &str {
-    if text.contains("\r\n") {
-        "\r\n"
-    } else {
-        "\n"
-    }
+    if text.contains("\r\n") { "\r\n" } else { "\n" }
 }
 
 fn detect_newline(input: &str, diff: &str, mode: ApplyDiffMode) -> String {
@@ -210,10 +218,7 @@ fn parse_create_diff(lines: &[String], newline: &str) -> Result<String, ApplyDif
     Ok(output.join(newline))
 }
 
-fn parse_update_diff(
-    lines: &[String],
-    input: &str,
-) -> Result<ParsedUpdateDiff, ApplyDiffError> {
+fn parse_update_diff(lines: &[String], input: &str) -> Result<ParsedUpdateDiff, ApplyDiffError> {
     let mut parser = ParserState {
         lines: {
             let mut v = lines.to_vec();
@@ -252,8 +257,7 @@ fn parse_update_diff(
         }
 
         let section = read_section(&parser.lines, parser.index)?;
-        let find_result =
-            find_context(&input_lines, &section.next_context, cursor, section.eof);
+        let find_result = find_context(&input_lines, &section.next_context, cursor, section.eof);
 
         if find_result.new_index == usize::MAX {
             let ctx_text = section.next_context.join("\n");
@@ -314,10 +318,7 @@ fn advance_cursor_to_anchor(
     cursor
 }
 
-fn read_section(
-    lines: &[String],
-    start_index: usize,
-) -> Result<ReadSectionResult, ApplyDiffError> {
+fn read_section(lines: &[String], start_index: usize) -> Result<ReadSectionResult, ApplyDiffError> {
     let mut context: Vec<String> = Vec::new();
     let mut del_lines: Vec<String> = Vec::new();
     let mut ins_lines: Vec<String> = Vec::new();
@@ -359,7 +360,11 @@ fn read_section(
 
         let last_mode = mode;
 
-        let line = if raw.is_empty() { " ".to_string() } else { raw.clone() };
+        let line = if raw.is_empty() {
+            " ".to_string()
+        } else {
+            raw.clone()
+        };
         let prefix = line.chars().next().unwrap_or(' ');
 
         mode = match prefix {
@@ -419,10 +424,7 @@ fn read_section(
         } else {
             String::new()
         };
-        return Err(ApplyDiffError::EmptySection {
-            index,
-            next_line,
-        });
+        return Err(ApplyDiffError::EmptySection { index, next_line });
     }
 
     Ok(ReadSectionResult {
@@ -439,12 +441,7 @@ struct ContextMatch {
     fuzz: i32,
 }
 
-fn find_context(
-    lines: &[String],
-    context: &[String],
-    start: usize,
-    eof: bool,
-) -> ContextMatch {
+fn find_context(lines: &[String], context: &[String], start: usize, eof: bool) -> ContextMatch {
     if eof {
         let end_start = lines.len().saturating_sub(context.len());
         let end_match = find_context_core(lines, context, end_start);
@@ -461,11 +458,7 @@ fn find_context(
     find_context_core(lines, context, start)
 }
 
-fn find_context_core(
-    lines: &[String],
-    context: &[String],
-    start: usize,
-) -> ContextMatch {
+fn find_context_core(lines: &[String], context: &[String], start: usize) -> ContextMatch {
     if context.is_empty() {
         return ContextMatch {
             new_index: start,
@@ -506,12 +499,7 @@ fn find_context_core(
     }
 }
 
-fn equals_slice<F>(
-    source: &[String],
-    target: &[String],
-    start: usize,
-    map_fn: F,
-) -> bool
+fn equals_slice<F>(source: &[String], target: &[String], start: usize, map_fn: F) -> bool
 where
     F: Fn(&str) -> String,
 {
@@ -528,11 +516,7 @@ where
     true
 }
 
-fn apply_chunks(
-    input: &str,
-    chunks: &[Chunk],
-    newline: &str,
-) -> Result<String, ApplyDiffError> {
+fn apply_chunks(input: &str, chunks: &[Chunk], newline: &str) -> Result<String, ApplyDiffError> {
     let orig_lines: Vec<String> = input.split('\n').map(|s| s.to_string()).collect();
     let mut dest_lines: Vec<String> = Vec::new();
     let mut cursor: usize = 0;
@@ -566,11 +550,7 @@ fn apply_chunks(
     Ok(dest_lines.join(newline))
 }
 
-pub fn apply_v4a_patch(
-    original: &str,
-    diff: &str,
-    create: bool,
-) -> Result<String> {
+pub fn apply_v4a_patch(original: &str, diff: &str, create: bool) -> Result<String> {
     let mode = if create {
         ApplyDiffMode::Create
     } else {
@@ -580,6 +560,7 @@ pub fn apply_v4a_patch(
     apply_v4a_diff(original, diff, mode).map_err(|e| anyhow!("{e:?}"))
 }
 
+#[cfg(test)]
 pub mod tests {
     use super::*;
 

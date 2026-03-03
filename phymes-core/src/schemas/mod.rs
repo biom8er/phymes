@@ -15,12 +15,14 @@ pub use chat::{
     create_values_record_batch,
 };
 pub use embed::{
-    AttachmentBuilderTraitExt, AttachmentsSubject, EmbeddingRequest, EmbeddingResponse, EncodingFormat,
-    create_attachments_batch, create_attachments_fields, create_blob_batch, create_blob_fields, create_diff_batch, create_diff_fields, create_document_embeddings_fields,
-    create_patch_fields, create_patch_batch, create_workspace_fields, create_workspace_batch, create_workspace_patch_fields, create_workspace_patch_batch, WorkspaceSubject,
-    create_documents_batch, create_documents_embeddings_batch, create_documents_fields,
-    create_embeddings_scores_fields, create_join_chunks_scores_fields, create_queries_batch,
-    create_queries_fields, create_query_embeddings_batch, create_query_embeddings_fields,
+    AttachmentBuilderTraitExt, AttachmentsSubject, EmbeddingRequest, EmbeddingResponse,
+    EncodingFormat, WorkspaceSubject, create_attachments_batch, create_attachments_fields,
+    create_blob_batch, create_blob_fields, create_diff_batch, create_diff_fields,
+    create_document_embeddings_fields, create_documents_batch, create_documents_embeddings_batch,
+    create_documents_fields, create_embeddings_scores_fields, create_join_chunks_scores_fields,
+    create_patch_batch, create_patch_fields, create_queries_batch, create_queries_fields,
+    create_query_embeddings_batch, create_query_embeddings_fields, create_workspace_batch,
+    create_workspace_fields, create_workspace_patch_batch, create_workspace_patch_fields,
 };
 pub use http::{e_utils, open_alex, semantic_scholar};
 

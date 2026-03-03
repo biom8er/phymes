@@ -8,9 +8,9 @@ use phymes_agents::{
     SessionContextBuilderAgentsTrait, SessionStream, create_message_map,
 };
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AttachmentBuilderTraitExt, BuildableTrait, BuilderTrait,
-    ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, Table, TableBuilderTrait,
-    TablePublication, TableTrait,
+    AttachmentBuilderTraitExt, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
+    BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, Table,
+    TableBuilderTrait, TablePublication, TableTrait,
 };
 use phymes_data::make_pdf_document;
 use phymes_diagnostics::HashMap;

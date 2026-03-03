@@ -7,7 +7,8 @@ use arrow::{
         UInt8Array, UInt32Array,
     },
     compute::{
-        contains, ends_with, ilike, in_list, in_list_utf8, like, nilike, nlike, regexp_is_match, starts_with
+        contains, ends_with, ilike, in_list, in_list_utf8, like, nilike, nlike, regexp_is_match,
+        starts_with,
     },
     datatypes::{DataType, Float32Type, Float64Type, Int64Type, UInt8Type, UInt32Type},
 };
@@ -24,7 +25,10 @@ use crate::{
     ToolTrait,
     candle_data::{DataComparatorOperator, DataComparatorPredicate, DataConfig},
     candle_operators::{
-        data_operator::DataOperatorTrait, group_by::{build_aggregator_column_list_nonprimitive, build_aggregator_column_list_primitive},
+        data_operator::DataOperatorTrait,
+        group_by::{
+            build_aggregator_column_list_nonprimitive, build_aggregator_column_list_primitive,
+        },
         sort::take_columns_by_indices,
     },
 };
@@ -501,21 +505,34 @@ pub fn filter(
                 DataType::Utf8 => {
                     let values_arr = build_aggregator_column_list_nonprimitive::<String>(
                         lhs_table.get_column_as_vec_nested_nonprimitive::<String>(column_name)?,
-                        DataType::Utf8);
+                        DataType::Utf8,
+                    );
                     let values_arr = values_arr.as_any().downcast_ref::<ListArray>().unwrap();
-                    let cmp_arr = StringArray::from_iter_values(lhs_table.get_column_as_vec_str(cmp_columns.get(index).unwrap()));
+                    let cmp_arr = StringArray::from_iter_values(
+                        lhs_table.get_column_as_vec_str(cmp_columns.get(index).unwrap()),
+                    );
                     let predicate_vec = match cmp_operators.get(index).unwrap() {
                         DataComparatorOperator::InListUtf8 => {
-                            let predicate_arr = in_list_utf8(&cmp_arr, &values_arr)?;
-                            predicate_arr.into_iter().map(|s| s.unwrap_or_default() as u32).collect::<Vec<_>>()
+                            let predicate_arr = in_list_utf8(&cmp_arr, values_arr)?;
+                            predicate_arr
+                                .into_iter()
+                                .map(|s| s.unwrap_or_default() as u32)
+                                .collect::<Vec<_>>()
                         }
                         DataComparatorOperator::NotInListUtf8 => {
-                            let predicate_arr = in_list_utf8(&cmp_arr, &values_arr)?;
-                            predicate_arr.into_iter().map(|s| !s.unwrap_or_default() as u32).collect::<Vec<_>>()
+                            let predicate_arr = in_list_utf8(&cmp_arr, values_arr)?;
+                            predicate_arr
+                                .into_iter()
+                                .map(|s| !s.unwrap_or_default() as u32)
+                                .collect::<Vec<_>>()
                         }
-                        _ => return Err(anyhow!("Unsupported data type {} and comparator {} for column {column_name}",
-                            lhs_table.get_column_data_type(column_name)?,
-                            cmp_operators.get(index).unwrap())),
+                        _ => {
+                            return Err(anyhow!(
+                                "Unsupported data type {} and comparator {} for column {column_name}",
+                                lhs_table.get_column_data_type(column_name)?,
+                                cmp_operators.get(index).unwrap()
+                            ));
+                        }
                     };
                     Tensor::from_iter(predicate_vec, device)?
                 }
@@ -729,15 +746,25 @@ mod tests {
         let lhs_2_vec_1: Vec<u32> = vec![0, 1];
         let lhs_2_array: ArrayRef = Arc::new(UInt32Array::from(lhs_2_vec_1));
         let lhs_3_vec_1 = vec![
-            ["0", "1"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>(),
-            ["2", "3"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>()
+            ["0", "1"]
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
+            ["2", "3"]
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
         ];
-        let lhs_3_array = build_aggregator_column_list_nonprimitive::<String>(lhs_3_vec_1, DataType::Utf8);
+        let lhs_3_array =
+            build_aggregator_column_list_nonprimitive::<String>(lhs_3_vec_1, DataType::Utf8);
         let lhs_4_vec_1 = vec![
             [0, 1].into_iter().collect::<Vec<_>>(),
-            [2, 3].into_iter().collect::<Vec<_>>()
+            [2, 3].into_iter().collect::<Vec<_>>(),
         ];
-        let lhs_4_array = build_aggregator_column_list_primitive::<u32, UInt32Type>(lhs_4_vec_1, DataType::UInt32);
+        let lhs_4_array = build_aggregator_column_list_primitive::<u32, UInt32Type>(
+            lhs_4_vec_1,
+            DataType::UInt32,
+        );
         let lhs_batch_1 = RecordBatch::try_from_iter(vec![
             ("1", lhs_1_array),
             ("2", lhs_2_array),
@@ -754,7 +781,10 @@ mod tests {
             &["3", "4"],
             &[lhs_batch_1.clone()],
             &["1", "2"],
-            &[DataComparatorOperator::InListUtf8, DataComparatorOperator::InList],
+            &[
+                DataComparatorOperator::InListUtf8,
+                DataComparatorOperator::InList,
+            ],
             &DataComparatorPredicate::All,
             &device,
         )?;
@@ -778,7 +808,10 @@ mod tests {
             &["3", "4"],
             &[lhs_batch_1],
             &["1", "2"],
-            &[DataComparatorOperator::NotInListUtf8, DataComparatorOperator::NotInList],
+            &[
+                DataComparatorOperator::NotInListUtf8,
+                DataComparatorOperator::NotInList,
+            ],
             &DataComparatorPredicate::All,
             &device,
         )?;

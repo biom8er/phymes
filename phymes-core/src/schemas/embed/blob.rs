@@ -105,10 +105,10 @@ impl AttachmentBuilderTraitExt for TableBuilder {
 }
 
 /// Blob schema
-/// 
+///
 /// # Todo
 /// - Change to "Blob" after changing "Blob" to "Attachment"
-/// 
+///
 /// # Notes
 /// - path: "/bar/foo.rs.gz"
 /// - stem: "/bar/" of "/bar/foo.rs.gz"
@@ -116,7 +116,14 @@ impl AttachmentBuilderTraitExt for TableBuilder {
 /// - prefix: "rs" of "/bar/foo.rs.gz"
 /// - extension: "gz" of "/bar/foo.rs.gz"
 pub fn create_blob_fields() -> Fields {
-    let field_names = ["path", "stem", "filename", "prefix", "extension", "metadata"];
+    let field_names = [
+        "path",
+        "stem",
+        "filename",
+        "prefix",
+        "extension",
+        "metadata",
+    ];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -198,9 +205,9 @@ pub fn create_workspace_fields_vec() -> Vec<Field> {
 }
 
 /// Minimal Blob schema needed for code generation application
-/// 
+///
 /// # Notes
-/// 
+///
 /// - `content` is used for both the source code and the source code diff/patch
 pub fn create_workspace_fields() -> Fields {
     Fields::from(create_workspace_fields_vec())
@@ -212,16 +219,10 @@ pub struct WorkspaceSubject {
     pub content: String,
 }
 
-pub fn create_workspace_batch(
-    path: Vec<String>,
-    content: Vec<String>,
-) -> Result<RecordBatch> {
+pub fn create_workspace_batch(path: Vec<String>, content: Vec<String>) -> Result<RecordBatch> {
     let path: ArrayRef = Arc::new(StringArray::from(path));
     let content: ArrayRef = Arc::new(StringArray::from(content));
-    let batch = RecordBatch::try_from_iter(vec![
-        ("path", path),
-        ("content", content),
-    ])?;
+    let batch = RecordBatch::try_from_iter(vec![("path", path), ("content", content)])?;
     Ok(batch)
 }
 
@@ -242,7 +243,7 @@ fn create_diff_fields_vec() -> Vec<Field> {
 }
 
 /// Diff schema that could be applied to Git Unified Diff format
-/// 
+///
 /// # Todo
 /// - Compute Hash properly
 pub fn create_diff_fields() -> Fields {
@@ -277,7 +278,7 @@ pub fn create_diff_batch(
 }
 
 /// Patch schema intended to be implemented on a file by file bases depending upon the operation
-/// 
+///
 /// # Notes
 /// - Allowable `operators` are "Create", "Update", and "Delete"
 pub fn create_patch_fields() -> Fields {
@@ -316,17 +317,19 @@ pub fn create_patch_batch(
 }
 
 /// Minimal Diff/Patch schema needed for code generation application
-/// 
+///
 /// # Notes
-/// 
+///
 /// - `content` is used for both the source code and the source code diff/patch
 pub fn create_workspace_patch_fields() -> Fields {
     let mut fields_vec = create_workspace_fields_vec();
     let field_names = ["operator"];
-    fields_vec.extend(field_names
-        .iter()
-        .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>());
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Utf8, false))
+            .collect::<Vec<_>>(),
+    );
     Fields::from(fields_vec)
 }
 
