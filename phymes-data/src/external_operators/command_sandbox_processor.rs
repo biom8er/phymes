@@ -904,25 +904,6 @@ impl Stream for CommandSandboxStream {
                                                     .to_str()
                                                     .unwrap()
                                             ));
-                                        } else if let (
-                                            Some(run_file),
-                                            Some(container_project_dir),
-                                        ) = (
-                                            runner_info.run_file.as_ref(),
-                                            self.config
-                                                .as_ref()
-                                                .unwrap()
-                                                .container_project_dir
-                                                .as_ref(),
-                                        ) {
-                                            command_args.push(format!(
-                                                "{container_project_dir}/.venv/bin/python"
-                                            ));
-                                            let run_path = Path::new(run_file);
-                                            command_args.push(format!(
-                                                "{container_project_dir}/src/{}",
-                                                run_path.file_name().unwrap().to_str().unwrap()
-                                            ));
                                         } else {
                                             command_args.push("python3".to_string());
                                             if let Some(command) =
@@ -961,21 +942,6 @@ impl Stream for CommandSandboxStream {
                                                     .to_str()
                                                     .unwrap()
                                             ));
-                                        } else if let (
-                                            Some(_run_file),
-                                            Some(_container_project_dir),
-                                        ) = (
-                                            runner_info.run_file.as_ref(),
-                                            self.config
-                                                .as_ref()
-                                                .unwrap()
-                                                .container_project_dir
-                                                .as_ref(),
-                                        ) {
-                                            command_args.push("cargo".to_string());
-                                            command_args.push("run".to_string());
-                                            // let run_path = Path::new(run_file);
-                                            // command_args.push(format!("/{}/src/{}", container_project_dir, run_path.file_name().unwrap().to_str().unwrap()));
                                         } else {
                                             command_args.push("cargo".to_string());
                                             if let Some(command) =
@@ -986,10 +952,42 @@ impl Stream for CommandSandboxStream {
                                         }
                                     }
                                     CommandSandboxEnvironments::Bash => {
-                                        if let Some(command) =
-                                            self.config.as_ref().unwrap().command.as_ref()
-                                        {
-                                            command_args.push(command.to_string());
+                                        if let (
+                                            Some(initialization_file),
+                                            Some(container_project_dir),
+                                        ) = (
+                                            runner_info.initialization_file.as_ref(),
+                                            self.config
+                                                .as_ref()
+                                                .unwrap()
+                                                .container_project_dir
+                                                .as_ref(),
+                                        ) {
+                                            command_args.push("bash".to_string());
+                                            command_args.push("-c".to_string());
+                                            let initialization_path =
+                                                Path::new(initialization_file);
+                                            command_args.push(format!(
+                                                "chmod +x {container_project_dir}/{} && {container_project_dir}/{}",
+                                                initialization_path
+                                                    .file_name()
+                                                    .unwrap()
+                                                    .to_str()
+                                                    .unwrap(),
+                                                initialization_path
+                                                    .file_name()
+                                                    .unwrap()
+                                                    .to_str()
+                                                    .unwrap()
+                                            ));
+                                        } else {
+                                            command_args.push("bash".to_string());
+                                            command_args.push("-c".to_string());
+                                            if let Some(command) =
+                                                self.config.as_ref().unwrap().command.as_ref()
+                                            {
+                                                command_args.push(command.to_string());
+                                            }
                                         }
                                     }
                                     _ => {
@@ -1154,10 +1152,28 @@ impl Stream for CommandSandboxStream {
                                         }
                                     }
                                     CommandSandboxEnvironments::Bash => {
-                                        if let Some(command) =
-                                            self.config.as_ref().unwrap().command.as_ref()
-                                        {
-                                            command_args.push(command.to_string());
+                                        if let (Some(run_file), Some(container_project_dir)) = (
+                                            runner_info.run_file.as_ref(),
+                                            self.config
+                                                .as_ref()
+                                                .unwrap()
+                                                .container_project_dir
+                                                .as_ref(),
+                                        ) {
+                                            command_args.push("bash".to_string());
+                                            command_args.push("-c".to_string());
+                                            let run_path = Path::new(run_file);
+                                            command_args.push(format!(
+                                                "chmod +x {container_project_dir}/src/{} && {container_project_dir}/src/{}",
+                                                run_path.file_name().unwrap().to_str().unwrap(),
+                                                run_path.file_name().unwrap().to_str().unwrap()
+                                            ));
+                                        } else {
+                                            if let Some(command) =
+                                                self.config.as_ref().unwrap().command.as_ref()
+                                            {
+                                                command_args.push(command.to_string());
+                                            }
                                         }
                                     }
                                     _ => {
@@ -1708,9 +1724,8 @@ mod tests {
 
     use super::*;
 
-    /// WASM component and module example
     #[tokio::test]
-    async fn test_command_sandbox_processor_wasmtime() -> Result<()> {
+    async fn test_command_sandbox_processor_wasmtime_no_workspace_no_messages() -> Result<()> {
         let name = "CommandSandboxProcessor";
 
         // Runtime env
@@ -1880,9 +1895,177 @@ mod tests {
         Ok(())
     }
 
-    /// Docker CLI example
     #[tokio::test]
-    async fn test_command_sandbox_processor_docker_echo() -> Result<()> {
+    async fn test_command_sandbox_processor_wasmtime_workspace_no_messages() -> Result<()> {
+        let name = "CommandSandboxProcessor";
+
+        // Runtime env
+        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+
+        // Metrics to compute time and rows
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
+        // Create project directory
+        let project_name = "phymes-wasm-workspace";
+        let project_dir = std::env::temp_dir().join(project_name);
+        let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
+        // DM: in some instances, `rm -rf /tmp/phymes-wasm-project` is needed to delete the temporary project directory
+        fs::create_dir(&project_dir).expect("Failed to create project directory");        
+
+        // --- From config with wasm module env ---
+
+        // Create the workspace
+        let workspace_table = CommandSandboxEnvironments::WasmModule.to_default_workspace(project_name)?; 
+
+        // State for the command processor config
+        let command_config = CommandSandboxConfig {
+            timeout: 5,
+            runner: CommandSandboxRunners::Wasmtime,
+            environment: CommandSandboxEnvironments::WasmModule,
+            project_dir: Some(project_dir.as_path().to_str().unwrap().to_string()),
+            container_image: project_dir.join("src/main.wat").as_path().to_str().unwrap().to_string(),
+            data_i: DataIOMethod::None,
+            data_o: DataIOMethod::None,
+            command: Some("add".to_string()), // DM: mimic module style CLI without WAVE
+            container_args: Some(vec!["run".to_string(), "--invoke".to_string()]), // DM: mimic module style CLI without WAVE
+            cli_args: Some(vec!["1".to_string(), "2".to_string()]),
+            workspace: Some(workspace_table.get_name().to_string()),
+            ..Default::default()
+        };
+        let command_config_json = serde_json::to_vec(&command_config)?;
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
+
+        // Build the current message state        
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            workspace_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(workspace_table.get_name())
+                .with_publisher("")
+                .with_subject(workspace_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(workspace_table.clone().to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor =
+            CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("role");
+        assert_eq!(result, ["tool"]);
+        let result = table.get_column_as_vec_str("content");
+        assert_eq!(result, ["3\n"]);
+
+        // --- From config with wasm component env ---
+
+        // State for the command processor config
+        let command_config = CommandSandboxConfig {
+            runner: CommandSandboxRunners::Wasmtime,
+            environment: CommandSandboxEnvironments::WasmComponent,
+            project_dir: Some(project_dir.as_path().to_str().unwrap().to_string()),
+            container_image: project_dir.join("src/main.wat").as_path().to_str().unwrap().to_string(),
+            data_i: DataIOMethod::None,
+            data_o: DataIOMethod::None,
+            command: Some("add".to_string()),
+            timeout: 5,
+            container_args: None,
+            cli_args: Some(vec!["1".to_string(), "2".to_string()]),
+            workspace: Some(workspace_table.get_name().to_string()),
+            ..Default::default()
+        };
+        let command_config_json = serde_json::to_vec(&command_config)?;
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            workspace_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(workspace_table.get_name())
+                .with_publisher("")
+                .with_subject(workspace_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(workspace_table.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor =
+            CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("role");
+        assert_eq!(result, ["tool"]);
+        let result = table.get_column_as_vec_str("content");
+        assert_eq!(result, ["3\n"]);
+
+        // --- From stdio ---
+        // DM: requires named arguments which is only possible with .wasm
+        // DM, todo: create a small wasm example that takes a RecordBatch, modifies it, and returns the modified RecordBatch
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_command_sandbox_processor_docker_bash_no_workspace() -> Result<()> {
         let name = "CommandSandboxProcessor";
         let messages = "messages";
 
@@ -2029,7 +2212,7 @@ mod tests {
         // --- From TempFile ---
 
         // Create project directory
-        let project_name = "phymes-echo-project";
+        let project_name = "phymes-bash-project";
         let project_dir = std::env::temp_dir().join(project_name);
         let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
         fs::create_dir(&project_dir).expect("Failed to create project directory");
@@ -2110,9 +2293,277 @@ mod tests {
         Ok(())
     }
 
-    /// Python code execution example
     #[tokio::test]
-    async fn test_command_sandbox_processor_docker_py_run() -> Result<()> {
+    async fn test_command_sandbox_processor_docker_bash_workspace() -> Result<()> {
+        let name = "CommandSandboxProcessor";
+        let messages = "messages";
+
+        // Runtime env
+        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+
+        // Metrics to compute time and rows
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
+        // Create project directory
+        let project_name = "phymes-bash-workspace";
+        let project_dir = std::env::temp_dir().join(project_name);
+        let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
+        // DM: in some instances, `rm -rf /tmp/phymes-wasm-project` is needed to delete the temporary project directory
+        fs::create_dir(&project_dir).expect("Failed to create project directory"); 
+
+        // --- From config ---
+        // based on docker run --rm alpine echo "Hello from Docker!"
+
+        // Create the workspace
+        let workspace_table = CommandSandboxEnvironments::Bash.to_default_workspace(project_name)?; 
+
+        // State for the command processor config
+        let command_config = CommandSandboxConfig {
+            runner: CommandSandboxRunners::Docker,
+            environment: CommandSandboxEnvironments::Bash,
+            project_dir: Some(project_dir.as_path().to_str().unwrap().to_string()),
+            container_project_dir: Some("/home/sandbox".to_string()),
+            run_file: Some("main.sh".to_string()),
+            container_image: "alpine".to_string(),
+            data_i: DataIOMethod::None,
+            data_o: DataIOMethod::None,
+            timeout: 5,
+            workspace: Some(workspace_table.get_name().to_string()),
+            ..Default::default()
+        };
+        let command_config_json = serde_json::to_vec(&command_config)?;
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            workspace_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(workspace_table.get_name())
+                .with_publisher("")
+                .with_subject(workspace_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(workspace_table.clone().to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor =
+            CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("role");
+        assert_eq!(result, ["tool"]);
+        let result = table.get_column_as_vec_str("content");
+        assert!(result.first().unwrap().contains("Hello from Docker"));
+
+        // --- From Stdio ---
+
+        // State for the command processor config
+        let command_config = CommandSandboxConfig {
+            runner: CommandSandboxRunners::Docker,
+            environment: CommandSandboxEnvironments::Bash,
+            project_dir: Some(project_dir.as_path().to_str().unwrap().to_string()),
+            container_project_dir: Some("/home/sandbox".to_string()),
+            run_file: Some("main.sh".to_string()),
+            container_image: "alpine".to_string(),
+            data_i: DataIOMethod::Stdio,
+            data_o: DataIOMethod::None,
+            timeout: 5,
+            subject_name: Some(messages.to_string()),
+            workspace: Some(workspace_table.get_name().to_string()),
+            ..Default::default()
+        };
+        let command_config_json = serde_json::to_vec(&command_config)?;
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
+
+        // Make the system prompt and add the user query
+        let message_builder = TableBuilder::new()
+            .with_name(messages)
+            .append_new_user_query_str("Hello from Docker!", "user")?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            workspace_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(workspace_table.get_name())
+                .with_publisher("")
+                .with_subject(workspace_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(workspace_table.clone().to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            messages.to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(messages)
+                .with_publisher("")
+                .with_subject(messages)
+                .with_update(&TablePublication::None)
+                .with_message(message_builder.clone().build()?.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor =
+            CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("role");
+        assert_eq!(result, ["tool"]);
+        let result = table.get_column_as_vec_str("content");
+        assert!(result.first().unwrap().contains(
+            "--input [{\"content\":\"Hello from Docker!\",\"role\":\"user\",\"timestamp\":"
+        ));
+
+        // --- From TempFile ---
+
+        // State for the command processor config
+        let command_config = CommandSandboxConfig {
+            runner: CommandSandboxRunners::Docker,
+            environment: CommandSandboxEnvironments::Bash,
+            container_image: "alpine".to_string(),
+            project_dir: Some(project_dir.as_path().to_str().unwrap().to_string()),
+            container_project_dir: Some("/home/sandbox".to_string()),
+            run_file: Some("main.sh".to_string()),
+            data_i: DataIOMethod::TempFile,
+            data_o: DataIOMethod::None,
+            timeout: 5,
+            subject_name: Some(messages.to_string()),
+            workspace: Some(workspace_table.get_name().to_string()),
+            ..Default::default()
+        };
+        let command_config_json = serde_json::to_vec(&command_config)?;
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            workspace_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(workspace_table.get_name())
+                .with_publisher("")
+                .with_subject(workspace_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(workspace_table.clone().to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            messages.to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(messages)
+                .with_publisher("")
+                .with_subject(messages)
+                .with_update(&TablePublication::None)
+                .with_message(message_builder.clone().build()?.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor =
+            CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("role");
+        assert_eq!(result, ["tool"]);
+        let result = table.get_column_as_vec_str("content");
+        assert!(
+            result
+                .first()
+                .unwrap()
+                .contains("--input-file /home/sandbox/input.ipc")
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_command_sandbox_processor_docker_py_no_workspace_no_install() -> Result<()> {
         let name = "CommandSandboxProcessor";
         let messages = "messages";
 
@@ -2276,9 +2727,8 @@ mod tests {
         Ok(())
     }
 
-    /// Python code execution example
     #[tokio::test]
-    async fn test_command_sandbox_processor_docker_py_install() -> Result<()> {
+    async fn test_command_sandbox_processor_docker_py_no_workspace_install() -> Result<()> {
         let name = "CommandSandboxProcessor";
         let messages = "messages";
 
@@ -2444,10 +2894,131 @@ if __name__ == '__main__':
         Ok(())
     }
 
-    /// DM, examples: code execution loop which requires diff'ing https://github.com/AnubhabB/diff-match-patch-rs
-    ///  Or, alternatively, just use `git` from the command line
     #[tokio::test]
-    async fn test_command_sandbox_processor_docker_rs_install() -> Result<()> {
+    async fn test_command_sandbox_processor_docker_py_workspace_install() -> Result<()> {
+        let name = "CommandSandboxProcessor";
+        let messages = "messages";
+
+        // Create project directory
+        let project_name = "phymes-py-workspace";
+        let project_dir = std::env::temp_dir().join(project_name);
+        let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
+        // DM: in some instances, `rm -rf /tmp/phymes-py-project` is needed to delete the temporary project directory
+        fs::create_dir(&project_dir).expect("Failed to create project directory");
+
+        // Create the workspace
+        let workspace_table = CommandSandboxEnvironments::Python.to_default_workspace(project_name)?; 
+
+        // Runtime env
+        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+
+        // Metrics to compute time and rows
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
+        // State for the command processor config
+        let command_config = CommandSandboxConfig {
+            // We need to mount the directories when we first run the container
+            data_i: DataIOMethod::TempFile,
+            data_o: DataIOMethod::TempFile,
+            project_dir: Some(project_dir.as_path().to_str().unwrap().to_string()),
+            container_project_dir: Some("/home/sandbox".to_string()),
+            initialization_file: Some("install.sh".to_string()),
+            run_file: Some("main.py".to_string()),
+            runner: CommandSandboxRunners::DockerUnsafe,
+            environment: CommandSandboxEnvironments::Python,
+            container_image: "python:3.12-slim-trixie".to_string(),
+            command: None,
+            timeout: 5,
+            container_args: None,
+            cli_args: None,
+            subject_name: Some(messages.to_string()),
+            workspace: Some(workspace_table.get_name().to_string()),
+            ..Default::default()
+        };
+        let command_config_json = serde_json::to_vec(&command_config)?;
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
+
+        // Make the input data for the script
+        let names = vec!["Alice", "Bob"];
+        let names_arr: ArrayRef = Arc::new(StringArray::from(names));
+        let ages = vec![30, 25];
+        let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
+        let batch = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
+
+        let message_table = TableBuilder::new()
+            .with_record_batches(vec![batch])?
+            .with_name(messages)
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            workspace_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(workspace_table.get_name())
+                .with_publisher("")
+                .with_subject(workspace_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(workspace_table.clone().to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            messages.to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(messages)
+                .with_publisher("")
+                .with_subject(messages)
+                .with_update(&TablePublication::None)
+                .with_message(message_table.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor =
+            CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_name("test_command_sandbox_processor_docker_py_install")
+            .with_record_batches(result)?
+            .build()?;
+
+        let result = table.get_column_as_vec_str("name");
+        assert_eq!(result, ["Alice", "Bob"]);
+        let result = table.get_column_as_vec_primitive::<u32>("age")?;
+        assert_eq!(result, [40, 35]);
+        // DM: Some strange permission issue `Error: Permission denied (os error 13)` with Docker + Python
+        // fs::remove_dir_all(project_dir)?;
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_command_sandbox_processor_docker_rs_no_workspace_install() -> Result<()> {
         let name = "CommandSandboxProcessor";
         let messages = "messages";
 
@@ -3057,6 +3628,130 @@ apt install --assume-yes protobuf-compiler clang"#;
 
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            messages.to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(messages)
+                .with_publisher("")
+                .with_subject(messages)
+                .with_update(&TablePublication::None)
+                .with_message(message_table.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            command_config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(command_config_table.get_name())
+                .with_publisher("")
+                .with_subject(command_config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(command_config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Build the command processor
+        let processor =
+            CommandSandboxProcessor::new(name, CommandSandboxProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let _ = fs::remove_dir_all(project_dir);
+        let table = TableBuilder::new()
+            .with_name("test_command_sandbox_processor_docker_rs")
+            .with_record_batches(result)?
+            .build()?;
+
+        let result = table.get_column_as_vec_str("name");
+        assert_eq!(result, ["Alice", "Bob"]);
+        let result = table.get_column_as_vec_primitive::<u32>("age")?;
+        assert_eq!(result, [40, 35]);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_command_sandbox_processor_docker_rs_workspace_install() -> Result<()> {
+        let name = "CommandSandboxProcessor";
+        let messages = "messages";
+
+        // Runtime env
+        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+
+        // Metrics to compute time and rows
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
+        // Create project directory
+        let project_name = "phymes-rs-workspace";
+        let project_dir = std::env::temp_dir().join(project_name);
+        let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
+        // DM: in some instances, `rm -rf /tmp/phymes-rs-project` is needed to delete the temporary project directory
+        fs::create_dir(&project_dir).expect("Failed to create project directory");
+
+        // --- from TempFile, initialization ---
+
+        // Create the workspace
+        let workspace_table = CommandSandboxEnvironments::Rust.to_default_workspace(project_name)?; 
+
+        // State for the command processor config
+        let command_config = CommandSandboxConfig {
+            // We need to mount the directories when we first run the container
+            data_i: DataIOMethod::TempFile,
+            data_o: DataIOMethod::TempFile,
+            project_dir: Some(project_dir.as_path().to_str().unwrap().to_string()),
+            container_project_dir: Some("/home/sandbox".to_string()),
+            initialization_file: Some("install.sh".to_string()),
+            run_file: Some("main.rs".to_string()),
+            runner: CommandSandboxRunners::DockerUnsafe,
+            environment: CommandSandboxEnvironments::Rust,
+            container_image: "amd64/rust".to_string(),
+            command: None,
+            timeout: 5,
+            container_args: None,
+            cli_args: Some(vec!["--release".to_string(), "--".to_string()]),
+            subject_name: Some(messages.to_string()),
+            workspace: Some(workspace_table.get_name().to_string()),
+            ..Default::default()
+        };
+        let command_config_json = serde_json::to_vec(&command_config)?;
+        let command_config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&command_config_json, 1)?
+            .build()?;
+
+        // Make the input data for the script
+        let names = vec!["Alice", "Bob"];
+        let names_arr: ArrayRef = Arc::new(StringArray::from(names));
+        let ages = vec![30, 25];
+        let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
+        let batch = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
+
+        let message_table = TableBuilder::new()
+            .with_record_batches(vec![batch])?
+            .with_name(messages)
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            workspace_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(workspace_table.get_name())
+                .with_publisher("")
+                .with_subject(workspace_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(workspace_table.clone().to_record_batch_stream())
+                .build()?,
+        );
         let _ = message.insert(
             messages.to_string(),
             SendableRecordBatchStreamMessage::get_builder()

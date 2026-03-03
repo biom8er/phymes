@@ -107,7 +107,7 @@ impl CommandSandboxEnvironments {
                 let content = [
                     r#"#!/usr/bin/env bash
 
-echo "Hello!"#,
+echo "Hello from Docker!"#,
                 ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
                 let batch = create_workspace_batch(path, content)?;
                 Table::get_builder().with_name(self.to_string().as_str()).with_record_batches(vec![batch])?.build()
