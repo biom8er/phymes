@@ -108,11 +108,15 @@ impl CommandSandboxEnvironments {
             Self::Bash => {
                 let path = [
                     format!("{root}src/main.sh"),
+                    format!("{root}install.sh"),
                 ].into_iter().collect::<Vec<_>>();
                 let content = [
                     r#"#!/usr/bin/env bash
 
-echo "$1"#,
+echo "$1""#,
+                    r#"#!/bin/sh
+apk add --no-cache bash
+chmod +x ./src/main.sh"#
                 ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
                 let batch = create_workspace_batch(path, content)?;
                 Table::get_builder().with_name(self.to_string().as_str()).with_record_batches(vec![batch])?.build()

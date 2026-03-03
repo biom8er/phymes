@@ -963,7 +963,7 @@ impl Stream for CommandSandboxStream {
                                                 .container_project_dir
                                                 .as_ref(),
                                         ) {
-                                            command_args.push("bash".to_string());
+                                            command_args.push("sh".to_string());
                                             command_args.push("-c".to_string());
                                             let initialization_path =
                                                 Path::new(initialization_file);
@@ -1160,14 +1160,14 @@ impl Stream for CommandSandboxStream {
                                                 .container_project_dir
                                                 .as_ref(),
                                         ) {
-                                            command_args.push("chmod".to_string());
-                                            command_args.push("+x".to_string());
+                                            // command_args.push("chmod".to_string());
+                                            // command_args.push("+x".to_string());
                                             let run_path = Path::new(run_file);
-                                            command_args.push(format!(
-                                                "{container_project_dir}/src/{}",
-                                                run_path.file_name().unwrap().to_str().unwrap(),
-                                            ));
-                                            command_args.push("&&".to_string());
+                                            // command_args.push(format!(
+                                            //     "{container_project_dir}/src/{}",
+                                            //     run_path.file_name().unwrap().to_str().unwrap(),
+                                            // ));
+                                            // command_args.push("&&".to_string());
                                             command_args.push(format!(
                                                 "{container_project_dir}/src/{}",
                                                 run_path.file_name().unwrap().to_str().unwrap(),
@@ -2331,6 +2331,7 @@ mod tests {
             environment: CommandSandboxEnvironments::Bash,
             project_dir: Some(project_dir.as_path().to_str().unwrap().to_string()),
             container_project_dir: Some("/home/sandbox".to_string()),
+            initialization_file: Some("install.sh".to_string()),
             run_file: Some("main.sh".to_string()),
             container_image: "alpine".to_string(),
             data_i: DataIOMethod::None,
@@ -2397,10 +2398,11 @@ mod tests {
 
         // State for the command processor config
         let command_config = CommandSandboxConfig {
-            runner: CommandSandboxRunners::Docker,
+            runner: CommandSandboxRunners::DockerUnsafe,
             environment: CommandSandboxEnvironments::Bash,
             project_dir: Some(project_dir.as_path().to_str().unwrap().to_string()),
             container_project_dir: Some("/home/sandbox".to_string()),
+            initialization_file: Some("install.sh".to_string()),
             run_file: Some("main.sh".to_string()),
             container_image: "alpine".to_string(),
             data_i: DataIOMethod::Stdio,
@@ -2484,11 +2486,12 @@ mod tests {
 
         // State for the command processor config
         let command_config = CommandSandboxConfig {
-            runner: CommandSandboxRunners::Docker,
+            runner: CommandSandboxRunners::DockerUnsafe,
             environment: CommandSandboxEnvironments::Bash,
             container_image: "alpine".to_string(),
             project_dir: Some(project_dir.as_path().to_str().unwrap().to_string()),
             container_project_dir: Some("/home/sandbox".to_string()),
+            initialization_file: Some("install.sh".to_string()),
             run_file: Some("main.sh".to_string()),
             data_i: DataIOMethod::TempFile,
             data_o: DataIOMethod::None,
