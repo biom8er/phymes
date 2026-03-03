@@ -1,11 +1,10 @@
-use std::{fmt::Display, path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::Result;
 use arrow::{
     array::{ArrayRef, Int64Array, ListBuilder, RecordBatch, StringArray, UInt8Builder},
     datatypes::{DataType, Field, Fields},
 };
-use clap::ValueEnum;
 use phymes_diagnostics::create_timestamp_micros;
 use serde::{Deserialize, Serialize};
 

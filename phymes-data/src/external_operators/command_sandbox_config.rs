@@ -88,7 +88,7 @@ pub enum CommandSandboxEnvironments {
 
 impl CommandSandboxEnvironments {
     /// To workspace
-    pub fn to_workspace(&self, workspace_name: &str, workspace_contents: Option<&[WorkspaceSubject]>) -> Result<Table> {
+    pub fn to_workspace(&self, workspace_name: Option<&str>, workspace_contents: Option<&[WorkspaceSubject]>) -> Result<Table> {
         if let Some(workspace_contents) = workspace_contents {
             let (path, content): (Vec<String>, Vec<String>) = workspace_contents.into_iter().map(|w| (w.path.to_owned(), w.content.to_owned())).unzip();
             let batch = create_workspace_batch(path, content)?;
@@ -98,29 +98,34 @@ impl CommandSandboxEnvironments {
         }
     }
     /// To default workspace
-    pub fn to_default_workspace(&self, workspace_name: &str) -> Result<Table> {
+    pub fn to_default_workspace(&self, workspace_name: Option<&str>) -> Result<Table> {
+        let root = if let Some(workspace_name) = workspace_name {
+            format!("{workspace_name}/")
+        } else {
+            String::new()
+        };
         match self {
             Self::Bash => {
                 let path = [
-                    format!("{workspace_name}/src/main.sh"),
+                    format!("{root}src/main.sh"),
                 ].into_iter().collect::<Vec<_>>();
                 let content = [
                     r#"#!/usr/bin/env bash
 
-echo "Hello from Docker!"#,
+echo "$1"#,
                 ].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
                 let batch = create_workspace_batch(path, content)?;
                 Table::get_builder().with_name(self.to_string().as_str()).with_record_batches(vec![batch])?.build()
             }
             Self::Python => {
                 let path = [
-                    format!("{workspace_name}/requirements.txt"),
-                    format!("{workspace_name}/src/main.py"),
-                    format!("{workspace_name}/install.sh"),
+                    format!("{root}requirements.txt"),
+                    format!("{root}src/main.py"),
+                    format!("{root}install.sh"),
                 ].into_iter().collect::<Vec<_>>();
                 let content = [
                     r#"pandas==2.2.3
-pyarrow==17.0.0""#,
+pyarrow==17.0.0"#,
                     r#"#!/usr/bin/env python3
 import argparse
 import pyarrow as pa
@@ -165,9 +170,9 @@ pip install --no-cache-dir -r requirements.txt"#
             }
             Self::Rust => {
                 let path = [
-                    format!("{workspace_name}/Cargo.toml"),
-                    format!("{workspace_name}/src/main.rs"),
-                    format!("{workspace_name}/install.sh"),
+                    format!("{root}Cargo.toml"),
+                    format!("{root}src/main.rs"),
+                    format!("{root}install.sh"),
                 ].into_iter().collect::<Vec<_>>();
                 let content = [
                     r#"[package]
@@ -263,7 +268,7 @@ apt install --assume-yes protobuf-compiler clang"#
             }
             Self::WasmModule => {
                 let path = [
-                    format!("{workspace_name}/src/main.wat"),
+                    format!("{root}src/main.wat"),
                 ].into_iter().collect::<Vec<_>>();
                 let content = [
                     r#"(module
@@ -279,7 +284,7 @@ apt install --assume-yes protobuf-compiler clang"#
             }
             Self::WasmComponent => {
                 let path = [
-                    format!("{workspace_name}/src/main.wat"),
+                    format!("{root}src/main.wat"),
                 ].into_iter().collect::<Vec<_>>();
                 let content = [
                     r#"(component

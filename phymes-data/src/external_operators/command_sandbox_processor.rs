@@ -1160,13 +1160,17 @@ impl Stream for CommandSandboxStream {
                                                 .container_project_dir
                                                 .as_ref(),
                                         ) {
-                                            command_args.push("bash".to_string());
-                                            command_args.push("-c".to_string());
+                                            command_args.push("chmod".to_string());
+                                            command_args.push("+x".to_string());
                                             let run_path = Path::new(run_file);
                                             command_args.push(format!(
-                                                "chmod +x {container_project_dir}/src/{} && {container_project_dir}/src/{}",
+                                                "{container_project_dir}/src/{}",
                                                 run_path.file_name().unwrap().to_str().unwrap(),
-                                                run_path.file_name().unwrap().to_str().unwrap()
+                                            ));
+                                            command_args.push("&&".to_string());
+                                            command_args.push(format!(
+                                                "{container_project_dir}/src/{}",
+                                                run_path.file_name().unwrap().to_str().unwrap(),
                                             ));
                                         } else {
                                             if let Some(command) =
@@ -1283,7 +1287,7 @@ impl Stream for CommandSandboxStream {
 
                         // Run the command                        
                         // DM: useful for debugging
-                        // dbg!(&command_args);
+                        dbg!(&command_args);
                         Command::new("docker").args(&command_args).output()
                     }
                     CommandSandboxRunners::Wasmtime => {
@@ -1508,6 +1512,7 @@ impl Stream for CommandSandboxStream {
                         };
 
                         // Run the command
+                        dbg!(&command_args);
                         Command::new("wasmtime").args(&command_args).output()
                     }
                     _ => {
@@ -1557,10 +1562,10 @@ impl Stream for CommandSandboxStream {
                         ))));
                     }
                     // DM: useful for debugging
-                    // {
-                    //     let stdout = String::from_utf8_lossy(&output.stdout);
-                    //     dbg!(stdout);
-                    // }
+                    {
+                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        dbg!(stdout);
+                    }
 
                     // Parse the response if running and skip if starting, initializing, or done
                     let (batch, stream_state) =
@@ -1917,7 +1922,7 @@ mod tests {
         // --- From config with wasm module env ---
 
         // Create the workspace
-        let workspace_table = CommandSandboxEnvironments::WasmModule.to_default_workspace(project_name)?; 
+        let workspace_table = CommandSandboxEnvironments::WasmModule.to_default_workspace(None)?; 
 
         // State for the command processor config
         let command_config = CommandSandboxConfig {
@@ -1928,8 +1933,8 @@ mod tests {
             container_image: project_dir.join("src/main.wat").as_path().to_str().unwrap().to_string(),
             data_i: DataIOMethod::None,
             data_o: DataIOMethod::None,
-            command: Some("add".to_string()), // DM: mimic module style CLI without WAVE
-            container_args: Some(vec!["run".to_string(), "--invoke".to_string()]), // DM: mimic module style CLI without WAVE
+            command: None,
+            container_args: Some(vec!["run".to_string(), "--invoke".to_string(), "add".to_string()]), // DM: mimic module style CLI without WAVE
             cli_args: Some(vec!["1".to_string(), "2".to_string()]),
             workspace: Some(workspace_table.get_name().to_string()),
             ..Default::default()
@@ -1988,6 +1993,7 @@ mod tests {
         assert_eq!(result, ["3\n"]);
 
         // --- From config with wasm component env ---
+        let workspace_table = CommandSandboxEnvironments::WasmComponent.to_default_workspace(None)?;
 
         // State for the command processor config
         let command_config = CommandSandboxConfig {
@@ -2317,11 +2323,11 @@ mod tests {
         // based on docker run --rm alpine echo "Hello from Docker!"
 
         // Create the workspace
-        let workspace_table = CommandSandboxEnvironments::Bash.to_default_workspace(project_name)?; 
+        let workspace_table = CommandSandboxEnvironments::Bash.to_default_workspace(None)?; 
 
         // State for the command processor config
         let command_config = CommandSandboxConfig {
-            runner: CommandSandboxRunners::Docker,
+            runner: CommandSandboxRunners::DockerUnsafe,
             environment: CommandSandboxEnvironments::Bash,
             project_dir: Some(project_dir.as_path().to_str().unwrap().to_string()),
             container_project_dir: Some("/home/sandbox".to_string()),
@@ -2329,6 +2335,7 @@ mod tests {
             container_image: "alpine".to_string(),
             data_i: DataIOMethod::None,
             data_o: DataIOMethod::None,
+            cli_args: Some(vec!["Hello from Docker!".to_string()]),
             timeout: 5,
             workspace: Some(workspace_table.get_name().to_string()),
             ..Default::default()
@@ -2377,8 +2384,8 @@ mod tests {
             .try_collect::<Vec<_>>()
             .await?;
         let table = TableBuilder::new()
+            .with_name("test_command_sandbox_processor_docker_bash_workspace From config")
             .with_record_batches(result)?
-            .with_name("")
             .build()?;
 
         let result = table.get_column_as_vec_str("role");
@@ -2462,8 +2469,8 @@ mod tests {
             .try_collect::<Vec<_>>()
             .await?;
         let table = TableBuilder::new()
+            .with_name("test_command_sandbox_processor_docker_bash_workspace From Stdio")
             .with_record_batches(result)?
-            .with_name("")
             .build()?;
 
         let result = table.get_column_as_vec_str("role");
@@ -2545,8 +2552,8 @@ mod tests {
             .await?;
         let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
         let table = TableBuilder::new()
+            .with_name("test_command_sandbox_processor_docker_bash_workspace From Tempfile")
             .with_record_batches(result)?
-            .with_name("")
             .build()?;
 
         let result = table.get_column_as_vec_str("role");
@@ -2907,7 +2914,7 @@ if __name__ == '__main__':
         fs::create_dir(&project_dir).expect("Failed to create project directory");
 
         // Create the workspace
-        let workspace_table = CommandSandboxEnvironments::Python.to_default_workspace(project_name)?; 
+        let workspace_table = CommandSandboxEnvironments::Python.to_default_workspace(None)?; 
 
         // Runtime env
         let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
@@ -3700,7 +3707,7 @@ apt install --assume-yes protobuf-compiler clang"#;
         // --- from TempFile, initialization ---
 
         // Create the workspace
-        let workspace_table = CommandSandboxEnvironments::Rust.to_default_workspace(project_name)?; 
+        let workspace_table = CommandSandboxEnvironments::Rust.to_default_workspace(None)?; 
 
         // State for the command processor config
         let command_config = CommandSandboxConfig {

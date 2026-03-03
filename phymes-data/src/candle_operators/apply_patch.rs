@@ -4,12 +4,11 @@ use anyhow::{Result, anyhow};
 use arrow::{array::{ArrayRef, Int64Array, RecordBatch, StringArray, UInt32Array}, datatypes::{DataType, Field, Int64Type, Schema, UInt32Type}};
 use candle_core::Device;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine,
+    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine,
     JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableTrait, Tool,
-    ToolType, create_bytes_record_batch, create_mermaid_content_template_batch,
+    ToolType
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
 use tracing::instrument;
 
 use crate::{
