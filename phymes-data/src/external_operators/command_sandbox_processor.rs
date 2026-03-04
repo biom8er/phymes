@@ -273,7 +273,7 @@ impl Stream for CommandSandboxStream {
 
                 // collect the workspace
                 if self.workspace_inbox.is_none()
-                    && let Some(workspace) = self.config.as_ref().unwrap().workspace.clone()
+                    && let Some(workspace) = self.config.as_ref().unwrap().workspace_name.clone()
                 {
                     match remove_message_by_subject(&workspace, &mut self.messages) {
                         // Poll the next batches
@@ -1939,7 +1939,7 @@ mod tests {
                 "add".to_string(),
             ]), // DM: mimic module style CLI without WAVE
             cli_args: Some(vec!["1".to_string(), "2".to_string()]),
-            workspace: Some(workspace_table.get_name().to_string()),
+            workspace_name: Some(workspace_table.get_name().to_string()),
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
@@ -2016,7 +2016,7 @@ mod tests {
             timeout: 5,
             container_args: None,
             cli_args: Some(vec!["1".to_string(), "2".to_string()]),
-            workspace: Some(workspace_table.get_name().to_string()),
+            workspace_name: Some(workspace_table.get_name().to_string()),
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
@@ -2347,7 +2347,7 @@ mod tests {
             data_o: DataIOMethod::None,
             cli_args: Some(vec!["Hello from Docker!".to_string()]),
             timeout: 5,
-            workspace: Some(workspace_table.get_name().to_string()),
+            workspace_name: Some(workspace_table.get_name().to_string()),
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
@@ -2418,7 +2418,7 @@ mod tests {
             data_o: DataIOMethod::None,
             timeout: 5,
             subject_name: Some(messages.to_string()),
-            workspace: Some(workspace_table.get_name().to_string()),
+            workspace_name: Some(workspace_table.get_name().to_string()),
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
@@ -2506,7 +2506,7 @@ mod tests {
             data_o: DataIOMethod::None,
             timeout: 5,
             subject_name: Some(messages.to_string()),
-            workspace: Some(workspace_table.get_name().to_string()),
+            workspace_name: Some(workspace_table.get_name().to_string()),
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
@@ -2953,7 +2953,7 @@ if __name__ == '__main__':
             container_args: None,
             cli_args: None,
             subject_name: Some(messages.to_string()),
-            workspace: Some(workspace_table.get_name().to_string()),
+            workspace_name: Some(workspace_table.get_name().to_string()),
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
@@ -3749,7 +3749,7 @@ apt install --assume-yes protobuf-compiler clang"#;
             container_args: None,
             cli_args: Some(vec!["--release".to_string(), "--".to_string()]),
             subject_name: Some(messages.to_string()),
-            workspace: Some(workspace_table.get_name().to_string()),
+            workspace_name: Some(workspace_table.get_name().to_string()),
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;

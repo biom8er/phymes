@@ -487,7 +487,7 @@ impl DataConfigTrait for AvailableProcessors {
                 timeout: 5,
                 cli_args: Some(vec!["Hello from Docker!".to_string()]),
                 subject_name: Some("subject_name".to_string()),
-                workspace: Some("workspace".to_string()),
+                workspace_name: Some("workspace".to_string()),
                 ..Default::default()
             }),
             #[cfg(feature = "api")]

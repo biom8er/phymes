@@ -527,7 +527,7 @@ pub struct CommandSandboxConfig {
     /// The name of the streaming workspace with the files needed by the command
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none", alias = "rhs_name")]
-    pub workspace: Option<String>,
+    pub workspace_name: Option<String>,
 }
 
 impl CommandSandboxConfig {
