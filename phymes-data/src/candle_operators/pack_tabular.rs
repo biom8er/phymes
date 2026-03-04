@@ -18,6 +18,7 @@ use crate::{ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTr
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct PackTabular {
     format: DataFormat,
+    doc_name: String,
 }
 
 impl MappableTrait for PackTabular {
@@ -88,7 +89,11 @@ impl DataOperatorTrait for PackTabular {
             "Missing `format` for `{}`.",
             Self::get_static_name()
         ))?;
-        Ok(PackTabular { format })
+        let doc_name = config.doc_name.clone().ok_or(anyhow!(
+            "Missing `doc_name` for `{}`.",
+            Self::get_static_name()
+        ))?;
+        Ok(PackTabular { format, doc_name })
     }
     fn forward(
         &self,
@@ -96,7 +101,7 @@ impl DataOperatorTrait for PackTabular {
         _rhs_args: Option<&[RecordBatch]>,
         _device: &Device,
     ) -> Result<RecordBatch> {
-        pack_tabular(lhs_args, &self.format)
+        pack_tabular(lhs_args, &self.format, &self.doc_name)
     }
 }
 
@@ -199,11 +204,11 @@ pub fn table_and_data_format_to_record_batch(
 }
 
 /// Pack tabular data in either CSV or JSON format from Bytes
-#[instrument(skip(lhs_args))]
-pub fn pack_tabular(lhs_args: &[RecordBatch], format: &DataFormat) -> Result<RecordBatch> {
+#[instrument(skip(lhs_args, format))]
+pub fn pack_tabular(lhs_args: &[RecordBatch], format: &DataFormat, doc_name: &str) -> Result<RecordBatch> {
     // Pack the values
     let args_table = Table::get_builder()
-        .with_name("pack_tabular")
+        .with_name(doc_name)
         .with_record_batches(lhs_args.to_vec())?
         .build()?
         .concat_record_batches()?;
@@ -235,7 +240,7 @@ mod tests {
             make_embeddings_record_batch_str_f32("lhs_pk", lhs_ids_vec, lhs_embeddings_vec)?;
 
         // Pack the tabular data
-        let result = pack_tabular(&[lhs_batch], &DataFormat::None)?;
+        let result = pack_tabular(&[lhs_batch], &DataFormat::None, "test_pack_tabular_message_format")?;
 
         // Wrap the results in a table
         let partitions = Table::get_builder()
@@ -267,7 +272,7 @@ mod tests {
         let lhs_batch = RecordBatch::try_from_iter(vec![("lhs_pk", ids_ar)])?;
 
         // Pack the tabular data
-        let result = pack_tabular(&[lhs_batch], &DataFormat::CsvDefault)?;
+        let result = pack_tabular(&[lhs_batch], &DataFormat::CsvDefault, "test_pack_tabular_blob_formats")?;
 
         // Wrap the results in a table
         let partitions = Table::get_builder()
@@ -280,7 +285,7 @@ mod tests {
         assert_eq!(partitions.count_rows(), 1);
         assert_eq!(
             partitions.get_column_as_vec_str("filename"),
-            ["pack_tabular"]
+            ["test_pack_tabular_blob_formats"]
         );
         assert_eq!(partitions.get_column_as_vec_str("extension"), ["csv"]);
         assert_eq!(partitions.get_column_as_vec_str("metadata"), ["assistant"]);

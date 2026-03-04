@@ -16,7 +16,7 @@ impl<'a> PatchWorkspaceSession<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
-	download_content_r-rt@{shape: subproc, label: download_content_r}
+	patch_workspace_r-rt@{shape: subproc, label: patch_workspace_r}
 	%% ------------------------------------------------------------------------------
 	%% Tool call processor that enables calling processors from their config
 	%% ------------------------------------------------------------------------------
@@ -32,7 +32,7 @@ impl<'a> PatchWorkspaceSession<'a> {
 		call_processor_p-processor-->call_processor_p-publish
 		call_processor_p-publish-->|Extend|SessionTasksSubscribePublish-subject
 	end
-	download_content_r-rt-->call_processor_t
+	patch_workspace_r-rt-->call_processor_t
 	select_tasks_processors_subscriptions_publications_aggregated_s-subject@{shape: doc, label: select_tasks_processors_subscriptions_publications_aggregated_s}
 	echo_processor_p-processor@{shape: rect, label: ProcessorEcho}
 	echo_processor_p-publish@{shape: fork}
@@ -56,7 +56,7 @@ impl<'a> PatchWorkspaceSession<'a> {
 		download_pdf_p-processor-->download_pdf_p-publish
 		download_pdf_p-publish-->|Extend|UserPdf-subject
 	end
-	download_content_r-rt-->download_pdf_t
+	patch_workspace_r-rt-->download_pdf_t
 	http_client_request_pdf_s-subject@{shape: doc, label: http_client_request_pdf_s}
 	download_pdf_p-subject@{shape: doc, label: download_pdf_p}
 	download_pdf_p-processor@{shape: rect, label: HTTPClientRequestProcessor}
@@ -77,7 +77,7 @@ impl<'a> PatchWorkspaceSession<'a> {
 		download_json_p-processor-->download_json_p-publish
 		download_json_p-publish-->|Extend|UserJson-subject
 	end
-	download_content_r-rt-->download_json_t
+	patch_workspace_r-rt-->download_json_t
 	http_client_request_json_s-subject@{shape: doc, label: http_client_request_json_s}
 	download_json_p-subject@{shape: doc, label: download_json_p}
 	download_json_p-processor@{shape: rect, label: HTTPClientRequestProcessor}

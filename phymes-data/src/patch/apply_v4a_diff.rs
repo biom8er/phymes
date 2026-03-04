@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::{Error, Result, anyhow};
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -7,12 +7,14 @@ pub enum ApplyDiffMode {
     Create,
 }
 
-impl ApplyDiffMode {
-    pub fn from_str(s: &str) -> Option<Self> {
+impl std::str::FromStr for ApplyDiffMode {
+    type Err = Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
-            "default" => Some(ApplyDiffMode::Default),
-            "create" => Some(ApplyDiffMode::Create),
-            _ => None,
+            "default" => Ok(ApplyDiffMode::Default),
+            "create" => Ok(ApplyDiffMode::Create),
+            _ => Err(anyhow!("`{s}` is not a recognized ApplyDiffMode variant.")),
         }
     }
 }
@@ -93,7 +95,6 @@ struct ParserState {
 #[derive(Debug)]
 struct ParsedUpdateDiff {
     chunks: Vec<Chunk>,
-    fuzz: i32,
 }
 
 #[derive(Debug)]
@@ -181,9 +182,9 @@ fn read_str(state: &mut ParserState, prefix: &str) -> String {
         return String::new();
     }
     let current = &state.lines[state.index];
-    if current.starts_with(prefix) {
+    if let Some(s) = current.strip_prefix(prefix) {
         state.index += 1;
-        current[prefix.len()..].to_string()
+        s.to_string()
     } else {
         String::new()
     }
@@ -282,10 +283,7 @@ fn parse_update_diff(lines: &[String], input: &str) -> Result<ParsedUpdateDiff, 
         }
     }
 
-    Ok(ParsedUpdateDiff {
-        chunks,
-        fuzz: parser.fuzz,
-    })
+    Ok(ParsedUpdateDiff { chunks })
 }
 
 fn advance_cursor_to_anchor(
@@ -309,7 +307,6 @@ fn advance_cursor_to_anchor(
             if line.trim() == anchor.trim() {
                 cursor = i + 1;
                 parser.fuzz += 1;
-                found = true;
                 break;
             }
         }

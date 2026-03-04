@@ -24,6 +24,7 @@ pub struct OpenAlexRequest {
     pub cursor: Option<String>,
     pub filter: Option<Map<String, Value>>,
     pub search: Option<String>,
+    pub is_semantic: Option<bool>,
     pub query: Option<String>,
     pub api_key: Option<String>,
     pub entity: OpenAlexRequestEntity,
@@ -65,7 +66,15 @@ impl OpenAlexRequest {
             query_list.push(query);
         }
         if let Some(search) = self.search.as_ref() {
-            let query = format!("search={search}");
+            let query = if let Some(is_semantic) = self.is_semantic.as_ref() {
+                if *is_semantic {
+                    format!("search.semantic={search}")
+                } else {
+                    format!("search={search}")
+                }
+            } else {
+                format!("search={search}")
+            };
             query_list.push(query);
         }
         if let Some(api_key) = self.api_key.as_ref() {

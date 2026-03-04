@@ -182,7 +182,7 @@ pub mod tests {
         let dmp_diff = make_dmp_patch(original, modified).unwrap();
 
         // Prepend a V4A-looking marker but keep a valid DMP header.
-        let mixed = format!("*** End Patch\n{}", dmp_diff);
+        let mixed = format!("*** End Patch\n{dmp_diff}");
 
         let auto = apply_patch_auto(original, &mixed, false);
         assert!(auto.is_err());

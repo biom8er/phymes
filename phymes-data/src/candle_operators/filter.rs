@@ -779,7 +779,7 @@ mod tests {
         // Filter the text
         let result = filter(
             &["3", "4"],
-            &[lhs_batch_1.clone()],
+            std::slice::from_ref(&lhs_batch_1),
             &["1", "2"],
             &[
                 DataComparatorOperator::InListUtf8,

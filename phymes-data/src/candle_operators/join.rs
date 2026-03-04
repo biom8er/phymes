@@ -231,13 +231,15 @@ fn join_inner_tensor(
     Ok((lhs_arr, lhs_tensor, rhs_arr, rhs_tensor))
 }
 
+type TakeColumnsByUnmatchedIndicesResult = (Vec<(String, Arc<dyn Array>)>, usize);
+
 /// Take the columns according to the UNMATCHED indices over the specified columns
 fn take_columns_by_unmatched_indices(
     column_names: &[String],
     table: &Table,
     asort_arr: &ArrayRef,
     device: &Device,
-) -> Result<(Vec<(String, Arc<dyn Array>)>, usize)> {
+) -> Result<TakeColumnsByUnmatchedIndicesResult> {
     let asort_vec = asort_arr
         .as_any()
         .downcast_ref::<UInt32Array>()

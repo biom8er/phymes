@@ -800,8 +800,8 @@ pub use todo::Todo"#,
         // --- PK = String ---
         // Patch the repository
         let result = apply_patch(
-            &[repo_batch.clone()],
-            &[patch_batch.clone()],
+            std::slice::from_ref(&repo_batch),
+            std::slice::from_ref(&patch_batch),
             "code",
             &["patch", "operation"],
             "repo_path",
@@ -965,8 +965,8 @@ pub use todo::Todo"#,
         // --- PK = String ---
         // Patch the repository
         let result = apply_patch(
-            &[repo_batch.clone()],
-            &[patch_batch.clone()],
+            std::slice::from_ref(&repo_batch),
+            std::slice::from_ref(&patch_batch),
             "code",
             &["patch", "operation"],
             "repo_path",
@@ -1131,8 +1131,8 @@ pub use todo::Todo"#,
         // --- PK = String ---
         // Patch the repository
         let result = apply_patch(
-            &[repo_batch.clone()],
-            &[patch_batch.clone()],
+            std::slice::from_ref(&repo_batch),
+            std::slice::from_ref(&patch_batch),
             "code",
             &["patch", "operation"],
             "repo_path",
@@ -1293,8 +1293,8 @@ pub use todo::Todo"#,
         // --- PK = String ---
         // Patch the repository
         let result = apply_patch(
-            &[repo_batch.clone()],
-            &[patch_batch.clone()],
+            std::slice::from_ref(&repo_batch),
+            std::slice::from_ref(&patch_batch),
             "code",
             &["patch", "operation"],
             "repo_path",

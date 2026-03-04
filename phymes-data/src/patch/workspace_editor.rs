@@ -1,6 +1,6 @@
 use std::{
     fs,
-    io::{self, Read, Write},
+    io::{Read, Write},
     path::{Path, PathBuf},
 };
 use anyhow::{anyhow, Result};
@@ -50,7 +50,7 @@ impl WorkspaceEditor {
     pub fn read_file(&self, path: &Path) -> Result<String> {
         let abs = self.abs_path(path);
         if !abs.exists() {
-            return Err(anyhow!("Missing file {}", abs.display().to_string()));
+            return Err(anyhow!("Missing file {}", abs.display()));
         }
         let mut file = fs::File::open(&abs)?;
         let mut buf = String::new();
@@ -100,7 +100,7 @@ impl WorkspaceEditor {
         let mut paths = Vec::<PathBuf>::new();
         let mut contents = Vec::<String>::new();
         self.walk_workspace(&self.root, &mut paths, &mut contents)?;
-        let workspace_subjects = paths.into_iter().zip(contents.into_iter())
+        let workspace_subjects = paths.into_iter().zip(contents)
             .map(|(p, c)| WorkspaceSubject { path: p.to_str().unwrap().to_string(), content: c})
             .collect::<Vec<_>>();
         Ok(workspace_subjects)
@@ -204,8 +204,8 @@ pub mod tests {
             r#"#!/bin/sh
 apk add --no-cache bash
 chmod +x ./src/main.sh"#
-        ];;
-        let workspace_subjects = path.into_iter().zip(content.into_iter())
+        ];
+        let workspace_subjects = path.into_iter().zip(content)
             .map(|(p, c)| WorkspaceSubject { path: p.to_string(), content: c.to_string() })
             .collect::<Vec<_>>();
 

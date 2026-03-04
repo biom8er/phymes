@@ -339,6 +339,7 @@ impl DataConfigTrait for AvailableProcessors {
             }),
             Self::PackTabular => serde_json::to_vec(&DataConfig {
                 format: Some(DataFormat::None),
+                doc_name: Some("doc_name".to_string()),
                 cpu: false,
                 operator: AvailableCandleOperators::PackTabular,
                 lhs_stream: DataStreamManager::Accumulate,
