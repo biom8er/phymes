@@ -1,4 +1,13 @@
 /// A session for patching and executing code workspaces
+/// 
+/// # TODO
+/// 
+/// - Missing optional generation of Flowchart and ER diagram depending upon if `api` feature is enabled
+/// - Alternatively, could split into `PatchWorkspaceSession` and `ExecuteWorkspaceSession`
+/// - Missing triggers for the different data_i/o methods:
+///   1. None -> no `subject_name` but `cli_args`
+///   2. StdIo -> `subject_name` and no `cli_args`
+///   3. TempFile -> `subject_name` and no `cli_args`
 pub struct PatchWorkspaceSession<'a> {
     /// Session
     pub session_context_name: &'a str,
