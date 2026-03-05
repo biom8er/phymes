@@ -99,8 +99,8 @@ impl<'a> PatchWorkspaceSession<'a> {
         List-Utf8 publication_table_names
     }}
     WorkspacePatch["WorkspacePatch"] {{
-        Utf8 path
-        Utf8 content
+        Utf8 filename
+        Utf8 diff
         Utf8 operator
     }}
     Workspace["Workspace"] {{
@@ -177,18 +177,18 @@ mod tests {
             .collect::<Vec<_>>();
             let content = [
                 r#"[package]
-    name = "phymes_rs"
-    version = "0.1.0"
-    edition = "2024"
-    [dependencies]
-    anyhow = { version = "1", default-features = false }"#,
+name = "phymes_rs"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+anyhow = { version = "1", default-features = false }"#,
                 r#"use anyhow::Result;
-    fn main() -> Result<()> {
-        Ok(())
-    }"#,
+fn main() -> Result<()> {
+    Ok(())
+}"#,
                 "pub mod extra;",
                 r#"mod todo;
-    pub use todo::Todo"#,
+pub use todo::Todo"#,
                 "pub struct Todo {}",
             ]
             .into_iter()
@@ -210,7 +210,7 @@ mod tests {
             );
 
             // Create the mock patches
-            let path = [
+            let filename = [
                 "/home/sandbox/src/main.rs",
                 "/home/sandbox/src/extras/mod.rs",
                 "/home/sandbox/src/extras/other.rs",
@@ -231,7 +231,7 @@ mod tests {
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-            let batch = create_workspace_patch_batch(path, content, operator)?;
+            let batch = create_workspace_patch_batch(filename, content, operator)?;
             let table = AvailableSubjects::WorkspacePatch.to_table(None, Some(vec![batch]))?;
             let _ = message_map.insert(
                 table.get_name().to_string(),
@@ -250,9 +250,9 @@ mod tests {
                 lhs_name: Some(AvailableSubjects::Workspace.to_string()),
                 rhs_name: Some(AvailableSubjects::WorkspacePatch.to_string()),
                 lhs_values: Some(vec!["content".to_string()]),
-                rhs_values: Some(vec!["content".to_string(), "operator".to_string()]),
+                rhs_values: Some(vec!["diff".to_string(), "operator".to_string()]),
                 lhs_pk: Some("path".to_string()),
-                rhs_pk: Some("path".to_string()),
+                rhs_pk: Some("filename".to_string()),
                 cpu: false,
                 operator: AvailableCandleOperators::ApplyPatch,
                 lhs_stream: DataStreamManager::Accumulate,
@@ -387,18 +387,18 @@ mod tests {
             .collect::<Vec<_>>();
             let content = [
                 r#"[package]
-    name = "phymes_rs"
-    version = "0.1.0"
-    edition = "2024"
-    [dependencies]
-    anyhow = { version = "1", default-features = false }"#,
+name = "phymes_rs"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+anyhow = { version = "1", default-features = false }"#,
                 r#"use anyhow::Result;
-    fn main() -> Result<()> {
-        Ok(())
-    }"#,
+fn main() -> Result<()> {
+    Ok(())
+}"#,
                 "pub mod extra;",
                 r#"mod todo;
-    pub use todo::Todo"#,
+pub use todo::Todo"#,
                 "pub struct Todo {}",
             ]
             .into_iter()
@@ -420,7 +420,7 @@ mod tests {
             );
 
             // Create the mock patches
-            let path = [
+            let filename = [
                 "/home/sandbox/src/main.rs",
                 "/home/sandbox/src/extras/mod.rs",
                 "/home/sandbox/src/extras/other.rs",
@@ -441,7 +441,7 @@ mod tests {
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-            let batch = create_workspace_patch_batch(path, content, operator)?;
+            let batch = create_workspace_patch_batch(filename, content, operator)?;
             let table = AvailableSubjects::WorkspacePatch.to_table(None, Some(vec![batch]))?;
             let _ = message_map.insert(
                 table.get_name().to_string(),
@@ -460,9 +460,9 @@ mod tests {
                 lhs_name: Some(AvailableSubjects::Workspace.to_string()),
                 rhs_name: Some(AvailableSubjects::WorkspacePatch.to_string()),
                 lhs_values: Some(vec!["content".to_string()]),
-                rhs_values: Some(vec!["content".to_string(), "operator".to_string()]),
+                rhs_values: Some(vec!["diff".to_string(), "operator".to_string()]),
                 lhs_pk: Some("path".to_string()),
-                rhs_pk: Some("path".to_string()),
+                rhs_pk: Some("filename".to_string()),
                 cpu: false,
                 operator: AvailableCandleOperators::ApplyPatch,
                 lhs_stream: DataStreamManager::Accumulate,

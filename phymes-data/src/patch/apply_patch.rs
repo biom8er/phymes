@@ -98,7 +98,6 @@ fn classify_diff(diff: &str) -> DiffKind {
 }
 
 pub fn apply_patch_auto(original: &str, diff: &str, create: bool) -> Result<String> {
-    dbg!(diff);
     match classify_diff(diff) {
         DiffKind::V4A => apply_v4a_patch(original, diff, create),
         DiffKind::Dmp => {

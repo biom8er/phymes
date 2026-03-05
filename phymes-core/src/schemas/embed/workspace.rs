@@ -92,8 +92,8 @@ pub fn create_repository_batch(
     Ok(batch)
 }
 
-fn create_patch_add_on_fields_vec() -> Vec<Field> {
-    let field_names = ["operator"];
+fn create_patch_fields_vec() -> Vec<Field> {
+    let field_names = ["filename", "diff", "operator"];
     let fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -108,22 +108,20 @@ fn create_patch_add_on_fields_vec() -> Vec<Field> {
 /// - `content` is used for both the source code and the source code diff/patch
 /// - Allowable `operators` are "Create", "Update", and "Delete"
 pub fn create_workspace_patch_fields() -> Fields {
-    let mut fields_vec = create_workspace_fields_vec();
-    fields_vec.extend(create_patch_add_on_fields_vec());
-    Fields::from(fields_vec)
+    Fields::from(create_patch_fields_vec())
 }
 
 pub fn create_workspace_patch_batch(
-    path: Vec<String>,
-    content: Vec<String>,
+    filename: Vec<String>,
+    diff: Vec<String>,
     operator: Vec<String>,
 ) -> Result<RecordBatch> {
-    let path: ArrayRef = Arc::new(StringArray::from(path));
-    let content: ArrayRef = Arc::new(StringArray::from(content));
+    let path: ArrayRef = Arc::new(StringArray::from(filename));
+    let diff: ArrayRef = Arc::new(StringArray::from(diff));
     let operator: ArrayRef = Arc::new(StringArray::from(operator));
     let batch = RecordBatch::try_from_iter(vec![
-        ("path", path),
-        ("content", content),
+        ("filename", path),
+        ("diff", diff),
         ("operator", operator),
     ])?;
     Ok(batch)
@@ -131,15 +129,14 @@ pub fn create_workspace_patch_batch(
 
 /// Expanded Diff/Patch schema to model code repositories
 pub fn create_repository_patch_fields() -> Fields {
-    let mut fields_vec = create_workspace_fields_vec();
-    fields_vec.extend(create_patch_add_on_fields_vec());
+    let mut fields_vec = create_patch_fields_vec();
     fields_vec.extend(create_repository_add_on_fields_vec());
     Fields::from(fields_vec)
 }
 
 pub fn create_repository_patch_batch(
-    path: Vec<String>,
-    content: Vec<String>,
+    filename: Vec<String>,
+    diff: Vec<String>,
     operator: Vec<String>,
     repository: Vec<String>,
     branch: Vec<String>,
@@ -147,8 +144,8 @@ pub fn create_repository_patch_batch(
     metadata: Vec<String>,
     timestamp: Vec<i64>,
 ) -> Result<RecordBatch> {
-    let path: ArrayRef = Arc::new(StringArray::from(path));
-    let content: ArrayRef = Arc::new(StringArray::from(content));
+    let filename: ArrayRef = Arc::new(StringArray::from(filename));
+    let diff: ArrayRef = Arc::new(StringArray::from(diff));
     let operator: ArrayRef = Arc::new(StringArray::from(operator));
     let repository: ArrayRef = Arc::new(StringArray::from(repository));
     let branch: ArrayRef = Arc::new(StringArray::from(branch));
@@ -156,8 +153,8 @@ pub fn create_repository_patch_batch(
     let metadata: ArrayRef = Arc::new(StringArray::from(metadata));
     let timestamp: ArrayRef = Arc::new(Int64Array::from(timestamp));
     let batch = RecordBatch::try_from_iter(vec![
-        ("path", path),
-        ("content", content),
+        ("filename", filename),
+        ("diff", diff),
         ("operator", operator),
         ("repository", repository),
         ("branch", branch),
