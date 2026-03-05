@@ -14,7 +14,7 @@ pub use plans::{
     AvailableInterfaceSubjects, AvailableProcessors, AvailableSessionPlans, BuilderSession,
     ChatAgentSession, DiagnosticSession, DocumentRAGSession, EmbedTextSession,
     ExtractOntologySession, ExtractPDFSession, GenerateTextSession, MeltStudyDataSession, PatchWorkspaceSession,
-    RetrieveTextSession, ToolAgentSession, UserSession, ViewTaskSession, check_agent_subjects,
+    RetrieveTextSession, ToolAgentSession, UserSession, ToolCallSession, check_agent_subjects,
     create_message_map, make_example_mermaid_table,
 };
 pub use session::{

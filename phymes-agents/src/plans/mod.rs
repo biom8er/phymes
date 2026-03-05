@@ -21,7 +21,7 @@ mod patch_workspace_session;
 mod retrieve_text_session;
 mod tool_agent_session;
 mod user_session;
-mod view_task_session;
+mod tool_call_session;
 
 pub use available_interface_subjects::{
     AvailableInterfaceSubjects, check_agent_subjects, create_message_map,
@@ -50,4 +50,4 @@ pub use tool_agent_session::ToolAgentSession;
 pub use user_session::UserSession;
 #[allow(unused_imports)]
 pub(crate) use user_session::user_session_inner;
-pub use view_task_session::ViewTaskSession;
+pub use tool_call_session::ToolCallSession;
