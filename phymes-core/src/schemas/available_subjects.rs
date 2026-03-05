@@ -1,9 +1,7 @@
 use crate::{
-    create_bytes_fields, create_chat_fields,
-    runtime_env::{BuildableTrait, BuilderTrait},
-    schemas::{
+    create_bytes_fields, create_chat_fields, create_repository_fields, create_repository_patch_fields, create_workspace_fields, create_workspace_patch_fields, runtime_env::{BuildableTrait, BuilderTrait}, schemas::{
         chat::create_values_fields,
-        create_attachments_fields, create_blob_fields, create_diff_fields,
+        create_attachments_fields, create_blob_fields,
         create_document_embeddings_fields, create_documents_fields,
         create_embeddings_scores_fields, create_join_chunks_scores_fields, create_queries_fields,
         create_query_embeddings_fields, create_route_bytes_fields, create_tools_fields,
@@ -43,8 +41,7 @@ use crate::{
             create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields,
             create_user_inbox_fields, create_user_session_contexts_fields,
         },
-    },
-    table::{Table, TableBuilder, TableBuilderTrait},
+    }, table::{Table, TableBuilder, TableBuilderTrait}
 };
 
 use anyhow::Result;
@@ -108,8 +105,14 @@ pub enum AvailableSubjects {
     Attachments,
     #[value(name = "Blob")]
     Blob,
-    #[value(name = "Diff")]
-    Diff,
+    #[value(name = "Workspace")]
+    Workspace,
+    #[value(name = "Repository")]
+    Repository,
+    #[value(name = "WorkspacePatch")]
+    WorkspacePatch,
+    #[value(name = "RepositoryPatch")]
+    RepositoryPatch,
     #[value(name = "User")]
     User,
     #[value(name = "UserSessionContexts")]
@@ -243,7 +246,10 @@ impl Display for AvailableSubjects {
             AvailableSubjects::JoinChunksScores => write!(f, "JoinChunksScores"),
             AvailableSubjects::Attachments => write!(f, "Attachments"),
             AvailableSubjects::Blob => write!(f, "Blob"),
-            AvailableSubjects::Diff => write!(f, "Diff"),
+            AvailableSubjects::Workspace => write!(f, "Workspace"),
+            AvailableSubjects::Repository => write!(f, "Repository"),
+            AvailableSubjects::WorkspacePatch => write!(f, "WorkspacePatch"),
+            AvailableSubjects::RepositoryPatch => write!(f, "RepositoryPatch"),
             AvailableSubjects::User => write!(f, "User"),
             AvailableSubjects::UserSessionContexts => write!(f, "UserSessionContexts"),
             AvailableSubjects::UserInbox => write!(f, "UserInbox"),
@@ -373,7 +379,10 @@ impl AvailableSchemaTrait for AvailableSubjects {
             }
             AvailableSubjects::Attachments => create_schema_from_fields(&create_attachments_fields),
             AvailableSubjects::Blob => create_schema_from_fields(&create_blob_fields),
-            AvailableSubjects::Diff => create_schema_from_fields(&create_diff_fields),
+            AvailableSubjects::Workspace => create_schema_from_fields(&create_workspace_fields),
+            AvailableSubjects::Repository => create_schema_from_fields(&create_repository_fields),
+            AvailableSubjects::WorkspacePatch => create_schema_from_fields(&create_workspace_patch_fields),
+            AvailableSubjects::RepositoryPatch => create_schema_from_fields(&create_repository_patch_fields),
             AvailableSubjects::User => create_schema_from_fields(&create_user_fields),
             AvailableSubjects::UserSessionContexts => {
                 create_schema_from_fields(&create_user_session_contexts_fields)
