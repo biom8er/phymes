@@ -19,6 +19,8 @@ impl<'a> DownloadContentSession<'a> {
 	download_content_r-rt@{shape: subproc, label: download_content_r}
 	%% ------------------------------------------------------------------------------
 	%% Tool call processor that enables calling processors from their config
+    %% - See `view_task_session` for where the `select_tasks_processors_subscriptions_publications_aggregated_s` comes from
+    %% - We only listen for changes on the `download_pdf_p` and `download_json_p` subjects but more can be added
 	%% ------------------------------------------------------------------------------
 	subgraph call_processor_t
         select_tasks_processors_subscriptions_publications_aggregated_s-subject-.->|FullTable|echo_processor_p-subscribe

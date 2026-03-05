@@ -183,6 +183,8 @@ pub fn apply_patch(
     rhs_pk: &str,
     device: &Device,
 ) -> Result<RecordBatch> {
+    dbg!(lhs_args);
+    dbg!(rhs_args);
     // Extract out LHS and RHS values that will be re-used
     let diff_column = rhs_values.first().map_or("diff", |v| v);
     let operator_column = rhs_values.get(1).map_or("operator", |v| v);

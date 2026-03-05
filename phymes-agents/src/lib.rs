@@ -9,11 +9,11 @@ pub use messages::{
 #[cfg(feature = "api")]
 pub use plans::DownloadContentSession;
 #[cfg(feature = "api")]
-pub use plans::PatchWorkspaceSession;
+pub use plans::ExecuteWorkspaceSession;
 pub use plans::{
     AvailableInterfaceSubjects, AvailableProcessors, AvailableSessionPlans, BuilderSession,
     ChatAgentSession, DiagnosticSession, DocumentRAGSession, EmbedTextSession,
-    ExtractOntologySession, ExtractPDFSession, GenerateTextSession, MeltStudyDataSession,
+    ExtractOntologySession, ExtractPDFSession, GenerateTextSession, MeltStudyDataSession, PatchWorkspaceSession,
     RetrieveTextSession, ToolAgentSession, UserSession, ViewTaskSession, check_agent_subjects,
     create_message_map, make_example_mermaid_table,
 };

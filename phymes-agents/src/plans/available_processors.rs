@@ -9,11 +9,7 @@ use phymes_core::{
     test_processor::{ProcessorError, ProcessorMock},
 };
 use phymes_data::{
-    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,
-    CandleDataProcessor, CoalesceProcessor, DataAggregatorOperator, DataCastOperator,
-    DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig,
-    DataConfigTrait, DataDistanceOperator, DataStreamManager, LimitConfig, LimitProcessor,
-    ToolTrait,
+    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor, CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig, LimitProcessor, ToolTrait
 };
 #[cfg(feature = "api")]
 use phymes_data::{
@@ -240,6 +236,7 @@ impl DataConfigTrait for AvailableProcessors {
                 rhs_fk: Some("rhs_fk".to_string()),
                 cpu: false,
                 operator: AvailableCandleOperators::Join,
+                join_operators: Some(DataJoinOperator::Inner),
                 lhs_stream: DataStreamManager::Accumulate,
                 rhs_stream: Some(DataStreamManager::Accumulate),
                 ..Default::default()

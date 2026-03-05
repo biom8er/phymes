@@ -9,13 +9,14 @@ mod document_rag_session;
 #[cfg(feature = "api")]
 mod download_content_session;
 mod embed_text_session;
+#[cfg(feature = "api")]
+mod execute_workspace_session;
 mod extract_ontology_session;
 mod extract_pdf_session;
 mod generate_text_session;
 mod melt_study_data_session;
 mod next_superstep_session;
 mod next_task_session;
-#[cfg(feature = "api")]
 mod patch_workspace_session;
 mod retrieve_text_session;
 mod tool_agent_session;
@@ -37,11 +38,12 @@ pub use download_content_session::DownloadContentSession;
 pub use embed_text_session::EmbedTextSession;
 pub use extract_ontology_session::ExtractOntologySession;
 pub use extract_pdf_session::ExtractPDFSession;
+#[cfg(feature = "api")]
+pub use execute_workspace_session::ExecuteWorkspaceSession;
 pub use generate_text_session::GenerateTextSession;
 pub use melt_study_data_session::MeltStudyDataSession;
 pub(crate) use next_superstep_session::NextSuperstepSession;
 pub(crate) use next_task_session::NextTaskSession;
-#[cfg(feature = "api")]
 pub use patch_workspace_session::PatchWorkspaceSession;
 pub use retrieve_text_session::RetrieveTextSession;
 pub use tool_agent_session::ToolAgentSession;

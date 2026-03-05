@@ -198,6 +198,8 @@ impl<'a> RetrieveTextSession<'a> {
 	    Utf8 rhs_name "Documents"
 	    Utf8 rhs_pk "chunk_id"
 	    Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
 	}
 	select_documents_scores_p["select_documents_scores_p"] {
 	    List-Utf8 lhs_values "['text']"

@@ -5,8 +5,7 @@ use phymes_core::{
     create_schema_from_fields,
 };
 use phymes_data::{
-    AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
-    DataDistanceOperator, DataStreamManager, LimitConfig,
+    AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig, DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig
 };
 #[cfg(feature = "api")]
 use phymes_ml::AvailableOpenAIAssets;
@@ -894,6 +893,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             rhs_fk: Some("chunk_id".to_string()),
             rhs_values: Some(vec!["text".to_string()]),
             operator: AvailableCandleOperators::Join,
+            join_operators: Some(DataJoinOperator::Inner),
             ..Default::default()
         };
         let join_chunks_config_json = serde_json::to_vec(&join_chunks_config).unwrap();

@@ -1482,6 +1482,8 @@ impl<'a> ExtractOntologySession<'a> {
 	    Utf8 rhs_fk "uri"
 	    Utf8 rhs_pk "uri"
 	    Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
 	}
     select_predicates_class_entity_p["select_predicates_class_entity_p"] {
         Boolean cpu "false"
@@ -1553,6 +1555,8 @@ impl<'a> ExtractOntologySession<'a> {
 	    Utf8 rhs_fk "uri"
 	    Utf8 rhs_pk "uri"
 	    Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
 	}
     select_objects_class_entity_p["select_objects_class_entity_p"] {
         Boolean cpu "false"
@@ -1616,6 +1620,8 @@ impl<'a> ExtractOntologySession<'a> {
 	    Utf8 rhs_fk "uri"
 	    Utf8 rhs_pk "uri"
 	    Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
 	}
     select_predicates_object_property_entity_p["select_predicates_object_property_entity_p"] {
         Boolean cpu "false"
@@ -1687,6 +1693,8 @@ impl<'a> ExtractOntologySession<'a> {
 	    Utf8 rhs_fk "uri"
 	    Utf8 rhs_pk "uri"
 	    Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
 	}
     select_objects_object_property_entity_p["select_objects_object_property_entity_p"] {
         Boolean cpu "false"

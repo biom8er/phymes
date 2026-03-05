@@ -1,59 +1,30 @@
-/// A session for patching and executing code workspaces
-/// 
-/// # TODO
-/// 
-/// - Missing optional generation of Flowchart and ER diagram depending upon if `api` feature is enabled
-/// - Alternatively, could split into `PatchWorkspaceSession` and `ExecuteWorkspaceSession`
-/// - Missing triggers for the different data_i/o methods:
-///   1. None -> no `subject_name` but `cli_args`
-///   2. StdIo -> `subject_name` and no `cli_args`
-///   3. TempFile -> `subject_name` and no `cli_args`
+/// A session for patching code workspaces from tool calls
 pub struct PatchWorkspaceSession<'a> {
     /// Session
     pub session_context_name: &'a str,
-    /// The Temp directory for reading/writing workspace files
-    pub workspace_dir: Option<String>,
 }
 
 impl<'a> Default for PatchWorkspaceSession<'a> {
     fn default() -> Self {
         // Create the project directory
         let session_context_name = "patch_workspace_session";
-        let workspace_dir = if cfg!(feature = "api") {
-            #[cfg(feature = "api")]
-            {
-                let project_dir = std::env::temp_dir().join(session_context_name);
-                let _ = std::fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
-                let err = format!("Failed to create project directory at `{}`.", project_dir.as_path().to_str().unwrap());
-                std::fs::create_dir(&project_dir).expect(err.as_str());
-                Some(project_dir.as_path().to_str().unwrap().to_string())
-            }            
-        } else {
-            None
-        };
 
         // Initialize with reasonable default names
         Self {
             session_context_name,
-            workspace_dir
         }
     }
 }
 
 impl<'a> PatchWorkspaceSession<'a> {
-    fn workspace_erdiagram_column(&self) -> String {
-        if let Some(workspace_dir) = self.workspace_dir.as_ref() {
-            format!(r#"\n\t\tUtf8 project_dir "{workspace_dir}"\n\t\t"#)
-        } else {
-            String::new()
-        }
-    }
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
 	patch_workspace_r-rt@{shape: subproc, label: patch_workspace_r}
 	%% ------------------------------------------------------------------------------
 	%% Tool call processor that enables calling processors from their config
+    %% - See `view_task_session` for where the `select_tasks_processors_subscriptions_publications_aggregated_s` comes from
+    %% - We only listen for changes on the `apply_patch_p` subject but more can be added
 	%% ------------------------------------------------------------------------------
 	subgraph call_processor_t
         select_tasks_processors_subscriptions_publications_aggregated_s-subject-.->|FullTable|echo_processor_p-subscribe
@@ -62,13 +33,13 @@ impl<'a> PatchWorkspaceSession<'a> {
 		echo_processor_p-publish-->|Extend|select_tasks_processors_subscriptions_publications_aggregated_s-subject
         select_tasks_processors_subscriptions_publications_aggregated_s-subject-->|FullTable|call_processor_p-subscribe
 		apply_patch_p-subject-.->|LastRecordBatch|call_processor_p-subscribe
-		command_sandbox_p-subject-.->|LastRecordBatch|call_processor_p-subscribe
 		call_processor_p-subscribe-->call_processor_p-processor
 		call_processor_p-processor-->call_processor_p-publish
 		call_processor_p-publish-->|Extend|SessionTasksSubscribePublish-subject
 	end
 	patch_workspace_r-rt-->call_processor_t
 	select_tasks_processors_subscriptions_publications_aggregated_s-subject@{shape: doc, label: select_tasks_processors_subscriptions_publications_aggregated_s}
+	apply_patch_p-subject@{shape: doc, label: apply_patch_p}
 	echo_processor_p-processor@{shape: rect, label: ProcessorEcho}
 	echo_processor_p-publish@{shape: fork}
 	echo_processor_p-subscribe@{shape: diamond, label: All}
@@ -79,42 +50,24 @@ impl<'a> PatchWorkspaceSession<'a> {
 	%% ------------------------------------------------------------------------------
 	%% Apply patch to workspace
     %% - We listen for updates both on the config `apply_patch_p` subject
-    %%   AND a data `workspace_patch_s` subject which is in the form of a UserMessage
-    %%   which can both specify the URL to download the PDF from
+    %%   AND a data `WorkspacePatch` subject
     %% - The `view_task_session` is used to trigger the operator when only the config is updated
 	%% ------------------------------------------------------------------------------
 	subgraph apply_patch_t
-		workspace_patch_s-subject-.->|FullTable|apply_patch_p-subscribe
+		WorkspacePatch-subject-.->|FullTable|apply_patch_p-subscribe
+		Workspace-subject-.->|FullTable|apply_patch_p-subscribe
 		apply_patch_p-subject-.->|LastRecordBatch|apply_patch_p-subscribe
 		apply_patch_p-subscribe-->apply_patch_p-processor
 		apply_patch_p-processor-->apply_patch_p-publish
 		apply_patch_p-publish-->|Extend|apply_patch_s-subject
 	end
 	patch_workspace_r-rt-->apply_patch_t
-	workspace_patch_s-subject@{shape: doc, label: workspace_patch_s}
-	apply_patch_p-subject@{shape: doc, label: apply_patch_p}
-	apply_patch_p-processor@{shape: rect, label: HTTPClientRequestProcessor}
+	WorkspacePatch-subject@{shape: doc, label: WorkspacePatch}
+	Workspace-subject@{shape: doc, label: Workspace}
+	apply_patch_p-processor@{shape: rect, label: ApplyPatch}
 	apply_patch_p-publish@{shape: fork}
 	apply_patch_p-subscribe@{shape: diamond, label: All}
 	apply_patch_s-subject@{shape: doc, label: apply_patch_s}
-	%% ------------------------------------------------------------------------------
-	%% Execute workspace (Requires `feature = "api"`)
-	%% ------------------------------------------------------------------------------
-	subgraph command_sandbox_t
-		apply_patch_s-subject-.->|FullTable|command_sandbox_p-subscribe
-		workspace_data_s-subject-.->|FullTable|command_sandbox_p-subscribe
-		command_sandbox_p-subscribe-->command_sandbox_p-processor
-		command_sandbox_p-processor-->command_sandbox_p-publish
-		command_sandbox_p-publish-->|Extend|command_sandbox_s-subject
-	end
-	patch_workspace_r-rt-->command_sandbox_t
-	workspace_data_s-subject@{shape: doc, label: workspace_data_s}
-	command_sandbox_p-processor@{shape: rect, label: HTTPClientRequestProcessor}
-	command_sandbox_p-publish@{shape: fork}
-	command_sandbox_p-subscribe@{shape: diamond, label: Any}
-	command_sandbox_s-subject@{shape: doc, label: command_sandbox_s}
-	%% ------------------------------------------------------------------------------
-	%% Other document downloads can be added as shown above...
 	%% ------------------------------------------------------------------------------"#
     }
     /// Return the Mermaid.js ER diagram representation of the session
@@ -145,10 +98,14 @@ impl<'a> PatchWorkspaceSession<'a> {
         List-Utf8 publication_names
         List-Utf8 publication_table_names
     }}
-    workspace_patch_s["workspace_patch_s"] {{
+    WorkspacePatch["WorkspacePatch"] {{
         Utf8 path
         Utf8 content
         Utf8 operator
+    }}
+    Workspace["Workspace"] {{
+        Utf8 path
+        Utf8 content
     }}
     apply_patch_p["apply_patch_p"] {{
         List-UInt8 bytes
@@ -156,26 +113,7 @@ impl<'a> PatchWorkspaceSession<'a> {
     apply_patch_s["apply_patch_s"] {{
         Utf8 path
         Utf8 content
-    }}
-    workspace_data_s["workspace_data_s"] {{
-        DM, todo: Define the schema
-    }}
-    command_sandbox_p["command_sandbox_p"] {{
-        Utf8 data_i "TempFile"
-        Utf8 data_o "TempFile"{}
-        Utf8 container_project_dir "/home/sandbox"
-        Utf8 initialization_file "install.sh"
-        Utf8 run_file "main.py"
-        Utf8 runner "DockerUnsafe"
-        Utf8 environment "Python"
-        Utf8 container_image "python:3.12-slim-trixie"
-        Utf8 timeout "5"
-        Utf8 subject_name "workspace_data_s"
-        Utf8 workspace_name "apply_patch_s"
-    }}
-    command_sandbox_s["command_sandbox_s"] {{
-        DM, todo: update schema
-    }}"#, self.workspace_erdiagram_column())
+    }}"#)
     }
 }
 
@@ -187,11 +125,9 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait,
-        MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
-        create_bytes_record_batch,
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, create_bytes_record_batch, create_workspace_batch, create_workspace_patch_batch
     };
-    use phymes_data::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
+    use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager, PatchOperator};
     use phymes_diagnostics::HashMap;
 
     use crate::{
@@ -226,117 +162,120 @@ mod tests {
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
 
-        // PDF download data
+        // Apply patch data
         {
-            let name = "apply_patch_p";
-            let messages = "workspace_patch_s";
-            let id = "2508.18700";
-            let download_url = format!("pdf/{id}");
-            let http_client_config = HTTPClientConfig {
-                timeout: 5,
-                request_type: HTTPClientRequestType::Get,
-                user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-                base_url: "https://arxiv.org/".to_string(),
-                subject_name: Some(messages.to_string()),
-                request_schema: HTTPClientRequestSchemas::Attachments,
+            // Create the mock repository
+            let path = [
+                "/home/sandbox/Cargo.toml",
+                "/home/sandbox/src/main.rs",
+                "/home/sandbox/src/lib.rs",
+                "/home/sandbox/src/extras/mod.rs",
+                "/home/sandbox/src/extras/todo.rs",
+            ]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+            let content = [
+                r#"[package]
+    name = "phymes_rs"
+    version = "0.1.0"
+    edition = "2024"
+    [dependencies]
+    anyhow = { version = "1", default-features = false }"#,
+                r#"use anyhow::Result;
+    fn main() -> Result<()> {
+        Ok(())
+    }"#,
+                "pub mod extra;",
+                r#"mod todo;
+    pub use todo::Todo"#,
+                "pub struct Todo {}",
+            ]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+            let batch = create_workspace_batch(path, content)?;
+            let table = AvailableSubjects::Workspace.to_table(None, Some(vec![batch]))?;
+            let _ = message_map.insert(
+                table.get_name().to_string(),
+                IPCMessage::get_builder()
+                    .with_name(table.get_name())
+                    .with_publisher(patch_workspace_session.session_context_name)
+                    .with_subject(table.get_name())
+                    .with_update(&TablePublication::Replace {
+                        table_name: table.get_name().to_string(),
+                    })
+                    .with_message(table.to_ipc_stream()?)
+                    .build()?,
+            );
+
+            // Create the mock patches
+            let path = [
+                "/home/sandbox/src/main.rs",
+                "/home/sandbox/src/extras/mod.rs",
+                "/home/sandbox/src/extras/other.rs",
+            ]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+            let operator = vec![
+                PatchOperator::Delete.to_string(),
+                PatchOperator::Update.to_string(),
+                PatchOperator::Create.to_string(),
+            ];
+            let content = [
+                "",
+                "@@ pub mod extra;\n+pub mod other;\n",
+                "+pub struct Other {}\n*** End Patch",
+            ]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+            let batch = create_workspace_patch_batch(path, content, operator)?;
+            let table = AvailableSubjects::WorkspacePatch.to_table(None, Some(vec![batch]))?;
+            let _ = message_map.insert(
+                table.get_name().to_string(),
+                IPCMessage::get_builder()
+                    .with_name(table.get_name())
+                    .with_publisher(patch_workspace_session.session_context_name)
+                    .with_subject(table.get_name())
+                    .with_update(&TablePublication::Replace {
+                        table_name: table.get_name().to_string(),
+                    })
+                    .with_message(table.to_ipc_stream()?)
+                    .build()?,
+            );
+
+            let apply_patch_config = DataConfig {
+                lhs_name: Some(AvailableSubjects::Workspace.to_string()),
+                rhs_name: Some(AvailableSubjects::WorkspacePatch.to_string()),
+                lhs_values: Some(vec!["content".to_string()]),
+                rhs_values: Some(vec!["content".to_string(), "operator".to_string()]),
+                lhs_pk: Some("path".to_string()),
+                rhs_pk: Some("path".to_string()),
+                cpu: false,
+                operator: AvailableCandleOperators::ApplyPatch,
+                lhs_stream: DataStreamManager::Accumulate,
+                rhs_stream: Some(DataStreamManager::Accumulate),
                 ..Default::default()
             };
-            let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-            let http_client_config_batch =
-                create_bytes_record_batch(vec![http_client_config_json])?;
-            let http_client_config_table = TableBuilder::new()
-                .with_name(name)
-                .with_record_batches(vec![http_client_config_batch])?
+            let apply_patch_config_json = serde_json::to_vec(&apply_patch_config)?;
+            let apply_patch_config_batch =
+                create_bytes_record_batch(vec![apply_patch_config_json])?;
+            let apply_patch_config_table = TableBuilder::new()
+                .with_name("apply_patch_p")
+                .with_record_batches(vec![apply_patch_config_batch])?
                 .build()?;
             let _ = message_map.insert(
-                http_client_config_table.get_name().to_string(),
+                apply_patch_config_table.get_name().to_string(),
                 IPCMessage::get_builder()
-                    .with_name(http_client_config_table.get_name())
+                    .with_name(apply_patch_config_table.get_name())
                     .with_publisher(patch_workspace_session.session_context_name)
-                    .with_subject(http_client_config_table.get_name())
+                    .with_subject(apply_patch_config_table.get_name())
                     .with_update(&TablePublication::Replace {
-                        table_name: http_client_config_table.get_name().to_string(),
+                        table_name: apply_patch_config_table.get_name().to_string(),
                     })
-                    .with_message(http_client_config_table.to_ipc_stream()?)
-                    .build()?,
-            );
-            let message_builder = TableBuilder::new()
-                .with_name(messages)
-                .append_new_user_query_str(&download_url, "user")?;
-            let _ = message_map.insert(
-                messages.to_string(),
-                IPCMessage::get_builder()
-                    .with_name(messages)
-                    .with_publisher(patch_workspace_session.session_context_name)
-                    .with_subject(messages)
-                    .with_update(&TablePublication::Replace {
-                        table_name: messages.to_string(),
-                    })
-                    .with_message(message_builder.clone().build()?.to_ipc_stream()?)
-                    .build()?,
-            );
-        }
-
-        // JSON download data
-        {
-            let name = "command_sandbox_p";
-            let messages = "workspace_data_s";
-            let mesh_term = "Diabetes Mellitus";
-            let year_from = 2020;
-            let year_to = 2023;
-            let journal_filter = Some("Lancet");
-            let mut query = format!("{mesh_term}[MeSH Terms]");
-            if let Some(journal) = journal_filter {
-                query.push_str(&format!(" AND \"{journal}\"[Journal]"));
-            }
-
-            let esearch_url = format!(
-                "db=pubmed&term={}&retmode=json&retmax=5&mindate={}&maxdate={}",
-                urlencoding::encode(&query),
-                year_from,
-                year_to
-            );
-            let http_client_config = HTTPClientConfig {
-                timeout: 5,
-                request_type: HTTPClientRequestType::Get,
-                user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-                base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?".to_string(),
-                subject_name: Some(messages.to_string()),
-                request_schema: HTTPClientRequestSchemas::Attachments,
-                ..Default::default()
-            };
-            let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-            let http_client_config_batch =
-                create_bytes_record_batch(vec![http_client_config_json])?;
-            let http_client_config_table = TableBuilder::new()
-                .with_name(name)
-                .with_record_batches(vec![http_client_config_batch])?
-                .build()?;
-            let _ = message_map.insert(
-                http_client_config_table.get_name().to_string(),
-                IPCMessage::get_builder()
-                    .with_name(http_client_config_table.get_name())
-                    .with_publisher(patch_workspace_session.session_context_name)
-                    .with_subject(http_client_config_table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: http_client_config_table.get_name().to_string(),
-                    })
-                    .with_message(http_client_config_table.to_ipc_stream()?)
-                    .build()?,
-            );
-            let message_builder = TableBuilder::new()
-                .with_name(messages)
-                .append_new_user_query_str(&esearch_url, "user")?;
-            let _ = message_map.insert(
-                messages.to_string(),
-                IPCMessage::get_builder()
-                    .with_name(messages)
-                    .with_publisher(patch_workspace_session.session_context_name)
-                    .with_subject(messages)
-                    .with_update(&TablePublication::Replace {
-                        table_name: messages.to_string(),
-                    })
-                    .with_message(message_builder.clone().build()?.to_ipc_stream()?)
+                    .with_message(apply_patch_config_table.to_ipc_stream()?)
                     .build()?,
             );
         }
@@ -345,22 +284,22 @@ mod tests {
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-        // {
-        //     // Debug any errors
-        //     let subjects_reading = session_ctx_arc.read();
-        //     let table_reading = subjects_reading
-        //         .get_states()
-        //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
-        //         .unwrap()
-        //         .read();
-        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        //     let table_reading = subjects_reading
-        //         .get_states()
-        //         .get(AvailableSubjects::SessionTraces.to_string().as_str())
-        //         .unwrap()
-        //         .read();
-        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        // }
+        {
+            // Debug any errors
+            let subjects_reading = session_ctx_arc.read();
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SessionTraces.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        }
 
         assert_eq!(response.len(), 0);
 
@@ -372,48 +311,28 @@ mod tests {
                 .get("apply_patch_s")
                 .unwrap()
                 .read();
-            let column = table_reading.get_column_as_vec_str("filename");
-            assert_eq!(column, ["2508.18700"]);
-            let column = table_reading.get_column_as_vec_str("extension");
-            assert_eq!(column, ["application/pdf"]);
-            let column = table_reading.get_column_as_vec_str("metadata");
-            assert_eq!(column, ["tool"]);
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-            for c in column {
-                assert!(c > 0);
-            }
-            let column = table_reading
-                .get_column_as_vec_nested_primitive::<u8>("bytes")?
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-            assert_eq!(column.len(), 505519);
-            let table_reading = session_reading
-                .get_states()
-                .get("command_sandbox_s")
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("filename");
+            let column = table_reading.get_column_as_vec_str("path");
             assert_eq!(
                 column,
                 [
-                    "esearch.fcgi?db=pubmed&term=Diabetes%20Mellitus%5BMeSH%20Terms%5D%20AND%20%22Lancet%22%5BJournal%5D&retmode=json&retmax=5&mindate=2020&maxdate=2023"
+                    "/home/sandbox/Cargo.toml",
+                    "/home/sandbox/src/extras/mod.rs",
+                    "/home/sandbox/src/extras/todo.rs",
+                    "/home/sandbox/src/lib.rs",
+                    "/home/sandbox/src/extras/other.rs"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("extension");
-            assert_eq!(column, ["application/json; charset=UTF-8"]);
-            let column = table_reading.get_column_as_vec_str("metadata");
-            assert_eq!(column, ["tool"]);
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-            for c in column {
-                assert!(c > 0);
-            }
-            let column = table_reading
-                .get_column_as_vec_nested_primitive::<u8>("bytes")?
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-            assert_eq!(column.len(), 392);
+            let column = table_reading.get_column_as_vec_str("content");
+            assert_eq!(
+                column,
+                [
+                    "[package]\nname = \"phymes_rs\"\nversion = \"0.1.0\"\nedition = \"2024\"\n[dependencies]\nanyhow = { version = \"1\", default-features = false }",
+                    "pub mod other;\nmod todo;\npub use todo::Todo",
+                    "pub struct Todo {}",
+                    "pub mod extra;",
+                    "pub struct Other {}"
+                ]
+            );
         }
         Ok(())
     }
@@ -453,85 +372,120 @@ mod tests {
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
 
-        // PDF download data
+        // Apply patch data
         {
-            let name = "apply_patch_p";
-            let id = "2508.18700";
-            let download_url = format!("pdf/{id}");
-            let http_client_config = HTTPClientConfig {
-                timeout: 5,
-                request_type: HTTPClientRequestType::Get,
-                user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-                base_url: "https://arxiv.org/".to_string(),
-                request_schema: HTTPClientRequestSchemas::Attachments,
-                json: Some(download_url),
-                ..Default::default()
-            };
-            let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-            let http_client_config_batch =
-                create_bytes_record_batch(vec![http_client_config_json])?;
-            let http_client_config_table = TableBuilder::new()
-                .with_name(name)
-                .with_record_batches(vec![http_client_config_batch])?
-                .build()?;
+            // Create the mock repository
+            let path = [
+                "/home/sandbox/Cargo.toml",
+                "/home/sandbox/src/main.rs",
+                "/home/sandbox/src/lib.rs",
+                "/home/sandbox/src/extras/mod.rs",
+                "/home/sandbox/src/extras/todo.rs",
+            ]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+            let content = [
+                r#"[package]
+    name = "phymes_rs"
+    version = "0.1.0"
+    edition = "2024"
+    [dependencies]
+    anyhow = { version = "1", default-features = false }"#,
+                r#"use anyhow::Result;
+    fn main() -> Result<()> {
+        Ok(())
+    }"#,
+                "pub mod extra;",
+                r#"mod todo;
+    pub use todo::Todo"#,
+                "pub struct Todo {}",
+            ]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+            let batch = create_workspace_batch(path, content)?;
+            let table = AvailableSubjects::Workspace.to_table(None, Some(vec![batch]))?;
             let _ = message_map.insert(
-                http_client_config_table.get_name().to_string(),
+                table.get_name().to_string(),
                 IPCMessage::get_builder()
-                    .with_name(http_client_config_table.get_name())
+                    .with_name(table.get_name())
                     .with_publisher(patch_workspace_session.session_context_name)
-                    .with_subject(http_client_config_table.get_name())
+                    .with_subject(table.get_name())
                     .with_update(&TablePublication::Replace {
-                        table_name: http_client_config_table.get_name().to_string(),
+                        table_name: table.get_name().to_string(),
                     })
-                    .with_message(http_client_config_table.to_ipc_stream()?)
+                    .with_message(table.to_ipc_stream()?)
                     .build()?,
             );
-        }
 
-        // JSON download data
-        {
-            let name = "command_sandbox_p";
-            let mesh_term = "Diabetes Mellitus";
-            let year_from = 2020;
-            let year_to = 2023;
-            let journal_filter = Some("Lancet");
-            let mut query = format!("{mesh_term}[MeSH Terms]");
-            if let Some(journal) = journal_filter {
-                query.push_str(&format!(" AND \"{journal}\"[Journal]"));
-            }
-
-            let esearch_url = format!(
-                "db=pubmed&term={}&retmode=json&retmax=5&mindate={}&maxdate={}",
-                urlencoding::encode(&query),
-                year_from,
-                year_to
+            // Create the mock patches
+            let path = [
+                "/home/sandbox/src/main.rs",
+                "/home/sandbox/src/extras/mod.rs",
+                "/home/sandbox/src/extras/other.rs",
+            ]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+            let operator = vec![
+                PatchOperator::Delete.to_string(),
+                PatchOperator::Update.to_string(),
+                PatchOperator::Create.to_string(),
+            ];
+            let content = [
+                "",
+                "@@ pub mod extra;\n+pub mod other;\n",
+                "+pub struct Other {}\n*** End Patch",
+            ]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+            let batch = create_workspace_patch_batch(path, content, operator)?;
+            let table = AvailableSubjects::WorkspacePatch.to_table(None, Some(vec![batch]))?;
+            let _ = message_map.insert(
+                table.get_name().to_string(),
+                IPCMessage::get_builder()
+                    .with_name(table.get_name())
+                    .with_publisher(patch_workspace_session.session_context_name)
+                    .with_subject(table.get_name())
+                    .with_update(&TablePublication::Replace {
+                        table_name: table.get_name().to_string(),
+                    })
+                    .with_message(table.to_ipc_stream()?)
+                    .build()?,
             );
-            let http_client_config = HTTPClientConfig {
-                timeout: 5,
-                request_type: HTTPClientRequestType::Get,
-                user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-                base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?".to_string(),
-                request_schema: HTTPClientRequestSchemas::Attachments,
-                json: Some(esearch_url),
+
+            let apply_patch_config = DataConfig {
+                lhs_name: Some(AvailableSubjects::Workspace.to_string()),
+                rhs_name: Some(AvailableSubjects::WorkspacePatch.to_string()),
+                lhs_values: Some(vec!["content".to_string()]),
+                rhs_values: Some(vec!["content".to_string(), "operator".to_string()]),
+                lhs_pk: Some("path".to_string()),
+                rhs_pk: Some("path".to_string()),
+                cpu: false,
+                operator: AvailableCandleOperators::ApplyPatch,
+                lhs_stream: DataStreamManager::Accumulate,
+                rhs_stream: Some(DataStreamManager::Accumulate),
                 ..Default::default()
             };
-            let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-            let http_client_config_batch =
-                create_bytes_record_batch(vec![http_client_config_json])?;
-            let http_client_config_table = TableBuilder::new()
-                .with_name(name)
-                .with_record_batches(vec![http_client_config_batch])?
+            let apply_patch_config_json = serde_json::to_vec(&apply_patch_config)?;
+            let apply_patch_config_batch =
+                create_bytes_record_batch(vec![apply_patch_config_json])?;
+            let apply_patch_config_table = TableBuilder::new()
+                .with_name("apply_patch_p")
+                .with_record_batches(vec![apply_patch_config_batch])?
                 .build()?;
             let _ = message_map.insert(
-                http_client_config_table.get_name().to_string(),
+                apply_patch_config_table.get_name().to_string(),
                 IPCMessage::get_builder()
-                    .with_name(http_client_config_table.get_name())
+                    .with_name(apply_patch_config_table.get_name())
                     .with_publisher(patch_workspace_session.session_context_name)
-                    .with_subject(http_client_config_table.get_name())
+                    .with_subject(apply_patch_config_table.get_name())
                     .with_update(&TablePublication::Replace {
-                        table_name: http_client_config_table.get_name().to_string(),
+                        table_name: apply_patch_config_table.get_name().to_string(),
                     })
-                    .with_message(http_client_config_table.to_ipc_stream()?)
+                    .with_message(apply_patch_config_table.to_ipc_stream()?)
                     .build()?,
             );
         }
@@ -550,48 +504,28 @@ mod tests {
                 .get("apply_patch_s")
                 .unwrap()
                 .read();
-            let column = table_reading.get_column_as_vec_str("filename");
-            assert_eq!(column, ["2508.18700"]);
-            let column = table_reading.get_column_as_vec_str("extension");
-            assert_eq!(column, ["application/pdf"]);
-            let column = table_reading.get_column_as_vec_str("metadata");
-            assert_eq!(column, ["tool"]);
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-            for c in column {
-                assert!(c > 0);
-            }
-            let column = table_reading
-                .get_column_as_vec_nested_primitive::<u8>("bytes")?
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-            assert_eq!(column.len(), 505519);
-            let table_reading = session_reading
-                .get_states()
-                .get("command_sandbox_s")
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("filename");
+            let column = table_reading.get_column_as_vec_str("path");
             assert_eq!(
                 column,
                 [
-                    "esearch.fcgi?db=pubmed&term=Diabetes%20Mellitus%5BMeSH%20Terms%5D%20AND%20%22Lancet%22%5BJournal%5D&retmode=json&retmax=5&mindate=2020&maxdate=2023"
+                    "/home/sandbox/Cargo.toml",
+                    "/home/sandbox/src/extras/mod.rs",
+                    "/home/sandbox/src/extras/todo.rs",
+                    "/home/sandbox/src/lib.rs",
+                    "/home/sandbox/src/extras/other.rs"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("extension");
-            assert_eq!(column, ["application/json; charset=UTF-8"]);
-            let column = table_reading.get_column_as_vec_str("metadata");
-            assert_eq!(column, ["tool"]);
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-            for c in column {
-                assert!(c > 0);
-            }
-            let column = table_reading
-                .get_column_as_vec_nested_primitive::<u8>("bytes")?
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-            assert_eq!(column.len(), 392);
+            let column = table_reading.get_column_as_vec_str("content");
+            assert_eq!(
+                column,
+                [
+                    "[package]\nname = \"phymes_rs\"\nversion = \"0.1.0\"\nedition = \"2024\"\n[dependencies]\nanyhow = { version = \"1\", default-features = false }",
+                    "pub mod other;\nmod todo;\npub use todo::Todo",
+                    "pub struct Todo {}",
+                    "pub mod extra;",
+                    "pub struct Other {}"
+                ]
+            );
         }
         Ok(())
     }

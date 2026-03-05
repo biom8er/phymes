@@ -220,6 +220,8 @@ impl<'a> ViewTaskSession<'a> {
         Utf8 rhs_name "select_processors_publications_aggregated_s"
         Utf8 rhs_pk "processor_name"
         Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
     }}
     SessionTasks["SessionTasks"] {{
         Utf8 session_name
@@ -237,6 +239,8 @@ impl<'a> ViewTaskSession<'a> {
         Utf8 rhs_name "SessionTasks"
         Utf8 rhs_pk "processor_name"
         Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
     }}
     select_tasks_processors_subscriptions_publications_aggregated_p["select_tasks_processors_subscriptions_publications_aggregated_p"] {{
         Boolean cpu "false"
