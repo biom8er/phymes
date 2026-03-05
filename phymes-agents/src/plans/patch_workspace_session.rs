@@ -125,7 +125,7 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, create_bytes_record_batch, create_workspace_batch, create_workspace_patch_batch
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, WorkspacePatchSubject, create_bytes_record_batch, create_workspace_batch, create_workspace_patch_batch
     };
     use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager, PatchOperator};
     use phymes_diagnostics::HashMap;
@@ -284,23 +284,6 @@ pub use todo::Todo"#,
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
-
         assert_eq!(response.len(), 0);
 
         {
@@ -341,7 +324,7 @@ pub use todo::Todo"#,
     async fn test_patch_workspace_session_wo_subjects() -> Result<()> {
         // View task session
         let view_task_session =
-            ViewTaskSession::new("view_task_session", &["apply_patch_p", "command_sandbox_p"]);
+            ViewTaskSession::new("view_task_session", &["apply_patch_p"]);
         let view_task_session_builder = SessionContextBuilder::from_mermaid_flowchart(
             &view_task_session.as_mermaid_flowchart(),
             false,
@@ -441,28 +424,24 @@ pub use todo::Todo"#,
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-            let batch = create_workspace_patch_batch(filename, content, operator)?;
-            let table = AvailableSubjects::WorkspacePatch.to_table(None, Some(vec![batch]))?;
-            let _ = message_map.insert(
-                table.get_name().to_string(),
-                IPCMessage::get_builder()
-                    .with_name(table.get_name())
-                    .with_publisher(patch_workspace_session.session_context_name)
-                    .with_subject(table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: table.get_name().to_string(),
-                    })
-                    .with_message(table.to_ipc_stream()?)
-                    .build()?,
-            );
+            let values = filename.into_iter()
+                .zip(content)
+                .zip(operator)
+                .map(|((filename, diff), operator)| {
+                    let patch = WorkspacePatchSubject { filename, diff: diff, operator };
+                    serde_json::to_value(&patch).unwrap()
+                })
+                .collect::<Vec<_>>();
+            let doc_patch = serde_json::to_string(&values)?;
 
             let apply_patch_config = DataConfig {
                 lhs_name: Some(AvailableSubjects::Workspace.to_string()),
-                rhs_name: Some(AvailableSubjects::WorkspacePatch.to_string()),
+                rhs_name: None,
                 lhs_values: Some(vec!["content".to_string()]),
                 rhs_values: Some(vec!["diff".to_string(), "operator".to_string()]),
                 lhs_pk: Some("path".to_string()),
                 rhs_pk: Some("filename".to_string()),
+                doc_patch: Some(doc_patch),
                 cpu: false,
                 operator: AvailableCandleOperators::ApplyPatch,
                 lhs_stream: DataStreamManager::Accumulate,
@@ -493,6 +472,23 @@ pub use todo::Todo"#,
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+
+        {
+            // Debug any errors
+            let subjects_reading = session_ctx_arc.read();
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SessionTraces.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        }
 
         assert_eq!(response.len(), 0);
 

@@ -624,6 +624,12 @@ pub struct DataConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub doc_template: Option<AvailableJinja2Templates>,
 
+    /// Universal Diff or V4a Diff in a serialized JSON [Value] representing
+    ///   a `Vec<WorkspacePatchSubject>>`
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub doc_patch: Option<String>,
+
     /// The name of the resulting document after applying the minijinja template
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]

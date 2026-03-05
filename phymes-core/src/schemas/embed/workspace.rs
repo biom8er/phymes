@@ -111,6 +111,13 @@ pub fn create_workspace_patch_fields() -> Fields {
     Fields::from(create_patch_fields_vec())
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct WorkspacePatchSubject {
+    pub filename: String,
+    pub diff: String,
+    pub operator: String,
+}
+
 pub fn create_workspace_patch_batch(
     filename: Vec<String>,
     diff: Vec<String>,

@@ -7,10 +7,10 @@ use arrow::{
 };
 use candle_core::Device;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
-    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType, WorkspacePatchSubject
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tracing::instrument;
 
 use crate::{
@@ -35,6 +35,7 @@ pub struct ApplyPatch {
     rhs_values: Vec<String>,
     lhs_pk: String,
     rhs_pk: String,
+    doc_patch: Vec<Value>,
 }
 
 impl MappableTrait for ApplyPatch {
@@ -93,7 +94,7 @@ impl DataOperatorTrait for ApplyPatch {
         device: &Device,
     ) -> Result<RecordBatch> {
         // Check for empty rhs_args and change to None
-        let rhs_args = rhs_args.ok_or(anyhow!("Missing `rhs_args` for `ApplyPatch` Operator."))?;
+        let rhs_args = rhs_args.filter(|&rhs_args| !rhs_args.is_empty());
         apply_patch(
             lhs_args,
             rhs_args,
@@ -105,6 +106,7 @@ impl DataOperatorTrait for ApplyPatch {
                 .collect::<Vec<_>>(),
             &self.lhs_pk,
             &self.rhs_pk,
+            &self.doc_patch,
             device,
         )
     }
@@ -135,6 +137,14 @@ impl DataOperatorTrait for ApplyPatch {
             "Missing `rhs_pk` for `{}`.",
             Self::get_static_name()
         ))?;
+        let doc_patch = if let Some(doc_patch) = config.doc_patch.as_ref() {
+            serde_json::from_str::<Vec<Value>>(doc_patch)?
+        } else {
+            return Err(anyhow!(
+                "Missing `doc_patch` for `{}`.",
+                Self::get_static_name()
+            ));
+        };
 
         if rhs_values.len() != 2 {
             return Err(anyhow!(
@@ -148,6 +158,7 @@ impl DataOperatorTrait for ApplyPatch {
             rhs_values,
             lhs_pk,
             rhs_pk,
+            doc_patch
         })
     }
 }
@@ -165,24 +176,38 @@ impl DataOperatorTrait for ApplyPatch {
 /// # Arguments
 ///
 /// * `lhs_args` - Slice of [RecordBatch]es that the patches will be applied to
-/// * `rhs_args` - Slice of [RecordBatch]es that contain the patches
+/// * `rhs_args` - Optional Slice of [RecordBatch]es that contain the patches
 /// * `lhs_values` - The name of the column to apply the patches to (MUST be of type Utf8)
 /// * `rhs_values` - Slice of [String] where the first element is the name of the column that contains the patch
 ///   (MUST be of type Utf8 in either V4A Diff or Universal Diff formats), and the second element is the name of the column that
 ///   containers the operator
 /// * `lhs_pk` - The name of the column with the full path of the "file" or another unique identifier to match the patch on
 /// * `rhs_pk` - The name of the column with the full path of the "file" or another unique identifier to match the patch on
+/// * `doc_patch` - A JSON Value representing the patches
 /// * `device` - The compute device
 #[instrument(skip(lhs_args, rhs_args, lhs_values, rhs_values, lhs_pk, rhs_pk, device))]
 pub fn apply_patch(
     lhs_args: &[RecordBatch],
-    rhs_args: &[RecordBatch],
+    rhs_args: Option<&[RecordBatch]>,
     lhs_values: &str,
     rhs_values: &[&str],
     lhs_pk: &str,
     rhs_pk: &str,
+    doc_patch: &[Value],
     device: &Device,
 ) -> Result<RecordBatch> {
+    // Extract out the patches
+    let rhs_args = if let Some(rhs_args) = rhs_args {
+        rhs_args.to_vec()
+    } else {        
+        Table::get_builder()
+            .with_name("apply_patch with doc_patch as Value")
+            .with_schema(AvailableSubjects::WorkspacePatch.to_schema())
+            .with_json_values(doc_patch)?
+            .build()?
+            .get_record_batches_own()
+    };
+
     // Extract out LHS and RHS values that will be re-used
     let diff_column = rhs_values.first().map_or("diff", |v| v);
     let operator_column = rhs_values.get(1).map_or("operator", |v| v);
@@ -234,7 +259,7 @@ pub fn apply_patch(
             .collect::<Vec<_>>();
         let rhs_delete = select(
             &select_lhs_cols,
-            rhs_args,
+            &rhs_args,
             &select_rhs_cols,
             &select_lhs_cols,
             &select_lhs_cols,
@@ -455,7 +480,7 @@ pub fn apply_patch(
             .collect::<Vec<_>>();
         let rhs_update = select(
             &select_lhs_cols,
-            rhs_args,
+            &rhs_args,
             &select_rhs_cols,
             &select_lhs_cols,
             &select_lhs_cols,
@@ -579,7 +604,7 @@ pub fn apply_patch(
             .collect::<Vec<_>>();
         let rhs_create = select(
             &select_lhs_cols,
-            rhs_args,
+            &rhs_args,
             &select_rhs_cols,
             &select_lhs_cols,
             &select_lhs_cols,
@@ -719,7 +744,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_apply_patch_all() -> Result<()> {
+    fn test_apply_patch_all_patch_batch() -> Result<()> {
         // Create the mock repository
         let repo_pks = vec![0, 1, 2, 3, 4];
         let repo_paths = [
@@ -801,11 +826,12 @@ pub use todo::Todo"#,
         // Patch the repository
         let result = apply_patch(
             std::slice::from_ref(&repo_batch),
-            std::slice::from_ref(&patch_batch),
+            Some(std::slice::from_ref(&patch_batch)),
             "code",
             &["patch", "operation"],
             "repo_path",
             "patch_path",
+            &[],
             &device,
         )?;
 
@@ -844,11 +870,12 @@ pub use todo::Todo"#,
         // Patch the repository
         let result = apply_patch(
             &[repo_batch],
-            &[patch_batch],
+            Some(&[patch_batch]),
             "code",
             &["patch", "operation"],
             "repo_pk",
             "patch_pk",
+            &[],
             &device,
         )?;
 
@@ -887,7 +914,124 @@ pub use todo::Todo"#,
     }
 
     #[test]
-    fn test_apply_patch_missing_delete() -> Result<()> {
+    fn test_apply_patch_all_patch_struct() -> Result<()> {
+        // Create the mock repository
+        let repo_pks = vec![0, 1, 2, 3, 4];
+        let repo_paths = [
+            "/home/sandbox/Cargo.toml",
+            "/home/sandbox/src/main.rs",
+            "/home/sandbox/src/lib.rs",
+            "/home/sandbox/src/extras/mod.rs",
+            "/home/sandbox/src/extras/todo.rs",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+        let code = [
+            r#"[package]
+name = "phymes_rs"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+anyhow = { version = "1", default-features = false }"#,
+            r#"use anyhow::Result;
+fn main() -> Result<()> {
+    Ok(())
+}"#,
+            "pub mod extra;",
+            r#"mod todo;
+pub use todo::Todo"#,
+            "pub struct Todo {}",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+        let repo_pks: ArrayRef = Arc::new(UInt32Array::from(repo_pks));
+        let repo_paths: ArrayRef = Arc::new(StringArray::from(repo_paths));
+        let code: ArrayRef = Arc::new(StringArray::from(code));
+        let repo_batch = RecordBatch::try_from_iter(vec![
+            ("repo_pk", repo_pks),
+            ("repo_path", repo_paths),
+            ("code", code),
+        ])?;
+
+        // Create the mock patches
+        let patch_paths = [
+            "/home/sandbox/src/main.rs",
+            "/home/sandbox/src/extras/mod.rs",
+            "/home/sandbox/src/extras/other.rs",
+        ];
+        let operations = vec![
+            PatchOperator::Delete.to_string(),
+            PatchOperator::Update.to_string(),
+            PatchOperator::Create.to_string(),
+        ];
+        let patches = [
+            "",
+            "@@ pub mod extra;\n+pub mod other;\n",
+            "+pub struct Other {}\n*** End Patch",
+        ];
+        let doc_patch = patch_paths.into_iter()
+            .zip(patches)
+            .zip(operations)
+            .map(|((filename, diff), operator)| {
+                let patch = WorkspacePatchSubject { filename: filename.to_string(), diff: diff.to_string(), operator };
+                serde_json::to_value(&patch).unwrap()
+            })
+            .collect::<Vec<_>>();
+
+        // Make the device
+        let device = device(false)?;
+
+        // --- PK = String ---
+        // Patch the repository
+        let result = apply_patch(
+            std::slice::from_ref(&repo_batch),
+            None,
+            "code",
+            &["diff", "operator"],
+            "repo_path",
+            "filename",
+            &doc_patch,
+            &device,
+        )?;
+
+        // Check the results
+        let result_table = Table::get_builder()
+            .with_name("test_apply_patch")
+            .with_record_batches(vec![result])?
+            .build()?;
+
+        let test = result_table.get_column_as_vec_primitive::<u32>("repo_pk")?;
+        assert_eq!(test, [0, 3, 4, 2, 0]);
+        let test = result_table.get_column_as_vec_nonprimitive::<String>("repo_path")?;
+        assert_eq!(
+            test,
+            [
+                "/home/sandbox/Cargo.toml",
+                "/home/sandbox/src/extras/mod.rs",
+                "/home/sandbox/src/extras/todo.rs",
+                "/home/sandbox/src/lib.rs",
+                "/home/sandbox/src/extras/other.rs"
+            ]
+        );
+        let test = result_table.get_column_as_vec_nonprimitive::<String>("code")?;
+        assert_eq!(
+            test,
+            [
+                "[package]\nname = \"phymes_rs\"\nversion = \"0.1.0\"\nedition = \"2024\"\n[dependencies]\nanyhow = { version = \"1\", default-features = false }",
+                "pub mod other;\nmod todo;\npub use todo::Todo",
+                "pub struct Todo {}",
+                "pub mod extra;",
+                "pub struct Other {}"
+            ]
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_apply_patch_missing_delete_patch_batch() -> Result<()> {
         // Create the mock repository
         let repo_pks = vec![0, 1, 2, 3, 4];
         let repo_paths = [
@@ -966,11 +1110,12 @@ pub use todo::Todo"#,
         // Patch the repository
         let result = apply_patch(
             std::slice::from_ref(&repo_batch),
-            std::slice::from_ref(&patch_batch),
+            Some(std::slice::from_ref(&patch_batch)),
             "code",
             &["patch", "operation"],
             "repo_path",
             "patch_path",
+            &[],
             &device,
         )?;
 
@@ -1011,11 +1156,12 @@ pub use todo::Todo"#,
         // Patch the repository
         let result = apply_patch(
             &[repo_batch],
-            &[patch_batch],
+            Some(&[patch_batch]),
             "code",
             &["patch", "operation"],
             "repo_pk",
             "patch_pk",
+            &[],
             &device,
         )?;
 
@@ -1056,7 +1202,7 @@ pub use todo::Todo"#,
     }
 
     #[test]
-    fn test_apply_patch_missing_update() -> Result<()> {
+    fn test_apply_patch_missing_update_patch_batch() -> Result<()> {
         // Create the mock repository
         let repo_pks = vec![0, 1, 2, 3, 4];
         let repo_paths = [
@@ -1132,11 +1278,12 @@ pub use todo::Todo"#,
         // Patch the repository
         let result = apply_patch(
             std::slice::from_ref(&repo_batch),
-            std::slice::from_ref(&patch_batch),
+            Some(std::slice::from_ref(&patch_batch)),
             "code",
             &["patch", "operation"],
             "repo_path",
             "patch_path",
+            &[],
             &device,
         )?;
 
@@ -1175,11 +1322,12 @@ pub use todo::Todo"#,
         // Patch the repository
         let result = apply_patch(
             &[repo_batch],
-            &[patch_batch],
+            Some(&[patch_batch]),
             "code",
             &["patch", "operation"],
             "repo_pk",
             "patch_pk",
+            &[],
             &device,
         )?;
 
@@ -1218,7 +1366,7 @@ pub use todo::Todo"#,
     }
 
     #[test]
-    fn test_apply_patch_missing_create() -> Result<()> {
+    fn test_apply_patch_missing_create_patch_batch() -> Result<()> {
         // Create the mock repository
         let repo_pks = vec![0, 1, 2, 3, 4];
         let repo_paths = [
@@ -1294,11 +1442,12 @@ pub use todo::Todo"#,
         // Patch the repository
         let result = apply_patch(
             std::slice::from_ref(&repo_batch),
-            std::slice::from_ref(&patch_batch),
+            Some(std::slice::from_ref(&patch_batch)),
             "code",
             &["patch", "operation"],
             "repo_path",
             "patch_path",
+            &[],
             &device,
         )?;
 
@@ -1335,11 +1484,12 @@ pub use todo::Todo"#,
         // Patch the repository
         let result = apply_patch(
             &[repo_batch],
-            &[patch_batch],
+            Some(&[patch_batch]),
             "code",
             &["patch", "operation"],
             "repo_pk",
             "patch_pk",
+            &[],
             &device,
         )?;
 

@@ -4,9 +4,7 @@ use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait,
-    Table,
-    test_processor::{ProcessorError, ProcessorMock},
+    AvailableSubjects, DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Table, WorkspacePatchSubject, test_processor::{ProcessorError, ProcessorMock}
 };
 use phymes_data::{
     AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor, CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig, LimitProcessor, ToolTrait
@@ -345,10 +343,14 @@ impl DataConfigTrait for AvailableProcessors {
             Self::ApplyPatch => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("workspace".to_string()),
                 rhs_name: Some("patches".to_string()),
-                lhs_values: Some(vec!["code".to_string()]),
-                rhs_values: Some(vec!["patch".to_string(), "operator".to_string()]),
-                lhs_pk: Some("lhs_pk".to_string()),
-                rhs_pk: Some("rhs_pk".to_string()),
+                lhs_values: Some(vec!["content".to_string()]),
+                rhs_values: Some(vec!["diff".to_string(), "operator".to_string()]),
+                lhs_pk: Some("path".to_string()),
+                rhs_pk: Some("filename".to_string()),
+                doc_patch: Some(serde_json::to_string(&[WorkspacePatchSubject { 
+                    filename: "filename".to_string(),
+                    diff: "@@ content\n+new content\n".to_string(),
+                    operator: "Update".to_string()}])?),
                 cpu: false,
                 operator: AvailableCandleOperators::ApplyPatch,
                 lhs_stream: DataStreamManager::Accumulate,

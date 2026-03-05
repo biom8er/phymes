@@ -18,6 +18,6 @@ pub use queries::{
     create_query_embeddings_fields,
 };
 pub use workspace::{
-    WorkspaceSubject, create_workspace_batch, create_workspace_fields, create_repository_fields, create_repository_batch,
+    WorkspaceSubject, WorkspacePatchSubject, create_workspace_batch, create_workspace_fields, create_repository_fields, create_repository_batch,
     create_workspace_patch_batch, create_workspace_patch_fields, create_repository_patch_fields, create_repository_patch_batch
 };
