@@ -1,4 +1,5 @@
-use phymes_data::CommandSandboxEnvironments;
+use anyhow::{anyhow, Result};
+use phymes_data::{CommandSandboxConfig, CommandSandboxEnvironments};
 
 use crate::{AvailableInterfaceSubjects, plans::tool_call_session::ToolSessionTrait};
 
@@ -24,35 +25,25 @@ pub struct ExecuteWorkspaceSession<'a> {
     pub subject_name_i: Option<String>,
     /// Output subject name
     pub subject_name_o: String,
-    /// Execution environment
-    pub environment: CommandSandboxEnvironments,
+    /// The environment to execute the workspace
+    /// reasonable defaults in the [CommandSandboxConfig] will be filled in based on this
+    /// 
+    /// [CommandSandboxConfig]: phymes_data::CommandSandboxConfig
+    pub command_sandbox_environment: CommandSandboxEnvironments,
 
 }
 
 impl<'a> Default for ExecuteWorkspaceSession<'a> {
     fn default() -> Self {
-        // Create the project directory
-        let session_context_name = "execute_workspace_session";
-        let workspace_dir = if cfg!(feature = "api") {
-            #[cfg(feature = "api")]
-            {
-                let project_dir = std::env::temp_dir().join(session_context_name);
-                let _ = std::fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
-                let err = format!("Failed to create project directory at `{}`.", project_dir.as_path().to_str().unwrap());
-                std::fs::create_dir(&project_dir).expect(err.as_str());
-                Some(project_dir.as_path().to_str().unwrap().to_string())
-            }            
-        } else {
-            None
-        };
-        let subject_name_o = AvailableInterfaceSubjects::ToolMessages.to_string();
-
         // Initialize with reasonable default names
+        let session_context_name = "execute_workspace_session";
+        let subject_name_o = AvailableInterfaceSubjects::ToolMessages.to_string();
         Self {
             session_context_name,
-            workspace_dir,
+            workspace_dir: Self::workspace_dir(None),
             subject_name_i: None,
-            subject_name_o
+            subject_name_o,
+            command_sandbox_environment: CommandSandboxEnvironments::default()
         }
     }
 }
@@ -69,23 +60,91 @@ impl<'a> ToolSessionTrait<'a> for ExecuteWorkspaceSession<'a> {
 }
 
 impl<'a> ExecuteWorkspaceSession<'a> {
-    pub fn new(session_context_name: &'a str, workspace_dir: Option<&str>, subject_name_i: Option<&str>, subject_name_o: &str) -> Self {
+    pub fn new(session_context_name: &'a str, workspace_dir: Option<&str>, subject_name_i: Option<&str>, subject_name_o: &str, command_sandbox_environment: &CommandSandboxEnvironments) -> Self {
         Self {
             session_context_name,
-            workspace_dir: workspace_dir.map(|dir| dir.to_string()),
+            workspace_dir: Self::workspace_dir(workspace_dir),
             subject_name_i: subject_name_i.map(|s| s.to_string()),
             subject_name_o: subject_name_o.to_string(),
+            command_sandbox_environment: command_sandbox_environment.to_owned()
         }
     }
-    fn erdiagram_workspace_columns(&self) -> String {
-        if let Some(workspace_dir) = self.workspace_dir.as_ref() {
-            format!(r#"
-        Utf8 project_dir "{workspace_dir}"
-        "#)
+
+    /// Workspace directory logic
+    fn workspace_dir(workspace_dir: Option<&str>) -> Option<String> {
+        let session_context_name = "execute_workspace_session";
+        if cfg!(feature = "api") {
+            #[cfg(feature = "api")]
+            if let Some(workspace_dir) = workspace_dir {
+                let err = format!("Failed to create project directory at `{workspace_dir}`.");
+                std::fs::create_dir(workspace_dir).expect(err.as_str());
+                Some(workspace_dir.to_string())
+            } else {
+                let project_dir = std::env::temp_dir().join(session_context_name);
+                let _ = std::fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
+                let err = format!("Failed to create project directory at `{}`.", project_dir.as_path().to_str().unwrap());
+                std::fs::create_dir(&project_dir).expect(err.as_str());
+                Some(project_dir.as_path().to_str().unwrap().to_string())
+            }            
         } else {
-            String::new()
+            None
         }
     }
+
+    /// Currently, supports defaults ONLY for Python and Rust
+    fn command_sandbox_p(&self) -> Result<String> {
+        let mut lines = Vec::new();
+        if let Some(workspace_dir) = self.workspace_dir.as_ref() {
+            let line = format!(r#"Utf8 project_dir "{workspace_dir}""#);
+            lines.push(line);
+            let line = format!(r#"Utf8 data_o "TempFile""#);
+            lines.push(line);
+            let line = format!(r#"Utf8 runner "DockerUnsafe""#);
+            lines.push(line);
+            let line = format!(r#"Utf8 initialization_file "install.sh""#);
+            lines.push(line);
+            if let Some(subject_name_i) = self.subject_name_i.as_ref() {
+                let line = format!(r#"Utf8 subject_name "{subject_name_i}""#);
+                lines.push(line);
+                let line = format!(r#"Utf8 data_i "TempFile""#);
+                lines.push(line);
+            } else {
+                let line = format!(r#"Utf8 data_i "None""#);
+                lines.push(line);
+            }
+            match self.command_sandbox_environment {
+                CommandSandboxEnvironments::Python => {
+                    let line = format!(r#"Utf8 run_file "main.py""#);
+                    lines.push(line);
+                    let line = format!(r#"Utf8 runner "DockerUnsafe""#);
+                    lines.push(line);
+                    let line = format!(r#"Utf8 container_image "python:3.12-slim-trixie""#);
+                    lines.push(line);
+                }
+                CommandSandboxEnvironments::Rust => {
+                    let line = format!(r#"Utf8 run_file "main.rs""#);
+                    lines.push(line);
+                    let line = format!(r#"Utf8 runner "DockerUnsafe""#);
+                    lines.push(line);
+                    let line = format!(r#"Utf8 container_image "amd64/rust""#);
+                    lines.push(line);
+                    let line = format!(r#"Utf8 cli_args "['--release', '--']""#);
+                    lines.push(line);
+                }
+                _ => return Err(anyhow!("Command Sandbox Environment `{}` is not yet supported.", self.command_sandbox_environment))
+            }
+        }
+
+        // Same for every configuration
+        let line = format!(r#"Utf8 container_project_dir "/home/sandbox""#);
+        lines.push(line);
+        let line = format!(r#"Utf8 timeout "5""#);
+        lines.push(line);
+        let line = format!(r#"Utf8 workspace_name "apply_patch_s""#);
+        lines.push(line);
+        Ok(lines.join("\n\t\t"))
+    }
+
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
         let mut flowchart_vec = vec![r#"flowchart TD
@@ -140,52 +199,17 @@ impl<'a> ExecuteWorkspaceSession<'a> {
     }
 
     /// Return the Mermaid.js ER diagram representation of the session
-    pub fn as_mermaid_erdiagram(&self) -> String {
-        let mut erdiagram_vec = vec![r#"erDiagram
+    pub fn as_mermaid_erdiagram(&self) -> Result<String> {
+        let erdiagram = format!(r#"erDiagram
     apply_patch_s["apply_patch_s"] {{
         Utf8 path
         Utf8 content
-    }}"#.to_string()];
-        if let Some(subject_name_i) = self.subject_name_i.as_ref() {
-            let erdiagram_component = format!(r#"
+    }}
     {}
     command_sandbox_p["command_sandbox_p"] {{
-        Utf8 data_i "TempFile"
-        Utf8 data_o "TempFile"{}
-        Utf8 container_project_dir "/home/sandbox"
-        Utf8 initialization_file "install.sh"
-        Utf8 run_file "main.py"
-        Utf8 runner "DockerUnsafe"
-        Utf8 environment "Python"
-        Utf8 container_image "python:3.12-slim-trixie"
-        Utf8 timeout "5"
-        Utf8 subject_name "{subject_name_i}"
-        Utf8 workspace_name "apply_patch_s"
-    }}"#, self.erdiagram_subject_subscriptions(&self.subject_names().iter().map(|s| s.as_str()).collect::<Vec<_>>()), self.erdiagram_workspace_columns());
-            erdiagram_vec.push(erdiagram_component);
-        } else {
-            let erdiagram_component = format!(r#"
-    {}["{}"] {{
-	    Utf8 role
-	    Utf8 content
-	    Int64 timestamp
-    }}
-    command_sandbox_p["command_sandbox_p"] {{
-        Utf8 data_i "None"
-        Utf8 data_o "None"{}
-        Utf8 container_project_dir "/home/sandbox"
-        Utf8 initialization_file "install.sh"
-        Utf8 run_file "main.py"
-        Utf8 runner "DockerUnsafe"
-        Utf8 environment "Python"
-        Utf8 container_image "python:3.12-slim-trixie"
-        Utf8 timeout "5"
-        Utf8 workspace_name "apply_patch_s"
-    }}"#, self.subject_name_o, self.subject_name_o, self.erdiagram_workspace_columns());
-            erdiagram_vec.push(erdiagram_component);
-        }
-        erdiagram_vec.join("") 
-        
+        {}
+    }}"#, self.erdiagram_subject_subscriptions(&self.subject_names().iter().map(|s| s.as_str()).collect::<Vec<_>>()), self.command_sandbox_p()?);
+        Ok(erdiagram)     
     }
 }
 
@@ -220,7 +244,7 @@ mod tests {
             false,
         )?
         .with_state_from_mermaid_erdiagram(
-            &execute_workspace_session.as_mermaid_erdiagram(),
+            &execute_workspace_session.as_mermaid_erdiagram()?,
             false,
             true,
         )?
