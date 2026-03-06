@@ -23,8 +23,8 @@ impl Default for ToolResponseSession<'_> {
 }
 
 impl<'a> ToolSessionTrait<'a> for ToolResponseSession<'a> {
-    fn subject_names(&self) -> &'a [&'a str] {
-        self.subject_names
+    fn subject_names(&self) -> Vec<String> {
+        self.subject_names.iter().map(|s| s.to_string()).collect()
     }
 }
 
@@ -47,8 +47,8 @@ impl<'a> ToolResponseSession<'a> {
 	{processor}_p-processor@{{shape: rect, label: PackTabular}}
 	{processor}_p-publish@{{shape: fork}}
 	{processor}_p-subscribe@{{shape: diamond, label: Any}}"#,
-            self.flowchart_subject_subscriptions_1(&[subject_name], &p, "LastRecordBatch"),
-            self.flowchart_subject_subscriptions_2(&[subject_name]))
+            self.flowchart_subject_subscriptions_1(&[&subject_name], &p, "LastRecordBatch"),
+            self.flowchart_subject_subscriptions_2(&[&subject_name]))
             })
             .collect::<Vec<_>>();
         [r#"flowchart TD
@@ -76,7 +76,7 @@ impl<'a> ToolResponseSession<'a> {
         Utf8 lhs_name "{subject_name}"
         Utf8 doc_name "{subject_name}"
         Utf8 lhs_stream "Accumulate"
-    }}"#, self.erdiagram_subject_subscriptions())
+    }}"#, self.erdiagram_subject_subscriptions(&[&subject_name]))
             })
             .collect::<Vec<_>>();
         [r#"erDiagram

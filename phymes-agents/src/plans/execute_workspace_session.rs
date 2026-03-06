@@ -1,4 +1,13 @@
+use phymes_data::CommandSandboxEnvironments;
+
+use crate::{AvailableInterfaceSubjects, plans::tool_call_session::ToolSessionTrait};
+
 /// A session for executing code workspaces
+/// 
+/// # Notes
+/// 
+/// - It is assumed that the data_i and data_o subject schemas will be overwritten
+///   when this session is `extended` to the base session
 /// 
 /// # TODO
 /// 
@@ -11,6 +20,13 @@ pub struct ExecuteWorkspaceSession<'a> {
     pub session_context_name: &'a str,
     /// The Temp directory for reading/writing workspace files
     pub workspace_dir: Option<String>,
+    /// Input subject name
+    pub subject_name_i: Option<String>,
+    /// Output subject name
+    pub subject_name_o: String,
+    /// Execution environment
+    pub environment: CommandSandboxEnvironments,
+
 }
 
 impl<'a> Default for ExecuteWorkspaceSession<'a> {
@@ -29,17 +45,39 @@ impl<'a> Default for ExecuteWorkspaceSession<'a> {
         } else {
             None
         };
+        let subject_name_o = AvailableInterfaceSubjects::ToolMessages.to_string();
 
         // Initialize with reasonable default names
         Self {
             session_context_name,
-            workspace_dir
+            workspace_dir,
+            subject_name_i: None,
+            subject_name_o
         }
     }
 }
 
+impl<'a> ToolSessionTrait<'a> for ExecuteWorkspaceSession<'a> {
+    fn subject_names(&self) -> Vec<String> {
+        let mut subject_names_vec = Vec::new();
+        if let Some(subject_name_i) = self.subject_name_i.as_ref() {
+            subject_names_vec.push(subject_name_i)
+        }
+        subject_names_vec.push(&self.subject_name_o);
+        subject_names_vec.iter().map(|s| s.to_string()).collect()
+    }
+}
+
 impl<'a> ExecuteWorkspaceSession<'a> {
-    fn workspace_erdiagram_column(&self) -> String {
+    pub fn new(session_context_name: &'a str, workspace_dir: Option<&str>, subject_name_i: Option<&str>, subject_name_o: &str) -> Self {
+        Self {
+            session_context_name,
+            workspace_dir: workspace_dir.map(|dir| dir.to_string()),
+            subject_name_i: subject_name_i.map(|s| s.to_string()),
+            subject_name_o: subject_name_o.to_string(),
+        }
+    }
+    fn erdiagram_workspace_columns(&self) -> String {
         if let Some(workspace_dir) = self.workspace_dir.as_ref() {
             format!(r#"
         Utf8 project_dir "{workspace_dir}"
@@ -49,40 +87,68 @@ impl<'a> ExecuteWorkspaceSession<'a> {
         }
     }
     /// Return the Mermaid.js flowchart representation of the session
-    pub fn as_mermaid_flowchart(&self) -> &str {
-        r#"flowchart TD
-	patch_workspace_r-rt@{shape: subproc, label: patch_workspace_r}
+    pub fn as_mermaid_flowchart(&self) -> String {
+        let mut flowchart_vec = vec![r#"flowchart TD
+	patch_workspace_r-rt@{{shape: subproc, label: patch_workspace_r}}"#.to_string()];
+        if let Some(subject_name_i) = self.subject_name_i.as_ref() {
+            let flowchart_component = format!(r#"
 	%% ------------------------------------------------------------------------------
 	%% Execute workspace
-    && - We listen for any changes to the updated workspace `apply_patch_s` subject
-    &&   AND updates to the dataset we want to execute the workspace code on
+    %% - Listen for any changes to the updated workspace `apply_patch_s` subject
+    %%   Or updates to the dataset we want to execute the workspace code on
 	%% ------------------------------------------------------------------------------
 	subgraph command_sandbox_t
 		apply_patch_s-subject-.->|FullTable|command_sandbox_p-subscribe
-		workspace_data_s-subject-.->|FullTable|command_sandbox_p-subscribe
+        {}-subject-.->|FullTable|command_sandbox_p-subscribe
 		command_sandbox_p-subscribe-->command_sandbox_p-processor
 		command_sandbox_p-processor-->command_sandbox_p-publish
-		command_sandbox_p-publish-->|Extend|command_sandbox_s-subject
+		command_sandbox_p-publish-->|Extend|{}-subject
 	end
 	patch_workspace_r-rt-->command_sandbox_t
-	apply_patch_s-subject@{shape: doc, label: apply_patch_s}
-	workspace_data_s-subject@{shape: doc, label: workspace_data_s}
-	command_sandbox_p-processor@{shape: rect, label: CommandSandboxProcessor}
-	command_sandbox_p-publish@{shape: fork}
-	command_sandbox_p-subscribe@{shape: diamond, label: Any}
-	command_sandbox_s-subject@{shape: doc, label: command_sandbox_s}
-	%% ------------------------------------------------------------------------------"#
+	apply_patch_s-subject@{{shape: doc, label: apply_patch_s}}
+	{}-subject@{{shape: doc, label: {}}}
+	command_sandbox_p-processor@{{shape: rect, label: CommandSandboxProcessor}}
+	command_sandbox_p-publish@{{shape: fork}}
+	command_sandbox_p-subscribe@{{shape: diamond, label: Any}}
+	{}-subject@{{shape: doc, label: {}}}
+	%% ------------------------------------------------------------------------------"#, 
+            subject_name_i, self.subject_name_o, subject_name_i, subject_name_i, self.subject_name_o, self.subject_name_o);
+            flowchart_vec.push(flowchart_component);
+        } else {
+            let flowchart_component = format!(r#"
+	%% ------------------------------------------------------------------------------
+	%% Execute workspace
+    %% - Listen for any changes to the updated workspace `apply_patch_s` subject
+	%% ------------------------------------------------------------------------------
+	subgraph command_sandbox_t
+		apply_patch_s-subject-.->|FullTable|command_sandbox_p-subscribe
+		command_sandbox_p-subscribe-->command_sandbox_p-processor
+		command_sandbox_p-processor-->command_sandbox_p-publish
+		command_sandbox_p-publish-->|Extend|{}-subject
+	end
+	patch_workspace_r-rt-->command_sandbox_t
+	apply_patch_s-subject@{{shape: doc, label: apply_patch_s}}
+	command_sandbox_p-processor@{{shape: rect, label: CommandSandboxProcessor}}
+	command_sandbox_p-publish@{{shape: fork}}
+	command_sandbox_p-subscribe@{{shape: diamond, label: Any}}
+	{}-subject@{{shape: doc, label: {}}}
+	%% ------------------------------------------------------------------------------"#, 
+            self.subject_name_o, self.subject_name_o, self.subject_name_o);
+            flowchart_vec.push(flowchart_component);
+        }
+        flowchart_vec.join("")        
     }
+
     /// Return the Mermaid.js ER diagram representation of the session
     pub fn as_mermaid_erdiagram(&self) -> String {
-        format!(r#"erDiagram
+        let mut erdiagram_vec = vec![r#"erDiagram
     apply_patch_s["apply_patch_s"] {{
         Utf8 path
         Utf8 content
-    }}
-    workspace_data_s["workspace_data_s"] {{
-        DM, todo: Define the schema
-    }}
+    }}"#.to_string()];
+        if let Some(subject_name_i) = self.subject_name_i.as_ref() {
+            let erdiagram_component = format!(r#"
+    {}
     command_sandbox_p["command_sandbox_p"] {{
         Utf8 data_i "TempFile"
         Utf8 data_o "TempFile"{}
@@ -93,12 +159,33 @@ impl<'a> ExecuteWorkspaceSession<'a> {
         Utf8 environment "Python"
         Utf8 container_image "python:3.12-slim-trixie"
         Utf8 timeout "5"
-        Utf8 subject_name "workspace_data_s"
+        Utf8 subject_name "{subject_name_i}"
         Utf8 workspace_name "apply_patch_s"
+    }}"#, self.erdiagram_subject_subscriptions(&self.subject_names().iter().map(|s| s.as_str()).collect::<Vec<_>>()), self.erdiagram_workspace_columns());
+            erdiagram_vec.push(erdiagram_component);
+        } else {
+            let erdiagram_component = format!(r#"
+    {}["{}"] {{
+	    Utf8 role
+	    Utf8 content
+	    Int64 timestamp
     }}
-    command_sandbox_s["command_sandbox_s"] {{
-        DM, todo: update schema
-    }}"#, self.workspace_erdiagram_column())
+    command_sandbox_p["command_sandbox_p"] {{
+        Utf8 data_i "None"
+        Utf8 data_o "None"{}
+        Utf8 container_project_dir "/home/sandbox"
+        Utf8 initialization_file "install.sh"
+        Utf8 run_file "main.py"
+        Utf8 runner "DockerUnsafe"
+        Utf8 environment "Python"
+        Utf8 container_image "python:3.12-slim-trixie"
+        Utf8 timeout "5"
+        Utf8 workspace_name "apply_patch_s"
+    }}"#, self.subject_name_o, self.subject_name_o, self.erdiagram_workspace_columns());
+            erdiagram_vec.push(erdiagram_component);
+        }
+        erdiagram_vec.join("") 
+        
     }
 }
 
@@ -129,7 +216,7 @@ mod tests {
         // Initialize the session
         let execute_workspace_session = ExecuteWorkspaceSession::default();
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
-            execute_workspace_session.as_mermaid_flowchart(),
+            &execute_workspace_session.as_mermaid_flowchart(),
             false,
         )?
         .with_state_from_mermaid_erdiagram(

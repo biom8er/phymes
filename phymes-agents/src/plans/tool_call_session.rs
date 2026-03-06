@@ -3,12 +3,12 @@ use phymes_core::items_to_list;
 
 pub trait ToolSessionTrait<'a> {
     /// Subjects to listen for
-    fn subject_names(&self) -> &'a [&'a str];
+    fn subject_names(&self) -> Vec<String>;
 
     /// ER Diagram subjects as `Bytes`
-    fn erdiagram_subject_subscriptions(&self) -> String {
+    fn erdiagram_subject_subscriptions(&self, subject_names: &[&str]) -> String {
         let mut subscriptions_vec = Vec::new();
-        for subject_name in self.subject_names() {
+        for subject_name in subject_names {
             let line = format!(
                 r#"{subject_name}["{subject_name}"] {{
         List-UInt8 bytes
@@ -21,7 +21,7 @@ pub trait ToolSessionTrait<'a> {
 
     /// List of subjects compatible with List-Utf8
     fn subject_columns(&self) -> Result<String> {
-        items_to_list(self.subject_names())
+        items_to_list(&self.subject_names().iter().map(|s| s.as_str()).collect::<Vec<_>>())
     }
 
     /// Flowchart subjects subscriptions part 1
@@ -64,8 +64,8 @@ impl Default for ToolCallSession<'_> {
 }
 
 impl<'a> ToolSessionTrait<'a> for ToolCallSession<'a> {
-    fn subject_names(&self) -> &'a [&'a str] {
-        self.subject_names
+    fn subject_names(&self) -> Vec<String> {
+        self.subject_names.iter().map(|s| s.to_string()).collect()
     }
 }
 
@@ -180,10 +180,10 @@ impl<'a> ToolCallSession<'a> {
 	call_processor_p-publish@{{shape: fork}}
 	call_processor_p-subscribe@{{shape: diamond, label: Any}}
 	SessionTasksSubscribePublish-subject@{{shape: doc, label: SessionTasksSubscribePublish}}"#,
-            self.flowchart_subject_subscriptions_1(self.subject_names(), "group_by_processors_subscriptions_p", "OnUpdateEmpty"),
-            self.flowchart_subject_subscriptions_2(self.subject_names()),
-            self.flowchart_subject_subscriptions_1(self.subject_names(), "group_by_processors_publications_p", "OnUpdateEmpty"),
-            self.flowchart_subject_subscriptions_1(self.subject_names(), "call_processor_p", "LastRecordBatch")
+            self.flowchart_subject_subscriptions_1(&self.subject_names().iter().map(|s| s.as_str()).collect::<Vec<_>>(), "group_by_processors_subscriptions_p", "OnUpdateEmpty"),
+            self.flowchart_subject_subscriptions_2(&self.subject_names().iter().map(|s| s.as_str()).collect::<Vec<_>>()),
+            self.flowchart_subject_subscriptions_1(&self.subject_names().iter().map(|s| s.as_str()).collect::<Vec<_>>(), "group_by_processors_publications_p", "OnUpdateEmpty"),
+            self.flowchart_subject_subscriptions_1(&self.subject_names().iter().map(|s| s.as_str()).collect::<Vec<_>>(), "call_processor_p", "LastRecordBatch")
         )
     }
 
@@ -324,7 +324,7 @@ impl<'a> ToolCallSession<'a> {
         List-Utf8 publication_names
         List-Utf8 publication_table_names
     }}"#,
-            self.erdiagram_subject_subscriptions(), self.subject_columns()?
+            self.erdiagram_subject_subscriptions(&self.subject_names().iter().map(|s| s.as_str()).collect::<Vec<_>>()), self.subject_columns()?
         );
         Ok(er_diagram)
     }
