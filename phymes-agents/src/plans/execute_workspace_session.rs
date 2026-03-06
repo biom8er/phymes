@@ -41,7 +41,9 @@ impl<'a> Default for ExecuteWorkspaceSession<'a> {
 impl<'a> ExecuteWorkspaceSession<'a> {
     fn workspace_erdiagram_column(&self) -> String {
         if let Some(workspace_dir) = self.workspace_dir.as_ref() {
-            format!(r#"\n\t\tUtf8 project_dir "{workspace_dir}"\n\t\t"#)
+            format!(r#"
+        Utf8 project_dir "{workspace_dir}"
+        "#)
         } else {
             String::new()
         }

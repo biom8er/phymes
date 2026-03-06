@@ -1,11 +1,56 @@
 use anyhow::Result;
 use phymes_core::items_to_list;
 
-/// A session for determining the next superstep task publications and subscriptions
+pub trait ToolSessionTrait<'a> {
+    /// Subjects to listen for
+    fn subject_names(&self) -> &'a [&'a str];
+
+    /// ER Diagram subjects as `Bytes`
+    fn erdiagram_subject_subscriptions(&self) -> String {
+        let mut subscriptions_vec = Vec::new();
+        for subject_name in self.subject_names() {
+            let line = format!(
+                r#"{subject_name}["{subject_name}"] {{
+        List-UInt8 bytes
+    }}"#
+            );
+            subscriptions_vec.push(line);
+        }
+        subscriptions_vec.join("\n\t")
+    }
+
+    /// List of subjects compatible with List-Utf8
+    fn subject_columns(&self) -> Result<String> {
+        items_to_list(self.subject_names())
+    }
+
+    /// Flowchart subjects subscriptions part 1
+    fn flowchart_subject_subscriptions_1(&self, subject_names: &[&str], processor: &str, subscription: &str) -> String {
+        let mut subscriptions_vec = Vec::new();
+        for subject_name in subject_names {
+            let line = format!("{subject_name}-subject-.->|{subscription}|{processor}-subscribe");
+            subscriptions_vec.push(line);
+        }
+        subscriptions_vec.join("\n\t\t")
+    }
+
+    /// Flowchart subjects subscriptions part 2
+    fn flowchart_subject_subscriptions_2(&self, subject_names: &[&str]) -> String {
+        let mut subscriptions_vec = Vec::new();
+        for subject_name in subject_names {
+            let line = format!("{subject_name}-subject@{{shape: doc, label: {subject_name}}}");
+            subscriptions_vec.push(line);
+        }
+        subscriptions_vec.join("\n\t")
+    }
+    
+}
+
+/// A session for dynamic tool calling
 pub struct ToolCallSession<'a> {
     /// Session
     pub session_context_name: &'a str,
-    /// Subjects to listen for to trigger the view
+    /// Subjects to listen for
     pub subject_names: &'a [&'a str],
 }
 
@@ -18,43 +63,18 @@ impl Default for ToolCallSession<'_> {
     }
 }
 
+impl<'a> ToolSessionTrait<'a> for ToolCallSession<'a> {
+    fn subject_names(&self) -> &'a [&'a str] {
+        self.subject_names
+    }
+}
+
 impl<'a> ToolCallSession<'a> {
     pub fn new(session_context_name: &'a str, subject_names: &'a [&'a str]) -> Self {
         ToolCallSession {
             session_context_name,
             subject_names,
         }
-    }
-    fn erdiagram_subject_subscriptions(&self) -> String {
-        let mut subscriptions_vec = Vec::new();
-        for subject_name in self.subject_names {
-            let line = format!(
-                r#"{subject_name}["{subject_name}"] {{
-        List-UInt8 bytes
-    }}"#
-            );
-            subscriptions_vec.push(line);
-        }
-        subscriptions_vec.join("\n\t")
-    }
-    fn subject_columns(&self) -> Result<String> {
-        items_to_list(self.subject_names)
-    }
-    fn flowchart_subject_subscriptions_1(&self, processor: &str, subscription: &str) -> String {
-        let mut subscriptions_vec = Vec::new();
-        for subject_name in self.subject_names {
-            let line = format!("{subject_name}-subject-.->|{subscription}|{processor}-subscribe");
-            subscriptions_vec.push(line);
-        }
-        subscriptions_vec.join("\n\t\t")
-    }
-    fn flowchart_subject_subscriptions_2(&self) -> String {
-        let mut subscriptions_vec = Vec::new();
-        for subject_name in self.subject_names {
-            let line = format!("{subject_name}-subject@{{shape: doc, label: {subject_name}}}");
-            subscriptions_vec.push(line);
-        }
-        subscriptions_vec.join("\n\t")
     }
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
@@ -160,10 +180,10 @@ impl<'a> ToolCallSession<'a> {
 	call_processor_p-publish@{{shape: fork}}
 	call_processor_p-subscribe@{{shape: diamond, label: Any}}
 	SessionTasksSubscribePublish-subject@{{shape: doc, label: SessionTasksSubscribePublish}}"#,
-            self.flowchart_subject_subscriptions_1("group_by_processors_subscriptions_p", "OnUpdateEmpty"),
-            self.flowchart_subject_subscriptions_2(),
-            self.flowchart_subject_subscriptions_1("group_by_processors_publications_p", "OnUpdateEmpty"),
-            self.flowchart_subject_subscriptions_1("call_processor_p", "LastRecordBatch")
+            self.flowchart_subject_subscriptions_1(self.subject_names(), "group_by_processors_subscriptions_p", "OnUpdateEmpty"),
+            self.flowchart_subject_subscriptions_2(self.subject_names()),
+            self.flowchart_subject_subscriptions_1(self.subject_names(), "group_by_processors_publications_p", "OnUpdateEmpty"),
+            self.flowchart_subject_subscriptions_1(self.subject_names(), "call_processor_p", "LastRecordBatch")
         )
     }
 

@@ -20,8 +20,9 @@ mod next_task_session;
 mod patch_workspace_session;
 mod retrieve_text_session;
 mod tool_agent_session;
-mod user_session;
 mod tool_call_session;
+mod tool_response_session;
+mod user_session;
 
 pub use available_interface_subjects::{
     AvailableInterfaceSubjects, check_agent_subjects, create_message_map,
@@ -47,7 +48,8 @@ pub(crate) use next_task_session::NextTaskSession;
 pub use patch_workspace_session::PatchWorkspaceSession;
 pub use retrieve_text_session::RetrieveTextSession;
 pub use tool_agent_session::ToolAgentSession;
+pub use tool_call_session::ToolCallSession;
+pub use tool_response_session::ToolResponseSession;
 pub use user_session::UserSession;
 #[allow(unused_imports)]
 pub(crate) use user_session::user_session_inner;
-pub use tool_call_session::ToolCallSession;

@@ -38,6 +38,7 @@ impl<'a> PatchWorkspaceSession<'a> {
 	patch_workspace_r-rt-->apply_patch_t
 	WorkspacePatch-subject@{shape: doc, label: WorkspacePatch}
 	Workspace-subject@{shape: doc, label: Workspace}
+	apply_patch_p-subject@{shape: doc, label: apply_patch_p}
 	apply_patch_p-processor@{shape: rect, label: ApplyPatch}
 	apply_patch_p-publish@{shape: fork}
 	apply_patch_p-subscribe@{shape: diamond, label: All}
@@ -202,6 +203,7 @@ pub use todo::Todo"#,
                 rhs_values: Some(vec!["diff".to_string(), "operator".to_string()]),
                 lhs_pk: Some("path".to_string()),
                 rhs_pk: Some("filename".to_string()),
+                doc_patch: Some("[\"\"]".to_string()), // DM: equivalent of serde_json::to_string(&[serde_json::to_value("")?])?;
                 cpu: false,
                 operator: AvailableCandleOperators::ApplyPatch,
                 lhs_stream: DataStreamManager::Accumulate,
@@ -232,6 +234,23 @@ pub use todo::Todo"#,
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+
+        {
+            // Debug any errors
+            let subjects_reading = session_ctx_arc.read();
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            let table_reading = subjects_reading
+                .get_states()
+                .get(AvailableSubjects::SessionTraces.to_string().as_str())
+                .unwrap()
+                .read();
+            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+        }
 
         assert_eq!(response.len(), 0);
 
@@ -421,23 +440,6 @@ pub use todo::Todo"#,
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
-
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            let table_reading = subjects_reading
-                .get_states()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
 
         assert_eq!(response.len(), 0);
 
