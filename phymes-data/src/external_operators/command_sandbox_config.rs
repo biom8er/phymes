@@ -173,17 +173,26 @@ if __name__ == '__main__':
 
     # Your transformation
     df['age'] = df['age'] + 10
-    
-    # Write back out as Feather v2 (fully compatible with Pandas)
-    #df.to_feather(args.output_file, version=2)
 
     # Convert pandas back to Arrow
     table_out = pa.Table.from_pandas(df)
 
+    # One-liner to make all fields non-nullable
+    new_schema = pa.schema([pa.field(f.name, f.type, nullable=False) for f in table_out.schema])
+
+    # Cast the table to the new schema
+    # This will fail if there are actual nulls in the data
+    try:
+        table_non_nullable = table_out.cast(new_schema)
+    except pa.ArrowInvalid as e:
+        raise ValueError(
+            "Cannot cast to non-nullable schema because null values exist in the data."
+        ) from e
+
     # Write Arrow IPC File format (Rust-compatible)
     with pa.OSFile(args.output_file, "wb") as f:
-        writer = ipc.RecordBatchFileWriter(f, table_out.schema)
-        writer.write_table(table_out)
+        writer = ipc.RecordBatchFileWriter(f, table_non_nullable.schema)
+        writer.write_table(table_non_nullable)
         writer.close()"#,
                     r#"#!/usr/bin/env bash
 set -e
