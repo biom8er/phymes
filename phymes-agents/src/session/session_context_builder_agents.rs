@@ -760,7 +760,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
             // Return an error if the config didn't pass one of the checks
             if !passed_config_checks {
-                if let Err(err) = DataConfig::from_table(table) {
+                if let Err(err) = CommandSandboxConfig::from_table(table) {
                     return Err(anyhow!(
                         "Config could not be built for subject `{}` and Error `{err}` when trying to build for DataConfig with table `{table:?}`.",
                         table.get_name()

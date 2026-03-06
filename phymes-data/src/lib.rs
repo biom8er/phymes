@@ -24,7 +24,7 @@ pub use candle_operators::{
 pub use external_operators::{
     CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxProcessor,
     CommandSandboxRunners, DataIOMethod, HTTPClientConfig, HTTPClientRequestProcessor,
-    HTTPClientRequestSchemas, HTTPClientRequestState, HTTPClientRequestType,
+    HTTPClientRequestSchemas, HTTPClientRequestState, HTTPClientRequestType, test_command_sandbox_processor
 };
 pub use patch::{ApplyDiffMode, PatchOperation, PatchOperator, apply_patch_auto, apply_v4a_diff};
 #[cfg(feature = "api")]

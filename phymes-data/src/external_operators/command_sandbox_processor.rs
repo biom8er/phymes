@@ -1711,6 +1711,20 @@ impl RecordBatchStream for CommandSandboxStream {
     }
 }
 
+pub mod test_command_sandbox_processor {
+    use super::*;
+    use arrow::array::{ArrayRef, StringArray, UInt32Array};
+
+    pub fn create_messages() -> Result<RecordBatch> {
+        let names = vec!["Alice", "Bob"];
+        let names_arr: ArrayRef = Arc::new(StringArray::from(names));
+        let ages = vec![30, 25];
+        let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
+        let batch = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
+        Ok(batch)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray, UInt32Array};
@@ -2685,11 +2699,7 @@ mod tests {
             .build()?;
 
         // Make the input data for the script
-        let names = vec!["Alice", "Bob"];
-        let names_arr: ArrayRef = Arc::new(StringArray::from(names));
-        let ages = vec![30, 25];
-        let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
-        let batch = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
+        let batch = test_command_sandbox_processor::create_messages()?;
 
         let message_table = TableBuilder::new()
             .with_record_batches(vec![batch])?
@@ -2850,11 +2860,7 @@ if __name__ == '__main__':
             .build()?;
 
         // Make the input data for the script
-        let names = vec!["Alice", "Bob"];
-        let names_arr: ArrayRef = Arc::new(StringArray::from(names));
-        let ages = vec![30, 25];
-        let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
-        let batch = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
+        let batch = test_command_sandbox_processor::create_messages()?;
 
         let message_table = TableBuilder::new()
             .with_record_batches(vec![batch])?
@@ -2963,11 +2969,7 @@ if __name__ == '__main__':
             .build()?;
 
         // Make the input data for the script
-        let names = vec!["Alice", "Bob"];
-        let names_arr: ArrayRef = Arc::new(StringArray::from(names));
-        let ages = vec![30, 25];
-        let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
-        let batch = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
+        let batch = test_command_sandbox_processor::create_messages()?;
 
         let message_table = TableBuilder::new()
             .with_record_batches(vec![batch])?
@@ -3327,11 +3329,7 @@ fn main() -> Result<()> {
             .build()?;
 
         // Make the input data for the script
-        let names = vec!["Alice", "Bob"];
-        let names_arr: ArrayRef = Arc::new(StringArray::from(names));
-        let ages = vec![30, 25];
-        let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
-        let batch = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
+        let batch = test_command_sandbox_processor::create_messages()?;
 
         let message_table = TableBuilder::new()
             .with_record_batches(vec![batch.clone()])?
@@ -3549,11 +3547,7 @@ fn main() -> Result<()> {
             .build()?;
 
         // Make the input data for the script
-        let names = vec!["Alice", "Bob"];
-        let names_arr: ArrayRef = Arc::new(StringArray::from(names));
-        let ages = vec![30, 25];
-        let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
-        let batch_1 = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
+        let batch_1 = test_command_sandbox_processor::create_messages()?;
         let names = vec!["Joe"];
         let names_arr: ArrayRef = Arc::new(StringArray::from(names));
         let ages = vec![40];
@@ -3645,11 +3639,7 @@ apt install --assume-yes protobuf-compiler clang"#;
             .build()?;
 
         // Make the input data for the script
-        let names = vec!["Alice", "Bob"];
-        let names_arr: ArrayRef = Arc::new(StringArray::from(names));
-        let ages = vec![30, 25];
-        let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
-        let batch = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
+        let batch = test_command_sandbox_processor::create_messages()?;
 
         let message_table = TableBuilder::new()
             .with_record_batches(vec![batch])?
@@ -3759,11 +3749,7 @@ apt install --assume-yes protobuf-compiler clang"#;
             .build()?;
 
         // Make the input data for the script
-        let names = vec!["Alice", "Bob"];
-        let names_arr: ArrayRef = Arc::new(StringArray::from(names));
-        let ages = vec![30, 25];
-        let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
-        let batch = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
+        let batch = test_command_sandbox_processor::create_messages()?;
 
         let message_table = TableBuilder::new()
             .with_record_batches(vec![batch])?
