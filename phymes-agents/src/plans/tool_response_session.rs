@@ -6,6 +6,7 @@ use crate::plans::tool_call_session::ToolSessionTrait;
 /// - Specifying the schema for each subject is not needed because
 ///   `extend`ing with this session will skip duplicate subjects
 ///   that are already defined in the source session
+/// - Any limits to the row counts should be taken care of prior
 pub struct ToolResponseSession<'a> {
     /// Session
     pub session_context_name: &'a str,
