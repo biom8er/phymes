@@ -760,7 +760,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
             // Return an error if the config didn't pass one of the checks
             if !passed_config_checks {
-                if let Err(err) = CommandSandboxConfig::from_table(table) {
+                if let Err(err) = DataConfig::from_table(table) {
                     return Err(anyhow!(
                         "Config could not be built for subject `{}` and Error `{err}` when trying to build for DataConfig with table `{table:?}`.",
                         table.get_name()
@@ -1198,7 +1198,7 @@ pub mod test_session_context_builder_agents {
         TablePublication, TableSubscription, test_table::make_test_table,
         test_task::make_runtime_env,
     };
-    use phymes_data::{AvailableCandleOperators, DataConfig};
+    use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator};
 
     use super::*;
 
@@ -1308,6 +1308,7 @@ pub mod test_session_context_builder_agents {
             lhs_pk: Some("id".to_string()),
             rhs_pk: Some("id".to_string()),
             operator: AvailableCandleOperators::Join,
+            join_operators: Some(DataJoinOperator::default()),
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();

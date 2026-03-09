@@ -1,7 +1,7 @@
 use crate::plans::tool_call_session::ToolSessionTrait;
 
 /// A session for dynamic tool response summarization
-/// 
+///
 /// # Note
 /// - Specifying the schema for each subject is not needed because
 ///   `extend`ing with this session will skip duplicate subjects
@@ -32,11 +32,14 @@ impl<'a> ToolSessionTrait<'a> for ToolResponseSession<'a> {
 impl<'a> ToolResponseSession<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
-        let subgraphs = self.subject_names().into_iter()
+        let subgraphs = self
+            .subject_names()
+            .into_iter()
             .map(|subject_name| {
                 let processor = format!("tool_response_{subject_name}_processor");
                 let p = format!("{processor}_p");
-                format!(r#"
+                format!(
+                    r#"
     subgraph {processor}_t
 		{}
 		{processor}_p-subscribe-->{processor}_p-processor
@@ -48,27 +51,31 @@ impl<'a> ToolResponseSession<'a> {
 	{processor}_p-processor@{{shape: rect, label: PackTabular}}
 	{processor}_p-publish@{{shape: fork}}
 	{processor}_p-subscribe@{{shape: diamond, label: Any}}"#,
-            self.flowchart_subject_subscriptions_1(&[&subject_name], &p, "LastRecordBatch"),
-            self.flowchart_subject_subscriptions_2(&[&subject_name]))
+                    self.flowchart_subject_subscriptions_1(&[&subject_name], &p, "LastRecordBatch"),
+                    self.flowchart_subject_subscriptions_2(&[&subject_name])
+                )
             })
             .collect::<Vec<_>>();
         [r#"flowchart TD
     ToolResponseSession_runtime_env-rt@{shape: subproc, label: ToolResponseSession_runtime_env}
-	ToolMessages-subject@{shape: doc, label: ToolMessages}"#.to_string()].into_iter()
-            .chain(subgraphs)
-            .collect::<Vec<_>>()
-            .join("")
-        
+	ToolMessages-subject@{shape: doc, label: ToolMessages}"#
+            .to_string()]
+        .into_iter()
+        .chain(subgraphs)
+        .collect::<Vec<_>>()
+        .join("")
     }
 
     /// Return the Mermaid.js ER Diagram representation of the session
     pub fn as_mermaid_erdiagram(&self) -> String {
-        let subgraphs = self.subject_names()
+        let subgraphs = self
+            .subject_names()
             .into_iter()
             .map(|subject_name| {
                 let processor = format!("tool_response_{subject_name}_processor");
                 let p = format!("{processor}_p");
-                format!(r#"
+                format!(
+                    r#"
     {}
     {p}["{p}"] {{
         Utf8 operator "PackTabular"
@@ -77,7 +84,9 @@ impl<'a> ToolResponseSession<'a> {
         Utf8 lhs_name "{subject_name}"
         Utf8 doc_name "{subject_name}"
         Utf8 lhs_stream "Accumulate"
-    }}"#, self.erdiagram_subject_subscriptions(&[&subject_name]))
+    }}"#,
+                    self.erdiagram_subject_subscriptions(&[&subject_name])
+                )
             })
             .collect::<Vec<_>>();
         [r#"erDiagram
@@ -85,10 +94,12 @@ impl<'a> ToolResponseSession<'a> {
 	    Utf8 role
 	    Utf8 content
 	    Int64 timestamp
-	}"#.to_string()].into_iter()
-            .chain(subgraphs)
-            .collect::<Vec<_>>()
-            .join("")
+	}"#
+        .to_string()]
+        .into_iter()
+        .chain(subgraphs)
+        .collect::<Vec<_>>()
+        .join("")
     }
 }
 
@@ -100,12 +111,16 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, TablePublication, TableTrait, create_bytes_record_batch
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage,
+        MappableTrait, MessageBuilderTrait, TablePublication, TableTrait,
+        create_bytes_record_batch,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, create_message_map
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
+        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
+        create_message_map,
     };
 
     use super::*;
@@ -120,7 +135,11 @@ mod tests {
             &tool_response_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(&tool_response_session.as_mermaid_erdiagram(), false, true)?
+        .with_state_from_mermaid_erdiagram(
+            &tool_response_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
         .with_name(tool_response_session.session_context_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
@@ -157,7 +176,11 @@ mod tests {
 
             let table_reading = session_reading
                 .get_states()
-                .get(AvailableInterfaceSubjects::ToolMessages.to_string().as_str())
+                .get(
+                    AvailableInterfaceSubjects::ToolMessages
+                        .to_string()
+                        .as_str(),
+                )
                 .unwrap()
                 .read();
             let column = table_reading.get_column_as_vec_str("role");

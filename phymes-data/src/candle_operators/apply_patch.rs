@@ -7,7 +7,9 @@ use arrow::{
 };
 use candle_core::Device;
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType, WorkspacePatchSubject
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, Function,
+    FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait,
+    TableTrait, Tool, ToolType, WorkspacePatchSubject,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -158,7 +160,7 @@ impl DataOperatorTrait for ApplyPatch {
             rhs_values,
             lhs_pk,
             rhs_pk,
-            doc_patch
+            doc_patch,
         })
     }
 }
@@ -199,7 +201,7 @@ pub fn apply_patch(
     // Extract out the patches
     let rhs_args = if let Some(rhs_args) = rhs_args {
         rhs_args.to_vec()
-    } else {        
+    } else {
         Table::get_builder()
             .with_name("apply_patch with doc_patch as Value")
             .with_schema(AvailableSubjects::WorkspacePatch.to_schema())
@@ -971,11 +973,16 @@ pub use todo::Todo"#,
             "@@ pub mod extra;\n+pub mod other;\n",
             "+pub struct Other {}\n*** End Patch",
         ];
-        let doc_patch = patch_paths.into_iter()
+        let doc_patch = patch_paths
+            .into_iter()
             .zip(patches)
             .zip(operations)
             .map(|((filename, diff), operator)| {
-                let patch = WorkspacePatchSubject { filename: filename.to_string(), diff: diff.to_string(), operator };
+                let patch = WorkspacePatchSubject {
+                    filename: filename.to_string(),
+                    diff: diff.to_string(),
+                    operator,
+                };
                 serde_json::to_value(&patch).unwrap()
             })
             .collect::<Vec<_>>();

@@ -13,9 +13,10 @@ pub use plans::ExecuteWorkspaceSession;
 pub use plans::{
     AvailableInterfaceSubjects, AvailableProcessors, AvailableSessionPlans, BuilderSession,
     ChatAgentSession, DiagnosticSession, DocumentRAGSession, EmbedTextSession,
-    ExtractOntologySession, ExtractPDFSession, GenerateTextSession, MeltStudyDataSession, PatchWorkspaceSession,
-    RetrieveTextSession, ToolAgentSession, ToolCallSession, ToolResponseSession, UserSession, check_agent_subjects,
-    create_message_map, make_example_mermaid_table,
+    ExtractOntologySession, ExtractPDFSession, GenerateTextSession, MeltStudyDataSession,
+    PatchWorkspaceSession, RetrieveTextSession, ToolAgentSession, ToolCallSession,
+    ToolResponseSession, UserSession, check_agent_subjects, create_message_map,
+    make_example_mermaid_table,
 };
 pub use session::{
     CustomAgentsBuilderTrait, SessionContext, SessionContextBuilder,

@@ -5,7 +5,8 @@ use phymes_core::{
     create_schema_from_fields,
 };
 use phymes_data::{
-    AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig, DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig
+    AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
+    DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig,
 };
 #[cfg(feature = "api")]
 use phymes_ml::AvailableOpenAIAssets;
@@ -961,6 +962,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         // Summary top K
         let top_k_summary_config = DataConfig {
             lhs_name: Some(self.state_top_k_limit_docs_table_name.to_string()),
+            doc_name: Some(self.state_top_k_limit_docs_table_name.to_string()),
             format: Some(DataFormat::None),
             cpu: false,
             operator: AvailableCandleOperators::PackTabular,

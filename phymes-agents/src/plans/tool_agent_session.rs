@@ -722,6 +722,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             lhs_stream: DataStreamManager::Accumulate,
             operator: AvailableCandleOperators::PackTabular,
             lhs_name: Some(self.tool_summary_task_name.to_string()),
+            doc_name: Some(self.tool_summary_task_name.to_string()),
             ..Default::default()
         };
         let attachmen_config_json = serde_json::to_vec(&attachment_config).unwrap();
@@ -739,6 +740,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             cpu: false,
             lhs_stream: DataStreamManager::Accumulate,
             lhs_name: Some(self.tool_summary_task_name.to_string()),
+            doc_name: Some(self.tool_summary_task_name.to_string()),
             ..Default::default()
         };
         let summary_config_json = serde_json::to_vec(&summary_config).unwrap();
@@ -754,6 +756,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             cpu: false,
             lhs_stream: DataStreamManager::Accumulate,
             lhs_name: Some(AvailableInterfaceSubjects::AssistantMessages.to_string()),
+            doc_name: Some(AvailableInterfaceSubjects::AssistantMessages.to_string()),
             ..Default::default()
         };
         let summary_config_json = serde_json::to_vec(&summary_config).unwrap();

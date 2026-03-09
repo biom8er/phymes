@@ -1,12 +1,12 @@
+use anyhow::{Result, anyhow};
+use phymes_core::WorkspaceSubject;
 use std::{
     fs,
     io::{Read, Write},
     path::{Path, PathBuf},
 };
-use anyhow::{anyhow, Result};
-use phymes_core::WorkspaceSubject;
 
-use crate::patch::apply_patch::{PatchOperator, PatchOperation, apply_patch_auto};
+use crate::patch::apply_patch::{PatchOperation, PatchOperator, apply_patch_auto};
 
 pub struct WorkspaceEditor {
     root: PathBuf,
@@ -16,9 +16,14 @@ impl WorkspaceEditor {
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self { root: root.into() }
     }
-    
+
     /// Recursively walk the workspace starting at the root accumulating the paths and contents of files
-    fn walk_workspace(&self, dir: &Path, paths: &mut Vec<PathBuf>, contents: &mut Vec<String>) -> Result<()> {
+    fn walk_workspace(
+        &self,
+        dir: &Path,
+        paths: &mut Vec<PathBuf>,
+        contents: &mut Vec<String>,
+    ) -> Result<()> {
         for entry in fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
@@ -100,14 +105,22 @@ impl WorkspaceEditor {
         let mut paths = Vec::<PathBuf>::new();
         let mut contents = Vec::<String>::new();
         self.walk_workspace(&self.root, &mut paths, &mut contents)?;
-        let workspace_subjects = paths.into_iter().zip(contents)
-            .map(|(p, c)| WorkspaceSubject { path: p.to_str().unwrap().to_string(), content: c})
+        let workspace_subjects = paths
+            .into_iter()
+            .zip(contents)
+            .map(|(p, c)| WorkspaceSubject {
+                path: p.to_str().unwrap().to_string(),
+                content: c,
+            })
             .collect::<Vec<_>>();
         Ok(workspace_subjects)
     }
 
     /// Build a new [WorkspaceEditor] after populating the workspace with files
-    pub fn from_workspace_subject(root: impl Into<PathBuf>, workspace: &[WorkspaceSubject]) -> Result<Self> {
+    pub fn from_workspace_subject(
+        root: impl Into<PathBuf>,
+        workspace: &[WorkspaceSubject],
+    ) -> Result<Self> {
         let workspace_editor = WorkspaceEditor::new(root);
         for (path, content) in workspace.iter().map(|w| (&w.path, &w.content)) {
             workspace_editor.create_file(std::path::Path::new(path), content)?;
@@ -191,10 +204,7 @@ pub mod tests {
     #[test]
     fn test_workspace_editor_to_from_workspace_subjects() -> Result<()> {
         // Mock workspace
-        let path = [
-            "install.sh",
-            "src/main.sh",
-        ];
+        let path = ["install.sh", "src/main.sh"];
         let content = [
             r#"#!/usr/bin/env bash
 
@@ -203,15 +213,21 @@ pub mod tests {
 [[ -n "$3" ]] && echo "$3""#,
             r#"#!/bin/sh
 apk add --no-cache bash
-chmod +x ./src/main.sh"#
+chmod +x ./src/main.sh"#,
         ];
-        let workspace_subjects = path.into_iter().zip(content)
-            .map(|(p, c)| WorkspaceSubject { path: p.to_string(), content: c.to_string() })
+        let workspace_subjects = path
+            .into_iter()
+            .zip(content)
+            .map(|(p, c)| WorkspaceSubject {
+                path: p.to_string(),
+                content: c.to_string(),
+            })
             .collect::<Vec<_>>();
 
         // Build the workspace
         let root = temp_root();
-        let workspace_editor = WorkspaceEditor::from_workspace_subject(root.path(), &workspace_subjects)?;
+        let workspace_editor =
+            WorkspaceEditor::from_workspace_subject(root.path(), &workspace_subjects)?;
 
         // Test the conversion
         let test = workspace_editor.to_workspace_subject()?;

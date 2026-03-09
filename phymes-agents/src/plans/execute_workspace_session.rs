@@ -1,18 +1,18 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use phymes_data::CommandSandboxEnvironments;
 
 use crate::{AvailableInterfaceSubjects, plans::tool_call_session::ToolSessionTrait};
 
 /// A session for executing code workspaces
-/// 
+///
 /// # Notes
-/// 
+///
 /// - Specifying the schema for data_i and data_o subject is not needed because
 ///   `extend`ing with this session will skip duplicate subjects
 ///   that are already defined in the source session
-/// 
+///
 /// # TODO
-/// 
+///
 /// - Missing triggers for the different data_i/o methods:
 ///   1. None -> no `subject_name` but `cli_args`
 ///   2. StdIo -> `subject_name` and no `cli_args`
@@ -28,10 +28,9 @@ pub struct ExecuteWorkspaceSession<'a> {
     pub subject_name_o: String,
     /// The environment to execute the workspace
     /// reasonable defaults in the [CommandSandboxConfig] will be filled in based on this
-    /// 
+    ///
     /// [CommandSandboxConfig]: phymes_data::CommandSandboxConfig
     pub command_sandbox_environment: CommandSandboxEnvironments,
-
 }
 
 impl<'a> Default for ExecuteWorkspaceSession<'a> {
@@ -44,7 +43,7 @@ impl<'a> Default for ExecuteWorkspaceSession<'a> {
             workspace_dir: Self::workspace_dir(None),
             subject_name_i: None,
             subject_name_o,
-            command_sandbox_environment: CommandSandboxEnvironments::default()
+            command_sandbox_environment: CommandSandboxEnvironments::default(),
         }
     }
 }
@@ -61,13 +60,19 @@ impl<'a> ToolSessionTrait<'a> for ExecuteWorkspaceSession<'a> {
 }
 
 impl<'a> ExecuteWorkspaceSession<'a> {
-    pub fn new(session_context_name: &'a str, workspace_dir: Option<&str>, subject_name_i: Option<&str>, subject_name_o: &str, command_sandbox_environment: &CommandSandboxEnvironments) -> Self {
+    pub fn new(
+        session_context_name: &'a str,
+        workspace_dir: Option<&str>,
+        subject_name_i: Option<&str>,
+        subject_name_o: &str,
+        command_sandbox_environment: &CommandSandboxEnvironments,
+    ) -> Self {
         Self {
             session_context_name,
             workspace_dir: Self::workspace_dir(workspace_dir),
             subject_name_i: subject_name_i.map(|s| s.to_string()),
             subject_name_o: subject_name_o.to_string(),
-            command_sandbox_environment: command_sandbox_environment.to_owned()
+            command_sandbox_environment: command_sandbox_environment.to_owned(),
         }
     }
 
@@ -83,10 +88,13 @@ impl<'a> ExecuteWorkspaceSession<'a> {
             } else {
                 let project_dir = std::env::temp_dir().join(session_context_name);
                 let _ = std::fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
-                let err = format!("Failed to create project directory at `{}`.", project_dir.as_path().to_str().unwrap());
+                let err = format!(
+                    "Failed to create project directory at `{}`.",
+                    project_dir.as_path().to_str().unwrap()
+                );
                 std::fs::create_dir(&project_dir).expect(err.as_str());
                 Some(project_dir.as_path().to_str().unwrap().to_string())
-            }            
+            }
         } else {
             None
         }
@@ -96,57 +104,78 @@ impl<'a> ExecuteWorkspaceSession<'a> {
     fn command_sandbox_p(&self) -> Result<String> {
         let mut lines = Vec::new();
         if let Some(workspace_dir) = self.workspace_dir.as_ref() {
-            let line = format!(r#"Utf8 project_dir "{workspace_dir}"
+            let line = format!(
+                r#"Utf8 project_dir "{workspace_dir}"
         Utf8 data_o "TempFile"
-        Utf8 initialization_file "install.sh""#);
+        Utf8 initialization_file "install.sh""#
+            );
             lines.push(line);
             if let Some(subject_name_i) = self.subject_name_i.as_ref() {
-                let line = format!(r#"
+                let line = format!(
+                    r#"
         Utf8 subject_name "{subject_name_i}"
-        Utf8 data_i "TempFile""#);
+        Utf8 data_i "TempFile""#
+                );
                 lines.push(line);
             } else {
-                let line = format!(r#"
-        Utf8 data_i "None""#);
+                let line = format!(
+                    r#"
+        Utf8 data_i "None""#
+                );
                 lines.push(line);
             }
             match self.command_sandbox_environment {
                 CommandSandboxEnvironments::Python => {
-                    let line = format!(r#"
+                    let line = format!(
+                        r#"
         Utf8 environment "Python"
         Utf8 run_file "main.py"
         Utf8 runner "DockerUnsafe"
-        Utf8 container_image "python:3.12-slim-trixie""#);
+        Utf8 container_image "python:3.12-slim-trixie""#
+                    );
                     lines.push(line);
                 }
                 CommandSandboxEnvironments::Rust => {
-                    let line = format!(r#"
+                    let line = format!(
+                        r#"
         Utf8 environment "Rust"
         Utf8 run_file "main.rs"
         Utf8 runner "DockerUnsafe"
         Utf8 container_image "amd64/rust"
-        List-Utf8 cli_args "['--release', '--']""#);
+        List-Utf8 cli_args "['--release', '--']""#
+                    );
                     lines.push(line);
                 }
-                _ => return Err(anyhow!("Command Sandbox Environment `{}` is not yet supported.", self.command_sandbox_environment))
+                _ => {
+                    return Err(anyhow!(
+                        "Command Sandbox Environment `{}` is not yet supported.",
+                        self.command_sandbox_environment
+                    ));
+                }
             }
         }
 
         // Same for every configuration
-        let line = format!(r#"
+        let line = format!(
+            r#"
         Utf8 container_project_dir "/home/sandbox"
         UInt32 timeout "5"
-        Utf8 workspace_name "apply_patch_s""#);
+        Utf8 workspace_name "apply_patch_s""#
+        );
         lines.push(line);
         Ok(lines.join(""))
     }
 
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
-        let mut flowchart_vec = vec![r#"flowchart TD
-	patch_workspace_r-rt@{shape: subproc, label: patch_workspace_r}"#.to_string()];
+        let mut flowchart_vec = vec![
+            r#"flowchart TD
+	patch_workspace_r-rt@{shape: subproc, label: patch_workspace_r}"#
+                .to_string(),
+        ];
         if let Some(subject_name_i) = self.subject_name_i.as_ref() {
-            let flowchart_component = format!(r#"
+            let flowchart_component = format!(
+                r#"
 	%% ------------------------------------------------------------------------------
 	%% Execute workspace
     %% - Listen for any changes to the updated workspace `apply_patch_s` subject
@@ -166,11 +195,18 @@ impl<'a> ExecuteWorkspaceSession<'a> {
 	command_sandbox_p-publish@{{shape: fork}}
 	command_sandbox_p-subscribe@{{shape: diamond, label: Any}}
 	{}-subject@{{shape: doc, label: {}}}
-	%% ------------------------------------------------------------------------------"#, 
-            subject_name_i, self.subject_name_o, subject_name_i, subject_name_i, self.subject_name_o, self.subject_name_o);
+	%% ------------------------------------------------------------------------------"#,
+                subject_name_i,
+                self.subject_name_o,
+                subject_name_i,
+                subject_name_i,
+                self.subject_name_o,
+                self.subject_name_o
+            );
             flowchart_vec.push(flowchart_component);
         } else {
-            let flowchart_component = format!(r#"
+            let flowchart_component = format!(
+                r#"
 	%% ------------------------------------------------------------------------------
 	%% Execute workspace
     %% - Listen for any changes to the updated workspace `apply_patch_s` subject
@@ -187,16 +223,18 @@ impl<'a> ExecuteWorkspaceSession<'a> {
 	command_sandbox_p-publish@{{shape: fork}}
 	command_sandbox_p-subscribe@{{shape: diamond, label: Any}}
 	{}-subject@{{shape: doc, label: {}}}
-	%% ------------------------------------------------------------------------------"#, 
-            self.subject_name_o, self.subject_name_o, self.subject_name_o);
+	%% ------------------------------------------------------------------------------"#,
+                self.subject_name_o, self.subject_name_o, self.subject_name_o
+            );
             flowchart_vec.push(flowchart_component);
         }
-        flowchart_vec.join("")        
+        flowchart_vec.join("")
     }
 
     /// Return the Mermaid.js ER diagram representation of the session
     pub fn as_mermaid_erdiagram(&self) -> Result<String> {
-        let erdiagram = format!(r#"erDiagram
+        let erdiagram = format!(
+            r#"erDiagram
     apply_patch_s["apply_patch_s"] {{
         Utf8 path
         Utf8 content
@@ -204,8 +242,17 @@ impl<'a> ExecuteWorkspaceSession<'a> {
     {}
     command_sandbox_p["command_sandbox_p"] {{
         {}
-    }}"#, self.erdiagram_subject_subscriptions(&self.subject_names().iter().map(|s| s.as_str()).collect::<Vec<_>>()), self.command_sandbox_p()?);
-        Ok(erdiagram)     
+    }}"#,
+            self.erdiagram_subject_subscriptions(
+                &self
+                    .subject_names()
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>()
+            ),
+            self.command_sandbox_p()?
+        );
+        Ok(erdiagram)
     }
 }
 
@@ -217,14 +264,15 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait,
+        MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
     };
     use phymes_data::test_command_sandbox_processor;
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait,
-        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream,
     };
 
     use super::*;
@@ -238,11 +286,12 @@ mod tests {
 
         // Initialize the session
         let execute_workspace_session = ExecuteWorkspaceSession::new(
-            "execute_workspace_session", 
-            None, 
-            Some(subject_name_i), 
-            subject_name_o, 
-            &CommandSandboxEnvironments::Rust);
+            "execute_workspace_session",
+            None,
+            Some(subject_name_i),
+            subject_name_o,
+            &CommandSandboxEnvironments::Rust,
+        );
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
             &execute_workspace_session.as_mermaid_flowchart(),
             false,
@@ -301,10 +350,28 @@ mod tests {
             // Update the subject schemas dynamically
             let mut session_writing = session_ctx_arc.write();
             if let Some(_subject) = session_writing.state.remove(subject_name_i) {
-                let _ = session_writing.state.insert(message_table.get_name().to_string(), Arc::new(RwLock::new(TableBuilder::default().with_name(message_table.get_name()).with_schema(message_table.get_schema()).with_record_batches(Vec::new())?.build()?)));
+                let _ = session_writing.state.insert(
+                    message_table.get_name().to_string(),
+                    Arc::new(RwLock::new(
+                        TableBuilder::default()
+                            .with_name(message_table.get_name())
+                            .with_schema(message_table.get_schema())
+                            .with_record_batches(Vec::new())?
+                            .build()?,
+                    )),
+                );
             }
             if let Some(_subject) = session_writing.state.remove(subject_name_o) {
-                let _ = session_writing.state.insert(subject_name_o.to_string(), Arc::new(RwLock::new(TableBuilder::default().with_name(subject_name_o).with_schema(message_table.get_schema()).with_record_batches(Vec::new())?.build()?)));
+                let _ = session_writing.state.insert(
+                    subject_name_o.to_string(),
+                    Arc::new(RwLock::new(
+                        TableBuilder::default()
+                            .with_name(subject_name_o)
+                            .with_schema(message_table.get_schema())
+                            .with_record_batches(Vec::new())?
+                            .build()?,
+                    )),
+                );
             }
         }
 
@@ -356,11 +423,12 @@ mod tests {
 
         // Initialize the session
         let execute_workspace_session = ExecuteWorkspaceSession::new(
-            "execute_workspace_session", 
-            None, 
-            Some(subject_name_i), 
-            subject_name_o, 
-            &CommandSandboxEnvironments::Python);
+            "execute_workspace_session",
+            None,
+            Some(subject_name_i),
+            subject_name_o,
+            &CommandSandboxEnvironments::Python,
+        );
         let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
             &execute_workspace_session.as_mermaid_flowchart(),
             false,
@@ -419,10 +487,28 @@ mod tests {
             // Update the subject schemas dynamically
             let mut session_writing = session_ctx_arc.write();
             if let Some(_subject) = session_writing.state.remove(subject_name_i) {
-                let _ = session_writing.state.insert(message_table.get_name().to_string(), Arc::new(RwLock::new(TableBuilder::default().with_name(message_table.get_name()).with_schema(message_table.get_schema()).with_record_batches(Vec::new())?.build()?)));
+                let _ = session_writing.state.insert(
+                    message_table.get_name().to_string(),
+                    Arc::new(RwLock::new(
+                        TableBuilder::default()
+                            .with_name(message_table.get_name())
+                            .with_schema(message_table.get_schema())
+                            .with_record_batches(Vec::new())?
+                            .build()?,
+                    )),
+                );
             }
             if let Some(_subject) = session_writing.state.remove(subject_name_o) {
-                let _ = session_writing.state.insert(subject_name_o.to_string(), Arc::new(RwLock::new(TableBuilder::default().with_name(subject_name_o).with_schema(message_table.get_schema()).with_record_batches(Vec::new())?.build()?)));
+                let _ = session_writing.state.insert(
+                    subject_name_o.to_string(),
+                    Arc::new(RwLock::new(
+                        TableBuilder::default()
+                            .with_name(subject_name_o)
+                            .with_schema(message_table.get_schema())
+                            .with_record_batches(Vec::new())?
+                            .build()?,
+                    )),
+                );
             }
         }
 

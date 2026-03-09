@@ -24,11 +24,12 @@ pub use candle_operators::{
 pub use external_operators::{
     CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxProcessor,
     CommandSandboxRunners, DataIOMethod, HTTPClientConfig, HTTPClientRequestProcessor,
-    HTTPClientRequestSchemas, HTTPClientRequestState, HTTPClientRequestType, test_command_sandbox_processor
+    HTTPClientRequestSchemas, HTTPClientRequestState, HTTPClientRequestType,
+    test_command_sandbox_processor,
 };
-pub use patch::{ApplyDiffMode, PatchOperation, PatchOperator, apply_patch_auto, apply_v4a_diff};
 #[cfg(feature = "api")]
 pub use patch::WorkspaceEditor;
+pub use patch::{ApplyDiffMode, PatchOperation, PatchOperator, apply_patch_auto, apply_v4a_diff};
 pub use template::{
     AvailableJinja2Templates, MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_INPUT,
     MERMAID_ER_DIAGRAM_RELATIONS_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE, MERMAID_FLOWCHART_INPUT,

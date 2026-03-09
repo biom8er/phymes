@@ -4,10 +4,16 @@ use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Table, WorkspacePatchSubject, test_processor::{ProcessorError, ProcessorMock}
+    AvailableSubjects, DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait,
+    Table, WorkspacePatchSubject,
+    test_processor::{ProcessorError, ProcessorMock},
 };
 use phymes_data::{
-    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor, CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig, LimitProcessor, ToolTrait
+    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,
+    CandleDataProcessor, CoalesceProcessor, DataAggregatorOperator, DataCastOperator,
+    DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig,
+    DataConfigTrait, DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig,
+    LimitProcessor, ToolTrait,
 };
 #[cfg(feature = "api")]
 use phymes_data::{
@@ -347,10 +353,11 @@ impl DataConfigTrait for AvailableProcessors {
                 rhs_values: Some(vec!["diff".to_string(), "operator".to_string()]),
                 lhs_pk: Some("path".to_string()),
                 rhs_pk: Some("filename".to_string()),
-                doc_patch: Some(serde_json::to_string(&[WorkspacePatchSubject { 
+                doc_patch: Some(serde_json::to_string(&[WorkspacePatchSubject {
                     filename: "filename".to_string(),
                     diff: "@@ content\n+new content\n".to_string(),
-                    operator: "Update".to_string()}])?),
+                    operator: "Update".to_string(),
+                }])?),
                 cpu: false,
                 operator: AvailableCandleOperators::ApplyPatch,
                 lhs_stream: DataStreamManager::Accumulate,

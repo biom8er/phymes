@@ -210,6 +210,7 @@ impl<'a> RetrieveTextSession<'a> {
 	}
 	summarize_documents_scores_p["summarize_documents_scores_p"] {
 	    Utf8 lhs_name "select_documents_scores_s"
+	    Utf8 doc_name "select_documents_scores"
 	    Boolean cpu "false"
 	    Utf8 operator "PackTabular"
 	    Utf8 lhs_stream "Accumulate"

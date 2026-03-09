@@ -148,9 +148,10 @@ fn normalize_diff_lines(diff: &str) -> Vec<String> {
         .collect();
 
     if let Some(last) = lines.last()
-        && last.is_empty() {
-            lines.pop();
-        }
+        && last.is_empty()
+    {
+        lines.pop();
+    }
     lines
 }
 

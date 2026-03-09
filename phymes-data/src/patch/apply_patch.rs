@@ -80,12 +80,13 @@ fn classify_diff(diff: &str) -> DiffKind {
         {
             v4a_score += 2;
         } else if let Some(first) = trimmed.chars().next()
-            && (first == '+' || first == '-' || first == ' ') {
-                // Only count as V4A-ish if we haven't seen any strong DMP header yet.
-                if dmp_score == 0 {
-                    v4a_score += 1;
-                }
+            && (first == '+' || first == '-' || first == ' ')
+        {
+            // Only count as V4A-ish if we haven't seen any strong DMP header yet.
+            if dmp_score == 0 {
+                v4a_score += 1;
             }
+        }
     }
 
     if dmp_score >= 3 && v4a_score == 0 {

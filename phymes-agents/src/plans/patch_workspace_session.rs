@@ -46,8 +46,8 @@ impl<'a> PatchWorkspaceSession<'a> {
 	%% ------------------------------------------------------------------------------"#
     }
     /// Return the Mermaid.js ER diagram representation of the session
-    pub fn as_mermaid_erdiagram(&self) -> String {
-        format!(r#"erDiagram
+    pub fn as_mermaid_erdiagram(&self) -> &str {
+        r#"erDiagram
     WorkspacePatch["WorkspacePatch"] {{
         Utf8 filename
         Utf8 diff
@@ -63,7 +63,7 @@ impl<'a> PatchWorkspaceSession<'a> {
     apply_patch_s["apply_patch_s"] {{
         Utf8 path
         Utf8 content
-    }}"#)
+    }}"#
     }
 }
 
@@ -75,15 +75,17 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, WorkspacePatchSubject, create_bytes_record_batch, create_workspace_batch, create_workspace_patch_batch
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage,
+        MappableTrait, MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication,
+        TableTrait, WorkspacePatchSubject, create_bytes_record_batch, create_workspace_batch,
+        create_workspace_patch_batch,
     };
     use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager, PatchOperator};
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait,
-        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
-        ToolCallSession,
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream, ToolCallSession,
     };
 
     use super::*;
@@ -97,7 +99,7 @@ mod tests {
             false,
         )?
         .with_state_from_mermaid_erdiagram(
-            &patch_workspace_session.as_mermaid_erdiagram(),
+            patch_workspace_session.as_mermaid_erdiagram(),
             false,
             true,
         )?
@@ -291,8 +293,7 @@ pub use todo::Todo"#,
     #[tokio::test(flavor = "current_thread")]
     async fn test_patch_workspace_session_wo_subjects() -> Result<()> {
         // View task session
-        let tool_call_session =
-            ToolCallSession::new("tool_call_session", &["apply_patch_p"]);
+        let tool_call_session = ToolCallSession::new("tool_call_session", &["apply_patch_p"]);
         let tool_call_session_builder = SessionContextBuilder::from_mermaid_flowchart(
             &tool_call_session.as_mermaid_flowchart(),
             false,
@@ -307,7 +308,7 @@ pub use todo::Todo"#,
             false,
         )?
         .with_state_from_mermaid_erdiagram(
-            &patch_workspace_session.as_mermaid_erdiagram(),
+            patch_workspace_session.as_mermaid_erdiagram(),
             false,
             true,
         )?
@@ -392,11 +393,16 @@ pub use todo::Todo"#,
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-            let values = filename.into_iter()
+            let values = filename
+                .into_iter()
                 .zip(content)
                 .zip(operator)
                 .map(|((filename, diff), operator)| {
-                    let patch = WorkspacePatchSubject { filename, diff: diff, operator };
+                    let patch = WorkspacePatchSubject {
+                        filename,
+                        diff,
+                        operator,
+                    };
                     serde_json::to_value(&patch).unwrap()
                 })
                 .collect::<Vec<_>>();

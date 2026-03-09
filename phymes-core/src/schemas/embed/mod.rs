@@ -1,7 +1,7 @@
 mod blob;
 mod documents;
-mod queries;
 mod openai_embedding; // Based on openai-api-rs <https://github.com/dongri/openai-api-rs>
+mod queries;
 mod workspace;
 
 pub use blob::{
@@ -18,6 +18,7 @@ pub use queries::{
     create_query_embeddings_fields,
 };
 pub use workspace::{
-    WorkspaceSubject, WorkspacePatchSubject, create_workspace_batch, create_workspace_fields, create_repository_fields, create_repository_batch,
-    create_workspace_patch_batch, create_workspace_patch_fields, create_repository_patch_fields, create_repository_patch_batch
+    WorkspacePatchSubject, WorkspaceSubject, create_repository_batch, create_repository_fields,
+    create_repository_patch_batch, create_repository_patch_fields, create_workspace_batch,
+    create_workspace_fields, create_workspace_patch_batch, create_workspace_patch_fields,
 };

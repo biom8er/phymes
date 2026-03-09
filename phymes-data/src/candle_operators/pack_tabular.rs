@@ -205,7 +205,11 @@ pub fn table_and_data_format_to_record_batch(
 
 /// Pack tabular data in either CSV or JSON format from Bytes
 #[instrument(skip(lhs_args, format))]
-pub fn pack_tabular(lhs_args: &[RecordBatch], format: &DataFormat, doc_name: &str) -> Result<RecordBatch> {
+pub fn pack_tabular(
+    lhs_args: &[RecordBatch],
+    format: &DataFormat,
+    doc_name: &str,
+) -> Result<RecordBatch> {
     // Pack the values
     let args_table = Table::get_builder()
         .with_name(doc_name)
@@ -240,7 +244,11 @@ mod tests {
             make_embeddings_record_batch_str_f32("lhs_pk", lhs_ids_vec, lhs_embeddings_vec)?;
 
         // Pack the tabular data
-        let result = pack_tabular(&[lhs_batch], &DataFormat::None, "test_pack_tabular_message_format")?;
+        let result = pack_tabular(
+            &[lhs_batch],
+            &DataFormat::None,
+            "test_pack_tabular_message_format",
+        )?;
 
         // Wrap the results in a table
         let partitions = Table::get_builder()
@@ -272,7 +280,11 @@ mod tests {
         let lhs_batch = RecordBatch::try_from_iter(vec![("lhs_pk", ids_ar)])?;
 
         // Pack the tabular data
-        let result = pack_tabular(&[lhs_batch], &DataFormat::CsvDefault, "test_pack_tabular_blob_formats")?;
+        let result = pack_tabular(
+            &[lhs_batch],
+            &DataFormat::CsvDefault,
+            "test_pack_tabular_blob_formats",
+        )?;
 
         // Wrap the results in a table
         let partitions = Table::get_builder()

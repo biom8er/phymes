@@ -37,10 +37,10 @@ pub use document_rag_session::DocumentRAGSession;
 #[cfg(feature = "api")]
 pub use download_content_session::DownloadContentSession;
 pub use embed_text_session::EmbedTextSession;
-pub use extract_ontology_session::ExtractOntologySession;
-pub use extract_pdf_session::ExtractPDFSession;
 #[cfg(feature = "api")]
 pub use execute_workspace_session::ExecuteWorkspaceSession;
+pub use extract_ontology_session::ExtractOntologySession;
+pub use extract_pdf_session::ExtractPDFSession;
 pub use generate_text_session::GenerateTextSession;
 pub use melt_study_data_session::MeltStudyDataSession;
 pub(crate) use next_superstep_session::NextSuperstepSession;

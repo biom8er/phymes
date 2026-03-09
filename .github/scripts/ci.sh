@@ -35,11 +35,11 @@ echo "-----------------------------------------------"
 cargo check --features wsl,api,candle --all-targets
 cargo test --features wsl,api,candle
 
-# API without Candle tests require API key from OpenAI or NVIDIA or NVIDIA self-hosted NIMS
-echo "Tests and examples for api features for Linux targets."
-echo "-----------------------------------------------"
-cargo check --features wsl,api --all-targets
-cargo test --features wsl,api
+# # API without Candle tests require API key from OpenAI or NVIDIA or NVIDIA self-hosted NIMS
+# echo "Tests and examples for api features for Linux targets."
+# echo "-----------------------------------------------"
+# cargo check --features wsl,api --all-targets
+# cargo test --features wsl,api
 
 echo "Compilation checks for Linux targets."
 echo "-----------------------------------------------"

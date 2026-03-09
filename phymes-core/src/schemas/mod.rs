@@ -16,11 +16,14 @@ pub use chat::{
 };
 pub use embed::{
     AttachmentBuilderTraitExt, AttachmentsSubject, EmbeddingRequest, EmbeddingResponse,
-    EncodingFormat, WorkspaceSubject, WorkspacePatchSubject, create_attachments_batch, create_attachments_fields,
-    create_blob_batch, create_blob_fields, create_document_embeddings_fields, create_documents_batch, create_documents_embeddings_batch,
+    EncodingFormat, WorkspacePatchSubject, WorkspaceSubject, create_attachments_batch,
+    create_attachments_fields, create_blob_batch, create_blob_fields,
+    create_document_embeddings_fields, create_documents_batch, create_documents_embeddings_batch,
     create_documents_fields, create_embeddings_scores_fields, create_join_chunks_scores_fields,
-    create_queries_batch, create_queries_fields, create_query_embeddings_batch, create_query_embeddings_fields, create_workspace_batch, create_workspace_fields, create_repository_fields, create_repository_batch,
-    create_workspace_patch_batch, create_workspace_patch_fields, create_repository_patch_fields, create_repository_patch_batch
+    create_queries_batch, create_queries_fields, create_query_embeddings_batch,
+    create_query_embeddings_fields, create_repository_batch, create_repository_fields,
+    create_repository_patch_batch, create_repository_patch_fields, create_workspace_batch,
+    create_workspace_fields, create_workspace_patch_batch, create_workspace_patch_fields,
 };
 pub use http::{e_utils, open_alex, semantic_scholar};
 
