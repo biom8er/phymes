@@ -7,7 +7,7 @@ use phymes_core::{
     TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_user_batch,
     create_user_session_contexts_batch,
 };
-use phymes_data::{AvailableCandleOperators, DataConfig};
+use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator};
 use phymes_diagnostics::create_timestamp_micros;
 
 use crate::{
@@ -237,6 +237,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
             rhs_name: Some(AvailableSubjects::User.to_string()),
             rhs_pk: Some("email".to_string()),
             rhs_fk: Some("email".to_string()),
+            join_operators: Some(DataJoinOperator::Inner),
             ..Default::default()
         };
         let filter_user_info_data_config_json =
@@ -257,6 +258,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
             rhs_name: Some(AvailableSubjects::UserSessionContexts.to_string()),
             rhs_pk: Some("email".to_string()),
             rhs_fk: Some("email".to_string()),
+            join_operators: Some(DataJoinOperator::Inner),
             ..Default::default()
         };
         let filter_user_session_context_data_config_json =
@@ -277,6 +279,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
             rhs_name: Some(AvailableSubjects::BuilderMermaid.to_string()),
             rhs_pk: Some("session_context_name".to_string()),
             rhs_fk: Some("session_context_name".to_string()),
+            join_operators: Some(DataJoinOperator::Inner),
             ..Default::default()
         };
         let join_user_session_context_data_config_json =

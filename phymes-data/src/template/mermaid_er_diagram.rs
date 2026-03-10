@@ -34,7 +34,7 @@ pub static MERMAID_ER_DIAGRAM_INPUT: &str = r#"{
 mod tests {
     use std::sync::Arc;
 
-    use crate::jinja2_templates::{
+    use crate::template::{
         TEMPLATE_TABLE_EXPRESSION,
         mermaid_html::{MERMAID_HTML_POST, MERMAID_HTML_PRE},
     };

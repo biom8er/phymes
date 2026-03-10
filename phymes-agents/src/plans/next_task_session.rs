@@ -733,6 +733,8 @@ impl<'a> NextTaskSession<'a> {
         Utf8 rhs_name "SessionTasks"
         Utf8 rhs_pk "task_name"
         Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
     }
     SessionTasks["SessionTasks"] {
         Utf8 session_name
@@ -750,6 +752,8 @@ impl<'a> NextTaskSession<'a> {
         Utf8 rhs_name "select_processors_subscriptions_s"
         Utf8 rhs_pk "processor_name"
         Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
     }
     join_tasks_processors_subscriptions_subjects_p["join_tasks_processors_subscriptions_subjects_p"] {
         Boolean cpu "false"
@@ -761,6 +765,8 @@ impl<'a> NextTaskSession<'a> {
         Utf8 rhs_name "group_by_subject_change_log_timestamp_s"
         Utf8 rhs_pk "subject_name"
         Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
     }
     select_tasks_processors_subscriptions_subjects_p["select_tasks_processors_subscriptions_subjects_p"] {
         List-Utf8 as_columns "['','','','','subscription_name','subscription_table_name','','','','']"
@@ -839,6 +845,8 @@ impl<'a> NextTaskSession<'a> {
         Utf8 rhs_name "group_by_tasks_processors_publications_s"
         Utf8 rhs_pk "processor_name"
         Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
     }
     select_tasks_processors_publications_p["select_tasks_processors_publications_p"] {
         Boolean cpu "false"

@@ -158,7 +158,7 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AssistantJson
             | Self::AggregatedAttachments
             | Self::AssistantScript => {
-                AvailableSubjects::Blob.to_table(Some(name.as_str()), batches)
+                AvailableSubjects::Attachments.to_table(Some(name.as_str()), batches)
             }
         }
     }
@@ -187,7 +187,7 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AssistantJson
             | Self::AggregatedAttachments
             | Self::AssistantScript => {
-                AvailableSubjects::Blob.to_table_builder(Some(name.as_str()))
+                AvailableSubjects::Attachments.to_table_builder(Some(name.as_str()))
             }
         }
     }
@@ -212,7 +212,7 @@ impl AvailableSchemaTrait for AvailableInterfaceSubjects {
             | Self::AssistantCsv
             | Self::AssistantJson
             | Self::AggregatedAttachments
-            | Self::AssistantScript => AvailableSubjects::Blob.to_schema(),
+            | Self::AssistantScript => AvailableSubjects::Attachments.to_schema(),
         }
     }
 }

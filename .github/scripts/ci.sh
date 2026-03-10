@@ -5,7 +5,7 @@
 set -e
 
 # Define log file (with timestamp to avoid overwriting)
-LOG_FILE="ci_log_$(date +'%Y-%m-%d_%H-%M-%S').txt"
+LOG_FILE="./target/ci_log_$(date +'%Y-%m-%d_%H-%M-%S').txt"
 
 # Redirect all output (stdout & stderr) to both terminal and log file
 exec > >(tee -a "$LOG_FILE") 2>&1
@@ -19,6 +19,7 @@ echo "-----------------------------------------------"
 cargo test
 dx build -p phymes-app
 
+# GPU tests require CUDA or Metal
 echo "Tests and examples for gpu feature for Linux targets."
 echo "-----------------------------------------------"
 cargo check --features wsl,gpu,candle --all-targets
@@ -28,14 +29,20 @@ cargo run --package phymes-agents --features wsl,gpu,candle --release --example 
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example doc_rag_session
 cargo run --package phymes-agents --features wsl,gpu,candle --release --example tool_agent_session
 
-echo "Tests and examples for api feature for Linux targets."
+# API with Candle tests require Docker and an internet connection
+echo "Tests and examples for api and candle features for Linux targets."
 echo "-----------------------------------------------"
 cargo check --features wsl,api,candle --all-targets
 cargo test --features wsl,api,candle
 
+# # API without Candle tests require API key from OpenAI or NVIDIA or NVIDIA self-hosted NIMS
+# echo "Tests and examples for api features for Linux targets."
+# echo "-----------------------------------------------"
+# cargo check --features wsl,api --all-targets
+# cargo test --features wsl,api
+
 echo "Compilation checks for Linux targets."
 echo "-----------------------------------------------"
-cargo test --features wsl,candle,api
 cargo check --all-targets
 cargo check -p phymes-diagnostics --all-targets --no-default-features --features wsl
 cargo check -p phymes-core --all-targets --no-default-features --features wsl

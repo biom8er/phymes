@@ -142,7 +142,7 @@ mod tests {
     };
     use serde_json::Map;
 
-    use crate::jinja2_templates::{TEMPLATE_HEADER_EXPRESSION, TEMPLATE_TABLE_EXPRESSION};
+    use crate::template::{TEMPLATE_HEADER_EXPRESSION, TEMPLATE_TABLE_EXPRESSION};
 
     use super::*;
 

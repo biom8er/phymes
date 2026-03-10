@@ -10,7 +10,7 @@ use phymes_core::{
     SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait,
-    create_blob_fields, remove_message_by_subject,
+    create_attachments_fields, remove_message_by_subject,
 };
 
 use crate::{
@@ -91,7 +91,7 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
         // Collect the messages with the messages schema
-        let input = collect_messages_by_schema(&mut message, &create_blob_fields());
+        let input = collect_messages_by_schema(&mut message, &create_attachments_fields());
 
         // Extract out the config
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
@@ -101,7 +101,7 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
 
         // Run the aggregator stream
         let out = Box::pin(AggregatorStream::new(
-            AvailableSubjects::Blob.to_schema(),
+            AvailableSubjects::Attachments.to_schema(),
             input,
             config,
             Arc::clone(&runtime_env),

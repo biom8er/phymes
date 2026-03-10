@@ -6,6 +6,6 @@ mod http_client_processor;
 pub use command_sandbox_config::{
     CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod,
 };
-pub use command_sandbox_processor::CommandSandboxProcessor;
+pub use command_sandbox_processor::{CommandSandboxProcessor, test_command_sandbox_processor};
 pub use http_client_config::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
 pub use http_client_processor::{HTTPClientRequestProcessor, HTTPClientRequestState};

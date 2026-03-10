@@ -14,6 +14,7 @@ use crate::schemas::http::{
     open_alex_topic::Topic,
     open_alex_works::Work,
 };
+use clap::ValueEnum;
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 
@@ -120,17 +121,16 @@ pub enum InstitutionRelationship {
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum InstitutionType {
-    Education,
-    Healthcare,
-    Company,
     Archive,
-    Nonprofit,
-    Government,
+    Company,
+    Education,
     Facility,
-    Other,
+    Government,
+    Healthcare,
+    Nonprofit,
     #[default]
     #[serde(other)]
-    Unknown,
+    Other,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
@@ -169,21 +169,76 @@ pub enum KeywordType {
     Unknown,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq, ValueEnum)]
 pub enum WorkType {
+    #[value(name = "Article")]
+    #[serde(alias = "article")]
     Article,
+    /// Added to support peer review
+    #[value(name = "AuthorResponse")]
+    #[serde(alias = "author-response")]
+    AuthorResponse,
+    #[value(name = "Book")]
+    #[serde(alias = "book")]
     Book,
+    #[value(name = "BookChapter")]
+    #[serde(alias = "book-chapter")]
     BookChapter,
+    #[value(name = "Dataset")]
+    #[serde(alias = "dataset")]
     Dataset,
-    Review,
-    ReferenceEntry,
+    #[value(name = "Dissertation")]
+    #[serde(alias = "dissertation")]
     Dissertation,
+    #[value(name = "Editorial")]
+    #[serde(alias = "editorial")]
+    Editorial,
+    /// Added to support peer review
+    #[value(name = "EditorDecision")]
+    #[serde(alias = "editor-decision")]
+    EditorDecision,
+    #[value(name = "Erratum")]
+    #[serde(alias = "erratum")]
+    Erratum,
+    #[value(name = "Letter")]
+    #[serde(alias = "letter")]
+    Letter,
+    #[value(name = "Libguides")]
+    #[serde(alias = "libguides")]
+    Libguides,
+    #[value(name = "Paratext")]
+    #[serde(alias = "paratext")]
+    Paratext,
+    /// Also called RefereeReport
+    #[value(name = "PeerReview")]
+    #[serde(alias = "peer-review")]
+    PeerReview,
+    #[value(name = "Preprint")]
+    #[serde(alias = "preprint")]
+    Preprint,
+    #[value(name = "ReferenceEntry")]
+    #[serde(alias = "reference-entry")]
+    ReferenceEntry,
+    #[value(name = "Report")]
+    #[serde(alias = "report")]
     Report,
-    Other,
+    #[value(name = "Retraction")]
+    #[serde(alias = "retraction")]
+    Retraction,
+    #[value(name = "Review")]
+    #[serde(alias = "review")]
+    Review,
+    #[value(name = "Standard")]
+    #[serde(alias = "standard")]
+    Standard,
+    #[value(name = "SupplementaryMaterials")]
+    #[serde(alias = "supplementary-materials")]
+    SupplementaryMaterials,
+    #[value(name = "Other")]
+    #[serde(alias = "other")]
     #[default]
     #[serde(other)]
-    Unknown,
+    Other,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, PartialEq)]

@@ -1,3 +1,4 @@
+mod apply_patch;
 mod apply_template;
 mod available_candle_operators;
 mod chunk_documents;
@@ -16,6 +17,7 @@ mod select;
 mod sort;
 mod vector_distance;
 
+pub use apply_patch::ApplyPatch;
 pub use apply_template::ApplyTemplate;
 pub use available_candle_operators::{AvailableCandleOperators, convert_destinations_to_tools};
 pub use chunk_documents::ChunkDocuments;

@@ -18,36 +18,11 @@ impl<'a> DownloadContentSession<'a> {
         r#"flowchart TD
 	download_content_r-rt@{shape: subproc, label: download_content_r}
 	%% ------------------------------------------------------------------------------
-	%% Tool call processor that enables calling processors from their config
-	%% ------------------------------------------------------------------------------
-	subgraph call_processor_t
-        select_tasks_processors_subscriptions_publications_aggregated_s-subject-.->|FullTable|echo_processor_p-subscribe
-		echo_processor_p-subscribe-->echo_processor_p-processor
-		echo_processor_p-processor-->echo_processor_p-publish
-		echo_processor_p-publish-->|Extend|select_tasks_processors_subscriptions_publications_aggregated_s-subject
-        select_tasks_processors_subscriptions_publications_aggregated_s-subject-->|FullTable|call_processor_p-subscribe
-		download_pdf_p-subject-.->|LastRecordBatch|call_processor_p-subscribe
-		download_json_p-subject-.->|LastRecordBatch|call_processor_p-subscribe
-		call_processor_p-subscribe-->call_processor_p-processor
-		call_processor_p-processor-->call_processor_p-publish
-		call_processor_p-publish-->|Extend|SessionTasksSubscribePublish-subject
-	end
-	download_content_r-rt-->call_processor_t
-	select_tasks_processors_subscriptions_publications_aggregated_s-subject@{shape: doc, label: select_tasks_processors_subscriptions_publications_aggregated_s}
-	echo_processor_p-processor@{shape: rect, label: ProcessorEcho}
-	echo_processor_p-publish@{shape: fork}
-	echo_processor_p-subscribe@{shape: diamond, label: All}
-	%%echo_processor_s-subject@{shape: doc, label: echo_processor_s}
-	call_processor_p-processor@{shape: rect, label: ToolCallProcessor}
-	call_processor_p-publish@{shape: fork}
-	call_processor_p-subscribe@{shape: diamond, label: Any}
-	SessionTasksSubscribePublish-subject@{shape: doc, label: SessionTasksSubscribePublish}
-	%% ------------------------------------------------------------------------------
 	%% PDF document downloading
     %% - We listen for updates both on the config `download_pdf_p` subject
     %%   AND a data `http_client_request_pdf_s` subject which is in the form of a UserMessage
     %%   which can both specify the URL to download the PDF from
-    %% - The `view_task_session` is used to trigger the download when only the config is updated
+    %% - The `tool_call_session` is used to trigger the download when only the config is updated
 	%% ------------------------------------------------------------------------------
 	subgraph download_pdf_t
 		http_client_request_pdf_s-subject-.->|FullTable|download_pdf_p-subscribe
@@ -68,7 +43,7 @@ impl<'a> DownloadContentSession<'a> {
     %% - We listen for updates both on the config `download_json_p` subject
     %%   AND a data `http_client_request_json_s` subject which is in the form of a UserMessage
     %%   which can both specify the URL to download the JSON from
-    %% - The `view_task_session` is used to trigger the download when only the config is updated
+    %% - The `tool_call_session` is used to trigger the download when only the config is updated
 	%% ------------------------------------------------------------------------------
 	subgraph download_json_t
 		http_client_request_json_s-subject-.->|FullTable|download_json_p-subscribe
@@ -85,37 +60,15 @@ impl<'a> DownloadContentSession<'a> {
 	download_json_p-subscribe@{shape: diamond, label: All}
 	UserJson-subject@{shape: doc, label: UserJson}
 	%% ------------------------------------------------------------------------------
-	%% Other document downloads can be added as shown above...
+    %% Next steps
+	%% - Other document downloads can be added as shown above...
+	%% - Other tool calls can be integrated based on the above template...
+	%% - A tool message needs to be generated based on the responses...
 	%% ------------------------------------------------------------------------------"#
     }
     /// Return the Mermaid.js ER diagram representation of the session
     pub fn as_mermaid_erdiagram(&self) -> &str {
         r#"erDiagram
-    select_tasks_processors_subscriptions_publications_aggregated_s["select_tasks_processors_subscriptions_publications_aggregated_s"] {
-        Utf8 session_name
-        Utf8 task_name
-        Utf8 processor_name
-        Utf8 processor_type
-        List-Utf8 subscription_names
-        List-Utf8 subscription_table_names
-        List-Utf8 publication_names
-        List-Utf8 publication_table_names
-    }
-    call_processor_p["call_processor_p"] {
-        Utf8 subject_name "select_tasks_processors_subscriptions_publications_aggregated_s"
-        List-Utf8 subject_names "['download_pdf_p', 'download_json_p']"
-        List-Utf8 subscription_table_names "['lhs_name', 'rhs_name', 'subject_name']"
-    }
-    SessionTasksSubscribePublish["SessionTasksSubscribePublish"] {
-        Utf8 session_name
-        Utf8 task_name
-        Utf8 processor_name
-        Utf8 processor_type
-        List-Utf8 subscription_names
-        List-Utf8 subscription_table_names
-        List-Utf8 publication_names
-        List-Utf8 publication_table_names
-    }
     http_client_request_pdf_s["http_client_request_pdf_s"] {
         Utf8 role
         Utf8 content
@@ -167,7 +120,7 @@ mod tests {
     use crate::{
         AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
         SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
-        ViewTaskSession,
+        ToolCallSession,
     };
 
     use super::*;
@@ -208,7 +161,7 @@ mod tests {
                 user_agent_type: Some("rust-openalex-client/2.0".to_string()),
                 base_url: "https://arxiv.org/".to_string(),
                 subject_name: Some(messages.to_string()),
-                request_schema: HTTPClientRequestSchemas::Blob,
+                request_schema: HTTPClientRequestSchemas::Attachments,
                 ..Default::default()
             };
             let http_client_config_json = serde_json::to_vec(&http_client_config)?;
@@ -272,7 +225,7 @@ mod tests {
                 user_agent_type: Some("rust-openalex-client/2.0".to_string()),
                 base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?".to_string(),
                 subject_name: Some(messages.to_string()),
-                request_schema: HTTPClientRequestSchemas::Blob,
+                request_schema: HTTPClientRequestSchemas::Attachments,
                 ..Default::default()
             };
             let http_client_config_json = serde_json::to_vec(&http_client_config)?;
@@ -391,14 +344,14 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn test_download_content_session_wo_subjects() -> Result<()> {
         // View task session
-        let view_task_session =
-            ViewTaskSession::new("view_task_session", &["download_pdf_p", "download_json_p"]);
-        let view_task_session_builder = SessionContextBuilder::from_mermaid_flowchart(
-            &view_task_session.as_mermaid_flowchart(),
+        let tool_call_session =
+            ToolCallSession::new("tool_call_session", &["download_pdf_p", "download_json_p"]);
+        let tool_call_session_builder = SessionContextBuilder::from_mermaid_flowchart(
+            &tool_call_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(&view_task_session.as_mermaid_erdiagram(), false, true)?
-        .with_name(view_task_session.session_context_name);
+        .with_state_from_mermaid_erdiagram(&tool_call_session.as_mermaid_erdiagram()?, false, true)?
+        .with_name(tool_call_session.session_context_name);
 
         // Initialize the session
         let download_content_session = DownloadContentSession::default();
@@ -413,7 +366,7 @@ mod tests {
         )?
         .with_name(download_content_session.session_context_name)
         .with_diagnostics(true)
-        .extend(view_task_session_builder)?
+        .extend(tool_call_session_builder)?
         .add_processor_subjects()?
         .add_next_tasks()?
         .add_next_supersteps()?
@@ -433,7 +386,7 @@ mod tests {
                 request_type: HTTPClientRequestType::Get,
                 user_agent_type: Some("rust-openalex-client/2.0".to_string()),
                 base_url: "https://arxiv.org/".to_string(),
-                request_schema: HTTPClientRequestSchemas::Blob,
+                request_schema: HTTPClientRequestSchemas::Attachments,
                 json: Some(download_url),
                 ..Default::default()
             };
@@ -481,7 +434,7 @@ mod tests {
                 request_type: HTTPClientRequestType::Get,
                 user_agent_type: Some("rust-openalex-client/2.0".to_string()),
                 base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?".to_string(),
-                request_schema: HTTPClientRequestSchemas::Blob,
+                request_schema: HTTPClientRequestSchemas::Attachments,
                 json: Some(esearch_url),
                 ..Default::default()
             };

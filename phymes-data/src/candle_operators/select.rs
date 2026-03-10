@@ -503,6 +503,27 @@ where
     }
 }
 
+/// Reorder the columns in a pre-[RecordBatch] vec
+pub fn reorder_batch_vec_columns(
+    batch_vec: &[(&str, ArrayRef)],
+    reorder_columns: &[&str],
+) -> Vec<(String, ArrayRef)> {
+    let mut batch_vec_index = Vec::with_capacity(reorder_columns.len());
+    for (column, arr) in batch_vec.iter() {
+        for (iter, reorder) in reorder_columns.iter().enumerate() {
+            if column == reorder {
+                batch_vec_index.push((iter, column, arr));
+                break;
+            }
+        }
+    }
+    batch_vec_index.sort_by_key(|k| k.0);
+    batch_vec_index
+        .into_iter()
+        .map(|(_iter, col, arr)| (col.to_string(), arr.to_owned()))
+        .collect::<Vec<_>>()
+}
+
 /// Cast and transform specified columns using a specified cast operator and cast data type with optional column renaming and template injection
 ///
 /// # Notes
@@ -3605,21 +3626,13 @@ pub fn select(
     }
 
     // Reorder the columns
-    let mut batch_vec_index = Vec::with_capacity(reorder_columns.len());
-    for (column, arr) in batch_vec.into_iter() {
-        for (iter, reorder) in reorder_columns.iter().enumerate() {
-            if column == reorder {
-                batch_vec_index.push((iter, column, arr));
-                break;
-            }
-        }
-    }
-    batch_vec_index.sort_by_key(|k| k.0);
-    let batch_vec = batch_vec_index
-        .into_iter()
-        .map(|(_iter, col, arr)| (col, arr))
-        .collect::<Vec<_>>();
-
+    let batch_vec = reorder_batch_vec_columns(
+        &batch_vec
+            .into_iter()
+            .map(|(&a, b)| (a, b))
+            .collect::<Vec<_>>(),
+        reorder_columns,
+    );
     let batch = RecordBatch::try_from_iter(batch_vec)?;
     Ok(batch)
 }

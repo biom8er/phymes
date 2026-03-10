@@ -319,7 +319,7 @@ impl<'a> MeltStudyDataSession<'a> {
 	user_csv["user_csv"] {{
 	    Boolean cpu "false"
 	    Utf8 format "CsvDefault"
-        Utf8 schema "Blob"
+        Utf8 schema "Attachments"
 	    Utf8 lhs_name "UserCsv"
 	    List-Utf8 lhs_values "['bytes']"
 	    Utf8 operator "ExtractTabular"
@@ -350,7 +350,7 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, CsvFormat,
+        AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, CsvFormat,
         IPCMessage, MappableTrait, MessageBuilderTrait, Table, TableBuilderTrait, TablePublication,
         TableTrait,
     };
@@ -448,7 +448,7 @@ mod tests {
         let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
         let blob = AvailableInterfaceSubjects::UserCsv
             .to_table_builder(None)
-            .with_blob(None, Some("csv"), &bytes, None)?
+            .with_attachment(None, Some("csv"), &bytes, None)?
             .build()?;
         let blob_message = IPCMessage::get_builder()
             .with_message(blob.to_ipc_stream()?)

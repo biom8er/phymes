@@ -6,7 +6,7 @@ use phymes_core::{
 };
 use phymes_data::{
     AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
-    DataDistanceOperator, DataStreamManager, LimitConfig,
+    DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig,
 };
 #[cfg(feature = "api")]
 use phymes_ml::AvailableOpenAIAssets;
@@ -894,6 +894,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             rhs_fk: Some("chunk_id".to_string()),
             rhs_values: Some(vec!["text".to_string()]),
             operator: AvailableCandleOperators::Join,
+            join_operators: Some(DataJoinOperator::Inner),
             ..Default::default()
         };
         let join_chunks_config_json = serde_json::to_vec(&join_chunks_config).unwrap();
@@ -961,6 +962,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         // Summary top K
         let top_k_summary_config = DataConfig {
             lhs_name: Some(self.state_top_k_limit_docs_table_name.to_string()),
+            doc_name: Some(self.state_top_k_limit_docs_table_name.to_string()),
             format: Some(DataFormat::None),
             cpu: false,
             operator: AvailableCandleOperators::PackTabular,
@@ -1061,7 +1063,7 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        BlobBuilderTraitExt, BuildableTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait,
+        AttachmentBuilderTraitExt, BuildableTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait,
         MessageBuilderTrait, MessageTrait, TableTrait,
     };
     use phymes_data::make_pdf_document;
@@ -1115,7 +1117,7 @@ mod tests {
             .build()?;
         let blob = AvailableInterfaceSubjects::UserPdf
             .to_table_builder(None)
-            .with_blob(None, Some("pdf"), &bytes, None)?
+            .with_attachment(None, Some("pdf"), &bytes, None)?
             .build()?;
         let blob_message = IPCMessage::get_builder()
             .with_message(blob.to_ipc_stream()?)

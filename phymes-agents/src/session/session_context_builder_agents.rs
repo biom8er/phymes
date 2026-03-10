@@ -1198,7 +1198,7 @@ pub mod test_session_context_builder_agents {
         TablePublication, TableSubscription, test_table::make_test_table,
         test_task::make_runtime_env,
     };
-    use phymes_data::{AvailableCandleOperators, DataConfig};
+    use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator};
 
     use super::*;
 
@@ -1308,6 +1308,7 @@ pub mod test_session_context_builder_agents {
             lhs_pk: Some("id".to_string()),
             rhs_pk: Some("id".to_string()),
             operator: AvailableCandleOperators::Join,
+            join_operators: Some(DataJoinOperator::default()),
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
@@ -1334,7 +1335,7 @@ pub mod test_session_context_builder_agents {
 mod tests {
     use crate::test_session_context_builder;
     use phymes_core::{BuildableTrait, BuilderTrait, TableBuilderTrait, TaskTrait, test_task};
-    use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager};
+    use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator, DataStreamManager};
 
     use super::*;
 
@@ -1397,6 +1398,7 @@ mod tests {
             lhs_pk: Some("id".to_string()),
             rhs_pk: Some("id".to_string()),
             operator: AvailableCandleOperators::Join,
+            join_operators: Some(DataJoinOperator::default()),
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();

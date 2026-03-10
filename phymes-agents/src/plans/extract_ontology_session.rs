@@ -1482,6 +1482,8 @@ impl<'a> ExtractOntologySession<'a> {
 	    Utf8 rhs_fk "uri"
 	    Utf8 rhs_pk "uri"
 	    Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
 	}
     select_predicates_class_entity_p["select_predicates_class_entity_p"] {
         Boolean cpu "false"
@@ -1553,6 +1555,8 @@ impl<'a> ExtractOntologySession<'a> {
 	    Utf8 rhs_fk "uri"
 	    Utf8 rhs_pk "uri"
 	    Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
 	}
     select_objects_class_entity_p["select_objects_class_entity_p"] {
         Boolean cpu "false"
@@ -1616,6 +1620,8 @@ impl<'a> ExtractOntologySession<'a> {
 	    Utf8 rhs_fk "uri"
 	    Utf8 rhs_pk "uri"
 	    Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
 	}
     select_predicates_object_property_entity_p["select_predicates_object_property_entity_p"] {
         Boolean cpu "false"
@@ -1687,6 +1693,8 @@ impl<'a> ExtractOntologySession<'a> {
 	    Utf8 rhs_fk "uri"
 	    Utf8 rhs_pk "uri"
 	    Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+        Utf8 join_operators "Inner"
 	}
     select_objects_object_property_entity_p["select_objects_object_property_entity_p"] {
         Boolean cpu "false"
@@ -1852,7 +1860,7 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Table,
-        TableBuilderTrait, TablePublication, TableTrait, create_blob_batch,
+        TableBuilderTrait, TablePublication, TableTrait, create_attachments_batch,
     };
     use phymes_diagnostics::{HashMap, create_timestamp_micros};
 
@@ -1967,7 +1975,7 @@ mod tests {
 </rdf:RDF>"#;
 
         // Make the test data
-        let batch = create_blob_batch(
+        let batch = create_attachments_batch(
             vec!["attachment".to_string()],
             vec!["owl".to_string()],
             vec![owl.into()],

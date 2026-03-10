@@ -309,34 +309,6 @@ where
     Arc::new(list_builder.finish())
 }
 
-/// Helper function to build a list primitive type
-///
-/// # Note
-/// - This method appears to fail for dim_0 = 1 or dim_1 = 1
-/// - Recommend to use [build_aggregator_column_list_primitive] which uses the recommended [ListBuilder]
-pub fn build_aggregator_column_list_primitive_v1<T>(
-    agg_vec: Vec<Vec<T>>,
-    data_type: DataType,
-) -> ArrayRef
-where
-    T: ArrowNativeType + 'static,
-{
-    let dim_0 = agg_vec.len();
-    let list_values = agg_vec.into_iter().flatten().collect::<Vec<_>>();
-    let value_data = ArrayData::builder(data_type.clone())
-        .len(list_values.len())
-        .add_buffer(Buffer::from_vec(list_values))
-        .build()
-        .unwrap();
-    let list_data_type = DataType::List(Arc::new(Field::new_list_field(data_type, false)));
-    let list_data = ArrayData::builder(list_data_type)
-        .len(dim_0)
-        .add_child_data(value_data)
-        .build()
-        .unwrap();
-    Arc::new(ListArray::from(list_data))
-}
-
 /// Helper function to build a list nonprimitive type
 pub fn build_aggregator_column_list_nonprimitive<T>(
     agg_vec: Vec<Vec<T>>,

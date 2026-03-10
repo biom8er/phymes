@@ -121,6 +121,10 @@ pub enum DataComparatorOperator {
     InList,
     #[value(name = "InListUtf8")]
     InListUtf8,
+    #[value(name = "NotInList")]
+    NotInList,
+    #[value(name = "NotInListUtf8")]
+    NotInListUtf8,
     #[value(name = "RegExpIsMatch")]
     RegExpIsMatch,
     #[value(name = "StartsWith")]
@@ -144,6 +148,8 @@ impl Display for DataComparatorOperator {
             Self::NotLike => write!(f, "NotLike"),
             Self::InList => write!(f, "InList"),
             Self::InListUtf8 => write!(f, "InListUtf8"),
+            Self::NotInList => write!(f, "NotInList"),
+            Self::NotInListUtf8 => write!(f, "NotInListUtf8"),
             Self::RegExpIsMatch => write!(f, "RegExpIsMatch"),
             Self::StartsWith => write!(f, "StartsWith"),
         }
@@ -254,8 +260,7 @@ impl Display for DataCastOperator {
 /// # Notes on intialization operators
 /// - `Zeros` and `Ones` will create a new column filled with primitive zero's or one's
 /// - `String` will create a new column filled with an empty Utf8
-/// - `Value` will create a new column filled with a specified primitive or non-primitive value
-///  
+/// - `Value` will create a new column filled with a specified primitive or non-primitive value  
 ///
 /// [DataType]: arrow::datatypes::DataType
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
@@ -475,6 +480,45 @@ impl Display for DataColumnOperator {
     }
 }
 
+/// Data Join Operators
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
+pub enum DataJoinOperator {
+    /// Combines rows from two tables where there is a match in the specified column(s) of both tables. Only matching rows are included in the result.
+    #[default]
+    #[value(name = "Inner")]
+    Inner,
+    /// Returns all rows from the left table and the matching rows from the right table. If no match exists, NULL values are returned for the right table's columns
+    #[value(name = "LeftOuter")]
+    LeftOuter,
+    /// Returns all rows from the right table and the matching rows from the left table. If no match exists, NULL values are returned for the left table's columns.
+    #[value(name = "RightOuter")]
+    RightOuter,
+    /// Combines the results of both LEFT JOIN and RIGHT JOIN. Returns all rows from both tables, with NULLs for non-matching rows in either table.
+    #[value(name = "FullOuter")]
+    FullOuter,
+    /// Produces a Cartesian product of two tables, pairing each row from the first table with every row from the second table.
+    /// Not yet supported.
+    #[value(name = "Cross")]
+    Cross,
+    /// Automatically joins tables based on columns with the same name and data type, including only rows with matching values in those columns.
+    /// Not yet supported.
+    #[value(name = "Natural")]
+    Natural,
+}
+
+impl Display for DataJoinOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Inner => write!(f, "Inner"),
+            Self::LeftOuter => write!(f, "LeftOuter"),
+            Self::RightOuter => write!(f, "RightOuter"),
+            Self::FullOuter => write!(f, "FullOuter"),
+            Self::Cross => write!(f, "Cross"),
+            Self::Natural => write!(f, "Natural"),
+        }
+    }
+}
+
 /// Traits for all configs
 pub trait DataConfigTrait {
     /// Create an example and serialize to JSON
@@ -570,10 +614,21 @@ pub struct DataConfig {
     #[arg(long)]
     pub operator: AvailableCandleOperators,
 
+    /// [DataJoinOperator] specifying the join operator to apply between tables
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub join_operators: Option<DataJoinOperator>,
+
     /// Minijinja [String] template
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub doc_template: Option<AvailableJinja2Templates>,
+
+    /// Universal Diff or V4a Diff in a serialized JSON [Value] representing
+    ///   a `Vec<WorkspacePatchSubject>>`
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub doc_patch: Option<String>,
 
     /// The name of the resulting document after applying the minijinja template
     #[arg(long)]

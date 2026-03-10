@@ -17,8 +17,8 @@ pub enum HTTPClientRequestSchemas {
     #[default]
     #[value(name = "Messages")]
     Messages,
-    #[value(name = "Blob")]
-    Blob,
+    #[value(name = "Attachments")]
+    Attachments,
     #[value(skip)]
     Custom(String),
 }
@@ -26,7 +26,7 @@ impl Display for HTTPClientRequestSchemas {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Messages => write!(f, "Messages"),
-            Self::Blob => write!(f, "Blob"),
+            Self::Attachments => write!(f, "Attachments"),
             Self::Custom(s) => write!(f, "{s}"),
         }
     }

@@ -472,7 +472,7 @@ mod tests {
     #[allow(unused_imports)]
     use super::*;
 
-    // #[cfg(not(feature = "candle"))]
+    #[cfg(not(feature = "candle"))]
     #[tokio::test]
     async fn test_openai_embed_processor() -> Result<()> {
         use phymes_diagnostics::{Diagnostics, SpanBuilder};

@@ -16,7 +16,7 @@ use phymes_core::{
     SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
     SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait,
-    create_blob_batch, create_bytes_fields, create_chat_record_batch, create_values_fields,
+    create_attachments_batch, create_bytes_fields, create_chat_record_batch, create_values_fields,
     remove_message_by_subject,
 };
 use phymes_diagnostics::{
@@ -286,7 +286,7 @@ impl Stream for HTTPClientRequestStream {
 
                         // Save the URL when downloading data
                         if self.config.as_ref().unwrap().request_schema
-                            == HTTPClientRequestSchemas::Blob
+                            == HTTPClientRequestSchemas::Attachments
                         {
                             self.url.replace(url.to_owned());
                         }
@@ -335,7 +335,7 @@ impl Stream for HTTPClientRequestStream {
 
                         // Save the URL when downloading data
                         if self.config.as_ref().unwrap().request_schema
-                            == HTTPClientRequestSchemas::Blob
+                            == HTTPClientRequestSchemas::Attachments
                         {
                             self.json_str.replace(url.to_owned());
                         }
@@ -391,7 +391,7 @@ impl Stream for HTTPClientRequestStream {
                             self.state = HTTPClientRequestState::ToText(Box::pin(text));
                             self.poll_next(cx)
                         }
-                        HTTPClientRequestSchemas::Blob => {
+                        HTTPClientRequestSchemas::Attachments => {
                             let bytes = response.bytes();
                             self.state = HTTPClientRequestState::ToBytes(Box::pin(bytes));
                             self.poll_next(cx)
@@ -482,7 +482,7 @@ impl Stream for HTTPClientRequestStream {
 
                     // Parse the response
                     let batch = match self.config.as_ref().unwrap().request_schema {
-                        HTTPClientRequestSchemas::Blob => create_blob_batch(
+                        HTTPClientRequestSchemas::Attachments => create_attachments_batch(
                             vec![filename],
                             vec![self.content_type.take().unwrap_or_default()],
                             vec![bytes.to_vec()],
@@ -789,7 +789,7 @@ mod tests {
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: format!("{}?", open_alex_request.to_base_url()),
             subject_name: Some(messages.to_string()),
-            request_schema: HTTPClientRequestSchemas::Blob,
+            request_schema: HTTPClientRequestSchemas::Attachments,
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
@@ -990,7 +990,7 @@ mod tests {
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?".to_string(),
             subject_name: Some(messages.to_string()),
-            request_schema: HTTPClientRequestSchemas::Blob,
+            request_schema: HTTPClientRequestSchemas::Attachments,
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
@@ -1092,7 +1092,7 @@ mod tests {
             user_agent_type: Some("rust-openalex-client/2.0".to_string()),
             base_url: "https://arxiv.org/".to_string(),
             subject_name: Some(messages.to_string()),
-            request_schema: HTTPClientRequestSchemas::Blob,
+            request_schema: HTTPClientRequestSchemas::Attachments,
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;

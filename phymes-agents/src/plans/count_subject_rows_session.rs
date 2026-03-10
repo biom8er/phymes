@@ -177,17 +177,6 @@ mod tests {
 
         {
             // Test session stream
-            // {
-            //     // Debug any errors
-            //     let subjects_reading = session_ctx_arc.read();
-            //     let table_reading = subjects_reading
-            //         .get_states()
-            //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
-            //         .unwrap()
-            //         .read();
-            //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            // }
-
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
                 .get_states()

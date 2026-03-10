@@ -405,7 +405,7 @@ impl Stream for ToolCallStream {
                         processor_names.push(subject_name);
                     } else {
                         return Poll::Ready(Some(Err(anyhow!(
-                            "Tool call subscription subject was not found in the All task/publisher subscriptions and publications. Available subscription subjects are {:?}",
+                            "Tool call subscription subject `{subject_name}` was not found in the All task/publisher subscriptions and publications. Available subscription subjects are {:?}",
                             all_subscribe_publish_map.keys()
                         ))));
                     };

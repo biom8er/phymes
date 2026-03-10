@@ -25,7 +25,7 @@ use arrow::{
 use futures::TryStreamExt;
 use serde::Serialize;
 use serde_json::Value;
-use tracing::{Level, event, instrument};
+use tracing::{Level, event};
 
 pub trait TableBuilderTrait: BuilderTrait + Debug + Send + Sync {
     /// The schema for all record batches in the table
@@ -253,7 +253,6 @@ impl TableBuilderTrait for TableBuilder {
         Ok(self)
     }
 
-    #[instrument(level = "trace")]
     fn new_from_ipc_stream(bytes: &[u8]) -> Result<Self> {
         let record_batches = Self::from_ipc_stream_to_record_batches(bytes)?;
         let schema = match record_batches.first() {

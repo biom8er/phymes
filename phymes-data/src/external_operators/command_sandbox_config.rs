@@ -2,7 +2,10 @@ use std::{env, fmt::Display};
 
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
-use phymes_core::{MappableTrait, Table, TableTrait};
+use phymes_core::{
+    BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableTrait,
+    WorkspaceSubject, create_workspace_batch,
+};
 use phymes_diagnostics::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 
@@ -47,6 +50,7 @@ pub enum CommandSandboxEnvironments {
     /// * A project directory that follows normal convention below is assumed
     ///
     /// my_python_project/
+    /// ├── install.sh
     /// ├── requirements.txt
     /// ├── src/
     /// │   └── main.py
@@ -59,13 +63,14 @@ pub enum CommandSandboxEnvironments {
     /// * A project directory that follows normal convention below is assumed
     ///
     /// my_python_project/
-    /// ├── Cargo.toml.txt
+    /// ├── Cargo.toml
     /// ├── examples/
     /// │   └── example/
     /// │       └── main.rs
-    /// ├── src/
-    /// │   ├── lib.rs
-    /// │   └── main.rs
+    /// ├── install.sh
+    /// └── src/
+    ///     ├── lib.rs
+    ///     └── main.rs
     #[default]
     #[value(name = "Rust")]
     Rust,
@@ -83,6 +88,294 @@ pub enum CommandSandboxEnvironments {
     #[value(skip)]
     Custom(String),
 }
+
+impl CommandSandboxEnvironments {
+    /// To workspace
+    pub fn to_workspace(
+        &self,
+        workspace_name: Option<&str>,
+        workspace_contents: Option<&[WorkspaceSubject]>,
+    ) -> Result<Table> {
+        if let Some(workspace_contents) = workspace_contents {
+            let (path, content): (Vec<String>, Vec<String>) = workspace_contents
+                .iter()
+                .map(|w| (w.path.to_owned(), w.content.to_owned()))
+                .unzip();
+            let batch = create_workspace_batch(path, content)?;
+            Table::get_builder()
+                .with_name(self.to_string().as_str())
+                .with_record_batches(vec![batch])?
+                .build()
+        } else {
+            self.to_default_workspace(workspace_name)
+        }
+    }
+    /// To default workspace
+    pub fn to_default_workspace(&self, workspace_name: Option<&str>) -> Result<Table> {
+        let root = if let Some(workspace_name) = workspace_name {
+            format!("{workspace_name}/")
+        } else {
+            String::new()
+        };
+        match self {
+            Self::Bash => {
+                let path = [format!("{root}src/main.sh"), format!("{root}install.sh")]
+                    .into_iter()
+                    .collect::<Vec<_>>();
+                let content = [
+                    r#"#!/usr/bin/env bash
+
+[[ -n "$1" ]] && echo "$1"
+[[ -n "$2" ]] && echo "$2"
+[[ -n "$3" ]] && echo "$3""#,
+                    r#"#!/bin/sh
+apk add --no-cache bash
+chmod +x ./src/main.sh"#,
+                ]
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>();
+                let batch = create_workspace_batch(path, content)?;
+                Table::get_builder()
+                    .with_name(self.to_string().as_str())
+                    .with_record_batches(vec![batch])?
+                    .build()
+            }
+            Self::Python => {
+                let path = [
+                    format!("{root}requirements.txt"),
+                    format!("{root}src/main.py"),
+                    format!("{root}install.sh"),
+                ]
+                .into_iter()
+                .collect::<Vec<_>>();
+                let content = [
+                    r#"pandas==2.2.3
+pyarrow==17.0.0"#,
+                    r#"#!/usr/bin/env python3
+import argparse
+import pyarrow as pa
+import pyarrow.ipc as ipc
+import pandas as pd
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input-file', required=True)
+    parser.add_argument('--output-file', required=True)
+    args = parser.parse_args()
+
+    # Read using PyArrow IPC file reader (works with Rust arrow FileWriter output)
+    with open(args.input_file, "rb") as f:
+        table = ipc.open_file(f).read_all()
+
+    # Convert to pandas for your transformation
+    df = table.to_pandas()
+
+    # Your transformation
+    df['age'] = df['age'] + 10
+
+    # Convert pandas back to Arrow
+    table_out = pa.Table.from_pandas(df)
+
+    # One-liner to make all fields non-nullable
+    new_schema = pa.schema([pa.field(f.name, f.type, nullable=False) for f in table_out.schema])
+
+    # Cast the table to the new schema
+    # This will fail if there are actual nulls in the data
+    try:
+        table_non_nullable = table_out.cast(new_schema)
+    except pa.ArrowInvalid as e:
+        raise ValueError(
+            "Cannot cast to non-nullable schema because null values exist in the data."
+        ) from e
+
+    # Write Arrow IPC File format (Rust-compatible)
+    with pa.OSFile(args.output_file, "wb") as f:
+        writer = ipc.RecordBatchFileWriter(f, table_non_nullable.schema)
+        writer.write_table(table_non_nullable)
+        writer.close()"#,
+                    r#"#!/usr/bin/env bash
+set -e
+python -m venv .venv
+source .venv/bin/activate
+pip install --no-cache-dir -r requirements.txt"#,
+                ]
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>();
+                let batch = create_workspace_batch(path, content)?;
+                Table::get_builder()
+                    .with_name(self.to_string().as_str())
+                    .with_record_batches(vec![batch])?
+                    .build()
+            }
+            Self::Rust => {
+                let path = [
+                    format!("{root}Cargo.toml"),
+                    format!("{root}src/main.rs"),
+                    format!("{root}install.sh"),
+                ]
+                .into_iter()
+                .collect::<Vec<_>>();
+                let content = [
+                    r#"[package]
+name = "phymes_rs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = { version = "1", default-features = false }
+arrow = "58.0.0"
+serde_json = "1.0.133"
+serde = { version = "1.0.215", features = ["derive"] }
+clap = { version = "4.5.4", features = ["derive"] }"#,
+                    r#"use arrow::array::{ArrayRef, StringArray, UInt32Array};
+use arrow::error::{ArrowError, Result};
+use arrow::ipc::reader::FileReader;
+use arrow::ipc::writer::FileWriter;
+use arrow::record_batch::RecordBatch;
+use clap::Parser;
+use std::fs::File;
+use std::sync::Arc;
+
+/// Minimal Feather/IPC editor using a single CLI argument.
+#[derive(Parser, Debug)]
+#[command(author, version, about)]
+struct Args {
+    /// Path to the input Feather/IPC file
+    #[arg(long)]
+    input_file: String,
+    /// Path to the output Feather/IPC file
+    #[arg(long)]
+    output_file: String,
+}
+
+/// Helper function to add 10 to years to the age column in a RecordBatch
+fn add_10_yrs_to_age(batch: &RecordBatch) -> arrow::error::Result<RecordBatch> {
+    let names = batch
+        .column_by_name("name")
+        .unwrap()
+        .as_any()
+        .downcast_ref::<StringArray>()
+        .unwrap()
+        .iter()
+        .map(|s| s.unwrap_or_default().to_string())
+        .collect::<Vec<String>>();
+    let ages = batch
+        .column_by_name("age")
+        .unwrap()
+        .as_any()
+        .downcast_ref::<UInt32Array>()
+        .unwrap()
+        .iter()
+        .map(|s| s.unwrap_or_default() + 10)
+        .collect::<Vec<u32>>();
+    let names_arr: ArrayRef = Arc::new(StringArray::from(names));
+    let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
+    RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])
+}
+
+fn main() -> Result<()> {
+    let args = Args::parse();
+    let input_path = args.input_file.as_str();
+    let output_path = args.output_file.as_str();
+
+    // --- Step 1: Read Feather/IPC file ---
+    let file = File::open(input_path)?;
+    let reader = FileReader::try_new(file, None)?;
+    let batches: Vec<RecordBatch> = reader.collect::<Result<_>>()?;
+
+    // --- Step 2: Modify the batches ---
+    let batches = batches.into_iter()
+        .map(|batch| add_10_yrs_to_age(&batch).unwrap())
+        .collect::<Vec<_>>();
+
+    // --- Step 3: Write modified batches to output file ---
+    let file = File::create(output_path)?;
+    let mut writer = FileWriter::try_new(file, &batches[0].schema())?;
+
+    for batch in batches {
+        writer.write(&batch)?;
+    }
+
+    writer.finish()?;
+
+    Ok(())
+}"#,
+                    r#"#!/usr/bin/env bash
+apt update
+apt install --assume-yes protobuf-compiler clang"#,
+                ]
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>();
+                let batch = create_workspace_batch(path, content)?;
+                Table::get_builder()
+                    .with_name(self.to_string().as_str())
+                    .with_record_batches(vec![batch])?
+                    .build()
+            }
+            Self::WasmModule => {
+                let path = [format!("{root}src/main.wat")]
+                    .into_iter()
+                    .collect::<Vec<_>>();
+                let content = [r#"(module
+  (func (export "add") (param i32 i32) (result i32)
+    local.get 0
+    local.get 1
+    i32.add
+  )
+)"#]
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>();
+                let batch = create_workspace_batch(path, content)?;
+                Table::get_builder()
+                    .with_name(self.to_string().as_str())
+                    .with_record_batches(vec![batch])?
+                    .build()
+            }
+            Self::WasmComponent => {
+                let path = [format!("{root}src/main.wat")]
+                    .into_iter()
+                    .collect::<Vec<_>>();
+                let content = [r#"(component
+  ;; Define a core module
+  (core module $math
+    (func $add (param $a i32) (param $b i32) (result i32)
+      local.get $a
+      local.get $b
+      i32.add
+    )
+    (export "add" (func $add))
+  )
+
+  ;; Instantiate the core module
+  (core instance $math-inst
+    (instantiate $math)
+  )
+
+  ;; Lift the core function into the component world
+  (func (export "add") (param "a" u32) (param "b" u32) (result u32)
+    (canon lift (core func $math-inst "add"))
+  )
+)"#]
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>();
+                let batch = create_workspace_batch(path, content)?;
+                Table::get_builder()
+                    .with_name(self.to_string().as_str())
+                    .with_record_batches(vec![batch])?
+                    .build()
+            }
+            _ => Err(anyhow!(
+                "The CommandSandboxEnvironments `{self}` is not yet supported."
+            )),
+        }
+    }
+}
+
 impl Display for CommandSandboxEnvironments {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -237,8 +530,13 @@ pub struct CommandSandboxConfig {
 
     /// The name of the streaming subject with the data to run with the command
     #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "lhs_name")]
     pub subject_name: Option<String>,
+
+    /// The name of the streaming workspace with the files needed by the command
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "rhs_name")]
+    pub workspace_name: Option<String>,
 }
 
 impl CommandSandboxConfig {

@@ -722,6 +722,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             lhs_stream: DataStreamManager::Accumulate,
             operator: AvailableCandleOperators::PackTabular,
             lhs_name: Some(self.tool_summary_task_name.to_string()),
+            doc_name: Some(self.tool_summary_task_name.to_string()),
             ..Default::default()
         };
         let attachmen_config_json = serde_json::to_vec(&attachment_config).unwrap();
@@ -739,6 +740,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             cpu: false,
             lhs_stream: DataStreamManager::Accumulate,
             lhs_name: Some(self.tool_summary_task_name.to_string()),
+            doc_name: Some(self.tool_summary_task_name.to_string()),
             ..Default::default()
         };
         let summary_config_json = serde_json::to_vec(&summary_config).unwrap();
@@ -754,6 +756,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             cpu: false,
             lhs_stream: DataStreamManager::Accumulate,
             lhs_name: Some(AvailableInterfaceSubjects::AssistantMessages.to_string()),
+            doc_name: Some(AvailableInterfaceSubjects::AssistantMessages.to_string()),
             ..Default::default()
         };
         let summary_config_json = serde_json::to_vec(&summary_config).unwrap();
@@ -855,7 +858,7 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        BlobBuilderTraitExt, ChatBuilderTraitExt, CsvFormat, IPCMessage, MappableTrait,
+        AttachmentBuilderTraitExt, ChatBuilderTraitExt, CsvFormat, IPCMessage, MappableTrait,
         MessageBuilderTrait, MessageTrait, TableTrait,
     };
     use phymes_data::test_extract_tabular_data::make_scores_table;
@@ -898,7 +901,7 @@ mod tests {
             .build()?;
         let blob = AvailableInterfaceSubjects::UserCsv
             .to_table_builder(None)
-            .with_blob(None, Some("csv"), &bytes, None)?
+            .with_attachment(None, Some("csv"), &bytes, None)?
             .build()?;
         let blob_message = IPCMessage::get_builder()
             .with_message(blob.to_ipc_stream()?)

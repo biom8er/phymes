@@ -16,9 +16,9 @@ use phymes_agents::{
     SessionContextBuilderAgentsTrait, SessionStream, create_message_map,
 };
 use phymes_core::{
-    AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait, BuilderTrait, ChatBuilderTraitExt,
-    IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait, TableBuilder, TableBuilderTrait,
-    TablePublication, TableTrait,
+    AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
+    ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait,
+    TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
 };
 
 pub async fn run_main() -> Result<()> {
@@ -64,7 +64,7 @@ pub async fn run_main() -> Result<()> {
         .build()?;
     let blob = AvailableInterfaceSubjects::UserPdf
         .to_table_builder(None)
-        .with_blob(None, Some("pdf"), &bytes, None)?
+        .with_attachment(None, Some("pdf"), &bytes, None)?
         .build()?;
     let blob_message = IPCMessage::get_builder()
         .with_message(blob.to_ipc_stream()?)

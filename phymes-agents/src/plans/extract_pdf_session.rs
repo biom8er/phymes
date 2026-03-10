@@ -93,7 +93,7 @@ mod tests {
     use anyhow::Result;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BlobBuilderTraitExt, BuildableTrait,
+        AttachmentBuilderTraitExt, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
         BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, TablePublication, TableTrait,
     };
     use phymes_data::make_pdf_document;
@@ -137,7 +137,7 @@ mod tests {
         // Wrap into the message
         let blob = AvailableInterfaceSubjects::UserPdf
             .to_table_builder(None)
-            .with_blob(Some("WikiBioComponents"), Some("pdf"), &bytes, None)?
+            .with_attachment(Some("WikiBioComponents"), Some("pdf"), &bytes, None)?
             .build()?;
         let blob_message = IPCMessage::get_builder()
             .with_message(blob.to_ipc_stream()?)

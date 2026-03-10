@@ -2,19 +2,20 @@ mod candle_data;
 mod candle_operators;
 #[cfg(feature = "api")]
 mod external_operators;
-mod jinja2_templates;
+mod patch;
+mod template;
 
 pub use candle_data::{
     AggregatorStream, AttachmentAggregatorProcessor, CandleDataProcessor, CandleTensorService,
     CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator,
     DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait,
-    DataDistanceOperator, DataStreamManager, LimitConfig, LimitProcessor, TensorProcessorTrait,
-    collect_messages_by_schema, device,
+    DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig, LimitProcessor,
+    TensorProcessorTrait, collect_messages_by_schema, device,
 };
 pub use candle_operators::{
-    ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait, ExtractPDF,
-    ExtractTabular, ExtractXML, Filter, FromTasksToParticipants, FromTracesToMessages, GroupBy,
-    HumanInTheLoop, Join, NormalizeTime, PackTabular, Pivot, Select, Sort, ToolTrait,
+    ApplyPatch, ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait,
+    ExtractPDF, ExtractTabular, ExtractXML, Filter, FromTasksToParticipants, FromTracesToMessages,
+    GroupBy, HumanInTheLoop, Join, NormalizeTime, PackTabular, Pivot, Select, Sort, ToolTrait,
     VectorDistance, convert_destinations_to_tools, extract_pdf, extract_xml, filter, filter_pdf,
     group_by, load_pdf_document, make_pdf_document, pack_tabular, sort,
     table_and_data_format_to_record_batch, test_extract_tabular_data,
@@ -24,8 +25,12 @@ pub use external_operators::{
     CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxProcessor,
     CommandSandboxRunners, DataIOMethod, HTTPClientConfig, HTTPClientRequestProcessor,
     HTTPClientRequestSchemas, HTTPClientRequestState, HTTPClientRequestType,
+    test_command_sandbox_processor,
 };
-pub use jinja2_templates::{
+#[cfg(feature = "api")]
+pub use patch::WorkspaceEditor;
+pub use patch::{ApplyDiffMode, PatchOperation, PatchOperator, apply_patch_auto, apply_v4a_diff};
+pub use template::{
     AvailableJinja2Templates, MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_INPUT,
     MERMAID_ER_DIAGRAM_RELATIONS_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE, MERMAID_FLOWCHART_INPUT,
     MERMAID_FLOWCHART_LINKS_TEMPLATE, MERMAID_FLOWCHART_NODES_TEMPLATE, MERMAID_FLOWCHART_TEMPLATE,
