@@ -1,6 +1,7 @@
 mod message;
 mod processor;
 mod runtime_env;
+mod patch;
 mod schemas;
 mod table;
 mod task;
@@ -18,6 +19,9 @@ pub use processor::{
 pub use runtime_env::{
     BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvMap, RuntimeEnvTrait,
 };
+#[cfg(feature = "api")]
+pub use patch::WorkspaceEditor;
+pub use patch::{ApplyDiffMode, PatchOperation, PatchOperator, apply_patch_auto, apply_v4a_diff};
 pub use schemas::{
     AttachmentBuilderTraitExt, AttachmentsSubject, AvailableSchemaTrait, AvailableSubjects,
     AvailableSubjectsTrait, ChatBuilderTraitExt, ChatCompletionRequest, ChatCompletionResponse,

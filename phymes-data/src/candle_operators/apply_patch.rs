@@ -8,8 +8,8 @@ use arrow::{
 use candle_core::Device;
 use phymes_core::{
     AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, Function,
-    FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait,
-    TableTrait, Tool, ToolType,
+    FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, PatchOperator, Table, TableBuilderTrait,
+    TableTrait, Tool, ToolType, apply_patch_auto,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -17,7 +17,7 @@ use tracing::instrument;
 
 use crate::{
     DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate,
-    DataJoinOperator, PatchOperator, ToolTrait, apply_patch_auto,
+    DataJoinOperator, ToolTrait,
     candle_data::DataConfig,
     candle_operators::{
         DataOperatorTrait,
@@ -742,9 +742,9 @@ pub fn apply_patch(
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::WorkspacePatchSubject;
+    use phymes_core::{PatchOperator, WorkspacePatchSubject};
 
-    use crate::{PatchOperator, device};
+    use crate::device;
 
     use super::*;
 

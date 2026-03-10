@@ -47,3 +47,4 @@ minijinja-contrib = { version = "2.16.0", features = ["pycompat"] }
 bytes = "1.11.1"
 getrandom = { version = "0.3.1", features = ["wasm_js"] }
 num-traits = { version = "0.2", default-features = false }
+diff-match-patch-rs = "0.5.1"

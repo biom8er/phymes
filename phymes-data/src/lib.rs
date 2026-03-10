@@ -2,7 +2,6 @@ mod candle_data;
 mod candle_operators;
 #[cfg(feature = "api")]
 mod external_operators;
-mod patch;
 mod template;
 
 pub use candle_data::{
@@ -27,9 +26,6 @@ pub use external_operators::{
     HTTPClientRequestSchemas, HTTPClientRequestState, HTTPClientRequestType,
     test_command_sandbox_processor,
 };
-#[cfg(feature = "api")]
-pub use patch::WorkspaceEditor;
-pub use patch::{ApplyDiffMode, PatchOperation, PatchOperator, apply_patch_auto, apply_v4a_diff};
 pub use template::{
     AvailableJinja2Templates, MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_INPUT,
     MERMAID_ER_DIAGRAM_RELATIONS_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE, MERMAID_FLOWCHART_INPUT,
