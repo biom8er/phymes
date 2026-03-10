@@ -48,22 +48,22 @@ impl<'a> PatchWorkspaceSession<'a> {
     /// Return the Mermaid.js ER diagram representation of the session
     pub fn as_mermaid_erdiagram(&self) -> &str {
         r#"erDiagram
-    WorkspacePatch["WorkspacePatch"] {{
+    WorkspacePatch["WorkspacePatch"] {
         Utf8 filename
         Utf8 diff
         Utf8 operator
-    }}
-    Workspace["Workspace"] {{
+    }
+    Workspace["Workspace"] {
         Utf8 path
         Utf8 content
-    }}
-    apply_patch_p["apply_patch_p"] {{
+    }
+    apply_patch_p["apply_patch_p"] {
         List-UInt8 bytes
-    }}
-    apply_patch_s["apply_patch_s"] {{
+    }
+    apply_patch_s["apply_patch_s"] {
         Utf8 path
         Utf8 content
-    }}"#
+    }"#
     }
 }
 

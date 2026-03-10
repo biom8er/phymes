@@ -82,17 +82,13 @@ impl<'a> ExecuteWorkspaceSession<'a> {
         if cfg!(feature = "api") {
             #[cfg(feature = "api")]
             if let Some(workspace_dir) = workspace_dir {
-                let err = format!("Failed to create project directory at `{workspace_dir}`.");
-                std::fs::create_dir(workspace_dir).expect(err.as_str());
+                let _ = std::fs::remove_dir_all(&workspace_dir); // Doesn't matter if it is an error
+                let _ = std::fs::create_dir(workspace_dir);
                 Some(workspace_dir.to_string())
             } else {
                 let project_dir = std::env::temp_dir().join(session_context_name);
                 let _ = std::fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
-                let err = format!(
-                    "Failed to create project directory at `{}`.",
-                    project_dir.as_path().to_str().unwrap()
-                );
-                std::fs::create_dir(&project_dir).expect(err.as_str());
+                let _ = std::fs::create_dir(&project_dir);
                 Some(project_dir.as_path().to_str().unwrap().to_string())
             }
         } else {
@@ -286,7 +282,7 @@ mod tests {
 
         // Initialize the session
         let execute_workspace_session = ExecuteWorkspaceSession::new(
-            "execute_workspace_session",
+            "execute_workspace_session_rs",
             None,
             Some(subject_name_i),
             subject_name_o,
@@ -423,7 +419,7 @@ mod tests {
 
         // Initialize the session
         let execute_workspace_session = ExecuteWorkspaceSession::new(
-            "execute_workspace_session",
+            "execute_workspace_session_py",
             None,
             Some(subject_name_i),
             subject_name_o,

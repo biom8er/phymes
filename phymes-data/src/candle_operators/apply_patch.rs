@@ -9,7 +9,7 @@ use candle_core::Device;
 use phymes_core::{
     AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, Function,
     FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait,
-    TableTrait, Tool, ToolType, WorkspacePatchSubject,
+    TableTrait, Tool, ToolType,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -188,6 +188,7 @@ impl DataOperatorTrait for ApplyPatch {
 /// * `doc_patch` - A JSON Value representing the patches
 /// * `device` - The compute device
 #[instrument(skip(lhs_args, rhs_args, lhs_values, rhs_values, lhs_pk, rhs_pk, device))]
+#[allow(clippy::too_many_arguments)]
 pub fn apply_patch(
     lhs_args: &[RecordBatch],
     rhs_args: Option<&[RecordBatch]>,
@@ -741,6 +742,8 @@ pub fn apply_patch(
 
 #[cfg(test)]
 mod tests {
+    use phymes_core::WorkspacePatchSubject;
+
     use crate::{PatchOperator, device};
 
     use super::*;

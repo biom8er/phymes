@@ -5,7 +5,7 @@
 set -e
 
 # Define log file (with timestamp to avoid overwriting)
-LOG_FILE="ci_log_$(date +'%Y-%m-%d_%H-%M-%S').txt"
+LOG_FILE="./target/ci_log_$(date +'%Y-%m-%d_%H-%M-%S').txt"
 
 # Redirect all output (stdout & stderr) to both terminal and log file
 exec > >(tee -a "$LOG_FILE") 2>&1
@@ -43,7 +43,6 @@ cargo test --features wsl,api,candle
 
 echo "Compilation checks for Linux targets."
 echo "-----------------------------------------------"
-cargo test --features wsl,candle,api
 cargo check --all-targets
 cargo check -p phymes-diagnostics --all-targets --no-default-features --features wsl
 cargo check -p phymes-core --all-targets --no-default-features --features wsl

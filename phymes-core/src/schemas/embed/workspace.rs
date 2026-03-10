@@ -94,11 +94,10 @@ pub fn create_repository_batch(
 
 fn create_patch_fields_vec() -> Vec<Field> {
     let field_names = ["filename", "diff", "operator"];
-    let fields_vec = field_names
+    field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
-        .collect::<Vec<_>>();
-    fields_vec
+        .collect::<Vec<_>>()
 }
 
 /// Minimal Diff/Patch schema needed for code generation application
@@ -141,6 +140,7 @@ pub fn create_repository_patch_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_repository_patch_batch(
     filename: Vec<String>,
     diff: Vec<String>,

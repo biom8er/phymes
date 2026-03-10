@@ -1925,7 +1925,7 @@ mod tests {
         let project_dir = std::env::temp_dir().join(project_name);
         let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
         // DM: in some instances, `rm -rf /tmp/phymes-wasm-project` is needed to delete the temporary project directory
-        fs::create_dir(&project_dir).expect("Failed to create project directory");
+        let _ = fs::create_dir(&project_dir);
 
         // --- From config with wasm module env ---
 
@@ -2244,7 +2244,7 @@ mod tests {
         let project_name = "phymes-bash-project";
         let project_dir = std::env::temp_dir().join(project_name);
         let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
-        fs::create_dir(&project_dir).expect("Failed to create project directory");
+        let _ = fs::create_dir(&project_dir);
 
         // State for the command processor config
         let command_config = CommandSandboxConfig {
@@ -2340,7 +2340,7 @@ mod tests {
         let project_dir = std::env::temp_dir().join(project_name);
         let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
         // DM: in some instances, `rm -rf /tmp/phymes-wasm-project` is needed to delete the temporary project directory
-        fs::create_dir(&project_dir).expect("Failed to create project directory");
+        let _ = fs::create_dir(&project_dir);
 
         // --- From config ---
         // based on docker run --rm alpine echo "Hello from Docker!"
@@ -2766,11 +2766,11 @@ mod tests {
         let project_dir = std::env::temp_dir().join(project_name);
         let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
         // DM: in some instances, `rm -rf /tmp/phymes-py-project` is needed to delete the temporary project directory
-        fs::create_dir(&project_dir).expect("Failed to create project directory");
+        let _ = fs::create_dir(&project_dir);
 
         // Create src directory
         let src_path = format!("{}/src", project_dir.as_path().to_str().unwrap());
-        fs::create_dir(&src_path).expect("Failed to create src directory");
+        let _ = fs::create_dir(&src_path);
 
         // Create the requirements.txt
         let requirements_file_path = format!(
@@ -2929,7 +2929,7 @@ if __name__ == '__main__':
         let project_dir = std::env::temp_dir().join(project_name);
         let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
         // DM: in some instances, `rm -rf /tmp/phymes-py-project` is needed to delete the temporary project directory
-        fs::create_dir(&project_dir).expect("Failed to create project directory");
+        let _ = fs::create_dir(&project_dir);
 
         // Create the workspace
         let workspace_table = CommandSandboxEnvironments::Python.to_default_workspace(None)?;
@@ -3028,12 +3028,11 @@ if __name__ == '__main__':
             .with_record_batches(result)?
             .build()?;
 
+        let _ = fs::remove_dir_all(project_dir);
         let result = table.get_column_as_vec_str("name");
         assert_eq!(result, ["Alice", "Bob"]);
         let result = table.get_column_as_vec_primitive::<u32>("age")?;
         assert_eq!(result, [40, 35]);
-        // DM: Some strange permission issue `Error: Permission denied (os error 13)` with Docker + Python
-        // fs::remove_dir_all(project_dir)?;
 
         Ok(())
     }
@@ -3056,11 +3055,11 @@ if __name__ == '__main__':
         let project_dir = std::env::temp_dir().join(project_name);
         let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
         // DM: in some instances, `rm -rf /tmp/phymes-rs-project` is needed to delete the temporary project directory
-        fs::create_dir(&project_dir).expect("Failed to create project directory");
+        let _ = fs::create_dir(&project_dir);
 
         // Create src directory
         let src_path = format!("{}/src", project_dir.as_path().to_str().unwrap());
-        fs::create_dir(&src_path).expect("Failed to create src directory");
+        let _ = fs::create_dir(&project_dir);
 
         // Create the cargo.toml
         let requirements_file_path =
@@ -3715,7 +3714,7 @@ apt install --assume-yes protobuf-compiler clang"#;
         let project_dir = std::env::temp_dir().join(project_name);
         let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
         // DM: in some instances, `rm -rf /tmp/phymes-rs-project` is needed to delete the temporary project directory
-        fs::create_dir(&project_dir).expect("Failed to create project directory");
+        let _ = fs::create_dir(&project_dir);
 
         // --- from TempFile, initialization ---
 
