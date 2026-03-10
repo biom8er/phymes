@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use diff_match_patch_rs::{DiffMatchPatch, Efficient, PatchInput};
-use phymes_data::{ApplyDiffMode, apply_v4a_diff};
+use phymes_core::{ApplyDiffMode, apply_v4a_diff};
 
 fn sample_original() -> String {
     (0..1000).map(|i| format!("line {i}\n")).collect::<String>()

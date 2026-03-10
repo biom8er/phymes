@@ -61,7 +61,3 @@ criterion = { version = "0.8.2", default-features = false, features = ["cargo_be
 [[bench]]
 name = "candle_ops"
 harness = false
-
-[[bench]]
-name = "apply_diff"
-harness = false

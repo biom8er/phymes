@@ -76,11 +76,11 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage,
-        MappableTrait, MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication,
+        MappableTrait, MessageBuilderTrait, PatchOperator, TableBuilder, TableBuilderTrait, TablePublication,
         TableTrait, WorkspacePatchSubject, create_bytes_record_batch, create_workspace_batch,
         create_workspace_patch_batch,
     };
-    use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager, PatchOperator};
+    use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager};
     use phymes_diagnostics::HashMap;
 
     use crate::{
