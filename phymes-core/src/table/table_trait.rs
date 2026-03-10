@@ -151,21 +151,20 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
         for batch in self.get_record_batches() {
             writer.write(batch)?;
         }
-        writer.finish().unwrap();
+        writer.finish()?;
         drop(writer);
         Ok(bytes)
     }
 
     /// Write record batches to JSON
     fn to_json(&self) -> Result<Vec<u8>> {
-        let buf = Vec::new();
-        let mut writer = LineDelimitedWriter::new(buf);
+        let mut bytes = Vec::new();
+        let mut writer = LineDelimitedWriter::new(Cursor::new(&mut bytes));
         for batch in self.get_record_batches() {
             writer.write(batch)?;
         }
-        writer.finish().unwrap();
-        let json_data = writer.into_inner();
-        Ok(json_data)
+        writer.finish()?;
+        Ok(bytes)
     }
 
     /// Write record batches to JSON

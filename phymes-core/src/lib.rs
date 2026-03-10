@@ -1,7 +1,7 @@
 mod message;
+mod patch;
 mod processor;
 mod runtime_env;
-mod patch;
 mod schemas;
 mod storage;
 mod table;
@@ -12,6 +12,9 @@ pub use message::{
     SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap,
     make_random_id, remove_message_by_subject,
 };
+#[cfg(feature = "api")]
+pub use patch::WorkspaceEditor;
+pub use patch::{ApplyDiffMode, PatchOperation, PatchOperator, apply_patch_auto, apply_v4a_diff};
 pub use processor::{
     ProcessorBuilder, ProcessorEcho, ProcessorMap, ProcessorPlan, ProcessorPlanBuilder,
     ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, ProcessorTrait,
@@ -20,10 +23,6 @@ pub use processor::{
 pub use runtime_env::{
     BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvMap, RuntimeEnvTrait,
 };
-#[cfg(feature = "api")]
-pub use patch::WorkspaceEditor;
-pub use patch::{ApplyDiffMode, PatchOperation, PatchOperator, apply_patch_auto, apply_v4a_diff};
-pub use storage::{IpcReader, IpcWriterOld, upload_multipart, StorageBackendConfig, make_store};
 pub use schemas::{
     AttachmentBuilderTraitExt, AttachmentsSubject, AvailableSchemaTrait, AvailableSubjects,
     AvailableSubjectsTrait, ChatBuilderTraitExt, ChatCompletionRequest, ChatCompletionResponse,
@@ -51,6 +50,9 @@ pub use schemas::{
     create_values_fields, create_values_record_batch, create_workspace_batch,
     create_workspace_fields, create_workspace_patch_batch, create_workspace_patch_fields, e_utils,
     from_diagnostics_to_tables, open_alex, semantic_scholar,
+};
+pub use storage::{
+    IpcReader, IpcWriter, StorageBackendConfig, StorageReader, StorageWriter, make_store,
 };
 pub use table::{
     AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, CsvFormat, DataFormat,

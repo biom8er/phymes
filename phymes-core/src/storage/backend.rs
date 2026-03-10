@@ -1,23 +1,32 @@
 // src/storage.rs
-use std::sync::Arc;
 use anyhow::Result;
-use object_store::{ObjectStore, memory::InMemory, local::LocalFileSystem};
+use object_store::{ObjectStore, local::LocalFileSystem, memory::InMemory};
 #[cfg(feature = "api")]
-use object_store::{aws::AmazonS3Builder, azure::MicrosoftAzureBuilder, gcp::GoogleCloudStorageBuilder};
+use object_store::{
+    aws::AmazonS3Builder, azure::MicrosoftAzureBuilder, gcp::GoogleCloudStorageBuilder,
+};
+use std::sync::Arc;
 
 pub enum StorageBackendConfig {
     #[cfg(feature = "api")]
-    Aws { bucket: String },
+    Aws {
+        bucket: String,
+    },
     #[cfg(feature = "api")]
-    Gcp { bucket: String },
+    Gcp {
+        bucket: String,
+    },
     #[cfg(feature = "api")]
-    Azure { container: String },
-    LocalFs { root: String },
+    Azure {
+        container: String,
+    },
+    LocalFs {
+        root: String,
+    },
     InMemory,
 }
 
 pub async fn make_store(cfg: StorageBackendConfig) -> Result<Arc<dyn ObjectStore>> {
-
     let store: Arc<dyn ObjectStore> = match cfg {
         #[cfg(feature = "api")]
         StorageBackendConfig::Aws { bucket } => Arc::new(
@@ -37,9 +46,7 @@ pub async fn make_store(cfg: StorageBackendConfig) -> Result<Arc<dyn ObjectStore
                 .with_container_name(container)
                 .build()?,
         ),
-        StorageBackendConfig::LocalFs { root } => {
-            Arc::new(LocalFileSystem::new_with_prefix(root)?)
-        }
+        StorageBackendConfig::LocalFs { root } => Arc::new(LocalFileSystem::new_with_prefix(root)?),
         StorageBackendConfig::InMemory => Arc::new(InMemory::new()),
     };
 

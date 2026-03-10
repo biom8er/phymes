@@ -8,8 +8,8 @@ use arrow::{
 use candle_core::Device;
 use phymes_core::{
     AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, Function,
-    FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, PatchOperator, Table, TableBuilderTrait,
-    TableTrait, Tool, ToolType, apply_patch_auto,
+    FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, PatchOperator, Table,
+    TableBuilderTrait, TableTrait, Tool, ToolType, apply_patch_auto,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
