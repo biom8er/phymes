@@ -11,8 +11,11 @@ pub use backend::{StorageBackendConfig, make_store};
 
 #[cfg(test)]
 mod tests {
+    use crate::storage::ipc_reader::StorageReader;
+
     use super::*;
     use arrow::{array::{Int64Array, RecordBatch}, datatypes::{DataType, Field, Schema}};
+    use futures::TryStreamExt;
     use object_store::memory::InMemory;
     use object_store::path::Path;
     use std::sync::Arc;
@@ -73,13 +76,31 @@ mod tests {
 
         upload_multipart(store.clone(), path.clone(), &mut writer).await?;
 
-        // --- Read ---
+        // --- Read without streaming ---
         let mut reader = IpcReader::from_object(store.clone(), path.clone(), None).await?;
 
         let mut read_batches = Vec::new();
         while let Some(batch) = reader.poll_next_batch()? {
             read_batches.push(batch);
         }
+
+        assert_eq!(read_batches.len(), batches.len());
+
+        for (expected, actual) in batches.iter().zip(read_batches.iter()) {
+            assert_eq!(expected.num_rows(), actual.num_rows());
+            assert_eq!(expected.schema(), actual.schema());
+        }
+
+        // --- Read with streaming ---
+        let result = IpcReader::get_result(&store, &path).await?;
+        let mut read_batches = Vec::new();
+        let mut stream = IpcReader::stream_result(result);
+        while let Some(bytes) = stream.try_next().await? {
+            let mut reader = IpcReader::from_bytes(&bytes, None)?;
+            while let Some(batch) = reader.poll_next_batch()? {
+                read_batches.push(batch);
+            }
+        };
 
         assert_eq!(read_batches.len(), batches.len());
 
