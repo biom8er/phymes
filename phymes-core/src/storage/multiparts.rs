@@ -2,7 +2,7 @@ use bytes::Bytes;
 use object_store::{ObjectStore, ObjectStoreExt, path::Path};
 use std::sync::Arc;
 
-use crate::storage::IpcWriter;
+use crate::storage::IpcWriterOld;
 
 /// Drives a multipart upload using chunks produced by IpcWriter.
 ///
@@ -10,7 +10,7 @@ use crate::storage::IpcWriter;
 pub async fn upload_multipart(
     store: Arc<dyn ObjectStore>,
     path: Path,
-    writer: &mut IpcWriter,
+    writer: &mut IpcWriterOld,
 ) -> anyhow::Result<()> {
     let mut mp = store.put_multipart(&path).await?;
 

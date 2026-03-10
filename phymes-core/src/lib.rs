@@ -23,7 +23,7 @@ pub use runtime_env::{
 #[cfg(feature = "api")]
 pub use patch::WorkspaceEditor;
 pub use patch::{ApplyDiffMode, PatchOperation, PatchOperator, apply_patch_auto, apply_v4a_diff};
-pub use storage::{IpcReader, IpcWriter, upload_multipart, StorageBackendConfig, make_store};
+pub use storage::{IpcReader, IpcWriterOld, upload_multipart, StorageBackendConfig, make_store};
 pub use schemas::{
     AttachmentBuilderTraitExt, AttachmentsSubject, AvailableSchemaTrait, AvailableSubjects,
     AvailableSubjectsTrait, ChatBuilderTraitExt, ChatCompletionRequest, ChatCompletionResponse,

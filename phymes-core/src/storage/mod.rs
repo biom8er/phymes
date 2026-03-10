@@ -5,7 +5,7 @@ mod ipc_writer;
 mod multiparts;
 
 pub use ipc_reader::IpcReader;
-pub use ipc_writer::IpcWriter;
+pub use ipc_writer::IpcWriterOld;
 pub use multiparts::upload_multipart;
 pub use backend::{StorageBackendConfig, make_store};
 
@@ -35,7 +35,7 @@ mod tests {
         )?;
 
         // --- Write ---
-        let mut writer = IpcWriter::new(schema.clone(), 64 * 1024)?;
+        let mut writer = IpcWriterOld::new(schema.clone(), 64 * 1024)?;
         writer.write_batch(&batch)?;
 
         upload_multipart(store.clone(), path.clone(), &mut writer).await?;
@@ -69,7 +69,7 @@ mod tests {
         }
 
         // --- Write ---
-        let mut writer = IpcWriter::new(schema.clone(), 64 * 1024)?;
+        let mut writer = IpcWriterOld::new(schema.clone(), 64 * 1024)?;
         for batch in &batches {
             writer.write_batch(batch)?;
         }
