@@ -1,7 +1,7 @@
-use std::{cell::{RefCell, RefMut}, collections::VecDeque, io::Write, pin::Pin, rc::Rc, sync::Arc};
+use std::{collections::VecDeque, pin::Pin, sync::Arc};
 
 use anyhow::Result;
-use arrow::{csv::{Writer, WriterBuilder}, {array::RecordBatch, json::LineDelimitedWriter}, datatypes::SchemaRef, ipc::writer::StreamWriter};
+use arrow::array::RecordBatch;
 use bytes::Bytes;
 use object_store::{MultipartUpload, ObjectStore, ObjectStoreExt, PutResult, path::Path};
 use parking_lot::Mutex;

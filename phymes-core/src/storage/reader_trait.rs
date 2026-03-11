@@ -1,10 +1,9 @@
 use anyhow::Result;
-use arrow::{array::RecordBatch, csv::reader::Format, datatypes::{DataType, Field, Schema, SchemaRef}, ipc::reader::StreamReader, json::{Reader, ReaderBuilder, reader::infer_json_schema}};
+use arrow::array::RecordBatch;
 use bytes::Bytes;
 use futures::Stream;
 use object_store::{GetResult, ObjectStore, ObjectStoreExt, path::Path};
 use std::{
-    io::{BufRead, Cursor, Read, Seek},
     pin::Pin,
     sync::Arc,
 };

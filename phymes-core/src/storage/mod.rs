@@ -25,7 +25,7 @@ mod tests {
     use futures::TryStreamExt;
     use object_store::memory::InMemory;
     use object_store::path::Path;
-    use std::{io::Cursor, sync::Arc};
+    use std::sync::Arc;
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_storage_to_from_storage_ipc() -> anyhow::Result<()> {

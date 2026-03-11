@@ -9,7 +9,6 @@ use object_store::{
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, sync::Arc};
 
-use crate::IpcReader;
 
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
 pub enum ObjectStorageBackend {

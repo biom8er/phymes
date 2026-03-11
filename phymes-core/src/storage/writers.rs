@@ -1,9 +1,8 @@
-use std::{cell::{RefCell, RefMut}, collections::VecDeque, fmt::Debug, io::Write, pin::Pin, rc::Rc, sync::Arc};
+use std::{collections::VecDeque, fmt::Debug, io::Write, sync::Arc};
 
 use anyhow::Result;
 use arrow::{csv::{Writer, WriterBuilder}, {array::RecordBatch, json::LineDelimitedWriter}, datatypes::SchemaRef, ipc::writer::StreamWriter};
-use bytes::Bytes;
-use object_store::{MultipartUpload, ObjectStore, ObjectStoreExt, PutResult, path::Path};
+use object_store::MultipartUpload;
 use parking_lot::Mutex;
 
 use crate::{StorageStreamWriterTrait, StorageWriterTrait, storage::chunked_writer::{ChunkedWriter, OnChunk}};
