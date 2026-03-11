@@ -83,9 +83,9 @@ pub enum DataFormat {
 }
 
 impl DataFormat {
-    /// Convert from a filename extension
-    pub fn from_extension(extension: &str) -> Result<Self> {
-        let format = match extension {
+    /// Convert from a filename prefix
+    pub fn from_prefix(prefix: &str) -> Result<Self> {
+        let format = match prefix {
             "csv" => DataFormat::CsvDefault,
             "json" => DataFormat::JsonDefault,
             "pdf" => DataFormat::Pdf,
@@ -97,15 +97,15 @@ impl DataFormat {
             "owl" => DataFormat::Owl,
             _ => {
                 return Err(anyhow!(
-                    "File extension {extension} was not recognized. Supported extensions are .csv, .json, .pdf, .bytes, .ipc, .txt, .xml,, .owl, and .html"
+                    "File prefix {prefix} was not recognized. Supported prefixes are .csv, .json, .pdf, .bytes, .ipc, .txt, .xml,, .owl, and .html"
                 ));
             }
         };
         Ok(format)
     }
 
-    /// The file extension for the format
-    pub fn to_extension(&self) -> &str {
+    /// The file prefix for the format
+    pub fn to_prefix(&self) -> &str {
         match self {
             Self::Csv(_) | Self::CsvDefault => "csv",
             Self::Json(_) | Self::JsonDefault | Self::JsonSchema => "json",
@@ -136,6 +136,63 @@ impl Display for DataFormat {
             Self::Txt => write!(f, "Txt"),
             Self::Xml => write!(f, "Xml"),
             Self::Owl => write!(f, "Owl"),
+            Self::None => write!(f, "None"),
+        }
+    }
+}
+
+/// Data compression and decompression encodings
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, ValueEnum, Deserialize, Default, Hash)]
+pub enum DataEncoding {
+    /// Deflate
+    #[value(name = "Deflate")]
+    Deflate,
+    /// Zlib
+    #[value(name = "Zlib")]
+    Zlib,
+    /// Gz
+    #[value(name = "Gz")]
+    Gz,
+    #[default]
+    #[value(name = "None")]
+    None,
+}
+
+impl DataEncoding {
+    /// Convert from a filename prefix
+    pub fn from_extension(extension: &str) -> Result<Self> {
+        let format = match extension {
+            "deflate" => DataEncoding::Deflate,
+            "" => DataEncoding::Deflate,
+            "zz" => DataEncoding::Zlib,
+            "zlib" => DataEncoding::Zlib,
+            "gz" => DataEncoding::Gz,
+            _ => {
+                return Err(anyhow!(
+                    "File extension {extension} was not recognized. Supported extensions are .deflate, .zz, .zlib, and .gz"
+                ));
+            }
+        };
+        Ok(format)
+    }
+
+    /// The file prefix for the format
+    pub fn to_extension(&self) -> &str {
+        match self {
+            Self::Deflate => "",
+            Self::Zlib => "zz",
+            Self::Gz => "gz",
+            Self::None => "",
+        }
+    }
+}
+
+impl Display for DataEncoding {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Deflate => write!(f, "Deflate"),
+            Self::Zlib => write!(f, "Zlib"),
+            Self::Gz => write!(f, "Gz"),
             Self::None => write!(f, "None"),
         }
     }

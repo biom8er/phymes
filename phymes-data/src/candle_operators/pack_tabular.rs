@@ -140,7 +140,7 @@ pub fn table_and_data_format_to_record_batch(
             let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
             create_attachments_batch(
                 vec![table.get_name().to_string()],
-                vec![format.to_extension().to_string()],
+                vec![format.to_prefix().to_string()],
                 vec![bytes],
                 vec!["assistant".to_string()],
                 vec![create_timestamp_micros()],
@@ -154,7 +154,7 @@ pub fn table_and_data_format_to_record_batch(
             let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
             create_attachments_batch(
                 vec![table.get_name().to_string()],
-                vec![format.to_extension().to_string()],
+                vec![format.to_prefix().to_string()],
                 vec![bytes],
                 vec!["assistant".to_string()],
                 vec![create_timestamp_micros()],
@@ -165,7 +165,7 @@ pub fn table_and_data_format_to_record_batch(
             let bytes = table.to_bytes()?;
             create_attachments_batch(
                 vec![table.get_name().to_string()],
-                vec![format.to_extension().to_string()],
+                vec![format.to_prefix().to_string()],
                 vec![bytes.to_vec()],
                 vec!["assistant".to_string()],
                 vec![create_timestamp_micros()],
@@ -176,7 +176,7 @@ pub fn table_and_data_format_to_record_batch(
             let bytes = table.to_json()?;
             create_attachments_batch(
                 vec![table.get_name().to_string()],
-                vec![format.to_extension().to_string()],
+                vec![format.to_prefix().to_string()],
                 vec![bytes],
                 vec!["assistant".to_string()],
                 vec![create_timestamp_micros()],
@@ -191,7 +191,7 @@ pub fn table_and_data_format_to_record_batch(
                 .collect::<Vec<_>>();
             create_attachments_batch(
                 vec![table.get_name().to_string()],
-                vec![format.to_extension().to_string()],
+                vec![format.to_prefix().to_string()],
                 vec![bytes],
                 vec!["assistant".to_string()],
                 vec![create_timestamp_micros()],

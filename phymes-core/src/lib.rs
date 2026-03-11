@@ -57,7 +57,7 @@ pub use storage::{
     IpcWriter, JsonWriter, CsvWriter, StorageWriterTrait, StorageStreamWriterTrait, storage_writer_multipart
 };
 pub use table::{
-    AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, CsvFormat, DataFormat,
+    AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, CsvFormat, DataEncoding, DataFormat,
     IPCRecordBatchStream, JsonFormat, RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder,
     RecordBatchStream, RecordBatchStreamAdapter, SendableIPCRecordBatchStream,
     SendableRecordBatchStream, StateMap, Table, TableBuilder, TableBuilderTrait,

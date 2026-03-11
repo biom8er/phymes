@@ -91,16 +91,6 @@ pub struct ObjectStoreConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chunk_size: Option<usize>,
 
-    /// The data format to extract
-    #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub format: Option<DataFormat>,
-
-    /// The data schema to extract with
-    #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub schema: Option<AvailableSubjects>,
-
     /// The request schema to try and parse responses into if format and schema are None
     #[arg(long, default_value_t = HTTPClientRequestSchemas::Messages)]
     pub request_schema: HTTPClientRequestSchemas,
@@ -124,10 +114,11 @@ impl DataConfigTrait for ObjectStoreConfig {
         if !(column_names.contains("timeout")
             && column_names.contains("ops_type")
             && column_names.contains("backend")
+            && column_names.contains("request_schema")
             && column_names.contains("location"))
         {
             return Err(anyhow!(
-                "Table {} is missing required Field for `timeout`, `ops_type`, `backend`, and `location` in ObjectStoreConfig.",
+                "Table {} is missing required Field for `timeout`, `ops_type`, `backend`, `request_schema`, and `location` in ObjectStoreConfig.",
                 table.get_name()
             ));
         }

@@ -62,7 +62,7 @@ pub fn attach_files_input(
             let file_path = std::path::Path::new(&filename);
             match file_path.extension() {
                 None => tracing::error!("File {filename} has no extension."),
-                Some(ext) => match DataFormat::from_extension(ext.to_str().unwrap()) {
+                Some(ext) => match DataFormat::from_prefix(ext.to_str().unwrap()) {
                     Ok(data_format) => {
                         if let Ok(contents) = file.read_bytes().await {
                             let extension = ext.to_str().unwrap();
@@ -445,7 +445,7 @@ pub fn download_files_button(
                         }
                         files_downloaded.push(bytes_vec);
                         filenames_downloaded.push(active_subject_name.read().as_str().to_string());
-                        extensions_downloaded.push(data_format().to_extension().to_string());
+                        extensions_downloaded.push(data_format().to_prefix().to_string());
                     },
                     Err(err) => tracing::error!("There was a error downloading subject {err}."),
                 }

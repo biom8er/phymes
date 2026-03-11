@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
-use phymes_core::{AvailableSubjects, DataFormat, MappableTrait, Table, TableTrait};
+use phymes_core::{AvailableSubjects, DataEncoding, DataFormat, MappableTrait, Table, TableTrait};
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
@@ -657,6 +657,11 @@ pub struct DataConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<DataFormat>,
+
+    /// The data encoding to extract
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub encoding: Option<DataEncoding>,
 
     /// The data schema to extract with
     #[arg(long)]
