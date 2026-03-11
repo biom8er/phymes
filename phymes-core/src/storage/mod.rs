@@ -4,8 +4,8 @@ mod reader;
 mod writer;
 
 pub use backend::{StorageBackendConfig, make_store};
-pub use reader::{IpcReader, JsonReader, CsvReader, StorageReader, StorageStreamReader, storage_reader_get_result, storage_reader_stream_result};
-pub use writer::{IpcWriter, JsonWriter, CsvWriter, StorageWriter, StorageStreamWriter, storage_writer_multipart};
+pub use reader::{IpcReader, JsonReader, CsvReader, StorageReaderTrait, StorageStreamReaderTrait, storage_reader_get_result, storage_reader_stream_result};
+pub use writer::{IpcWriter, JsonWriter, CsvWriter, StorageWriterTrait, StorageStreamWriterTrait, storage_writer_multipart};
 
 #[cfg(test)]
 mod tests {

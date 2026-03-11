@@ -52,7 +52,9 @@ pub use schemas::{
     from_diagnostics_to_tables, open_alex, semantic_scholar,
 };
 pub use storage::{
-    IpcReader, IpcWriter, StorageBackendConfig, StorageReader, StorageWriter, make_store,
+    StorageBackendConfig, make_store,
+    IpcReader, JsonReader, CsvReader, StorageReaderTrait, StorageStreamReaderTrait, storage_reader_get_result, storage_reader_stream_result,
+    IpcWriter, JsonWriter, CsvWriter, StorageWriterTrait, StorageStreamWriterTrait, storage_writer_multipart
 };
 pub use table::{
     AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, CsvFormat, DataFormat,

@@ -16,7 +16,7 @@ pub fn storage_writer_multipart<'a>(store: &'a Arc<dyn ObjectStore>, path: &'a P
 }
 
 /// Trait for writing to object storage
-pub trait StorageWriter {
+pub trait StorageWriterTrait {
     type SW;
 
     fn pending_borrow_mut(&mut self) -> RefMut<'_, VecDeque<Vec<u8>>>;
@@ -62,7 +62,7 @@ pub trait StorageWriter {
     }
 }
 
-pub trait StorageStreamWriter<W> {
+pub trait StorageStreamWriterTrait<W> {
 
     /// Add the batch to the writer
     fn write_batch(&mut self, batch: &RecordBatch) -> Result<()>;
@@ -87,7 +87,7 @@ impl IpcWriter<ChunkedWriter<Box<dyn FnMut(Vec<u8>)>>> {
     }
 }
 
-impl<W: Write> StorageStreamWriter<W> for IpcWriter<W> {
+impl<W: Write> StorageStreamWriterTrait<W> for IpcWriter<W> {
     fn write_batch(&mut self, batch: &RecordBatch) -> Result<()> {
         self.writer.write(batch)?;
         Ok(())
@@ -100,7 +100,7 @@ impl<W: Write> StorageStreamWriter<W> for IpcWriter<W> {
     }
 }
 
-impl StorageWriter for IpcWriter<ChunkedWriter<Box<dyn FnMut(Vec<u8>)>>> {
+impl StorageWriterTrait for IpcWriter<ChunkedWriter<Box<dyn FnMut(Vec<u8>)>>> {
     type SW = StreamWriter<ChunkedWriter<Box<dyn FnMut(Vec<u8>)>>>;
 
     fn new(writer: Self::SW, mp: Box<dyn MultipartUpload>, pending: Rc<RefCell<VecDeque<Vec<u8>>>>) -> Self {
@@ -123,7 +123,7 @@ pub struct JsonWriter<W: Write> {
     mp: Box<dyn MultipartUpload>,
 }
 
-impl<W: Write> StorageStreamWriter<W> for JsonWriter<W> {
+impl<W: Write> StorageStreamWriterTrait<W> for JsonWriter<W> {
     fn write_batch(&mut self, batch: &RecordBatch) -> Result<()> {
         self.writer.write(batch)?;
         Ok(())
@@ -145,7 +145,7 @@ impl JsonWriter<ChunkedWriter<Box<dyn FnMut(Vec<u8>)>>> {
     }
 }
 
-impl StorageWriter for JsonWriter<ChunkedWriter<Box<dyn FnMut(Vec<u8>)>>> {
+impl StorageWriterTrait for JsonWriter<ChunkedWriter<Box<dyn FnMut(Vec<u8>)>>> {
     type SW = LineDelimitedWriter<ChunkedWriter<Box<dyn FnMut(Vec<u8>)>>>;
     fn new(writer: Self::SW, mp: Box<dyn MultipartUpload>, pending: Rc<RefCell<VecDeque<Vec<u8>>>>) -> Self {
         Self { writer, pending, mp }
@@ -167,7 +167,7 @@ pub struct CsvWriter<W: Write> {
     mp: Box<dyn MultipartUpload>,
 }
 
-impl<W: Write> StorageStreamWriter<W> for CsvWriter<W> {
+impl<W: Write> StorageStreamWriterTrait<W> for CsvWriter<W> {
     fn write_batch(&mut self, batch: &RecordBatch) -> Result<()> {
         self.writer.write(batch)?;
         Ok(())
@@ -193,7 +193,7 @@ impl CsvWriter<ChunkedWriter<Box<dyn FnMut(Vec<u8>)>>> {
     }
 }
 
-impl StorageWriter for CsvWriter<ChunkedWriter<Box<dyn FnMut(Vec<u8>)>>> {
+impl StorageWriterTrait for CsvWriter<ChunkedWriter<Box<dyn FnMut(Vec<u8>)>>> {
     type SW = Writer<ChunkedWriter<Box<dyn FnMut(Vec<u8>)>>>;
     fn new(writer: Self::SW, mp: Box<dyn MultipartUpload>, pending: Rc<RefCell<VecDeque<Vec<u8>>>>) -> Self {
         Self { writer, pending, mp }

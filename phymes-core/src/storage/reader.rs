@@ -22,7 +22,7 @@ pub fn storage_reader_stream_result(result: GetResult,
 }
 
 /// Trait for reading from object storage
-pub trait StorageReader {
+pub trait StorageReaderTrait {
     type SR;
 
     /// Build the [StorageReader] after polling `get_result` and `stream_result`
@@ -31,7 +31,7 @@ pub trait StorageReader {
         Self: Sized;
 }
 
-pub trait StorageStreamReader<R> {
+pub trait StorageStreamReaderTrait<R> {
     fn poll_next_batch(&mut self) -> Result<Option<RecordBatch>>;
 }
 
@@ -49,7 +49,7 @@ impl IpcReader<Cursor<Vec<u8>>> {
 
 }
 
-impl<R: Read> StorageStreamReader<R> for IpcReader<R> {
+impl<R: Read> StorageStreamReaderTrait<R> for IpcReader<R> {
     fn poll_next_batch(&mut self) -> Result<Option<RecordBatch>> {
         match self.reader.next() {
             Some(Ok(batch)) => Ok(Some(batch)),
@@ -59,7 +59,7 @@ impl<R: Read> StorageStreamReader<R> for IpcReader<R> {
     }
 }
 
-impl<R: Read> StorageReader for IpcReader<R> {
+impl<R: Read> StorageReaderTrait for IpcReader<R> {
     type SR = StreamReader<R>;
     
     fn new(reader: Self::SR) -> Self {
@@ -116,7 +116,7 @@ impl JsonReader<Cursor<Vec<u8>>> {
 
 }
 
-impl<R: Read + BufRead> StorageStreamReader<R> for JsonReader<R> {
+impl<R: Read + BufRead> StorageStreamReaderTrait<R> for JsonReader<R> {
     fn poll_next_batch(&mut self) -> Result<Option<RecordBatch>> {
         match self.reader.next() {
             Some(Ok(batch)) => Ok(Some(batch)),
@@ -126,7 +126,7 @@ impl<R: Read + BufRead> StorageStreamReader<R> for JsonReader<R> {
     }
 }
 
-impl<R: Read> StorageReader for JsonReader<R> {
+impl<R: Read> StorageReaderTrait for JsonReader<R> {
     type SR = Reader<R>;
     
     fn new(reader: Self::SR) -> Self {
@@ -167,7 +167,7 @@ impl CsvReader<Cursor<Vec<u8>>> {
 
 }
 
-impl<R: Read + BufRead> StorageStreamReader<R> for CsvReader<R> {
+impl<R: Read + BufRead> StorageStreamReaderTrait<R> for CsvReader<R> {
     fn poll_next_batch(&mut self) -> Result<Option<RecordBatch>> {
         match self.reader.next() {
             Some(Ok(batch)) => Ok(Some(batch)),
@@ -177,7 +177,7 @@ impl<R: Read + BufRead> StorageStreamReader<R> for CsvReader<R> {
     }
 }
 
-impl<R: Read> StorageReader for CsvReader<R> {
+impl<R: Read> StorageReaderTrait for CsvReader<R> {
     type SR = arrow::csv::reader::BufReader<std::io::BufReader<R>>;
     
     fn new(reader: Self::SR) -> Self {

@@ -146,6 +146,7 @@ pub fn create_blob_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct BlobSubject {
     pub path: String,
@@ -195,4 +196,33 @@ pub fn create_blob_batch(
         ("timestamp", timestamp),
     ])?;
     Ok(batch)
+}
+
+/// Object store fields
+/// see <https://docs.rs/object_store/latest/object_store/struct.ObjectMeta.html>
+pub fn create_object_store_meta_fields() -> Fields {
+    let field_names = [
+        "location",
+        "e_tag",
+        "version",
+    ];
+    let mut fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    let field_names = ["size"];
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::UInt32, false))
+            .collect::<Vec<_>>(),
+    );
+    let field_names = ["last_modified"];
+    fields_vec.extend(
+        field_names
+            .iter()
+            .map(|f| Field::new(*f, DataType::Int64, false))
+            .collect::<Vec<_>>(),
+    );
+    Fields::from(fields_vec)
 }
