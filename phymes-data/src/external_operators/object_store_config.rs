@@ -1,12 +1,12 @@
-use std::{env, fmt::Display};
+use std::fmt::Display;
 
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
-use phymes_core::{MappableTrait, Table, TableTrait};
+use phymes_core::{AvailableSubjects, DataFormat, MappableTrait, ObjectStorageBackend, Table, TableTrait};
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
-use crate::DataConfigTrait;
+use crate::{DataConfigTrait, HTTPClientRequestSchemas};
 
 /// The Object Store operation types
 /// 
@@ -27,7 +27,7 @@ pub enum ObjectStoreOptsType {
     #[value(name = "PutMultipart")]
     PutMultipart,
     #[value(name = "List")]
-    Patch,
+    List,
     #[value(name = "Delete")]
     Delete,
     #[value(name = "Copy")]
@@ -45,6 +45,7 @@ impl Display for ObjectStoreOptsType {
             Self::PutMultipart => write!(f, "PutMultipart"),
             Self::List => write!(f, "List"),
             Self::Delete => write!(f, "Delete"),
+            Self::Copy => write!(f, "Copy"),
             Self::Rename => write!(f, "Rename"),
         }
     }
@@ -60,7 +61,7 @@ impl Display for ObjectStoreOptsType {
 ///   See individutal `options` per operation <https://docs.rs/object_store/latest/object_store/trait.ObjectStore.html?
 /// 
 /// - Other options including projections (column subsetting), filtering, etc.
-#[derive(Parser, Debug, Serialize, Deserialize, Clone)]
+#[derive(Parser, Debug, Serialize, Deserialize, Clone, Default)]
 #[command(author, version, about, long_about = None)]
 #[serde(default)]
 pub struct ObjectStoreConfig {
@@ -74,7 +75,7 @@ pub struct ObjectStoreConfig {
 
     /// The object store backend
     #[arg(long)]
-    pub backend: StorageBackendConfig,
+    pub backend: ObjectStorageBackend,
 
     /// The object store bucket (also called `container` for Azure or `root` for LocalFs; None for InMemory)
     #[arg(long)]
@@ -83,7 +84,6 @@ pub struct ObjectStoreConfig {
 
     /// The location within the object store that the data is
     #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub location: String,
 
     /// The length of the data chunks to send

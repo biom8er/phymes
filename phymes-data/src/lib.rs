@@ -1,6 +1,5 @@
 mod candle_data;
 mod candle_operators;
-#[cfg(feature = "api")]
 mod external_operators;
 mod template;
 
@@ -20,12 +19,9 @@ pub use candle_operators::{
     table_and_data_format_to_record_batch, test_extract_tabular_data,
 };
 #[cfg(feature = "api")]
-pub use external_operators::{
-    CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxProcessor,
-    CommandSandboxRunners, DataIOMethod, HTTPClientConfig, HTTPClientRequestProcessor,
-    HTTPClientRequestSchemas, HTTPClientRequestState, HTTPClientRequestType,
-    test_command_sandbox_processor,
-};
+pub use external_operators::{CommandSandboxProcessor, HTTPClientRequestProcessor, HTTPClientRequestState, test_command_sandbox_processor};
+pub use external_operators::{CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod, HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType,
+    ObjectStoreConfig, ObjectStoreOptsType};
 pub use template::{
     AvailableJinja2Templates, MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_INPUT,
     MERMAID_ER_DIAGRAM_RELATIONS_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE, MERMAID_FLOWCHART_INPUT,
