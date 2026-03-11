@@ -64,7 +64,7 @@ pub use table::{
     TableChangedSinceLastRunUpdate, TableExistsUpdate, TableHasBatchesUpdate, TablePublication,
     TablePublicationTrait, TableScript, TableSubscribePolicyTrait, TableSubscription,
     TableSubscriptionTrait, TableTrait, TableUpdatePolicyTrait, from_data_type_to_str,
-    from_str_to_data_type, items_to_list, parse_str_to_data_type, test_table,
+    from_str_to_data_type, items_to_list, make_filename, make_extension, parse_str_to_data_type, test_table,
 };
 pub use task::{
     Task, TaskBuilder, TaskBuilderTrait, TaskMap, TaskPlan, TaskPlanBuilder, TaskTrait,

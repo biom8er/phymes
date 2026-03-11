@@ -197,3 +197,37 @@ impl Display for DataEncoding {
         }
     }
 }
+
+/// Make the filename based on the [DataFormat] and the [DataEncoding]
+/// 
+/// # Notes
+/// - filename: "foo" of "/bar/foo.rs.gz"
+/// - prefix: "rs" of "/bar/foo.rs.gz"
+/// - extension: "gz" of "/bar/foo.rs.gz"
+pub fn make_filename(filename: &str, format: &DataFormat, encoding: &DataEncoding) -> String {
+    let mut filename_vec = vec![filename];
+    if format != &DataFormat::None {
+        filename_vec.push(format.to_prefix());
+    }
+    if encoding != &DataEncoding::None {
+        filename_vec.push(encoding.to_extension());
+    }
+    filename_vec.join(".")
+}
+
+/// Make the extension based on the [DataFormat] and the [DataEncoding]
+/// 
+/// # Notes
+/// - we treat everything after the "." as a part of the extension including the prefix and extension
+/// - prefix: "rs" of "/bar/foo.rs.gz"
+/// - extension: "gz" of "/bar/foo.rs.gz"
+pub fn make_extension(format: &DataFormat, encoding: &DataEncoding) -> String {
+    let mut filename_vec = Vec::new();
+    if format != &DataFormat::None {
+        filename_vec.push(format.to_prefix());
+    }
+    if encoding != &DataEncoding::None {
+        filename_vec.push(encoding.to_extension());
+    }
+    filename_vec.join(".")
+}

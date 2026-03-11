@@ -4,9 +4,7 @@ use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, DataFormat, Function, FunctionParameters, JSONSchemaDefine,
-    JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableScript, TableTrait, Tool,
-    ToolType, create_bytes_record_batch, create_mermaid_content_template_batch,
+    BuildableTrait, BuilderTrait, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableScript, TableTrait, Tool, ToolType, create_bytes_record_batch, create_mermaid_content_template_batch
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -25,6 +23,7 @@ pub struct ApplyTemplate {
     doc_template: AvailableJinja2Templates,
     doc_name: String,
     doc_input: Value,
+    encoding: DataEncoding,
     format: DataFormat,
 }
 
@@ -91,6 +90,7 @@ impl DataOperatorTrait for ApplyTemplate {
             &self.doc_template,
             &self.doc_name,
             &self.doc_input,
+            &self.encoding,
             &self.format,
             device,
         )
@@ -112,6 +112,10 @@ impl DataOperatorTrait for ApplyTemplate {
                 Self::get_static_name()
             ));
         };
+        let encoding = config.encoding.clone().ok_or(anyhow!(
+            "Missing `encoding` for `{}`.",
+            Self::get_static_name()
+        ))?;
         let format = config.format.clone().ok_or(anyhow!(
             "Missing `format` for `{}`.",
             Self::get_static_name()
@@ -122,6 +126,7 @@ impl DataOperatorTrait for ApplyTemplate {
             doc_template,
             doc_name,
             doc_input,
+            encoding,
             format,
         })
     }
@@ -150,15 +155,17 @@ impl DataOperatorTrait for ApplyTemplate {
 /// * `doc_name` - The name of the resulting document
 /// * `doc_input` - A JSON Value representing the input for the template beyond the table_expression
 ///   where the table_expression will be inserted into to complete the input for the template
-/// * `doc_extension` - The document extension e.g., .py, .html, .md, .txt, etc.
+/// * `encoding` - The document encoding
+/// * `format` - The document format
 /// * `device` - The compute device
-#[instrument(skip(lhs_args, rhs_args, doc_template, doc_name, doc_input, format, _device))]
+#[instrument(skip(lhs_args, rhs_args, doc_template, doc_name, doc_input, encoding, format, _device))]
 pub fn apply_template(
     lhs_args: &[RecordBatch],
     rhs_args: Option<&[RecordBatch]>,
     doc_template: &AvailableJinja2Templates,
     doc_name: &str,
     doc_input: &Value,
+    encoding: &DataEncoding,
     format: &DataFormat,
     _device: &Device,
 ) -> Result<RecordBatch> {
@@ -227,7 +234,7 @@ pub fn apply_template(
         .build()?;
 
     // Convert to the desired format
-    table_and_data_format_to_record_batch(&table, format, Some("content"))
+    table_and_data_format_to_record_batch(&table, encoding, format, Some("content"))
 }
 
 #[cfg(test)]
@@ -261,6 +268,7 @@ mod tests {
             &jinja2_template,
             "viz",
             &input_template,
+            &DataEncoding::None,
             &DataFormat::Html,
             &device,
         )?;
@@ -308,6 +316,7 @@ mod tests {
             &jinja2_template,
             "doc",
             &Value::Null,
+            &DataEncoding::None,
             &DataFormat::Html,
             &device,
         )?;

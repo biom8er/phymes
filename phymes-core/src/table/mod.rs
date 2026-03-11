@@ -14,7 +14,7 @@ mod table_update_policy;
 
 pub use available_table_subscribe_policies::AvailableTableSubscribePolicies;
 pub use available_table_update_policies::AvailableTableUpdatePolicies;
-pub use data_format::{CsvFormat, DataFormat, JsonFormat, DataEncoding};
+pub use data_format::{CsvFormat, DataFormat, JsonFormat, DataEncoding, make_filename, make_extension};
 pub use data_types::{from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type};
 pub use stream::{
     IPCRecordBatchStream, RecordBatchStream, SendableIPCRecordBatchStream,
