@@ -1,8 +1,5 @@
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
-    BuilderTrait, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait,
-    Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan,
-    create_schema_from_fields,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_schema_from_fields
 };
 use phymes_data::{
     AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
@@ -963,6 +960,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         let top_k_summary_config = DataConfig {
             lhs_name: Some(self.state_top_k_limit_docs_table_name.to_string()),
             doc_name: Some(self.state_top_k_limit_docs_table_name.to_string()),
+            encoding: Some(DataEncoding::None),
             format: Some(DataFormat::None),
             cpu: false,
             operator: AvailableCandleOperators::PackTabular,

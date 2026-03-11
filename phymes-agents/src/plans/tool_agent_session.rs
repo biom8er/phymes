@@ -2,10 +2,7 @@ use anyhow::Result;
 use serde_json::json;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait,
-    BuilderTrait, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait,
-    Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan,
-    create_schema_from_fields, create_tools_record_batch,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_schema_from_fields, create_tools_record_batch
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
@@ -703,6 +700,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 "y_title": "score"}))
                 .unwrap(),
             ),
+            encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Html),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
@@ -717,6 +715,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 
         // Attachment config
         let attachment_config = DataConfig {
+            encoding: Some(DataEncoding::None),
             format: Some(DataFormat::CsvDefault),
             cpu: false,
             lhs_stream: DataStreamManager::Accumulate,
@@ -735,6 +734,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 
         // Summary config
         let summary_config = DataConfig {
+            encoding: Some(DataEncoding::None),
             operator: AvailableCandleOperators::PackTabular,
             format: Some(DataFormat::None),
             cpu: false,
@@ -751,6 +751,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .build()
             .unwrap();
         let summary_config = DataConfig {
+            encoding: Some(DataEncoding::None),
             operator: AvailableCandleOperators::PackTabular,
             format: Some(DataFormat::None),
             cpu: false,

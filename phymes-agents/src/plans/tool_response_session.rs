@@ -79,6 +79,7 @@ impl<'a> ToolResponseSession<'a> {
     {}
     {p}["{p}"] {{
         Utf8 operator "PackTabular"
+        Utf8 encoding "None"
         Utf8 format "None"
         Boolean cpu "false"
         Utf8 lhs_name "{subject_name}"

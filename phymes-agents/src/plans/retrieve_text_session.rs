@@ -214,6 +214,7 @@ impl<'a> RetrieveTextSession<'a> {
 	    Boolean cpu "false"
 	    Utf8 operator "PackTabular"
 	    Utf8 lhs_stream "Accumulate"
+	    Utf8 encoding "None"
 	    Utf8 format "None"
 	}
 	ToolMessages["ToolMessages"] {

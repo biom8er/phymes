@@ -1,9 +1,6 @@
 use arrow::datatypes::DataType;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
-    DataFormat, DiagnosticsVisualizations, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv,
-    RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription,
-    TaskPlan,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait, DataEncoding, DataFormat, DiagnosticsVisualizations, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator,
@@ -1111,6 +1108,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "axisFormat": "%s"}))
                 .unwrap(),
             ),
+            encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Txt),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
@@ -1139,6 +1137,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "axisFormat": "%s"}))
                 .unwrap(),
             ),
+            encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Txt),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
@@ -1167,6 +1166,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 "axisFormat": "%s"}))
                 .unwrap(),
             ),
+            encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Txt),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
@@ -1205,6 +1205,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             doc_template: Some(AvailableJinja2Templates::MermaidSequenceDiagramMessagesTemplate),
             doc_name: Some(self.apply_sequence_diagram_messages_task_name.to_string()),
             doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
+            encoding: Some(DataEncoding::None),
             format: Some(DataFormat::None),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
@@ -1296,6 +1297,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     .to_string(),
             ),
             doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
+            encoding: Some(DataEncoding::None),
             format: Some(DataFormat::None),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
@@ -1363,6 +1365,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             doc_template: Some(AvailableJinja2Templates::MermaidSequenceDiagramTemplate),
             doc_name: Some(DiagnosticsVisualizations::TraceSequenceDiagram.to_string()),
             doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
+            encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Txt),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
@@ -1460,6 +1463,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             doc_template: Some(AvailableJinja2Templates::MermaidKanbanTemplate),
             doc_name: Some(DiagnosticsVisualizations::ErrorKanban.to_string()),
             doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
+            encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Txt),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
@@ -1654,6 +1658,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             doc_template: Some(AvailableJinja2Templates::MermaidKanbanTemplate),
             doc_name: Some(DiagnosticsVisualizations::EventKanban.to_string()),
             doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
+            encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Txt),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()

@@ -4,9 +4,7 @@ use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait,
-    Table, WorkspacePatchSubject,
-    test_processor::{ProcessorError, ProcessorMock},
+    AvailableSubjects, DataEncoding, DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Table, WorkspacePatchSubject, test_processor::{ProcessorError, ProcessorMock}
 };
 use phymes_data::{
     AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,
@@ -186,6 +184,7 @@ impl DataConfigTrait for AvailableProcessors {
                 doc_template: Some(AvailableJinja2Templates::default()),
                 doc_name: Some("doc_name".to_string()),
                 doc_input: Some("{}".to_string()),
+                encoding: Some(DataEncoding::default()),
                 format: Some(DataFormat::Html),
                 cpu: false,
                 operator: AvailableCandleOperators::ApplyTemplate,
@@ -278,6 +277,7 @@ impl DataConfigTrait for AvailableProcessors {
             Self::ExtractTabular => serde_json::to_vec(&DataConfig {
                 lhs_name: Some("lhs_name".to_string()),
                 lhs_values: Some(vec!["lhs_values".to_string()]),
+                encoding: Some(DataEncoding::default()),
                 format: Some(DataFormat::CsvDefault),
                 schema: Some(AvailableSubjects::default()),
                 cpu: false,
@@ -339,6 +339,7 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             Self::PackTabular => serde_json::to_vec(&DataConfig {
+                encoding: Some(DataEncoding::default()),
                 format: Some(DataFormat::None),
                 doc_name: Some("doc_name".to_string()),
                 cpu: false,
