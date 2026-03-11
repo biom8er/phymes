@@ -53,6 +53,7 @@ pub use schemas::{
 };
 pub use storage::{
     ObjectStorageBackend, make_store,
+    ObjectStorageReader, ObjectStorageWriter,
     IpcReader, JsonReader, CsvReader, StorageReaderTrait, StorageStreamReaderTrait, storage_reader_get_result, storage_reader_stream_result,
     IpcWriter, JsonWriter, CsvWriter, StorageWriterTrait, StorageStreamWriterTrait, storage_writer_multipart
 };

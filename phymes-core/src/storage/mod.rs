@@ -1,11 +1,19 @@
 mod backend;
 mod chunked_writer;
-mod reader;
-mod writer;
+mod reader_trait;
+mod readers;
+mod storage_reader;
+mod storage_writer;
+mod writer_trait;
+mod writers;
 
 pub use backend::{ObjectStorageBackend, make_store};
-pub use reader::{IpcReader, JsonReader, CsvReader, StorageReaderTrait, StorageStreamReaderTrait, storage_reader_get_result, storage_reader_stream_result};
-pub use writer::{IpcWriter, JsonWriter, CsvWriter, StorageWriterTrait, StorageStreamWriterTrait, storage_writer_multipart};
+pub use reader_trait::{StorageReaderTrait, StorageStreamReaderTrait, storage_reader_get_result, storage_reader_stream_result};
+pub use readers::{IpcReader, JsonReader, CsvReader};
+pub use storage_reader::ObjectStorageReader;
+pub use storage_writer::ObjectStorageWriter;
+pub use writer_trait::{StorageWriterTrait, StorageStreamWriterTrait, storage_writer_multipart};
+pub use writers::{IpcWriter, JsonWriter, CsvWriter};
 
 #[cfg(test)]
 mod tests {

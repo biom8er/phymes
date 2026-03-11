@@ -4,38 +4,13 @@ use bytes::Bytes;
 use futures::Stream;
 use object_store::{GetResult, ObjectStore, ObjectStoreExt, path::Path};
 use std::{
-    io::{BufRead, Cursor, Read, Seek},
-    pin::Pin,
-    sync::Arc,
+    any::Any, fmt::{Debug, Display}, io::{BufRead, Cursor, Read, Seek}, pin::Pin, sync::Arc
 };
 
-/// Get the results from object storage
-pub fn storage_reader_get_result<'a>(store: &'a Arc<dyn ObjectStore>, path: &'a Path,
-) -> Pin<Box<dyn Future<Output = Result<GetResult, object_store::Error>> + Send + 'a>> {
-    Box::pin(store.get(path))
-}
-
-/// Stream the results from object storage after polling `get_result`
-pub fn storage_reader_stream_result(result: GetResult,
-) -> Pin<Box<dyn Stream<Item = Result<Bytes, object_store::Error>> + Send>> {
-    Box::pin(result.into_stream())
-}
-
-/// Trait for reading from object storage
-pub trait StorageReaderTrait {
-    type SR;
-
-    /// Build the [StorageReader] after polling `get_result` and `stream_result`
-    fn new(reader: Self::SR) -> Self
-    where
-        Self: Sized;
-}
-
-pub trait StorageStreamReaderTrait<R> {
-    fn poll_next_batch(&mut self) -> Result<Option<RecordBatch>>;
-}
+use crate::{StorageReaderTrait, StorageStreamReaderTrait};
 
 /// Read IPC from storage
+#[derive(Debug)]
 pub struct IpcReader<R> {
     reader: StreamReader<R>,
 }
@@ -68,6 +43,7 @@ impl<R: Read> StorageReaderTrait for IpcReader<R> {
 }
 
 /// Read JSON from storage
+#[derive(Debug)]
 pub struct JsonReader<R> {
     reader: Reader<R>,
 }
@@ -139,6 +115,18 @@ pub struct CsvReader<R> {
     reader: arrow::csv::reader::BufReader<std::io::BufReader<R>>,
 }
 
+impl<R> Display for CsvReader<R> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "CsvReader")
+    }
+}
+
+impl<R> Debug for CsvReader<R> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CsvReader").field("reader", &"").finish()
+    }
+}
+
 impl CsvReader<Cursor<Vec<u8>>> {
     pub fn new_with_bytes(bytes: &[u8], header: bool, delimiter: u8, batch_size: usize, schema: Option<SchemaRef>) -> Result<Self> {
         let mut cursor = Cursor::new(bytes.to_vec());
@@ -164,7 +152,6 @@ impl CsvReader<Cursor<Vec<u8>>> {
         
         Ok(Self { reader })
     }
-
 }
 
 impl<R: Read + BufRead> StorageStreamReaderTrait<R> for CsvReader<R> {

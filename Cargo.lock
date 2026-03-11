@@ -5562,6 +5562,7 @@ dependencies = [
  "intel-mkl-src",
  "lopdf",
  "num-traits",
+ "object_store",
  "parking_lot",
  "phymes-core",
  "phymes-diagnostics",

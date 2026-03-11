@@ -5,7 +5,7 @@ mod http_client_config;
 #[cfg(feature = "api")]
 mod http_client_processor;
 mod object_store_config;
-// mod object_store_processor;
+mod object_store_processor;
 
 pub use command_sandbox_config::{
     CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod,

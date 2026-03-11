@@ -10,41 +10,27 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use bytes::Bytes;
 use futures::{FutureExt, Stream, StreamExt};
+use object_store::{GetResult, MultipartUpload, ObjectStore, PutResult};
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait,
-    MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
-    SendableRecordBatchStream, SendableRecordBatchStreamMessage,
-    SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait,
-    create_attachments_batch, create_bytes_fields, create_chat_record_batch, create_values_fields,
-    remove_message_by_subject,
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageReader, ObjectStorageWriter, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait, create_attachments_batch, create_bytes_fields, create_chat_record_batch, create_values_fields, remove_message_by_subject
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
 };
-use reqwest::{
-    Client, Response,
-    header::{CONTENT_TYPE, USER_AGENT},
-};
 use serde_json::{Map, Value};
 
 use crate::{
-    DataConfigTrait,
-    external_operators::http_client_config::{
-        HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType,
-    },
+    DataConfigTrait, ObjectStoreConfig,
 };
 
-/// The state of the HTTP Client API request
-///
-/// # Notes
-/// * We need to capture each stage of the request so that the connection
-///   is not dropped during repeated polling of the stream.
+/// The state of the Object Store API request.
 pub enum ObjectStoreState {
     NotStarted,
-    Connecting(Pin<Box<dyn Future<Output = Result<Response, reqwest::Error>> + Send + 'static>>),
-    ToText(Pin<Box<dyn Future<Output = Result<String, reqwest::Error>> + Send + 'static>>),
-    ToBytes(Pin<Box<dyn Future<Output = Result<Bytes, reqwest::Error>> + Send + 'static>>),
+    StorageReaderGetResult(Pin<Box<dyn Future<Output = Result<GetResult, object_store::Error>> + Send + 'static>>),
+    StorageReaderStreamResult(Pin<Box<dyn Stream<Item = Result<Bytes, object_store::Error>> + Send>>),
+    StorageWriterMultipart(Box<dyn Future<Output = Result<Box<dyn MultipartUpload>, object_store::Error>> + Send + 'static>),
+    StorageWriterPollChunk(Option<Pin<Box<dyn Future<Output = Result<(), object_store::Error>> + Send>>>),
+    StorageWriterFinishChunk(Pin<Box<dyn Future<Output = Result<PutResult, object_store::Error>> + Send + 'static>>),
     Ready(Vec<RecordBatch>),
     Done,
 }
@@ -131,17 +117,17 @@ pub struct ObjectStoreStream {
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for chat inference
-    config: Option<HTTPClientConfig>,
+    config: Option<ObjectStoreConfig>,
     /// State of the OpenAI API request
     state: ObjectStoreState,
     /// The polled record batches from the input
     record_batches: Option<RecordBatch>,
-    /// The record batches or url from the config
-    json_str: Option<String>,
-    /// Optional copy of the query string which is needed for downloading PDFs and other data assets
-    url: Option<String>,
-    /// Optional copy of the contenty type string which is needed for downloading PDFs and other data assets
-    content_type: Option<String>,
+    /// The connected object store
+    store: Option<Arc<dyn ObjectStore>>,
+    /// The object storage reader
+    reader: Option<ObjectStorageReader>,
+    /// The object storage writer
+    writer: Option<ObjectStorageWriter>,
 }
 
 impl ObjectStoreStream {
