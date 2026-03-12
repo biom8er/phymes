@@ -22,15 +22,15 @@ use crate::{
 };
 
 /// The state of the Object Store API request.
-pub enum ObjectStoreState {
+pub enum ObjectStoreState<'a> {
     NotStarted,
-    Connecting(Pin<Box<dyn Future<Output = Result<Arc<dyn ObjectStore + 'static>, anyhow::Error>> + Send>>),
-    StorageReaderGetResult(Pin<Box<dyn Future<Output = Result<GetResult, object_store::Error>> + Send + 'static>>),
+    Connecting(Pin<Box<dyn Future<Output = Result<Arc<dyn ObjectStore>, anyhow::Error>> + Send + 'a>>),
+    StorageReaderGetResult(Pin<Box<dyn Future<Output = Result<GetResult, object_store::Error>> + Send + 'a>>),
     StorageReaderBytesResult(Pin<Box<dyn Future<Output = Result<Bytes, object_store::Error>> + Send>>),
     StorageReaderStreamResult(Pin<Box<dyn Stream<Item = Result<Bytes, object_store::Error>> + Send>>),
-    StorageWriterMultipart(Pin<Box<dyn Future<Output = Result<Box<dyn MultipartUpload>, object_store::Error>> + Send + 'static>>),
-    StorageWriterPutPart((Box<dyn MultipartUpload>, Arc<Mutex<VecDeque<Vec<u8>>>>, Pin<Box<dyn Future<Output = Result<(), object_store::Error>> + Send>>)),
-    StorageWriterComplete(Pin<Box<dyn Future<Output = Result<PutResult, object_store::Error>> + Send + 'static>>),
+    StorageWriterMultipart(Pin<Box<dyn Future<Output = Result<Box<dyn MultipartUpload>, object_store::Error>> + Send + 'a>>),
+    StorageWriterPutPart(Pin<Box<dyn Future<Output = Result<(), object_store::Error>> + Send>>),
+    StorageWriterComplete(Pin<Box<dyn Future<Output = Result<PutResult, object_store::Error>> + Send + 'a>>),
     Done,
 }
 
@@ -93,7 +93,7 @@ impl ProcessorTrait for ObjectStoreProcessor {
     }
 }
 
-pub struct ObjectStoreStream {
+pub struct ObjectStoreStream<'a> {
     /// Output schema
     schema: SchemaRef,
     /// The messages containing the lhs and rhs
@@ -108,7 +108,7 @@ pub struct ObjectStoreStream {
     /// Parameters for chat inference
     config: Option<ObjectStoreConfig>,
     /// State of the OpenAI API request
-    state: ObjectStoreState,
+    state: ObjectStoreState<'a>,
     /// The polled record batches from the input
     /// Can be manifests files to get or subjects to put
     record_batches: Option<VecDeque<Map<String, Value>>>,
@@ -120,11 +120,13 @@ pub struct ObjectStoreStream {
     mp: Option<Box<dyn MultipartUpload>>, 
     /// Pending
     pending: Option<Arc<Mutex<VecDeque<Vec<u8>>>>>,
+    /// Path
+    path: Option<Path>,
     /// The metadata for the current object
     meta: Option<ObjectMeta>,
 }
 
-impl ObjectStoreStream {
+impl<'a> ObjectStoreStream<'a> {
     pub fn new(
         messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
@@ -144,12 +146,13 @@ impl ObjectStoreStream {
             store: None,
             mp: None,
             pending: None,
+            path: None,
             meta: None,
         })
     }
 }
 
-impl Stream for ObjectStoreStream {
+impl<'a> Stream for ObjectStoreStream<'a> {
     type Item = Result<RecordBatch>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -215,7 +218,7 @@ impl Stream for ObjectStoreStream {
                         }
                         // Extract the data from the config
                         None => {
-                            if let Some(location) = self.config.as_ref().unwrap().locations {
+                            if let Some(location) = self.config.as_ref().unwrap().locations.clone() {
                                 self.locations.replace(location.into());
                             } else {
                                 self.state = ObjectStoreState::Done;
@@ -228,7 +231,7 @@ impl Stream for ObjectStoreStream {
                     }
                 } else if self.record_batches.is_none()
                     && self.locations.is_none()
-                    && let Some(location) = self.config.as_ref().unwrap().locations
+                    && let Some(location) = self.config.as_ref().unwrap().locations.clone()
                 {
                     // Extract the data from the config
                     self.locations.replace(location.into());
@@ -248,7 +251,7 @@ impl Stream for ObjectStoreStream {
                 let fut = if let Some(store) = self.store.take() {
                     Box::pin(async { Ok(store) }) as Pin<Box<dyn Future<Output = Result<Arc<dyn ObjectStore + 'static>, anyhow::Error>> + Send + 'static>>
                 } else {
-                    Box::pin(make_store(self.config.as_ref().unwrap().backend, self.config.as_ref().unwrap().bucket))
+                    Box::pin(make_store(self.config.as_ref().unwrap().backend.clone(), self.config.as_ref().unwrap().bucket.clone()))
                 };
 
                 // Update the request state and poll next
@@ -261,15 +264,16 @@ impl Stream for ObjectStoreStream {
 
                     // Get the location prioritizing the subject messages over the config
                     let location = if let Some(batch) = self.record_batches.take() {
-                        if let Some(row) = batch.front() {
+                        let location = if let Some(row) = batch.front() {
                             let location = row.get("location").ok_or(anyhow!("Missing column `location` in RecordBatch for ObjectStoreStream."))?;
-                            self.record_batches.replace(batch);
                             location.as_str().ok_or(anyhow!("Value for key location `{location}` could not be parsed as a String for ObjectSToreStream."))?.to_string()
                         } else {
                             self.state = ObjectStoreState::Done;
                             let err = "Locations is empty for ObjectStoreStream.";
                             return Poll::Ready(Some(Err(anyhow!(err))));
-                        }
+                        };
+                        self.record_batches.replace(batch);
+                        location
                     } else if let Some(mut locations) = self.locations.take() {
                         if let Some(location) = locations.pop_front() {
                             self.locations.replace(locations);
@@ -284,22 +288,22 @@ impl Stream for ObjectStoreStream {
                         let err = "Location not provided for ObjectStoreStream.";
                         return Poll::Ready(Some(Err(anyhow!(err))));
                     };
-                    let path = Path::from(location);
+                    self.path.replace(Path::from(location));
 
                     // Determine the opts type
                     match self.config.as_ref().unwrap().ops_type {
                         ObjectStoreOptsType::Get | ObjectStoreOptsType::GetStream | ObjectStoreOptsType::GetMeta => {
-                            let fut = Box::pin(self.store.as_ref().unwrap().get(&path));
+                            let fut = Box::pin(self.store.as_ref().unwrap().get(self.path.as_ref().unwrap()));
                             self.state = ObjectStoreState::StorageReaderGetResult(fut);
                             self.poll_next(cx)
                         }
                         ObjectStoreOptsType::PutMultipart => {
-                            let fut = Box::pin(self.store.as_ref().unwrap().put_multipart(&path));
+                            let fut = Box::pin(self.store.as_ref().unwrap().put_multipart(self.path.as_ref().unwrap()));
                             self.state = ObjectStoreState::StorageWriterMultipart(fut);
                             self.poll_next(cx)
                         }
                         ObjectStoreOptsType::Put => {
-                            let row = self.record_batches.unwrap()
+                            let row = self.record_batches.as_mut().unwrap()
                                 .pop_front()
                                 .ok_or(anyhow!("Missing rows for RecordBatch for ObjectStoreStream."))?;
                             let bytes = row.get("bytes").ok_or(anyhow!("Missing column `bytes` for RecordBatch for ObjectStoreStream."))?
@@ -315,7 +319,7 @@ impl Stream for ObjectStoreStream {
                             let meta = ObjectMeta { e_tag: None, version: None, location: Path::from(location), last_modified: Utc::now(), size: bytes.len() as u64 };
                             self.meta.replace(meta);
                             let payload = PutPayload::from_bytes(Bytes::from(bytes));
-                            let fut = Box::pin(self.store.as_ref().unwrap().put(&path, payload));
+                            let fut = Box::pin(self.store.as_ref().unwrap().put(self.path.as_ref().unwrap(), payload));
                             self.state = ObjectStoreState::StorageWriterComplete(fut);
                             self.poll_next(cx)
                         }
@@ -333,10 +337,10 @@ impl Stream for ObjectStoreStream {
             },
             ObjectStoreState::StorageReaderGetResult(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                 Ok(result) => {
-                    match self.config.unwrap().ops_type {
+                    match self.config.as_ref().unwrap().ops_type {
                         ObjectStoreOptsType::Get => {
                             // Extract out the metadata
-                            self.meta.replace(result.meta);
+                            self.meta.replace(result.meta.clone());
 
                             // Ready the stream for polling
                             let fut = Box::pin(result.bytes());
@@ -345,7 +349,7 @@ impl Stream for ObjectStoreStream {
                         }
                         ObjectStoreOptsType::GetStream => {
                             // Extract out the metadata
-                            self.meta.replace(result.meta);
+                            self.meta.replace(result.meta.clone());
 
                             // Ready the stream for polling
                             let stream = Box::pin(result.into_stream());
@@ -374,12 +378,12 @@ impl Stream for ObjectStoreStream {
                                 .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                             // Make the object store meta batch
-                            let location = vec![self.meta.unwrap().location.to_string()];
+                            let location = vec![self.meta.as_ref().unwrap().location.to_string()];
                             let bucket = vec![self.config.as_ref().unwrap().bucket.clone().unwrap_or_default()];
-                            let last_modified = vec![self.meta.unwrap().last_modified.timestamp_micros()];
-                            let size = vec![self.meta.unwrap().size as u32];
-                            let version = vec![self.meta.unwrap().version.unwrap_or_default()];
-                            let e_tag = vec![self.meta.unwrap().e_tag.unwrap_or_default()];
+                            let last_modified = vec![self.meta.as_ref().unwrap().last_modified.timestamp_micros()];
+                            let size = vec![self.meta.as_ref().unwrap().size as u32];
+                            let version = vec![self.meta.as_ref().unwrap().version.clone().unwrap_or_default()];
+                            let e_tag = vec![self.meta.as_ref().unwrap().e_tag.clone().unwrap_or_default()];
                             let batch = create_object_store_meta_batch(location, bucket, e_tag, version, size, last_modified)?;
 
                             // Record the poll
@@ -422,10 +426,10 @@ impl Stream for ObjectStoreStream {
                         .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                     // Make the object store batch
-                    let location = vec![self.meta.unwrap().location.to_string()];
+                    let location = vec![self.meta.as_ref().unwrap().location.to_string()];
                     let bucket = vec![self.config.as_ref().unwrap().bucket.clone().unwrap_or_default()];
-                    let last_modified = vec![self.meta.unwrap().last_modified.timestamp_micros()];
-                    let metadata_json = json!({"size": self.meta.unwrap().size, "version": self.meta.unwrap().version.unwrap_or_default(), "e_tag": self.meta.unwrap().e_tag.unwrap_or_default()});
+                    let last_modified = vec![self.meta.as_ref().unwrap().last_modified.timestamp_micros()];
+                    let metadata_json = json!({"size": self.meta.as_ref().unwrap().size, "version": self.meta.as_ref().unwrap().version.clone().unwrap_or_default(), "e_tag": self.meta.as_ref().unwrap().e_tag.clone().unwrap_or_default()});
                     let metadata = vec![serde_json::to_string(&metadata_json)?];
                     let bytes = vec![bytes.to_vec()];
                     let batch = create_object_store_batch(location, bucket, metadata, last_modified, bytes)?;
@@ -467,10 +471,10 @@ impl Stream for ObjectStoreStream {
                         .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                     // Make the object store batch
-                    let location = vec![self.meta.unwrap().location.to_string()];
+                    let location = vec![self.meta.as_ref().unwrap().location.to_string()];
                     let bucket = vec![self.config.as_ref().unwrap().bucket.clone().unwrap_or_default()];
-                    let last_modified = vec![self.meta.unwrap().last_modified.timestamp_micros()];
-                    let metadata_json = json!({"size": self.meta.unwrap().size, "version": self.meta.unwrap().version.unwrap_or_default(), "e_tag": self.meta.unwrap().e_tag.unwrap_or_default()});
+                    let last_modified = vec![self.meta.as_ref().unwrap().last_modified.timestamp_micros()];
+                    let metadata_json = json!({"size": self.meta.as_ref().unwrap().size, "version": self.meta.as_ref().unwrap().version.clone().unwrap_or_default(), "e_tag": self.meta.as_ref().unwrap().e_tag.clone().unwrap_or_default()});
                     let metadata = vec![serde_json::to_string(&metadata_json)?];
                     let bytes = vec![bytes.to_vec()];
                     let batch = create_object_store_batch(location, bucket, metadata, last_modified, bytes)?;
@@ -493,7 +497,7 @@ impl Stream for ObjectStoreStream {
                 }
             },
             ObjectStoreState::StorageWriterMultipart(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
-                Ok(mp) => {
+                Ok(mut mp) => {
                     // Initialize the metrics
                     let baseline_metrics =
                         if let Some(diagnostic_builder) = &self.diagnostic_builder {
@@ -515,7 +519,7 @@ impl Stream for ObjectStoreStream {
                         .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                     // Write the bytes to the buffer
-                    let row = self.record_batches.unwrap()
+                    let row = self.record_batches.as_mut().unwrap()
                         .pop_front()
                         .unwrap();
                     let bytes = row.get("bytes").ok_or(anyhow!("Missing column `bytes` for RecordBatch for ObjectStoreStream."))?
@@ -537,9 +541,16 @@ impl Stream for ObjectStoreStream {
                     self.meta.replace(meta);
 
                     // Put the chunk
-                    if let Some(chunk) = pending.lock().pop_front() {
+                    let chunk = if let Some(chunk) = pending.lock().pop_front() {
+                        Some(chunk)
+                    } else {
+                        None
+                    };
+                    if let Some(chunk) = chunk {
                         let fut = mp.put_part(Bytes::from(chunk).into());
-                        self.state = ObjectStoreState::StorageWriterPutPart((mp, pending, fut));
+                        self.mp.replace(mp);
+                        self.pending.replace(pending);
+                        self.state = ObjectStoreState::StorageWriterPutPart(fut);
                         self.poll_next(cx)
                     } else {
                         let fut = mp.complete();
@@ -552,7 +563,7 @@ impl Stream for ObjectStoreStream {
                     Poll::Ready(Some(Err(err.into())))
                 }
             },
-            ObjectStoreState::StorageWriterPutPart((mp, pending, fut)) => match ready!(fut.as_mut().poll_unpin(cx)) {
+            ObjectStoreState::StorageWriterPutPart(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                 Ok(()) => {
                     // Initialize the metrics
                     let baseline_metrics =
@@ -575,11 +586,17 @@ impl Stream for ObjectStoreStream {
                         .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                     // Put the chunk
-                    if let Some(chunk) = pending.lock().pop_front() {
-                        let fut = mp.put_part(Bytes::from(chunk).into());
+                    let chunk = if let Some(chunk) = self.pending.as_mut().unwrap().lock().pop_front() {
+                        Some(chunk)
+                    } else {
+                        None
+                    };
+                    if let Some(chunk) = chunk {
+                        let fut = self.mp.as_mut().unwrap().put_part(Bytes::from(chunk).into());
+                        self.state = ObjectStoreState::StorageWriterPutPart(fut);
                         self.poll_next(cx)
                     } else {
-                        let fut = mp.complete();
+                        let fut = self.mp.as_mut().unwrap().complete();
                         self.state = ObjectStoreState::StorageWriterComplete(fut);
                         self.poll_next(cx)
                     }
@@ -612,10 +629,10 @@ impl Stream for ObjectStoreStream {
                         .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
 
                     // Make the object store meta batch
-                    let location = vec![self.meta.unwrap().location.to_string()];
+                    let location = vec![self.meta.as_ref().unwrap().location.to_string()];
                     let bucket = vec![self.config.as_ref().unwrap().bucket.clone().unwrap_or_default()];
-                    let last_modified = vec![self.meta.unwrap().last_modified.timestamp_micros()];
-                    let size = vec![self.meta.unwrap().size as u32];
+                    let last_modified = vec![self.meta.as_ref().unwrap().last_modified.timestamp_micros()];
+                    let size = vec![self.meta.as_ref().unwrap().size as u32];
                     let version = vec![results.version.unwrap_or_default()];
                     let e_tag = vec![results.e_tag.unwrap_or_default()];
                     let batch = create_object_store_meta_batch(location, bucket, e_tag, version, size, last_modified)?;
@@ -643,7 +660,7 @@ impl Stream for ObjectStoreStream {
     }
 }
 
-impl RecordBatchStream for ObjectStoreStream {
+impl RecordBatchStream for ObjectStoreStream<'a> {
     fn schema(&self) -> SchemaRef {
         Arc::clone(&self.schema)
     }
