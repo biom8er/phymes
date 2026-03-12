@@ -8,6 +8,7 @@ mod writer_trait;
 mod writers;
 
 pub use backend::{ObjectStorageBackend, make_store};
+pub use chunked_writer::{ChunkedWriter, OnChunk, OnChunkTrait};
 pub use reader_trait::{StorageReaderTrait, StorageStreamReaderTrait, storage_reader_get_result, storage_reader_stream_result};
 pub use readers::{IpcReader, JsonReader, CsvReader};
 pub use storage_reader::ObjectStorageReader;

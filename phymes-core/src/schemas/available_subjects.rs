@@ -26,7 +26,7 @@ use crate::{
             create_session_tasks_publish_fields, create_session_tasks_run_log_fields,
             create_session_tasks_subscribe_aggregate_fields, create_session_tasks_subscribe_fields,
             create_session_tasks_subscribe_publish_fields,
-        }, subjects::{create_subjects_change_log_fields, create_subjects_num_rows_fields}, user::{
+        }, storage::create_object_store_meta_fields, subjects::{create_subjects_change_log_fields, create_subjects_num_rows_fields}, user::{
             create_join_user_inbox_session_contexts_fields,
             create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields,
             create_user_inbox_fields, create_user_session_contexts_fields,
@@ -77,8 +77,10 @@ pub enum AvailableSubjects {
     JoinChunksScores,
     #[value(name = "Attachments")]
     Attachments,
-    #[value(name = "ObjectStorage")]
-    ObjectStorage,
+    #[value(name = "ObjectStore")]
+    ObjectStore,
+    #[value(name = "ObjectStoreMeta")]
+    ObjectStoreMeta,
     #[value(name = "Workspace")]
     Workspace,
     #[value(name = "Repository")]
@@ -219,7 +221,8 @@ impl Display for AvailableSubjects {
             AvailableSubjects::EmbeddingScores => write!(f, "EmbeddingScores"),
             AvailableSubjects::JoinChunksScores => write!(f, "JoinChunksScores"),
             AvailableSubjects::Attachments => write!(f, "Attachments"),
-            AvailableSubjects::ObjectStorage => write!(f, "ObjectStorage"),
+            AvailableSubjects::ObjectStore => write!(f, "ObjectStore"),
+            AvailableSubjects::ObjectStoreMeta => write!(f, "ObjectStoreMeta"),
             AvailableSubjects::Workspace => write!(f, "Workspace"),
             AvailableSubjects::Repository => write!(f, "Repository"),
             AvailableSubjects::WorkspacePatch => write!(f, "WorkspacePatch"),
@@ -352,7 +355,8 @@ impl AvailableSchemaTrait for AvailableSubjects {
                 create_schema_from_fields(&create_join_chunks_scores_fields)
             }
             AvailableSubjects::Attachments => create_schema_from_fields(&create_attachments_fields),
-            AvailableSubjects::ObjectStorage => create_schema_from_fields(&create_object_store_fields),
+            AvailableSubjects::ObjectStore => create_schema_from_fields(&create_object_store_fields),
+            AvailableSubjects::ObjectStoreMeta => create_schema_from_fields(&create_object_store_meta_fields),
             AvailableSubjects::Workspace => create_schema_from_fields(&create_workspace_fields),
             AvailableSubjects::Repository => create_schema_from_fields(&create_repository_fields),
             AvailableSubjects::WorkspacePatch => {

@@ -2,10 +2,9 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use arrow::{
-    array::{ArrayRef, Int64Array, ListBuilder, RecordBatch, StringArray, UInt8Builder},
+    array::{ArrayRef, Int64Array, ListBuilder, RecordBatch, StringArray, UInt8Builder, UInt32Array},
     datatypes::{DataType, Field, Fields},
 };
-use phymes_diagnostics::create_timestamp_micros;
 use serde::{Deserialize, Serialize};
 
 /// Object storage schema
@@ -99,6 +98,7 @@ pub fn create_object_store_batch(
 pub fn create_object_store_meta_fields() -> Fields {
     let field_names = [
         "location",
+        "bucket",
         "e_tag",
         "version",
     ];
@@ -121,4 +121,30 @@ pub fn create_object_store_meta_fields() -> Fields {
             .collect::<Vec<_>>(),
     );
     Fields::from(fields_vec)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn create_object_store_meta_batch(
+    location: Vec<String>,
+    bucket: Vec<String>,
+    e_tag: Vec<String>,
+    version: Vec<String>,
+    size: Vec<u32>,
+    last_modified: Vec<i64>,
+) -> Result<RecordBatch> {
+    let location: ArrayRef = Arc::new(StringArray::from(location));
+    let bucket: ArrayRef = Arc::new(StringArray::from(bucket));
+    let e_tag: ArrayRef = Arc::new(StringArray::from(e_tag));
+    let version: ArrayRef = Arc::new(StringArray::from(version));
+    let size: ArrayRef = Arc::new(UInt32Array::from(size));
+    let last_modified: ArrayRef = Arc::new(Int64Array::from(last_modified));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("location", location),
+        ("bucket", bucket),
+        ("e_tag", e_tag),
+        ("version", version),
+        ("size", size),
+        ("last_modified", last_modified),
+    ])?;
+    Ok(batch)
 }

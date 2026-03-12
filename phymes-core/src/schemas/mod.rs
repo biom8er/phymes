@@ -24,7 +24,7 @@ pub use http::{e_utils, open_alex, semantic_scholar};
 pub use schema_traits::{AvailableSchemaTrait, AvailableSubjectsTrait, JsonSchemaTrait};
 pub use storage::{
     AttachmentBuilderTraitExt, AttachmentsSubject, WorkspacePatchSubject, WorkspaceSubject, create_attachments_batch,
-    create_attachments_fields, create_object_store_batch, create_object_store_fields, create_repository_batch, create_repository_fields,
+    create_attachments_fields, create_object_store_batch, create_object_store_fields, create_object_store_meta_batch, create_repository_batch, create_repository_fields,
     create_repository_patch_batch, create_repository_patch_fields, create_workspace_batch,
     create_workspace_fields, create_workspace_patch_batch, create_workspace_patch_fields,
 };

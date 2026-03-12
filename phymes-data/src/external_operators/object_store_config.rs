@@ -17,9 +17,11 @@ pub enum ObjectStoreOptsType {
     #[default]
     #[value(name = "Get")]
     Get,
-    /// Get followed by `head` without reading bytes
-    #[value(name = "Head")]
-    Head,
+    #[value(name = "GetStream")]
+    GetStream,
+    /// Get followed by `meta` without reading bytes
+    #[value(name = "GetMeta")]
+    GetMeta,
     #[value(name = "GetRanges")]
     GetRanges,
     #[value(name = "Put")]
@@ -39,7 +41,8 @@ impl Display for ObjectStoreOptsType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Get => write!(f, "Get"),
-            Self::Head => write!(f, "Head"),
+            Self::GetStream => write!(f, "GetStream"),
+            Self::GetMeta => write!(f, "GetMeta"),
             Self::GetRanges => write!(f, "GetRanges"),
             Self::Put => write!(f, "Put"),
             Self::PutMultipart => write!(f, "PutMultipart"),
@@ -61,6 +64,10 @@ impl Display for ObjectStoreOptsType {
 ///   See individutal `options` per operation <https://docs.rs/object_store/latest/object_store/trait.ObjectStore.html?
 /// 
 /// - Other options including projections (column subsetting), filtering, etc.
+/// 
+/// # Notes
+/// - Config-driven requests: `locations` must be specified
+/// - Message-driven requests: `subject_name` must be specified
 #[derive(Parser, Debug, Serialize, Deserialize, Clone, Default)]
 #[command(author, version, about, long_about = None)]
 #[serde(default)]
@@ -79,12 +86,16 @@ pub struct ObjectStoreConfig {
 
     /// The object store bucket (also called `container` for Azure or `root` for LocalFs; None for InMemory)
     #[arg(long)]
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub bucket: Option<String>,
 
-    /// The location within the object store that the data is in
+    /// The (partition) location(s) within the object store that the data are in
+    /// DM: in the future this could be a URL that contains the full address similar to AWS Redshift Manifest
+    ///     See <https://docs.aws.amazon.com/redshift/latest/dg/loading-data-files-using-manifest.html>
+    /// 
+    /// # Notes
+    /// - Same as `bucket`
     #[arg(long)]
-    pub location: String,
+    pub locations: Option<Vec<String>>,
 
     /// The length of the data chunks to send
     #[arg(long)]
@@ -96,10 +107,6 @@ pub struct ObjectStoreConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subject_name: Option<String>,
-
-    /// The request schema to try and parse responses into if format and schema are None
-    #[arg(long, default_value_t = HTTPClientRequestSchemas::Messages)]
-    pub request_schema: HTTPClientRequestSchemas,
 }
 
 impl DataConfigTrait for ObjectStoreConfig {
@@ -121,10 +128,10 @@ impl DataConfigTrait for ObjectStoreConfig {
             && column_names.contains("ops_type")
             && column_names.contains("backend")
             && column_names.contains("request_schema")
-            && column_names.contains("location"))
+            && column_names.contains("bucket"))
         {
             return Err(anyhow!(
-                "Table {} is missing required Field for `timeout`, `ops_type`, `backend`, `request_schema`, and `location` in ObjectStoreConfig.",
+                "Table {} is missing required Field for `timeout`, `ops_type`, `backend`, `request_schema`, and `bucket` in ObjectStoreConfig.",
                 table.get_name()
             ));
         }
