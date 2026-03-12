@@ -82,7 +82,7 @@ pub struct ObjectStoreConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bucket: Option<String>,
 
-    /// The location within the object store that the data is
+    /// The location within the object store that the data is in
     #[arg(long)]
     pub location: String,
 
@@ -90,6 +90,12 @@ pub struct ObjectStoreConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chunk_size: Option<usize>,
+
+    /// The name of the streaming subject to write to the object store 
+    ///   OR the name of the streaming manifest file with subjects to read
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject_name: Option<String>,
 
     /// The request schema to try and parse responses into if format and schema are None
     #[arg(long, default_value_t = HTTPClientRequestSchemas::Messages)]

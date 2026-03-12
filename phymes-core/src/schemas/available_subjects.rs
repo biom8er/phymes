@@ -1,23 +1,13 @@
 use crate::{
-    create_bytes_fields, create_chat_fields, create_repository_fields,
-    create_repository_patch_fields, create_workspace_fields, create_workspace_patch_fields,
-    runtime_env::{BuildableTrait, BuilderTrait},
-    schemas::{
-        chat::create_values_fields,
-        create_attachments_fields, create_blob_fields, create_document_embeddings_fields,
-        create_documents_fields, create_embeddings_scores_fields, create_join_chunks_scores_fields,
-        create_queries_fields, create_query_embeddings_fields, create_route_bytes_fields,
-        create_tools_fields,
-        diagnostics::{
+    AvailableSchemaTrait, AvailableSubjectsTrait, create_bytes_fields, create_chat_fields, create_repository_fields, create_repository_patch_fields, create_workspace_fields, create_workspace_patch_fields, runtime_env::{BuildableTrait, BuilderTrait}, schemas::{
+        chat::create_values_fields, create_attachments_fields, create_document_embeddings_fields, create_documents_fields, create_embeddings_scores_fields, create_join_chunks_scores_fields, create_object_store_fields, create_queries_fields, create_query_embeddings_fields, create_route_bytes_fields, create_tools_fields, diagnostics::{
             create_events_fields, create_metrics_fields, create_metrics_mermaid_gantt_fields,
             create_metrics_pivot_fields, create_metrics_pivot_norm_time_fields,
             create_traces_fields,
-        },
-        graph::{
+        }, graph::{
             create_n_quads_fields, create_n_triples_fields, create_parse_owl_fields,
             create_parse_xml_fields,
-        },
-        mermaid::{
+        }, mermaid::{
             create_mermaid_content_template_fields,
             create_mermaid_er_diagram_entities_template_fields,
             create_mermaid_er_diagram_relations_template_fields,
@@ -28,8 +18,7 @@ use crate::{
             create_mermaid_sequence_diagram_participants_template_fields,
             create_mermaid_visualization_fields, create_mermaid_xychart_template_fields,
             create_session_mermaid_fields,
-        },
-        session::{
+        }, session::{
             create_session_processors_fields, create_session_runtime_envs_fields,
             create_session_subjects_fields, create_session_superstep_max_fields,
             create_session_supersteps_fields, create_session_tasks_check_fields,
@@ -37,15 +26,12 @@ use crate::{
             create_session_tasks_publish_fields, create_session_tasks_run_log_fields,
             create_session_tasks_subscribe_aggregate_fields, create_session_tasks_subscribe_fields,
             create_session_tasks_subscribe_publish_fields,
-        },
-        subjects::{create_subjects_change_log_fields, create_subjects_num_rows_fields},
-        user::{
+        }, subjects::{create_subjects_change_log_fields, create_subjects_num_rows_fields}, user::{
             create_join_user_inbox_session_contexts_fields,
             create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields,
             create_user_inbox_fields, create_user_session_contexts_fields,
-        },
-    },
-    table::{Table, TableBuilder, TableBuilderTrait},
+        }
+    }, table::{Table, TableBuilder, TableBuilderTrait}
 };
 
 use anyhow::Result;
@@ -59,22 +45,6 @@ use std::{fmt::Display, sync::Arc};
 
 pub fn create_schema_from_fields(f: &dyn Fn() -> Fields) -> SchemaRef {
     Arc::new(Schema::new(f()))
-}
-
-/// Convert a possible nested Json-like structure into a single [RecordBatch]
-pub trait JsonSchemaTrait {
-    fn to_record_batch(self, publisher: &str) -> Result<RecordBatch>;
-}
-
-/// Materialize the [Schema] for the object
-pub trait AvailableSchemaTrait {
-    fn to_schema(&self) -> SchemaRef;
-}
-
-/// Materialize the [Table] or [TableBuilder] for building the table for the object
-pub trait AvailableSubjectsTrait: AvailableSchemaTrait {
-    fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Table>;
-    fn to_table_builder(&self, name: Option<&str>) -> TableBuilder;
 }
 
 /// The available subject schmeas
@@ -107,8 +77,8 @@ pub enum AvailableSubjects {
     JoinChunksScores,
     #[value(name = "Attachments")]
     Attachments,
-    #[value(name = "Blob")]
-    Blob,
+    #[value(name = "ObjectStorage")]
+    ObjectStorage,
     #[value(name = "Workspace")]
     Workspace,
     #[value(name = "Repository")]
@@ -249,7 +219,7 @@ impl Display for AvailableSubjects {
             AvailableSubjects::EmbeddingScores => write!(f, "EmbeddingScores"),
             AvailableSubjects::JoinChunksScores => write!(f, "JoinChunksScores"),
             AvailableSubjects::Attachments => write!(f, "Attachments"),
-            AvailableSubjects::Blob => write!(f, "Blob"),
+            AvailableSubjects::ObjectStorage => write!(f, "ObjectStorage"),
             AvailableSubjects::Workspace => write!(f, "Workspace"),
             AvailableSubjects::Repository => write!(f, "Repository"),
             AvailableSubjects::WorkspacePatch => write!(f, "WorkspacePatch"),
@@ -382,7 +352,7 @@ impl AvailableSchemaTrait for AvailableSubjects {
                 create_schema_from_fields(&create_join_chunks_scores_fields)
             }
             AvailableSubjects::Attachments => create_schema_from_fields(&create_attachments_fields),
-            AvailableSubjects::Blob => create_schema_from_fields(&create_blob_fields),
+            AvailableSubjects::ObjectStorage => create_schema_from_fields(&create_object_store_fields),
             AvailableSubjects::Workspace => create_schema_from_fields(&create_workspace_fields),
             AvailableSubjects::Repository => create_schema_from_fields(&create_repository_fields),
             AvailableSubjects::WorkspacePatch => {

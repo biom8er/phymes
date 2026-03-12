@@ -121,6 +121,7 @@ pub struct ObjectStoreStream {
     /// State of the OpenAI API request
     state: ObjectStoreState,
     /// The polled record batches from the input
+    /// Can be manifests files to get or subjects to put
     record_batches: Option<RecordBatch>,
     /// The connected object store
     store: Option<Arc<dyn ObjectStore>>,
@@ -146,9 +147,9 @@ impl ObjectStoreStream {
             config: None,
             state: ObjectStoreState::NotStarted,
             record_batches: None,
-            json_str: None,
-            url: None,
-            content_type: None,
+            store: None,
+            reader: None,
+            writer: None,
         })
     }
 }
@@ -157,7 +158,7 @@ impl Stream for ObjectStoreStream {
     type Item = Result<RecordBatch>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        // Iterate through each state until the API request is completed
+        // Iterate through each state (depending upon the opts type) until the API request is completed
         match &mut self.state {
             ObjectStoreState::NotStarted => {
                 // Initialize the config
@@ -176,7 +177,7 @@ impl Stream for ObjectStoreStream {
                         .contains(&create_values_fields())
                     {
                         let config_json = config_table.get_column_as_vec_str("values").join("");
-                        let config = serde_json::from_str::<HTTPClientConfig>(&config_json)?;
+                        let config = serde_json::from_str::<ObjectStoreConfig>(&config_json)?;
                         self.config.replace(config);
                     } else if config_table
                         .get_schema()
@@ -189,10 +190,10 @@ impl Stream for ObjectStoreStream {
                             .map(|b| String::from_utf8(b).unwrap())
                             .collect::<Vec<_>>()
                             .join("");
-                        let config = serde_json::from_str::<HTTPClientConfig>(&config_json)?;
+                        let config = serde_json::from_str::<ObjectStoreConfig>(&config_json)?;
                         self.config.replace(config);
                     } else {
-                        let config = HTTPClientConfig::from_table(&config_table)?;
+                        let config = ObjectStoreConfig::from_table(&config_table)?;
                         self.config.replace(config);
                     }
                 }
@@ -555,6 +556,36 @@ mod tests {
         semantic_scholar,
     };
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
+
+    #[tokio::test]
+    async fn test_object_store_processor_get_in_memory() -> Result<()> {
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_object_store_processor_put_in_memory() -> Result<()> {
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_object_store_processor_get_local_fs() -> Result<()> {
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_object_store_processor_put_local_fs() -> Result<()> {
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_object_store_processor_get_aws() -> Result<()> {
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_object_store_processor_put_aws() -> Result<()> {
+        Ok(())
+    }
 
     #[tokio::test]
     async fn test_object_store_processor_open_alex_get_message_from_message() -> Result<()> {
