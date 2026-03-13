@@ -22,14 +22,13 @@ use crate::{
 };
 
 /// The state of the Object Store API request.
-pub enum ObjectStoreState {
+pub enum ObjectStoreState<'a> {
     NotStarted,
-    Connecting(Pin<Box<dyn Future<Output = Result<Arc<dyn ObjectStore + 'static>, anyhow::Error>> + Send + 'static>>),
-    StorageReaderGetResult((Arc<dyn ObjectStore + 'static>, Path, Pin<Box<dyn Future<Output = Result<GetResult, object_store::Error>> + Send + 'static>>)),
-    StorageReaderBytesResult((Arc<dyn ObjectStore + 'static>, Path, Pin<Box<dyn Future<Output = Result<Bytes, object_store::Error>> + Send + 'static>>)),
-    StorageReaderStreamResult((Arc<dyn ObjectStore + 'static>, Path, Pin<Box<dyn Stream<Item = Result<Bytes, object_store::Error>> + Send + 'static>>)),
-    StorageWriterMultipart((Arc<dyn ObjectStore + 'static>, Path, Pin<Box<dyn Future<Output = Result<Box<dyn MultipartUpload>, object_store::Error>> + Send + 'static>>)),
-    StorageWriterPutResult((Arc<dyn ObjectStore + 'static>, Path, Pin<Box<dyn Future<Output = Result<PutResult, object_store::Error>> + Send + 'static>>)),
+    StorageReaderGetResult(Pin<Box<dyn Future<Output = Result<GetResult, object_store::Error>> + Send + 'a>>),
+    StorageReaderBytesResult(Pin<Box<dyn Future<Output = Result<Bytes, object_store::Error>> + Send>>),
+    StorageReaderStreamResult(Pin<Box<dyn Stream<Item = Result<Bytes, object_store::Error>> + Send>>),
+    StorageWriterMultipart(Pin<Box<dyn Future<Output = Result<Box<dyn MultipartUpload + 'a>, object_store::Error>> + Send + 'a>>),
+    StorageWriterPutResult(Pin<Box<dyn Future<Output = Result<PutResult, object_store::Error>> + Send + 'a>>),
     Done,
 }
 
@@ -37,6 +36,9 @@ pub enum ObjectStoreState {
 pub struct ObjectStoreProcessor {
     name: String,
     r#type: String,
+    store: Option<Arc<dyn ObjectStore>>,
+    path: Option<Path>,
+    
 }
 
 impl MappableTrait for ObjectStoreProcessor {
@@ -50,6 +52,8 @@ impl ProcessorTrait for ObjectStoreProcessor {
         Self {
             name: name.to_string(),
             r#type: r#type.to_string(),
+            store: None,
+            path: None,
         }
     }
 
@@ -78,6 +82,8 @@ impl ProcessorTrait for ObjectStoreProcessor {
             message,
             config,
             Arc::clone(&runtime_env),
+            self.store.as_ref().unwrap(),
+            self.path.as_ref().unwrap(),
             diagnostic_builder.cloned(),
         )?);
 
@@ -92,7 +98,7 @@ impl ProcessorTrait for ObjectStoreProcessor {
     }
 }
 
-pub struct ObjectStoreStream {
+pub struct ObjectStoreStream<'a> {
     /// Output schema
     schema: SchemaRef,
     /// The messages containing the lhs and rhs
@@ -102,12 +108,16 @@ pub struct ObjectStoreStream {
     config_stream: SendableRecordBatchStream,
     /// The candle assets needed for inference
     _runtime_env: Arc<RuntimeEnv>,
+    /// Store
+    store: &'a Arc<dyn ObjectStore>,
+    /// Path
+    path: &'a Path,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for chat inference
     config: Option<ObjectStoreConfig>,
     /// State of the OpenAI API request
-    state: ObjectStoreState,
+    state: ObjectStoreState<'a>,
     /// The polled record batches from the input
     /// Can be manifests files to get or subjects to put
     record_batches: Option<VecDeque<Map<String, Value>>>,
@@ -117,11 +127,13 @@ pub struct ObjectStoreStream {
     meta: Option<ObjectMeta>,
 }
 
-impl ObjectStoreStream {
+impl<'a> ObjectStoreStream<'a> {
     pub fn new(
         messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<RuntimeEnv>,
+        store: &'a Arc<dyn ObjectStore>,
+        path: &'a Path,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
@@ -130,6 +142,8 @@ impl ObjectStoreStream {
             diagnostic_builder,
             config_stream,
             _runtime_env: runtime_env,
+            store,
+            path,
             config: None,
             state: ObjectStoreState::NotStarted,
             record_batches: None,
@@ -139,7 +153,7 @@ impl ObjectStoreStream {
     }
 }
 
-impl Stream for ObjectStoreStream {
+impl<'a> Stream for ObjectStoreStream<'a> {
     type Item = Result<RecordBatch>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -234,90 +248,82 @@ impl Stream for ObjectStoreStream {
                     return Poll::Ready(None);
                 }
 
-                // Create the object store
-                let fut = Box::pin(make_store(self.config.as_ref().unwrap().backend.clone(), self.config.as_ref().unwrap().bucket.clone()));
+                // // Create the object store
+                // let store = make_store(self.config.as_ref().unwrap().backend.clone(), self.config.as_ref().unwrap().bucket.clone())?;
 
-                // Update the request state and poll next
-                self.state = ObjectStoreState::Connecting(fut);
-                self.poll_next(cx)
-            }
-            ObjectStoreState::Connecting(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
-                Ok(store) => {
-
-                    // Get the location prioritizing the subject messages over the config
-                    let location = if let Some(batch) = self.record_batches.take() {
-                        let location = if let Some(row) = batch.front() {
-                            let location = row.get("location").ok_or(anyhow!("Missing column `location` in RecordBatch for ObjectStoreStream."))?;
-                            location.as_str().ok_or(anyhow!("Value for key location `{location}` could not be parsed as a String for ObjectSToreStream."))?.to_string()
-                        } else {
-                            self.state = ObjectStoreState::Done;
-                            let err = "Locations is empty for ObjectStoreStream.";
-                            return Poll::Ready(Some(Err(anyhow!(err))));
-                        };
-                        self.record_batches.replace(batch);
-                        location
-                    } else if let Some(mut locations) = self.locations.take() {
-                        if let Some(location) = locations.pop_front() {
-                            self.locations.replace(locations);
-                            location
-                        } else {
-                            self.state = ObjectStoreState::Done;
-                            let err = "Locations is empty for ObjectStoreStream.";
-                            return Poll::Ready(Some(Err(anyhow!(err))));
-                        }
+                // Get the location prioritizing the subject messages over the config
+                let location = if let Some(batch) = self.record_batches.take() {
+                    let location = if let Some(row) = batch.front() {
+                        let location = row.get("location").ok_or(anyhow!("Missing column `location` in RecordBatch for ObjectStoreStream."))?;
+                        location.as_str().ok_or(anyhow!("Value for key location `{location}` could not be parsed as a String for ObjectSToreStream."))?.to_string()
                     } else {
                         self.state = ObjectStoreState::Done;
-                        let err = "Location not provided for ObjectStoreStream.";
+                        let err = "Locations is empty for ObjectStoreStream.";
                         return Poll::Ready(Some(Err(anyhow!(err))));
                     };
-                    let path = Path::from(location);
+                    self.record_batches.replace(batch);
+                    location
+                } else if let Some(mut locations) = self.locations.take() {
+                    if let Some(location) = locations.pop_front() {
+                        self.locations.replace(locations);
+                        location
+                    } else {
+                        self.state = ObjectStoreState::Done;
+                        let err = "Locations is empty for ObjectStoreStream.";
+                        return Poll::Ready(Some(Err(anyhow!(err))));
+                    }
+                } else {
+                    self.state = ObjectStoreState::Done;
+                    let err = "Location not provided for ObjectStoreStream.";
+                    return Poll::Ready(Some(Err(anyhow!(err))));
+                };
+                let path = Path::from(location);
 
-                    // Determine the opts type
-                    match self.config.as_ref().unwrap().ops_type {
-                        ObjectStoreOptsType::Get | ObjectStoreOptsType::GetStream | ObjectStoreOptsType::GetMeta => {
-                            let fut = Box::pin(store.clone().get(&path.clone()));
-                            self.state = ObjectStoreState::StorageReaderGetResult((store, path, fut));
-                            self.poll_next(cx)
-                        }
-                        ObjectStoreOptsType::PutMultipart => {
-                            let fut = Box::pin(store.clone().put_multipart(&path.clone()));
-                            self.state = ObjectStoreState::StorageWriterMultipart((store, path, fut));
-                            self.poll_next(cx)
-                        }
-                        ObjectStoreOptsType::Put => {
-                            let row = self.record_batches.as_mut().unwrap()
-                                .pop_front()
-                                .ok_or(anyhow!("Missing rows for RecordBatch for ObjectStoreStream."))?;
-                            let bytes = row.get("bytes").ok_or(anyhow!("Missing column `bytes` for RecordBatch for ObjectStoreStream."))?
-                                .as_array().ok_or(anyhow!("Value for key `bytes` could not be parsed as an array for ObjectStoreStream."))?
-                                .into_iter()
-                                .map(|v| v.as_u64().unwrap_or_default() as u8)
-                                .collect::<Vec<_>>();
-                            let location = row.get("location")
-                                .ok_or(anyhow!("Missing column `location` in RecordBatch for ObjectStoreStream."))?
-                                .as_str()
-                                .ok_or(anyhow!("Value for key `location` could not be parsed as a String for ObjectSToreStream."))?
-                                .to_string();
-                            let meta = ObjectMeta { e_tag: None, version: None, location: Path::from(location), last_modified: Utc::now(), size: bytes.len() as u64 };
-                            self.meta.replace(meta);
-                            let payload = PutPayload::from_bytes(Bytes::from(bytes));
-                            let fut = Box::pin(store.clone().put(&path.clone(), payload));
-                            self.state = ObjectStoreState::StorageWriterPutResult((store, path, fut));
-                            self.poll_next(cx)
-                        }
-                        _ => {
-                            self.state = ObjectStoreState::Done;
-                            let err = format!("Object store operation `{}` is not yet supported.", self.config.as_ref().unwrap().ops_type);
-                            return Poll::Ready(Some(Err(anyhow!(err))));
-                        }
+                // // Save the path and store
+                // self.store.lock().replace(store);
+                // self.path.lock().replace(path);
+
+                // Determine the opts type
+                match self.config.as_ref().unwrap().ops_type {
+                    ObjectStoreOptsType::Get | ObjectStoreOptsType::GetStream | ObjectStoreOptsType::GetMeta => {
+                        let fut = Box::pin(self.store.get(self.path));
+                        self.state = ObjectStoreState::StorageReaderGetResult(fut);
+                        self.poll_next(cx)
+                    }
+                    ObjectStoreOptsType::PutMultipart => {
+                        let fut = Box::pin(self.store.put_multipart(self.path));
+                        self.state = ObjectStoreState::StorageWriterMultipart(fut);
+                        self.poll_next(cx)
+                    }
+                    ObjectStoreOptsType::Put => {
+                        let row = self.record_batches.as_mut().unwrap()
+                            .pop_front()
+                            .ok_or(anyhow!("Missing rows for RecordBatch for ObjectStoreStream."))?;
+                        let bytes = row.get("bytes").ok_or(anyhow!("Missing column `bytes` for RecordBatch for ObjectStoreStream."))?
+                            .as_array().ok_or(anyhow!("Value for key `bytes` could not be parsed as an array for ObjectStoreStream."))?
+                            .into_iter()
+                            .map(|v| v.as_u64().unwrap_or_default() as u8)
+                            .collect::<Vec<_>>();
+                        let location = row.get("location")
+                            .ok_or(anyhow!("Missing column `location` in RecordBatch for ObjectStoreStream."))?
+                            .as_str()
+                            .ok_or(anyhow!("Value for key `location` could not be parsed as a String for ObjectSToreStream."))?
+                            .to_string();
+                        let meta = ObjectMeta { e_tag: None, version: None, location: Path::from(location), last_modified: Utc::now(), size: bytes.len() as u64 };
+                        self.meta.replace(meta);
+                        let payload = PutPayload::from_bytes(Bytes::from(bytes));
+                        let fut = Box::pin(self.store.put(self.path, payload));
+                        self.state = ObjectStoreState::StorageWriterPutResult(fut);
+                        self.poll_next(cx)
+                    }
+                    _ => {
+                        self.state = ObjectStoreState::Done;
+                        let err = format!("Object store operation `{}` is not yet supported.", self.config.as_ref().unwrap().ops_type);
+                        return Poll::Ready(Some(Err(anyhow!(err))));
                     }
                 }
-                Err(err) => {
-                    self.state = ObjectStoreState::Done;
-                    Poll::Ready(Some(Err(err)))
-                }
             },
-            ObjectStoreState::StorageReaderGetResult((store, path, fut)) => match ready!(fut.as_mut().poll_unpin(cx)) {
+            ObjectStoreState::StorageReaderGetResult(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                 Ok(result) => {
                     match self.config.as_ref().unwrap().ops_type {
                         ObjectStoreOptsType::Get => {
@@ -326,7 +332,7 @@ impl Stream for ObjectStoreStream {
 
                             // Ready the stream for polling
                             let fut = Box::pin(result.bytes());
-                            self.state = ObjectStoreState::StorageReaderBytesResult((store.clone(), path.clone(), fut));
+                            self.state = ObjectStoreState::StorageReaderBytesResult(fut);
                             self.poll_next(cx)
                         }
                         ObjectStoreOptsType::GetStream => {
@@ -335,7 +341,7 @@ impl Stream for ObjectStoreStream {
 
                             // Ready the stream for polling
                             let stream = Box::pin(result.into_stream());
-                            self.state = ObjectStoreState::StorageReaderStreamResult((store.clone(), path.clone(), stream));
+                            self.state = ObjectStoreState::StorageReaderStreamResult(stream);
                             self.poll_next(cx)
                         }
                         ObjectStoreOptsType::GetMeta => {
@@ -385,7 +391,7 @@ impl Stream for ObjectStoreStream {
                     Poll::Ready(Some(Err(err.into())))
                 }
             },
-            ObjectStoreState::StorageReaderBytesResult((store, path, fut)) => match ready!(fut.as_mut().poll_unpin(cx)) {
+            ObjectStoreState::StorageReaderBytesResult(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                 Ok(bytes) => {
                     // Initialize the metrics
                     let baseline_metrics =
@@ -430,7 +436,7 @@ impl Stream for ObjectStoreStream {
                     Poll::Ready(Some(Err(err.into())))
                 }
             },
-            ObjectStoreState::StorageReaderStreamResult((store, path, stream)) => match ready!(stream.as_mut().poll_next_unpin(cx)) {
+            ObjectStoreState::StorageReaderStreamResult(stream) => match ready!(stream.as_mut().poll_next_unpin(cx)) {
                 Some(Ok(bytes)) => {
                     // Initialize the metrics
                     let baseline_metrics =
@@ -478,7 +484,7 @@ impl Stream for ObjectStoreStream {
                     self.poll_next(cx)
                 }
             },
-            ObjectStoreState::StorageWriterMultipart((store, path, fut)) => match ready!(fut.as_mut().poll_unpin(cx)) {
+            ObjectStoreState::StorageWriterMultipart(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                 Ok(mp) => {
                     // Initialize the metrics
                     let baseline_metrics =
@@ -528,7 +534,7 @@ impl Stream for ObjectStoreStream {
                         write.write(&chunk);
                     }
                     let fut = write.finish();
-                    self.state = ObjectStoreState::StorageWriterPutResult((store.clone(), path.clone(), Box::pin(fut)));
+                    self.state = ObjectStoreState::StorageWriterPutResult(Box::pin(fut));
                     self.poll_next(cx)
                 }
                 Err(err) => {
@@ -536,7 +542,7 @@ impl Stream for ObjectStoreStream {
                     Poll::Ready(Some(Err(err.into())))
                 }
             },
-            ObjectStoreState::StorageWriterPutResult((store, path, fut)) => match ready!(fut.as_mut().poll_unpin(cx)) {
+            ObjectStoreState::StorageWriterPutResult(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                 Ok(results) => {
                     // Initialize the metrics
                     let baseline_metrics =
@@ -590,7 +596,7 @@ impl Stream for ObjectStoreStream {
     }
 }
 
-impl RecordBatchStream for ObjectStoreStream {
+impl<'a> RecordBatchStream for ObjectStoreStream<'a> {
     fn schema(&self) -> SchemaRef {
         Arc::clone(&self.schema)
     }

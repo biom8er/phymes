@@ -42,7 +42,7 @@ impl Display for ObjectStorageBackend {
     }
 }
 
-pub async fn make_store(cfg: ObjectStorageBackend, bucket: Option<String>) -> Result<Arc<dyn ObjectStore>> {
+pub fn make_store(cfg: ObjectStorageBackend, bucket: Option<String>) -> Result<Arc<dyn ObjectStore>> {
     let store: Arc<dyn ObjectStore> = match cfg {
         #[cfg(feature = "api")]
         ObjectStorageBackend::Aws => Arc::new(
@@ -72,9 +72,9 @@ pub async fn make_store(cfg: ObjectStorageBackend, bucket: Option<String>) -> Re
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[tokio::test]
-    async fn make_in_memory_store() {
-        let store = make_store(ObjectStorageBackend::InMemory, None).await.unwrap();
+    #[test]
+    fn make_in_memory_store() {
+        let store = make_store(ObjectStorageBackend::InMemory, None).unwrap();
         let _ = store.list(None);
     }
 }
