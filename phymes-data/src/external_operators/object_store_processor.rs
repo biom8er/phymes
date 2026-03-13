@@ -22,13 +22,13 @@ use crate::{
 };
 
 /// The state of the Object Store API request.
-pub enum ObjectStoreState {
+pub enum ObjectStoreState<'a> {
     NotStarted,
-    StorageReaderGetResult(Pin<Box<dyn Future<Output = Result<GetResult, object_store::Error>> + Send>>),
-    StorageReaderBytesResult(Pin<Box<dyn Future<Output = Result<Bytes, object_store::Error>> + Send>>),
-    StorageReaderStreamResult(Pin<Box<dyn Stream<Item = Result<Bytes, object_store::Error>> + Send>>),
-    StorageWriterMultipart(Pin<Box<dyn Future<Output = Result<Box<dyn MultipartUpload>, object_store::Error>> + Send>>),
-    StorageWriterPutResult(Pin<Box<dyn Future<Output = Result<PutResult, object_store::Error>> + Send>>),
+    StorageReaderGetResult(Pin<Box<dyn Future<Output = Result<GetResult<'a>, object_store::Error>> + Send + 'a>>),
+    StorageReaderBytesResult(Pin<Box<dyn Future<Output = Result<Bytes, object_store::Error>> + Send + 'a>>),
+    StorageReaderStreamResult(Pin<Box<dyn Stream<Item = Result<Bytes, object_store::Error>> + Send + 'a>>),
+    StorageWriterMultipart(Pin<Box<dyn Future<Output = Result<Box<dyn MultipartUpload>, object_store::Error>> + Send + 'a>>),
+    StorageWriterPutResult(Pin<Box<dyn Future<Output = Result<PutResult, object_store::Error>> + Send + 'a>>),
     Done,
 }
 
@@ -82,8 +82,6 @@ impl ProcessorTrait for ObjectStoreProcessor {
             message,
             config,
             Arc::clone(&runtime_env),
-            self.store.as_ref().unwrap().clone(),
-            self.path.as_ref().unwrap().clone(),
             diagnostic_builder.cloned(),
         )?);
 
@@ -98,7 +96,7 @@ impl ProcessorTrait for ObjectStoreProcessor {
     }
 }
 
-pub struct ObjectStoreStream {
+pub struct ObjectStoreStream<'a> {
     /// Output schema
     schema: SchemaRef,
     /// The messages containing the lhs and rhs
@@ -109,15 +107,15 @@ pub struct ObjectStoreStream {
     /// The candle assets needed for inference
     _runtime_env: Arc<RuntimeEnv>,
     /// Store
-    store: &'static Arc<dyn ObjectStore>,
+    store: Option<Arc<dyn ObjectStore>>,
     /// Path
-    path: &'static Path,
+    path: Option<Path>,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for chat inference
     config: Option<ObjectStoreConfig>,
     /// State of the OpenAI API request
-    state: ObjectStoreState,
+    state: ObjectStoreState<'a>,
     /// The polled record batches from the input
     /// Can be manifests files to get or subjects to put
     record_batches: Option<VecDeque<Map<String, Value>>>,
@@ -127,13 +125,11 @@ pub struct ObjectStoreStream {
     meta: Option<ObjectMeta>,
 }
 
-impl ObjectStoreStream {
+impl<'a> ObjectStoreStream<'a> {
     pub fn new(
         messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<RuntimeEnv>,
-        store: &'static Arc<dyn ObjectStore>,
-        path: &'static Path,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
@@ -142,8 +138,8 @@ impl ObjectStoreStream {
             diagnostic_builder,
             config_stream,
             _runtime_env: runtime_env,
-            store,
-            path,
+            store: None,
+            path: None,
             config: None,
             state: ObjectStoreState::NotStarted,
             record_batches: None,
@@ -153,7 +149,7 @@ impl ObjectStoreStream {
     }
 }
 
-impl Stream for ObjectStoreStream {
+impl<'a> Stream for ObjectStoreStream<'a> {
     type Item = Result<RecordBatch>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -248,8 +244,8 @@ impl Stream for ObjectStoreStream {
                     return Poll::Ready(None);
                 }
 
-                // // Create the object store
-                // let store = make_store(self.config.as_ref().unwrap().backend.clone(), self.config.as_ref().unwrap().bucket.clone())?;
+                // Create the object store
+                let store = make_store(self.config.as_ref().unwrap().backend.clone(), self.config.as_ref().unwrap().bucket.clone())?;
 
                 // Get the location prioritizing the subject messages over the config
                 let location = if let Some(batch) = self.record_batches.take() {
@@ -279,19 +275,23 @@ impl Stream for ObjectStoreStream {
                 };
                 let path = Path::from(location);
 
-                // // Save the path and store
-                // self.store.lock().replace(store);
-                // self.path.lock().replace(path);
+                // Save the path and store for subsequent polling
+                self.store.replace(store.clone());
+                self.path.replace(path.clone());
 
                 // Determine the opts type
                 match self.config.as_ref().unwrap().ops_type {
                     ObjectStoreOptsType::Get | ObjectStoreOptsType::GetStream | ObjectStoreOptsType::GetMeta => {
-                        let fut = Box::pin(self.store.get(&self.path));
+                        let store = store.clone();
+                        let path = path.clone();
+                        let fut = Box::pin(async move { store.get(&path).await });
                         self.state = ObjectStoreState::StorageReaderGetResult(fut);
                         self.poll_next(cx)
                     }
                     ObjectStoreOptsType::PutMultipart => {
-                        let fut = Box::pin(self.store.put_multipart(&self.path));
+                        let store = store.clone();
+                        let path = path.clone();
+                        let fut = Box::pin(async move { store.put_multipart(&path).await });
                         self.state = ObjectStoreState::StorageWriterMultipart(fut);
                         self.poll_next(cx)
                     }
@@ -312,7 +312,9 @@ impl Stream for ObjectStoreStream {
                         let meta = ObjectMeta { e_tag: None, version: None, location: Path::from(location), last_modified: Utc::now(), size: bytes.len() as u64 };
                         self.meta.replace(meta);
                         let payload = PutPayload::from_bytes(Bytes::from(bytes));
-                        let fut = Box::pin(self.store.put(&self.path, payload));
+                        let store = store.clone();
+                        let path = path.clone();
+                        let fut = Box::pin(async move { store.put(&path, payload).await });
                         self.state = ObjectStoreState::StorageWriterPutResult(fut);
                         self.poll_next(cx)
                     }
@@ -596,7 +598,7 @@ impl Stream for ObjectStoreStream {
     }
 }
 
-impl RecordBatchStream for ObjectStoreStream {
+impl<'a> RecordBatchStream for ObjectStoreStream<'a> {
     fn schema(&self) -> SchemaRef {
         Arc::clone(&self.schema)
     }
