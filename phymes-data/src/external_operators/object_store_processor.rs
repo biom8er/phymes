@@ -22,13 +22,13 @@ use crate::{
 };
 
 /// The state of the Object Store API request.
-pub enum ObjectStoreState<'a> {
+pub enum ObjectStoreState {
     NotStarted,
-    StorageReaderGetResult(Pin<Box<dyn Future<Output = Result<GetResult, object_store::Error>> + Send + 'a>>),
+    StorageReaderGetResult(Pin<Box<dyn Future<Output = Result<GetResult, object_store::Error>> + Send>>),
     StorageReaderBytesResult(Pin<Box<dyn Future<Output = Result<Bytes, object_store::Error>> + Send>>),
     StorageReaderStreamResult(Pin<Box<dyn Stream<Item = Result<Bytes, object_store::Error>> + Send>>),
-    StorageWriterMultipart(Pin<Box<dyn Future<Output = Result<Box<dyn MultipartUpload + 'a>, object_store::Error>> + Send + 'a>>),
-    StorageWriterPutResult(Pin<Box<dyn Future<Output = Result<PutResult, object_store::Error>> + Send + 'a>>),
+    StorageWriterMultipart(Pin<Box<dyn Future<Output = Result<Box<dyn MultipartUpload>, object_store::Error>> + Send>>),
+    StorageWriterPutResult(Pin<Box<dyn Future<Output = Result<PutResult, object_store::Error>> + Send>>),
     Done,
 }
 
@@ -82,8 +82,8 @@ impl ProcessorTrait for ObjectStoreProcessor {
             message,
             config,
             Arc::clone(&runtime_env),
-            self.store.as_ref().unwrap(),
-            self.path.as_ref().unwrap(),
+            self.store.as_ref().unwrap().clone(),
+            self.path.as_ref().unwrap().clone(),
             diagnostic_builder.cloned(),
         )?);
 
@@ -98,7 +98,7 @@ impl ProcessorTrait for ObjectStoreProcessor {
     }
 }
 
-pub struct ObjectStoreStream<'a> {
+pub struct ObjectStoreStream {
     /// Output schema
     schema: SchemaRef,
     /// The messages containing the lhs and rhs
@@ -109,15 +109,15 @@ pub struct ObjectStoreStream<'a> {
     /// The candle assets needed for inference
     _runtime_env: Arc<RuntimeEnv>,
     /// Store
-    store: &'a Arc<dyn ObjectStore>,
+    store: &'static Arc<dyn ObjectStore>,
     /// Path
-    path: &'a Path,
+    path: &'static Path,
     /// Runtime metrics recording
     diagnostic_builder: Option<DiagnosticBuilder>,
     /// Parameters for chat inference
     config: Option<ObjectStoreConfig>,
     /// State of the OpenAI API request
-    state: ObjectStoreState<'a>,
+    state: ObjectStoreState,
     /// The polled record batches from the input
     /// Can be manifests files to get or subjects to put
     record_batches: Option<VecDeque<Map<String, Value>>>,
@@ -127,13 +127,13 @@ pub struct ObjectStoreStream<'a> {
     meta: Option<ObjectMeta>,
 }
 
-impl<'a> ObjectStoreStream<'a> {
+impl ObjectStoreStream {
     pub fn new(
         messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<RuntimeEnv>,
-        store: &'a Arc<dyn ObjectStore>,
-        path: &'a Path,
+        store: &'static Arc<dyn ObjectStore>,
+        path: &'static Path,
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
@@ -153,7 +153,7 @@ impl<'a> ObjectStoreStream<'a> {
     }
 }
 
-impl<'a> Stream for ObjectStoreStream<'a> {
+impl Stream for ObjectStoreStream {
     type Item = Result<RecordBatch>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -286,12 +286,12 @@ impl<'a> Stream for ObjectStoreStream<'a> {
                 // Determine the opts type
                 match self.config.as_ref().unwrap().ops_type {
                     ObjectStoreOptsType::Get | ObjectStoreOptsType::GetStream | ObjectStoreOptsType::GetMeta => {
-                        let fut = Box::pin(self.store.get(self.path));
+                        let fut = Box::pin(self.store.get(&self.path));
                         self.state = ObjectStoreState::StorageReaderGetResult(fut);
                         self.poll_next(cx)
                     }
                     ObjectStoreOptsType::PutMultipart => {
-                        let fut = Box::pin(self.store.put_multipart(self.path));
+                        let fut = Box::pin(self.store.put_multipart(&self.path));
                         self.state = ObjectStoreState::StorageWriterMultipart(fut);
                         self.poll_next(cx)
                     }
@@ -312,7 +312,7 @@ impl<'a> Stream for ObjectStoreStream<'a> {
                         let meta = ObjectMeta { e_tag: None, version: None, location: Path::from(location), last_modified: Utc::now(), size: bytes.len() as u64 };
                         self.meta.replace(meta);
                         let payload = PutPayload::from_bytes(Bytes::from(bytes));
-                        let fut = Box::pin(self.store.put(self.path, payload));
+                        let fut = Box::pin(self.store.put(&self.path, payload));
                         self.state = ObjectStoreState::StorageWriterPutResult(fut);
                         self.poll_next(cx)
                     }
@@ -596,7 +596,7 @@ impl<'a> Stream for ObjectStoreStream<'a> {
     }
 }
 
-impl<'a> RecordBatchStream for ObjectStoreStream<'a> {
+impl RecordBatchStream for ObjectStoreStream {
     fn schema(&self) -> SchemaRef {
         Arc::clone(&self.schema)
     }
