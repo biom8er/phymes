@@ -135,7 +135,7 @@ pub struct HTTPClientRequestStream {
     /// State of the OpenAI API request
     state: HTTPClientRequestState,
     /// The polled record batches from the input
-    record_batches: Option<RecordBatch>,
+    record_batches: Option<VecDeque<Map<String, Value>>>,
     /// The record batches or url from the config
     json_str: Option<String>,
     /// Optional copy of the query string which is needed for downloading PDFs and other data assets
@@ -222,7 +222,12 @@ impl Stream for HTTPClientRequestStream {
                             if let Some(Ok(batch)) =
                                 ready!(fut.get_message_mut().poll_next_unpin(cx))
                             {
-                                self.record_batches.replace(batch);
+                                let json_object = TableBuilder::default()
+                                    .with_name("")
+                                    .with_record_batches(vec![batch])?
+                                    .build()?
+                                    .to_json_object()?;
+                                self.record_batches.replace(json_object.into());
                             }
                             self.messages.insert(fut.get_name().to_string(), fut);
                         }
@@ -261,20 +266,21 @@ impl Stream for HTTPClientRequestStream {
                     .build()?;
 
                 // Make the request
-                // DM: A future optimization maybe to treat each row as a parallel API request
                 let fut = match self.config.as_ref().unwrap().request_type {
                     HTTPClientRequestType::Get => {
                         // Prioritize the message data over the config when building the url
-                        let query_url = if let Some(batches) = self.record_batches.take() {
-                            let messages = Table::get_builder()
-                                .with_name("messages")
-                                .with_record_batches(vec![batches])?
-                                .build()?;
-
-                            // Join the `content` fields together for the case of multiple rows
-                            let query_str = messages.get_column_as_vec_str("content").join("");
-
-                            Some(query_str)
+                        let query_url = if let Some(mut batch) = self.record_batches.take() {
+                            if let Some(row) = batch.pop_front() {
+                                let query_str = row.get("content").ok_or(anyhow!("Missing key `content` to build query string from RecordBatches in HTTPClientRequestStream."))?;
+                                let query_str = query_str.as_str().ok_or(anyhow!("Unable to build string from key `content` from RecordBatches in HTTPClientRequestStream."))?.to_string();
+                                if batch.len() > 0 {
+                                    self.record_batches.replace(batch);
+                                }
+                                Some(query_str)
+                            } else {
+                                self.state = HTTPClientRequestState::Done;
+                                return Poll::Ready(None);
+                            }                            
                         } else {
                             self.json_str.clone()
                         };
