@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow};
-use phymes_core::WorkspaceSubject;
+use crate::WorkspaceSubject;
 use std::{
     fs,
     io::{Read, Write},

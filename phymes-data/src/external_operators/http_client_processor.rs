@@ -1,9 +1,5 @@
 use std::{
-    fmt::Write,
-    pin::Pin,
-    sync::Arc,
-    task::{Context, Poll, ready},
-    time::Duration,
+    collections::VecDeque, fmt::Write, pin::Pin, sync::Arc, task::{Context, Poll, ready}, time::Duration
 };
 
 use anyhow::{Result, anyhow};
@@ -282,7 +278,12 @@ impl Stream for HTTPClientRequestStream {
                                 return Poll::Ready(None);
                             }                            
                         } else {
-                            self.json_str.clone()
+                            if let Some(json_str) = self.json_str.take() {
+                                Some(json_str)
+                            } else {
+                                self.state = HTTPClientRequestState::Done;
+                                return Poll::Ready(None);
+                            } 
                         };
                         let url = self.config.as_ref().unwrap().url(query_url.as_deref());
 
@@ -303,16 +304,16 @@ impl Stream for HTTPClientRequestStream {
                     }
                     HTTPClientRequestType::Post => {
                         // Prioritize the message data over the config when building the JSON body and url
-                        let (json_data, url) = if let Some(batches) = self.record_batches.take() {
-                            // Extract the table as a JSON object
-                            let messages = Table::get_builder()
-                                .with_name("messages")
-                                .with_record_batches(vec![batches])?
-                                .build()?;
-                            let mut json_object = messages.to_json_object()?;
-
-                            // DM: currently, only the last row is used similar to configs...
-                            let json_data = json_object.pop().unwrap();
+                        let (json_data, url) = if let Some(mut batch) = self.record_batches.take() {
+                            let json_data = if let Some(row) = batch.pop_front() {
+                                if batch.len() > 0 {
+                                    self.record_batches.replace(batch);
+                                }
+                                row
+                            } else {
+                                self.state = HTTPClientRequestState::Done;
+                                return Poll::Ready(None);
+                            };
 
                             // Build the url
                             let url = if let Some(json_str) =
@@ -324,8 +325,8 @@ impl Stream for HTTPClientRequestStream {
                             };
 
                             (json_data, url)
-                        } else if let Some(json_str) = self.json_str.as_ref() {
-                            let json_data = serde_json::from_str::<Map<String, Value>>(json_str)?;
+                        } else if let Some(json_str) = self.json_str.take() {
+                            let json_data = serde_json::from_str::<Map<String, Value>>(&json_str)?;
                             let url = self.config.as_ref().unwrap().base_url.clone();
                             (json_data, url)
                         } else {
@@ -339,7 +340,7 @@ impl Stream for HTTPClientRequestStream {
                         if self.config.as_ref().unwrap().request_schema
                             == HTTPClientRequestSchemas::Attachments
                         {
-                            self.json_str.replace(url.to_owned());
+                            self.url.replace(url.to_owned());
                         }
 
                         // Make the request

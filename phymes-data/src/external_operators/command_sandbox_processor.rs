@@ -16,7 +16,7 @@ use phymes_core::{
     MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
     SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait,
+    SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait, WorkspaceEditor,
     create_bytes_fields, create_chat_record_batch, create_values_fields, remove_message_by_subject,
 };
 use phymes_diagnostics::{
@@ -34,7 +34,6 @@ use crate::{
         },
         http_client_processor::error_report,
     },
-    patch::WorkspaceEditor,
 };
 
 /// The state of the command stream
@@ -3059,7 +3058,7 @@ if __name__ == '__main__':
 
         // Create src directory
         let src_path = format!("{}/src", project_dir.as_path().to_str().unwrap());
-        let _ = fs::create_dir(&project_dir);
+        let _ = fs::create_dir(&src_path);
 
         // Create the cargo.toml
         let requirements_file_path =

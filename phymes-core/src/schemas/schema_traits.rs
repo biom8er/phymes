@@ -1,11 +1,8 @@
 use anyhow::Result;
 use arrow::{
-    datatypes::{Fields, Schema, SchemaRef},
+    datatypes::SchemaRef,
     record_batch::RecordBatch,
 };
-use clap::ValueEnum;
-use serde::{Deserialize, Serialize};
-use std::{fmt::Display, sync::Arc};
 
 use crate::{Table, TableBuilder};
 
