@@ -228,7 +228,7 @@ impl Stream for HTTPClientRequestStream {
                         }
                         // Extract the data from the config
                         None => {
-                            if let Some(json) = self.config.as_ref().unwrap().json.clone() {
+                            if let Some(json) = self.config.as_mut().unwrap().json.take() {
                                 self.json_str.replace(json.to_string());
                             } else {
                                 self.state = HTTPClientRequestState::Done;
@@ -241,14 +241,10 @@ impl Stream for HTTPClientRequestStream {
                     }
                 } else if self.record_batches.is_none()
                     && self.json_str.is_none()
-                    && let Some(json) = self.config.as_ref().unwrap().json.clone()
+                    && let Some(json) = self.config.as_mut().unwrap().json.take()
                 {
                     // Extract the data from the config
                     self.json_str.replace(json.to_string());
-                } else if self.json_str.is_some() {
-                    // The config has already been "polled"
-                    self.state = HTTPClientRequestState::Done;
-                    return Poll::Ready(None);
                 }
 
                 // The poll ends when there are no more batches

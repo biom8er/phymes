@@ -36,8 +36,6 @@ pub enum ObjectStoreState<'a> {
 pub struct ObjectStoreProcessor {
     name: String,
     r#type: String,
-    store: Option<Arc<dyn ObjectStore>>,
-    path: Option<Path>,
     
 }
 
@@ -52,8 +50,6 @@ impl ProcessorTrait for ObjectStoreProcessor {
         Self {
             name: name.to_string(),
             r#type: r#type.to_string(),
-            store: None,
-            path: None,
         }
     }
 
@@ -133,7 +129,7 @@ impl<'a> ObjectStoreStream<'a> {
         diagnostic_builder: Option<DiagnosticBuilder>,
     ) -> Result<Self> {
         Ok(Self {
-            schema: AvailableSubjects::Messages.to_schema(),
+            schema: AvailableSubjects::ObjectStore.to_schema(),
             messages,
             diagnostic_builder,
             config_stream,
@@ -215,7 +211,7 @@ impl<'a> Stream for ObjectStoreStream<'a> {
                         }
                         // Extract the data from the config
                         None => {
-                            if let Some(location) = self.config.as_ref().unwrap().locations.clone() {
+                            if let Some(location) = self.config.as_mut().unwrap().locations.take() {
                                 self.locations.replace(location.into());
                             } else {
                                 self.state = ObjectStoreState::Done;
@@ -228,14 +224,10 @@ impl<'a> Stream for ObjectStoreStream<'a> {
                     }
                 } else if self.record_batches.is_none()
                     && self.locations.is_none()
-                    && let Some(location) = self.config.as_ref().unwrap().locations.clone()
+                    && let Some(location) = self.config.as_mut().unwrap().locations.take()
                 {
                     // Extract the data from the config
                     self.locations.replace(location.into());
-                } else if self.locations.is_some() {
-                    // The config has already been "polled"
-                    self.state = ObjectStoreState::Done;
-                    return Poll::Ready(None);
                 }
 
                 // The poll ends when there are no more batches
@@ -254,18 +246,20 @@ impl<'a> Stream for ObjectStoreStream<'a> {
                         location.as_str().ok_or(anyhow!("Value for key location `{location}` could not be parsed as a String for ObjectSToreStream."))?.to_string()
                     } else {
                         self.state = ObjectStoreState::Done;
-                        let err = "Locations is empty for ObjectStoreStream.";
+                        let err = "Locations from RecordBatches is empty for ObjectStoreStream.";
                         return Poll::Ready(Some(Err(anyhow!(err))));
                     };
                     self.record_batches.replace(batch);
                     location
                 } else if let Some(mut locations) = self.locations.take() {
                     if let Some(location) = locations.pop_front() {
-                        self.locations.replace(locations);
+                        if locations.len() > 0 {
+                            self.locations.replace(locations);
+                        }                        
                         location
                     } else {
                         self.state = ObjectStoreState::Done;
-                        let err = "Locations is empty for ObjectStoreStream.";
+                        let err = "Locations from Config is empty for ObjectStoreStream.";
                         return Poll::Ready(Some(Err(anyhow!(err))));
                     }
                 } else {
@@ -282,8 +276,18 @@ impl<'a> Stream for ObjectStoreStream<'a> {
                 // Determine the opts type
                 match self.config.as_ref().unwrap().ops_type {
                     ObjectStoreOptsType::Get | ObjectStoreOptsType::GetStream | ObjectStoreOptsType::GetMeta => {
+                        // Check if there are more batches for the next round
+                        if let Some(mut batch) = self.record_batches.take() {
+                            let _ = batch.pop_front();
+                            if batch.len() > 0 {
+                                self.record_batches.replace(batch);
+                            }                            
+                        }
+
+                        // Get operation
                         let store = store.clone();
                         let path = path.clone();
+                        // DM: the `async move` trick to capture the lifetime only works for futures
                         let fut = Box::pin(async move { store.get(&path).await });
                         self.state = ObjectStoreState::StorageReaderGetResult(fut);
                         self.poll_next(cx)
@@ -296,6 +300,7 @@ impl<'a> Stream for ObjectStoreStream<'a> {
                         self.poll_next(cx)
                     }
                     ObjectStoreOptsType::Put => {
+                        // Pop front the next batch of data
                         let row = self.record_batches.as_mut().unwrap()
                             .pop_front()
                             .ok_or(anyhow!("Missing rows for RecordBatch for ObjectStoreStream."))?;
@@ -312,6 +317,15 @@ impl<'a> Stream for ObjectStoreStream<'a> {
                         let meta = ObjectMeta { e_tag: None, version: None, location: Path::from(location), last_modified: Utc::now(), size: bytes.len() as u64 };
                         self.meta.replace(meta);
                         let payload = PutPayload::from_bytes(Bytes::from(bytes));
+
+                        // Check if there are more batches for the next round
+                        if let Some(batch) = self.record_batches.take() {
+                            if batch.len() > 0 {
+                                self.record_batches.replace(batch);
+                            }                            
+                        }
+
+                        // Put operation
                         let store = store.clone();
                         let path = path.clone();
                         let fut = Box::pin(async move { store.put(&path, payload).await });
@@ -530,6 +544,13 @@ impl<'a> Stream for ObjectStoreStream<'a> {
                     let meta = ObjectMeta { e_tag: None, version: None, location: Path::from(location), last_modified: Utc::now(), size: size as u64 };
                     self.meta.replace(meta);
 
+                    // Check if there are more batches for the next round
+                    if let Some(batch) = self.record_batches.take() {
+                        if batch.len() > 0 {
+                            self.record_batches.replace(batch);
+                        }                            
+                    }
+
                     // Put the chunks
                     let mut write = WriteMultipart::new(mp);
                     while let Some(chunk) = pending.lock().pop_front() {
@@ -606,19 +627,15 @@ impl<'a> RecordBatchStream for ObjectStoreStream<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{extract_pdf, filter_pdf, load_pdf_document};
-
     use super::*;
     use futures::TryStreamExt;
     use phymes_core::{
-        ChatBuilderTraitExt, RuntimeEnvTrait, TableBuilder, TablePublication, open_alex,
-        semantic_scholar,
+        RuntimeEnvTrait, TableBuilder, TablePublication, test_table,
     };
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
 
     #[tokio::test]
-    async fn test_object_store_processor_get_in_memory() -> Result<()> {
-        // Case 1: GET from messages
+    async fn test_object_store_processor_put_get_in_memory() -> Result<()> {
         let name = "ObjectStoreProcessor";
         let messages = "messages";
 
@@ -630,9 +647,15 @@ mod tests {
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
+        // PUT from messages
         // Config for the Processor
         let config = ObjectStoreConfig {
             timeout: 5,
+            ops_type: ObjectStoreOptsType::Put,
+            backend: ObjectStorageBackend::InMemory,
+            bucket: None,
+            locations: None,
+            chunk_size: None,
             subject_name: Some(messages.to_string()),
             ..Default::default()
         };
@@ -642,23 +665,178 @@ mod tests {
             .with_json(&config_json, 1)?
             .build()?;
 
-        // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
+        // Make the object store batch
+        let location = ["location_1.ipc", "location_2.ipc"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let bucket = ["bucket", "bucket"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let last_modified = (0..2).map(|i| i as i64).collect::<Vec<_>>();
+        let metadata = ["etag_1", "etag_2"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let bytes = vec![test_table::make_test_table("location_1", 3, 4, 2)?.to_ipc_stream()?, test_table::make_test_table("location_2", 3, 0, 2)?.to_ipc_stream()?];
+        let batch = create_object_store_batch(location.clone(), bucket.clone(), metadata.clone(), last_modified.clone(), bytes)?;
+        let table = TableBuilder::new()
             .with_name(messages)
-            .append_new_user_query_str(&open_alex_request.to_get_query()?, "user")?;
+            .with_record_batches(vec![batch])?
+            .build()?;
 
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message.insert(
-            messages.to_string(),
+            table.get_name().to_string(),
             SendableRecordBatchStreamMessage::get_builder()
-                .with_name(messages)
+                .with_name(table.get_name())
                 .with_publisher("")
-                .with_subject(messages)
+                .with_subject(table.get_name())
                 .with_update(&TablePublication::None)
-                .with_message(message_builder.clone().build()?.to_record_batch_stream())
+                .with_message(table.to_record_batch_stream())
                 .build()?,
         );
+        let _ = message.insert(
+            config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(config_table.get_name())
+                .with_publisher("")
+                .with_subject(config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(config_table.to_record_batch_stream())
+                .build()?,
+        );   
+
+        // Build the processor
+        let processor =
+            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("location");
+        assert_eq!(result, ["location_1.ipc", "location_2.ipc"]);
+        let result = table.get_column_as_vec_str("bucket");
+        assert_eq!(result, ["", ""]);
+        let result = table.get_column_as_vec_str("version");
+        assert_eq!(result, ["", ""]);
+        let result = table.get_column_as_vec_primitive::<u32>("size")?;
+        assert_eq!(result, [4104, 3336]);
+        let result = table.get_column_as_vec_primitive::<i64>("last_modified")?;
+        for res in result {
+            assert!(res > 0);
+        }
+
+        // GET from messages
+        // Config for the Processor
+        let config = ObjectStoreConfig {
+            timeout: 5,
+            ops_type: ObjectStoreOptsType::Get,
+            backend: ObjectStorageBackend::InMemory,
+            bucket: None,
+            locations: None,
+            chunk_size: None,
+            subject_name: Some(messages.to_string()),
+            ..Default::default()
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&config_json, 1)?
+            .build()?;
+
+        // Make the object store meta batch
+        let size = (0..2).map(|i| i as u32).collect::<Vec<_>>();
+        let version = ["version_1", "version_2"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let batch = create_object_store_meta_batch(location.clone(), bucket, metadata, version, size, last_modified)?;
+        let table = TableBuilder::new()
+            .with_name(messages)
+            .with_record_batches(vec![batch])?
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(table.get_name())
+                .with_publisher("")
+                .with_subject(table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(table.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(config_table.get_name())
+                .with_publisher("")
+                .with_subject(config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(config_table.to_record_batch_stream())
+                .build()?,
+        );   
+
+        // Build the processor
+        let processor =
+            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("location");
+        assert_eq!(result, ["location_1.ipc", "location_2.ipc"]);
+        let result = table.get_column_as_vec_str("bucket");
+        assert_eq!(result, ["", ""]);
+        let result = table.get_column_as_vec_str("metadata");
+        assert_eq!(result, ["etag_1", "etag_2"]);
+        let result = table.get_column_as_vec_primitive::<i64>("last_modified")?;
+        assert_eq!(result, [0, 1]);
+        let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?;
+        let tables: Result<Vec<Table>> = result.into_iter()
+            .map(|bytes| TableBuilder::new_from_ipc_stream(&bytes)?.with_name("IPC").build())
+            .collect();
+        let tables = tables?;
+        assert_eq!(tables.first().unwrap(), &test_table::make_test_table("IPC", 3, 4, 2)?);
+        assert_eq!(tables.get(1).unwrap(), &test_table::make_test_table("IPC", 3, 0, 2)?);
+
+        // GET from config
+        // Config for the Processor
+        let config = ObjectStoreConfig {
+            timeout: 5,
+            ops_type: ObjectStoreOptsType::Get,
+            backend: ObjectStorageBackend::InMemory,
+            bucket: Some("Bucket".to_string()),
+            locations: Some(location),
+            chunk_size: None,
+            subject_name: None,
+            ..Default::default()
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&config_json, 1)?
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message.insert(
             config_table.get_name().to_string(),
             SendableRecordBatchStreamMessage::get_builder()
@@ -689,336 +867,36 @@ mod tests {
             .with_name("")
             .build()?;
 
-        let result = table.get_column_as_vec_str("role");
-        assert_eq!(result, ["tool"]);
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_object_store_processor_put_in_memory() -> Result<()> {
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_object_store_processor_get_local_fs() -> Result<()> {
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_object_store_processor_put_local_fs() -> Result<()> {
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_object_store_processor_get_aws() -> Result<()> {
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_object_store_processor_put_aws() -> Result<()> {
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_object_store_processor_open_alex_get_message_from_message() -> Result<()> {
-        // Case 1: GET from messages
-        let name = "ObjectStoreProcessor";
-        let messages = "messages";
-
-        // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
-
-        // Metrics to compute time and rows
-        let span = SpanBuilder::default().with_span("test").build()?;
-        let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
-
-        // OpenAlex request filters
-        let mut filter = Map::<String, Value>::new();
-        let _ = filter.insert(
-            "publication_year".to_string(),
-            Value::String("2020".to_string()),
-        );
-        let open_alex_request = open_alex::OpenAlexRequest {
-            page: Some(1),
-            per_page: Some(1),
-            filter: Some(filter),
-            entity: open_alex::OpenAlexRequestEntity::Works,
-            ..Default::default()
-        };
-
-        // Config for the HTTP Processor
-        let http_client_config = HTTPClientConfig {
-            timeout: 5,
-            request_type: HTTPClientRequestType::Get,
-            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-            base_url: format!("{}?", open_alex_request.to_base_url()),
-            subject_name: Some(messages.to_string()),
-            request_schema: HTTPClientRequestSchemas::Messages,
-            ..Default::default()
-        };
-        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
-            .with_name(name)
-            .with_json(&http_client_config_json, 1)?
-            .build()?;
-
-        // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
-            .with_name(messages)
-            .append_new_user_query_str(&open_alex_request.to_get_query()?, "user")?;
-
-        // Build the current message state
-        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            messages.to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(messages)
-                .with_publisher("")
-                .with_subject(messages)
-                .with_update(&TablePublication::None)
-                .with_message(message_builder.clone().build()?.to_record_batch_stream())
-                .build()?,
-        );
-        let _ = message.insert(
-            http_client_config_table.get_name().to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(http_client_config_table.get_name())
-                .with_publisher("")
-                .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
-                .with_message(http_client_config_table.to_record_batch_stream())
-                .build()?,
-        );
-
-        // Build the http client processor
-        let processor =
-            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
-        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
-
-        // Check the response
-        let result = stream
-            .remove(name)
-            .unwrap()
-            .message
-            .take()
-            .unwrap()
-            .try_collect::<Vec<_>>()
-            .await?;
-        let table = TableBuilder::new()
-            .with_record_batches(result)?
-            .with_name("")
-            .build()?;
-
-        let result = table.get_column_as_vec_str("role");
-        assert_eq!(result, ["tool"]);
-        let result = table.get_column_as_vec_string("content")?;
-        let snippet = result.first().unwrap().to_string();
-        assert!(snippet.contains("https://openalex.org/W3038568908"));
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_object_store_processor_open_alex_get_message_from_config() -> Result<()> {
-        // Case 1: GET from messages
-        let name = "ObjectStoreProcessor";
-
-        // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
-
-        // Metrics to compute time and rows
-        let span = SpanBuilder::default().with_span("test").build()?;
-        let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
-
-        // OpenAlex request filters
-        let mut filter = Map::<String, Value>::new();
-        let _ = filter.insert(
-            "publication_year".to_string(),
-            Value::String("2020".to_string()),
-        );
-        let open_alex_request = open_alex::OpenAlexRequest {
-            page: Some(1),
-            per_page: Some(1),
-            filter: Some(filter),
-            entity: open_alex::OpenAlexRequestEntity::Works,
-            ..Default::default()
-        };
-
-        // Config for the HTTP Processor
-        let http_client_config = HTTPClientConfig {
-            timeout: 5,
-            request_type: HTTPClientRequestType::Get,
-            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-            base_url: format!("{}?", open_alex_request.to_base_url()),
-            json: Some(open_alex_request.to_get_query()?),
-            request_schema: HTTPClientRequestSchemas::Messages,
-            ..Default::default()
-        };
-        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
-            .with_name(name)
-            .with_json(&http_client_config_json, 1)?
-            .build()?;
-
-        // Build the current message state
-        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            http_client_config_table.get_name().to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(http_client_config_table.get_name())
-                .with_publisher("")
-                .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
-                .with_message(http_client_config_table.to_record_batch_stream())
-                .build()?,
-        );
-
-        // Build the http client processor
-        let processor =
-            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
-        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
-
-        // Check the response
-        let result = stream
-            .remove(name)
-            .unwrap()
-            .message
-            .take()
-            .unwrap()
-            .try_collect::<Vec<_>>()
-            .await?;
-        let table = TableBuilder::new()
-            .with_name("test_object_store_processor_open_alex_get_config")
-            .with_record_batches(result)?
-            .build()?;
-
-        let result = table.get_column_as_vec_str("role");
-        assert_eq!(result, ["tool"]);
-        let result = table.get_column_as_vec_string("content")?;
-        let snippet = result.first().unwrap().to_string();
-        assert!(snippet.contains("https://openalex.org/W3038568908"));
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_object_store_processor_open_alex_get_blob_from_message() -> Result<()> {
-        // Case 1: GET from messages
-        let name = "ObjectStoreProcessor";
-        let messages = "messages";
-
-        // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
-
-        // Metrics to compute time and rows
-        let span = SpanBuilder::default().with_span("test").build()?;
-        let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
-
-        // OpenAlex request filters
-        let mut filter = Map::<String, Value>::new();
-        let _ = filter.insert(
-            "publication_year".to_string(),
-            Value::String("2020".to_string()),
-        );
-        let open_alex_request = open_alex::OpenAlexRequest {
-            page: Some(1),
-            per_page: Some(1),
-            filter: Some(filter),
-            entity: open_alex::OpenAlexRequestEntity::Works,
-            ..Default::default()
-        };
-
-        // Config for the HTTP Processor
-        let http_client_config = HTTPClientConfig {
-            timeout: 5,
-            request_type: HTTPClientRequestType::Get,
-            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-            base_url: format!("{}?", open_alex_request.to_base_url()),
-            subject_name: Some(messages.to_string()),
-            request_schema: HTTPClientRequestSchemas::Attachments,
-            ..Default::default()
-        };
-        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
-            .with_name(name)
-            .with_json(&http_client_config_json, 1)?
-            .build()?;
-
-        // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
-            .with_name(messages)
-            .append_new_user_query_str(&open_alex_request.to_get_query()?, "user")?;
-
-        // Build the current message state
-        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            messages.to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(messages)
-                .with_publisher("")
-                .with_subject(messages)
-                .with_update(&TablePublication::None)
-                .with_message(message_builder.clone().build()?.to_record_batch_stream())
-                .build()?,
-        );
-        let _ = message.insert(
-            http_client_config_table.get_name().to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(http_client_config_table.get_name())
-                .with_publisher("")
-                .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
-                .with_message(http_client_config_table.to_record_batch_stream())
-                .build()?,
-        );
-
-        // Build the http client processor
-        let processor =
-            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
-        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
-
-        // Check the response
-        let result = stream
-            .remove(name)
-            .unwrap()
-            .message
-            .take()
-            .unwrap()
-            .try_collect::<Vec<_>>()
-            .await?;
-        let table = TableBuilder::new()
-            .with_record_batches(result)?
-            .with_name("")
-            .build()?;
-
+        let result = table.get_column_as_vec_str("location");
+        assert_eq!(result, ["location_1.ipc", "location_2.ipc"]);
+        let result = table.get_column_as_vec_str("bucket");
+        assert_eq!(result, ["", ""]);
         let result = table.get_column_as_vec_str("metadata");
-        assert_eq!(result, ["tool"]);
-        let result = table.get_column_as_vec_str("filename");
-        assert_eq!(
-            result,
-            ["works?page=1&per-page=1&filter=publication_year:\"2020\""]
-        );
-        let result = table.get_column_as_vec_str("extension");
-        assert_eq!(result, ["application/json"]);
-        let result = table
-            .get_column_as_vec_nested_primitive::<u8>("bytes")?
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
-        let snippet = String::from_utf8(result)?;
-        assert!(snippet.contains("https://openalex.org/W3038568908"));
+        assert_eq!(result, ["etag_1", "etag_2"]);
+        let result = table.get_column_as_vec_primitive::<i64>("last_modified")?;
+        assert_eq!(result, [0, 1]);
+        let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?;
+        let tables: Result<Vec<Table>> = result.into_iter()
+            .map(|bytes| TableBuilder::new_from_ipc_stream(&bytes)?.with_name("IPC").build())
+            .collect();
+        let tables = tables?;
+        assert_eq!(tables.first().unwrap(), &test_table::make_test_table("IPC", 3, 4, 2)?);
+        assert_eq!(tables.get(1).unwrap(), &test_table::make_test_table("IPC", 3, 0, 2)?);
 
         Ok(())
     }
 
     #[tokio::test]
-    async fn test_object_store_processor_e_utils_e_search() -> Result<()> {
+    async fn test_object_store_processor_put_get_local_fs_messages() -> Result<()> {
         let name = "ObjectStoreProcessor";
         let messages = "messages";
+
+        // Create project directory
+        let bucket_name = "phymes-object-store";
+        let project_dir = std::env::temp_dir().join(bucket_name);
+        let _ = std::fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
+        // DM: in some instances, `rm -rf /tmp/phymes-rs-project` is needed to delete the temporary project directory
+        let _ = std::fs::create_dir(&project_dir);
 
         // Runtime env
         let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
@@ -1028,68 +906,142 @@ mod tests {
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
-        // Build ESearch query
-        let mesh_term = "Diabetes Mellitus";
-        let year_from = 2020;
-        let year_to = 2023;
-        let journal_filter = Some("Lancet");
-        let mut query = format!("{mesh_term}[MeSH Terms]");
-        if let Some(journal) = journal_filter {
-            query.push_str(&format!(" AND \"{journal}\"[Journal]"));
+        // PUT from messages
+        // Config for the Processor
+        let config = ObjectStoreConfig {
+            timeout: 5,
+            ops_type: ObjectStoreOptsType::Put,
+            backend: ObjectStorageBackend::LocalFs,
+            bucket: Some(project_dir.clone().as_path().to_str().unwrap().to_string()),
+            locations: None,
+            chunk_size: None,
+            subject_name: Some(messages.to_string()),
+            ..Default::default()
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&config_json, 1)?
+            .build()?;
+
+        // Make the object store batch
+        let location = ["location_1.ipc", "location_2.ipc"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let bucket = vec![project_dir.clone().as_path().to_str().unwrap().to_string(), project_dir.clone().as_path().to_str().unwrap().to_string()];
+        let last_modified = (0..2).map(|i| i as i64).collect::<Vec<_>>();
+        let metadata = ["etag_1", "etag_2"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let bytes = vec![test_table::make_test_table("location_1", 3, 4, 2)?.to_ipc_stream()?, test_table::make_test_table("location_2", 3, 0, 2)?.to_ipc_stream()?];
+        let batch = create_object_store_batch(location.clone(), bucket.clone(), metadata.clone(), last_modified.clone(), bytes)?;
+        let table = TableBuilder::new()
+            .with_name(messages)
+            .with_record_batches(vec![batch])?
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(table.get_name())
+                .with_publisher("")
+                .with_subject(table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(table.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(config_table.get_name())
+                .with_publisher("")
+                .with_subject(config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(config_table.to_record_batch_stream())
+                .build()?,
+        );   
+
+        // Build the processor
+        let processor =
+            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("location");
+        assert_eq!(result, ["location_1.ipc", "location_2.ipc"]);
+        let result = table.get_column_as_vec_str("bucket");
+        assert_eq!(result, ["/tmp/phymes-object-store", "/tmp/phymes-object-store"]);
+        let result = table.get_column_as_vec_str("version");
+        assert_eq!(result, ["", ""]);
+        let result = table.get_column_as_vec_primitive::<u32>("size")?;
+        assert_eq!(result, [4104, 3336]);
+        let result = table.get_column_as_vec_primitive::<i64>("last_modified")?;
+        for res in result {
+            assert!(res > 0);
         }
 
-        let esearch_url = format!(
-            "db=pubmed&term={}&retmode=json&retmax=5&mindate={}&maxdate={}",
-            urlencoding::encode(&query),
-            year_from,
-            year_to
-        );
-
-        // State for the http client processor config
-        let http_client_config = HTTPClientConfig {
+        // GET from messages
+        // Config for the Processor
+        let config = ObjectStoreConfig {
             timeout: 5,
-            request_type: HTTPClientRequestType::Get,
-            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-            base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?".to_string(),
+            ops_type: ObjectStoreOptsType::Get,
+            backend: ObjectStorageBackend::LocalFs,
+            bucket: Some(project_dir.clone().as_path().to_str().unwrap().to_string()),
+            locations: None,
+            chunk_size: None,
             subject_name: Some(messages.to_string()),
-            request_schema: HTTPClientRequestSchemas::Messages,
             ..Default::default()
         };
-        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = TableBuilder::new()
             .with_name(name)
-            .with_json(&http_client_config_json, 1)?
+            .with_json(&config_json, 1)?
             .build()?;
 
-        // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
+        // Make the object store meta batch
+        let size = (0..2).map(|i| i as u32).collect::<Vec<_>>();
+        let version = ["version_1", "version_2"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let batch = create_object_store_meta_batch(location.clone(), bucket, metadata, version, size, last_modified)?;
+        let table = TableBuilder::new()
             .with_name(messages)
-            .append_new_user_query_str(&esearch_url, "user")?;
+            .with_record_batches(vec![batch])?
+            .build()?;
 
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message.insert(
-            messages.to_string(),
+            table.get_name().to_string(),
             SendableRecordBatchStreamMessage::get_builder()
-                .with_name(messages)
+                .with_name(table.get_name())
                 .with_publisher("")
-                .with_subject(messages)
+                .with_subject(table.get_name())
                 .with_update(&TablePublication::None)
-                .with_message(message_builder.clone().build()?.to_record_batch_stream())
+                .with_message(table.to_record_batch_stream())
                 .build()?,
         );
         let _ = message.insert(
-            http_client_config_table.get_name().to_string(),
+            config_table.get_name().to_string(),
             SendableRecordBatchStreamMessage::get_builder()
-                .with_name(http_client_config_table.get_name())
+                .with_name(config_table.get_name())
                 .with_publisher("")
-                .with_subject(http_client_config_table.get_name())
+                .with_subject(config_table.get_name())
                 .with_update(&TablePublication::None)
-                .with_message(http_client_config_table.to_record_batch_stream())
+                .with_message(config_table.to_record_batch_stream())
                 .build()?,
-        );
+        );   
 
-        // Build the http client processor
+        // Build the processor
         let processor =
             ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
@@ -1108,178 +1060,65 @@ mod tests {
             .with_name("")
             .build()?;
 
-        let result = table.get_column_as_vec_str("role");
-        assert_eq!(result, ["tool"]);
-        let result = table.get_column_as_vec_str("content").join("");
-        assert!(result.contains("\"idlist\":["));
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_object_store_processor_e_utils_e_fetch() -> Result<()> {
-        let name = "ObjectStoreProcessor";
-        let messages = "messages";
-
-        // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
-
-        // Metrics to compute time and rows
-        let span = SpanBuilder::default().with_span("test").build()?;
-        let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
-
-        // Build EFetch query
-        let ids = ["37997144", "37997132", "37997130", "37997120", "37997092"].join(",");
-        let efetch_url = format!("db=pubmed&id={ids}&retmode=xml");
-
-        // State for the http client processor config
-        let http_client_config = HTTPClientConfig {
-            timeout: 5,
-            request_type: HTTPClientRequestType::Get,
-            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-            base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?".to_string(),
-            subject_name: Some(messages.to_string()),
-            request_schema: HTTPClientRequestSchemas::Attachments,
-            ..Default::default()
-        };
-        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
-            .with_name(name)
-            .with_json(&http_client_config_json, 1)?
-            .build()?;
-
-        // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
-            .with_name(messages)
-            .append_new_user_query_str(&efetch_url, "user")?;
-
-        // Build the current message state
-        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            messages.to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(messages)
-                .with_publisher("")
-                .with_subject(messages)
-                .with_update(&TablePublication::None)
-                .with_message(message_builder.clone().build()?.to_record_batch_stream())
-                .build()?,
-        );
-        let _ = message.insert(
-            http_client_config_table.get_name().to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(http_client_config_table.get_name())
-                .with_publisher("")
-                .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
-                .with_message(http_client_config_table.to_record_batch_stream())
-                .build()?,
-        );
-
-        // Build the http client processor
-        let processor =
-            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
-        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
-
-        // Check the response
-        let result = stream
-            .remove(name)
-            .unwrap()
-            .message
-            .take()
-            .unwrap()
-            .try_collect::<Vec<_>>()
-            .await?;
-        let table = TableBuilder::new()
-            .with_record_batches(result)?
-            .with_name("")
-            .build()?;
-
+        let result = table.get_column_as_vec_str("location");
+        assert_eq!(result, ["location_1.ipc", "location_2.ipc"]);
+        let result = table.get_column_as_vec_str("bucket");
+        assert_eq!(result, ["/tmp/phymes-object-store", "/tmp/phymes-object-store"]);
         let result = table.get_column_as_vec_str("metadata");
-        assert_eq!(result, ["tool"]);
-        let result = table.get_column_as_vec_str("filename");
-        assert_eq!(
-            result,
-            ["efetch.fcgi?db=pubmed&id=37997144,37997132,37997130,37997120,37997092&retmode=xml"]
-        );
-        let result = table.get_column_as_vec_str("extension");
-        assert_eq!(result, ["text/xml; charset=UTF-8"]);
-        let result = table
-            .get_column_as_vec_nested_primitive::<u8>("bytes")?
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
-        let snippet = String::from_utf8(result)?;
-        assert!(snippet.contains("MedlineCitation"));
-        assert!(snippet.contains("!DOCTYPE PubmedArticleSet PUBLIC"));
-        assert!(snippet.contains("https://dtd.nlm.nih.gov/ncbi/pubmed/"));
+        let metadata: Result<Vec<Map<String, Value>>> = result.into_iter()
+            .map(|j| serde_json::from_str::<Map<String, Value>>(j).map_err(|e| e.into()))
+            .collect();
+        let metadata = metadata?;
+        assert!(metadata.first().unwrap().get("e_tag").is_some());
+        assert!(metadata.first().unwrap().get("version").is_some());
+        assert_eq!(metadata.first().unwrap().get("size").unwrap().as_i64().unwrap(), 4104);
+        assert!(metadata.get(1).unwrap().get("e_tag").is_some());
+        assert!(metadata.get(1).unwrap().get("version").is_some());
+        assert_eq!(metadata.get(1).unwrap().get("size").unwrap().as_i64().unwrap(), 3336);
+        let result = table.get_column_as_vec_primitive::<i64>("last_modified")?;
+        for res in result {
+            assert!(res > 0);
+        }
+        let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?;
+        let tables: Result<Vec<Table>> = result.into_iter()
+            .map(|bytes| TableBuilder::new_from_ipc_stream(&bytes)?.with_name("IPC").build())
+            .collect();
+        let tables = tables?;
+        assert_eq!(tables.first().unwrap(), &test_table::make_test_table("IPC", 3, 4, 2)?);
+        assert_eq!(tables.get(1).unwrap(), &test_table::make_test_table("IPC", 3, 0, 2)?);
 
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_object_store_processor_pdf_download() -> Result<()> {
-        let name = "ObjectStoreProcessor";
-        let messages = "messages";
-
-        // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
-
-        // Metrics to compute time and rows
-        let span = SpanBuilder::default().with_span("test").build()?;
-        let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
-
-        // Build pathname for download
-        let id = "2508.18700";
-        let download_url = format!("pdf/{id}");
-
-        // State for the http client processor config
-        let http_client_config = HTTPClientConfig {
+        // GET from config
+        // Config for the Processor
+        let config = ObjectStoreConfig {
             timeout: 5,
-            request_type: HTTPClientRequestType::Get,
-            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-            base_url: "https://arxiv.org/".to_string(),
-            subject_name: Some(messages.to_string()),
-            request_schema: HTTPClientRequestSchemas::Attachments,
+            ops_type: ObjectStoreOptsType::Get,
+            backend: ObjectStorageBackend::LocalFs,
+            bucket: Some(project_dir.clone().as_path().to_str().unwrap().to_string()),
+            locations: Some(location),
+            chunk_size: None,
+            subject_name: None,
             ..Default::default()
         };
-        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = TableBuilder::new()
             .with_name(name)
-            .with_json(&http_client_config_json, 1)?
+            .with_json(&config_json, 1)?
             .build()?;
-
-        // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
-            .with_name(messages)
-            .append_new_user_query_str(&download_url, "user")?;
 
         // Build the current message state
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message.insert(
-            messages.to_string(),
+            config_table.get_name().to_string(),
             SendableRecordBatchStreamMessage::get_builder()
-                .with_name(messages)
+                .with_name(config_table.get_name())
                 .with_publisher("")
-                .with_subject(messages)
+                .with_subject(config_table.get_name())
                 .with_update(&TablePublication::None)
-                .with_message(message_builder.clone().build()?.to_record_batch_stream())
+                .with_message(config_table.to_record_batch_stream())
                 .build()?,
-        );
-        let _ = message.insert(
-            http_client_config_table.get_name().to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(http_client_config_table.get_name())
-                .with_publisher("")
-                .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
-                .with_message(http_client_config_table.to_record_batch_stream())
-                .build()?,
-        );
+        );   
 
-        // Build the http client processor
+        // Build the processor
         let processor =
             ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
@@ -1297,529 +1136,41 @@ mod tests {
             .with_record_batches(result)?
             .with_name("")
             .build()?;
+
+        let result = table.get_column_as_vec_str("location");
+        assert_eq!(result, ["location_1.ipc", "location_2.ipc"]);
+        let result = table.get_column_as_vec_str("bucket");
+        assert_eq!(result, ["/tmp/phymes-object-store", "/tmp/phymes-object-store"]);
         let result = table.get_column_as_vec_str("metadata");
-        assert_eq!(result, ["tool"]);
-        let filenames = table.get_column_as_vec_str("filename");
-        assert_eq!(filenames, ["2508.18700"]);
-        let result = table.get_column_as_vec_str("extension");
-        assert_eq!(result, ["application/pdf"]);
+        let metadata: Result<Vec<Map<String, Value>>> = result.into_iter()
+            .map(|j| serde_json::from_str::<Map<String, Value>>(j).map_err(|e| e.into()))
+            .collect();
+        let metadata = metadata?;
+        assert!(metadata.first().unwrap().get("e_tag").is_some());
+        assert!(metadata.first().unwrap().get("version").is_some());
+        assert_eq!(metadata.first().unwrap().get("size").unwrap().as_i64().unwrap(), 4104);
+        assert!(metadata.get(1).unwrap().get("e_tag").is_some());
+        assert!(metadata.get(1).unwrap().get("version").is_some());
+        assert_eq!(metadata.get(1).unwrap().get("size").unwrap().as_i64().unwrap(), 3336);
+        let result = table.get_column_as_vec_primitive::<i64>("last_modified")?;
+        for res in result {
+            assert!(res > 0);
+        }
+        let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?;
+        let tables: Result<Vec<Table>> = result.into_iter()
+            .map(|bytes| TableBuilder::new_from_ipc_stream(&bytes)?.with_name("IPC").build())
+            .collect();
+        let tables = tables?;
+        assert_eq!(tables.first().unwrap(), &test_table::make_test_table("IPC", 3, 4, 2)?);
+        assert_eq!(tables.get(1).unwrap(), &test_table::make_test_table("IPC", 3, 0, 2)?);
 
-        // Check the PDF
-        let result = table
-            .get_column_as_vec_nested_primitive::<u8>("bytes")?
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
-        let pdf = filter_pdf(load_pdf_document(&result)?);
-        let docs = [(filenames.first().unwrap().to_string(), pdf)];
-        let pdf_batch = extract_pdf(&docs)?;
-        let table = TableBuilder::new()
-            .with_record_batches(vec![pdf_batch])?
-            .with_name("")
-            .build()?;
-        let result = table.get_column_as_vec_str("chunk_id");
-        assert_eq!(result, ["2508.18700_1", "2508.18700_2", "2508.18700_3"]);
-        let result = table.get_column_as_vec_str("document_id");
-        assert_eq!(result, ["2508.18700", "2508.18700", "2508.18700"]);
-        let result = table.get_column_as_vec_str("text");
-        let snippet = result.first().unwrap().to_string();
-        assert_eq!(
-            snippet[..100],
-            *"Taming the One-Epoch Phenomenon in Online Recommendation System by Two-stage Contrastive ID Pre-trai"
-        );
+        let _ = std::fs::remove_dir_all(project_dir);
 
         Ok(())
     }
 
     #[tokio::test]
-    async fn test_object_store_processor_semantic_scholar() -> Result<()> {
-        let name = "ObjectStoreProcessor";
-        let messages = "messages";
-
-        // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
-
-        // Metrics to compute time and rows
-        let span = SpanBuilder::default().with_span("test").build()?;
-        let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
-
-        // State for the http client processor config
-        let http_client_config = HTTPClientConfig {
-            timeout: 30,
-            request_type: HTTPClientRequestType::Post,
-            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-            content_type: Some("application/json".to_string()),
-            base_url: "https://api.semanticscholar.org/recommendations/v1/papers/?".to_string(),
-            json: Some("fields=title,url,authors&limit=3".to_string()),
-            subject_name: Some(messages.to_string()),
-            request_schema: HTTPClientRequestSchemas::Messages,
-            ..Default::default()
-        };
-        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
-            .with_name(name)
-            .with_json(&http_client_config_json, 1)?
-            .build()?;
-
-        // Make the request body
-        let req_body = semantic_scholar::RecommendationsRequest {
-            positive_papers: Some(vec!["649def34f8be52c8b66281af98ae884c09aef38b".to_string()]),
-            negative_papers: Some(vec!["ArXiv:1805.02262".to_string()]),
-        };
-        let req_body_json = serde_json::to_vec(&req_body)?;
-        let req_body_table = TableBuilder::new()
-            .with_name(messages)
-            .with_json(&req_body_json, 1)?
-            .build()?;
-
-        // Build the current message state
-        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            messages.to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(messages)
-                .with_publisher("")
-                .with_subject(messages)
-                .with_update(&TablePublication::None)
-                .with_message(req_body_table.to_record_batch_stream())
-                .build()?,
-        );
-        let _ = message.insert(
-            http_client_config_table.get_name().to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(http_client_config_table.get_name())
-                .with_publisher("")
-                .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
-                .with_message(http_client_config_table.to_record_batch_stream())
-                .build()?,
-        );
-
-        // Build the http client processor
-        let processor =
-            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
-        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
-
-        // Check the response
-        let result = stream
-            .remove(name)
-            .unwrap()
-            .message
-            .take()
-            .unwrap()
-            .try_collect::<Vec<_>>()
-            .await?;
-        let table = TableBuilder::new()
-            .with_record_batches(result)?
-            .with_name("")
-            .build()?;
-
-        let result = table.get_column_as_vec_str("role");
-        assert_eq!(result, ["tool"]);
-        let result = table.get_column_as_vec_str("content");
-        let snippet = result.first().unwrap().to_string();
-        assert!(snippet.contains("{\"paperId\":"));
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    #[ignore = "for generating data to test OpenAlex parsers"]
-    async fn test_object_store_processor_open_alex_test_data() -> Result<()> {
-        let name = "ObjectStoreProcessor";
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
-        let span = SpanBuilder::default().with_span("test").build()?;
-        let diagnostics = Diagnostics::new();
-        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
-
-        // Author
-        let mut filter = Map::<String, Value>::new();
-        let _ = filter.insert("has_orcid".to_string(), Value::String("true".to_string()));
-        let open_alex_request = open_alex::OpenAlexRequest {
-            page: Some(1),
-            per_page: Some(1),
-            filter: Some(filter),
-            entity: open_alex::OpenAlexRequestEntity::Authors,
-            ..Default::default()
-        };
-        let http_client_config = HTTPClientConfig {
-            timeout: 5,
-            request_type: HTTPClientRequestType::Get,
-            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-            base_url: format!("{}?", open_alex_request.to_base_url()),
-            json: Some(open_alex_request.to_get_query()?),
-            request_schema: HTTPClientRequestSchemas::Messages,
-            ..Default::default()
-        };
-        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
-            .with_name(name)
-            .with_json(&http_client_config_json, 1)?
-            .build()?;
-        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            http_client_config_table.get_name().to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(http_client_config_table.get_name())
-                .with_publisher("")
-                .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
-                .with_message(http_client_config_table.to_record_batch_stream())
-                .build()?,
-        );
-        let processor =
-            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
-        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
-        let result = stream
-            .remove(name)
-            .unwrap()
-            .message
-            .take()
-            .unwrap()
-            .try_collect::<Vec<_>>()
-            .await?;
-        let table = TableBuilder::new()
-            .with_name("test_object_store_processor_open_alex_get_config")
-            .with_record_batches(result)?
-            .build()?;
-        let result = table.get_column_as_vec_string("content")?;
-        let snippet = result.first().unwrap().to_string();
-        println!("Author: {snippet}");
-
-        // Institution
-        let mut filter = Map::<String, Value>::new();
-        let _ = filter.insert("country_code".to_string(), Value::String("us".to_string()));
-        let open_alex_request = open_alex::OpenAlexRequest {
-            page: Some(1),
-            per_page: Some(1),
-            filter: Some(filter),
-            entity: open_alex::OpenAlexRequestEntity::Institutions,
-            ..Default::default()
-        };
-        let http_client_config = HTTPClientConfig {
-            timeout: 5,
-            request_type: HTTPClientRequestType::Get,
-            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-            base_url: format!("{}?", open_alex_request.to_base_url()),
-            json: Some(open_alex_request.to_get_query()?),
-            request_schema: HTTPClientRequestSchemas::Messages,
-            ..Default::default()
-        };
-        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
-            .with_name(name)
-            .with_json(&http_client_config_json, 1)?
-            .build()?;
-        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            http_client_config_table.get_name().to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(http_client_config_table.get_name())
-                .with_publisher("")
-                .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
-                .with_message(http_client_config_table.to_record_batch_stream())
-                .build()?,
-        );
-        let processor =
-            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
-        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
-        let result = stream
-            .remove(name)
-            .unwrap()
-            .message
-            .take()
-            .unwrap()
-            .try_collect::<Vec<_>>()
-            .await?;
-        let table = TableBuilder::new()
-            .with_name("test_object_store_processor_open_alex_get_config")
-            .with_record_batches(result)?
-            .build()?;
-        let result = table.get_column_as_vec_string("content")?;
-        let snippet = result.first().unwrap().to_string();
-        println!("Institution: {snippet}");
-
-        // Topic
-        let mut filter = Map::<String, Value>::new();
-        let _ = filter.insert(
-            "display_name.search".to_string(),
-            Value::String("artificial+intelligence".to_string()),
-        );
-        let open_alex_request = open_alex::OpenAlexRequest {
-            page: Some(1),
-            per_page: Some(1),
-            filter: Some(filter),
-            entity: open_alex::OpenAlexRequestEntity::Topics,
-            ..Default::default()
-        };
-        let http_client_config = HTTPClientConfig {
-            timeout: 5,
-            request_type: HTTPClientRequestType::Get,
-            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-            base_url: format!("{}?", open_alex_request.to_base_url()),
-            json: Some(open_alex_request.to_get_query()?),
-            request_schema: HTTPClientRequestSchemas::Messages,
-            ..Default::default()
-        };
-        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
-            .with_name(name)
-            .with_json(&http_client_config_json, 1)?
-            .build()?;
-        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            http_client_config_table.get_name().to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(http_client_config_table.get_name())
-                .with_publisher("")
-                .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
-                .with_message(http_client_config_table.to_record_batch_stream())
-                .build()?,
-        );
-        let processor =
-            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
-        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
-        let result = stream
-            .remove(name)
-            .unwrap()
-            .message
-            .take()
-            .unwrap()
-            .try_collect::<Vec<_>>()
-            .await?;
-        let table = TableBuilder::new()
-            .with_name("test_object_store_processor_open_alex_get_config")
-            .with_record_batches(result)?
-            .build()?;
-        let result = table.get_column_as_vec_string("content")?;
-        let snippet = result.first().unwrap().to_string();
-        println!("Topic: {snippet}");
-
-        // Award
-        let mut filter = Map::<String, Value>::new();
-        let _ = filter.insert(
-            "funder.id".to_string(),
-            Value::String("F4320306076".to_string()),
-        );
-        let open_alex_request = open_alex::OpenAlexRequest {
-            page: Some(1),
-            per_page: Some(1),
-            filter: Some(filter),
-            entity: open_alex::OpenAlexRequestEntity::Awards,
-            ..Default::default()
-        };
-        let http_client_config = HTTPClientConfig {
-            timeout: 5,
-            request_type: HTTPClientRequestType::Get,
-            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-            base_url: format!("{}?", open_alex_request.to_base_url()),
-            json: Some(open_alex_request.to_get_query()?),
-            request_schema: HTTPClientRequestSchemas::Messages,
-            ..Default::default()
-        };
-        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
-            .with_name(name)
-            .with_json(&http_client_config_json, 1)?
-            .build()?;
-        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            http_client_config_table.get_name().to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(http_client_config_table.get_name())
-                .with_publisher("")
-                .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
-                .with_message(http_client_config_table.to_record_batch_stream())
-                .build()?,
-        );
-        let processor =
-            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
-        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
-        let result = stream
-            .remove(name)
-            .unwrap()
-            .message
-            .take()
-            .unwrap()
-            .try_collect::<Vec<_>>()
-            .await?;
-        let table = TableBuilder::new()
-            .with_name("test_object_store_processor_open_alex_get_config")
-            .with_record_batches(result)?
-            .build()?;
-        let result = table.get_column_as_vec_string("content")?;
-        let snippet = result.first().unwrap().to_string();
-        println!("Award: {snippet}");
-
-        // Funder
-        let mut filter = Map::<String, Value>::new();
-        let _ = filter.insert("country_code".to_string(), Value::String("us".to_string()));
-        let open_alex_request = open_alex::OpenAlexRequest {
-            page: Some(1),
-            per_page: Some(1),
-            filter: Some(filter),
-            entity: open_alex::OpenAlexRequestEntity::Funders,
-            ..Default::default()
-        };
-        let http_client_config = HTTPClientConfig {
-            timeout: 5,
-            request_type: HTTPClientRequestType::Get,
-            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-            base_url: format!("{}?", open_alex_request.to_base_url()),
-            json: Some(open_alex_request.to_get_query()?),
-            request_schema: HTTPClientRequestSchemas::Messages,
-            ..Default::default()
-        };
-        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
-            .with_name(name)
-            .with_json(&http_client_config_json, 1)?
-            .build()?;
-        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            http_client_config_table.get_name().to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(http_client_config_table.get_name())
-                .with_publisher("")
-                .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
-                .with_message(http_client_config_table.to_record_batch_stream())
-                .build()?,
-        );
-        let processor =
-            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
-        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
-        let result = stream
-            .remove(name)
-            .unwrap()
-            .message
-            .take()
-            .unwrap()
-            .try_collect::<Vec<_>>()
-            .await?;
-        let table = TableBuilder::new()
-            .with_name("test_object_store_processor_open_alex_get_config")
-            .with_record_batches(result)?
-            .build()?;
-        let result = table.get_column_as_vec_string("content")?;
-        let snippet = result.first().unwrap().to_string();
-        println!("Funder: {snippet}");
-
-        // Publisher
-        let mut filter = Map::<String, Value>::new();
-        let _ = filter.insert(
-            "display_name.search".to_string(),
-            Value::String("elsevier".to_string()),
-        );
-        let open_alex_request = open_alex::OpenAlexRequest {
-            page: Some(1),
-            per_page: Some(1),
-            filter: Some(filter),
-            entity: open_alex::OpenAlexRequestEntity::Publishers,
-            ..Default::default()
-        };
-        let http_client_config = HTTPClientConfig {
-            timeout: 5,
-            request_type: HTTPClientRequestType::Get,
-            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-            base_url: format!("{}?", open_alex_request.to_base_url()),
-            json: Some(open_alex_request.to_get_query()?),
-            request_schema: HTTPClientRequestSchemas::Messages,
-            ..Default::default()
-        };
-        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
-            .with_name(name)
-            .with_json(&http_client_config_json, 1)?
-            .build()?;
-        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            http_client_config_table.get_name().to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(http_client_config_table.get_name())
-                .with_publisher("")
-                .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
-                .with_message(http_client_config_table.to_record_batch_stream())
-                .build()?,
-        );
-        let processor =
-            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
-        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
-        let result = stream
-            .remove(name)
-            .unwrap()
-            .message
-            .take()
-            .unwrap()
-            .try_collect::<Vec<_>>()
-            .await?;
-        let table = TableBuilder::new()
-            .with_name("test_object_store_processor_open_alex_get_config")
-            .with_record_batches(result)?
-            .build()?;
-        let result = table.get_column_as_vec_string("content")?;
-        let snippet = result.first().unwrap().to_string();
-        println!("Publisher: {snippet}");
-
-        // Source
-        let mut filter = Map::<String, Value>::new();
-        let _ = filter.insert("has_issn".to_string(), Value::String("true".to_string()));
-        let open_alex_request = open_alex::OpenAlexRequest {
-            page: Some(1),
-            per_page: Some(1),
-            filter: Some(filter),
-            entity: open_alex::OpenAlexRequestEntity::Sources,
-            ..Default::default()
-        };
-        let http_client_config = HTTPClientConfig {
-            timeout: 5,
-            request_type: HTTPClientRequestType::Get,
-            user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-            base_url: format!("{}?", open_alex_request.to_base_url()),
-            json: Some(open_alex_request.to_get_query()?),
-            request_schema: HTTPClientRequestSchemas::Messages,
-            ..Default::default()
-        };
-        let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
-            .with_name(name)
-            .with_json(&http_client_config_json, 1)?
-            .build()?;
-        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-        let _ = message.insert(
-            http_client_config_table.get_name().to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name(http_client_config_table.get_name())
-                .with_publisher("")
-                .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
-                .with_message(http_client_config_table.to_record_batch_stream())
-                .build()?,
-        );
-        let processor =
-            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
-        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
-        let result = stream
-            .remove(name)
-            .unwrap()
-            .message
-            .take()
-            .unwrap()
-            .try_collect::<Vec<_>>()
-            .await?;
-        let table = TableBuilder::new()
-            .with_name("test_object_store_processor_open_alex_get_config")
-            .with_record_batches(result)?
-            .build()?;
-        let result = table.get_column_as_vec_string("content")?;
-        let snippet = result.first().unwrap().to_string();
-        println!("Source: {snippet}");
-
+    async fn test_object_store_processor_get_aws_config() -> Result<()> {
         Ok(())
     }
 }
