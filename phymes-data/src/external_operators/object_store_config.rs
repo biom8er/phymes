@@ -5,6 +5,7 @@ use clap::{Parser, ValueEnum};
 use phymes_core::{AvailableSubjects, DataFormat, MappableTrait, ObjectStorageBackend, Table, TableTrait};
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 use crate::{DataConfigTrait, HTTPClientRequestSchemas};
 
@@ -87,6 +88,11 @@ pub struct ObjectStoreConfig {
     /// The object store bucket (also called `container` for Azure or `root` for LocalFs; None for InMemory)
     #[arg(long)]
     pub bucket: Option<String>,
+
+    /// Serialized JSON value representing a HashMap of ObjectStore configurations
+    /// See AWS, GCP, and Azure documentation for valid Key/Value pairs
+    #[arg(long)]
+    pub config: Option<Map<String,Value>>,
 
     /// The (partition) location(s) within the object store that the data are in
     /// DM: in the future this could be a URL that contains the full address similar to AWS Redshift Manifest

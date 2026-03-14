@@ -4,10 +4,12 @@ use clap::ValueEnum;
 use object_store::{ObjectStore, local::LocalFileSystem, memory::InMemory};
 #[cfg(feature = "api")]
 use object_store::{
-    aws::AmazonS3Builder, azure::MicrosoftAzureBuilder, gcp::GoogleCloudStorageBuilder,
+    aws::{AmazonS3Builder, AmazonS3ConfigKey}, azure::MicrosoftAzureBuilder, gcp::GoogleCloudStorageBuilder,
 };
+use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, sync::Arc};
+use serde_json::{Map, Value};
+use std::{fmt::Display, sync::Arc, str::FromStr};
 
 
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
@@ -42,14 +44,20 @@ impl Display for ObjectStorageBackend {
     }
 }
 
-pub fn make_store(cfg: ObjectStorageBackend, bucket: Option<String>) -> Result<Arc<dyn ObjectStore>> {
+pub fn make_store(cfg: &ObjectStorageBackend, bucket: Option<&String>, config: Option<&Map<String, Value>>) -> Result<Arc<dyn ObjectStore>> {
     let store: Arc<dyn ObjectStore> = match cfg {
         #[cfg(feature = "api")]
-        ObjectStorageBackend::Aws => Arc::new(
-            AmazonS3Builder::from_env()
-                .with_bucket_name(bucket.ok_or(anyhow!("Missing `bucket` name for {cfg}"))?)
-                .build()?,
-        ),
+        ObjectStorageBackend::Aws => {
+            let mut builder = AmazonS3Builder::from_env()
+                .with_bucket_name(bucket.ok_or(anyhow!("Missing `bucket` name for {cfg}"))?);
+            if let Some(config) = config {
+                for (k, v) in config {
+                    let key = AmazonS3ConfigKey::from_str(k)?;
+                    builder = builder.with_config(key, v.as_str().unwrap_or_default());
+                }
+            }
+            Arc::new(builder.build()?)
+        },
         #[cfg(feature = "api")]
         ObjectStorageBackend::Gcp => Arc::new(
             GoogleCloudStorageBuilder::from_env()
@@ -74,7 +82,7 @@ mod tests {
     use super::*;
     #[test]
     fn make_in_memory_store() {
-        let store = make_store(ObjectStorageBackend::InMemory, None).unwrap();
+        let store = make_store(&ObjectStorageBackend::InMemory, None, None).unwrap();
         let _ = store.list(None);
     }
 }

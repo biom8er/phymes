@@ -253,7 +253,9 @@ impl<'a> Stream for ObjectStoreStream<'a> {
 
                 // Create the object store
                 if self.store.is_none() {
-                    let store = make_store(self.config.as_ref().unwrap().backend.clone(), self.config.as_ref().unwrap().bucket.clone())?;                    
+                    let bucket = self.config.as_ref().unwrap().bucket.clone();
+                    let config = self.config.as_ref().unwrap().config.clone();
+                    let store = make_store(&self.config.as_ref().unwrap().backend, bucket.as_ref(), config.as_ref())?;                    
                     self.store.replace(store.clone());
                 }                
 
@@ -658,7 +660,7 @@ mod tests {
 
         // Runtime env
         let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
-        let store = make_store(ObjectStorageBackend::InMemory, None)?;
+        let store = make_store(&ObjectStorageBackend::InMemory, None, None)?;
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -1197,9 +1199,17 @@ mod tests {
     #[cfg(feature = "api")]
     #[tokio::test]
     async fn test_object_store_processor_get_aws_config() -> Result<()> {
+        use object_store::aws::AmazonS3ConfigKey;
+
         let name = "ObjectStoreProcessor";
         let messages = "messages";
+
+        // AWS S3 configs
         let bucket_name = "openalex";
+        let mut store_config = Map::<String, Value>::new();
+        let _ = store_config.insert(AmazonS3ConfigKey::SkipSignature.as_ref().to_string(), Value::String("true".to_string()));
+        let _ = store_config.insert(AmazonS3ConfigKey::Endpoint.as_ref().to_string(), Value::String("s3.amazonaws.com".to_string()));
+        // let _ = store_config.insert(AmazonS3ConfigKey::DefaultRegion.as_ref().to_string(), Value::String("true".to_string()));
 
         // Runtime env
         let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
@@ -1216,6 +1226,7 @@ mod tests {
             ops_type: ObjectStoreOptsType::Get,
             backend: ObjectStorageBackend::Aws,
             bucket: Some(bucket_name.to_string()),
+            config: Some(store_config.clone()),
             locations: None,
             chunk_size: None,
             subject_name: Some(messages.to_string()),
@@ -1316,6 +1327,7 @@ mod tests {
             ops_type: ObjectStoreOptsType::Get,
             backend: ObjectStorageBackend::Aws,
             bucket: Some(bucket_name.to_string()),
+            config: Some(store_config),
             locations: Some(location),
             chunk_size: None,
             subject_name: None,
