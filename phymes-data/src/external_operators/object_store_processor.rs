@@ -36,7 +36,19 @@ pub enum ObjectStoreState<'a> {
 pub struct ObjectStoreProcessor {
     name: String,
     r#type: String,
+    store: Option<Arc<dyn ObjectStore>>,
     
+}
+
+impl ObjectStoreProcessor {
+    /// Cache for InMemory object store
+    pub fn with_object_store(self, store: Arc<dyn ObjectStore>) -> Self {
+        Self {
+            name: self.name,
+            r#type: self.r#type,
+            store: Some(store),
+        }
+    }
 }
 
 impl MappableTrait for ObjectStoreProcessor {
@@ -50,6 +62,7 @@ impl ProcessorTrait for ObjectStoreProcessor {
         Self {
             name: name.to_string(),
             r#type: r#type.to_string(),
+            store: None,
         }
     }
 
@@ -79,6 +92,7 @@ impl ProcessorTrait for ObjectStoreProcessor {
             config,
             Arc::clone(&runtime_env),
             diagnostic_builder.cloned(),
+            self.store.clone()
         )?);
 
         // Prepare the message builder
@@ -127,6 +141,7 @@ impl<'a> ObjectStoreStream<'a> {
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<RuntimeEnv>,
         diagnostic_builder: Option<DiagnosticBuilder>,
+        store: Option<Arc<dyn ObjectStore>>,
     ) -> Result<Self> {
         Ok(Self {
             schema: AvailableSubjects::ObjectStore.to_schema(),
@@ -134,7 +149,7 @@ impl<'a> ObjectStoreStream<'a> {
             diagnostic_builder,
             config_stream,
             _runtime_env: runtime_env,
-            store: None,
+            store: store,
             path: None,
             config: None,
             state: ObjectStoreState::NotStarted,
@@ -237,7 +252,10 @@ impl<'a> Stream for ObjectStoreStream<'a> {
                 }
 
                 // Create the object store
-                let store = make_store(self.config.as_ref().unwrap().backend.clone(), self.config.as_ref().unwrap().bucket.clone())?;
+                if self.store.is_none() {
+                    let store = make_store(self.config.as_ref().unwrap().backend.clone(), self.config.as_ref().unwrap().bucket.clone())?;                    
+                    self.store.replace(store.clone());
+                }                
 
                 // Get the location prioritizing the subject messages over the config
                 let location = if let Some(batch) = self.record_batches.take() {
@@ -269,8 +287,7 @@ impl<'a> Stream for ObjectStoreStream<'a> {
                 };
                 let path = Path::from(location);
 
-                // Save the path and store for subsequent polling
-                self.store.replace(store.clone());
+                // Save the path for subsequent polling
                 self.path.replace(path.clone());
 
                 // Determine the opts type
@@ -285,7 +302,7 @@ impl<'a> Stream for ObjectStoreStream<'a> {
                         }
 
                         // Get operation
-                        let store = store.clone();
+                        let store = self.store.as_ref().unwrap().clone();
                         let path = path.clone();
                         // DM: the `async move` trick to capture the lifetime only works for futures
                         let fut = Box::pin(async move { store.get(&path).await });
@@ -293,7 +310,7 @@ impl<'a> Stream for ObjectStoreStream<'a> {
                         self.poll_next(cx)
                     }
                     ObjectStoreOptsType::PutMultipart => {
-                        let store = store.clone();
+                        let store = self.store.as_ref().unwrap().clone();
                         let path = path.clone();
                         let fut = Box::pin(async move { store.put_multipart(&path).await });
                         self.state = ObjectStoreState::StorageWriterMultipart(fut);
@@ -326,7 +343,7 @@ impl<'a> Stream for ObjectStoreStream<'a> {
                         }
 
                         // Put operation
-                        let store = store.clone();
+                        let store = self.store.as_ref().unwrap().clone();
                         let path = path.clone();
                         let fut = Box::pin(async move { store.put(&path, payload).await });
                         self.state = ObjectStoreState::StorageWriterPutResult(fut);
@@ -641,6 +658,7 @@ mod tests {
 
         // Runtime env
         let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let store = make_store(ObjectStorageBackend::InMemory, None)?;
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -702,7 +720,8 @@ mod tests {
 
         // Build the processor
         let processor =
-            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
+            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name())
+            .with_object_store(store.clone());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
         // Check the response
@@ -784,7 +803,8 @@ mod tests {
 
         // Build the processor
         let processor =
-            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
+            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name())
+            .with_object_store(store.clone());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
         // Check the response
@@ -806,9 +826,11 @@ mod tests {
         let result = table.get_column_as_vec_str("bucket");
         assert_eq!(result, ["", ""]);
         let result = table.get_column_as_vec_str("metadata");
-        assert_eq!(result, ["etag_1", "etag_2"]);
+        assert_eq!(result, ["{\"e_tag\":\"0\",\"size\":4104,\"version\":\"\"}", "{\"e_tag\":\"1\",\"size\":3336,\"version\":\"\"}"]);
         let result = table.get_column_as_vec_primitive::<i64>("last_modified")?;
-        assert_eq!(result, [0, 1]);
+        for res in result {
+            assert!(res > 0);
+        }
         let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?;
         let tables: Result<Vec<Table>> = result.into_iter()
             .map(|bytes| TableBuilder::new_from_ipc_stream(&bytes)?.with_name("IPC").build())
@@ -823,7 +845,7 @@ mod tests {
             timeout: 5,
             ops_type: ObjectStoreOptsType::Get,
             backend: ObjectStorageBackend::InMemory,
-            bucket: Some("Bucket".to_string()),
+            bucket: None,
             locations: Some(location),
             chunk_size: None,
             subject_name: None,
@@ -850,7 +872,8 @@ mod tests {
 
         // Build the processor
         let processor =
-            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
+            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name())
+            .with_object_store(store.clone());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
 
         // Check the response
@@ -872,9 +895,11 @@ mod tests {
         let result = table.get_column_as_vec_str("bucket");
         assert_eq!(result, ["", ""]);
         let result = table.get_column_as_vec_str("metadata");
-        assert_eq!(result, ["etag_1", "etag_2"]);
+        assert_eq!(result, ["{\"e_tag\":\"0\",\"size\":4104,\"version\":\"\"}", "{\"e_tag\":\"1\",\"size\":3336,\"version\":\"\"}"]);
         let result = table.get_column_as_vec_primitive::<i64>("last_modified")?;
-        assert_eq!(result, [0, 1]);
+        for res in result {
+            assert!(res > 0);
+        }
         let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?;
         let tables: Result<Vec<Table>> = result.into_iter()
             .map(|bytes| TableBuilder::new_from_ipc_stream(&bytes)?.with_name("IPC").build())
@@ -1169,8 +1194,198 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "api")]
     #[tokio::test]
     async fn test_object_store_processor_get_aws_config() -> Result<()> {
+        let name = "ObjectStoreProcessor";
+        let messages = "messages";
+        let bucket_name = "openalex";
+
+        // Runtime env
+        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+
+        // Metrics to compute time and rows
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
+        // GET from messages
+        // Config for the Processor
+        let config = ObjectStoreConfig {
+            timeout: 5,
+            ops_type: ObjectStoreOptsType::Get,
+            backend: ObjectStorageBackend::Aws,
+            bucket: Some(bucket_name.to_string()),
+            locations: None,
+            chunk_size: None,
+            subject_name: Some(messages.to_string()),
+            ..Default::default()
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&config_json, 1)?
+            .build()?;
+
+        // Make the object store meta batch
+        let location = ["data/authors/manifest", "RELEASE_NOTES.txt"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let bucket = [bucket_name, bucket_name].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let metadata = ["", ""].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let last_modified = (0..2).map(|_| 0 as i64).collect::<Vec<_>>();
+        let size = (0..2).map(|_| 0 as u32).collect::<Vec<_>>();
+        let version = ["", ""].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let batch = create_object_store_meta_batch(location.clone(), bucket, metadata, version, size, last_modified)?;
+        let table = TableBuilder::new()
+            .with_name(messages)
+            .with_record_batches(vec![batch])?
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(table.get_name())
+                .with_publisher("")
+                .with_subject(table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(table.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message.insert(
+            config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(config_table.get_name())
+                .with_publisher("")
+                .with_subject(config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(config_table.to_record_batch_stream())
+                .build()?,
+        );   
+
+        // Build the processor
+        let processor =
+            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("location");
+        assert_eq!(result, ["README.txt", "RELEASE_NOTES.txt"]);
+        let result = table.get_column_as_vec_str("bucket");
+        assert_eq!(result, [bucket_name, bucket_name]);
+        let result = table.get_column_as_vec_str("metadata");
+        let metadata: Result<Vec<Map<String, Value>>> = result.into_iter()
+            .map(|j| serde_json::from_str::<Map<String, Value>>(j).map_err(|e| e.into()))
+            .collect();
+        let metadata = metadata?;
+        assert!(metadata.first().unwrap().get("e_tag").is_some());
+        assert!(metadata.first().unwrap().get("version").is_some());
+        assert_eq!(metadata.first().unwrap().get("size").unwrap().as_i64().unwrap(), 4104);
+        assert!(metadata.get(1).unwrap().get("e_tag").is_some());
+        assert!(metadata.get(1).unwrap().get("version").is_some());
+        assert_eq!(metadata.get(1).unwrap().get("size").unwrap().as_i64().unwrap(), 3336);
+        let result = table.get_column_as_vec_primitive::<i64>("last_modified")?;
+        for res in result {
+            assert!(res > 0);
+        }
+        let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?;
+        let files: Result<Vec<String>> = result.into_iter()
+            .map(|bytes| String::from_utf8(bytes).map_err(|err| err.into()))
+            .collect();
+        let files = files?;
+        assert_eq!(files.first().unwrap(), "");
+        assert!(files.get(1).unwrap().contains("OPENALEX STANDARD-FORMAT SNAPSHOT RELEASE NOTES"));
+
+        // GET from config
+        // Config for the Processor
+        let config = ObjectStoreConfig {
+            timeout: 5,
+            ops_type: ObjectStoreOptsType::Get,
+            backend: ObjectStorageBackend::Aws,
+            bucket: Some(bucket_name.to_string()),
+            locations: Some(location),
+            chunk_size: None,
+            subject_name: None,
+            ..Default::default()
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&config_json, 1)?
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(config_table.get_name())
+                .with_publisher("")
+                .with_subject(config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(config_table.to_record_batch_stream())
+                .build()?,
+        );   
+
+        // Build the processor
+        let processor =
+            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_record_batches(result)?
+            .with_name("")
+            .build()?;
+
+        let result = table.get_column_as_vec_str("location");
+        assert_eq!(result, ["README.txt", "RELEASE_NOTES.txt"]);
+        let result = table.get_column_as_vec_str("bucket");
+        assert_eq!(result, [bucket_name, bucket_name]);
+        let result = table.get_column_as_vec_str("metadata");
+        let metadata: Result<Vec<Map<String, Value>>> = result.into_iter()
+            .map(|j| serde_json::from_str::<Map<String, Value>>(j).map_err(|e| e.into()))
+            .collect();
+        let metadata = metadata?;
+        assert!(metadata.first().unwrap().get("e_tag").is_some());
+        assert!(metadata.first().unwrap().get("version").is_some());
+        assert_eq!(metadata.first().unwrap().get("size").unwrap().as_i64().unwrap(), 4104);
+        assert!(metadata.get(1).unwrap().get("e_tag").is_some());
+        assert!(metadata.get(1).unwrap().get("version").is_some());
+        assert_eq!(metadata.get(1).unwrap().get("size").unwrap().as_i64().unwrap(), 3336);
+        let result = table.get_column_as_vec_primitive::<i64>("last_modified")?;
+        for res in result {
+            assert!(res > 0);
+        }
+        let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?;
+        let files: Result<Vec<String>> = result.into_iter()
+            .map(|bytes| String::from_utf8(bytes).map_err(|err| err.into()))
+            .collect();
+        let files = files?;
+        assert_eq!(files.first().unwrap(), "");
+        assert!(files.get(1).unwrap().contains("OPENALEX STANDARD-FORMAT SNAPSHOT RELEASE NOTES"));
+
         Ok(())
     }
 }
