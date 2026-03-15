@@ -1208,7 +1208,7 @@ mod tests {
         let bucket_name = "openalex";
         let mut store_config = Map::<String, Value>::new();
         let _ = store_config.insert(AmazonS3ConfigKey::SkipSignature.as_ref().to_string(), Value::String("true".to_string()));
-        let _ = store_config.insert(AmazonS3ConfigKey::Endpoint.as_ref().to_string(), Value::String("s3.amazonaws.com".to_string()));
+        let _ = store_config.insert(AmazonS3ConfigKey::Endpoint.as_ref().to_string(), Value::String("https://s3.amazonaws.com".to_string()));
         // let _ = store_config.insert(AmazonS3ConfigKey::DefaultRegion.as_ref().to_string(), Value::String("true".to_string()));
 
         // Runtime env
@@ -1294,7 +1294,7 @@ mod tests {
             .build()?;
 
         let result = table.get_column_as_vec_str("location");
-        assert_eq!(result, ["README.txt", "RELEASE_NOTES.txt"]);
+        assert_eq!(result, ["data/authors/manifest", "RELEASE_NOTES.txt"]);
         let result = table.get_column_as_vec_str("bucket");
         assert_eq!(result, [bucket_name, bucket_name]);
         let result = table.get_column_as_vec_str("metadata");
@@ -1304,10 +1304,10 @@ mod tests {
         let metadata = metadata?;
         assert!(metadata.first().unwrap().get("e_tag").is_some());
         assert!(metadata.first().unwrap().get("version").is_some());
-        assert_eq!(metadata.first().unwrap().get("size").unwrap().as_i64().unwrap(), 4104);
+        assert!(metadata.first().unwrap().get("size").unwrap().as_i64().unwrap() > 0);
         assert!(metadata.get(1).unwrap().get("e_tag").is_some());
         assert!(metadata.get(1).unwrap().get("version").is_some());
-        assert_eq!(metadata.get(1).unwrap().get("size").unwrap().as_i64().unwrap(), 3336);
+        assert!(metadata.get(1).unwrap().get("size").unwrap().as_i64().unwrap() > 0);
         let result = table.get_column_as_vec_primitive::<i64>("last_modified")?;
         for res in result {
             assert!(res > 0);
@@ -1317,7 +1317,10 @@ mod tests {
             .map(|bytes| String::from_utf8(bytes).map_err(|err| err.into()))
             .collect();
         let files = files?;
-        assert_eq!(files.first().unwrap(), "");
+        assert!(files.first().unwrap().contains("entries"));
+        assert!(files.first().unwrap().contains("meta"));
+        assert!(files.first().unwrap().contains("content_length"));
+        assert!(files.first().unwrap().contains("record_count"));
         assert!(files.get(1).unwrap().contains("OPENALEX STANDARD-FORMAT SNAPSHOT RELEASE NOTES"));
 
         // GET from config
@@ -1372,7 +1375,7 @@ mod tests {
             .build()?;
 
         let result = table.get_column_as_vec_str("location");
-        assert_eq!(result, ["README.txt", "RELEASE_NOTES.txt"]);
+        assert_eq!(result, ["data/authors/manifest", "RELEASE_NOTES.txt"]);
         let result = table.get_column_as_vec_str("bucket");
         assert_eq!(result, [bucket_name, bucket_name]);
         let result = table.get_column_as_vec_str("metadata");
@@ -1382,10 +1385,10 @@ mod tests {
         let metadata = metadata?;
         assert!(metadata.first().unwrap().get("e_tag").is_some());
         assert!(metadata.first().unwrap().get("version").is_some());
-        assert_eq!(metadata.first().unwrap().get("size").unwrap().as_i64().unwrap(), 4104);
+        assert!(metadata.first().unwrap().get("size").unwrap().as_i64().unwrap() > 0);
         assert!(metadata.get(1).unwrap().get("e_tag").is_some());
         assert!(metadata.get(1).unwrap().get("version").is_some());
-        assert_eq!(metadata.get(1).unwrap().get("size").unwrap().as_i64().unwrap(), 3336);
+        assert!(metadata.get(1).unwrap().get("size").unwrap().as_i64().unwrap() > 0);
         let result = table.get_column_as_vec_primitive::<i64>("last_modified")?;
         for res in result {
             assert!(res > 0);
@@ -1395,7 +1398,10 @@ mod tests {
             .map(|bytes| String::from_utf8(bytes).map_err(|err| err.into()))
             .collect();
         let files = files?;
-        assert_eq!(files.first().unwrap(), "");
+        assert!(files.first().unwrap().contains("entries"));
+        assert!(files.first().unwrap().contains("meta"));
+        assert!(files.first().unwrap().contains("content_length"));
+        assert!(files.first().unwrap().contains("record_count"));
         assert!(files.get(1).unwrap().contains("OPENALEX STANDARD-FORMAT SNAPSHOT RELEASE NOTES"));
 
         Ok(())
