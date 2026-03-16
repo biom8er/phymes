@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
+use object_store::{GetOptions, PutOptions};
 use phymes_core::{AvailableSubjects, DataFormat, MappableTrait, ObjectStorageBackend, Table, TableTrait};
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
@@ -12,7 +13,7 @@ use crate::{DataConfigTrait, HTTPClientRequestSchemas};
 /// The Object Store operation types
 /// 
 /// # Todo
-/// - Support for other operations besides "Get" and "PutMultipart"
+/// - Support for other operations besides "Get", "GetStream", "GetMeta", "Put", and "PutMultipart"
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
 pub enum ObjectStoreOptsType {
     #[default]
@@ -87,12 +88,28 @@ pub struct ObjectStoreConfig {
 
     /// The object store bucket (also called `container` for Azure or `root` for LocalFs; None for InMemory)
     #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bucket: Option<String>,
 
     /// Serialized JSON value representing a HashMap of ObjectStore configurations
     /// See AWS, GCP, and Azure documentation for valid Key/Value pairs
     #[arg(long)]
-    pub config: Option<Map<String,Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub backend_config: Option<Map<String,Value>>,
+
+    /// Additional [GetOptions] Serialized JSON String
+    /// 
+    /// [GetOptions]: object_store::GetOptions
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub get_options: Option<String>,
+
+    /// Additional [PutOptions] Serialized JSON String
+    /// 
+    /// [PutOptions]: object_store::PutOptions
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub put_options: Option<String>,
 
     /// The (partition) location(s) within the object store that the data are in
     /// DM: in the future this could be a URL that contains the full address similar to AWS Redshift Manifest
@@ -101,6 +118,7 @@ pub struct ObjectStoreConfig {
     /// # Notes
     /// - Same as `bucket`
     #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub locations: Option<Vec<String>>,
 
     /// The length of the data chunks to send

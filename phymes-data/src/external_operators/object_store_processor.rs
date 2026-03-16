@@ -7,7 +7,7 @@ use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use futures::{FutureExt, Stream, StreamExt};
-use object_store::{GetResult, MultipartUpload, ObjectMeta, ObjectStore, ObjectStoreExt, PutPayload, PutResult, WriteMultipart, path::Path};
+use object_store::{GetOptions, GetResult, MultipartUpload, ObjectMeta, ObjectStore, ObjectStoreExt, PutOptions, PutPayload, PutResult, WriteMultipart, path::Path};
 use parking_lot::Mutex;
 use phymes_core::{
     AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, ChunkedWriter, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, ObjectStorageReader, ObjectStorageWriter, OnChunk, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait, create_attachments_batch, create_bytes_fields, create_chat_record_batch, create_object_store_batch, create_object_store_meta_batch, create_values_fields, make_store, remove_message_by_subject, storage_reader_get_result, storage_reader_stream_result, storage_writer_multipart
@@ -254,7 +254,7 @@ impl<'a> Stream for ObjectStoreStream<'a> {
                 // Create the object store
                 if self.store.is_none() {
                     let bucket = self.config.as_ref().unwrap().bucket.clone();
-                    let config = self.config.as_ref().unwrap().config.clone();
+                    let config = self.config.as_ref().unwrap().backend_config.clone();
                     let store = make_store(&self.config.as_ref().unwrap().backend, bucket.as_ref(), config.as_ref())?;                    
                     self.store.replace(store.clone());
                 }                
@@ -306,10 +306,20 @@ impl<'a> Stream for ObjectStoreStream<'a> {
                         // Get operation
                         let store = self.store.as_ref().unwrap().clone();
                         let path = path.clone();
-                        // DM: the `async move` trick to capture the lifetime only works for futures
-                        let fut = Box::pin(async move { store.get(&path).await });
-                        self.state = ObjectStoreState::StorageReaderGetResult(fut);
-                        self.poll_next(cx)
+
+                        // Add in any addition `GetOptions`
+                        if let Some(options) = self.config.as_ref().unwrap().get_options.as_ref() {
+                            let options = serde_json::from_str::<GetOptions>(options)?;
+                            let fut = Box::pin(async move { store.get_opts(&path, options).await });
+                            self.state = ObjectStoreState::StorageReaderGetResult(fut);
+                            self.poll_next(cx)
+                        } else {
+                            // DM: the `async move` trick to capture the lifetime only works for futures
+                            let fut = Box::pin(async move { store.get(&path).await });
+                            self.state = ObjectStoreState::StorageReaderGetResult(fut);
+                            self.poll_next(cx)
+                        }
+                        
                     }
                     ObjectStoreOptsType::PutMultipart => {
                         let store = self.store.as_ref().unwrap().clone();
@@ -347,9 +357,18 @@ impl<'a> Stream for ObjectStoreStream<'a> {
                         // Put operation
                         let store = self.store.as_ref().unwrap().clone();
                         let path = path.clone();
-                        let fut = Box::pin(async move { store.put(&path, payload).await });
-                        self.state = ObjectStoreState::StorageWriterPutResult(fut);
-                        self.poll_next(cx)
+
+                        // Add in additional `PutOptions`
+                        if let Some(options) = self.config.as_ref().unwrap().put_options.as_ref() {
+                            let options = serde_json::from_str::<PutOptions>(options)?;
+                            let fut = Box::pin(async move { store.put_opts(&path, payload, options).await });
+                            self.state = ObjectStoreState::StorageWriterPutResult(fut);
+                            self.poll_next(cx)
+                        } else {
+                            let fut = Box::pin(async move { store.put(&path, payload).await });
+                            self.state = ObjectStoreState::StorageWriterPutResult(fut);
+                            self.poll_next(cx)
+                        }
                     }
                     _ => {
                         self.state = ObjectStoreState::Done;
@@ -1226,7 +1245,7 @@ mod tests {
             ops_type: ObjectStoreOptsType::Get,
             backend: ObjectStorageBackend::Aws,
             bucket: Some(bucket_name.to_string()),
-            config: Some(store_config.clone()),
+            backend_config: Some(store_config.clone()),
             locations: None,
             chunk_size: None,
             subject_name: Some(messages.to_string()),
@@ -1330,7 +1349,7 @@ mod tests {
             ops_type: ObjectStoreOptsType::Get,
             backend: ObjectStorageBackend::Aws,
             bucket: Some(bucket_name.to_string()),
-            config: Some(store_config),
+            backend_config: Some(store_config),
             locations: Some(location),
             chunk_size: None,
             subject_name: None,
