@@ -2,13 +2,12 @@ use std::fmt::Display;
 
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
-use object_store::{GetOptions, PutOptions};
-use phymes_core::{AvailableSubjects, DataFormat, MappableTrait, ObjectStorageBackend, Table, TableTrait};
+use phymes_core::{MappableTrait, ObjectStorageBackend, Table, TableTrait};
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::{DataConfigTrait, HTTPClientRequestSchemas};
+use crate::DataConfigTrait;
 
 /// The Object Store operation types
 /// 

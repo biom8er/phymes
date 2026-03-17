@@ -1115,6 +1115,7 @@ mod tests {
             .map(|j| serde_json::from_str::<Map<String, Value>>(j).map_err(|e| e.into()))
             .collect();
         let metadata = metadata?;
+        dbg!(&metadata);
         assert!(metadata.first().unwrap().get("e_tag").is_some());
         assert!(metadata.first().unwrap().get("version").is_some());
         assert_eq!(metadata.first().unwrap().get("size").unwrap().as_i64().unwrap(), 4104);
