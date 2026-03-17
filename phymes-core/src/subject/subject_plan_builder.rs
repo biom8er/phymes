@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use anyhow::{anyhow, Result};
 use arrow::datatypes::SchemaRef;
 use serde_json::{Map, Value};
-use crate::{BuilderTrait, ObjectStorageBackend, SubjectPlan};
+use crate::{BuilderTrait, ObjectStorageBackend, SubjectConstraint, SubjectPlan};
 
 pub trait SubjectPlanBuilderTrait: BuilderTrait + Debug + Send + Sync {
     fn with_schema(self, schema: SchemaRef) -> Self;
@@ -11,7 +11,7 @@ pub trait SubjectPlanBuilderTrait: BuilderTrait + Debug + Send + Sync {
     fn with_bucket(self, bucket: &str) -> Self;
     fn with_metadata(self, metadata: &Map<String, Value>) -> Self;
     fn add_metadata(self, key: &str, value: &Value) -> Self;
-    fn with_constraints(self, constraints: &Map<String, Value>) -> Self;
+    fn with_constraints(self, constraints: &[SubjectConstraint]) -> Self;
 }
 
 #[derive(Default, Debug, PartialEq, Clone)]
@@ -30,7 +30,7 @@ pub struct SubjectPlanBuilder {
     /// Object store metadata including e_tag, version, size, last_modified, etc.
     pub metadata: Option<Map<String, Value>>,
     /// Constraints on the subject
-    pub constraints: Option<Map<String, Value>>,
+    pub constraints: Option<Vec<SubjectConstraint>>,
 }
 
 impl BuilderTrait for SubjectPlanBuilder {
@@ -108,7 +108,7 @@ impl SubjectPlanBuilderTrait for SubjectPlanBuilder {
         self
     }
 
-    fn with_constraints(mut self, constraints: &Map<String, Value>) -> Self {
+    fn with_constraints(mut self, constraints: &[SubjectConstraint]) -> Self {
         self.constraints = Some(constraints.to_owned());
         self
     }

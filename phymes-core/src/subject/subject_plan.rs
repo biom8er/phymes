@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use arrow::datatypes::SchemaRef;
 use serde_json::{Map, Value};
-use crate::{BuildableTrait, MappableTrait, ObjectStorageBackend, SubjectPlanBuilder};
+use crate::{BuildableTrait, MappableTrait, ObjectStorageBackend, SubjectConstraint, SubjectPlanBuilder};
 
 pub trait SubjectPlanTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     fn schema(&self) -> &SchemaRef;
@@ -9,7 +9,7 @@ pub trait SubjectPlanTrait: MappableTrait + BuildableTrait + Debug + Send + Sync
     fn location(&self) -> &str;
     fn bucket(&self) -> &str;
     fn metadata(&self) -> &Map<String, Value>;
-    fn constraints(&self) -> &Map<String, Value>;
+    fn constraints(&self) -> &Vec<SubjectConstraint>;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -28,7 +28,7 @@ pub struct SubjectPlan {
     /// Metadata including e_tag, version, size, last_modified, etc.
     pub(crate) metadata: Map<String, Value>,
     /// Constraints on the subject
-    pub(crate) constraints: Map<String, Value>,
+    pub(crate) constraints: Vec<SubjectConstraint>,
 }
 
 impl MappableTrait for SubjectPlan {
@@ -68,7 +68,7 @@ impl SubjectPlanTrait for SubjectPlan {
         &self.metadata
     }
 
-    fn constraints(&self) -> &Map<String, Value> {
+    fn constraints(&self) -> &Vec<SubjectConstraint> {
         &self.constraints
     }
 }
