@@ -6,7 +6,7 @@ use crate::{BuildableTrait, MappableTrait, ObjectStorageBackend, SubjectConstrai
 pub trait SubjectPlanTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     fn schema(&self) -> &SchemaRef;
     fn backend(&self) -> &ObjectStorageBackend;
-    fn location(&self) -> &str;
+    fn locations(&self) -> &Vec<String>;
     fn bucket(&self) -> &str;
     fn metadata(&self) -> &Map<String, Value>;
     fn constraints(&self) -> &Vec<SubjectConstraint>;
@@ -21,11 +21,14 @@ pub struct SubjectPlan {
     /// Subject object store backend [ObjectStorageBackend]
     pub(crate) backend: ObjectStorageBackend,
     /// Location within the bucket that the subject data partitions are
-    ///   (defaults to the name of the subject)
-    pub(crate) location: String,
+    /// 
+    /// # Note
+    /// * Not a one to one mapping: RecordBatch != location
+    /// * Many to many mapping: Vec<RecordBatch> -> Multiple locations
+    pub(crate) locations: Vec<String>,
     /// The object store bucket (or container or root)
     pub(crate) bucket: String,
-    /// Metadata including e_tag, version, size, last_modified, etc.
+    /// Metadata for each location/partition including e_tag, version, size, last_modified, etc.
     pub(crate) metadata: Map<String, Value>,
     /// Constraints on the subject
     pub(crate) constraints: Vec<SubjectConstraint>,
@@ -56,8 +59,8 @@ impl SubjectPlanTrait for SubjectPlan {
         &self.backend
     }
 
-    fn location(&self) -> &str {
-        &self.location
+    fn locations(&self) -> &Vec<String> {
+        &self.locations
     }
 
     fn bucket(&self) -> &str {

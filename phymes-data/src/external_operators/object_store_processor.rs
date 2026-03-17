@@ -22,13 +22,13 @@ use crate::{
 };
 
 /// The state of the Object Store API request.
-pub enum ObjectStoreState<'a> {
+pub enum ObjectStoreState {
     NotStarted,
-    StorageReaderGetResult(Pin<Box<dyn Future<Output = Result<GetResult<'a>, object_store::Error>> + Send + 'a>>),
-    StorageReaderBytesResult(Pin<Box<dyn Future<Output = Result<Bytes, object_store::Error>> + Send + 'a>>),
-    StorageReaderStreamResult(Pin<Box<dyn Stream<Item = Result<Bytes, object_store::Error>> + Send + 'a>>),
-    StorageWriterMultipart(Pin<Box<dyn Future<Output = Result<Box<dyn MultipartUpload>, object_store::Error>> + Send + 'a>>),
-    StorageWriterPutResult(Pin<Box<dyn Future<Output = Result<PutResult, object_store::Error>> + Send + 'a>>),
+    StorageReaderGetResult(Pin<Box<dyn Future<Output = Result<GetResult, object_store::Error>> + Send>>),
+    StorageReaderBytesResult(Pin<Box<dyn Future<Output = Result<Bytes, object_store::Error>> + Send>>),
+    StorageReaderStreamResult(Pin<Box<dyn Stream<Item = Result<Bytes, object_store::Error>> + Send>>),
+    StorageWriterMultipart(Pin<Box<dyn Future<Output = Result<Box<dyn MultipartUpload>, object_store::Error>> + Send>>),
+    StorageWriterPutResult(Pin<Box<dyn Future<Output = Result<PutResult, object_store::Error>> + Send>>),
     Done,
 }
 
@@ -106,7 +106,7 @@ impl ProcessorTrait for ObjectStoreProcessor {
     }
 }
 
-pub struct ObjectStoreStream<'a> {
+pub struct ObjectStoreStream {
     /// Output schema
     schema: SchemaRef,
     /// The messages containing the lhs and rhs
@@ -125,7 +125,7 @@ pub struct ObjectStoreStream<'a> {
     /// Parameters for chat inference
     config: Option<ObjectStoreConfig>,
     /// State of the OpenAI API request
-    state: ObjectStoreState<'a>,
+    state: ObjectStoreState,
     /// The polled record batches from the input
     /// Can be manifests files to get or subjects to put
     record_batches: Option<VecDeque<Map<String, Value>>>,
@@ -135,7 +135,7 @@ pub struct ObjectStoreStream<'a> {
     meta: Option<ObjectMeta>,
 }
 
-impl<'a> ObjectStoreStream<'a> {
+impl ObjectStoreStream {
     pub fn new(
         messages: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
@@ -160,7 +160,7 @@ impl<'a> ObjectStoreStream<'a> {
     }
 }
 
-impl<'a> Stream for ObjectStoreStream<'a> {
+impl Stream for ObjectStoreStream {
     type Item = Result<RecordBatch>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -309,8 +309,8 @@ impl<'a> Stream for ObjectStoreStream<'a> {
 
                         // Add in any addition `GetOptions`
                         if let Some(options) = self.config.as_ref().unwrap().get_options.as_ref() {
-                            let options = serde_json::from_str::<GetOptions>(options)?;
-                            let fut = Box::pin(async move { store.get_opts(&path, options).await });
+                            // let options = serde_json::from_str::<GetOptions>(options)?;
+                            let fut = Box::pin(async move { store.get_opts(&path, GetOptions::default()).await });
                             self.state = ObjectStoreState::StorageReaderGetResult(fut);
                             self.poll_next(cx)
                         } else {
@@ -360,8 +360,8 @@ impl<'a> Stream for ObjectStoreStream<'a> {
 
                         // Add in additional `PutOptions`
                         if let Some(options) = self.config.as_ref().unwrap().put_options.as_ref() {
-                            let options = serde_json::from_str::<PutOptions>(options)?;
-                            let fut = Box::pin(async move { store.put_opts(&path, payload, options).await });
+                            // let options = serde_json::from_str::<PutOptions>(options)?;
+                            let fut = Box::pin(async move { store.put_opts(&path, payload, PutOptions::default()).await });
                             self.state = ObjectStoreState::StorageWriterPutResult(fut);
                             self.poll_next(cx)
                         } else {
@@ -657,7 +657,7 @@ impl<'a> Stream for ObjectStoreStream<'a> {
     }
 }
 
-impl<'a> RecordBatchStream for ObjectStoreStream<'a> {
+impl RecordBatchStream for ObjectStoreStream {
     fn schema(&self) -> SchemaRef {
         Arc::clone(&self.schema)
     }

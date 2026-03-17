@@ -7,7 +7,7 @@ use crate::{BuilderTrait, ObjectStorageBackend, SubjectConstraint, SubjectPlan};
 pub trait SubjectPlanBuilderTrait: BuilderTrait + Debug + Send + Sync {
     fn with_schema(self, schema: SchemaRef) -> Self;
     fn with_backend(self, backend: &ObjectStorageBackend) -> Self;
-    fn with_location(self, location: &str) -> Self;
+    fn with_locations(self, locations: &[&str]) -> Self;
     fn with_bucket(self, bucket: &str) -> Self;
     fn with_metadata(self, metadata: &Map<String, Value>) -> Self;
     fn add_metadata(self, key: &str, value: &Value) -> Self;
@@ -24,7 +24,7 @@ pub struct SubjectPlanBuilder {
     pub backend: Option<ObjectStorageBackend>,
     /// Location within the bucket that the subject data partitions are
     ///   (defaults to the name of the subject with an "ipc" extension)
-    pub location: Option<String>,
+    pub locations: Option<Vec<String>>,
     /// The object store bucket (or container or root)
     pub bucket: Option<String>,
     /// Object store metadata including e_tag, version, size, last_modified, etc.
@@ -41,7 +41,7 @@ impl BuilderTrait for SubjectPlanBuilder {
             name: None,
             schema: None,
             backend: None,
-            location: None,
+            locations: None,
             bucket: None,
             metadata: None,
             constraints: None,
@@ -59,7 +59,7 @@ impl BuilderTrait for SubjectPlanBuilder {
     {
         let name = self.name.ok_or(anyhow!("Please define the name before trying to build the subject plan!"))?;
         let t = Self::T {
-            location: self.location.unwrap_or_else(|| format!("{name}.ipc")),
+            locations: self.locations.unwrap_or_else(|| vec![format!("superstep=0/{name}-0.ipc")]),
             name,
             schema: self.schema.ok_or(anyhow!("Please define the schema before trying to build the subject plan!"))?,
             backend: self.backend.ok_or(anyhow!("Please define the backend before trying to build the subject plan!"))?,
@@ -82,8 +82,8 @@ impl SubjectPlanBuilderTrait for SubjectPlanBuilder {
         self
     }
 
-    fn with_location(mut self, location: &str) -> Self {
-        self.location = Some(location.to_string());
+    fn with_locations(mut self, locations: &[&str]) -> Self {
+        self.locations = Some(locations.into_iter().map(|s| s.to_string()).collect::<Vec<_>>());
         self
     }
 
