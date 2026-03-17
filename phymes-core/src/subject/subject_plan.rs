@@ -9,6 +9,7 @@ pub trait SubjectPlanTrait: MappableTrait + BuildableTrait + Debug + Send + Sync
     fn location(&self) -> &str;
     fn bucket(&self) -> &str;
     fn metadata(&self) -> &Map<String, Value>;
+    fn constraints(&self) -> &Map<String, Value>;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -26,6 +27,8 @@ pub struct SubjectPlan {
     pub(crate) bucket: String,
     /// Metadata including e_tag, version, size, last_modified, etc.
     pub(crate) metadata: Map<String, Value>,
+    /// Constraints on the subject
+    pub(crate) constraints: Map<String, Value>,
 }
 
 impl MappableTrait for SubjectPlan {
@@ -63,5 +66,9 @@ impl SubjectPlanTrait for SubjectPlan {
 
     fn metadata(&self) -> &Map<String, Value> {
         &self.metadata
+    }
+
+    fn constraints(&self) -> &Map<String, Value> {
+        &self.constraints
     }
 }

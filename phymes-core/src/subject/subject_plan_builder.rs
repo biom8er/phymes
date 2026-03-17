@@ -11,6 +11,7 @@ pub trait SubjectPlanBuilderTrait: BuilderTrait + Debug + Send + Sync {
     fn with_bucket(self, bucket: &str) -> Self;
     fn with_metadata(self, metadata: &Map<String, Value>) -> Self;
     fn add_metadata(self, key: &str, value: &Value) -> Self;
+    fn with_constraints(self, constraints: &Map<String, Value>) -> Self;
 }
 
 #[derive(Default, Debug, PartialEq, Clone)]
@@ -22,12 +23,14 @@ pub struct SubjectPlanBuilder {
     /// Subject object store backend [ObjectStorageBackend]
     pub backend: Option<ObjectStorageBackend>,
     /// Location within the bucket that the subject data partitions are
-    ///   (defaults to the name of the subject)
+    ///   (defaults to the name of the subject with an "ipc" extension)
     pub location: Option<String>,
     /// The object store bucket (or container or root)
     pub bucket: Option<String>,
-    /// Metadata including e_tag, version, size, last_modified, etc.
+    /// Object store metadata including e_tag, version, size, last_modified, etc.
     pub metadata: Option<Map<String, Value>>,
+    /// Constraints on the subject
+    pub constraints: Option<Map<String, Value>>,
 }
 
 impl BuilderTrait for SubjectPlanBuilder {
@@ -41,6 +44,7 @@ impl BuilderTrait for SubjectPlanBuilder {
             location: None,
             bucket: None,
             metadata: None,
+            constraints: None,
         }
     }
 
@@ -55,12 +59,13 @@ impl BuilderTrait for SubjectPlanBuilder {
     {
         let name = self.name.ok_or(anyhow!("Please define the name before trying to build the subject plan!"))?;
         let t = Self::T {
-            location: self.location.unwrap_or_else(|| name.clone()),
+            location: self.location.unwrap_or_else(|| format!("{name}.ipc")),
             name,
             schema: self.schema.ok_or(anyhow!("Please define the schema before trying to build the subject plan!"))?,
             backend: self.backend.ok_or(anyhow!("Please define the backend before trying to build the subject plan!"))?,
             bucket: self.bucket.ok_or(anyhow!("Please define the bucket before trying to build the subject plan!"))?,
             metadata: self.metadata.unwrap_or_default(),
+            constraints: self.constraints.unwrap_or_default(),
         };
         Ok(t)
     }
@@ -100,6 +105,11 @@ impl SubjectPlanBuilderTrait for SubjectPlanBuilder {
         };
         let _ = metadata.insert(k.to_string(), v.to_owned());
         self.metadata = Some(metadata);
+        self
+    }
+
+    fn with_constraints(mut self, constraints: &Map<String, Value>) -> Self {
+        self.constraints = Some(constraints.to_owned());
         self
     }
 }

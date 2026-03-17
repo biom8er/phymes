@@ -1,3 +1,4 @@
+mod constraints;
 mod subject_plan_builder;
 mod subject_plan;
 
