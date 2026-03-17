@@ -83,13 +83,13 @@ impl UserState {
         // Parse out the results
         let session_reading = self.users.read();
         let table_reading = session_reading
-            .get_states()
+            .subjects()
             .get(AvailableSubjects::User.to_string().as_str())
             .unwrap()
             .read();
         let user = table_reading.to_struct::<UserSubject>()?;
         let table_reading = session_reading
-            .get_states()
+            .subjects()
             .get(
                 AvailableSubjects::JoinUserInboxSessionContextsMermaid
                     .to_string()
@@ -422,7 +422,7 @@ mod tests {
             user.users
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("UserSessionContexts")
                 .unwrap()
                 .try_read()
@@ -442,7 +442,7 @@ mod tests {
             user.users
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("UserSessionContexts")
                 .unwrap()
                 .try_read()
@@ -456,7 +456,7 @@ mod tests {
             user.users
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("BuilderMermaid")
                 .unwrap()
                 .try_read()
@@ -598,7 +598,7 @@ mod tests {
                 .unwrap()
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .keys()
                 .map(|s| s.to_owned())
                 .collect::<Vec<_>>();
@@ -612,7 +612,7 @@ mod tests {
                         .unwrap()
                         .try_read()
                         .unwrap()
-                        .get_states()
+                        .subjects()
                         .get(subject)
                         .unwrap()
                         .try_read()
@@ -626,7 +626,7 @@ mod tests {
                         .unwrap()
                         .try_read()
                         .unwrap()
-                        .get_states()
+                        .subjects()
                         .get(subject)
                         .unwrap()
                         .try_read()
@@ -642,7 +642,7 @@ mod tests {
                         .unwrap()
                         .try_read()
                         .unwrap()
-                        .get_states()
+                        .subjects()
                         .get(subject)
                         .unwrap()
                         .try_read()
@@ -656,7 +656,7 @@ mod tests {
                         .unwrap()
                         .try_read()
                         .unwrap()
-                        .get_states()
+                        .subjects()
                         .get(subject)
                         .unwrap()
                         .try_read()
@@ -672,7 +672,7 @@ mod tests {
                         .unwrap()
                         .try_read()
                         .unwrap()
-                        .get_states()
+                        .subjects()
                         .get(subject)
                         .unwrap()
                         .try_read()
@@ -686,7 +686,7 @@ mod tests {
                         .unwrap()
                         .try_read()
                         .unwrap()
-                        .get_states()
+                        .subjects()
                         .get(subject)
                         .unwrap()
                         .try_read()

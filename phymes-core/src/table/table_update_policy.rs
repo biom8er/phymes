@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use phymes_diagnostics::HashMap;
 
-use crate::{MappableTrait, StateMap, TableSubscription, TableTrait};
+use crate::{MappableTrait, SubjectsMap, TableSubscription, TableTrait};
 
 /// Determine when a table has been updated
 pub trait TableUpdatePolicyTrait: MappableTrait + Debug + Send + Sync {
@@ -22,7 +22,7 @@ pub trait TableUpdatePolicyTrait: MappableTrait + Debug + Send + Sync {
         subscriptions: &[TableSubscription],
         last_run: &i64,
         subjects_change_log: &HashMap<String, i64>,
-        state: &StateMap,
+        state: &SubjectsMap,
     ) -> HashMap<String, bool>;
     fn new_box() -> Box<dyn TableUpdatePolicyTrait>
     where
@@ -42,7 +42,7 @@ impl TableUpdatePolicyTrait for TableHasBatchesUpdate {
         subscriptions: &[TableSubscription],
         _last_run: &i64,
         _subjects_change_log: &HashMap<String, i64>,
-        state: &StateMap,
+        state: &SubjectsMap,
     ) -> HashMap<String, bool> {
         subscriptions
             .iter()
@@ -83,7 +83,7 @@ impl TableUpdatePolicyTrait for TableChangedSinceLastRunUpdate {
         subscriptions: &[TableSubscription],
         last_run: &i64,
         subjects_change_log: &HashMap<String, i64>,
-        _state: &StateMap,
+        _state: &SubjectsMap,
     ) -> HashMap<String, bool> {
         subscriptions
             .iter()
@@ -124,7 +124,7 @@ impl TableUpdatePolicyTrait for TableExistsUpdate {
         subscriptions: &[TableSubscription],
         _last_run: &i64,
         _subjects_change_log: &HashMap<String, i64>,
-        state: &StateMap,
+        state: &SubjectsMap,
     ) -> HashMap<String, bool> {
         subscriptions
             .iter()

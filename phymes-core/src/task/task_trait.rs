@@ -8,7 +8,7 @@ use tracing::{Level, event};
 
 use crate::{
     BuildableTrait, MappableTrait, ProcessorSubjectsMap, ProcessorTrait, RuntimeEnv,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, SubjectsMap,
     TableSubscription, TaskBuilder, subscribe_to_subject,
     task::publish_subscribe::build_and_publish_to_stream, update_publisher,
 };
@@ -58,7 +58,7 @@ pub trait TaskTrait: MappableTrait + BuildableTrait + Sync + Send {
         &self,
         diagnostic_builder: Option<&DiagnosticBuilder>,
         processor_subjects: &ProcessorSubjectsMap,
-        subjects: &StateMap, // DM: update to channels when ready
+        subjects: &SubjectsMap, // DM: update to channels when ready
     ) -> Result<SendableRecordBatchStreamMessageMap>;
 
     /// Get an immutable reference to the processors
@@ -100,7 +100,7 @@ impl TaskTrait for Task {
         &self,
         diagnostic_builder: Option<&DiagnosticBuilder>,
         processor_subjects: &ProcessorSubjectsMap,
-        subjects: &StateMap, // DM: update to channels when ready
+        subjects: &SubjectsMap, // DM: update to channels when ready
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Running task {}", self.get_name());
 
@@ -245,7 +245,7 @@ pub mod test_task {
         Ok(vec![config, table])
     }
 
-    pub fn make_state(table_name: &str, config_name: &str) -> Result<StateMap> {
+    pub fn make_state(table_name: &str, config_name: &str) -> Result<SubjectsMap> {
         let tables = make_state_tables(table_name, config_name)?;
 
         // add mock config and table to the state

@@ -103,7 +103,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 "Add runtime environments before making the Mermaid Flowchart."
             ));
         }
-        if self.state.is_none() {
+        if self.subjects.is_none() {
             return Err(anyhow!(
                 "Add state subjects before making the Mermaid Flowchart."
             ));
@@ -143,7 +143,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     processors_exclude.extend(processors);
                 }
             }
-            if let Some(subjects) = tasks_publish_subscribe.state {
+            if let Some(subjects) = tasks_publish_subscribe.subjects {
                 for table in subjects {
                     subjects_exclude.insert(table.get_name().to_string());
                 }
@@ -171,7 +171,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     processors_exclude.extend(processors);
                 }
             }
-            if let Some(subjects) = tasks_next_superstep.state {
+            if let Some(subjects) = tasks_next_superstep.subjects {
                 for table in subjects {
                     subjects_exclude.insert(table.get_name().to_string());
                 }
@@ -330,7 +330,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
     }
 
     fn to_mermaid_erdiagram(&self, example_data: bool, config_data: bool) -> Result<String> {
-        if self.state.is_none() {
+        if self.subjects.is_none() {
             return Err(anyhow!(
                 "Add state subjects before making the Mermaid ER Diagram."
             ));
@@ -345,7 +345,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         let processor_names = self.get_processor_names_from_tasks();
 
         // Extract the subjects
-        let mut sorted_map = self.state.as_ref().unwrap().iter().collect::<Vec<_>>();
+        let mut sorted_map = self.subjects.as_ref().unwrap().iter().collect::<Vec<_>>();
         sorted_map.sort_by(|a, b| a.get_name().cmp(b.get_name()));
         for subject in sorted_map {
             for field in subject.get_schema().fields().iter() {
@@ -1396,7 +1396,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             check_agent_subjects(&subject_names.into_iter().collect::<Vec<_>>())?;
         }
 
-        Ok(self.with_state(subjects))
+        Ok(self.with_subjects(subjects))
     }
 }
 
@@ -1578,14 +1578,14 @@ mod tests {
         // Test that the schemas match
         {
             let test = builder_test
-                .state
+                .subjects
                 .as_ref()
                 .unwrap()
                 .iter()
                 .map(|p| (p.get_name(), p.get_schema()))
                 .collect::<HashMap<_, _>>();
             let expected = builder
-                .state
+                .subjects
                 .as_ref()
                 .unwrap()
                 .iter()
@@ -1650,14 +1650,14 @@ mod tests {
         // Test that the schemas match
         {
             let test = builder_test
-                .state
+                .subjects
                 .as_ref()
                 .unwrap()
                 .iter()
                 .map(|p| (p.get_name(), p.get_schema()))
                 .collect::<HashMap<_, _>>();
             let expected = builder
-                .state
+                .subjects
                 .as_ref()
                 .unwrap()
                 .iter()
@@ -1669,7 +1669,7 @@ mod tests {
         }
 
         // Test that the first row was captured
-        for table in builder_test.state.as_ref().unwrap().iter() {
+        for table in builder_test.subjects.as_ref().unwrap().iter() {
             assert_eq!(table.count_rows(), 1)
         }
 
@@ -1716,14 +1716,14 @@ mod tests {
         // Test that the schemas match
         {
             let test = builder_test
-                .state
+                .subjects
                 .as_ref()
                 .unwrap()
                 .iter()
                 .map(|p| (p.get_name(), p.get_schema()))
                 .collect::<HashMap<_, _>>();
             let expected = builder
-                .state
+                .subjects
                 .as_ref()
                 .unwrap()
                 .iter()
@@ -1735,7 +1735,7 @@ mod tests {
         }
 
         // Test that the first row was captured
-        for table in builder_test.state.as_ref().unwrap().iter() {
+        for table in builder_test.subjects.as_ref().unwrap().iter() {
             assert_eq!(table.count_rows(), 1)
         }
 
@@ -2141,14 +2141,14 @@ mod tests {
         // Test that the schemas match
         {
             let test = builder_test
-                .state
+                .subjects
                 .as_ref()
                 .unwrap()
                 .iter()
                 .map(|p| (p.get_name(), p.get_schema()))
                 .collect::<HashMap<_, _>>();
             let expected = builder
-                .state
+                .subjects
                 .as_ref()
                 .unwrap()
                 .iter()
@@ -2160,7 +2160,7 @@ mod tests {
         }
 
         // Test that the first row was captured
-        for table in builder_test.state.as_ref().unwrap().iter() {
+        for table in builder_test.subjects.as_ref().unwrap().iter() {
             if builder_test
                 .get_processor_names_from_tasks()
                 .contains(table.get_name())
@@ -2238,14 +2238,14 @@ mod tests {
         // Test that the schemas match
         {
             let test = builder_test
-                .state
+                .subjects
                 .as_ref()
                 .unwrap()
                 .iter()
                 .map(|p| (p.get_name(), p.get_schema()))
                 .collect::<HashMap<_, _>>();
             let expected = builder
-                .state
+                .subjects
                 .as_ref()
                 .unwrap()
                 .iter()
@@ -2257,7 +2257,7 @@ mod tests {
         }
 
         // Test that the first row was captured
-        for table in builder_test.state.as_ref().unwrap().iter() {
+        for table in builder_test.subjects.as_ref().unwrap().iter() {
             if builder_test
                 .get_processor_names_from_tasks()
                 .contains(table.get_name())

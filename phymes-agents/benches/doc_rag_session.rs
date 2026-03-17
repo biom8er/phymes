@@ -201,7 +201,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 let metrics = Arc::try_unwrap(session_ctx_arc)
                     .unwrap()
                     .into_inner()
-                    .get_states_own()
+                    .subjects_own()
                     .remove(AvailableSubjects::MetricPivot.to_string().as_str())
                     .unwrap();
                 let batches = Arc::try_unwrap(metrics)

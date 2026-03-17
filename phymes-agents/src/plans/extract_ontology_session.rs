@@ -2006,7 +2006,7 @@ mod tests {
             // Debug any errors
             let subjects_reading = session_ctx_arc.read();
             let table_reading = subjects_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2019,7 +2019,7 @@ mod tests {
             // Test supsersteps
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::ParseOwl.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2094,7 +2094,7 @@ mod tests {
             // Test supsersteps
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_ontology_entity_s")
                 .unwrap()
                 .read();
@@ -2142,7 +2142,7 @@ mod tests {
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_annotation_property_entity_s")
                 .unwrap()
                 .read();
@@ -2193,13 +2193,13 @@ mod tests {
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_datatype_property_entity_s")
                 .unwrap()
                 .read();
             assert_eq!(table_reading.count_rows(), 0);
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_class_entity_s")
                 .unwrap()
                 .read();
@@ -2250,7 +2250,7 @@ mod tests {
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_object_property_entity_s")
                 .unwrap()
                 .read();
@@ -2301,7 +2301,7 @@ mod tests {
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_named_individual_entity_s")
                 .unwrap()
                 .read();
@@ -2334,7 +2334,7 @@ mod tests {
             let column = table_reading.get_column_as_vec_str("dataset");
             assert_eq!(column.first().unwrap(), &"UserScript");
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_axiom_entity_s")
                 .unwrap()
                 .read();
@@ -2353,7 +2353,7 @@ mod tests {
             // Debug any errors
             let subjects_reading = session_ctx_arc.read();
             let table_reading = subjects_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2366,7 +2366,7 @@ mod tests {
             // Test supsersteps
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("pivot_annotation_property_entity_s")
                 .unwrap()
                 .read();
@@ -2392,7 +2392,7 @@ mod tests {
             );
             assert_eq!(column.last().unwrap(), &"");
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("pivot_class_entity_s")
                 .unwrap()
                 .read();
@@ -2412,7 +2412,7 @@ mod tests {
                 &"An entity that has temporal parts and that happens, unfolds or develops through time."
             );
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("pivot_object_property_entity_s")
                 .unwrap()
                 .read();
@@ -2441,7 +2441,7 @@ mod tests {
                 &"x overlaps y if and only if there exists some z such that x has part z and z part of y"
             );
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("pivot_named_individual_entity_s")
                 .unwrap()
                 .read();
@@ -2472,7 +2472,7 @@ mod tests {
             // Debug any errors
             let subjects_reading = session_ctx_arc.read();
             let table_reading = subjects_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2485,7 +2485,7 @@ mod tests {
             // Test supsersteps
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_annotation_property_pivot_s")
                 .unwrap()
                 .read();
@@ -2509,7 +2509,7 @@ mod tests {
             );
             assert_eq!(column.last().unwrap(), &"");
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("merge_object_property_class_named_individual_pivot_s")
                 .unwrap()
                 .read();
@@ -2538,7 +2538,7 @@ mod tests {
             // Debug any errors
             let subjects_reading = session_ctx_arc.read();
             let table_reading = subjects_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2551,7 +2551,7 @@ mod tests {
             // Test supsersteps
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_predicates_object_property_entity_s")
                 .unwrap()
                 .read();
@@ -2581,7 +2581,7 @@ mod tests {
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_predicates_class_entity_s")
                 .unwrap()
                 .read();
@@ -2624,7 +2624,7 @@ mod tests {
             // Debug any errors
             let subjects_reading = session_ctx_arc.read();
             let table_reading = subjects_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2637,13 +2637,13 @@ mod tests {
             // Test supsersteps
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_resource_class_entity_s")
                 .unwrap()
                 .read();
             assert_eq!(table_reading.count_rows(), 0);
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_resource_object_property_entity_s")
                 .unwrap()
                 .read();
@@ -2686,7 +2686,7 @@ mod tests {
             // Debug any errors
             let subjects_reading = session_ctx_arc.read();
             let table_reading = subjects_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2699,7 +2699,7 @@ mod tests {
             // Test supsersteps
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_objects_class_entity_s")
                 .unwrap()
                 .read();
@@ -2729,7 +2729,7 @@ mod tests {
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_objects_object_property_entity_s")
                 .unwrap()
                 .read();
@@ -2772,7 +2772,7 @@ mod tests {
             // Debug any errors
             let subjects_reading = session_ctx_arc.read();
             let table_reading = subjects_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2785,7 +2785,7 @@ mod tests {
             // Test supsersteps
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::Documents.to_string().as_str())
                 .unwrap()
                 .read();

@@ -402,7 +402,7 @@ mod tests {
                 // Test supsersteps
                 let session_reading = session_ctx_arc.read();
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get(
                         AvailableInterfaceSubjects::AssistantMessages
                             .to_string()
@@ -420,7 +420,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get(
                         AvailableInterfaceSubjects::ToolMessages
                             .to_string()
@@ -430,7 +430,7 @@ mod tests {
                     .read();
                 assert_eq!(table_reading.count_rows(), 0);
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get(
                         AvailableInterfaceSubjects::AggregatedMessages
                             .to_string()
@@ -453,7 +453,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get("aggregate_messages_generate_text_s")
                     .unwrap()
                     .read();
@@ -470,7 +470,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get("generate_text_inference_s")
                     .unwrap()
                     .read();
@@ -530,14 +530,14 @@ mod tests {
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
         // Add the target tool subjects to the session for testing
-        let _ = session_ctx_arc.write().state.insert(
+        let _ = session_ctx_arc.write().subjects.insert(
             AvailableCandleOperators::Sort.to_string(),
             Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(
                 Some(AvailableCandleOperators::Sort.to_string().as_str()),
                 None,
             )?)),
         );
-        let _ = session_ctx_arc.write().state.insert(
+        let _ = session_ctx_arc.write().subjects.insert(
             AvailableCandleOperators::HumanInTheLoop.to_string(),
             Arc::new(RwLock::new(
                 AvailableSubjects::Bytes.to_table(
@@ -605,21 +605,21 @@ mod tests {
                 // Debug any errors
                 let subjects_reading = session_ctx_arc.read();
                 let table_reading = subjects_reading
-                    .get_states()
+                    .subjects()
                     .get(AvailableSubjects::SessionErrors.to_string().as_str())
                     .unwrap()
                     .read();
                 println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
                 let subjects_reading = session_ctx_arc.read();
                 let table_reading = subjects_reading
-                    .get_states()
+                    .subjects()
                     .get(AvailableSubjects::SessionTraces.to_string().as_str())
                     .unwrap()
                     .read();
                 println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
                 let subjects_reading = session_ctx_arc.read();
                 let table_reading = subjects_reading
-                    .get_states()
+                    .subjects()
                     .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                     .unwrap()
                     .read();
@@ -632,7 +632,7 @@ mod tests {
                 // Test supsersteps
                 let session_reading = session_ctx_arc.read();
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get(
                         AvailableInterfaceSubjects::AssistantMessages
                             .to_string()
@@ -643,7 +643,7 @@ mod tests {
                 println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
                 assert_eq!(table_reading.count_rows(), 0);
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get(
                         AvailableInterfaceSubjects::ToolMessages
                             .to_string()
@@ -653,7 +653,7 @@ mod tests {
                     .read();
                 assert_eq!(table_reading.count_rows(), 0);
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get(
                         AvailableInterfaceSubjects::AggregatedMessages
                             .to_string()
@@ -674,7 +674,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get("aggregate_messages_generate_text_s")
                     .unwrap()
                     .read();
@@ -691,7 +691,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get("generate_text_inference_s")
                     .unwrap()
                     .read();
@@ -704,7 +704,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get(
                         AvailableCandleOperators::HumanInTheLoop
                             .to_string()
@@ -714,7 +714,7 @@ mod tests {
                     .read();
                 assert_eq!(table_reading.count_rows(), 0);
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get(AvailableCandleOperators::Sort.to_string().as_str())
                     .unwrap()
                     .read();
@@ -755,14 +755,14 @@ mod tests {
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
         // Add the target tool subjects to the session for testing
-        let _ = session_ctx_arc.write().state.insert(
+        let _ = session_ctx_arc.write().subjects.insert(
             AvailableCandleOperators::Sort.to_string(),
             Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(
                 Some(AvailableCandleOperators::Sort.to_string().as_str()),
                 None,
             )?)),
         );
-        let _ = session_ctx_arc.write().state.insert(
+        let _ = session_ctx_arc.write().subjects.insert(
             AvailableCandleOperators::HumanInTheLoop.to_string(),
             Arc::new(RwLock::new(
                 AvailableSubjects::Bytes.to_table(
@@ -857,7 +857,7 @@ mod tests {
                 // Test supsersteps
                 let session_reading = session_ctx_arc.read();
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get(
                         AvailableInterfaceSubjects::AssistantMessages
                             .to_string()
@@ -875,7 +875,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get(
                         AvailableInterfaceSubjects::AggregatedMessages
                             .to_string()
@@ -898,7 +898,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get("aggregate_messages_generate_text_s")
                     .unwrap()
                     .read();
@@ -920,7 +920,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get("generate_text_inference_s")
                     .unwrap()
                     .read();
@@ -933,13 +933,13 @@ mod tests {
                     assert!(t > 0);
                 }
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get(AvailableCandleOperators::Sort.to_string().as_str())
                     .unwrap()
                     .read();
                 assert_eq!(table_reading.count_rows(), 0);
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get(
                         AvailableCandleOperators::HumanInTheLoop
                             .to_string()
@@ -996,14 +996,14 @@ mod tests {
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
         // Add the target tool subjects to the session for testing
-        let _ = session_ctx_arc.write().state.insert(
+        let _ = session_ctx_arc.write().subjects.insert(
             AvailableCandleOperators::Sort.to_string(),
             Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(
                 Some(AvailableCandleOperators::Sort.to_string().as_str()),
                 None,
             )?)),
         );
-        let _ = session_ctx_arc.write().state.insert(
+        let _ = session_ctx_arc.write().subjects.insert(
             AvailableCandleOperators::HumanInTheLoop.to_string(),
             Arc::new(RwLock::new(
                 AvailableSubjects::Bytes.to_table(
@@ -1085,7 +1085,7 @@ mod tests {
                 // Debug any errors
                 let subjects_reading = session_ctx_arc.read();
                 let table_reading = subjects_reading
-                    .get_states()
+                    .subjects()
                     .get(AvailableSubjects::SessionErrors.to_string().as_str())
                     .unwrap()
                     .read();
@@ -1098,7 +1098,7 @@ mod tests {
                 // Test supsersteps
                 let session_reading = session_ctx_arc.read();
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get(
                         AvailableInterfaceSubjects::AssistantMessages
                             .to_string()
@@ -1121,7 +1121,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get(
                         AvailableInterfaceSubjects::AggregatedMessages
                             .to_string()
@@ -1144,7 +1144,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get("aggregate_messages_generate_text_s")
                     .unwrap()
                     .read();
@@ -1166,7 +1166,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get("generate_text_inference_s")
                     .unwrap()
                     .read();
@@ -1179,13 +1179,13 @@ mod tests {
                     assert!(t > 0);
                 }
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get(AvailableCandleOperators::Sort.to_string().as_str())
                     .unwrap()
                     .read();
                 assert_eq!(table_reading.count_rows(), 0);
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get(
                         AvailableCandleOperators::HumanInTheLoop
                             .to_string()

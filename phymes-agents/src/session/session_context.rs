@@ -1,16 +1,10 @@
 use anyhow::{Result, anyhow};
 use arrow::datatypes::SchemaRef;
 use clap::ValueEnum;
+use object_store::ObjectStore;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies,
-    AvailableTableUpdatePolicies, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap,
-    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjects, ProcessorSubjectsBuilder,
-    ProcessorSubjectsMap, RuntimeEnv, StateMap, Table, TableBuilder, TableBuilderTrait,
-    TablePublication, TablePublicationTrait, TableSubscription, TableTrait, TaskMap,
-    create_chat_record_batch, create_session_supersteps_batch,
-    create_session_tasks_subscribe_batch, create_subjects_change_log_batch,
-    create_subjects_num_rows_batch, from_diagnostics_to_tables,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, RuntimeEnv, SubjectsMap, Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableSubscription, TableTrait, TaskMap, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_diagnostics_to_tables, make_store
 };
 use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
 use std::sync::Arc;
@@ -24,7 +18,7 @@ use crate::{SessionContextBuilder, create_message_map};
 /// [TaskPlan]: phymes_core::TaskPlan
 /// [Task]: phymes_core::TaskTrait
 /// [Message]: phymes_core::MessageTrait
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct SessionContext {
     /// A unique UUID that identifies the session
     pub(crate) name: String,
@@ -37,7 +31,7 @@ pub struct SessionContext {
     ///  
     /// Shared state: Message subjects data along with metadata such as
     ///   the row counts for all subjects, and subject changelog (todo)
-    pub(crate) state: StateMap,
+    pub(crate) subjects: SubjectsMap,
     /// Runtime environment configuration to use during task runs
     #[allow(dead_code)]
     pub(crate) runtime_envs: HashMap<String, Arc<RuntimeEnv>>,
@@ -45,47 +39,66 @@ pub struct SessionContext {
     pub(crate) max_iter: usize,
     /// Whether to gather diagnostic information or not
     pub(crate) diagnostics: bool,
+    /// In memory object store for caching results in memory
+    pub(crate) store: Arc<dyn ObjectStore>,
+}
+
+impl Default for SessionContext {
+    fn default() -> Self {
+        Self { 
+            name: Default::default(), 
+            tasks: Default::default(), 
+            subjects: Default::default(), 
+            runtime_envs: Default::default(), 
+            max_iter: Default::default(), 
+            diagnostics: Default::default(), 
+            store: make_store(&ObjectStorageBackend::default(), None, None).unwrap()
+        }
+    }
 }
 
 impl SessionContext {
     pub fn new(
         name: String,
         tasks: TaskMap,
-        state: StateMap,
+        state: SubjectsMap,
         runtime_envs: HashMap<String, Arc<RuntimeEnv>>,
         max_iter: usize,
         diagnostics: bool,
+        store: Arc<dyn ObjectStore>,
     ) -> SessionContext {
         Self {
             name,
             tasks,
-            state,
+            subjects: state,
             runtime_envs,
             max_iter,
             diagnostics,
+            store
         }
     }
 
-    /// Get a task
-    pub fn get_tasks(&self) -> &TaskMap {
+    pub fn store(&self) -> &Arc<dyn ObjectStore> {
+        &self.store
+    }
+
+    pub fn tasks(&self) -> &TaskMap {
         &self.tasks
     }
 
-    /// Get state
-    pub fn get_states(&self) -> &StateMap {
-        &self.state
+    pub fn subjects(&self) -> &SubjectsMap {
+        &self.subjects
     }
 
-    /// Get state
-    pub fn get_states_own(self) -> StateMap {
-        self.state
+    pub fn subjects_own(self) -> SubjectsMap {
+        self.subjects
     }
 
     /// Compute the next tasks to subscribe
     pub fn tasks_subscribe(&self) -> Result<()> {
         // Extract the columns
         let batches = self
-            .get_states()
+            .subjects()
             .get(
                 AvailableSubjects::SessionTasksSubscribeAggregate
                     .to_string()
@@ -182,7 +195,7 @@ impl SessionContext {
                         &subscriptions,
                         timestamps.last().unwrap(),
                         &subjects_change_log,
-                        self.get_states(),
+                        self.subjects(),
                     );
                     let subscribe_policy =
                         AvailableTableSubscribePolicies::from_str_fuzzy(subscribe_type)
@@ -191,7 +204,7 @@ impl SessionContext {
                     let subscribe = subscribe_policy.check_subscriptions(
                         &subscriptions,
                         &updates,
-                        self.get_states(),
+                        self.subjects(),
                     );
                     (
                         session_name,
@@ -285,7 +298,7 @@ impl SessionContext {
                                     &subscriptions,
                                     &timestamp,
                                     &subjects_change_log,
-                                    self.get_states(),
+                                    self.subjects(),
                                 );
                                 let subscribe_policy =
                                     AvailableTableSubscribePolicies::from_str_fuzzy(subscribe_type)
@@ -294,7 +307,7 @@ impl SessionContext {
                                 let subscribe = subscribe_policy.check_subscriptions(
                                     &subscriptions,
                                     &updates,
-                                    self.get_states(),
+                                    self.subjects(),
                                 );
                                 if subscribe {
                                     Some((
@@ -375,7 +388,7 @@ impl SessionContext {
     ) -> Result<HashMap<(String, String), ProcessorSubjectsMap>> {
         // Extract out the columns
         let batches = self
-            .get_states()
+            .subjects()
             .get(
                 AvailableSubjects::SessionTasksSubscribePublish
                     .to_string()
@@ -516,10 +529,10 @@ impl SessionContext {
         let updated_metrics = if let Some(metrics_table) = metrics_table {
             // Add the metrics pivot table to the state or update
             if self
-                .state
+                .subjects
                 .contains_key(AvailableSubjects::SessionMetrics.to_string().as_str())
             {
-                self.state
+                self.subjects
                     .get_mut(AvailableSubjects::SessionMetrics.to_string().as_str())
                     .unwrap()
                     .try_write()
@@ -534,7 +547,7 @@ impl SessionContext {
                         },
                     )?;
             } else {
-                self.state.insert(
+                self.subjects.insert(
                     AvailableSubjects::SessionMetrics.to_string(),
                     Arc::new(RwLock::new(metrics_table)),
                 );
@@ -549,10 +562,10 @@ impl SessionContext {
         let updated_traces = if let Some(traces_table) = traces_table {
             // Add the metrics pivot table to the state or update
             if self
-                .state
+                .subjects
                 .contains_key(AvailableSubjects::SessionTraces.to_string().as_str())
             {
-                self.state
+                self.subjects
                     .get_mut(AvailableSubjects::SessionTraces.to_string().as_str())
                     .unwrap()
                     .try_write()
@@ -567,7 +580,7 @@ impl SessionContext {
                         },
                     )?;
             } else {
-                self.state.insert(
+                self.subjects.insert(
                     AvailableSubjects::SessionTraces.to_string(),
                     Arc::new(RwLock::new(traces_table)),
                 );
@@ -582,10 +595,10 @@ impl SessionContext {
         let updated_events = if let Some(events_table) = events_table {
             // Add the metrics pivot table to the state or update
             if self
-                .state
+                .subjects
                 .contains_key(AvailableSubjects::SessionEvents.to_string().as_str())
             {
-                self.state
+                self.subjects
                     .get_mut(AvailableSubjects::SessionEvents.to_string().as_str())
                     .unwrap()
                     .try_write()
@@ -600,7 +613,7 @@ impl SessionContext {
                         },
                     )?;
             } else {
-                self.state.insert(
+                self.subjects.insert(
                     AvailableSubjects::SessionEvents.to_string(),
                     Arc::new(RwLock::new(events_table)),
                 );
@@ -673,7 +686,7 @@ impl SessionContext {
     /// Get the current session superstep
     pub fn current_superstep(&self) -> Result<u32> {
         let current_superstep = self
-            .get_states()
+            .subjects()
             .get(AvailableSubjects::SessionSuperstepMax.to_string().as_str())
             .ok_or(anyhow!(
                 "Missing table for `{}` in session `{}`.",
@@ -698,7 +711,7 @@ impl SessionContext {
         let mut num_rows = Vec::new();
 
         // Sort the hashmap
-        let mut sorted_map = self.state.iter().collect::<Vec<_>>();
+        let mut sorted_map = self.subjects.iter().collect::<Vec<_>>();
         sorted_map.sort_by(|a, b| a.0.cmp(b.0));
         for (_name, state) in sorted_map.iter() {
             let name = state.read().get_name().to_string();
@@ -720,10 +733,10 @@ impl SessionContext {
 
         // Add the subjects num rows table to the state or update
         if self
-            .state
+            .subjects
             .contains_key(AvailableSubjects::SubjectsNumRows.to_string().as_str())
         {
-            self.state
+            self.subjects
                 .get_mut(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .unwrap()
                 .write()
@@ -735,7 +748,7 @@ impl SessionContext {
                 )
                 .unwrap();
         } else {
-            self.state.insert(
+            self.subjects.insert(
                 AvailableSubjects::SubjectsNumRows.to_string(),
                 Arc::new(RwLock::new(subject_num_rows_table)),
             );
@@ -744,7 +757,7 @@ impl SessionContext {
 
     /// Find the table by matching schemas
     pub fn get_table_name_by_schema(&self, schema: &SchemaRef) -> Option<&str> {
-        let mut sorted_map = self.state.iter().collect::<Vec<_>>();
+        let mut sorted_map = self.subjects.iter().collect::<Vec<_>>();
         sorted_map.sort_by(|a, b| a.0.cmp(b.0));
         for (name, table) in sorted_map.iter() {
             if schema.eq(&table.read().get_schema()) {
@@ -762,7 +775,7 @@ impl SessionContext {
         header: bool,
     ) -> Result<String> {
         let csv = self
-            .state
+            .subjects
             .get(name)
             .unwrap()
             .read()
@@ -773,7 +786,7 @@ impl SessionContext {
 
     /// Save the current state to disk
     pub fn write_state(&self, path: &str, tag: &str) -> Result<()> {
-        for (name, subject) in self.state.iter() {
+        for (name, subject) in self.subjects.iter() {
             let pathname = format!("{path}/{tag}-{}-{name}", self.get_name());
             let mut file = std::fs::File::create(pathname)?;
             match subject.read().to_ipc_file(&mut file) {
@@ -786,7 +799,7 @@ impl SessionContext {
 
     /// Read state
     pub fn read_state(&mut self, path: &str, tag: &str) -> Result<()> {
-        for (name, subject) in self.state.iter() {
+        for (name, subject) in self.subjects.iter() {
             let pathname = format!("{path}/{tag}-{}-{name}", self.get_name());
             let file = std::fs::File::open(pathname)?;
             match TableBuilder::new_from_ipc_file(&file) {
@@ -829,7 +842,7 @@ impl SessionContext {
 
             // Try to update the state with the new record batches
             let table_name = message.get_update().get_table_name().to_string();
-            if let Some(state) = self.get_states().get(table_name.as_str()) {
+            if let Some(state) = self.subjects().get(table_name.as_str()) {
                 let publisher = message.get_publisher().to_string();
 
                 // Handle any inconsistencies in the message
@@ -870,7 +883,7 @@ impl SessionContext {
                 // Mismatch in table names of the update and state
                 let error = format!(
                     "Subject `{table_name}` with update `{update:?}` is not in the session state tables! Available tables are {:?}",
-                    self.get_states().keys()
+                    self.subjects().keys()
                 );
                 errors.push(error);
             }
@@ -975,7 +988,7 @@ mod tests {
             make_test_session_context_builder_parallel("session_1", 25)?.build()?;
         session_context.update_subject_num_rows_table();
         let info = session_context
-            .get_states()
+            .subjects()
             .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
             .unwrap()
             .read();
@@ -1027,17 +1040,17 @@ mod tests {
             make_test_session_context_builder_parallel_empty("session_1", 25)?.build()?;
         session_context_empty.read_state(tmp_dir.path().to_str().unwrap(), "tag")?;
 
-        for subject in session_context.get_states().keys() {
+        for subject in session_context.subjects().keys() {
             assert_eq!(
                 session_context
-                    .get_states()
+                    .subjects()
                     .get(subject)
                     .unwrap()
                     .try_read()
                     .unwrap()
                     .get_record_batches(),
                 session_context_empty
-                    .get_states()
+                    .subjects()
                     .get(subject)
                     .unwrap()
                     .try_read()
@@ -1046,14 +1059,14 @@ mod tests {
             );
             assert_eq!(
                 session_context
-                    .get_states()
+                    .subjects()
                     .get(subject)
                     .unwrap()
                     .try_read()
                     .unwrap()
                     .get_schema(),
                 session_context_empty
-                    .get_states()
+                    .subjects()
                     .get(subject)
                     .unwrap()
                     .try_read()
@@ -1062,14 +1075,14 @@ mod tests {
             );
             assert_eq!(
                 session_context
-                    .get_states()
+                    .subjects()
                     .get(subject)
                     .unwrap()
                     .try_read()
                     .unwrap()
                     .get_name(),
                 session_context_empty
-                    .get_states()
+                    .subjects()
                     .get(subject)
                     .unwrap()
                     .try_read()
@@ -1103,7 +1116,7 @@ mod tests {
         // check the session
         assert_eq!(
             session_context
-                .get_states()
+                .subjects()
                 .get("state_1")
                 .unwrap()
                 .try_read()
@@ -1114,7 +1127,7 @@ mod tests {
         );
         assert_eq!(
             session_context
-                .get_states()
+                .subjects()
                 .get("state_2")
                 .unwrap()
                 .try_read()
@@ -1125,7 +1138,7 @@ mod tests {
         );
         assert_eq!(
             session_context
-                .get_states()
+                .subjects()
                 .get("state_3")
                 .unwrap()
                 .try_read()
@@ -1136,7 +1149,7 @@ mod tests {
         );
         assert_eq!(
             session_context
-                .get_states()
+                .subjects()
                 .get("state_1")
                 .unwrap()
                 .try_read()
@@ -1185,7 +1198,7 @@ mod tests {
         // check the session context
         assert_eq!(
             session_context
-                .get_states()
+                .subjects()
                 .get("state_1")
                 .unwrap()
                 .try_read()
@@ -1196,7 +1209,7 @@ mod tests {
         ); // Originally 3
         assert_eq!(
             session_context
-                .get_states()
+                .subjects()
                 .get("state_1")
                 .unwrap()
                 .try_read()
@@ -1209,7 +1222,7 @@ mod tests {
         );
         assert_eq!(
             session_context
-                .get_states()
+                .subjects()
                 .get("state_2")
                 .unwrap()
                 .try_read()
@@ -1220,7 +1233,7 @@ mod tests {
         );
         assert_eq!(
             session_context
-                .get_states()
+                .subjects()
                 .get("state_3")
                 .unwrap()
                 .try_read()
@@ -1384,12 +1397,13 @@ mod tests {
             HashMap::<String, Arc<RuntimeEnv>>::new(),
             1,
             true,
+            make_store(&ObjectStorageBackend::default(), None, None)?
         );
 
         // Run and check the updated state
         session_context.tasks_subscribe()?;
         let table_reading = session_context
-            .get_states()
+            .subjects()
             .get("SessionTasksSubscribe")
             .unwrap()
             .read();
@@ -1588,12 +1602,13 @@ mod tests {
             HashMap::<String, Arc<RuntimeEnv>>::new(),
             1,
             true,
+            make_store(&ObjectStorageBackend::default(), None, None)?
         );
 
         // Run and check the updated state
         session_context.tasks_subscribe()?;
         let table_reading = session_context
-            .get_states()
+            .subjects()
             .get("SessionTasksSubscribe")
             .unwrap()
             .read();
@@ -1719,12 +1734,13 @@ mod tests {
             HashMap::<String, Arc<RuntimeEnv>>::new(),
             1,
             true,
+            make_store(&ObjectStorageBackend::default(), None, None)?
         );
 
         // Run and check the updated state
         session_context.tasks_subscribe()?;
         let table_reading = session_context
-            .get_states()
+            .subjects()
             .get("SessionTasksSubscribe")
             .unwrap()
             .read();
@@ -1866,6 +1882,7 @@ mod tests {
             HashMap::<String, Arc<RuntimeEnv>>::new(),
             1,
             true,
+            make_store(&ObjectStorageBackend::default(), None, None)?
         );
 
         // Run and check the updated state

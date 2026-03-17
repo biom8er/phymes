@@ -471,7 +471,7 @@ mod tests {
             // Test session context
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("StudySamplesMelt")
                 .unwrap()
                 .read();
@@ -486,7 +486,7 @@ mod tests {
             assert!(!column.is_empty());
 
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("SamplesVariablesMelt")
                 .unwrap()
                 .read();
@@ -630,7 +630,7 @@ mod tests {
             assert!(!column.is_empty());
 
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("StudyVariablesMelt")
                 .unwrap()
                 .read();

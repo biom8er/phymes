@@ -90,7 +90,7 @@ pub async fn session_put_state(
             let schema = if let Some(subject) = session_ctx_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(payload.get_subject())
             {
                 subject.try_read().unwrap().get_schema()
@@ -288,7 +288,7 @@ pub async fn session_get_state(
                             let buf = session_ctx_arc
                                 .try_read()
                                 .unwrap()
-                                .get_states()
+                                .subjects()
                                 .get(payload.get_subject())
                                 .unwrap()
                                 .try_read()
@@ -302,7 +302,7 @@ pub async fn session_get_state(
                             let out = session_ctx_arc
                                 .try_read()
                                 .unwrap()
-                                .get_states()
+                                .subjects()
                                 .get(payload.get_subject())
                                 .unwrap()
                                 .try_read()
@@ -318,7 +318,7 @@ pub async fn session_get_state(
                             let out = session_ctx_arc
                                 .try_read()
                                 .unwrap()
-                                .get_states()
+                                .subjects()
                                 .get(payload.get_subject())
                                 .unwrap()
                                 .try_read()
@@ -333,7 +333,7 @@ pub async fn session_get_state(
                             let out = session_ctx_arc
                                 .try_read()
                                 .unwrap()
-                                .get_states()
+                                .subjects()
                                 .get(payload.get_subject())
                                 .unwrap()
                                 .try_read()
@@ -348,7 +348,7 @@ pub async fn session_get_state(
                             let out = session_ctx_arc
                                 .try_read()
                                 .unwrap()
-                                .get_states()
+                                .subjects()
                                 .get(payload.get_subject())
                                 .unwrap()
                                 .try_read()

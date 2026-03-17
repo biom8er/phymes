@@ -334,7 +334,7 @@ pub trait SessionStreamStepTrait {
             // Check if there are tasks subscribe and publish available, and determine them if not
             if session_context
                 .read()
-                .get_states()
+                .subjects()
                 .get(
                     AvailableSubjects::SessionTasksSubscribePublish
                         .to_string()
@@ -410,7 +410,7 @@ pub trait SessionStreamStepTrait {
             // Clone the task
             let task = session_context
                 .read()
-                .get_tasks()
+                .tasks()
                 .get(task_name)
                 .unwrap_or_else(|| {
                     panic!(
@@ -436,7 +436,7 @@ pub trait SessionStreamStepTrait {
             match task.run(
                 diagnostic_builder.as_ref(),
                 processor_subjects_map,
-                session_context.read().get_states(),
+                session_context.read().subjects(),
             ) {
                 Ok(result) => {
                     for (resp_name, resp) in result.into_iter() {
@@ -773,7 +773,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_1")
                 .unwrap()
                 .try_read()
@@ -786,7 +786,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_1")
                 .unwrap()
                 .try_read()
@@ -801,7 +801,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_2")
                 .unwrap()
                 .try_read()
@@ -814,7 +814,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_3")
                 .unwrap()
                 .try_read()
@@ -827,7 +827,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -840,7 +840,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -853,7 +853,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -866,7 +866,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -879,7 +879,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -892,7 +892,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionEvents.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -905,7 +905,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTraces.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -918,7 +918,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -965,7 +965,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_1")
                 .unwrap()
                 .try_read()
@@ -978,7 +978,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_1")
                 .unwrap()
                 .try_read()
@@ -993,7 +993,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_2")
                 .unwrap()
                 .try_read()
@@ -1006,7 +1006,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_3")
                 .unwrap()
                 .try_read()
@@ -1019,7 +1019,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1032,7 +1032,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1045,7 +1045,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1058,7 +1058,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1071,7 +1071,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionEvents.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1084,7 +1084,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTraces.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1097,7 +1097,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1110,7 +1110,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1157,7 +1157,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_1")
                 .unwrap()
                 .try_read()
@@ -1170,7 +1170,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_1")
                 .unwrap()
                 .try_read()
@@ -1185,7 +1185,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_2")
                 .unwrap()
                 .try_read()
@@ -1198,7 +1198,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_3")
                 .unwrap()
                 .try_read()
@@ -1211,7 +1211,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1224,7 +1224,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1237,7 +1237,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1250,7 +1250,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1263,7 +1263,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionEvents.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1276,7 +1276,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTraces.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1289,7 +1289,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1302,7 +1302,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1492,7 +1492,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_1")
                 .unwrap()
                 .try_read()
@@ -1505,7 +1505,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_1")
                 .unwrap()
                 .try_read()
@@ -1520,7 +1520,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_2")
                 .unwrap()
                 .try_read()
@@ -1533,7 +1533,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_2")
                 .unwrap()
                 .try_read()
@@ -1548,7 +1548,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_3")
                 .unwrap()
                 .try_read()
@@ -1561,7 +1561,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_3")
                 .unwrap()
                 .try_read()
@@ -1576,7 +1576,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1589,7 +1589,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1602,7 +1602,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1615,7 +1615,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1628,7 +1628,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionEvents.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1641,7 +1641,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTraces.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1654,7 +1654,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1667,7 +1667,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1815,7 +1815,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_1")
                 .unwrap()
                 .try_read()
@@ -1828,7 +1828,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_1")
                 .unwrap()
                 .try_read()
@@ -1843,7 +1843,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_2")
                 .unwrap()
                 .try_read()
@@ -1856,7 +1856,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_2")
                 .unwrap()
                 .try_read()
@@ -1871,7 +1871,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_3")
                 .unwrap()
                 .try_read()
@@ -1884,7 +1884,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_3")
                 .unwrap()
                 .try_read()
@@ -1899,7 +1899,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1912,7 +1912,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1925,7 +1925,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1938,7 +1938,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1951,7 +1951,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionEvents.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1964,7 +1964,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTraces.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1977,7 +1977,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -1990,7 +1990,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2080,7 +2080,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_1")
                 .unwrap()
                 .try_read()
@@ -2093,7 +2093,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_1")
                 .unwrap()
                 .try_read()
@@ -2108,7 +2108,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2121,7 +2121,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2134,7 +2134,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2147,7 +2147,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2160,7 +2160,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionEvents.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2173,7 +2173,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTraces.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2186,7 +2186,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2199,7 +2199,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2265,7 +2265,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_1")
                 .unwrap()
                 .try_read()
@@ -2278,7 +2278,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get("state_1")
                 .unwrap()
                 .try_read()
@@ -2293,7 +2293,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2306,7 +2306,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2319,7 +2319,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2332,7 +2332,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2345,7 +2345,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2358,7 +2358,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2401,7 +2401,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2484,7 +2484,7 @@ mod tests {
             .with_tasks(task_plans)
             .with_processors(processors)
             .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
-            .with_state(state)
+            .with_subjects(state)
             .with_max_iter(1)
             .with_diagnostics(true)
             .add_next_tasks()?
@@ -2512,7 +2512,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2525,7 +2525,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2538,7 +2538,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2551,7 +2551,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2564,7 +2564,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionEvents.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2577,7 +2577,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTraces.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2590,7 +2590,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2601,7 +2601,7 @@ mod tests {
         );
         let session_reading = session_context_arc.read();
         let table_reading = session_reading
-            .get_states()
+            .subjects()
             .get(AvailableSubjects::SessionErrors.to_string().as_str())
             .unwrap()
             .read();
@@ -2611,7 +2611,7 @@ mod tests {
             session_context_arc
                 .try_read()
                 .unwrap()
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
                 .unwrap()
                 .try_read()
@@ -2622,7 +2622,7 @@ mod tests {
         );
         let session_reading = session_context_arc.read();
         let table_reading = session_reading
-            .get_states()
+            .subjects()
             .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
             .unwrap()
             .read();

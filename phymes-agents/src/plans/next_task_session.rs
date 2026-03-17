@@ -942,7 +942,7 @@ mod tests {
             // Extract out the subjects for the test
             let session_ctx_reading = session_context_arc.read();
             let table = session_ctx_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionProcessors.to_string().as_str())
                 .unwrap()
                 .read();
@@ -956,7 +956,7 @@ mod tests {
                 .make_name()?
                 .build()?;
             let table = session_ctx_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTasks.to_string().as_str())
                 .unwrap()
                 .read();
@@ -970,7 +970,7 @@ mod tests {
                 .make_name()?
                 .build()?;
             let table = session_ctx_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
                 .read();
@@ -984,7 +984,7 @@ mod tests {
                 .make_name()?
                 .build()?;
             let table = session_ctx_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
                 .read();
@@ -1022,7 +1022,7 @@ mod tests {
             // Test supserstep 1
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_tasks_run_log_timestamp_s")
                 .unwrap()
                 .read();
@@ -1034,7 +1034,7 @@ mod tests {
             }
 
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_processors_subscriptions_s")
                 .unwrap()
                 .read();
@@ -1122,7 +1122,7 @@ mod tests {
             assert_eq!(column, [1, 1, 1, 1, 1, 1, 1]);
 
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_processors_publications_s")
                 .unwrap()
                 .read();
@@ -1176,7 +1176,7 @@ mod tests {
             // Test supserstep 2
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("SessionTasksSubscribeAggregate")
                 .unwrap()
                 .read();
@@ -1289,7 +1289,7 @@ mod tests {
             // Test the tasks subscribe
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(
                     AvailableSubjects::SessionTasksSubscribe
                         .to_string()
@@ -1390,7 +1390,7 @@ mod tests {
             // Test supserstep 3
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(
                     AvailableSubjects::SessionTasksSubscribePublish
                         .to_string()

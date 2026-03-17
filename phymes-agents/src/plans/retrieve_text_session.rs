@@ -3867,7 +3867,7 @@ mod tests {
             // Test supsersteps
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(
                     AvailableInterfaceSubjects::ToolMessages
                         .to_string()
@@ -3888,7 +3888,7 @@ mod tests {
                 assert!(t > 0);
             }
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::EmbeddingScores.to_string().as_str())
                 .unwrap()
                 .read();

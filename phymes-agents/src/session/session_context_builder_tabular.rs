@@ -228,7 +228,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // Add the optional state
         if state.is_some() {
-            Ok(builder.with_state(state.take().unwrap()))
+            Ok(builder.with_subjects(state.take().unwrap()))
         } else {
             Ok(builder)
         }
@@ -236,7 +236,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
     fn get_subjects_as_table(&self, additional_tables: &[Table]) -> Result<Table> {
         // Check that the state exists
-        if self.state.is_none() {
+        if self.subjects.is_none() {
             return Err(anyhow!(
                 "Add state subjects before making the subject tables."
             ));
@@ -260,7 +260,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // Sort the hashmap
         let mut sorted_state = self
-            .state
+            .subjects
             .as_ref()
             .unwrap()
             .iter()
@@ -578,7 +578,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
     }
 
     fn get_subjects_num_rows_as_table(&self) -> Result<Table> {
-        if self.state.is_none() {
+        if self.subjects.is_none() {
             return Err(anyhow!(
                 "Add subjects before making the subjects num rows table."
             ));
@@ -587,7 +587,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // Create the table
         let exclusion_set = self.subjects_to_exclude()?;
         let (subject_names, num_rows): (Vec<String>, Vec<i64>) = self
-            .state
+            .subjects
             .as_ref()
             .unwrap()
             .iter()
@@ -607,7 +607,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
     }
 
     fn get_subjects_change_log_as_table(&self) -> Result<Table> {
-        if self.state.is_none() {
+        if self.subjects.is_none() {
             return Err(anyhow!(
                 "Add subjects before making the subjects change log table."
             ));
@@ -642,7 +642,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                     None
                 } else {
                     let subjects = self
-                        .state
+                        .subjects
                         .as_ref()
                         .unwrap()
                         .iter()
@@ -734,7 +734,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             state.push(table);
         }
 
-        Ok(self.with_state(state))
+        Ok(self.with_subjects(state))
     }
 
     fn with_tasks_as_tables(self, tasks: &Table) -> Result<Self>
@@ -930,7 +930,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 )?
                 .with_name(next_task_session.session_context_name)
                 .add_processor_subjects()?
-                .state
+                .subjects
                 .unwrap()
                 .into_iter()
                 .map(|t| t.get_name().to_string())
@@ -952,7 +952,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 )?
                 .with_name(next_superstep.session_context_name)
                 .add_processor_subjects()?
-                .state
+                .subjects
                 .unwrap()
                 .into_iter()
                 .map(|t| t.get_name().to_string())
@@ -979,7 +979,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 )?
                 .with_name(subjects_session.session_context_name)
                 .add_processor_subjects()?
-                .state
+                .subjects
                 .unwrap()
                 .into_iter()
                 .map(|t| t.get_name().to_string())
@@ -1232,7 +1232,7 @@ mod tests {
         let builder = make_test_session_context_builder_parallel_processors()
             .with_name("")
             .with_runtime_envs(runtime_envs)
-            .with_state(state);
+            .with_subjects(state);
 
         // Test to tables
         let tables = builder.to_arrow_tables(true, true, true, true, true)?;

@@ -382,7 +382,7 @@ mod tests {
             // Check the User subject
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::User.to_string().as_str())
                 .unwrap()
                 .read();
@@ -405,7 +405,7 @@ mod tests {
             // Check the Join subject
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(
                     AvailableSubjects::JoinUserInboxSessionContextsMermaid
                         .to_string()

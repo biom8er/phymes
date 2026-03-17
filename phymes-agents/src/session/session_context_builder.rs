@@ -1,21 +1,29 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
+use object_store::ObjectStore;
 use parking_lot::RwLock;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, RuntimeEnv, StateMap, Table,
-    TablePublication, TableSubscription, Task, TaskBuilderTrait, TaskMap, TaskPlan,
+    BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, ProcessorPlan, RuntimeEnv, SubjectsMap, Table, TablePublication, TableSubscription, Task, TaskBuilderTrait, TaskMap, TaskPlan, make_store
 };
 use phymes_diagnostics::{HashMap, HashSet};
 
 use crate::SessionContext;
 pub trait SessionContextBuilderTrait: BuilderTrait {
+    /// The [ProcessorPlan]s to include in the session
     fn with_processors(self, processors: Vec<ProcessorPlan>) -> Self;
-    fn with_state(self, state: Vec<Table>) -> Self;
+    /// The initial subject [Table]s to launch the session with
+    fn with_subjects(self, subjects: Vec<Table>) -> Self;
+    /// The [RuntimeEnv] configuration for session execution
     fn with_runtime_envs(self, runtime_envs: Vec<RuntimeEnv>) -> Self;
+    /// The [TaskPlan]s to include in the session
     fn with_tasks(self, tasks: Vec<TaskPlan>) -> Self;
+    /// The maximum iteration for the session
     fn with_max_iter(self, max_iter: usize) -> Self;
+    /// Whether to measure diagnostics during the session execution or not
     fn with_diagnostics(self, diagnostics: bool) -> Self;
+    /// In memory object store for caching results in memory
+    fn with_in_memory_object_store(self, store: Arc<dyn ObjectStore>) -> Self; 
     /// Check that the [TaskPlan] and `name are given
     fn check_tasks(&self) -> Result<()>;
     /// Check that all [ProcessorTrait]s defined in the [TaskPlan] are accounted for
@@ -30,24 +38,32 @@ pub trait SessionContextBuilderTrait: BuilderTrait {
     fn check_state(&self) -> Result<()>;
 }
 
-#[derive(Default, PartialEq, Debug)]
+#[derive(Default, Debug)]
 pub struct SessionContextBuilder {
     pub name: Option<String>,
     pub processors: Option<Vec<ProcessorPlan>>,
-    pub state: Option<Vec<Table>>,
+    pub subjects: Option<Vec<Table>>,
     pub runtime_envs: Option<Vec<RuntimeEnv>>,
     pub tasks: Option<Vec<TaskPlan>>,
     pub max_iter: Option<usize>,
     pub diagnostics: Option<bool>,
+    pub store: Option<Arc<dyn ObjectStore>>,
+}
+
+impl PartialEq for SessionContextBuilder {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.processors == other.processors && self.subjects == other.subjects && self.runtime_envs == other.runtime_envs && self.tasks == other.tasks && self.max_iter == other.max_iter && self.diagnostics == other.diagnostics // DM: ignore `store`
+    }
 }
 
 type SessionContextInput = (
     String,
     TaskMap,
-    StateMap,
+    SubjectsMap,
     HashMap<String, Arc<RuntimeEnv>>,
     usize,
     bool,
+    Arc<dyn ObjectStore>,
 );
 
 impl SessionContextBuilder {
@@ -172,7 +188,7 @@ impl SessionContextBuilder {
             .collect::<HashMap<String, Arc<RuntimeEnv>>>();
 
         let state_map = self
-            .state
+            .subjects
             .take()
             .unwrap()
             .into_iter()
@@ -213,6 +229,7 @@ impl SessionContextBuilder {
 
         let name = self.name.unwrap();
         let max_iter = self.max_iter.unwrap_or(25);
+        let store = self.store.unwrap_or(make_store(&ObjectStorageBackend::default(), None, None).unwrap());
         Ok((
             name,
             task_map,
@@ -220,14 +237,15 @@ impl SessionContextBuilder {
             runtime_env_map,
             max_iter,
             self.diagnostics.unwrap_or_default(),
+            store
         ))
     }
 
     /// Extend a session with another
     pub fn extend(mut self, other: SessionContextBuilder) -> Result<Self> {
         // Extend the state
-        let other_state = if let Some(state) = self.state.as_ref() {
-            if let Some(other) = other.state {
+        let other_state = if let Some(state) = self.subjects.as_ref() {
+            if let Some(other) = other.subjects {
                 let names = state.iter().map(|t| t.get_name()).collect::<HashSet<_>>();
                 other
                     .into_iter()
@@ -239,10 +257,10 @@ impl SessionContextBuilder {
         } else {
             Vec::new()
         };
-        if let Some(state) = self.state.as_mut() {
+        if let Some(state) = self.subjects.as_mut() {
             state.extend(other_state);
         } else if !other_state.is_empty() {
-            self.state.replace(other_state);
+            self.subjects.replace(other_state);
         }
 
         // Extend the processors
@@ -321,11 +339,12 @@ impl BuilderTrait for SessionContextBuilder {
         Self {
             name: None,
             processors: None,
-            state: None,
+            subjects: None,
             runtime_envs: None,
             tasks: None,
             max_iter: None,
             diagnostics: None,
+            store: None,
         }
     }
 
@@ -342,16 +361,17 @@ impl BuilderTrait for SessionContextBuilder {
         self.check_state()?;
 
         // build the tasks, state, metrics, and runtime objects
-        let (name, tasks, state, runtime_envs, max_iter, diagnostics) = self.build_inner()?;
+        let (name, tasks, state, runtime_envs, max_iter, diagnostics, store) = self.build_inner()?;
 
         // ready to build the session
         Ok(Self::T {
             name,
             tasks,
-            state,
+            subjects: state,
             runtime_envs,
             max_iter,
             diagnostics,
+            store
         })
     }
 }
@@ -361,8 +381,8 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
         self.processors = Some(processors);
         self
     }
-    fn with_state(mut self, state: Vec<Table>) -> Self {
-        self.state = Some(state);
+    fn with_subjects(mut self, state: Vec<Table>) -> Self {
+        self.subjects = Some(state);
         self
     }
     fn with_runtime_envs(mut self, runtime_envs: Vec<RuntimeEnv>) -> Self {
@@ -379,6 +399,10 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
     }
     fn with_diagnostics(mut self, diagnostics: bool) -> Self {
         self.diagnostics = Some(diagnostics);
+        self
+    }
+    fn with_in_memory_object_store(mut self, store: Arc<dyn ObjectStore>) -> Self {
+        self.store = Some(store);
         self
     }
     fn check_tasks(&self) -> Result<()> {
@@ -450,14 +474,14 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
         Ok(())
     }
     fn check_state(&self) -> Result<()> {
-        if self.state.is_none() {
+        if self.subjects.is_none() {
             return Err(anyhow!(
                 "Please add state before attempting to build the session."
             ));
         }
 
         let state_names = self
-            .state
+            .subjects
             .as_ref()
             .unwrap()
             .iter()
@@ -670,7 +694,7 @@ pub mod test_session_context_builder {
         let builder = make_test_session_context_builder_parallel_processors()
             .with_name(name)
             .with_runtime_envs(runtime_envs)
-            .with_state(state)
+            .with_subjects(state)
             .with_max_iter(max_iter);
 
         Ok(builder)
@@ -691,7 +715,7 @@ pub mod test_session_context_builder {
         let builder = make_test_session_context_builder_parallel_processors()
             .with_name(name)
             .with_runtime_envs(runtime_envs)
-            .with_state(state)
+            .with_subjects(state)
             .with_max_iter(max_iter);
 
         Ok(builder)
@@ -712,7 +736,7 @@ pub mod test_session_context_builder {
         let builder = make_test_session_context_builder_sequential_processors()
             .with_name(name)
             .with_runtime_envs(runtime_envs)
-            .with_state(state)
+            .with_subjects(state)
             .with_max_iter(max_iter);
 
         Ok(builder)
@@ -842,7 +866,7 @@ mod tests {
             .with_processors(processor_plans)
             .with_name("other")
             .with_runtime_envs(runtime_envs)
-            .with_state(state)
+            .with_subjects(state)
             .with_max_iter(1)
             .with_diagnostics(false);
         let plan = test_session_context_builder::make_test_session_context_builder_parallel(
@@ -879,7 +903,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(names, ["rt_1", "rt_4"]);
         let names = plan
-            .state
+            .subjects
             .unwrap()
             .into_iter()
             .map(|t| t.get_name().to_string())
@@ -909,8 +933,8 @@ mod tests {
         )?
         .with_diagnostics(true)
         .build()?;
-        assert_eq!(session.get_states().len(), 6);
-        assert_eq!(session.get_tasks().len(), 3);
+        assert_eq!(session.subjects().len(), 6);
+        assert_eq!(session.tasks().len(), 3);
         assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_iter(), 10);
         assert!(session.get_diagnostics());
@@ -1100,7 +1124,7 @@ mod tests {
             test_session_context_builder::make_test_session_context_builder_parallel_processors()
                 .with_name("session_1")
                 .with_runtime_envs(vec![make_runtime_env("rt_1")?])
-                .with_state(make_state_tables("state_1", "processor_1")?)
+                .with_subjects(make_state_tables("state_1", "processor_1")?)
                 .build();
         match result {
             Ok(_) => panic!("Should have failed"),
@@ -1118,7 +1142,7 @@ mod tests {
             test_session_context_builder::make_test_session_context_builder_parallel_processors()
                 .with_name("session_1")
                 .with_runtime_envs(vec![make_runtime_env("rt_1")?])
-                .with_state(state)
+                .with_subjects(state)
                 .build();
         match result {
             Ok(_) => panic!("Should have failed"),

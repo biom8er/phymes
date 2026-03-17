@@ -377,7 +377,7 @@ mod tests {
                 // Test supsersteps
                 let session_reading = session_ctx_arc.read();
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get(AvailableInterfaceSubjects::UserQueries.to_string().as_str())
                     .unwrap()
                     .read();
@@ -405,7 +405,7 @@ mod tests {
                 // Test supsersteps
                 let session_reading = session_ctx_arc.read();
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get(AvailableSubjects::QueryEmbeddings.to_string().as_str())
                     .unwrap()
                     .read();
@@ -420,7 +420,7 @@ mod tests {
                 #[cfg(not(feature = "hf_hub"))]
                 assert_eq!(column.first().unwrap().len(), 384);
                 let table_reading = session_reading
-                    .get_states()
+                    .subjects()
                     .get(AvailableSubjects::DocumentEmbeddings.to_string().as_str())
                     .unwrap()
                     .read();

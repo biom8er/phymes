@@ -929,7 +929,7 @@ mod tests {
                 // Debug errors
                 let subjects_reading = session_ctx_arc.read();
                 let table_reading = subjects_reading
-                    .get_states()
+                    .subjects()
                     .get(AvailableSubjects::SessionErrors.to_string().as_str())
                     .unwrap()
                     .read();

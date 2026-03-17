@@ -109,7 +109,7 @@ pub async fn session_diagnostics(
                 };
                 let sss = session_ctx_arc.read();
                 let table = sss
-                    .get_states()
+                    .subjects()
                     .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                     .unwrap()
                     .read();
@@ -125,7 +125,7 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let table = sss
-                    .get_states()
+                    .subjects()
                     .get(AvailableSubjects::SessionTraces.to_string().as_str())
                     .unwrap()
                     .read();
@@ -141,7 +141,7 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let table = sss
-                    .get_states()
+                    .subjects()
                     .get(AvailableSubjects::SessionEvents.to_string().as_str())
                     .unwrap()
                     .read();
@@ -157,7 +157,7 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let table = sss
-                    .get_states()
+                    .subjects()
                     .get(AvailableSubjects::SessionTasks.to_string().as_str())
                     .unwrap()
                     .read();
@@ -173,7 +173,7 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let table = sss
-                    .get_states()
+                    .subjects()
                     .get(AvailableSubjects::SessionErrors.to_string().as_str())
                     .unwrap()
                     .read();

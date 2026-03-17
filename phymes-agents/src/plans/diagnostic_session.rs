@@ -1904,7 +1904,7 @@ mod tests {
         // Extract the subjects
         let usss = session_context_arc.read();
         let table = usss
-            .get_states()
+            .subjects()
             .get(AvailableSubjects::SessionMetrics.to_string().as_str())
             .unwrap()
             .read();
@@ -1918,7 +1918,7 @@ mod tests {
             .make_name()?
             .build()?;
         let table = usss
-            .get_states()
+            .subjects()
             .get(AvailableSubjects::SessionTraces.to_string().as_str())
             .unwrap()
             .read();
@@ -1932,7 +1932,7 @@ mod tests {
             .make_name()?
             .build()?;
         let table = usss
-            .get_states()
+            .subjects()
             .get(AvailableSubjects::SessionEvents.to_string().as_str())
             .unwrap()
             .read();
@@ -1946,7 +1946,7 @@ mod tests {
             .make_name()?
             .build()?;
         let table = usss
-            .get_states()
+            .subjects()
             .get(AvailableSubjects::SessionTasks.to_string().as_str())
             .unwrap()
             .read();
@@ -1960,7 +1960,7 @@ mod tests {
             .make_name()?
             .build()?;
         let table = usss
-            .get_states()
+            .subjects()
             .get(AvailableSubjects::SessionErrors.to_string().as_str())
             .unwrap()
             .read();
@@ -2037,7 +2037,7 @@ mod tests {
             // Check the session
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2093,7 +2093,7 @@ mod tests {
             );
 
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2144,7 +2144,7 @@ mod tests {
             // Check the session
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2203,7 +2203,7 @@ mod tests {
             );
 
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2251,7 +2251,7 @@ mod tests {
             // Check the session
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2316,7 +2316,7 @@ mod tests {
             );
 
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2382,7 +2382,7 @@ mod tests {
             // Check the session
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2441,7 +2441,7 @@ mod tests {
             );
 
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2489,7 +2489,7 @@ mod tests {
             // Check the session
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2528,7 +2528,7 @@ mod tests {
             );
 
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2574,7 +2574,7 @@ mod tests {
             // Check the session
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2613,7 +2613,7 @@ mod tests {
             );
 
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2652,7 +2652,7 @@ mod tests {
             // Check the session
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2683,7 +2683,7 @@ mod tests {
             assert_eq!(combined, []);
 
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .unwrap()
                 .read();
@@ -2922,7 +2922,7 @@ mod tests {
             // Check the session
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(
                     DiagnosticsVisualizations::MetricProcessorTracesGantt
                         .to_string()
@@ -2944,7 +2944,7 @@ mod tests {
             let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
             assert_eq!(&column[..15], "\n        gantt\n");
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(
                     DiagnosticsVisualizations::MetricElapsedComputeGantt
                         .to_string()
@@ -2966,7 +2966,7 @@ mod tests {
             let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
             assert_eq!(&column[..15], "\n        gantt\n");
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(
                     DiagnosticsVisualizations::MetricOutputRowsGantt
                         .to_string()
@@ -2988,7 +2988,7 @@ mod tests {
             let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
             assert_eq!(&column[..15], "\n        gantt\n");
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(
                     DiagnosticsVisualizations::TraceSequenceDiagram
                         .to_string()
@@ -3010,7 +3010,7 @@ mod tests {
             let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
             assert_eq!(&column[..25], "\n        sequenceDiagram\n");
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(DiagnosticsVisualizations::EventKanban.to_string().as_str())
                 .unwrap()
                 .read();

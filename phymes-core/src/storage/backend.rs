@@ -6,7 +6,6 @@ use object_store::{ObjectStore, local::LocalFileSystem, memory::InMemory};
 use object_store::{
     aws::{AmazonS3Builder, AmazonS3ConfigKey}, azure::MicrosoftAzureBuilder, gcp::GoogleCloudStorageBuilder,
 };
-use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::{fmt::Display, sync::Arc, str::FromStr};

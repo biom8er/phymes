@@ -442,7 +442,7 @@ mod tests {
             let session_reading = session_ctx_arc.read();
 
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_processors_subscriptions_s")
                 .unwrap()
                 .read();
@@ -638,7 +638,7 @@ mod tests {
             );
 
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_processors_publications_s")
                 .unwrap()
                 .read();
@@ -735,7 +735,7 @@ mod tests {
             let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
             assert_eq!(column, [0, 0, 0, 0, 0, 0, 0, 0, 0]);
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_processors_subscriptions_aggregated_s")
                 .unwrap()
                 .read();
@@ -848,7 +848,7 @@ mod tests {
             );
 
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_processors_publications_aggregated_s")
                 .unwrap()
                 .read();
@@ -926,7 +926,7 @@ mod tests {
             );
 
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("select_tasks_processors_subscriptions_publications_aggregated_s")
                 .unwrap()
                 .read();
@@ -1081,7 +1081,7 @@ mod tests {
             );
 
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(
                     AvailableSubjects::SessionTasksSubscribePublish
                         .to_string()
@@ -1091,7 +1091,7 @@ mod tests {
                 .read();
             assert_eq!(table_reading.count_rows(), 0);
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .read();

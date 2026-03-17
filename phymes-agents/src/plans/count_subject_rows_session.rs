@@ -153,7 +153,7 @@ mod tests {
             // Extract out the subjects for the test
             let session_ctx_reading = session_context_arc.read();
             let table = session_ctx_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .unwrap()
                 .read();
@@ -179,7 +179,7 @@ mod tests {
             // Test session stream
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
                 .unwrap()
                 .read();

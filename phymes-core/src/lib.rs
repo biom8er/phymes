@@ -62,7 +62,7 @@ pub use table::{
     AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, CsvFormat, DataEncoding, DataFormat,
     IPCRecordBatchStream, JsonFormat, RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder,
     RecordBatchStream, RecordBatchStreamAdapter, SendableIPCRecordBatchStream,
-    SendableRecordBatchStream, StateMap, Table, TableBuilder, TableBuilderTrait,
+    SendableRecordBatchStream, SubjectsMap, Table, TableBuilder, TableBuilderTrait,
     TableChangedSinceLastRunUpdate, TableExistsUpdate, TableHasBatchesUpdate, TablePublication,
     TablePublicationTrait, TableScript, TableSubscribePolicyTrait, TableSubscription,
     TableSubscriptionTrait, TableTrait, TableUpdatePolicyTrait, from_data_type_to_str,

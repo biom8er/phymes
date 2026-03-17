@@ -217,7 +217,7 @@ mod tests {
             // Test supserstep 1
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionSuperstepMax.to_string().as_str())
                 .unwrap()
                 .read();

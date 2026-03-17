@@ -1,7 +1,7 @@
 use phymes_diagnostics::HashMap;
 use std::fmt::Debug;
 
-use crate::{MappableTrait, StateMap, Table, TableSubscription, TableTrait};
+use crate::{MappableTrait, SubjectsMap, Table, TableSubscription, TableTrait};
 
 /// Determine when all subscriptions are ready
 pub trait TableSubscribePolicyTrait: MappableTrait + Debug + Send + Sync {
@@ -15,7 +15,7 @@ pub trait TableSubscribePolicyTrait: MappableTrait + Debug + Send + Sync {
         &self,
         subscriptions: &[TableSubscription],
         updates: &HashMap<String, bool>,
-        state: &StateMap,
+        state: &SubjectsMap,
     ) -> bool;
     fn new_box() -> Box<dyn TableSubscribePolicyTrait>
     where
@@ -32,7 +32,7 @@ impl TableSubscribePolicyTrait for AlwaysSubscribe {
         &self,
         _subscriptions: &[TableSubscription],
         _updates: &HashMap<String, bool>,
-        _state: &StateMap,
+        _state: &SubjectsMap,
     ) -> bool {
         true
     }
@@ -65,7 +65,7 @@ impl TableSubscribePolicyTrait for AnyTableNameSubscribe {
         &self,
         subscriptions: &[TableSubscription],
         updates: &HashMap<String, bool>,
-        _state: &StateMap,
+        _state: &SubjectsMap,
     ) -> bool {
         let mut is_update_count: usize = 0;
         for subscription in subscriptions.iter() {
@@ -104,7 +104,7 @@ impl TableSubscribePolicyTrait for AllTableNamesSubscribe {
         &self,
         subscriptions: &[TableSubscription],
         updates: &HashMap<String, bool>,
-        _state: &StateMap,
+        _state: &SubjectsMap,
     ) -> bool {
         for subscription in subscriptions.iter() {
             if subscription.is_update()
@@ -141,7 +141,7 @@ impl TableSubscribePolicyTrait for AnyTableSchemaSubscribe {
         &self,
         subscriptions: &[TableSubscription],
         updates: &HashMap<String, bool>,
-        state: &StateMap,
+        state: &SubjectsMap,
     ) -> bool {
         let mut is_update_count: usize = 0;
         for subscription in subscriptions.iter() {
@@ -195,7 +195,7 @@ impl TableSubscribePolicyTrait for AllTableSchemasSubscribe {
         &self,
         subscriptions: &[TableSubscription],
         updates: &HashMap<String, bool>,
-        state: &StateMap,
+        state: &SubjectsMap,
     ) -> bool {
         for subscription in subscriptions.iter() {
             if subscription.is_update() {
@@ -266,7 +266,7 @@ impl TableSubscribePolicyTrait for ChatContentSubscribe {
         &self,
         _subscriptions: &[TableSubscription],
         updates: &HashMap<String, bool>,
-        _state: &StateMap,
+        _state: &SubjectsMap,
     ) -> bool {
         // DM: default to false to prevent unwanted subscriptions
         let user = updates.get(&self.user_message_table_name).unwrap_or(&false);
@@ -310,7 +310,7 @@ pub(crate) mod test_subscribe_policy {
     use super::*;
 
     #[allow(dead_code)]
-    pub fn make_test_state() -> StateMap {
+    pub fn make_test_state() -> SubjectsMap {
         let mut state = HashMap::<String, Arc<RwLock<Table>>>::new();
         state.insert(
             "t1".to_string(),

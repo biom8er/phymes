@@ -3,7 +3,7 @@ use phymes_diagnostics::HashMap;
 
 use crate::{
     BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, StateMap,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, SubjectsMap,
     TablePublication, TableSubscription, TableSubscriptionTrait,
     message::SendableRecordBatchStreamMessageBuilderMap, remove_message_by_subject,
 };
@@ -28,7 +28,7 @@ use crate::{
 pub fn subscribe_to_subject(
     subscriptions: &[TableSubscription],
     publications: &[TablePublication],
-    subjects: &StateMap,
+    subjects: &SubjectsMap,
     messages: &mut SendableRecordBatchStreamMessageMap,
 ) -> Result<SendableRecordBatchStreamMessageMap> {
     let mut map = HashMap::<String, SendableRecordBatchStreamMessage>::new();

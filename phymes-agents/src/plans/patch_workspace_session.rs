@@ -241,13 +241,13 @@ pub use todo::Todo"#,
             // Debug any errors
             let subjects_reading = session_ctx_arc.read();
             let table_reading = subjects_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionErrors.to_string().as_str())
                 .unwrap()
                 .read();
             println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
             let table_reading = subjects_reading
-                .get_states()
+                .subjects()
                 .get(AvailableSubjects::SessionTraces.to_string().as_str())
                 .unwrap()
                 .read();
@@ -260,7 +260,7 @@ pub use todo::Todo"#,
             // Test supsersteps
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("apply_patch_s")
                 .unwrap()
                 .read();
@@ -453,7 +453,7 @@ pub use todo::Todo"#,
             // Test supsersteps
             let session_reading = session_ctx_arc.read();
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get("apply_patch_s")
                 .unwrap()
                 .read();

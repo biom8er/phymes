@@ -3,11 +3,12 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::Schema};
 use clap::ValueEnum;
+use object_store::ObjectStore;
 use parking_lot::RwLock;
 use phymes_core::{
     AvailableSchemaTrait, AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait,
     BuilderTrait, MappableTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait,
-    StateMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap,
+    SubjectsMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap,
     TaskPlan, create_bytes_fields, create_values_fields,
 };
 use phymes_data::{AvailableCandleOperators, DataConfig, DataConfigTrait, LimitConfig, device};
@@ -26,10 +27,11 @@ use crate::{
 type SessionContextInput = (
     String,
     TaskMap,
-    StateMap,
+    SubjectsMap,
     HashMap<String, Arc<RuntimeEnv>>,
     usize,
     bool,
+    Arc<dyn ObjectStore>,
     Vec<Table>,
 );
 
@@ -123,7 +125,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         self.check_processor_config_builds()?;
 
         // build the tasks, state, and runtime objects
-        let (name, tasks, mut state, runtime_envs, max_iter, diagnostics, tables) =
+        let (name, tasks, mut state, runtime_envs, max_iter, diagnostics, store, tables) =
             self.build_inner_with_tables()?;
 
         // update the state with the schema tables
@@ -139,11 +141,13 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             runtime_envs,
             max_iter,
             diagnostics,
+            store
         ))
     }
+
     fn build_inner_with_tables(self) -> Result<SessionContextInput> {
         let tables = self.to_arrow_tables(true, true, true, true, true)?;
-        let (name, tasks, state, runtime_envs, max_iter, diagnostics) = self.build_inner()?;
+        let (name, tasks, state, runtime_envs, max_iter, diagnostics, store) = self.build_inner()?;
         Ok((
             name,
             tasks,
@@ -151,12 +155,14 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             runtime_envs,
             max_iter,
             diagnostics,
+            store,
             tables,
         ))
     }
+
     fn check_data_config_subjects(&self) -> Result<()> {
         let state_map = self
-            .state
+            .subjects
             .as_ref()
             .unwrap()
             .iter()
@@ -512,7 +518,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
     }
     fn check_processor_config_builds(&self) -> Result<()> {
         let state_map = self
-            .state
+            .subjects
             .as_ref()
             .unwrap()
             .iter()
@@ -888,9 +894,9 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         let subjects = processors_to_update
             .iter()
             .filter_map(|p| {
-                if self.state.is_some()
+                if self.subjects.is_some()
                     && self
-                        .state
+                        .subjects
                         .as_ref()
                         .unwrap()
                         .iter()
@@ -919,9 +925,9 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
         // Remake the state
         if !subjects.is_empty() {
-            let mut state = self.state.take().unwrap_or_default();
+            let mut state = self.subjects.take().unwrap_or_default();
             state.extend(subjects);
-            self.state.replace(state);
+            self.subjects.replace(state);
         }
 
         // Add empty tables for all subjects missing in the state with a schema if found
@@ -929,9 +935,9 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .get_subject_names_from_processors()
             .iter()
             .filter_map(|s| {
-                if self.state.is_some()
+                if self.subjects.is_some()
                     && self
-                        .state
+                        .subjects
                         .as_ref()
                         .unwrap()
                         .iter()
@@ -965,9 +971,9 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
         // Remake the state
         if !subjects.is_empty() {
-            let mut state = self.state.take().unwrap_or_default();
+            let mut state = self.subjects.take().unwrap_or_default();
             state.extend(subjects);
-            self.state.replace(state);
+            self.subjects.replace(state);
         }
 
         // Remake the processors (consuming the update)
@@ -1011,7 +1017,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 "Add a name for the session before making the session interface."
             ));
         }
-        if self.state.is_none() {
+        if self.subjects.is_none() {
             return Err(anyhow!(
                 "Add state for the session before making the session interface."
             ));
@@ -1048,7 +1054,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
-        if let Some(state) = self.state.as_ref() {
+        if let Some(state) = self.subjects.as_ref() {
             for table in state.iter() {
                 if let Ok(subject) = AvailableInterfaceSubjects::from_str(table.get_name(), false) {
                     // DM: Leave the option for AvailableInterfaceSubjects to be both subscriptions and publications
@@ -1182,7 +1188,7 @@ pub trait CustomAgentsBuilderTrait {
             builder = builder.with_runtime_envs(runtime_envs);
         }
         if let Some(state_tables) = self.make_state_tables() {
-            builder = builder.with_state(state_tables);
+            builder = builder.with_subjects(state_tables);
         }
         builder
     }
@@ -1325,7 +1331,7 @@ pub mod test_session_context_builder_agents {
             .with_tasks(make_test_session_context_builder_parallel_tasks())
             .with_processors(processor_plans)
             .with_runtime_envs(vec![make_runtime_env("rt_1")?])
-            .with_state(state)
+            .with_subjects(state)
             .with_diagnostics(true);
         Ok(builder)
     }
@@ -1344,8 +1350,8 @@ mod tests {
         let session =
             test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
                 .build_with_tables()?;
-        assert_eq!(session.get_states().len(), 18);
-        assert_eq!(session.get_tasks().len(), 3);
+        assert_eq!(session.subjects().len(), 18);
+        assert_eq!(session.tasks().len(), 3);
         assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_iter(), 25);
         assert!(session.get_diagnostics());
@@ -1358,14 +1364,14 @@ mod tests {
             test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
                 .add_session_interface(Some(&["state_1"]))?
                 .build_with_tables()?;
-        assert_eq!(session.get_states().len(), 18);
-        assert_eq!(session.get_tasks().len(), 4);
+        assert_eq!(session.subjects().len(), 18);
+        assert_eq!(session.tasks().len(), 4);
         assert_eq!(
-            session.get_tasks().get("session_1").unwrap().get_name(),
+            session.tasks().get("session_1").unwrap().get_name(),
             "session_1"
         );
         let test = session
-            .get_tasks()
+            .tasks()
             .get("session_1")
             .unwrap()
             .get_processors()
@@ -1374,7 +1380,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(test, ["session_1"]);
         let test = session
-            .get_tasks()
+            .tasks()
             .get("session_1")
             .unwrap()
             .get_runtime_env();
@@ -1438,7 +1444,7 @@ mod tests {
             .with_processors(processor_plans)
             .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
             .with_diagnostics(true)
-            .with_state(state.clone())
+            .with_subjects(state.clone())
             .build_with_tables();
         match result {
             Ok(_) => panic!("Should have failed"),
@@ -1471,11 +1477,11 @@ mod tests {
             .with_processors(processor_plans)
             .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
             .with_diagnostics(true)
-            .with_state(state.clone())
+            .with_subjects(state.clone())
             .add_processor_subjects()?
             .build_with_tables()?;
-        assert_eq!(session.get_states().len(), 19);
-        assert_eq!(session.get_tasks().len(), 4);
+        assert_eq!(session.subjects().len(), 19);
+        assert_eq!(session.tasks().len(), 4);
         assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_iter(), 25);
         Ok(())
@@ -1511,7 +1517,7 @@ mod tests {
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
-            .with_state(state_test)
+            .with_subjects(state_test)
             .with_diagnostics(true)
             .build_with_tables();
         match result {
@@ -1551,7 +1557,7 @@ mod tests {
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
-            .with_state(state_test)
+            .with_subjects(state_test)
             .with_diagnostics(true)
             .build_with_tables();
         match result {
@@ -1592,7 +1598,7 @@ mod tests {
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
-            .with_state(state_test)
+            .with_subjects(state_test)
             .with_diagnostics(true)
             .build_with_tables();
         match result {
@@ -1633,7 +1639,7 @@ mod tests {
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
-            .with_state(state_test)
+            .with_subjects(state_test)
             .with_diagnostics(true)
             .build_with_tables();
         match result {
@@ -1670,7 +1676,7 @@ mod tests {
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
-            .with_state(state_test)
+            .with_subjects(state_test)
             .with_diagnostics(true)
             .build_with_tables();
         match result {
@@ -1707,7 +1713,7 @@ mod tests {
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
             .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
-            .with_state(state_test)
+            .with_subjects(state_test)
             .with_diagnostics(true)
             .build_with_tables();
         match result {

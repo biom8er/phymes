@@ -176,7 +176,7 @@ mod tests {
             let session_reading = session_ctx_arc.read();
 
             let table_reading = session_reading
-                .get_states()
+                .subjects()
                 .get(
                     AvailableInterfaceSubjects::ToolMessages
                         .to_string()

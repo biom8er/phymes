@@ -44,4 +44,4 @@ use phymes_diagnostics::HashMap;
 use std::sync::Arc;
 
 /// Table HashMap with Arc/RwLock for thread-safe multiple reads
-pub type StateMap = HashMap<String, Arc<RwLock<Table>>>;
+pub type SubjectsMap = HashMap<String, Arc<RwLock<Table>>>;
