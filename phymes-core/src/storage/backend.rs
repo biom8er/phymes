@@ -11,7 +11,7 @@ use serde_json::{Map, Value};
 use std::{fmt::Display, sync::Arc, str::FromStr};
 
 
-#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default, PartialEq)]
 pub enum ObjectStorageBackend {
     #[cfg(feature = "api")]
     #[value(name = "Aws")]

@@ -4,6 +4,7 @@ mod processor;
 mod runtime_env;
 mod schemas;
 mod storage;
+mod subject;
 mod table;
 mod task;
 pub use message::{
@@ -58,6 +59,7 @@ pub use storage::{
     IpcReader, JsonReader, CsvReader, StorageReaderTrait, StorageStreamReaderTrait, storage_reader_get_result, storage_reader_stream_result,
     IpcWriter, JsonWriter, CsvWriter, StorageWriterTrait, StorageStreamWriterTrait, storage_writer_multipart
 };
+pub use subject::{SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlan, SubjectPlanTrait};
 pub use table::{
     AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, CsvFormat, DataEncoding, DataFormat,
     IPCRecordBatchStream, JsonFormat, RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder,
