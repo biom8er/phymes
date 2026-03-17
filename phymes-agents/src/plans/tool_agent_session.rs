@@ -653,6 +653,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             format: Some(DataFormat::CsvDefault),
             schema: Some(AvailableSubjects::Empty), //DM: not used for CSV
             operator: AvailableCandleOperators::ExtractTabular,
+            encoding: Some(DataEncoding::None),
             ..Default::default()
         };
         let extract_tabular_data_config_json =

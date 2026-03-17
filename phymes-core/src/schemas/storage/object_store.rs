@@ -11,9 +11,9 @@ use serde::{Deserialize, Serialize};
 ///
 /// # Notes
 /// ## Location components (AWS)
-/// - protocol: "https" of "https://<bucket-name>.s3.amazonaws.com/<key>"
-/// - endpoint: "s3.amazonaws.com" of "https://<bucket-name>.s3.amazonaws.com/<key>"
-/// - bucket:
+/// - protocol: "https" of "https://<bucket-name>.s3.amazonaws.com/<key>" or "https://s3.amazonaws.com/<bucket-name>/<key>"
+/// - endpoint: "s3.amazonaws.com" of "https://<bucket-name>.s3.amazonaws.com/<key>" or "https://s3.amazonaws.com/<bucket-name>/<key>"
+/// - bucket: root folder on the filesystem
 /// - key: filesystem path
 /// 
 /// ## Location components (filesystem)

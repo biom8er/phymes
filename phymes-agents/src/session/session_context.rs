@@ -383,6 +383,9 @@ impl SessionContext {
     /// # Notes
     /// * See schema at [AvailableSubjects::SessionTasksSubscribePublish]
     /// * The columns are taken to prevent infinite loops of the same tasks
+    /// 
+    /// # Todo
+    /// * Update the schema to include the backend, bucket, and additional storage config information
     pub fn tasks_subscribe_publish(
         &self,
     ) -> Result<HashMap<(String, String), ProcessorSubjectsMap>> {

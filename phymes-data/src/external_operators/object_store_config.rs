@@ -149,11 +149,10 @@ impl DataConfigTrait for ObjectStoreConfig {
             .collect::<HashSet<_>>();
         if !(column_names.contains("timeout")
             && column_names.contains("ops_type")
-            && column_names.contains("backend")
-            && column_names.contains("bucket"))
+            && column_names.contains("backend"))
         {
             return Err(anyhow!(
-                "Table {} is missing required Field for `timeout`, `ops_type`, `backend`, and `bucket` in ObjectStoreConfig.",
+                "Table {} is missing required Field for `timeout`, `ops_type`, and `bucket` in ObjectStoreConfig.",
                 table.get_name()
             ));
         }

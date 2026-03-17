@@ -323,6 +323,7 @@ impl<'a> MeltStudyDataSession<'a> {
 	    Utf8 lhs_name "UserCsv"
 	    List-Utf8 lhs_values "['bytes']"
 	    Utf8 operator "ExtractTabular"
+        Utf8 encoding "None"
 	    Utf8 lhs_stream "Accumulate"
 	}}"#,
             self.cast_templates_columns()?,

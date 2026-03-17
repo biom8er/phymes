@@ -5,15 +5,15 @@ use std::{
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use bytes::Bytes;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use futures::{FutureExt, Stream, StreamExt};
 use object_store::{GetOptions, GetResult, MultipartUpload, ObjectMeta, ObjectStore, ObjectStoreExt, PutOptions, PutPayload, PutResult, WriteMultipart, path::Path};
 use parking_lot::Mutex;
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, ChunkedWriter, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, ObjectStorageReader, ObjectStorageWriter, OnChunk, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait, create_attachments_batch, create_bytes_fields, create_chat_record_batch, create_object_store_batch, create_object_store_meta_batch, create_values_fields, make_store, remove_message_by_subject, storage_reader_get_result, storage_reader_stream_result, storage_writer_multipart
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, ChunkedWriter, MappableTrait, MessageBuilderTrait, MessageTrait, OnChunk, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait, create_bytes_fields, create_object_store_batch, create_object_store_meta_batch, create_values_fields, make_store, remove_message_by_subject,
 };
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait,
 };
 use serde_json::{Map, Value, json};
 
@@ -668,7 +668,7 @@ mod tests {
     use super::*;
     use futures::TryStreamExt;
     use phymes_core::{
-        RuntimeEnvTrait, TableBuilder, TablePublication, test_table,
+        ObjectStorageBackend, RuntimeEnvTrait, Table, TableBuilder, TablePublication, test_table
     };
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
 
