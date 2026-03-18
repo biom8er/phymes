@@ -65,6 +65,34 @@ pub struct BTreeEntry<K, V> {
     pub value: V,
 }
 
+/// # Single column indexing
+/// 
+/// Example usage for creating a BTree index using Apache Arrow and Rust
+/// 
+/// ```rust
+/// use arrow::array::{Array, Int32Array};
+/// use arrow::record_batch::RecordBatch;
+/// use std::collections::BTreeMap;
+/// 
+/// // 1. Get the column you want to index (e.g., "id" at index 0)
+/// let column = batch.column(0).as_any().downcast_ref::<Int32Array>().unwrap();
+/// 
+/// // 2. Build the BTreeMap (Key: Column Value, Value: Row Index)
+/// let mut btree_index = BTreeMap::new();
+/// for i in 0..batch.num_rows() {
+///     if !column.is_null(i) {
+///         btree_index.insert(column.value(i), i);
+///     }
+/// }
+/// ```
+/// 
+/// # Multicolumn indexing
+/// 
+/// [Arrow-row] crate converts Arrow columns into a comparable "row" format that can be used directly as keys in a BTreeMap. 
+/// * RowConverter: Creates a binary representation of rows that preserves lexical order.
+/// * Performance: This is significantly faster for composite keys than manual tuple-based indexing./// 
+/// 
+/// [Arrow-row]: <https://docs.rs/arrow-row/latest/arrow_row/>
 fn btree_to_entries<K: std::cmp::Ord + Clone, V: Clone>(btree: &BTreeMap<K, V>) -> Vec<BTreeEntry<K, V>> {
     // Convert BTreeMap into a Vec<Entry> for serialization
     btree.iter()

@@ -93,9 +93,7 @@ pub fn create_object_store_batch(
     Ok(batch)
 }
 
-/// Object store metadata fields
-/// see <https://docs.rs/object_store/latest/object_store/struct.ObjectMeta.html>
-pub fn create_object_store_meta_fields() -> Fields {
+pub fn create_object_store_meta_fields_vec() -> Vec<Field> {
     let field_names = [
         "location",
         "bucket",
@@ -120,7 +118,13 @@ pub fn create_object_store_meta_fields() -> Fields {
             .map(|f| Field::new(*f, DataType::Int64, false))
             .collect::<Vec<_>>(),
     );
-    Fields::from(fields_vec)
+    fields_vec
+}
+
+/// Object store metadata fields
+/// see <https://docs.rs/object_store/latest/object_store/struct.ObjectMeta.html>
+pub fn create_object_store_meta_fields() -> Fields {
+    Fields::from(create_object_store_meta_fields_vec())
 }
 
 #[allow(clippy::too_many_arguments)]

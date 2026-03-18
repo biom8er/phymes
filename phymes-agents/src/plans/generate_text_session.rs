@@ -617,13 +617,6 @@ mod tests {
                     .unwrap()
                     .read();
                 println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-                let subjects_reading = session_ctx_arc.read();
-                let table_reading = subjects_reading
-                    .subjects()
-                    .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                    .unwrap()
-                    .read();
-                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
             }
 
             assert_eq!(response.len(), 0);

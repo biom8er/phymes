@@ -41,7 +41,7 @@ pub(crate) fn create_subjects_change_log_fields() -> Fields {
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let field_names = ["num_rows_delta", "timestamp"];
+    let field_names = ["num_rows", "timestamp"];
     fields_vec.extend(
         field_names
             .iter()
@@ -67,7 +67,7 @@ pub fn create_subjects_change_log_batch(
         ("subject_name", subject_names),
         ("task_name", task_names),
         ("session_name", session_names),
-        ("num_rows_delta", num_rows_deltas),
+        ("num_rows", num_rows_deltas),
         ("timestamp", timestamps),
     ])?;
     Ok(batch)
@@ -79,7 +79,7 @@ pub fn create_subjects_change_log_batch(
 //         .iter()
 //         .map(|f| Field::new(*f, DataType::Utf8, false))
 //         .collect::<Vec<_>>();
-//     let field_names = ["num_rows_delta-Sum", "timestamp-Last"];
+//     let field_names = ["num_rows-Sum", "timestamp-Last"];
 //     fields_vec.extend(
 //         field_names
 //             .iter()

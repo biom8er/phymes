@@ -200,7 +200,7 @@ pub(crate) fn create_session_tasks_run_log_fields() -> Fields {
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let field_names = ["timestamp"];
+    let field_names = ["superstep", "timestamp"];
     fields_vec.extend(
         field_names
             .iter()
@@ -213,14 +213,17 @@ pub(crate) fn create_session_tasks_run_log_fields() -> Fields {
 pub fn create_session_tasks_run_log_batch(
     session_names: Vec<String>,
     task_names: Vec<String>,
+    supersteps: Vec<i64>,
     timestamps: Vec<i64>,
 ) -> Result<RecordBatch> {
     let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
+    let supersteps: ArrayRef = Arc::new(Int64Array::from(supersteps));
     let timestamps: ArrayRef = Arc::new(Int64Array::from(timestamps));
     let batch = RecordBatch::try_from_iter(vec![
         ("session_name", session_names),
         ("task_name", task_names),
+        ("superstep", supersteps),
         ("timestamp", timestamps),
     ])?;
     Ok(batch)
@@ -320,7 +323,7 @@ pub(crate) fn create_session_tasks_subscribe_aggregate_fields() -> Fields {
             .collect::<Vec<_>>(),
     );
     let list_data_type = DataType::List(Arc::new(Field::new_list_field(DataType::Int64, false)));
-    let field_names = ["timestamp-List", "timestamp-Max-List"];
+    let field_names = ["superstep-List", "superstep-Max-List"];
     fields_vec.extend(
         field_names
             .iter()
@@ -340,8 +343,8 @@ pub fn create_session_tasks_subscribe_aggregate_batch(
     update_types: Vec<String>,
     subscription_names: Vec<Vec<String>>,
     subscription_table_names: Vec<Vec<String>>,
-    timestamps: Vec<Vec<i64>>,
-    timestamp_lasts: Vec<Vec<i64>>,
+    supersteps: Vec<Vec<i64>>,
+    superstep_lasts: Vec<Vec<i64>>,
 ) -> Result<RecordBatch> {
     let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
@@ -373,19 +376,19 @@ pub fn create_session_tasks_subscribe_aggregate_batch(
     let value_builder = Int64Builder::new();
     let mut list_builder =
         ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Int64, false));
-    for values in timestamps.into_iter() {
+    for values in supersteps.into_iter() {
         list_builder.values().append_slice(values.as_slice());
         list_builder.append(true);
     }
-    let timestamps: ArrayRef = Arc::new(list_builder.finish());
+    let supersteps: ArrayRef = Arc::new(list_builder.finish());
     let value_builder = Int64Builder::new();
     let mut list_builder =
         ListBuilder::new(value_builder).with_field(Field::new_list_field(DataType::Int64, false));
-    for values in timestamp_lasts.into_iter() {
+    for values in superstep_lasts.into_iter() {
         list_builder.values().append_slice(values.as_slice());
         list_builder.append(true);
     }
-    let timestamp_lasts: ArrayRef = Arc::new(list_builder.finish());
+    let superstep_lasts: ArrayRef = Arc::new(list_builder.finish());
     let batch = RecordBatch::try_from_iter(vec![
         ("session_name", session_names),
         ("task_name", task_names),
@@ -395,8 +398,8 @@ pub fn create_session_tasks_subscribe_aggregate_batch(
         ("update_type-Last", update_types),
         ("subscription_name-List", subscription_names),
         ("subscription_table_name-List", subscription_table_names),
-        ("timestamp-List", timestamps),
-        ("timestamp-Max-List", timestamp_lasts),
+        ("superstep-List", supersteps),
+        ("superstep-Max-List", superstep_lasts),
     ])?;
     Ok(batch)
 }

@@ -2045,7 +2045,7 @@ mod tests {
             let task_names = table_reading.get_column_as_vec_str("task_name");
             let session_names = table_reading.get_column_as_vec_str("session_name");
             let num_rows_deltas =
-                table_reading.get_column_as_vec_primitive::<i64>("num_rows_delta")?;
+                table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
             let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             let mut combined = subject_names
                 .into_iter()
@@ -2099,14 +2099,15 @@ mod tests {
                 .read();
             let task_names = table_reading.get_column_as_vec_str("task_name");
             let session_names = table_reading.get_column_as_vec_str("session_name");
-            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
+            let _timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             let mut combined = session_names
                 .into_iter()
                 .zip(task_names)
-                .zip(timestamps)
-                .filter_map(|((session_name, task_name), timestamp)| {
-                    if timestamp == 1 {
-                        Some((session_name, task_name, timestamp))
+                .zip(supersteps)
+                .filter_map(|((session_name, task_name), superstep)| {
+                    if superstep == 1 {
+                        Some((session_name, task_name, superstep))
                     } else {
                         None
                     }
@@ -2152,7 +2153,7 @@ mod tests {
             let task_names = table_reading.get_column_as_vec_str("task_name");
             let session_names = table_reading.get_column_as_vec_str("session_name");
             let num_rows_deltas =
-                table_reading.get_column_as_vec_primitive::<i64>("num_rows_delta")?;
+                table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
             let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             let mut combined = subject_names
                 .into_iter()
@@ -2209,14 +2210,15 @@ mod tests {
                 .read();
             let task_names = table_reading.get_column_as_vec_str("task_name");
             let session_names = table_reading.get_column_as_vec_str("session_name");
-            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
+            let _timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             let mut combined = session_names
                 .into_iter()
                 .zip(task_names)
-                .zip(timestamps)
-                .filter_map(|((session_name, task_name), timestamp)| {
-                    if timestamp == 2 {
-                        Some((session_name, task_name, timestamp))
+                .zip(supersteps)
+                .filter_map(|((session_name, task_name), superstep)| {
+                    if superstep == 2 {
+                        Some((session_name, task_name, superstep))
                     } else {
                         None
                     }
@@ -2259,7 +2261,7 @@ mod tests {
             let task_names = table_reading.get_column_as_vec_str("task_name");
             let session_names = table_reading.get_column_as_vec_str("session_name");
             let num_rows_deltas =
-                table_reading.get_column_as_vec_primitive::<i64>("num_rows_delta")?;
+                table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
             let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             let mut combined = subject_names
                 .into_iter()
@@ -2322,14 +2324,15 @@ mod tests {
                 .read();
             let task_names = table_reading.get_column_as_vec_str("task_name");
             let session_names = table_reading.get_column_as_vec_str("session_name");
-            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
+            let _timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             let mut combined = session_names
                 .into_iter()
                 .zip(task_names)
-                .zip(timestamps)
-                .filter_map(|((session_name, task_name), timestamp)| {
-                    if timestamp == 3 {
-                        Some((session_name, task_name, timestamp))
+                .zip(supersteps)
+                .filter_map(|((session_name, task_name), superstep)| {
+                    if superstep == 3 {
+                        Some((session_name, task_name, superstep))
                     } else {
                         None
                     }
@@ -2390,7 +2393,7 @@ mod tests {
             let task_names = table_reading.get_column_as_vec_str("task_name");
             let session_names = table_reading.get_column_as_vec_str("session_name");
             let num_rows_deltas =
-                table_reading.get_column_as_vec_primitive::<i64>("num_rows_delta")?;
+                table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
             let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             let mut combined = subject_names
                 .into_iter()
@@ -2447,14 +2450,15 @@ mod tests {
                 .read();
             let task_names = table_reading.get_column_as_vec_str("task_name");
             let session_names = table_reading.get_column_as_vec_str("session_name");
-            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
+            let _timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             let mut combined = session_names
                 .into_iter()
                 .zip(task_names)
-                .zip(timestamps)
-                .filter_map(|((session_name, task_name), timestamp)| {
-                    if timestamp == 4 {
-                        Some((session_name, task_name, timestamp))
+                .zip(supersteps)
+                .filter_map(|((session_name, task_name), superstep)| {
+                    if superstep == 4 {
+                        Some((session_name, task_name, superstep))
                     } else {
                         None
                     }
@@ -2497,7 +2501,7 @@ mod tests {
             let task_names = table_reading.get_column_as_vec_str("task_name");
             let session_names = table_reading.get_column_as_vec_str("session_name");
             let num_rows_deltas =
-                table_reading.get_column_as_vec_primitive::<i64>("num_rows_delta")?;
+                table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
             let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             let mut combined = subject_names
                 .into_iter()
@@ -2534,14 +2538,15 @@ mod tests {
                 .read();
             let task_names = table_reading.get_column_as_vec_str("task_name");
             let session_names = table_reading.get_column_as_vec_str("session_name");
-            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
+            let _timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             let mut combined = session_names
                 .into_iter()
                 .zip(task_names)
-                .zip(timestamps)
-                .filter_map(|((session_name, task_name), timestamp)| {
-                    if timestamp == 5 {
-                        Some((session_name, task_name, timestamp))
+                .zip(supersteps)
+                .filter_map(|((session_name, task_name), superstep)| {
+                    if superstep == 5 {
+                        Some((session_name, task_name, superstep))
                     } else {
                         None
                     }
@@ -2582,7 +2587,7 @@ mod tests {
             let task_names = table_reading.get_column_as_vec_str("task_name");
             let session_names = table_reading.get_column_as_vec_str("session_name");
             let num_rows_deltas =
-                table_reading.get_column_as_vec_primitive::<i64>("num_rows_delta")?;
+                table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
             let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             let mut combined = subject_names
                 .into_iter()
@@ -2619,14 +2624,15 @@ mod tests {
                 .read();
             let task_names = table_reading.get_column_as_vec_str("task_name");
             let session_names = table_reading.get_column_as_vec_str("session_name");
-            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
+            let _timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             let mut combined = session_names
                 .into_iter()
                 .zip(task_names)
-                .zip(timestamps)
-                .filter_map(|((session_name, task_name), timestamp)| {
-                    if timestamp == 6 {
-                        Some((session_name, task_name, timestamp))
+                .zip(supersteps)
+                .filter_map(|((session_name, task_name), superstep)| {
+                    if superstep == 6 {
+                        Some((session_name, task_name, superstep))
                     } else {
                         None
                     }
@@ -2660,7 +2666,7 @@ mod tests {
             let task_names = table_reading.get_column_as_vec_str("task_name");
             let session_names = table_reading.get_column_as_vec_str("session_name");
             let num_rows_deltas =
-                table_reading.get_column_as_vec_primitive::<i64>("num_rows_delta")?;
+                table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
             let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             let mut combined = subject_names
                 .into_iter()
@@ -2689,14 +2695,15 @@ mod tests {
                 .read();
             let task_names = table_reading.get_column_as_vec_str("task_name");
             let session_names = table_reading.get_column_as_vec_str("session_name");
-            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
+            let _timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
             let mut combined = session_names
                 .into_iter()
                 .zip(task_names)
-                .zip(timestamps)
-                .filter_map(|((session_name, task_name), timestamp)| {
-                    if timestamp == 7 {
-                        Some((session_name, task_name, timestamp))
+                .zip(supersteps)
+                .filter_map(|((session_name, task_name), superstep)| {
+                    if superstep == 7 {
+                        Some((session_name, task_name, superstep))
                     } else {
                         None
                     }

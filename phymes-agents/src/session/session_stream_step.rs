@@ -11,7 +11,7 @@ use phymes_core::{
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap, Span,
-    SpanBuilder, TraceBuilderTrait, TraceRecord,
+    SpanBuilder, TraceBuilderTrait, TraceRecord, create_timestamp_micros,
 };
 use std::sync::Arc;
 use tokio::task::JoinSet;
@@ -205,12 +205,12 @@ pub trait SessionStreamStepTrait {
         // Create the tasks run log message
         let step = session_context.read().current_superstep()?;
         let session_context_name = session_context.read().get_name().to_string();
-        let (session_names, (task_names, timestamps)): (Vec<_>, (Vec<_>, Vec<_>)) = tasks
+        let (session_names, (task_names, (supersteps, timestamps))): (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))) = tasks
             .into_iter()
-            .map(|((task_name, session_name), _)| (session_name, (task_name, step as i64)))
+            .map(|((task_name, session_name), _)| (session_name, (task_name, (step as i64, create_timestamp_micros()))))
             .unzip();
         let tasks_run_log_batch =
-            create_session_tasks_run_log_batch(session_names, task_names, timestamps)?;
+            create_session_tasks_run_log_batch(session_names, task_names, supersteps, timestamps)?;
         let tasks_run_log_table = AvailableSubjects::SessionTasksRunLog
             .to_table(None, Some(vec![tasks_run_log_batch]))?;
         let messages = create_message_map(vec![

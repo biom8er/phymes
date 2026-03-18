@@ -59,7 +59,7 @@ pub use storage::{
     IpcReader, JsonReader, CsvReader, StorageReaderTrait, StorageStreamReaderTrait, storage_reader_get_result, storage_reader_stream_result,
     IpcWriter, JsonWriter, CsvWriter, StorageWriterTrait, StorageStreamWriterTrait, storage_writer_multipart
 };
-pub use subject::{SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlan, SubjectPlanTrait, SubjectConstraint, IndexType,
+pub use subject::{SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlan, SubjectPlanTrait, SubjectConstraint, IndexType, SubjectFilePartition, SubjectFolderPartition,
     BTreeIndexReader, HashIndexReader, GiSTIndexReader, SPGiSTIndexReader, GINIndexReader, BRINIndexReader,
     BTreeIndexBuilder, HashIndexBuilder, GiSTIndexBuilder, SPGiSTIndexBuilder, GINIndexBuilder, BRINIndexBuilder,
     btree_schema, hash_index_schema, gist_schema, spgist_schema, gin_schema, brin_schema,

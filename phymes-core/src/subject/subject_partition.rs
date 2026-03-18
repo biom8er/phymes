@@ -1,27 +1,35 @@
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
-/// Subject partitioning
-/// 
-/// # Notes
-/// * Each partitioning variant is converted into a series of Processor steps that implement the actual partitioning
-/// * Superstep 
+/// Subject partitioning into folders
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize, Default, ValueEnum)]
-pub enum SubjectPartition {
-    /// Last changed superstep
+pub enum SubjectFolderPartition {
+    /// `RecordBatch`es are written to a folder with the last changed superstep
     #[default]
     #[value(name = "Superstep")]
     Superstep,
-    #[value(name = "NumRows")]
-    NumRows,
-    #[value(name = "ChunkSize")]
-    ChunkSize,
-    #[value(name = "SuperstepNumRows")]
-    SuperstepNumRows,
-    #[value(name = "SuperstepChunkSize")]
-    SuperstepChunkSize,
+    /// `RecordBatch`es are written to a folder with the last changed timestamp
     #[value(name = "Timestamp")]
     Timestamp,
+    /// `RecordBatch`es are written to a folder with the last changed Date
     #[value(name = "Date")]
     Date,
+    /// No additional folder partitioning
+    #[value(name = "None")]
+    None,
+}
+
+/// Subject partitioning into files
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize, Default, ValueEnum)]
+pub enum SubjectFilePartition {
+    /// `RecordBatch`es partitioned according to the number of rows
+    #[default]
+    #[value(name = "NumRows")]
+    NumRows,
+    /// `RecordBatch`es partitioned according to the number of byte size
+    #[value(name = "ChunkSize")]
+    ChunkSize,
+    /// No additional file partitioning
+    #[value(name = "None")]
+    None,
 }

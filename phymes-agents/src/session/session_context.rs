@@ -1195,7 +1195,7 @@ mod tests {
         let col = updates
             .as_ref()
             .unwrap()
-            .get_column_as_vec_primitive::<i64>("num_rows_delta")?;
+            .get_column_as_vec_primitive::<i64>("num_rows")?;
         assert_eq!(col, [12]);
 
         // check the session context

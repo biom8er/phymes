@@ -14,5 +14,6 @@ pub use indices_struct_readers::{BTreeIndexReader, HashIndexReader, GiSTIndexRea
 pub use indices_schema_builders::{BTreeIndexBuilder, HashIndexBuilder, GiSTIndexBuilder, SPGiSTIndexBuilder, GINIndexBuilder, BRINIndexBuilder};
 pub use indices_schemas::{btree_schema, hash_index_schema, gist_schema, spgist_schema, gin_schema, brin_schema};
 pub use indices_structs::{BTreeIndex, BTreeNode, HashIndex, HashEntry, GiSTIndex, GiSTEntry, SPGiSTIndex, SPGiSTNode, GINIndex, GINPosting, BRINIndex, BRINRange};
+pub use subject_partition::{SubjectFilePartition, SubjectFolderPartition};
 pub use subject_plan_builder::{SubjectPlanBuilder, SubjectPlanBuilderTrait};
 pub use subject_plan::{SubjectPlan, SubjectPlanTrait};

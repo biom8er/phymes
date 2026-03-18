@@ -554,7 +554,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let exclusion_set = self.tasks_to_exclude()?;
 
         // Create the table
-        let ((session_names, task_names), timestamps) = self
+        let (((session_names, task_names), supersteps), timestamps) = self
             .tasks
             .as_ref()
             .unwrap()
@@ -563,14 +563,11 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 if exclusion_set.contains(&task.task_name) {
                     None
                 } else {
-                    Some((
-                        (session_name.to_string(), task.task_name.to_string()),
-                        0_i64,
-                    ))
+                    Some((((session_name.to_string(), task.task_name.to_string()), 0_i64), create_timestamp_micros() ))
                 }
             })
             .unzip();
-        let batch = create_session_tasks_run_log_batch(session_names, task_names, timestamps)?;
+        let batch = create_session_tasks_run_log_batch(session_names, task_names, supersteps, timestamps)?;
         Table::get_builder()
             .with_name(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
             .with_record_batches(vec![batch])?
@@ -632,7 +629,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // Create the table
         let exclusion_set = self.tasks_to_exclude()?;
-        let ((((subject_names, task_names), session_names), num_rows_delta), timestamps) = self
+        let ((((subject_names, task_names), session_names), num_rows), timestamps) = self
             .tasks
             .as_ref()
             .unwrap()
@@ -689,7 +686,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             subject_names,
             task_names,
             session_names,
-            num_rows_delta,
+            num_rows,
             timestamps,
         )?;
         Table::get_builder()
@@ -1717,11 +1714,11 @@ mod tests {
             tables_test
                 .get(6)
                 .unwrap()
-                .get_column_as_vec_primitive::<i64>("num_rows_delta")?,
+                .get_column_as_vec_primitive::<i64>("num_rows")?,
             tables
                 .get(6)
                 .unwrap()
-                .get_column_as_vec_primitive::<i64>("num_rows_delta")?
+                .get_column_as_vec_primitive::<i64>("num_rows")?
         );
         // assert_eq!(
         //     tables_test
