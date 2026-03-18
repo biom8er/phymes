@@ -2483,7 +2483,7 @@ mod tests {
             .with_name("session_1")
             .with_tasks(task_plans)
             .with_processors(processors)
-            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
+            .with_runtime_env(vec![test_task::make_runtime_env("rt_1")?])
             .with_subjects(state)
             .with_max_iter(1)
             .with_diagnostics(true)

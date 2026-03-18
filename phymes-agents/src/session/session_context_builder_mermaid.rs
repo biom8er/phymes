@@ -98,7 +98,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 "Add processors before making the Mermaid Flowchart."
             ));
         }
-        if self.runtime_envs.is_none() {
+        if self.runtime_env.is_none() {
             return Err(anyhow!(
                 "Add runtime environments before making the Mermaid Flowchart."
             ));
@@ -1210,7 +1210,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         let builder = Self::new()
             .with_tasks(task_plans)
             .with_processors(processors)
-            .with_runtime_envs(runtime_envs);
+            .with_runtime_env(runtime_envs);
         Ok(builder)
     }
 

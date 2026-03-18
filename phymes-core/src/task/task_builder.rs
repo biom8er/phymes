@@ -3,10 +3,9 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use arrow::record_batch::RecordBatch;
 
-use crate::{BuilderTrait, ProcessorTrait, RuntimeEnv, Task};
+use crate::{BuilderTrait, ProcessorTrait, Task};
 
 pub trait TaskBuilderTrait: BuilderTrait {
-    fn with_runtime_env(self, runtime_env: Arc<RuntimeEnv>) -> Self;
     fn with_processor(self, processor: Vec<Arc<dyn ProcessorTrait>>) -> Self;
 }
 
@@ -15,8 +14,6 @@ pub trait TaskBuilderTrait: BuilderTrait {
 pub struct TaskBuilder {
     /// Task name
     pub name: Option<String>,
-    /// Runtime environment for the task
-    pub runtime_env: Option<Arc<RuntimeEnv>>,
     /// Function that implements the logic
     pub processor: Option<Vec<Arc<dyn ProcessorTrait>>>,
 }
@@ -26,7 +23,6 @@ impl BuilderTrait for TaskBuilder {
     fn new() -> Self {
         Self {
             name: None,
-            runtime_env: None,
             processor: None,
         }
     }
@@ -40,17 +36,12 @@ impl BuilderTrait for TaskBuilder {
     {
         Ok(Self::T {
             name: self.name.unwrap_or_default(),
-            runtime_env: self.runtime_env.unwrap(),
             processor: self.processor.unwrap(),
         })
     }
 }
 
 impl TaskBuilderTrait for TaskBuilder {
-    fn with_runtime_env(mut self, runtime_env: Arc<RuntimeEnv>) -> Self {
-        self.runtime_env = Some(runtime_env);
-        self
-    }
     fn with_processor(mut self, processor: Vec<Arc<dyn ProcessorTrait>>) -> Self {
         self.processor = Some(processor);
         self

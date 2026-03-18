@@ -58,14 +58,12 @@ pub trait TaskTrait: MappableTrait + BuildableTrait + Sync + Send {
         &self,
         diagnostic_builder: Option<&DiagnosticBuilder>,
         processor_subjects: &ProcessorSubjectsMap,
+        runtime_env: &Arc<RuntimeEnv>,
         subjects: &SubjectsMap, // DM: update to channels when ready
     ) -> Result<SendableRecordBatchStreamMessageMap>;
 
     /// Get an immutable reference to the processors
     fn get_processors(&self) -> &Vec<Arc<dyn ProcessorTrait>>;
-
-    /// Get an immutable reference to the runtime env
-    fn get_runtime_env(&self) -> &Arc<RuntimeEnv>;
 }
 
 /// The actual task to execute
@@ -73,8 +71,6 @@ pub trait TaskTrait: MappableTrait + BuildableTrait + Sync + Send {
 pub struct Task {
     /// Name of the task
     pub(crate) name: String,
-    /// Runtime environment for the task and processors
-    pub(crate) runtime_env: Arc<RuntimeEnv>,
     /// Processor sequence
     pub(crate) processor: Vec<Arc<dyn ProcessorTrait>>,
 }
@@ -100,6 +96,7 @@ impl TaskTrait for Task {
         &self,
         diagnostic_builder: Option<&DiagnosticBuilder>,
         processor_subjects: &ProcessorSubjectsMap,
+        runtime_env: &Arc<RuntimeEnv>,
         subjects: &SubjectsMap, // DM: update to channels when ready
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Running task {}", self.get_name());
@@ -155,7 +152,7 @@ impl TaskTrait for Task {
             let message_builder = processor.process(
                 message_sub,
                 trace_builder.as_ref(),
-                self.runtime_env.clone(),
+                runtime_env.clone(),
             )?;
 
             // Build and trace the processor published messages
@@ -181,9 +178,6 @@ impl TaskTrait for Task {
         }
         Ok(messages)
     }
-    fn get_runtime_env(&self) -> &Arc<RuntimeEnv> {
-        &self.runtime_env
-    }
     fn get_processors(&self) -> &Vec<Arc<dyn ProcessorTrait>> {
         &self.processor
     }
@@ -195,7 +189,7 @@ pub mod test_task {
     use crate::{
         BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait,
         MessageBuilderTrait, ProcessorBuilder, ProcessorSubjects, ProcessorSubjectsBuilder,
-        RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication,
+        RuntimeEnv, Table, TableBuilder, TableBuilderTrait, TablePublication,
         TableTrait, TaskBuilderTrait,
         test_processor::ProcessorMock,
         test_table::{make_test_table, make_test_table_chat},
@@ -264,7 +258,6 @@ pub mod test_task {
     pub fn make_test_task_single_processor(
         task_name: &str,
         processor_name: &str,
-        runtime_env_name: &str,
         table_name: &str,
     ) -> Result<(Task, ProcessorSubjectsMap)> {
         let processor = ProcessorBuilder::default()
@@ -273,7 +266,6 @@ pub mod test_task {
             .build_arc::<ProcessorMock>()?;
         let task = Task::get_builder()
             .with_name(task_name)
-            .with_runtime_env(Arc::new(make_runtime_env(runtime_env_name)?))
             .with_processor(vec![processor])
             .build()?;
         let processor_subjects = ProcessorSubjectsBuilder::default()
@@ -298,7 +290,6 @@ pub mod test_task {
     pub fn make_test_task_chained_processor(
         task_name: &str,
         processor_name: &str,
-        runtime_env_name: &str,
         table_name: &str,
     ) -> Result<(Task, ProcessorSubjectsMap)> {
         let processor_name_1 = format!("{processor_name}_1");
@@ -307,7 +298,6 @@ pub mod test_task {
         let table_name_1 = format!("{table_name}_1");
         let task = Task::get_builder()
             .with_name(task_name)
-            .with_runtime_env(Arc::new(make_runtime_env(runtime_env_name)?))
             .with_processor(vec![
                 ProcessorBuilder::default()
                     .with_name(processor_name_1.as_str())
@@ -375,7 +365,6 @@ pub mod test_task {
     pub fn make_test_task_multiple_subscriptions(
         task_name: &str,
         processor_name: &str,
-        runtime_env_name: &str,
         table_name: &str,
     ) -> Result<(Task, ProcessorSubjectsMap)> {
         let processor_name_1 = format!("{processor_name}_1");
@@ -386,7 +375,6 @@ pub mod test_task {
         let table_name_3 = format!("{table_name}_3");
         let task = Task::get_builder()
             .with_name(task_name)
-            .with_runtime_env(Arc::new(make_runtime_env(runtime_env_name)?))
             .with_processor(vec![
                 ProcessorBuilder::default()
                     .with_name(processor_name_1.as_str())
@@ -505,12 +493,12 @@ mod tests {
         let (test_task, test_procesor_subjects) = test_task::make_test_task_single_processor(
             "test_task",
             "test_processor",
-            "test_rt",
             "test_table",
         )?;
         let mut response = test_task.run(
             Some(&diagnostic_builder),
             &test_procesor_subjects,
+            &Arc::new(test_task::make_runtime_env("rt")?),
             &test_task::make_state("test_table", "test_processor")?,
         )?;
         assert_eq!(response.len(), 1);
@@ -557,7 +545,6 @@ mod tests {
         let (test_task, test_procesor_subjects) = test_task::make_test_task_chained_processor(
             "test_task",
             "test_processor",
-            "test_rt",
             "test_table",
         )?;
         let mut subjects = test_task::make_state("test_table_1", "test_processor_1")?;
@@ -566,6 +553,7 @@ mod tests {
         let mut response = test_task.run(
             Some(&diagnostic_builder),
             &test_procesor_subjects,
+            &Arc::new(test_task::make_runtime_env("rt")?),
             &subjects,
         )?;
         assert_eq!(response.len(), 1);
@@ -612,7 +600,6 @@ mod tests {
         let (test_task, test_procesor_subjects) = test_task::make_test_task_multiple_subscriptions(
             "test_task",
             "test_processor",
-            "test_rt",
             "test_table",
         )?;
         let mut subjects = test_task::make_state("test_table_1", "test_processor_1")?;
@@ -621,6 +608,7 @@ mod tests {
         let mut response = test_task.run(
             Some(&diagnostic_builder),
             &test_procesor_subjects,
+            &Arc::new(test_task::make_runtime_env("rt")?),
             &subjects,
         )?;
         assert_eq!(response.len(), 2);

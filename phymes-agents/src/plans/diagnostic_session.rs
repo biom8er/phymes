@@ -856,7 +856,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         Some(processors)
     }
 
-    fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
+    fn make_runtime_env(&self) -> Option<Vec<RuntimeEnv>> {
         Some(vec![
             RuntimeEnv::get_builder().with_name(self.metrics_runtime_env_name).build().unwrap(),
             RuntimeEnv::get_builder().with_name(self.metrics_processors_traces_runtime_env_name).build().unwrap(),
@@ -868,7 +868,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         ])
     }
 
-    fn make_state_tables(&self) -> Option<Vec<Table>> {
+    fn make_subjects(&self) -> Option<Vec<Table>> {
         // Metrics pivot
         let metrics_pivot_config = DataConfig {
             lhs_name: Some(AvailableSubjects::AnalyticsMetrics.to_string()),

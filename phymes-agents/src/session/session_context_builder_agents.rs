@@ -6,10 +6,7 @@ use clap::ValueEnum;
 use object_store::ObjectStore;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait,
-    BuilderTrait, MappableTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait,
-    SubjectsMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap,
-    TaskPlan, create_bytes_fields, create_values_fields,
+    AvailableSchemaTrait, AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, SubjectPlan, SubjectsMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap, TaskPlan, create_bytes_fields, create_values_fields
 };
 use phymes_data::{AvailableCandleOperators, DataConfig, DataConfigTrait, LimitConfig, device};
 #[cfg(feature = "api")]
@@ -118,8 +115,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         // Check that we can build
         self.check_tasks()?;
         self.check_processors()?;
-        self.check_runtime_envs()?;
-        self.check_state()?;
+        self.check_runtime_env()?;
+        self.check_subjects()?;
         self.check_processor_config_subjects()?;
         self.check_data_config_subjects()?;
         self.check_processor_config_builds()?;
@@ -1088,9 +1085,9 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         self.processors.replace(processors);
 
         // Add the runtime environment
-        let mut runtime_envs = self.runtime_envs.take().unwrap_or_default();
+        let mut runtime_envs = self.runtime_env.take().unwrap_or_default();
         runtime_envs.push(RuntimeEnv::get_builder().with_name(runtime_env_name.as_str()).build()?);
-        self.runtime_envs.replace(runtime_envs);
+        self.runtime_env.replace(runtime_envs);
 
         Ok(self)
     }
@@ -1170,10 +1167,10 @@ pub trait CustomAgentsBuilderTrait {
     fn make_processors(&self) -> Option<Vec<ProcessorPlan>> {
         None
     }
-    fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
+    fn make_runtime_env(&self) -> Option<RuntimeEnv> {
         None
     }
-    fn make_state_tables(&self) -> Option<Vec<Table>> {
+    fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
         None
     }
     fn build(&self) -> SessionContextBuilder {
@@ -1184,11 +1181,11 @@ pub trait CustomAgentsBuilderTrait {
         if let Some(processors) = self.make_processors() {
             builder = builder.with_processors(processors);
         }
-        if let Some(runtime_envs) = self.make_runtime_envs() {
-            builder = builder.with_runtime_envs(runtime_envs);
+        if let Some(runtime_env) = self.make_runtime_env() {
+            builder = builder.with_runtime_env(runtime_env);
         }
-        if let Some(state_tables) = self.make_state_tables() {
-            builder = builder.with_subjects(state_tables);
+        if let Some(subjects) = self.make_subjects() {
+            builder = builder.with_subjects(subjects);
         }
         builder
     }
@@ -1330,7 +1327,7 @@ pub mod test_session_context_builder_agents {
             .with_name(name)
             .with_tasks(make_test_session_context_builder_parallel_tasks())
             .with_processors(processor_plans)
-            .with_runtime_envs(vec![make_runtime_env("rt_1")?])
+            .with_runtime_env(vec![make_runtime_env("rt_1")?])
             .with_subjects(state)
             .with_diagnostics(true);
         Ok(builder)
@@ -1442,7 +1439,7 @@ mod tests {
             .with_name("session_1")
             .with_tasks(task_plans.clone())
             .with_processors(processor_plans)
-            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
+            .with_runtime_env(vec![test_task::make_runtime_env("rt_1")?])
             .with_diagnostics(true)
             .with_subjects(state.clone())
             .build_with_tables();
@@ -1475,7 +1472,7 @@ mod tests {
             .with_name("session_1")
             .with_tasks(task_plans)
             .with_processors(processor_plans)
-            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
+            .with_runtime_env(vec![test_task::make_runtime_env("rt_1")?])
             .with_diagnostics(true)
             .with_subjects(state.clone())
             .add_processor_subjects()?
@@ -1516,7 +1513,7 @@ mod tests {
             )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
-            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
+            .with_runtime_env(vec![test_task::make_runtime_env("rt_1")?])
             .with_subjects(state_test)
             .with_diagnostics(true)
             .build_with_tables();
@@ -1556,7 +1553,7 @@ mod tests {
             )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
-            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
+            .with_runtime_env(vec![test_task::make_runtime_env("rt_1")?])
             .with_subjects(state_test)
             .with_diagnostics(true)
             .build_with_tables();
@@ -1597,7 +1594,7 @@ mod tests {
             )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
-            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
+            .with_runtime_env(vec![test_task::make_runtime_env("rt_1")?])
             .with_subjects(state_test)
             .with_diagnostics(true)
             .build_with_tables();
@@ -1638,7 +1635,7 @@ mod tests {
             )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
-            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
+            .with_runtime_env(vec![test_task::make_runtime_env("rt_1")?])
             .with_subjects(state_test)
             .with_diagnostics(true)
             .build_with_tables();
@@ -1675,7 +1672,7 @@ mod tests {
             )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
-            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
+            .with_runtime_env(vec![test_task::make_runtime_env("rt_1")?])
             .with_subjects(state_test)
             .with_diagnostics(true)
             .build_with_tables();
@@ -1712,7 +1709,7 @@ mod tests {
             )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
-            .with_runtime_envs(vec![test_task::make_runtime_env("rt_1")?])
+            .with_runtime_env(vec![test_task::make_runtime_env("rt_1")?])
             .with_subjects(state_test)
             .with_diagnostics(true)
             .build_with_tables();

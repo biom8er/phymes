@@ -3,10 +3,12 @@ use crate::{BuildableTrait, IndexType, MappableTrait, SubjectConstraintType, Sub
 
 pub trait SubjectPlanTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     fn table(&self) -> &Table;
+    fn table_own(self) -> Table;
     fn constraints(&self) -> &Vec<SubjectConstraintType>;
     fn indices(&self) -> &Vec<IndexType>;
     fn sequences(&self) -> &Vec<SubjectSequenceType>;
     /// Create the additional tables for the constraints
+    /// DM: missing operator to join the columns of RecordBatches
     fn constraints_tables(&self) -> Vec<Table>;
     /// Create the additional tables for the indices
     fn indices_tables(&self) -> Vec<Table>;
@@ -16,8 +18,6 @@ pub trait SubjectPlanTrait: MappableTrait + BuildableTrait + Debug + Send + Sync
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SubjectPlan {
-    /// Subject name
-    pub(crate) name: String,
     /// Initial table with optional data
     pub(crate) table: Table,
     /// Constraints on the subject
@@ -30,7 +30,7 @@ pub struct SubjectPlan {
 
 impl MappableTrait for SubjectPlan {
     fn get_name(&self) -> &str {
-        &self.name
+        &self.table.get_name()
     }
 }
 
@@ -47,6 +47,10 @@ impl BuildableTrait for SubjectPlan {
 impl SubjectPlanTrait for SubjectPlan {
     fn table(&self) -> &Table {
         &self.table
+    }
+    
+    fn table_own(self) -> Table {
+        self.table
     }
 
     fn constraints(&self) -> &Vec<SubjectConstraintType> {

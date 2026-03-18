@@ -2,7 +2,7 @@ use std::{sync::Arc, fmt::Debug};
 
 use arrow::{array::{ArrayRef, ArrowPrimitiveType, PrimitiveBuilder}, datatypes::{Int64Type, UInt32Type}};
 use clap::ValueEnum;
-use num_traits::{ PrimInt, Signed};
+use num_traits::PrimInt;
 use serde::{Deserialize, Serialize};
 
 /// A fully generic integer range iterator (exclusive end)

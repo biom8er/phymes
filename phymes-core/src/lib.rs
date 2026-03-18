@@ -22,7 +22,7 @@ pub use processor::{
     test_processor,
 };
 pub use runtime_env::{
-    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvMap, RuntimeEnvTrait, RuntimeEnvBuilder, RuntimeEnvBuilderTrait
+    BuildableTrait, BuilderTrait, MappableTrait, RuntimeEnv, RuntimeEnvTrait, RuntimeEnvBuilder, RuntimeEnvBuilderTrait
 };
 pub use schemas::{
     AttachmentBuilderTraitExt, AttachmentsSubject, AvailableSchemaTrait, AvailableSubjects,

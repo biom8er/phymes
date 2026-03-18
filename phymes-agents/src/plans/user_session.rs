@@ -215,7 +215,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
         Some(processors)
     }
 
-    fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
+    fn make_runtime_env(&self) -> Option<Vec<RuntimeEnv>> {
         Some(vec![
             RuntimeEnv::get_builder().with_name(self.filter_session_contexts_by_email_runtime_env_name).build().unwrap(),
             RuntimeEnv::get_builder()
@@ -224,7 +224,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
         ])
     }
 
-    fn make_state_tables(&self) -> Option<Vec<Table>> {
+    fn make_subjects(&self) -> Option<Vec<Table>> {
         // Configs for filter
         let filter_user_info_data_config = DataConfig {
             operator: AvailableCandleOperators::Join,

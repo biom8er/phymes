@@ -458,7 +458,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
     }
 
     fn get_runtime_envs_as_table(&self) -> Result<Table> {
-        if self.runtime_envs.is_none() {
+        if self.runtime_env.is_none() {
             return Err(anyhow!(
                 "Add runtime environments before making the Mermaid Flowchart."
             ));
@@ -474,7 +474,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // Sort the runtime environments
         let mut sorted_rts = self
-            .runtime_envs
+            .runtime_env
             .as_ref()
             .unwrap()
             .iter()
@@ -484,7 +484,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let ((((((((session_names, runtime_env_names), object_store_backend), object_store_bucket), object_store_backend_config), subject_folder_partitioning), subject_file_partitioning), memory_limits), time_limits) = sorted_rts
             .iter()
             .map(|r| {
-                ((((((((session_name.to_string(), r.get_name().to_string()), r.object_store_backend.to_string()), r.object_store_bucket.to_string()), serde_json::to_string(&r.object_store_backend_config).unwrap()), r.subject_folder_partitioning.to_string()), r.subject_file_partitioning.to_string()), r.memory_limit as u32), r.time_limit as u32)
+                ((((((((session_name.to_string(), r.get_name().to_string()), r.object_store_backend.to_string()), r.object_store_bucket.to_string()), serde_json::to_string(&r.object_store_backend_config).unwrap()), r.subject_folder_partitioning.to_string()), r.subject_file_partitioning.to_string()), r.max_memory as u32), r.max_time as u32)
             })
             .unzip();
 
@@ -867,8 +867,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let subject_folder_partitioning_vec_str = runtime_envs.get_column_as_vec_str("subject_folder_partitioning");
         let subject_file_partitioning_vec_str = runtime_envs.get_column_as_vec_str("subject_file_partitioning");
         let memory_limits_vec_str =
-            runtime_envs.get_column_as_vec_primitive::<u32>("memory_limit")?;
-        let time_limits_vec_str = runtime_envs.get_column_as_vec_primitive::<u32>("time_limit")?;
+            runtime_envs.get_column_as_vec_primitive::<u32>("max_memory")?;
+        let time_limits_vec_str = runtime_envs.get_column_as_vec_primitive::<u32>("max_time")?;
 
         // get unique subjects
         let runtime_envs_unique = runtime_envs_vec_str.iter().collect::<HashSet<_>>();
@@ -892,7 +892,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 if name == &rt_name {
                     rt = rt.with_object_store_backend(&ObjectStorageBackend::from_str(os_backend, false).map_err(|err| anyhow!("{err}"))?)
                         .with_object_store_bucket(os_bucket)
-                        .with_object_store_backend_config(&serde_json::from_str::<Map<String, Value>>(os_config)?)
+                        .with_object_store_config(&serde_json::from_str::<Map<String, Value>>(os_config)?)
                         .with_subject_folder_partitioning(&SubjectFolderPartition::from_str(folder, false).map_err(|err| anyhow!("{err}"))?)
                         .with_subject_file_partitioning(&SubjectFilePartition::from_str(file, false).map_err(|err| anyhow!("{err}"))?)
                         .with_memory_limit(**mem as usize)
@@ -902,7 +902,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             runtime_envs.push(rt.build()?);
         }
 
-        Ok(self.with_runtime_envs(runtime_envs))
+        Ok(self.with_runtime_env(runtime_envs))
     }
 
     fn subjects_to_exclude(&self) -> Result<HashSet<String>> {
@@ -1140,7 +1140,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                     next_task_session.as_mermaid_flowchart(),
                     false,
                 )?
-                .runtime_envs
+                .runtime_env
                 .unwrap()
                 .iter()
                 .map(|r| r.get_name().to_string())
@@ -1160,7 +1160,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                     next_superstep.as_mermaid_flowchart(),
                     false,
                 )?
-                .runtime_envs
+                .runtime_env
                 .unwrap()
                 .iter()
                 .map(|r| r.get_name().to_string())
@@ -1180,7 +1180,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                     subjects_session.as_mermaid_flowchart(),
                     false,
                 )?
-                .runtime_envs
+                .runtime_env
                 .unwrap()
                 .iter()
                 .map(|r| r.get_name().to_string())
@@ -1222,7 +1222,7 @@ mod tests {
         // Make the builder
         let builder = make_test_session_context_builder_parallel_processors()
             .with_name("")
-            .with_runtime_envs(runtime_envs)
+            .with_runtime_env(runtime_envs)
             .with_subjects(state);
 
         // Test to tables
@@ -1947,21 +1947,21 @@ mod tests {
             tables_test
                 .get(11)
                 .unwrap()
-                .get_column_as_vec_primitive::<u32>("memory_limit")?,
+                .get_column_as_vec_primitive::<u32>("max_memory")?,
             tables
                 .get(11)
                 .unwrap()
-                .get_column_as_vec_primitive::<u32>("memory_limit")?
+                .get_column_as_vec_primitive::<u32>("max_memory")?
         );
         assert_eq!(
             tables_test
                 .get(11)
                 .unwrap()
-                .get_column_as_vec_primitive::<u32>("time_limit")?,
+                .get_column_as_vec_primitive::<u32>("max_time")?,
             tables
                 .get(11)
                 .unwrap()
-                .get_column_as_vec_primitive::<u32>("time_limit")?
+                .get_column_as_vec_primitive::<u32>("max_time")?
         );
 
         Ok(())

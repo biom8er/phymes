@@ -109,11 +109,11 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
         Some(processors)
     }
 
-    fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
+    fn make_runtime_env(&self) -> Option<Vec<RuntimeEnv>> {
         Some(vec![RuntimeEnv::get_builder().with_name("rt_default").build().unwrap()])
     }
 
-    fn make_state_tables(&self) -> Option<Vec<Table>> {
+    fn make_subjects(&self) -> Option<Vec<Table>> {
         Some(vec![make_example_mermaid_table(true, true).unwrap()])
     }
 }

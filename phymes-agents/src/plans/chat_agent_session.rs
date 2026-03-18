@@ -191,14 +191,14 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         Some(processors)
     }
 
-    fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
+    fn make_runtime_env(&self) -> Option<Vec<RuntimeEnv>> {
         Some(vec![
             RuntimeEnv::get_builder().with_name(self.chat_runtime_env_name).build().unwrap(),
             RuntimeEnv::get_builder().with_name(self.message_aggregator_runtime_env_name).build().unwrap(),
         ])
     }
 
-    fn make_state_tables(&self) -> Option<Vec<Table>> {
+    fn make_subjects(&self) -> Option<Vec<Table>> {
         // Default chat config
         #[allow(unused_mut)]
         let mut candle_chat_config = CandleChatConfig {

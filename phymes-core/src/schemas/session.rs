@@ -165,7 +165,7 @@ pub(crate) fn create_session_runtime_envs_fields() -> Fields {
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let field_names = ["memory_limit", "time_limit"];
+    let field_names = ["max_memory", "max_time"];
     fields_vec.extend(
         field_names
             .iter()
@@ -203,8 +203,8 @@ pub fn create_session_runtime_envs_batch(
         ("object_store_backend_config", object_store_backend_config),
         ("subject_folder_partitioning", subject_folder_partitioning),
         ("subject_file_partitioning", subject_file_partitioning),
-        ("memory_limit", memory_limits),
-        ("time_limit", time_limits),
+        ("max_memory", memory_limits),
+        ("max_time", time_limits),
     ])?;
     Ok(batch)
 }

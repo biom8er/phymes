@@ -24,23 +24,11 @@ pub struct SessionContext {
     pub(crate) name: String,
     /// The list of available tasks that can be run during the session
     pub(crate) tasks: TaskMap,
-    /// Session data (state) that should be persisted between queries that is composed of local and shared state
-    ///
-    /// Local state: the session diagnostics (i.e., traces, events, metrics, and errors),
-    ///   and task plan (i.e., subjects, tasks, processors, and runtime_envs)
-    ///  
-    /// Shared state: Message subjects data along with metadata such as
-    ///   the row counts for all subjects, and subject changelog (todo)
-    pub(crate) subjects: SubjectsMap,
     /// Runtime environment configuration to use during task runs
     #[allow(dead_code)]
-    pub(crate) runtime_envs: HashMap<String, Arc<RuntimeEnv>>,
-    /// The maximum number of iterations before stopping
-    pub(crate) max_iter: usize,
+    pub(crate) runtime_env: Arc<RuntimeEnv>,
     /// Whether to gather diagnostic information or not
     pub(crate) diagnostics: bool,
-    /// In memory object store for caching results in memory
-    pub(crate) store: Arc<dyn ObjectStore>,
 }
 
 impl Default for SessionContext {
@@ -48,11 +36,8 @@ impl Default for SessionContext {
         Self { 
             name: Default::default(), 
             tasks: Default::default(), 
-            subjects: Default::default(), 
-            runtime_envs: Default::default(), 
-            max_iter: Default::default(), 
+            runtime_env: Default::default(), 
             diagnostics: Default::default(), 
-            store: make_store(&ObjectStorageBackend::default(), None, None).unwrap()
         }
     }
 }
@@ -61,20 +46,14 @@ impl SessionContext {
     pub fn new(
         name: String,
         tasks: TaskMap,
-        state: SubjectsMap,
-        runtime_envs: HashMap<String, Arc<RuntimeEnv>>,
-        max_iter: usize,
+        runtime_env: Arc<RuntimeEnv>,
         diagnostics: bool,
-        store: Arc<dyn ObjectStore>,
     ) -> SessionContext {
         Self {
             name,
             tasks,
-            subjects: state,
-            runtime_envs,
-            max_iter,
+            runtime_env,
             diagnostics,
-            store
         }
     }
 
@@ -84,14 +63,6 @@ impl SessionContext {
 
     pub fn tasks(&self) -> &TaskMap {
         &self.tasks
-    }
-
-    pub fn subjects(&self) -> &SubjectsMap {
-        &self.subjects
-    }
-
-    pub fn subjects_own(self) -> SubjectsMap {
-        self.subjects
     }
 
     /// Compute the next tasks to subscribe
