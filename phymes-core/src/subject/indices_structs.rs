@@ -1,4 +1,7 @@
+use std::collections::BTreeMap;
+
 use arrow::array::ArrowPrimitiveType;
+use phymes_diagnostics::HashMap;
 
 use crate::subject::indices_schema_builders::{BRINIndexBuilder, BTreeIndexBuilder, GINIndexBuilder, GiSTIndexBuilder, HashIndexBuilder, SPGiSTIndexBuilder};
 
@@ -57,6 +60,26 @@ where
     }
 }
 
+pub struct BTreeEntry<K, V> {
+    pub key: K,
+    pub value: V,
+}
+
+fn btree_to_entries<K: std::cmp::Ord + Clone, V: Clone>(btree: &BTreeMap<K, V>) -> Vec<BTreeEntry<K, V>> {
+    // Convert BTreeMap into a Vec<Entry> for serialization
+    btree.iter()
+        .map(|(k, v)| BTreeEntry { key: k.clone(), value: v.clone() })
+        .collect::<Vec<BTreeEntry<K, V>>>()
+}
+
+fn entries_to_btree<K: std::cmp::Ord + Clone, V: Clone>(entries: &[BTreeEntry<K, V>]) -> BTreeMap<K, V> {    
+    let mut btree = BTreeMap::new();
+    for entry in entries {
+        btree.insert(entry.key.clone(), entry.value.clone());
+    }
+    btree
+}
+
 /// Hash Index
 /// 
 /// Stores hash buckets mapping hash values to tuples. Good for equality comparisons.
@@ -79,6 +102,21 @@ where
     pub fn push_into(self, builder: &mut HashIndexBuilder<K, V>) {
         builder.append_entry(self.bucket_id, self.hash, self.key, self.value);
     }
+}
+
+fn hash_to_entries<K: std::cmp::Ord + Clone, V: Clone>(hash: &HashMap<K, V>) -> Vec<BTreeEntry<K, V>> {
+    // Convert BTreeMap into a Vec<Entry> for serialization
+    hash.iter()
+        .map(|(k, v)| BTreeEntry { key: k.clone(), value: v.clone() })
+        .collect::<Vec<BTreeEntry<K, V>>>()
+}
+
+fn entries_to_hash<K: std::cmp::Ord + Clone + std::hash::Hash, V: Clone>(entries: &[BTreeEntry<K, V>]) -> HashMap<K, V> {    
+    let mut hash = HashMap::new();
+    for entry in entries {
+        hash.insert(entry.key.clone(), entry.value.clone());
+    }
+    hash
 }
 
 /// GiST (Generalized Search Tree)
