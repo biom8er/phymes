@@ -1,6 +1,6 @@
 use std::{sync::Arc, fmt::Debug};
 
-use arrow::array::{ArrayRef, ArrowPrimitiveType, PrimitiveBuilder};
+use arrow::{array::{ArrayRef, ArrowPrimitiveType, PrimitiveBuilder}, datatypes::{Int64Type, UInt32Type}};
 use clap::ValueEnum;
 use num_traits::{ PrimInt, Signed};
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ struct IntRange<T> {
 
 impl<T> IntRange<T>
 where
-    T: PrimInt + Signed, // Works for signed & unsigned integers
+    T: PrimInt,
 {
     /// Create a new range from `start` to `end` with a given `step`
     pub fn new(start: T, end: T, step: T) -> Self {
@@ -26,7 +26,7 @@ where
 
 impl<T> Iterator for IntRange<T>
 where
-    T: PrimInt + Signed + Debug,
+    T: PrimInt + Debug,
 {
     type Item = T;
 
@@ -44,8 +44,8 @@ where
 }
 
 /// Build an apache arrow array sequence from `start` to `end` with a given `step`
-pub fn create_arrow_array_sequence<T: ArrowPrimitiveType<Native = T> + PrimInt + Signed + Debug>(start: T, end: T, step: T) -> ArrayRef {
-    let mut builder = PrimitiveBuilder::<T>::new();
+pub fn create_arrow_array_sequence<T: PrimInt + Debug, K: ArrowPrimitiveType<Native = T>>(start: T, end: T, step: T) -> ArrayRef {
+    let mut builder = PrimitiveBuilder::<K>::new();
     for v in IntRange::new(start, end, step) {
         builder.append_value(v);
     }
@@ -60,4 +60,13 @@ pub enum SubjectSequenceType {
     UInt32Sequence,
     #[value(name = "Int64Sequence")]
     Int64Sequence,
+}
+
+impl SubjectSequenceType {
+    pub fn build(&self, start: usize, end: usize, step: usize) -> ArrayRef {
+        match self {
+            Self::UInt32Sequence => create_arrow_array_sequence::<u32, UInt32Type>(start as u32, end as u32, step as u32),
+            Self::Int64Sequence => create_arrow_array_sequence::<i64, Int64Type>(start as i64, end as i64, step as i64),
+        }
+    }
 }

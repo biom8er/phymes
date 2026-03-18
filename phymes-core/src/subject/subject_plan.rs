@@ -6,6 +6,12 @@ pub trait SubjectPlanTrait: MappableTrait + BuildableTrait + Debug + Send + Sync
     fn constraints(&self) -> &Vec<SubjectConstraintType>;
     fn indices(&self) -> &Vec<IndexType>;
     fn sequences(&self) -> &Vec<SubjectSequenceType>;
+    /// Create the additional tables for the constraints
+    fn constraints_tables(&self) -> Vec<Table>;
+    /// Create the additional tables for the indices
+    fn indices_tables(&self) -> Vec<Table>;
+    /// Create the additional tables for the sequences
+    fn sequences_tables(&self) -> Vec<Table>;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -53,5 +59,17 @@ impl SubjectPlanTrait for SubjectPlan {
     
     fn sequences(&self) -> &Vec<SubjectSequenceType> {
         &self.sequences
+    }
+    
+    fn constraints_tables(&self) -> Vec<Table> {
+        todo!()
+    }
+    
+    fn indices_tables(&self) -> Vec<Table> {
+        todo!()
+    }
+    
+    fn sequences_tables(&self) -> Vec<Table> {
+        todo!()
     }
 }
