@@ -2046,17 +2046,17 @@ mod tests {
             let session_names = table_reading.get_column_as_vec_str("session_name");
             let num_rows_deltas =
                 table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
-            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
             let mut combined = subject_names
                 .into_iter()
                 .zip(task_names)
                 .zip(session_names)
                 .zip(num_rows_deltas)
-                .zip(timestamps)
+                .zip(supersteps)
                 .filter_map(
-                    |((((subject_name, task_name), session_name), _num_rows_delta), timestamp)| {
-                        if timestamp == 2 {
-                            Some((subject_name, task_name, session_name, timestamp))
+                    |((((subject_name, task_name), session_name), _num_rows_delta), superstep)| {
+                        if superstep == 2 {
+                            Some((subject_name, task_name, session_name, superstep))
                         } else {
                             None
                         }
@@ -2154,17 +2154,17 @@ mod tests {
             let session_names = table_reading.get_column_as_vec_str("session_name");
             let num_rows_deltas =
                 table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
-            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
             let mut combined = subject_names
                 .into_iter()
                 .zip(task_names)
                 .zip(session_names)
                 .zip(num_rows_deltas)
-                .zip(timestamps)
+                .zip(supersteps)
                 .filter_map(
-                    |((((subject_name, task_name), session_name), _num_rows_delta), timestamp)| {
-                        if timestamp == 3 {
-                            Some((subject_name, task_name, session_name, timestamp))
+                    |((((subject_name, task_name), session_name), _num_rows_delta), superstep)| {
+                        if superstep == 3 {
+                            Some((subject_name, task_name, session_name, superstep))
                         } else {
                             None
                         }
@@ -2262,17 +2262,17 @@ mod tests {
             let session_names = table_reading.get_column_as_vec_str("session_name");
             let num_rows_deltas =
                 table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
-            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
             let mut combined = subject_names
                 .into_iter()
                 .zip(task_names)
                 .zip(session_names)
                 .zip(num_rows_deltas)
-                .zip(timestamps)
+                .zip(supersteps)
                 .filter_map(
-                    |((((subject_name, task_name), session_name), _num_rows_delta), timestamp)| {
-                        if timestamp == 4 {
-                            Some((subject_name, task_name, session_name, timestamp))
+                    |((((subject_name, task_name), session_name), _num_rows_delta), superstep)| {
+                        if superstep == 4 {
+                            Some((subject_name, task_name, session_name, superstep))
                         } else {
                             None
                         }
@@ -2394,17 +2394,17 @@ mod tests {
             let session_names = table_reading.get_column_as_vec_str("session_name");
             let num_rows_deltas =
                 table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
-            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
             let mut combined = subject_names
                 .into_iter()
                 .zip(task_names)
                 .zip(session_names)
                 .zip(num_rows_deltas)
-                .zip(timestamps)
+                .zip(supersteps)
                 .filter_map(
-                    |((((subject_name, task_name), session_name), _num_rows_delta), timestamp)| {
-                        if timestamp == 5 {
-                            Some((subject_name, task_name, session_name, timestamp))
+                    |((((subject_name, task_name), session_name), _num_rows_delta), superstep)| {
+                        if superstep == 5 {
+                            Some((subject_name, task_name, session_name, superstep))
                         } else {
                             None
                         }
@@ -2502,17 +2502,17 @@ mod tests {
             let session_names = table_reading.get_column_as_vec_str("session_name");
             let num_rows_deltas =
                 table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
-            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
             let mut combined = subject_names
                 .into_iter()
                 .zip(task_names)
                 .zip(session_names)
                 .zip(num_rows_deltas)
-                .zip(timestamps)
+                .zip(supersteps)
                 .filter_map(
-                    |((((subject_name, task_name), session_name), _num_rows_delta), timestamp)| {
-                        if timestamp == 6 {
-                            Some((subject_name, task_name, session_name, timestamp))
+                    |((((subject_name, task_name), session_name), _num_rows_delta), superstep)| {
+                        if superstep == 6 {
+                            Some((subject_name, task_name, session_name, superstep))
                         } else {
                             None
                         }
@@ -2588,17 +2588,17 @@ mod tests {
             let session_names = table_reading.get_column_as_vec_str("session_name");
             let num_rows_deltas =
                 table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
-            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
             let mut combined = subject_names
                 .into_iter()
                 .zip(task_names)
                 .zip(session_names)
                 .zip(num_rows_deltas)
-                .zip(timestamps)
+                .zip(supersteps)
                 .filter_map(
-                    |((((subject_name, task_name), session_name), _num_rows_delta), timestamp)| {
-                        if timestamp == 7 {
-                            Some((subject_name, task_name, session_name, timestamp))
+                    |((((subject_name, task_name), session_name), _num_rows_delta), superstep)| {
+                        if superstep == 7 {
+                            Some((subject_name, task_name, session_name, superstep))
                         } else {
                             None
                         }
@@ -2667,17 +2667,17 @@ mod tests {
             let session_names = table_reading.get_column_as_vec_str("session_name");
             let num_rows_deltas =
                 table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
-            let timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
             let mut combined = subject_names
                 .into_iter()
                 .zip(task_names)
                 .zip(session_names)
                 .zip(num_rows_deltas)
-                .zip(timestamps)
+                .zip(supersteps)
                 .filter_map(
-                    |((((subject_name, task_name), session_name), _num_rows_delta), timestamp)| {
-                        if timestamp == 8 {
-                            Some((subject_name, task_name, session_name, timestamp))
+                    |((((subject_name, task_name), session_name), _num_rows_delta), superstep)| {
+                        if superstep == 8 {
+                            Some((subject_name, task_name, session_name, superstep))
                         } else {
                             None
                         }

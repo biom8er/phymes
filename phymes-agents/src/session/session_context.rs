@@ -135,9 +135,9 @@ impl SessionContext {
             .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_name-List")?;
         let subscribe_types = table.get_column_as_vec_str("subscribe_type-Last");
         let update_types = table.get_column_as_vec_str("update_type-Last");
-        let timestamps = table.get_column_as_vec_nested_primitive::<i64>("timestamp-List")?;
-        let timestamp_lasts =
-            table.get_column_as_vec_nested_primitive::<i64>("timestamp-Max-List")?;
+        let supersteps = table.get_column_as_vec_nested_primitive::<i64>("superstep-List")?;
+        let superstep_lasts =
+            table.get_column_as_vec_nested_primitive::<i64>("superstep-Max-List")?;
 
         // Determine the processor subscriptions
         let processors_subscribe = session_names
@@ -149,8 +149,8 @@ impl SessionContext {
             .zip(subscription_table_names)
             .zip(subscribe_types)
             .zip(update_types)
-            .zip(timestamps)
-            .zip(timestamp_lasts)
+            .zip(supersteps)
+            .zip(superstep_lasts)
             .map(
                 |(
                     (
@@ -170,9 +170,9 @@ impl SessionContext {
                             ),
                             update_type,
                         ),
-                        timestamps,
+                        supersteps,
                     ),
-                    timestamps_lasts,
+                    supersteps_lasts,
                 )| {
                     let subscriptions = subscription_names
                         .iter()
@@ -186,14 +186,14 @@ impl SessionContext {
                         .build();
                     let subjects_change_log = subscription_table_names
                         .iter()
-                        .zip(timestamps_lasts.iter())
-                        .map(|(subject_name, timestamp)| {
-                            (subject_name.to_string(), timestamp.to_owned())
+                        .zip(supersteps_lasts.iter())
+                        .map(|(subject_name, superstep)| {
+                            (subject_name.to_string(), superstep.to_owned())
                         })
                         .collect::<HashMap<_, _>>();
                     let updates = update_policy.determine_updates(
                         &subscriptions,
-                        timestamps.last().unwrap(),
+                        supersteps.last().unwrap(),
                         &subjects_change_log,
                         self.subjects(),
                     );
@@ -215,8 +215,8 @@ impl SessionContext {
                         subscription_table_names,
                         subscribe_type,
                         update_type,
-                        timestamps,
-                        timestamps_lasts,
+                        supersteps,
+                        supersteps_lasts,
                         subscribe,
                     )
                 },
@@ -234,8 +234,8 @@ impl SessionContext {
             _subscription_table_names,
             _subscribe_type,
             _update_type,
-            _timestamps,
-            _timestamps_lasts,
+            _supersteps,
+            _supersteps_lasts,
             subscribe,
         ) in processors_subscribe.iter()
         {
@@ -271,8 +271,8 @@ impl SessionContext {
                     subscription_table_names,
                     subscribe_type,
                     update_type,
-                    timestamps,
-                    timestamps_lasts,
+                    supersteps,
+                    supersteps_lasts,
                     _subscribe,
                 )| {
                     if session_names_subscribe.contains(session_name)
@@ -281,9 +281,9 @@ impl SessionContext {
                         let subscribe = subscription_names
                             .into_iter()
                             .zip(subscription_table_names)
-                            .zip(timestamps)
-                            .zip(timestamps_lasts)
-                            .filter_map(|(((name, subject), timestamp), timestamp_last)| {
+                            .zip(supersteps)
+                            .zip(supersteps_lasts)
+                            .filter_map(|(((name, subject), superstep), superstep_last)| {
                                 let subscriptions = vec![
                                     TableSubscription::from_str_fuzzy(&name, &subject).unwrap(),
                                 ];
@@ -293,10 +293,10 @@ impl SessionContext {
                                         .build();
                                 let mut subjects_change_log = HashMap::<String, i64>::new();
                                 let _ =
-                                    subjects_change_log.insert(subject.to_string(), timestamp_last);
+                                    subjects_change_log.insert(subject.to_string(), superstep_last);
                                 let updates = update_policy.determine_updates(
                                     &subscriptions,
-                                    &timestamp,
+                                    &superstep,
                                     &subjects_change_log,
                                     self.subjects(),
                                 );
@@ -831,7 +831,7 @@ impl SessionContext {
         let mut task_names = Vec::new();
         let mut session_names = Vec::new();
         let mut num_rows_deltas = Vec::new();
-        let mut timestamps = Vec::new();
+        let mut supersteps = Vec::new();
         let mut errors = Vec::new();
 
         // Update the subjects with each of the messages
@@ -873,7 +873,7 @@ impl SessionContext {
                         task_names.push(publisher);
                         session_names.push(self.get_name().to_string());
                         num_rows_deltas.push(num_rows_new as i64 - num_rows_old as i64);
-                        timestamps.push(step as i64);
+                        supersteps.push(step as i64);
                     }
                     Err(err) => {
                         let error = format!(
@@ -899,7 +899,7 @@ impl SessionContext {
                 task_names,
                 session_names,
                 num_rows_deltas,
-                timestamps,
+                supersteps,
             )
             .unwrap();
             Some(
@@ -1355,12 +1355,12 @@ mod tests {
         .into_iter()
         .map(|s| s.to_string())
         .collect::<Vec<_>>();
-        let timestamps = vec![vec![0], vec![0, 0], vec![0, 0], vec![0, 0]];
+        let supersteps = vec![vec![0], vec![0, 0], vec![0, 0], vec![0, 0]];
         // let timestamps = vec![vec![1768954478778611],
         //     vec![1768954478778609,1768954478778609],
         //     vec![1768954478778609,1768954478778609],
         //     vec![1768954478778609,1768954478778609]];
-        let timestamp_lasts = vec![vec![1], vec![0, 1], vec![0, 1], vec![0, 1]];
+        let superstep_lasts = vec![vec![1], vec![0, 1], vec![0, 1], vec![0, 1]];
         // let timestamp_lasts = vec![vec![1768954478786822],
         //     vec![1768954478776320,1768954478786822],
         //     vec![1768954478776344,1768954478786822],
@@ -1375,8 +1375,8 @@ mod tests {
             update_types,
             subscription_names,
             subscription_table_names,
-            timestamps,
-            timestamp_lasts,
+            supersteps,
+            superstep_lasts,
         )?;
         let table_tasks_subscribe_aggregate =
             AvailableSubjects::SessionTasksSubscribeAggregate.to_table(None, Some(vec![batch]))?;
@@ -1564,12 +1564,12 @@ mod tests {
         .into_iter()
         .map(|s| s.to_string())
         .collect::<Vec<_>>();
-        let timestamps = vec![vec![0], vec![0, 0], vec![0, 0], vec![0, 0]];
+        let supersteps = vec![vec![0], vec![0, 0], vec![0, 0], vec![0, 0]];
         // let timestamps = vec![vec![1768954478778611],
         //     vec![1768954478778609,1768954478778609],
         //     vec![1768954478778609,1768954478778609],
         //     vec![1768954478778609,1768954478778609]];
-        let timestamp_lasts = vec![vec![0], vec![0, 0], vec![0, 0], vec![0, 0]];
+        let superstep_lasts = vec![vec![0], vec![0, 0], vec![0, 0], vec![0, 0]];
 
         let batch = create_session_tasks_subscribe_aggregate_batch(
             session_names,
@@ -1580,8 +1580,8 @@ mod tests {
             update_types,
             subscription_names,
             subscription_table_names,
-            timestamps,
-            timestamp_lasts,
+            supersteps,
+            superstep_lasts,
         )?;
         let table_tasks_subscribe_aggregate =
             AvailableSubjects::SessionTasksSubscribeAggregate.to_table(None, Some(vec![batch]))?;
@@ -1692,12 +1692,12 @@ mod tests {
         .into_iter()
         .map(|s| s.to_string())
         .collect::<Vec<_>>();
-        let timestamps = vec![vec![0], vec![0, 0], vec![0, 0], vec![0, 0]];
+        let supersteps = vec![vec![0], vec![0, 0], vec![0, 0], vec![0, 0]];
         // let timestamps = vec![vec![1768954478778611],
         //     vec![1768954478778609,1768954478778609],
         //     vec![1768954478778609,1768954478778609],
         //     vec![1768954478778609,1768954478778609]];
-        let timestamp_lasts = vec![vec![1], vec![0, 0], vec![0, 1], vec![0, 1]];
+        let superstep_lasts = vec![vec![1], vec![0, 0], vec![0, 1], vec![0, 1]];
         // let timestamp_lasts = vec![vec![1768954478786822],
         //     vec![1768954478776320,0],
         //     vec![1768954478776344,1768954478786822],
@@ -1712,8 +1712,8 @@ mod tests {
             update_types,
             subscription_names,
             subscription_table_names,
-            timestamps,
-            timestamp_lasts,
+            supersteps,
+            superstep_lasts,
         )?;
         let table_tasks_subscribe_aggregate =
             AvailableSubjects::SessionTasksSubscribeAggregate.to_table(None, Some(vec![batch]))?;

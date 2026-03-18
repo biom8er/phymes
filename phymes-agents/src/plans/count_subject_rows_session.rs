@@ -57,7 +57,7 @@ impl<'a> CountSubjectRowsSession<'a> {
         Utf8 task_name
         Utf8 session_name
         Int64 num_rows
-        Int64 timestamp
+        Int64 superstep
     }
     group_by_subject_change_log_delta_p["group_by_subject_change_log_delta_p"] {
         List-Utf8 agg_columns "['num_rows']"
