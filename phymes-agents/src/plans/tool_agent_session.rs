@@ -534,11 +534,11 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
 
     fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
         Some(vec![
-            RuntimeEnv::new().with_name(self.message_aggregator_runtime_env_name),
-            RuntimeEnv::new().with_name(self.attachment_aggregator_runtime_env_name),
-            RuntimeEnv::new().with_name(self.chat_runtime_env_name),
-            RuntimeEnv::new().with_name(self.tool_runtime_env_name),
-            RuntimeEnv::new().with_name("rt_default"),
+            RuntimeEnv::get_builder().with_name(self.message_aggregator_runtime_env_name).build().unwrap(),
+            RuntimeEnv::get_builder().with_name(self.attachment_aggregator_runtime_env_name).build().unwrap(),
+            RuntimeEnv::get_builder().with_name(self.chat_runtime_env_name).build().unwrap(),
+            RuntimeEnv::get_builder().with_name(self.tool_runtime_env_name).build().unwrap(),
+            RuntimeEnv::get_builder().with_name("rt_default").build().unwrap(),
         ])
     }
 

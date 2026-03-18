@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
@@ -18,18 +20,37 @@ pub enum SubjectFolderPartition {
     #[value(name = "None")]
     None,
 }
+impl Display for SubjectFolderPartition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Superstep => write!(f, "Superstep"),
+            Self::Timestamp => write!(f, "Timestamp"),
+            Self::Date => write!(f, "Date"),
+            Self::None => write!(f, "None"),
+        }
+    }
+}
 
 /// Subject partitioning into files
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize, Default, ValueEnum)]
 pub enum SubjectFilePartition {
     /// `RecordBatch`es partitioned according to the number of rows
-    #[default]
     #[value(name = "NumRows")]
     NumRows,
     /// `RecordBatch`es partitioned according to the number of byte size
     #[value(name = "ChunkSize")]
     ChunkSize,
     /// No additional file partitioning
+    #[default]
     #[value(name = "None")]
     None,
+}
+impl Display for SubjectFilePartition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NumRows => write!(f, "NumRows"),
+            Self::ChunkSize => write!(f, "ChunkSize"),
+            Self::None => write!(f, "None"),
+        }
+    }
 }

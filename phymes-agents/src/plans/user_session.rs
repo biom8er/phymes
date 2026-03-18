@@ -2,10 +2,7 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
-    ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder,
-    TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_user_batch,
-    create_user_session_contexts_batch,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_user_batch, create_user_session_contexts_batch
 };
 use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator};
 use phymes_diagnostics::create_timestamp_micros;
@@ -220,10 +217,10 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 
     fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
         Some(vec![
-            RuntimeEnv::new().with_name(self.filter_session_contexts_by_email_runtime_env_name),
-            RuntimeEnv::new()
-                .with_name(self.join_session_contexts_with_mermaid_diagrams_runtime_env_name),
-            RuntimeEnv::new().with_name(self.filter_user_info_by_email_runtime_env_name),
+            RuntimeEnv::get_builder().with_name(self.filter_session_contexts_by_email_runtime_env_name).build().unwrap(),
+            RuntimeEnv::get_builder()
+                .with_name(self.join_session_contexts_with_mermaid_diagrams_runtime_env_name).build().unwrap(),
+            RuntimeEnv::get_builder().with_name(self.filter_user_info_by_email_runtime_env_name).build().unwrap(),
         ])
     }
 

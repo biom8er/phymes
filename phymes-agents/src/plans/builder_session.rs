@@ -110,7 +110,7 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
     }
 
     fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
-        Some(vec![RuntimeEnv::new().with_name("rt_default")])
+        Some(vec![RuntimeEnv::get_builder().with_name("rt_default").build().unwrap()])
     }
 
     fn make_state_tables(&self) -> Option<Vec<Table>> {

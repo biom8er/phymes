@@ -55,19 +55,19 @@ pub fn create_subjects_change_log_batch(
     subject_names: Vec<String>,
     task_names: Vec<String>,
     session_names: Vec<String>,
-    num_rows_deltas: Vec<i64>,
+    num_rows: Vec<i64>,
     supersteps: Vec<i64>,
 ) -> Result<RecordBatch> {
     let subject_names: ArrayRef = Arc::new(StringArray::from(subject_names));
     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
     let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
-    let num_rows_deltas: ArrayRef = Arc::new(Int64Array::from(num_rows_deltas));
+    let num_rows: ArrayRef = Arc::new(Int64Array::from(num_rows));
     let supersteps: ArrayRef = Arc::new(Int64Array::from(supersteps));
     let batch = RecordBatch::try_from_iter(vec![
         ("subject_name", subject_names),
         ("task_name", task_names),
         ("session_name", session_names),
-        ("num_rows", num_rows_deltas),
+        ("num_rows", num_rows),
         ("superstep", supersteps),
     ])?;
     Ok(batch)

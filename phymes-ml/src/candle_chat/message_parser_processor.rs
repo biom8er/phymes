@@ -475,11 +475,7 @@ mod tests {
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
-        let runtime_env = Arc::new(RuntimeEnv {
-            name: "service".to_string(),
-            memory_limit: None,
-            time_limit: None,
-        });
+        let runtime_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Create the processor and run
         let processor = MessageParserProcessor::new("message_processor", "");
@@ -601,11 +597,7 @@ mod tests {
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
-        let runtime_env = Arc::new(RuntimeEnv {
-            name: "service".to_string(),
-            memory_limit: None,
-            time_limit: None,
-        });
+        let runtime_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Create the processor and run
         let processor = MessageParserProcessor::new("message_processor", "");
@@ -726,11 +718,7 @@ mod tests {
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
-        let runtime_env = Arc::new(RuntimeEnv {
-            name: "service".to_string(),
-            memory_limit: None,
-            time_limit: None,
-        });
+        let runtime_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Create the processor and run
         let processor = MessageParserProcessor::new("message_processor", "");

@@ -459,11 +459,7 @@ mod tests {
         let span = SpanBuilder::default().with_span(name).build()?;
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
-        let runtime_env = Arc::new(RuntimeEnv {
-            name: "service".to_string(),
-            memory_limit: None,
-            time_limit: None,
-        });
+        let runtime_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Make the tool_call_processor config
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -665,11 +661,7 @@ mod tests {
         let span = SpanBuilder::default().with_span(name).build()?;
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
-        let runtime_env = Arc::new(RuntimeEnv {
-            name: "service".to_string(),
-            memory_limit: None,
-            time_limit: None,
-        });
+        let runtime_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Make the tool_call_processor config
         let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();

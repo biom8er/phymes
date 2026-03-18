@@ -580,7 +580,7 @@ mod tests {
         let messages = "messages";
 
         // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -679,7 +679,7 @@ mod tests {
         let name = "HTTPClientRequestProcessor";
 
         // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -764,7 +764,7 @@ mod tests {
         let messages = "messages";
 
         // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -874,7 +874,7 @@ mod tests {
         let messages = "messages";
 
         // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -975,7 +975,7 @@ mod tests {
         let messages = "messages";
 
         // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -1077,7 +1077,7 @@ mod tests {
         let messages = "messages";
 
         // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -1190,7 +1190,7 @@ mod tests {
         let messages = "messages";
 
         // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -1281,7 +1281,7 @@ mod tests {
     #[ignore = "for generating data to test OpenAlex parsers"]
     async fn test_http_client_processor_open_alex_test_data() -> Result<()> {
         let name = "HTTPClientRequestProcessor";
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
         let span = SpanBuilder::default().with_span("test").build()?;
         let diagnostics = Diagnostics::new();
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);

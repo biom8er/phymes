@@ -257,7 +257,7 @@ pub mod test_task {
     }
 
     pub fn make_runtime_env(name: &str) -> Result<RuntimeEnv> {
-        let rt = RuntimeEnv::new().with_name(name);
+        let rt = RuntimeEnv::get_builder().with_name(name).build()?;
         Ok(rt)
     }
 

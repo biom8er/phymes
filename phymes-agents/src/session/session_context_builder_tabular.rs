@@ -7,16 +7,10 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies,
-    AvailableTableUpdatePolicies, BuildableTrait, BuilderTrait, MappableTrait,
-    ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication,
-    TableSubscription, TableTrait, TaskPlanBuilder, create_session_mermaid_batch,
-    create_session_processors_batch, create_session_runtime_envs_batch,
-    create_session_subject_schemas_batch, create_session_tasks_batch, create_session_tasks_run_log_batch,
-    create_subjects_change_log_batch, create_subjects_num_rows_batch, from_data_type_to_str,
-    from_str_to_data_type,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvBuilderTrait, RuntimeEnvTrait, SubjectFilePartition, SubjectFolderPartition, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskPlanBuilder, create_session_mermaid_batch, create_session_processors_batch, create_session_runtime_envs_batch, create_session_subject_schemas_batch, create_session_tasks_batch, create_session_tasks_run_log_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_data_type_to_str, from_str_to_data_type
 };
 use phymes_diagnostics::{HashSet, create_timestamp_micros};
+use serde_json::{Map, Value};
 
 use crate::{
     AvailableProcessors, SessionContextBuilder, SessionContextBuilderAgentsTrait,
@@ -487,16 +481,10 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .filter(|r| !exclusion_set.contains(r.get_name()))
             .collect::<Vec<_>>();
         sorted_rts.sort_by(|a, b| a.name.cmp(&b.name));
-        let (((session_names, runtime_env_names), memory_limits), time_limits) = sorted_rts
+        let ((((((((session_names, runtime_env_names), object_store_backend), object_store_bucket), object_store_backend_config), subject_folder_partitioning), subject_file_partitioning), memory_limits), time_limits) = sorted_rts
             .iter()
             .map(|r| {
-                (
-                    (
-                        (session_name.to_string(), r.get_name().to_string()),
-                        r.memory_limit.unwrap_or_default() as u32,
-                    ),
-                    r.time_limit.unwrap_or_default() as u32,
-                )
+                ((((((((session_name.to_string(), r.get_name().to_string()), r.object_store_backend.to_string()), r.object_store_bucket.to_string()), serde_json::to_string(&r.object_store_backend_config).unwrap()), r.subject_folder_partitioning.to_string()), r.subject_file_partitioning.to_string()), r.memory_limit as u32), r.time_limit as u32)
             })
             .unzip();
 
@@ -504,6 +492,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let batch = create_session_runtime_envs_batch(
             session_names,
             runtime_env_names,
+            object_store_backend, object_store_bucket, object_store_backend_config, subject_folder_partitioning, subject_file_partitioning,
             memory_limits,
             time_limits,
         )?;
@@ -872,6 +861,11 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
     {
         // extract arrays
         let runtime_envs_vec_str = runtime_envs.get_column_as_vec_str("runtime_env_name");
+        let object_store_backend_vec_str = runtime_envs.get_column_as_vec_str("object_store_backend");
+        let object_store_bucket_vec_str = runtime_envs.get_column_as_vec_str("object_store_bucket");
+        let object_store_backend_config_vec_str = runtime_envs.get_column_as_vec_str("object_store_backend_config");
+        let subject_folder_partitioning_vec_str = runtime_envs.get_column_as_vec_str("subject_folder_partitioning");
+        let subject_file_partitioning_vec_str = runtime_envs.get_column_as_vec_str("subject_file_partitioning");
         let memory_limits_vec_str =
             runtime_envs.get_column_as_vec_primitive::<u32>("memory_limit")?;
         let time_limits_vec_str = runtime_envs.get_column_as_vec_primitive::<u32>("time_limit")?;
@@ -880,32 +874,32 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let runtime_envs_unique = runtime_envs_vec_str.iter().collect::<HashSet<_>>();
         let combined = runtime_envs_vec_str
             .iter()
+            .zip(object_store_backend_vec_str.iter())
+            .zip(object_store_bucket_vec_str.iter())
+            .zip(object_store_backend_config_vec_str.iter())
+            .zip(subject_folder_partitioning_vec_str.iter())
+            .zip(subject_file_partitioning_vec_str.iter())
             .zip(memory_limits_vec_str.iter())
             .zip(time_limits_vec_str.iter())
-            .map(|((x, y), z)| (x, y, z))
+            .map(|(((((((a, b), c), d), e), f), g), h)| (a, b, c, d, e, f, g, h))
             .collect::<Vec<_>>();
 
         // build the task plans
         let mut runtime_envs = Vec::new();
         for rt_name in runtime_envs_unique {
-            let mut rt = RuntimeEnv::new().with_name(rt_name);
-            for (name, mem, time) in combined.iter() {
+            let mut rt = RuntimeEnv::get_builder().with_name(rt_name);
+            for (name, os_backend, os_bucket, os_config, folder, file, mem, time) in combined.iter() {
                 if name == &rt_name {
-                    let memory_limit = if **mem == u32::default() {
-                        None
-                    } else {
-                        Some(**mem as usize)
-                    };
-                    let time_limit = if **time == u32::default() {
-                        None
-                    } else {
-                        Some(**time as usize)
-                    };
-                    rt.memory_limit = memory_limit;
-                    rt.time_limit = time_limit;
+                    rt = rt.with_object_store_backend(&ObjectStorageBackend::from_str(os_backend, false).map_err(|err| anyhow!("{err}"))?)
+                        .with_object_store_bucket(os_bucket)
+                        .with_object_store_backend_config(&serde_json::from_str::<Map<String, Value>>(os_config)?)
+                        .with_subject_folder_partitioning(&SubjectFolderPartition::from_str(folder, false).map_err(|err| anyhow!("{err}"))?)
+                        .with_subject_file_partitioning(&SubjectFilePartition::from_str(file, false).map_err(|err| anyhow!("{err}"))?)
+                        .with_memory_limit(**mem as usize)
+                        .with_time_limit(**time as usize);
                 }
             }
-            runtime_envs.push(rt);
+            runtime_envs.push(rt.build()?);
         }
 
         Ok(self.with_runtime_envs(runtime_envs))
@@ -1898,6 +1892,56 @@ mod tests {
                 .get(11)
                 .unwrap()
                 .get_column_as_vec_str("runtime_env_name")
+        );
+        assert_eq!(
+            tables_test
+                .get(11)
+                .unwrap()
+                .get_column_as_vec_str("object_store_backend"),
+            tables
+                .get(11)
+                .unwrap()
+                .get_column_as_vec_str("object_store_backend")
+        );
+        assert_eq!(
+            tables_test
+                .get(11)
+                .unwrap()
+                .get_column_as_vec_str("object_store_bucket"),
+            tables
+                .get(11)
+                .unwrap()
+                .get_column_as_vec_str("object_store_bucket")
+        );
+        assert_eq!(
+            tables_test
+                .get(11)
+                .unwrap()
+                .get_column_as_vec_str("object_store_backend_config"),
+            tables
+                .get(11)
+                .unwrap()
+                .get_column_as_vec_str("object_store_backend_config")
+        );
+        assert_eq!(
+            tables_test
+                .get(11)
+                .unwrap()
+                .get_column_as_vec_str("subject_folder_partitioning"),
+            tables
+                .get(11)
+                .unwrap()
+                .get_column_as_vec_str("subject_folder_partitioning")
+        );
+        assert_eq!(
+            tables_test
+                .get(11)
+                .unwrap()
+                .get_column_as_vec_str("subject_file_partitioning"),
+            tables
+                .get(11)
+                .unwrap()
+                .get_column_as_vec_str("subject_file_partitioning")
         );
         assert_eq!(
             tables_test

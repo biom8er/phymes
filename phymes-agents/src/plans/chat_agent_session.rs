@@ -1,7 +1,5 @@
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait,
-    ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder,
-    TableBuilderTrait, TablePublication, TableSubscription, TaskPlan,
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan
 };
 use phymes_data::{AvailableCandleOperators, DataConfig};
 #[cfg(feature = "api")]
@@ -195,8 +193,8 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
 
     fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
         Some(vec![
-            RuntimeEnv::new().with_name(self.chat_runtime_env_name),
-            RuntimeEnv::new().with_name(self.message_aggregator_runtime_env_name),
+            RuntimeEnv::get_builder().with_name(self.chat_runtime_env_name).build().unwrap(),
+            RuntimeEnv::get_builder().with_name(self.message_aggregator_runtime_env_name).build().unwrap(),
         ])
     }
 

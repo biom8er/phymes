@@ -698,7 +698,7 @@ pub mod bench_chat_processor {
         let mut stream = chat_processor.process(
             message,
             diagnostic_builder,
-            Arc::new(RuntimeEnv::new().with_name("rt")),
+            Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?),
         )?;
 
         // Update the chat history with the response
@@ -907,7 +907,7 @@ mod tests {
         let mut stream = chat_processor.process(
             message,
             Some(&diagnostic_builder),
-            Arc::new(RuntimeEnv::new().with_name("rt")),
+            Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?),
         )?;
 
         // DM: Skip actually running the tests as they take too long on the CPU

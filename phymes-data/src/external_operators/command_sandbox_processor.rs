@@ -1741,7 +1741,7 @@ mod tests {
         let name = "CommandSandboxProcessor";
 
         // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -1912,7 +1912,7 @@ mod tests {
         let name = "CommandSandboxProcessor";
 
         // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -2098,7 +2098,7 @@ mod tests {
         let messages = "messages";
 
         // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -2327,7 +2327,7 @@ mod tests {
         let messages = "messages";
 
         // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -2600,7 +2600,7 @@ mod tests {
         let messages = "messages";
 
         // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -2826,7 +2826,7 @@ if __name__ == '__main__':
         writer.close()"#;
 
         // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -2934,7 +2934,7 @@ if __name__ == '__main__':
         let workspace_table = CommandSandboxEnvironments::Python.to_default_workspace(None)?;
 
         // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -3042,7 +3042,7 @@ if __name__ == '__main__':
         let messages = "messages";
 
         // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -3701,7 +3701,7 @@ apt install --assume-yes protobuf-compiler clang"#;
         let messages = "messages";
 
         // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;

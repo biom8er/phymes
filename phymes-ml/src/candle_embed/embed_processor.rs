@@ -732,11 +732,7 @@ mod tests {
             .build()?;
 
         // Make the runtime
-        let runtime_env = RuntimeEnv {
-            name: "asset".to_string(),
-            memory_limit: None,
-            time_limit: None,
-        };
+        let runtime_env = RuntimeEnv::get_builder().with_name("rt").build()?;
         let runtime_env = Arc::new(runtime_env);
 
         // Case 1: streaming query
@@ -972,11 +968,7 @@ mod tests {
         let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
 
         // Make the runtime
-        let runtime_env = RuntimeEnv {
-            name: "asset".to_string(),
-            memory_limit: None,
-            time_limit: None,
-        };
+        let runtime_env = RuntimeEnv::get_builder().with_name("rt").build()?;
         let runtime_env = Arc::new(runtime_env);
 
         // Make and run the embeddings stream

@@ -1,6 +1,6 @@
 use arrow::datatypes::DataType;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuilderTrait, DataEncoding, DataFormat, DiagnosticsVisualizations, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan
+    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, DiagnosticsVisualizations, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator,
@@ -858,13 +858,13 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
 
     fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
         Some(vec![
-            RuntimeEnv::new().with_name(self.metrics_runtime_env_name),
-            RuntimeEnv::new().with_name(self.metrics_processors_traces_runtime_env_name),
-            RuntimeEnv::new().with_name(self.metrics_elapsed_compute_runtime_env_name),
-            RuntimeEnv::new().with_name(self.metrics_output_rows_runtime_env_name),
-            RuntimeEnv::new().with_name(self.traces_runtime_env_name),
-            RuntimeEnv::new().with_name(self.events_runtime_env_name),
-            RuntimeEnv::new().with_name(self.errors_runtime_env_name),
+            RuntimeEnv::get_builder().with_name(self.metrics_runtime_env_name).build().unwrap(),
+            RuntimeEnv::get_builder().with_name(self.metrics_processors_traces_runtime_env_name).build().unwrap(),
+            RuntimeEnv::get_builder().with_name(self.metrics_elapsed_compute_runtime_env_name).build().unwrap(),
+            RuntimeEnv::get_builder().with_name(self.metrics_output_rows_runtime_env_name).build().unwrap(),
+            RuntimeEnv::get_builder().with_name(self.traces_runtime_env_name).build().unwrap(),
+            RuntimeEnv::get_builder().with_name(self.events_runtime_env_name).build().unwrap(),
+            RuntimeEnv::get_builder().with_name(self.errors_runtime_env_name).build().unwrap(),
         ])
     }
 

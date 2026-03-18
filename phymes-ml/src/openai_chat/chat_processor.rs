@@ -449,7 +449,7 @@ mod tests {
         let mut stream = chat_processor.process(
             message,
             Some(&diagnostic_builder),
-            Arc::new(RuntimeEnv::new().with_name("rt")),
+            Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?),
         )?;
 
         // Update the chat history with the response

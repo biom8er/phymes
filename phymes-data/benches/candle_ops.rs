@@ -130,11 +130,7 @@ fn benchmark_candle_ops_processor(c: &mut Criterion) {
         for stream in stream_vec.iter() {
             for config in ops_configs_vec.iter() {
                 // Build the runtime environment
-                let runtime_env = RuntimeEnv {
-                    name: "service".to_string(),
-                    memory_limit: None,
-                    time_limit: None,
-                };
+                let runtime_env = RuntimeEnv::get_builder().with_name("rt").build().unwrap();
                 let runtime_env = Arc::new(runtime_env);
 
                 // Update the config

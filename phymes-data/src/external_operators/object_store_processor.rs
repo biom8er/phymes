@@ -678,7 +678,7 @@ mod tests {
         let messages = "messages";
 
         // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
         let store = make_store(&ObjectStorageBackend::InMemory, None, None)?;
 
         // Metrics to compute time and rows
@@ -945,7 +945,7 @@ mod tests {
         let _ = std::fs::create_dir(&project_dir);
 
         // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -1232,7 +1232,7 @@ mod tests {
         // let _ = store_config.insert(AmazonS3ConfigKey::DefaultRegion.as_ref().to_string(), Value::String("true".to_string()));
 
         // Runtime env
-        let rt_env = Arc::new(RuntimeEnv::new().with_name("rt"));
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;

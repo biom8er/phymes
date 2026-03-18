@@ -1089,7 +1089,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
         // Add the runtime environment
         let mut runtime_envs = self.runtime_envs.take().unwrap_or_default();
-        runtime_envs.push(RuntimeEnv::new().with_name(runtime_env_name.as_str()));
+        runtime_envs.push(RuntimeEnv::get_builder().with_name(runtime_env_name.as_str()).build()?);
         self.runtime_envs.replace(runtime_envs);
 
         Ok(self)

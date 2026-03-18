@@ -616,7 +616,7 @@ mod tests {
         let mut stream = chat_processor.process(
             message,
             Some(&DiagnosticBuilder::new(&Diagnostics::new())),
-            Arc::new(RuntimeEnv::new().with_name("rt")),
+            Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?),
         )?;
 
         // Update the chat history with the response
@@ -703,7 +703,7 @@ mod tests {
         let mut stream = chat_processor.process(
             message,
             Some(&DiagnosticBuilder::new(&Diagnostics::new())),
-            Arc::new(RuntimeEnv::new().with_name("rt")),
+            Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?),
         )?;
 
         // Update the chat history with the response

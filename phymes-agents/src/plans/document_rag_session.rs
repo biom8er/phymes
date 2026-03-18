@@ -599,12 +599,12 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
 
     fn make_runtime_envs(&self) -> Option<Vec<RuntimeEnv>> {
         Some(vec![
-            RuntimeEnv::new().with_name(self.chat_runtime_env_name),
-            RuntimeEnv::new().with_name(self.embed_documents_runtime_env_name),
-            RuntimeEnv::new().with_name(self.embed_query_runtime_env_name),
-            RuntimeEnv::new().with_name(self.vector_search_runtime_env_name),
-            RuntimeEnv::new().with_name(self.attachment_aggregator_runtime_env_name),
-            RuntimeEnv::new().with_name("rt_default"),
+            RuntimeEnv::get_builder().with_name(self.chat_runtime_env_name).build().unwrap(),
+            RuntimeEnv::get_builder().with_name(self.embed_documents_runtime_env_name).build().unwrap(),
+            RuntimeEnv::get_builder().with_name(self.embed_query_runtime_env_name).build().unwrap(),
+            RuntimeEnv::get_builder().with_name(self.vector_search_runtime_env_name).build().unwrap(),
+            RuntimeEnv::get_builder().with_name(self.attachment_aggregator_runtime_env_name).build().unwrap(),
+            RuntimeEnv::get_builder().with_name("rt_default").build().unwrap(),
         ])
     }
 

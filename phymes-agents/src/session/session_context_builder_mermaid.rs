@@ -1156,7 +1156,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             ));
         }
         for name in runtime_env_names_vec {
-            let runtime_env = RuntimeEnv::new().with_name(&name);
+            let runtime_env = RuntimeEnv::get_builder().with_name(&name).build()?;
             runtime_envs.push(runtime_env);
         }
 
