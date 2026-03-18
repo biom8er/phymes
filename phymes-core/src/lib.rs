@@ -42,7 +42,7 @@ pub use schemas::{
     create_repository_fields, create_repository_patch_batch, create_repository_patch_fields,
     create_route_bytes_record_batch, create_schema_from_fields, create_session_mermaid_batch,
     create_session_processors_batch, create_session_runtime_envs_batch,
-    create_session_subjects_batch, create_session_supersteps_batch, create_session_tasks_batch,
+    create_session_subject_schemas_batch, create_session_supersteps_batch, create_session_tasks_batch,
     create_session_tasks_check_batch, create_session_tasks_publish_batch,
     create_session_tasks_run_log_batch, create_session_tasks_subscribe_aggregate_batch,
     create_session_tasks_subscribe_batch, create_session_tasks_subscribe_publish_batch,
@@ -59,7 +59,12 @@ pub use storage::{
     IpcReader, JsonReader, CsvReader, StorageReaderTrait, StorageStreamReaderTrait, storage_reader_get_result, storage_reader_stream_result,
     IpcWriter, JsonWriter, CsvWriter, StorageWriterTrait, StorageStreamWriterTrait, storage_writer_multipart
 };
-pub use subject::{SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlan, SubjectPlanTrait, SubjectConstraint};
+pub use subject::{SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlan, SubjectPlanTrait, SubjectConstraint, IndexType,
+    BTreeIndexReader, HashIndexReader, GiSTIndexReader, SPGiSTIndexReader, GINIndexReader, BRINIndexReader,
+    BTreeIndexBuilder, HashIndexBuilder, GiSTIndexBuilder, SPGiSTIndexBuilder, GINIndexBuilder, BRINIndexBuilder,
+    btree_schema, hash_index_schema, gist_schema, spgist_schema, gin_schema, brin_schema,
+    BTreeIndex, BTreeNode, HashIndex, HashEntry, GiSTIndex, GiSTEntry, SPGiSTIndex, SPGiSTNode, GINIndex, GINPosting, BRINIndex, BRINRange
+};
 pub use table::{
     AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, CsvFormat, DataEncoding, DataFormat,
     IPCRecordBatchStream, JsonFormat, RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder,

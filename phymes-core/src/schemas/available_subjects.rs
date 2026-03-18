@@ -20,7 +20,7 @@ use crate::{
             create_session_mermaid_fields,
         }, session::{
             create_session_processors_fields, create_session_runtime_envs_fields,
-            create_session_subjects_fields, create_session_superstep_max_fields,
+            create_session_subject_schemas_fields, create_session_superstep_max_fields,
             create_session_supersteps_fields, create_session_tasks_check_fields,
             create_session_tasks_fields, create_session_tasks_publish_aggregate_fields,
             create_session_tasks_publish_fields, create_session_tasks_run_log_fields,
@@ -117,8 +117,8 @@ pub enum AvailableSubjects {
     MetricPivot,
     #[value(name = "MetricPivotNormTime")]
     MetricPivotNormTime,
-    #[value(name = "SessionSubjects")]
-    SessionSubjects,
+    #[value(name = "SessionSubjectSchemas")]
+    SessionSubjectSchemas,
     #[value(name = "SessionTasks")]
     SessionTasks,
     #[value(name = "SessionProcessors")]
@@ -245,7 +245,7 @@ impl Display for AvailableSubjects {
             AvailableSubjects::SessionEvents => write!(f, "SessionEvents"),
             AvailableSubjects::MetricPivot => write!(f, "MetricPivot"),
             AvailableSubjects::MetricPivotNormTime => write!(f, "MetricPivotNormTime"),
-            AvailableSubjects::SessionSubjects => write!(f, "SessionSubjects"),
+            AvailableSubjects::SessionSubjectSchemas => write!(f, "SessionSubjectSchemas"),
             AvailableSubjects::SessionTasks => write!(f, "SessionTasks"),
             AvailableSubjects::SessionProcessors => write!(f, "SessionProcessors"),
             AvailableSubjects::SessionRuntimeEnvs => write!(f, "SessionRuntimeEnvs"),
@@ -395,8 +395,8 @@ impl AvailableSchemaTrait for AvailableSubjects {
             AvailableSubjects::MetricPivotNormTime => {
                 create_schema_from_fields(&create_metrics_pivot_norm_time_fields)
             }
-            AvailableSubjects::SessionSubjects => {
-                create_schema_from_fields(&create_session_subjects_fields)
+            AvailableSubjects::SessionSubjectSchemas => {
+                create_schema_from_fields(&create_session_subject_schemas_fields)
             }
             AvailableSubjects::SessionTasks => {
                 create_schema_from_fields(&create_session_tasks_fields)

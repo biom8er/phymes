@@ -78,7 +78,7 @@ pub fn subjects_interface_view() -> Element {
         let route = "/app/v1/get_state";
         let data_serialized = serde_json::to_string(
             &get_session_state()
-                .with_subject(AvailableSubjects::SessionSubjects.to_string().as_str())
+                .with_subject(AvailableSubjects::SessionSubjectSchemas.to_string().as_str())
                 .make_name()
                 .unwrap()
                 .build()

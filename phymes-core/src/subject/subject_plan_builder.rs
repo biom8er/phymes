@@ -57,12 +57,11 @@ impl BuilderTrait for SubjectPlanBuilder {
     where
         Self: Sized,
     {
-        let name = self.name.ok_or(anyhow!("Please define the name before trying to build the subject plan!"))?;
         let t = Self::T {
-            locations: self.locations.unwrap_or_else(|| vec![format!("superstep=0/{name}-0.ipc")]),
-            name,
+            name: self.name.ok_or(anyhow!("Please define the name before trying to build the subject plan!"))?,
             schema: self.schema.ok_or(anyhow!("Please define the schema before trying to build the subject plan!"))?,
             backend: self.backend.ok_or(anyhow!("Please define the backend before trying to build the subject plan!"))?,
+            locations: self.locations.unwrap_or_default(),
             bucket: self.bucket.ok_or(anyhow!("Please define the bucket before trying to build the subject plan!"))?,
             metadata: self.metadata.unwrap_or_default(),
             constraints: self.constraints.unwrap_or_default(),

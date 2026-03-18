@@ -9,7 +9,7 @@ use arrow::{
     datatypes::{DataType, Field, Fields},
 };
 
-pub(crate) fn create_session_subjects_fields() -> Fields {
+pub(crate) fn create_session_subject_schemas_fields() -> Fields {
     let field_names = ["session_name", "subject_name", "column_name", "type_name"];
     let fields_vec = field_names
         .iter()
@@ -18,7 +18,40 @@ pub(crate) fn create_session_subjects_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
-pub fn create_session_subjects_batch(
+pub fn create_session_subject_schemas_batch(
+    session_names: Vec<String>,
+    subject_names: Vec<String>,
+    cols_names: Vec<String>,
+    type_names: Vec<String>,
+) -> Result<RecordBatch> {
+    let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
+    let subject_names: ArrayRef = Arc::new(StringArray::from(subject_names));
+    let cols_names: ArrayRef = Arc::new(StringArray::from(cols_names));
+    let type_names: ArrayRef = Arc::new(StringArray::from(type_names));
+    let batch = RecordBatch::try_from_iter(vec![
+        ("session_name", session_names),
+        ("subject_name", subject_names),
+        ("column_name", cols_names),
+        ("type_name", type_names),
+    ])?;
+    Ok(batch)
+}
+
+pub(crate) fn create_session_subject_stores_fields() -> Fields {
+    let field_names = ["session_name", 
+        "subject_name", 
+        "location",
+        "bucket",
+        "metadata",
+        ];
+    let fields_vec = field_names
+        .iter()
+        .map(|f| Field::new(*f, DataType::Utf8, false))
+        .collect::<Vec<_>>();
+    Fields::from(fields_vec)
+}
+
+pub fn create_session_subject_stores_batch(
     session_names: Vec<String>,
     subject_names: Vec<String>,
     cols_names: Vec<String>,

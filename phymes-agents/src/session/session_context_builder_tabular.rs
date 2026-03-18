@@ -12,7 +12,7 @@ use phymes_core::{
     ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication,
     TableSubscription, TableTrait, TaskPlanBuilder, create_session_mermaid_batch,
     create_session_processors_batch, create_session_runtime_envs_batch,
-    create_session_subjects_batch, create_session_tasks_batch, create_session_tasks_run_log_batch,
+    create_session_subject_schemas_batch, create_session_tasks_batch, create_session_tasks_run_log_batch,
     create_subjects_change_log_batch, create_subjects_num_rows_batch, from_data_type_to_str,
     from_str_to_data_type,
 };
@@ -105,7 +105,7 @@ pub trait SessionContextBuilderTabularTrait {
     where
         Self: Sized;
 
-    /// Create empty subject tables from `SessionSubjects`
+    /// Create empty subject tables from `SessionSubjectSchemas`
     fn with_subjects_as_tables(self, subjects: &Table) -> Result<Self>
     where
         Self: Sized;
@@ -180,7 +180,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // extract the schema
         for table in tables {
-            if table.get_name() == AvailableSubjects::SessionSubjects.to_string().as_str()
+            if table.get_name() == AvailableSubjects::SessionSubjectSchemas.to_string().as_str()
                 && state.is_none()
             {
                 builder = builder.with_subjects_as_tables(table)?;
@@ -283,11 +283,11 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // create the record batch
         let batch =
-            create_session_subjects_batch(session_names, subject_names, cols_names, type_names)?;
+            create_session_subject_schemas_batch(session_names, subject_names, cols_names, type_names)?;
 
         // create the table
         Table::get_builder()
-            .with_name(AvailableSubjects::SessionSubjects.to_string().as_str())
+            .with_name(AvailableSubjects::SessionSubjectSchemas.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
     }
@@ -1272,7 +1272,7 @@ mod tests {
         );
         assert_eq!(
             tables.get(8).unwrap().get_name(),
-            AvailableSubjects::SessionSubjects.to_string().as_str()
+            AvailableSubjects::SessionSubjectSchemas.to_string().as_str()
         );
         assert_eq!(
             tables.get(9).unwrap().get_name(),
