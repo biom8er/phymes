@@ -8,6 +8,7 @@ pub trait RuntimeEnvBuilderTrait: BuilderTrait + Debug + Send + Sync {
     fn with_max_memory(self, max: usize) -> Self;
     fn with_max_time(self, max: usize) -> Self;
     fn with_max_steps(self, max: usize) -> Self;
+    fn with_max_tasks(self, max: usize) -> Self;
     fn with_object_store_config(self, config: &Map<String, Value>) -> Self;
     fn add_object_store_config(self, key: &str, value: &Value) -> Self;
     fn with_object_store(self, store: Arc<dyn ObjectStore>) -> Self;
@@ -25,6 +26,8 @@ pub struct RuntimeEnvBuilder {
     pub max_time: Option<usize>,
     /// the max number of superstep iterations
     pub max_steps: Option<usize>,
+    /// the max number of concurrent tasks
+    pub max_tasks: Option<usize>,
     /// The object store
     pub object_store: Option<Arc<dyn ObjectStore>>,
     /// Additional object store configuration options not in the environmental variables
@@ -37,7 +40,7 @@ pub struct RuntimeEnvBuilder {
 
 impl PartialEq for RuntimeEnvBuilder {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name && self.max_memory == other.max_memory && self.max_time == other.max_time && self.max_steps == other.max_steps && self.object_store_config == other.object_store_config && self.subject_folder_partitioning == other.subject_folder_partitioning && self.subject_file_partitioning == other.subject_file_partitioning
+        self.name == other.name && self.max_memory == other.max_memory && self.max_time == other.max_time && self.max_steps == other.max_steps && self.max_tasks == other.max_tasks && self.object_store_config == other.object_store_config && self.subject_folder_partitioning == other.subject_folder_partitioning && self.subject_file_partitioning == other.subject_file_partitioning
     }
 }
 
@@ -50,6 +53,7 @@ impl BuilderTrait for RuntimeEnvBuilder {
             max_memory: None,
             max_time: None,
             max_steps: None,
+            max_tasks: None,
             object_store: None,
             object_store_config: None,
             subject_folder_partitioning: None,
@@ -71,6 +75,7 @@ impl BuilderTrait for RuntimeEnvBuilder {
             max_memory: self.max_memory.unwrap_or_default(),
             max_time: self.max_time.unwrap_or_default(),
             max_steps: self.max_steps.unwrap_or(25),
+            max_tasks: self.max_tasks.unwrap_or(8),
             object_store: self.object_store.unwrap_or(make_store(&ObjectStorageBackend::default(), None, None)?),
             object_store_config: self.object_store_config.unwrap_or_default(),
             subject_folder_partitioning: self.subject_folder_partitioning.unwrap_or_default(),
@@ -125,6 +130,11 @@ impl RuntimeEnvBuilderTrait for RuntimeEnvBuilder {
     
     fn with_object_store(mut self, store: Arc<dyn ObjectStore>) -> Self {
         self.object_store = Some(store);
+        self
+    }
+    
+    fn with_max_tasks(mut self, max: usize) -> Self {
+        self.max_tasks = Some(max);
         self
     }
 }

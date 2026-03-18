@@ -2477,7 +2477,7 @@ mod tests {
                 .build()
                 .unwrap(),
         ];
-        let mut state = test_task::make_state_tables("state_1", "processor_1")?;
+        let mut state = test_task::make_subject_tables("state_1", "processor_1")?;
         state.push(test_task::make_config_tables("error_1")?);
         let session_context = SessionContextBuilder::new()
             .with_name("session_1")

@@ -25,7 +25,6 @@ pub struct SessionContext {
     /// The list of available tasks that can be run during the session
     pub(crate) tasks: TaskMap,
     /// Runtime environment configuration to use during task runs
-    #[allow(dead_code)]
     pub(crate) runtime_env: Arc<RuntimeEnv>,
     /// Whether to gather diagnostic information or not
     pub(crate) diagnostics: bool,

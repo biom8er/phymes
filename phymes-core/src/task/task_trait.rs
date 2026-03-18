@@ -213,7 +213,7 @@ pub mod test_task {
         Ok(config)
     }
 
-    pub fn make_state_tables(table_name: &str, config_name: &str) -> Result<Vec<Table>> {
+    pub fn make_subject_tables(table_name: &str, config_name: &str) -> Result<Vec<Table>> {
         // mock config for the task
         let config = make_config_tables(config_name)?;
 
@@ -222,7 +222,7 @@ pub mod test_task {
         Ok(vec![config, table])
     }
 
-    pub fn make_state_tables_empty(table_name: &str, config_name: &str) -> Result<Vec<Table>> {
+    pub fn make_subject_tables_empty(table_name: &str, config_name: &str) -> Result<Vec<Table>> {
         // mock config for the task
         let a: ArrayRef = Arc::new(StringArray::from(vec!["".to_string()]));
         let b: ArrayRef = Arc::new(BooleanArray::from(vec![true]));
@@ -239,8 +239,8 @@ pub mod test_task {
         Ok(vec![config, table])
     }
 
-    pub fn make_state(table_name: &str, config_name: &str) -> Result<SubjectsMap> {
-        let tables = make_state_tables(table_name, config_name)?;
+    pub fn make_subjects(table_name: &str, config_name: &str) -> Result<SubjectsMap> {
+        let tables = make_subject_tables(table_name, config_name)?;
 
         // add mock config and table to the state
         let mut state = HashMap::<String, Arc<RwLock<Table>>>::new();
@@ -250,9 +250,9 @@ pub mod test_task {
         Ok(state)
     }
 
-    pub fn make_runtime_env(name: &str) -> Result<RuntimeEnv> {
+    pub fn make_runtime_env(name: &str) -> Result<Arc<RuntimeEnv>> {
         let rt = RuntimeEnv::get_builder().with_name(name).build()?;
-        Ok(rt)
+        Ok(Arc::new(rt))
     }
 
     pub fn make_test_task_single_processor(
@@ -498,8 +498,8 @@ mod tests {
         let mut response = test_task.run(
             Some(&diagnostic_builder),
             &test_procesor_subjects,
-            &Arc::new(test_task::make_runtime_env("rt")?),
-            &test_task::make_state("test_table", "test_processor")?,
+            &test_task::make_runtime_env("rt")?,
+            &test_task::make_subjects("test_table", "test_processor")?,
         )?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table").is_some());
@@ -547,13 +547,13 @@ mod tests {
             "test_processor",
             "test_table",
         )?;
-        let mut subjects = test_task::make_state("test_table_1", "test_processor_1")?;
-        subjects.extend(test_task::make_state("test_table_2", "test_processor_2")?);
-        subjects.extend(test_task::make_state("test_table_3", "test_processor_3")?);
+        let mut subjects = test_task::make_subjects("test_table_1", "test_processor_1")?;
+        subjects.extend(test_task::make_subjects("test_table_2", "test_processor_2")?);
+        subjects.extend(test_task::make_subjects("test_table_3", "test_processor_3")?);
         let mut response = test_task.run(
             Some(&diagnostic_builder),
             &test_procesor_subjects,
-            &Arc::new(test_task::make_runtime_env("rt")?),
+            &test_task::make_runtime_env("rt")?,
             &subjects,
         )?;
         assert_eq!(response.len(), 1);
@@ -602,13 +602,13 @@ mod tests {
             "test_processor",
             "test_table",
         )?;
-        let mut subjects = test_task::make_state("test_table_1", "test_processor_1")?;
-        subjects.extend(test_task::make_state("test_table_2", "test_processor_2")?);
-        subjects.extend(test_task::make_state("test_table_3", "test_processor_3")?);
+        let mut subjects = test_task::make_subjects("test_table_1", "test_processor_1")?;
+        subjects.extend(test_task::make_subjects("test_table_2", "test_processor_2")?);
+        subjects.extend(test_task::make_subjects("test_table_3", "test_processor_3")?);
         let mut response = test_task.run(
             Some(&diagnostic_builder),
             &test_procesor_subjects,
-            &Arc::new(test_task::make_runtime_env("rt")?),
+            &test_task::make_runtime_env("rt")?,
             &subjects,
         )?;
         assert_eq!(response.len(), 2);

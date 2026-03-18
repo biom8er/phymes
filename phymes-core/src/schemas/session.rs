@@ -88,17 +88,14 @@ pub fn create_session_tasks_batch(
     session_names: Vec<String>,
     task_names: Vec<String>,
     processor_names: Vec<String>,
-    runtime_env_names: Vec<String>,
 ) -> Result<RecordBatch> {
     let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
     let task_names: ArrayRef = Arc::new(StringArray::from(task_names));
     let processor_names: ArrayRef = Arc::new(StringArray::from(processor_names));
-    let runtime_env_names: ArrayRef = Arc::new(StringArray::from(runtime_env_names));
     let batch = RecordBatch::try_from_iter(vec![
         ("session_name", session_names),
         ("task_name", task_names),
         ("processor_name", processor_names),
-        ("runtime_env_name", runtime_env_names),
     ])?;
     Ok(batch)
 }
@@ -160,12 +157,12 @@ pub fn create_session_processors_batch(
 }
 
 pub(crate) fn create_session_runtime_envs_fields() -> Fields {
-    let field_names = ["session_name", "runtime_env_name", "object_store_backend", "object_store_bucket", "object_store_backend_config", "subject_folder_partitioning", "subject_file_partitioning"];
+    let field_names = ["session_name", "runtime_env_name", "object_store_backend", "object_store_bucket", "object_store_config", "subject_folder_partitioning", "subject_file_partitioning"];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
         .collect::<Vec<_>>();
-    let field_names = ["max_memory", "max_time"];
+    let field_names = ["max_memory", "max_time", "max_steps", "max_tasks"];
     fields_vec.extend(
         field_names
             .iter()
@@ -180,31 +177,37 @@ pub fn create_session_runtime_envs_batch(
     runtime_env_names: Vec<String>,
     object_store_backend: Vec<String>,
     object_store_bucket: Vec<String>,
-    object_store_backend_config: Vec<String>,
+    object_store_config: Vec<String>,
     subject_folder_partitioning: Vec<String>,
     subject_file_partitioning: Vec<String>,
-    memory_limits: Vec<u32>,
-    time_limits: Vec<u32>,
+    max_memory: Vec<u32>,
+    max_time: Vec<u32>,
+    max_steps: Vec<u32>,
+    max_tasks: Vec<u32>,
 ) -> Result<RecordBatch> {
     let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
     let runtime_env_names: ArrayRef = Arc::new(StringArray::from(runtime_env_names));
     let object_store_backend: ArrayRef = Arc::new(StringArray::from(object_store_backend));
     let object_store_bucket: ArrayRef = Arc::new(StringArray::from(object_store_bucket));
-    let object_store_backend_config: ArrayRef = Arc::new(StringArray::from(object_store_backend_config));
+    let object_store_config: ArrayRef = Arc::new(StringArray::from(object_store_config));
     let subject_folder_partitioning: ArrayRef = Arc::new(StringArray::from(subject_folder_partitioning));
     let subject_file_partitioning: ArrayRef = Arc::new(StringArray::from(subject_file_partitioning));
-    let memory_limits: ArrayRef = Arc::new(UInt32Array::from(memory_limits));
-    let time_limits: ArrayRef = Arc::new(UInt32Array::from(time_limits));
+    let max_memory: ArrayRef = Arc::new(UInt32Array::from(max_memory));
+    let max_time: ArrayRef = Arc::new(UInt32Array::from(max_time));
+    let max_steps: ArrayRef = Arc::new(UInt32Array::from(max_steps));
+    let max_tasks: ArrayRef = Arc::new(UInt32Array::from(max_tasks));
     let batch = RecordBatch::try_from_iter(vec![
         ("session_name", session_names),
         ("runtime_env_name", runtime_env_names),
         ("object_store_backend", object_store_backend),
         ("object_store_bucket", object_store_bucket),
-        ("object_store_backend_config", object_store_backend_config),
+        ("object_store_config", object_store_config),
         ("subject_folder_partitioning", subject_folder_partitioning),
         ("subject_file_partitioning", subject_file_partitioning),
-        ("max_memory", memory_limits),
-        ("max_time", time_limits),
+        ("max_memory", max_memory),
+        ("max_time", max_time),
+        ("max_steps", max_steps),
+        ("max_tasks", max_tasks),
     ])?;
     Ok(batch)
 }

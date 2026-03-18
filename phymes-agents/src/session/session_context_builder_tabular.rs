@@ -1205,7 +1205,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 #[cfg(test)]
 mod tests {
     use crate::test_session_context_builder::make_test_session_context_builder_parallel_processors;
-    use phymes_core::test_task::{make_runtime_env, make_state_tables};
+    use phymes_core::test_task::{make_runtime_env, make_subject_tables};
 
     use super::*;
 
@@ -1215,9 +1215,9 @@ mod tests {
         let runtime_envs = vec![make_runtime_env("rt_1")?];
 
         // Init state
-        let mut state = make_state_tables("state_1", "config_1")?;
-        state.extend(make_state_tables("state_2", "config_2")?);
-        state.extend(make_state_tables("state_3", "config_3")?);
+        let mut state = make_subject_tables("state_1", "config_1")?;
+        state.extend(make_subject_tables("state_2", "config_2")?);
+        state.extend(make_subject_tables("state_3", "config_3")?);
 
         // Make the builder
         let builder = make_test_session_context_builder_parallel_processors()

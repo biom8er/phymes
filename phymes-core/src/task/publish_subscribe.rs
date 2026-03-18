@@ -148,7 +148,7 @@ mod tests {
         let publications = vec![TablePublication::Extend {
             table_name: table_name.to_string(),
         }];
-        let subjects = test_task::make_state(table_name, config_name)?;
+        let subjects = test_task::make_subjects(table_name, config_name)?;
         let mut stream = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let mut messages =
             subscribe_to_subject(&subscriptions, &publications, &subjects, &mut stream)?;
