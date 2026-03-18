@@ -4,7 +4,7 @@ use crate::subject::index_type::IndexType;
 
 /// A subject-level constraint
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
-pub enum SubjectConstraint {
+pub enum SubjectConstraintType {
     Unique(UniqueConstraint),
     PrimaryKey(PrimaryKeyConstraint),
     ForeignKey(ForeignKeyConstraint),
@@ -13,45 +13,45 @@ pub enum SubjectConstraint {
     Custom(String),
 }
 
-impl From<UniqueConstraint> for SubjectConstraint {
+impl From<UniqueConstraint> for SubjectConstraintType {
     fn from(constraint: UniqueConstraint) -> Self {
-        SubjectConstraint::Unique(constraint)
+        SubjectConstraintType::Unique(constraint)
     }
 }
 
-impl From<PrimaryKeyConstraint> for SubjectConstraint {
+impl From<PrimaryKeyConstraint> for SubjectConstraintType {
     fn from(constraint: PrimaryKeyConstraint) -> Self {
-        SubjectConstraint::PrimaryKey(constraint)
+        SubjectConstraintType::PrimaryKey(constraint)
     }
 }
 
-impl From<ForeignKeyConstraint> for SubjectConstraint {
+impl From<ForeignKeyConstraint> for SubjectConstraintType {
     fn from(constraint: ForeignKeyConstraint) -> Self {
-        SubjectConstraint::ForeignKey(constraint)
+        SubjectConstraintType::ForeignKey(constraint)
     }
 }
 
-impl From<CheckConstraint> for SubjectConstraint {
+impl From<CheckConstraint> for SubjectConstraintType {
     fn from(constraint: CheckConstraint) -> Self {
-        SubjectConstraint::Check(constraint)
+        SubjectConstraintType::Check(constraint)
     }
 }
 
-impl From<IndexConstraint> for SubjectConstraint {
+impl From<IndexConstraint> for SubjectConstraintType {
     fn from(constraint: IndexConstraint) -> Self {
-        SubjectConstraint::Index(constraint)
+        SubjectConstraintType::Index(constraint)
     }
 }
 
-impl std::fmt::Display for SubjectConstraint {
+impl std::fmt::Display for SubjectConstraintType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            SubjectConstraint::Unique(constraint) => write!(f, "Unique: {constraint:?}"),
-            SubjectConstraint::PrimaryKey(constraint) => write!(f, "PrimaryKey: {constraint:?}"),
-            SubjectConstraint::ForeignKey(constraint) => write!(f, "ForeignKey: {constraint:?}"),
-            SubjectConstraint::Check(constraint) => write!(f, "Check: {constraint:?}"),
-            SubjectConstraint::Index(constraint) => write!(f, "Index: {constraint:?}"),
-            SubjectConstraint::Custom(c) => write!(f, "Custom: {c}"),
+            SubjectConstraintType::Unique(constraint) => write!(f, "Unique: {constraint:?}"),
+            SubjectConstraintType::PrimaryKey(constraint) => write!(f, "PrimaryKey: {constraint:?}"),
+            SubjectConstraintType::ForeignKey(constraint) => write!(f, "ForeignKey: {constraint:?}"),
+            SubjectConstraintType::Check(constraint) => write!(f, "Check: {constraint:?}"),
+            SubjectConstraintType::Index(constraint) => write!(f, "Index: {constraint:?}"),
+            SubjectConstraintType::Custom(c) => write!(f, "Custom: {c}"),
         }
     }
 }

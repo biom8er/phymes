@@ -1,37 +1,25 @@
 use std::fmt::Debug;
-use arrow::datatypes::SchemaRef;
-use serde_json::{Map, Value};
-use crate::{BuildableTrait, MappableTrait, ObjectStorageBackend, SubjectConstraint, SubjectPlanBuilder};
+use crate::{BuildableTrait, IndexType, MappableTrait, SubjectConstraintType, SubjectPlanBuilder, SubjectSequenceType, Table};
 
 pub trait SubjectPlanTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
-    fn schema(&self) -> &SchemaRef;
-    fn backend(&self) -> &ObjectStorageBackend;
-    fn locations(&self) -> &Vec<String>;
-    fn bucket(&self) -> &str;
-    fn metadata(&self) -> &Map<String, Value>;
-    fn constraints(&self) -> &Vec<SubjectConstraint>;
+    fn table(&self) -> &Table;
+    fn constraints(&self) -> &Vec<SubjectConstraintType>;
+    fn indices(&self) -> &Vec<IndexType>;
+    fn sequences(&self) -> &Vec<SubjectSequenceType>;
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SubjectPlan {
     /// Subject name
     pub(crate) name: String,
-    /// Subject schema
-    pub(crate) schema: SchemaRef,
-    /// Subject object store backend [ObjectStorageBackend]
-    pub(crate) backend: ObjectStorageBackend,
-    /// Location within the bucket that the subject data partitions are
-    /// 
-    /// # Note
-    /// * Not a one to one mapping: RecordBatch != location
-    /// * Many to many mapping: Vec<RecordBatch> -> Multiple locations
-    pub(crate) locations: Vec<String>,
-    /// The object store bucket (or container or root)
-    pub(crate) bucket: String,
-    /// Metadata for each location/partition including e_tag, version, size, last_modified, etc.
-    pub(crate) metadata: Map<String, Value>,
+    /// Initial table with optional data
+    pub(crate) table: Table,
     /// Constraints on the subject
-    pub(crate) constraints: Vec<SubjectConstraint>,
+    pub(crate) constraints: Vec<SubjectConstraintType>,
+    /// Indexes on the subject
+    pub(crate) indices: Vec<IndexType>,
+    /// Sequences on the subject
+    pub(crate) sequences: Vec<SubjectSequenceType>,
 }
 
 impl MappableTrait for SubjectPlan {
@@ -51,27 +39,19 @@ impl BuildableTrait for SubjectPlan {
 }
 
 impl SubjectPlanTrait for SubjectPlan {
-    fn schema(&self) -> &SchemaRef {
-        &self.schema
+    fn table(&self) -> &Table {
+        &self.table
     }
 
-    fn backend(&self) -> &ObjectStorageBackend {
-        &self.backend
-    }
-
-    fn locations(&self) -> &Vec<String> {
-        &self.locations
-    }
-
-    fn bucket(&self) -> &str {
-        &self.bucket
-    }
-
-    fn metadata(&self) -> &Map<String, Value> {
-        &self.metadata
-    }
-
-    fn constraints(&self) -> &Vec<SubjectConstraint> {
+    fn constraints(&self) -> &Vec<SubjectConstraintType> {
         &self.constraints
+    }
+    
+    fn indices(&self) -> &Vec<IndexType> {
+        &self.indices
+    }
+    
+    fn sequences(&self) -> &Vec<SubjectSequenceType> {
+        &self.sequences
     }
 }
