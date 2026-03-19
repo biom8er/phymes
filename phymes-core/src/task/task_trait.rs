@@ -463,7 +463,7 @@ pub mod test_task {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{BuilderTrait, MessageTrait, TableBuilder, TableBuilderTrait, TableTrait};
+    use crate::{BuilderTrait, MessageTrait, SubjectPlanTrait, TableBuilder, TableBuilderTrait, TableTrait};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     /// A compilation test to ensure that the `Task::get_name()` method can
@@ -485,11 +485,15 @@ mod tests {
             "test_processor",
             "test_table",
         )?;
+        let rt = test_task::make_runtime_env("rt")?;
+        let subjects = test_task::make_subjects("test_table", "test_processor")?;
+        for subject in subjects {            
+            subject.table_own().to_ipc_object_store(rt.object_store(), None).await?;
+        }
         let mut response = test_task.run(
             Some(&diagnostic_builder),
             &test_procesor_subjects,
-            &test_task::make_runtime_env("rt")?,
-            &test_task::make_subjects("test_table", "test_processor")?,
+            &rt,
         )?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table").is_some());
@@ -540,11 +544,14 @@ mod tests {
         let mut subjects = test_task::make_subjects("test_table_1", "test_processor_1")?;
         subjects.extend(test_task::make_subjects("test_table_2", "test_processor_2")?);
         subjects.extend(test_task::make_subjects("test_table_3", "test_processor_3")?);
+        let rt = test_task::make_runtime_env("rt")?;
+        for subject in subjects {            
+            subject.table_own().to_ipc_object_store(rt.object_store(), None).await?;
+        }
         let mut response = test_task.run(
             Some(&diagnostic_builder),
             &test_procesor_subjects,
-            &test_task::make_runtime_env("rt")?,
-            &subjects,
+            &rt
         )?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table_1").is_some());
@@ -595,11 +602,14 @@ mod tests {
         let mut subjects = test_task::make_subjects("test_table_1", "test_processor_1")?;
         subjects.extend(test_task::make_subjects("test_table_2", "test_processor_2")?);
         subjects.extend(test_task::make_subjects("test_table_3", "test_processor_3")?);
+        let rt = test_task::make_runtime_env("rt")?;
+        for subject in subjects {            
+            subject.table_own().to_ipc_object_store(rt.object_store(), None).await?;
+        }
         let mut response = test_task.run(
             Some(&diagnostic_builder),
             &test_procesor_subjects,
-            &test_task::make_runtime_env("rt")?,
-            &subjects,
+            &rt,
         )?;
         assert_eq!(response.len(), 2);
         assert!(response.get("from_test_task_on_test_table_2").is_some());

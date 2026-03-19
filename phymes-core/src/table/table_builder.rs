@@ -18,8 +18,8 @@ use arrow::{
     json::{ReaderBuilder, reader::infer_json_schema},
     record_batch::RecordBatch,
 };
-use futures::TryStreamExt;
-use object_store::{ObjectStore, path::Path};
+use futures::{Stream, StreamExt, TryStreamExt};
+use object_store::{ObjectMeta, ObjectStore, path::Path};
 use serde::Serialize;
 use serde_json::Value;
 use tracing::{Level, event};
@@ -32,6 +32,12 @@ pub trait TableBuilderTrait: BuilderTrait + Debug + Send + Sync {
     fn with_record_batches(self, batches: Vec<RecordBatch>) -> Result<Self>
     where
         Self: Sized;
+
+    /// List the partitions in the object storage
+    fn list_partitions_object_store<'a>(&'a self, store: &'a Arc<dyn ObjectStore>) -> Pin<Box<dyn Stream<Item = Result<ObjectMeta, object_store::Error>> + Send>>;
+
+    /// Delete the partitions in the object storage (with the option to specify which partitions)
+    fn delete_partitions_object_store<'a>(&'a self, store: &'a Arc<dyn ObjectStore>, paths: Option<Vec<Path>>) -> Pin<Box<dyn Stream<Item = Result<Path, object_store::Error>> + Send>>;
 
     /// Create a new stream table with the provided object storage
     /// from IPC format    
@@ -194,6 +200,25 @@ impl TableBuilderTrait for TableBuilder {
         }
         self.record_batches = Some(batches);
         Ok(self)
+    }
+
+    fn list_partitions_object_store<'a>(&'a self, store: &'a Arc<dyn ObjectStore>) -> Pin<Box<dyn Stream<Item = Result<ObjectMeta, object_store::Error>> + Send>> {
+        if let Some(name) = self.name.as_ref() {
+            let path = Some(Path::from(name.to_owned()));
+            store.list(path.as_ref())
+        } else {
+            let err = object_store::Error::Generic { store: "", source: anyhow!("Provide a name for the table before trying to list all of the tables partitions in object storage.").into_boxed_dyn_error() };
+            futures::stream::iter(vec![Err(err)]).boxed()
+        }
+    }
+
+    fn delete_partitions_object_store<'a>(&'a self, store: &'a Arc<dyn ObjectStore>, paths: Option<Vec<Path>>) -> Pin<Box<dyn Stream<Item = Result<Path, object_store::Error>> + Send>> {
+        let locations = if let Some(paths) = paths {
+            futures::stream::iter(paths.into_iter().map(Ok)).boxed()
+        } else {
+            self.list_partitions_object_store(store).map_ok(|m| m.location).boxed()
+        };
+        store.delete_stream(locations)
     }
 
     fn new_from_ipc_object_store<'a>(store: &'a Arc<dyn ObjectStore>, path: &'a Path) -> Pin<Box<dyn Future<Output = Result<Self>> + Send + 'a>> {

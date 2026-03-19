@@ -33,8 +33,13 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     fn get_record_batches_own(self) -> Vec<RecordBatch>;
     fn get_record_batches_mut(&mut self) -> &mut Vec<RecordBatch>;
 
+    /// Generate a default object store path (without partitions)
+    fn default_ipc_object_store_path(&self) -> Path {
+        Path::from(format!("{}/{}.ipc", self.get_name(), self.get_name()))
+    }
+
     /// Write record batches to IPC object store, consuming self
-    fn to_ipc_object_store<'a>(&'a self, store: &'a Arc<dyn ObjectStore>, path: &'a Path) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
+    fn to_ipc_object_store<'a>(&'a self, store: &'a Arc<dyn ObjectStore>, path: Option<&'a Path>) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
         Box::pin(async move {
             if self.get_record_batches().is_empty() {
                 return Err(anyhow!(
@@ -46,7 +51,12 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
                 writer.write_batch(batch)?;
             }
             writer.finish_batch()?;
-            writer.put(&store, &path).await?;
+            if let Some(path) = path {
+                writer.put(store, path).await?;
+            } else {
+                let path = self.default_ipc_object_store_path();
+                writer.put(store, &path).await?;
+            }            
             Ok(())
         })
     }

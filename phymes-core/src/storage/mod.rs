@@ -217,7 +217,6 @@ mod tests {
             writer.write_batch(batch)?;
         }
         writer.finish_batch()?;
-
         writer.put(&store, &path).await?;
 
         // --- Read ---
