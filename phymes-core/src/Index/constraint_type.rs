@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::subject::index_type::IndexType;
+use crate::IndexType;
 
 /// A subject-level constraint
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]

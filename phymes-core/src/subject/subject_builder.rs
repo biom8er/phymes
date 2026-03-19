@@ -2,7 +2,7 @@ use std::{
     fmt::Debug, fs::File, io::{Cursor, Read, Seek}, pin::Pin, sync::Arc
 };
 
-use crate::{BuilderTrait, SendableIPCRecordBatchStream, SendableRecordBatchStream, Table, storage_reader_get_result, storage_reader_stream_result};
+use crate::{BuilderTrait, SendableIPCRecordBatchStream, SendableRecordBatchStream, Subject, storage_reader_get_result, storage_reader_stream_result};
 use anyhow::{Result, anyhow};
 use arrow::{
     array::{
@@ -24,7 +24,7 @@ use serde::Serialize;
 use serde_json::Value;
 use tracing::{Level, event};
 
-pub trait TableBuilderTrait: BuilderTrait + Debug + Send + Sync {
+pub trait SubjectBuilderTrait: BuilderTrait + Debug + Send + Sync {
     /// The schema for all record batches in the table
     fn with_schema(self, schema: SchemaRef) -> Self;
 
@@ -121,13 +121,13 @@ pub trait TableBuilderTrait: BuilderTrait + Debug + Send + Sync {
 }
 
 #[derive(Default, Debug, PartialEq, Clone)]
-pub struct TableBuilder {
+pub struct SubjectBuilder {
     pub name: Option<String>,
     pub schema: Option<SchemaRef>,
     pub record_batches: Option<Vec<RecordBatch>>,
 }
 
-impl TableBuilder {
+impl SubjectBuilder {
     pub fn from_ipc_stream_to_record_batches(bytes: &[u8]) -> Result<Vec<RecordBatch>> {
         let cursor = Cursor::new(bytes);
         let mut reader = StreamReader::try_new(cursor, None)?;
@@ -139,8 +139,8 @@ impl TableBuilder {
     }
 }
 
-impl BuilderTrait for TableBuilder {
-    type T = Table;
+impl BuilderTrait for SubjectBuilder {
+    type T = Subject;
     fn new() -> Self {
         Self {
             name: None,
@@ -169,7 +169,7 @@ impl BuilderTrait for TableBuilder {
     }
 }
 
-impl TableBuilderTrait for TableBuilder {
+impl SubjectBuilderTrait for SubjectBuilder {
     fn with_schema(mut self, schema: SchemaRef) -> Self {
         self.schema = Some(schema);
         self

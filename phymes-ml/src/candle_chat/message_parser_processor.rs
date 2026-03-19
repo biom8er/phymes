@@ -9,7 +9,7 @@ use phymes_core::{
     MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream,
     RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Table, TableBuilderTrait, TableTrait, ToolCall,
+    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilderTrait, SubjectTrait, ToolCall,
     create_bytes_record_batch, create_chat_record_batch, create_route_bytes_record_batch,
     remove_message_by_subject,
 };
@@ -134,7 +134,7 @@ impl MessageParserStream {
         })
     }
 
-    fn init_config(&mut self, config_table: Table) -> Result<()> {
+    fn init_config(&mut self, config_table: Subject) -> Result<()> {
         if self.config.is_none() {
             let config = CandleChatConfig::from_table(&config_table)?;
             self.config.replace(config);
@@ -173,7 +173,7 @@ impl Stream for MessageParserStream {
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
-            let config_table = Table::get_builder()
+            let config_table = Subject::get_builder()
                 .with_name("config")
                 .with_record_batches(batches)?
                 .build()?;
@@ -197,7 +197,7 @@ impl Stream for MessageParserStream {
             }
 
             // Concatenate into a single record batch
-            let message = Table::get_builder()
+            let message = Subject::get_builder()
                 .with_name("MessageParserStream")
                 .with_record_batches(batches)?
                 .build()?
@@ -262,7 +262,7 @@ impl Stream for MessageParserStream {
 
                         // Wrap into a `Bytes` record batch
                         let batch = create_bytes_record_batch(vec![serde_json::to_vec(&values)?])?;
-                        let bytes = Table::get_builder()
+                        let bytes = Subject::get_builder()
                             .with_name("message_parser_processor serde_json::Value")
                             .with_record_batches(vec![batch])?
                             .build()?
@@ -332,7 +332,7 @@ impl Stream for MessageParserStream {
                                 // Wrap into a `Bytes` record batch
                                 let batch =
                                     create_bytes_record_batch(vec![serde_json::to_vec(&map)?])?;
-                                let bytes = Table::get_builder()
+                                let bytes = Subject::get_builder()
                                     .with_name("message_parser_processor serde_json::Value")
                                     .with_record_batches(vec![batch])?
                                     .build()?
@@ -404,7 +404,7 @@ impl RecordBatchStream for MessageParserStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{TableBuilder, TablePublication};
+    use phymes_core::{SubjectBuilder, Publication};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use crate::AvailableCandleAssets;
@@ -432,9 +432,9 @@ mod tests {
                 .with_name("messages")
                 .with_subject("messages")
                 .with_publisher("s1")
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(
-                    Table::get_builder()
+                    Subject::get_builder()
                         .with_name("messages")
                         .with_record_batches(vec![batch])?
                         .build()?
@@ -448,9 +448,9 @@ mod tests {
                 .with_name("message_processor")
                 .with_subject("message_processor")
                 .with_publisher("message_processor")
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(
-                    Table::get_builder()
+                    Subject::get_builder()
                         .with_name("message_processor")
                         .with_json(
                             &serde_json::to_vec(&CandleChatConfig {
@@ -482,7 +482,7 @@ mod tests {
         let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
         // Wrap the results in a table
-        let partitions = TableBuilder::new_from_sendable_record_batch_stream(
+        let partitions = SubjectBuilder::new_from_sendable_record_batch_stream(
             stream
                 .remove("message_processor")
                 .unwrap()
@@ -514,7 +514,7 @@ mod tests {
             .get_column_as_vec_nested_primitive::<u8>("bytes")?
             .into_iter()
             .flat_map(|b| {
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name("test_message_parser")
                     .with_schema(AvailableSubjects::Bytes.to_schema())
                     .with_bytes(&b)
@@ -554,9 +554,9 @@ mod tests {
                 .with_name("messages")
                 .with_subject("messages")
                 .with_publisher("s1")
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(
-                    Table::get_builder()
+                    Subject::get_builder()
                         .with_name("messages")
                         .with_record_batches(vec![batch])?
                         .build()?
@@ -570,9 +570,9 @@ mod tests {
                 .with_name("message_processor")
                 .with_subject("message_processor")
                 .with_publisher("message_processor")
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(
-                    Table::get_builder()
+                    Subject::get_builder()
                         .with_name("message_processor")
                         .with_json(
                             &serde_json::to_vec(&CandleChatConfig {
@@ -604,7 +604,7 @@ mod tests {
         let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
         // Wrap the results in a table
-        let partitions = TableBuilder::new_from_sendable_record_batch_stream(
+        let partitions = SubjectBuilder::new_from_sendable_record_batch_stream(
             stream
                 .remove("message_processor")
                 .unwrap()
@@ -636,7 +636,7 @@ mod tests {
             .get_column_as_vec_nested_primitive::<u8>("bytes")?
             .into_iter()
             .flat_map(|b| {
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name("test_message_parser")
                     .with_schema(AvailableSubjects::Bytes.to_schema())
                     .with_bytes(&b)
@@ -675,9 +675,9 @@ mod tests {
                 .with_name("messages")
                 .with_subject("messages")
                 .with_publisher("s1")
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(
-                    Table::get_builder()
+                    Subject::get_builder()
                         .with_name("messages")
                         .with_record_batches(vec![batch])?
                         .build()?
@@ -691,9 +691,9 @@ mod tests {
                 .with_name("message_processor")
                 .with_subject("message_processor")
                 .with_publisher("message_processor")
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(
-                    Table::get_builder()
+                    Subject::get_builder()
                         .with_name("message_processor")
                         .with_json(
                             &serde_json::to_vec(&CandleChatConfig {
@@ -725,7 +725,7 @@ mod tests {
         let mut stream = processor.process(message_map, Some(&diagnostic_builder), runtime_env)?;
 
         // DM: this will result in an error because the schema is dynamically updated
-        let partitions = TableBuilder::new_from_sendable_record_batch_stream(
+        let partitions = SubjectBuilder::new_from_sendable_record_batch_stream(
             stream
                 .remove("message_processor")
                 .unwrap()

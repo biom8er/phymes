@@ -1,38 +1,38 @@
 use std::sync::Arc;
 
 use crate::{
-    AvailableTableUpdatePolicies, ProcessorPlan, ProcessorSubjects, ProcessorTrait,
-    TablePublication, TableSubscribePolicyTrait, TableSubscription, TableUpdatePolicyTrait,
+    AvailableUpdatePolicies, ProcessorPlan, ProcessorSubjects, ProcessorTrait,
+    Publication, SubscribePolicyTrait, Subscription, UpdatePolicyTrait,
 };
 use anyhow::{Result, anyhow};
 
 /// The builder for the [ProcessorPlan]
 #[derive(Debug, Default)]
 pub struct ProcessorPlanBuilder {
-    pub publications: Option<Vec<TablePublication>>,
-    pub subscriptions: Option<Vec<TableSubscription>>,
-    pub subscribe_policy: Option<Box<dyn TableSubscribePolicyTrait>>,
-    pub update_policy: Option<Box<dyn TableUpdatePolicyTrait>>,
+    pub publications: Option<Vec<Publication>>,
+    pub subscriptions: Option<Vec<Subscription>>,
+    pub subscribe_policy: Option<Box<dyn SubscribePolicyTrait>>,
+    pub update_policy: Option<Box<dyn UpdatePolicyTrait>>,
     pub processor: Option<Arc<dyn ProcessorTrait>>,
 }
 
 impl ProcessorPlanBuilder {
-    pub fn with_publications(mut self, publications: &[TablePublication]) -> Self {
+    pub fn with_publications(mut self, publications: &[Publication]) -> Self {
         self.publications = Some(publications.to_vec());
         self
     }
-    pub fn with_subscriptions(mut self, subscriptions: &[TableSubscription]) -> Self {
+    pub fn with_subscriptions(mut self, subscriptions: &[Subscription]) -> Self {
         self.subscriptions = Some(subscriptions.to_vec());
         self
     }
     pub fn with_subscribe_policy(
         mut self,
-        subscribe_policy: Box<dyn TableSubscribePolicyTrait>,
+        subscribe_policy: Box<dyn SubscribePolicyTrait>,
     ) -> Self {
         self.subscribe_policy = Some(subscribe_policy);
         self
     }
-    pub fn with_update_policy(mut self, update_policy: Box<dyn TableUpdatePolicyTrait>) -> Self {
+    pub fn with_update_policy(mut self, update_policy: Box<dyn UpdatePolicyTrait>) -> Self {
         self.update_policy = Some(update_policy);
         self
     }
@@ -66,7 +66,7 @@ impl ProcessorPlanBuilder {
             self.subscribe_policy.take().unwrap(),
             self.update_policy
                 .take()
-                .unwrap_or(AvailableTableUpdatePolicies::default().build()),
+                .unwrap_or(AvailableUpdatePolicies::default().build()),
         ))
     }
 }
@@ -75,16 +75,16 @@ impl ProcessorPlanBuilder {
 #[derive(Debug, Default)]
 pub struct ProcessorSubjectsBuilder {
     pub name: Option<String>,
-    pub publications: Option<Vec<TablePublication>>,
-    pub subscriptions: Option<Vec<TableSubscription>>,
+    pub publications: Option<Vec<Publication>>,
+    pub subscriptions: Option<Vec<Subscription>>,
 }
 
 impl ProcessorSubjectsBuilder {
-    pub fn with_publications(mut self, publications: &[TablePublication]) -> Self {
+    pub fn with_publications(mut self, publications: &[Publication]) -> Self {
         self.publications = Some(publications.to_vec());
         self
     }
-    pub fn with_subscriptions(mut self, subscriptions: &[TableSubscription]) -> Self {
+    pub fn with_subscriptions(mut self, subscriptions: &[Subscription]) -> Self {
         self.subscriptions = Some(subscriptions.to_vec());
         self
     }

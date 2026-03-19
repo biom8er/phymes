@@ -11,7 +11,7 @@ use phymes_core::{
     MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
     SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait,
+    SendableRecordBatchStreamMessageMap, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
     create_attachments_batch, create_bytes_fields, create_chat_record_batch, create_values_fields,
     remove_message_by_subject,
 };
@@ -176,7 +176,7 @@ impl Stream for HTTPClientRequestStream {
                     while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                         batches.push(batch);
                     }
-                    let config_table = TableBuilder::new()
+                    let config_table = SubjectBuilder::new()
                         .with_name("config")
                         .with_record_batches(batches)?
                         .build()?;
@@ -218,7 +218,7 @@ impl Stream for HTTPClientRequestStream {
                             if let Some(Ok(batch)) =
                                 ready!(fut.get_message_mut().poll_next_unpin(cx))
                             {
-                                let json_object = TableBuilder::default()
+                                let json_object = SubjectBuilder::default()
                                     .with_name("")
                                     .with_record_batches(vec![batch])?
                                     .build()?
@@ -568,7 +568,7 @@ mod tests {
     use super::*;
     use futures::TryStreamExt;
     use phymes_core::{
-        ChatBuilderTraitExt, TableBuilder, TablePublication, open_alex,
+        ChatBuilderTraitExt, SubjectBuilder, Publication, open_alex,
         semantic_scholar,
     };
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
@@ -612,13 +612,13 @@ mod tests {
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
+        let http_client_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&http_client_config_json, 1)?
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
+        let message_builder = SubjectBuilder::new()
             .with_name(messages)
             .append_new_user_query_str(&open_alex_request.to_get_query()?, "user")?;
 
@@ -630,7 +630,7 @@ mod tests {
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
@@ -640,7 +640,7 @@ mod tests {
                 .with_name(http_client_config_table.get_name())
                 .with_publisher("")
                 .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(http_client_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -659,7 +659,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -711,7 +711,7 @@ mod tests {
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
+        let http_client_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&http_client_config_json, 1)?
             .build()?;
@@ -724,7 +724,7 @@ mod tests {
                 .with_name(http_client_config_table.get_name())
                 .with_publisher("")
                 .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(http_client_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -743,7 +743,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_http_client_processor_open_alex_get_config")
             .with_record_batches(result)?
             .build()?;
@@ -796,13 +796,13 @@ mod tests {
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
+        let http_client_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&http_client_config_json, 1)?
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
+        let message_builder = SubjectBuilder::new()
             .with_name(messages)
             .append_new_user_query_str(&open_alex_request.to_get_query()?, "user")?;
 
@@ -814,7 +814,7 @@ mod tests {
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
@@ -824,7 +824,7 @@ mod tests {
                 .with_name(http_client_config_table.get_name())
                 .with_publisher("")
                 .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(http_client_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -843,7 +843,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -909,13 +909,13 @@ mod tests {
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
+        let http_client_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&http_client_config_json, 1)?
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
+        let message_builder = SubjectBuilder::new()
             .with_name(messages)
             .append_new_user_query_str(&esearch_url, "user")?;
 
@@ -927,7 +927,7 @@ mod tests {
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
@@ -937,7 +937,7 @@ mod tests {
                 .with_name(http_client_config_table.get_name())
                 .with_publisher("")
                 .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(http_client_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -956,7 +956,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -997,13 +997,13 @@ mod tests {
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
+        let http_client_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&http_client_config_json, 1)?
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
+        let message_builder = SubjectBuilder::new()
             .with_name(messages)
             .append_new_user_query_str(&efetch_url, "user")?;
 
@@ -1015,7 +1015,7 @@ mod tests {
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
@@ -1025,7 +1025,7 @@ mod tests {
                 .with_name(http_client_config_table.get_name())
                 .with_publisher("")
                 .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(http_client_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -1044,7 +1044,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -1099,13 +1099,13 @@ mod tests {
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
+        let http_client_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&http_client_config_json, 1)?
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
+        let message_builder = SubjectBuilder::new()
             .with_name(messages)
             .append_new_user_query_str(&download_url, "user")?;
 
@@ -1117,7 +1117,7 @@ mod tests {
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
@@ -1127,7 +1127,7 @@ mod tests {
                 .with_name(http_client_config_table.get_name())
                 .with_publisher("")
                 .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(http_client_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -1146,7 +1146,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -1166,7 +1166,7 @@ mod tests {
         let pdf = filter_pdf(load_pdf_document(&result)?);
         let docs = [(filenames.first().unwrap().to_string(), pdf)];
         let pdf_batch = extract_pdf(&docs)?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(vec![pdf_batch])?
             .with_name("")
             .build()?;
@@ -1210,7 +1210,7 @@ mod tests {
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
+        let http_client_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&http_client_config_json, 1)?
             .build()?;
@@ -1221,7 +1221,7 @@ mod tests {
             negative_papers: Some(vec!["ArXiv:1805.02262".to_string()]),
         };
         let req_body_json = serde_json::to_vec(&req_body)?;
-        let req_body_table = TableBuilder::new()
+        let req_body_table = SubjectBuilder::new()
             .with_name(messages)
             .with_json(&req_body_json, 1)?
             .build()?;
@@ -1234,7 +1234,7 @@ mod tests {
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(req_body_table.to_record_batch_stream())
                 .build()?,
         );
@@ -1244,7 +1244,7 @@ mod tests {
                 .with_name(http_client_config_table.get_name())
                 .with_publisher("")
                 .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(http_client_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -1263,7 +1263,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -1306,7 +1306,7 @@ mod tests {
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
+        let http_client_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&http_client_config_json, 1)?
             .build()?;
@@ -1317,7 +1317,7 @@ mod tests {
                 .with_name(http_client_config_table.get_name())
                 .with_publisher("")
                 .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(http_client_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -1332,7 +1332,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_http_client_processor_open_alex_get_config")
             .with_record_batches(result)?
             .build()?;
@@ -1360,7 +1360,7 @@ mod tests {
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
+        let http_client_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&http_client_config_json, 1)?
             .build()?;
@@ -1371,7 +1371,7 @@ mod tests {
                 .with_name(http_client_config_table.get_name())
                 .with_publisher("")
                 .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(http_client_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -1386,7 +1386,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_http_client_processor_open_alex_get_config")
             .with_record_batches(result)?
             .build()?;
@@ -1417,7 +1417,7 @@ mod tests {
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
+        let http_client_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&http_client_config_json, 1)?
             .build()?;
@@ -1428,7 +1428,7 @@ mod tests {
                 .with_name(http_client_config_table.get_name())
                 .with_publisher("")
                 .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(http_client_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -1443,7 +1443,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_http_client_processor_open_alex_get_config")
             .with_record_batches(result)?
             .build()?;
@@ -1474,7 +1474,7 @@ mod tests {
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
+        let http_client_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&http_client_config_json, 1)?
             .build()?;
@@ -1485,7 +1485,7 @@ mod tests {
                 .with_name(http_client_config_table.get_name())
                 .with_publisher("")
                 .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(http_client_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -1500,7 +1500,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_http_client_processor_open_alex_get_config")
             .with_record_batches(result)?
             .build()?;
@@ -1528,7 +1528,7 @@ mod tests {
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
+        let http_client_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&http_client_config_json, 1)?
             .build()?;
@@ -1539,7 +1539,7 @@ mod tests {
                 .with_name(http_client_config_table.get_name())
                 .with_publisher("")
                 .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(http_client_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -1554,7 +1554,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_http_client_processor_open_alex_get_config")
             .with_record_batches(result)?
             .build()?;
@@ -1585,7 +1585,7 @@ mod tests {
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
+        let http_client_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&http_client_config_json, 1)?
             .build()?;
@@ -1596,7 +1596,7 @@ mod tests {
                 .with_name(http_client_config_table.get_name())
                 .with_publisher("")
                 .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(http_client_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -1611,7 +1611,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_http_client_processor_open_alex_get_config")
             .with_record_batches(result)?
             .build()?;
@@ -1639,7 +1639,7 @@ mod tests {
             ..Default::default()
         };
         let http_client_config_json = serde_json::to_vec(&http_client_config)?;
-        let http_client_config_table = TableBuilder::new()
+        let http_client_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&http_client_config_json, 1)?
             .build()?;
@@ -1650,7 +1650,7 @@ mod tests {
                 .with_name(http_client_config_table.get_name())
                 .with_publisher("")
                 .with_subject(http_client_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(http_client_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -1665,7 +1665,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_http_client_processor_open_alex_get_config")
             .with_record_batches(result)?
             .build()?;

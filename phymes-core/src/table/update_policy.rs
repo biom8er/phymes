@@ -1,48 +1,49 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 
+use parking_lot::RwLock;
 use phymes_diagnostics::HashMap;
 
-use crate::{MappableTrait, SubjectsMap, TableSubscription, TableTrait};
+use crate::{MappableTrait, Subject, SubjectTrait, Subscription};
 
 /// Determine when a table has been updated
-pub trait TableUpdatePolicyTrait: MappableTrait + Debug + Send + Sync {
+pub trait UpdatePolicyTrait: MappableTrait + Debug + Send + Sync {
     /// Determine which tables have been updated with respect to the query processor
     ///
     /// # Notes
-    /// * The output is the input to [TableUpdatePolicyTrait]
+    /// * The output is the input to [UpdatePolicyTrait]
     ///
     /// # Arguments
     ///
-    /// * `subscriptions` - Slice of `TableSubscription`s for the processor
+    /// * `subscriptions` - Slice of `Subscription`s for the processor
     /// * `last_run` - timestamp of the last run
     /// * `subjects_change_log` - `HashMap` of the subjects and when they were changed last
     /// * `state` - `HashMap` of the subject tables
     fn determine_updates(
         &self,
-        subscriptions: &[TableSubscription],
+        subscriptions: &[Subscription],
         last_run: &i64,
         subjects_change_log: &HashMap<String, i64>,
-        state: &SubjectsMap,
+        state: &HashMap<String, Arc<RwLock<Subject>>>,
     ) -> HashMap<String, bool>;
-    fn new_box() -> Box<dyn TableUpdatePolicyTrait>
+    fn new_box() -> Box<dyn UpdatePolicyTrait>
     where
         Self: Sized;
-    fn clone_boxed(&self) -> Box<dyn TableUpdatePolicyTrait>;
+    fn clone_boxed(&self) -> Box<dyn UpdatePolicyTrait>;
 }
 
 /// If a table has [RecordBatch]es, consider the table updated
 ///
 /// [RecordBatch]: arrow::record_batch::RecordBatch
 #[derive(Default, Debug, Clone)]
-pub struct TableHasBatchesUpdate {}
+pub struct SubjectHasBatchesUpdate {}
 
-impl TableUpdatePolicyTrait for TableHasBatchesUpdate {
+impl UpdatePolicyTrait for SubjectHasBatchesUpdate {
     fn determine_updates(
         &self,
-        subscriptions: &[TableSubscription],
+        subscriptions: &[Subscription],
         _last_run: &i64,
         _subjects_change_log: &HashMap<String, i64>,
-        state: &SubjectsMap,
+        state: &HashMap<String, Arc<RwLock<Subject>>>,
     ) -> HashMap<String, bool> {
         subscriptions
             .iter()
@@ -59,15 +60,15 @@ impl TableUpdatePolicyTrait for TableHasBatchesUpdate {
             })
             .collect::<HashMap<_, _>>()
     }
-    fn new_box() -> Box<dyn TableUpdatePolicyTrait> {
+    fn new_box() -> Box<dyn UpdatePolicyTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(&self) -> Box<dyn TableUpdatePolicyTrait> {
+    fn clone_boxed(&self) -> Box<dyn UpdatePolicyTrait> {
         Box::new(self.clone())
     }
 }
 
-impl MappableTrait for TableHasBatchesUpdate {
+impl MappableTrait for SubjectHasBatchesUpdate {
     fn get_name(&self) -> &str {
         Self::get_static_name()
     }
@@ -75,15 +76,15 @@ impl MappableTrait for TableHasBatchesUpdate {
 
 /// If a table has been updated after the task/processor has ran, consider the table updated
 #[derive(Default, Debug, Clone)]
-pub struct TableChangedSinceLastRunUpdate {}
+pub struct SubjectChangedSinceLastRunUpdate {}
 
-impl TableUpdatePolicyTrait for TableChangedSinceLastRunUpdate {
+impl UpdatePolicyTrait for SubjectChangedSinceLastRunUpdate {
     fn determine_updates(
         &self,
-        subscriptions: &[TableSubscription],
+        subscriptions: &[Subscription],
         last_run: &i64,
         subjects_change_log: &HashMap<String, i64>,
-        _state: &SubjectsMap,
+        _state: &HashMap<String, Arc<RwLock<Subject>>>,
     ) -> HashMap<String, bool> {
         subscriptions
             .iter()
@@ -100,15 +101,15 @@ impl TableUpdatePolicyTrait for TableChangedSinceLastRunUpdate {
             })
             .collect::<HashMap<_, _>>()
     }
-    fn new_box() -> Box<dyn TableUpdatePolicyTrait> {
+    fn new_box() -> Box<dyn UpdatePolicyTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(&self) -> Box<dyn TableUpdatePolicyTrait> {
+    fn clone_boxed(&self) -> Box<dyn UpdatePolicyTrait> {
         Box::new(self.clone())
     }
 }
 
-impl MappableTrait for TableChangedSinceLastRunUpdate {
+impl MappableTrait for SubjectChangedSinceLastRunUpdate {
     fn get_name(&self) -> &str {
         Self::get_static_name()
     }
@@ -116,15 +117,15 @@ impl MappableTrait for TableChangedSinceLastRunUpdate {
 
 /// if a table exists, consider the table updated
 #[derive(Default, Debug, Clone)]
-pub struct TableExistsUpdate {}
+pub struct SubjectExistsUpdate {}
 
-impl TableUpdatePolicyTrait for TableExistsUpdate {
+impl UpdatePolicyTrait for SubjectExistsUpdate {
     fn determine_updates(
         &self,
-        subscriptions: &[TableSubscription],
+        subscriptions: &[Subscription],
         _last_run: &i64,
         _subjects_change_log: &HashMap<String, i64>,
-        state: &SubjectsMap,
+        state: &HashMap<String, Arc<RwLock<Subject>>>,
     ) -> HashMap<String, bool> {
         subscriptions
             .iter()
@@ -137,15 +138,15 @@ impl TableUpdatePolicyTrait for TableExistsUpdate {
             })
             .collect::<HashMap<_, _>>()
     }
-    fn new_box() -> Box<dyn TableUpdatePolicyTrait> {
+    fn new_box() -> Box<dyn UpdatePolicyTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(&self) -> Box<dyn TableUpdatePolicyTrait> {
+    fn clone_boxed(&self) -> Box<dyn UpdatePolicyTrait> {
         Box::new(self.clone())
     }
 }
 
-impl MappableTrait for TableExistsUpdate {
+impl MappableTrait for SubjectExistsUpdate {
     fn get_name(&self) -> &str {
         Self::get_static_name()
     }
@@ -166,16 +167,16 @@ mod test_update_policy {
 
 #[cfg(test)]
 mod tests {
-    use crate::table::table_subscribe_policy::test_subscribe_policy;
+    use crate::table::subscribe_policy::test_subscribe_policy;
 
     use super::*;
 
     #[test]
     fn test_table_exists_update() {
-        let mut state = test_subscribe_policy::make_test_state();
+        let mut state = test_subscribe_policy::make_test_subjects_map();
         let subscriptions = test_subscribe_policy::make_test_subscriptions(true);
         let changes = test_update_policy::make_test_subjects_change_log();
-        let up = TableExistsUpdate::new_box();
+        let up = SubjectExistsUpdate::new_box();
 
         let updates = up.determine_updates(&subscriptions, &0, &changes, &state);
         let mut updates_test = HashMap::<String, bool>::new();
@@ -196,10 +197,10 @@ mod tests {
 
     #[test]
     fn test_table_has_batches_update() {
-        let mut state = test_subscribe_policy::make_test_state();
+        let mut state = test_subscribe_policy::make_test_subjects_map();
         let subscriptions = test_subscribe_policy::make_test_subscriptions(true);
         let changes = test_update_policy::make_test_subjects_change_log();
-        let up = TableHasBatchesUpdate::new_box();
+        let up = SubjectHasBatchesUpdate::new_box();
 
         let updates = up.determine_updates(&subscriptions, &0, &changes, &state);
         let mut updates_test = HashMap::<String, bool>::new();
@@ -226,10 +227,10 @@ mod tests {
 
     #[test]
     fn test_table_changed_since_last_run_update() {
-        let state = test_subscribe_policy::make_test_state();
+        let state = test_subscribe_policy::make_test_subjects_map();
         let subscriptions = test_subscribe_policy::make_test_subscriptions(true);
         let changes = test_update_policy::make_test_subjects_change_log();
-        let up = TableChangedSinceLastRunUpdate::new_box();
+        let up = SubjectChangedSinceLastRunUpdate::new_box();
 
         let updates = up.determine_updates(&subscriptions, &1, &changes, &state);
         let mut updates_test = HashMap::<String, bool>::new();

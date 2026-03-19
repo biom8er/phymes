@@ -335,8 +335,8 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
-        ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, TableBuilder,
-        TableBuilderTrait, TablePublication, TableTrait, create_tools_record_batch,
+        ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, SubjectBuilder,
+        SubjectBuilderTrait, Publication, SubjectTrait, create_tools_record_batch,
     };
     use phymes_data::{AvailableCandleOperators, ToolTrait};
     use phymes_diagnostics::HashMap;
@@ -377,8 +377,8 @@ mod tests {
         let chat_message = IPCMessage::get_builder()
             .with_message(chat.to_ipc_stream()?)
             .with_subject(chat.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: chat.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: chat.get_name().to_string(),
             })
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
@@ -561,15 +561,15 @@ mod tests {
             AvailableCandleOperators::HumanInTheLoop.to_json_tool_schema(),
         ];
         let batch = create_tools_record_batch(tool_ids, tools)?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name(AvailableSubjects::Tools.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
         let tool_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
             .with_subject(table.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: table.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: table.get_name().to_string(),
             })
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
@@ -582,8 +582,8 @@ mod tests {
         let chat_message = IPCMessage::get_builder()
             .with_message(chat.to_ipc_stream()?)
             .with_subject(chat.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: chat.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: chat.get_name().to_string(),
             })
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
@@ -779,15 +779,15 @@ mod tests {
             AvailableCandleOperators::HumanInTheLoop.to_json_tool_schema(),
         ];
         let batch = create_tools_record_batch(tool_ids, tools)?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name(AvailableSubjects::Tools.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
         let tool_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
             .with_subject(table.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: table.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: table.get_name().to_string(),
             })
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
@@ -800,8 +800,8 @@ mod tests {
         let chat_message = IPCMessage::get_builder()
             .with_message(chat.to_ipc_stream()?)
             .with_subject(chat.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: chat.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: chat.get_name().to_string(),
             })
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
@@ -814,8 +814,8 @@ mod tests {
         let tool_response = IPCMessage::get_builder()
             .with_message(tool.to_ipc_stream()?)
             .with_subject(tool.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: tool.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: tool.get_name().to_string(),
             })
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
@@ -1020,15 +1020,15 @@ mod tests {
             AvailableCandleOperators::HumanInTheLoop.to_json_tool_schema(),
         ];
         let batch = create_tools_record_batch(tool_ids, tools)?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name(AvailableSubjects::Tools.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
         let tool_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
             .with_subject(table.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: table.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: table.get_name().to_string(),
             })
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
@@ -1041,8 +1041,8 @@ mod tests {
         let chat_message = IPCMessage::get_builder()
             .with_message(chat.to_ipc_stream()?)
             .with_subject(chat.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: chat.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: chat.get_name().to_string(),
             })
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?
@@ -1055,8 +1055,8 @@ mod tests {
         let tool_response = IPCMessage::get_builder()
             .with_message(tool.to_ipc_stream()?)
             .with_subject(tool.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: tool.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: tool.get_name().to_string(),
             })
             .with_publisher(generate_text_session.session_context_name)
             .make_name()?

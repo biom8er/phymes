@@ -10,8 +10,8 @@ use phymes_agents::{
 };
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder,
-    JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, Table,
-    TableBuilderTrait, TablePublication, TableTrait, UserSubject, create_session_mermaid_batch,
+    JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, Subject,
+    SubjectBuilderTrait, Publication, SubjectTrait, UserSubject, create_session_mermaid_batch,
     create_user_inbox_batch, create_user_session_contexts_batch,
 };
 use phymes_diagnostics::HashMap;
@@ -61,15 +61,15 @@ impl UserState {
 
         // Prepare the input message
         let batch = create_user_inbox_batch(vec![email.to_string()])?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(AvailableSubjects::UserInbox.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
         let message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
             .with_subject(table.get_name())
-            .with_update(&TablePublication::Replace {
-                table_name: table.get_name().to_string(),
+            .with_update(&Publication::Replace {
+                subject_name: table.get_name().to_string(),
             })
             .with_publisher(session_context_name.as_str())
             .make_name()?
@@ -121,7 +121,7 @@ impl UserState {
             .collect::<Vec<_>>();
         let user_session_contexts =
             create_user_session_contexts_batch(email_vec, session_context_name.to_owned())?;
-        let user_session_contexts_bytes = Table::get_builder()
+        let user_session_contexts_bytes = Subject::get_builder()
             .with_record_batches(vec![user_session_contexts])?
             .with_name(AvailableSubjects::UserSessionContexts.to_string().as_str())
             .build()?
@@ -132,7 +132,7 @@ impl UserState {
             er_diagram.to_owned(),
             timestamp.to_owned(),
         )?;
-        let mermaid_bytes = Table::get_builder()
+        let mermaid_bytes = Subject::get_builder()
             .with_record_batches(vec![mermaid])?
             .with_name(AvailableSubjects::BuilderMermaid.to_string().as_str())
             .build()?
@@ -143,8 +143,8 @@ impl UserState {
             .with_subject(AvailableSubjects::UserSessionContexts.to_string().as_str())
             .with_publisher(&create_session_name(email, session_plan.as_str()))
             .with_message(user_session_contexts_bytes)
-            .with_update(&TablePublication::Extend {
-                table_name: AvailableSubjects::UserSessionContexts.to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: AvailableSubjects::UserSessionContexts.to_string(),
             })
             .make_name()?
             .build()?;
@@ -152,8 +152,8 @@ impl UserState {
             .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
             .with_publisher(&create_session_name(email, session_plan.as_str()))
             .with_message(mermaid_bytes)
-            .with_update(&TablePublication::Extend {
-                table_name: AvailableSubjects::BuilderMermaid.to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: AvailableSubjects::BuilderMermaid.to_string(),
             })
             .make_name()?
             .build()?;
@@ -173,8 +173,8 @@ impl UserState {
                     .with_name(update.get_name())
                     .with_subject(update.get_name())
                     .with_publisher("")
-                    .with_update(&phymes_core::TablePublication::Extend {
-                        table_name: update.get_name().to_string(),
+                    .with_update(&phymes_core::Publication::Extend {
+                        subject_name: update.get_name().to_string(),
                     })
                     .with_message(update.to_ipc_stream().unwrap())
                     .build()
@@ -401,7 +401,7 @@ mod tests {
     use phymes_diagnostics::HashSet;
 
     #[cfg(not(target_family = "wasm"))]
-    use phymes_core::{MappableTrait, TableTrait};
+    use phymes_core::{MappableTrait, SubjectTrait};
 
     #[cfg(not(target_family = "wasm"))]
     use tempfile::tempdir;

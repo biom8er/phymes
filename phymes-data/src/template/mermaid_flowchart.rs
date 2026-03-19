@@ -59,8 +59,8 @@ mod tests {
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use phymes_core::{
-        BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableScript,
-        TableTrait,
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectScript,
+        SubjectTrait,
     };
     use serde_json::{Map, Value};
 
@@ -120,7 +120,7 @@ mod tests {
             ("node_shape", node_shape_arr),
             ("node_label", node_label_arr),
         ])?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -132,7 +132,7 @@ mod tests {
 
         // Create and render the template with the inputs
         let nodes_string =
-            TableScript::new_from_template(MERMAID_FLOWCHART_NODES_TEMPLATE.to_string())
+            SubjectScript::new_from_template(MERMAID_FLOWCHART_NODES_TEMPLATE.to_string())
                 .apply_template(&sequence_diagram_template_inputs)?;
 
         assert_eq!(
@@ -195,7 +195,7 @@ mod tests {
             ("link_type", link_type_arr),
             ("link_text", link_arr),
         ])?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -207,7 +207,7 @@ mod tests {
 
         // Create and render the template with the inputs
         let links_string =
-            TableScript::new_from_template(MERMAID_FLOWCHART_LINKS_TEMPLATE.to_string())
+            SubjectScript::new_from_template(MERMAID_FLOWCHART_LINKS_TEMPLATE.to_string())
                 .apply_template(&sequence_diagram_template_inputs)?;
 
         assert_eq!(
@@ -220,7 +220,7 @@ mod tests {
 
         let content_arr: ArrayRef = Arc::new(StringArray::from(content_vec));
         let batch = RecordBatch::try_from_iter(vec![("content", content_arr)])?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -229,7 +229,7 @@ mod tests {
         let inputs = serde_json::json!({
             "direction": "TD",
         });
-        let input_string = TableScript::new_from_template(MERMAID_FLOWCHART_INPUT.to_string())
+        let input_string = SubjectScript::new_from_template(MERMAID_FLOWCHART_INPUT.to_string())
             .apply_template(&inputs)?
             .lines()
             .map(|line| line.trim())
@@ -248,7 +248,7 @@ mod tests {
             MERMAID_HTML_POST,
         ]
         .join("");
-        let script_string = TableScript::new_from_template(template)
+        let script_string = SubjectScript::new_from_template(template)
             .apply_template(&sequence_diagram_template_inputs)?;
 
         assert_eq!(

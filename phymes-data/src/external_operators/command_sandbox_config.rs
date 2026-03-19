@@ -3,7 +3,7 @@ use std::{env, fmt::Display};
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableTrait,
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
     WorkspaceSubject, create_workspace_batch,
 };
 use phymes_diagnostics::{HashMap, HashSet};
@@ -95,14 +95,14 @@ impl CommandSandboxEnvironments {
         &self,
         workspace_name: Option<&str>,
         workspace_contents: Option<&[WorkspaceSubject]>,
-    ) -> Result<Table> {
+    ) -> Result<Subject> {
         if let Some(workspace_contents) = workspace_contents {
             let (path, content): (Vec<String>, Vec<String>) = workspace_contents
                 .iter()
                 .map(|w| (w.path.to_owned(), w.content.to_owned()))
                 .unzip();
             let batch = create_workspace_batch(path, content)?;
-            Table::get_builder()
+            Subject::get_builder()
                 .with_name(self.to_string().as_str())
                 .with_record_batches(vec![batch])?
                 .build()
@@ -111,7 +111,7 @@ impl CommandSandboxEnvironments {
         }
     }
     /// To default workspace
-    pub fn to_default_workspace(&self, workspace_name: Option<&str>) -> Result<Table> {
+    pub fn to_default_workspace(&self, workspace_name: Option<&str>) -> Result<Subject> {
         let root = if let Some(workspace_name) = workspace_name {
             format!("{workspace_name}/")
         } else {
@@ -136,7 +136,7 @@ chmod +x ./src/main.sh"#,
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>();
                 let batch = create_workspace_batch(path, content)?;
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(self.to_string().as_str())
                     .with_record_batches(vec![batch])?
                     .build()
@@ -204,7 +204,7 @@ pip install --no-cache-dir -r requirements.txt"#,
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>();
                 let batch = create_workspace_batch(path, content)?;
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(self.to_string().as_str())
                     .with_record_batches(vec![batch])?
                     .build()
@@ -310,7 +310,7 @@ apt install --assume-yes protobuf-compiler clang"#,
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>();
                 let batch = create_workspace_batch(path, content)?;
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(self.to_string().as_str())
                     .with_record_batches(vec![batch])?
                     .build()
@@ -330,7 +330,7 @@ apt install --assume-yes protobuf-compiler clang"#,
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>();
                 let batch = create_workspace_batch(path, content)?;
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(self.to_string().as_str())
                     .with_record_batches(vec![batch])?
                     .build()
@@ -364,7 +364,7 @@ apt install --assume-yes protobuf-compiler clang"#,
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>();
                 let batch = create_workspace_batch(path, content)?;
-                Table::get_builder()
+                Subject::get_builder()
                     .with_name(self.to_string().as_str())
                     .with_record_batches(vec![batch])?
                     .build()
@@ -563,7 +563,7 @@ impl DataConfigTrait for CommandSandboxConfig {
     fn to_example_json(&self) -> Result<Vec<u8>, serde_json::Error> {
         serde_json::to_vec(&Self::default())
     }
-    fn from_table(table: &Table) -> Result<Self>
+    fn from_table(table: &Subject) -> Result<Self>
     where
         Self: Sized,
     {

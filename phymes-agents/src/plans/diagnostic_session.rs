@@ -1,6 +1,6 @@
 use arrow::datatypes::DataType;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, DiagnosticsVisualizations, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribePolicies, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, DiagnosticsVisualizations, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, TaskPlan
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator,
@@ -340,19 +340,19 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .with_processor(
                     AvailableProcessors::Pivot.build_arc(self.metrics_pivot_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: AvailableSubjects::MetricPivot.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: AvailableSubjects::MetricPivot.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::AnalyticsMetrics.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: AvailableSubjects::AnalyticsMetrics.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.metrics_pivot_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.metrics_pivot_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -361,19 +361,19 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     AvailableProcessors::NormalizeTime
                         .build_arc(self.metrics_normalize_time_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: AvailableSubjects::MetricPivotNormTime.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: AvailableSubjects::MetricPivotNormTime.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::MetricPivot.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: AvailableSubjects::MetricPivot.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.metrics_normalize_time_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.metrics_normalize_time_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -381,23 +381,23 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .with_processor(AvailableProcessors::Select.build_arc(
                     self.metrics_processors_traces_select_and_cast_to_gantt_processor_name,
                 ))
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self
+                .with_publications(&[Publication::Replace {
+                    subject_name: self
                         .metrics_processors_traces_select_and_cast_to_gantt_task_name
                         .to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::MetricPivotNormTime.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: AvailableSubjects::MetricPivotNormTime.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self
+                    Subscription::AlwaysFullTable {
+                        subject_name: self
                             .metrics_processors_traces_select_and_cast_to_gantt_processor_name
                             .to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -405,23 +405,23 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .with_processor(AvailableProcessors::Select.build_arc(
                     self.metrics_elapsed_compute_select_and_cast_to_gantt_processor_name,
                 ))
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self
+                .with_publications(&[Publication::Replace {
+                    subject_name: self
                         .metrics_elapsed_compute_select_and_cast_to_gantt_task_name
                         .to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::MetricPivotNormTime.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: AvailableSubjects::MetricPivotNormTime.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self
+                    Subscription::AlwaysFullTable {
+                        subject_name: self
                             .metrics_elapsed_compute_select_and_cast_to_gantt_processor_name
                             .to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -431,23 +431,23 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                         self.metrics_output_rows_select_and_cast_to_gantt_processor_name,
                     ),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self
+                .with_publications(&[Publication::Replace {
+                    subject_name: self
                         .metrics_output_rows_select_and_cast_to_gantt_task_name
                         .to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::MetricPivotNormTime.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: AvailableSubjects::MetricPivotNormTime.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self
+                    Subscription::AlwaysFullTable {
+                        subject_name: self
                             .metrics_output_rows_select_and_cast_to_gantt_processor_name
                             .to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -456,23 +456,23 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     AvailableProcessors::ApplyTemplate
                         .build_arc(self.metrics_processors_traces_apply_gantt_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self
                             .metrics_processors_traces_select_and_cast_to_gantt_task_name
                             .to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self
+                    Subscription::AlwaysFullTable {
+                        subject_name: self
                             .metrics_processors_traces_apply_gantt_processor_name
                             .to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -481,23 +481,23 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     AvailableProcessors::ApplyTemplate
                         .build_arc(self.metrics_elapsed_compute_apply_gantt_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self
                             .metrics_elapsed_compute_select_and_cast_to_gantt_task_name
                             .to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self
+                    Subscription::AlwaysFullTable {
+                        subject_name: self
                             .metrics_elapsed_compute_apply_gantt_processor_name
                             .to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -506,23 +506,23 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     AvailableProcessors::ApplyTemplate
                         .build_arc(self.metrics_output_rows_apply_gantt_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: DiagnosticsVisualizations::MetricOutputRowsGantt.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: DiagnosticsVisualizations::MetricOutputRowsGantt.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self
                             .metrics_output_rows_select_and_cast_to_gantt_task_name
                             .to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self
+                    Subscription::AlwaysFullTable {
+                        subject_name: self
                             .metrics_output_rows_apply_gantt_processor_name
                             .to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -531,26 +531,26 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     AvailableProcessors::CandleDataProcessor
                         .build_arc(self.traces_to_sequence_diagram_messages_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self
+                .with_publications(&[Publication::Replace {
+                    subject_name: self
                         .traces_to_sequence_diagram_messages_task_name
                         .to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::AnalyticsTraces.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: AvailableSubjects::AnalyticsTraces.to_string(),
                     },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::AnalyticsTasks.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: AvailableSubjects::AnalyticsTasks.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self
+                    Subscription::AlwaysFullTable {
+                        subject_name: self
                             .traces_to_sequence_diagram_messages_processor_name
                             .to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -559,23 +559,23 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     AvailableProcessors::ApplyTemplate
                         .build_arc(self.apply_sequence_diagram_messages_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self.apply_sequence_diagram_messages_task_name.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: self.apply_sequence_diagram_messages_task_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self
                             .traces_to_sequence_diagram_messages_task_name
                             .to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self
+                    Subscription::AlwaysFullTable {
+                        subject_name: self
                             .apply_sequence_diagram_messages_processor_name
                             .to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -584,21 +584,21 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     AvailableProcessors::Select
                         .build_arc(self.select_sequence_diagram_messages_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self.select_sequence_diagram_messages_task_name.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: self.select_sequence_diagram_messages_task_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.apply_sequence_diagram_messages_task_name.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self.apply_sequence_diagram_messages_task_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self
+                    Subscription::AlwaysFullTable {
+                        subject_name: self
                             .select_sequence_diagram_messages_processor_name
                             .to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -608,28 +608,28 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                         self.session_tasks_to_sequence_diagram_participants_processor_name,
                     ),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self
+                .with_publications(&[Publication::Replace {
+                    subject_name: self
                         .session_tasks_to_sequence_diagram_participants_task_name
                         .to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::AnalyticsTasks.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: AvailableSubjects::AnalyticsTasks.to_string(),
                     },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self
                             .traces_to_sequence_diagram_messages_task_name
                             .to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self
+                    Subscription::AlwaysFullTable {
+                        subject_name: self
                             .session_tasks_to_sequence_diagram_participants_processor_name
                             .to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -638,25 +638,25 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     AvailableProcessors::ApplyTemplate
                         .build_arc(self.apply_sequence_diagram_participants_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self
+                .with_publications(&[Publication::Replace {
+                    subject_name: self
                         .apply_sequence_diagram_participants_task_name
                         .to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self
                             .session_tasks_to_sequence_diagram_participants_task_name
                             .to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self
+                    Subscription::AlwaysFullTable {
+                        subject_name: self
                             .apply_sequence_diagram_participants_processor_name
                             .to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -665,25 +665,25 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     AvailableProcessors::Select
                         .build_arc(self.select_sequence_diagram_participants_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self
+                .with_publications(&[Publication::Replace {
+                    subject_name: self
                         .select_sequence_diagram_participants_task_name
                         .to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self
                             .apply_sequence_diagram_participants_task_name
                             .to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self
+                    Subscription::AlwaysFullTable {
+                        subject_name: self
                             .select_sequence_diagram_participants_processor_name
                             .to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -692,28 +692,28 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     AvailableProcessors::MessageAggregatorProcessor
                         .build_arc(self.traces_aggregate_sequence_diagram_content_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self
+                .with_publications(&[Publication::Replace {
+                    subject_name: self
                         .traces_aggregate_sequence_diagram_content_task_name
                         .to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self
                             .select_sequence_diagram_participants_task_name
                             .to_string(),
                     },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.select_sequence_diagram_messages_task_name.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self.select_sequence_diagram_messages_task_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self
+                    Subscription::AlwaysFullTable {
+                        subject_name: self
                             .traces_aggregate_sequence_diagram_content_processor_name
                             .to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -722,21 +722,21 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     AvailableProcessors::ApplyTemplate
                         .build_arc(self.apply_sequence_diagram_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: DiagnosticsVisualizations::TraceSequenceDiagram.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: DiagnosticsVisualizations::TraceSequenceDiagram.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self
                             .traces_aggregate_sequence_diagram_content_task_name
                             .to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.apply_sequence_diagram_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.apply_sequence_diagram_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -745,21 +745,21 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     AvailableProcessors::Select
                         .build_arc(self.errors_select_and_cast_to_kanban_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self.errors_select_and_cast_to_kanban_task_name.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: self.errors_select_and_cast_to_kanban_task_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::AnalyticsErrors.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: AvailableSubjects::AnalyticsErrors.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self
+                    Subscription::AlwaysFullTable {
+                        subject_name: self
                             .errors_select_and_cast_to_kanban_processor_name
                             .to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -768,19 +768,19 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     AvailableProcessors::ApplyTemplate
                         .build_arc(self.errors_apply_kanban_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: DiagnosticsVisualizations::ErrorKanban.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: DiagnosticsVisualizations::ErrorKanban.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.errors_select_and_cast_to_kanban_task_name.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self.errors_select_and_cast_to_kanban_task_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.errors_apply_kanban_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.errors_apply_kanban_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -789,21 +789,21 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     AvailableProcessors::Select
                         .build_arc(self.events_select_and_cast_to_kanban_processor_1_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self.events_select_and_cast_tmp.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: self.events_select_and_cast_tmp.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::AnalyticsEvents.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: AvailableSubjects::AnalyticsEvents.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self
+                    Subscription::AlwaysFullTable {
+                        subject_name: self
                             .events_select_and_cast_to_kanban_processor_1_name
                             .to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -812,21 +812,21 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     AvailableProcessors::Select
                         .build_arc(self.events_select_and_cast_to_kanban_processor_2_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.events_select_and_cast_tmp.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.events_select_and_cast_tmp.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self
+                    Subscription::AlwaysFullTable {
+                        subject_name: self
                             .events_select_and_cast_to_kanban_processor_2_name
                             .to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -835,19 +835,19 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     AvailableProcessors::ApplyTemplate
                         .build_arc(self.events_apply_kanban_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: DiagnosticsVisualizations::EventKanban.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: DiagnosticsVisualizations::EventKanban.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.events_apply_kanban_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.events_apply_kanban_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -868,7 +868,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         ])
     }
 
-    fn make_subjects(&self) -> Option<Vec<Table>> {
+    fn make_subjects(&self) -> Option<Vec<Subject>> {
         // Metrics pivot
         let metrics_pivot_config = DataConfig {
             lhs_name: Some(AvailableSubjects::AnalyticsMetrics.to_string()),
@@ -887,7 +887,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             ..Default::default()
         };
         let metrics_pivot_config_json = serde_json::to_vec(&metrics_pivot_config).unwrap();
-        let metrics_pivot_config_1_state = TableBuilder::new()
+        let metrics_pivot_config_1_state = SubjectBuilder::new()
             .with_name(self.metrics_pivot_processor_name)
             .with_json(&metrics_pivot_config_json.clone(), 1)
             .unwrap()
@@ -906,7 +906,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let metrics_normalize_time_config_json =
             serde_json::to_vec(&metrics_normalize_time_config).unwrap();
-        let metrics_normalize_time_config_1_state = TableBuilder::new()
+        let metrics_normalize_time_config_1_state = SubjectBuilder::new()
             .with_name(self.metrics_normalize_time_processor_name)
             .with_json(&metrics_normalize_time_config_json.clone(), 1)
             .unwrap()
@@ -963,7 +963,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let metrics_processors_traces_select_and_cast_to_gantt_config_json =
             serde_json::to_vec(&metrics_processors_traces_select_and_cast_to_gantt_config).unwrap();
-        let metrics_processors_traces_select_and_cast_to_gantt_config_1_state = TableBuilder::new()
+        let metrics_processors_traces_select_and_cast_to_gantt_config_1_state = SubjectBuilder::new()
             .with_name(self.metrics_processors_traces_select_and_cast_to_gantt_processor_name)
             .with_json(
                 &metrics_processors_traces_select_and_cast_to_gantt_config_json.clone(),
@@ -1023,7 +1023,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let metrics_elapsed_compute_select_and_cast_to_gantt_config_json =
             serde_json::to_vec(&metrics_elapsed_compute_select_and_cast_to_gantt_config).unwrap();
-        let metrics_elapsed_compute_select_and_cast_to_gantt_config_1_state = TableBuilder::new()
+        let metrics_elapsed_compute_select_and_cast_to_gantt_config_1_state = SubjectBuilder::new()
             .with_name(self.metrics_elapsed_compute_select_and_cast_to_gantt_processor_name)
             .with_json(
                 &metrics_elapsed_compute_select_and_cast_to_gantt_config_json.clone(),
@@ -1083,7 +1083,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let metrics_output_rows_select_and_cast_to_gantt_config_json =
             serde_json::to_vec(&metrics_output_rows_select_and_cast_to_gantt_config).unwrap();
-        let metrics_output_rows_select_and_cast_to_gantt_config_1_state = TableBuilder::new()
+        let metrics_output_rows_select_and_cast_to_gantt_config_1_state = SubjectBuilder::new()
             .with_name(self.metrics_output_rows_select_and_cast_to_gantt_processor_name)
             .with_json(
                 &metrics_output_rows_select_and_cast_to_gantt_config_json.clone(),
@@ -1115,7 +1115,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let metrics_processors_traces_apply_gantt_config_json =
             serde_json::to_vec(&metrics_processors_traces_apply_gantt_config).unwrap();
-        let metrics_processors_traces_apply_gantt_config_state = TableBuilder::new()
+        let metrics_processors_traces_apply_gantt_config_state = SubjectBuilder::new()
             .with_name(self.metrics_processors_traces_apply_gantt_processor_name)
             .with_json(&metrics_processors_traces_apply_gantt_config_json, 1)
             .unwrap()
@@ -1144,7 +1144,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let metrics_elapsed_compute_apply_gantt_config_json =
             serde_json::to_vec(&metrics_elapsed_compute_apply_gantt_config).unwrap();
-        let metrics_elapsed_compute_apply_gantt_config_state = TableBuilder::new()
+        let metrics_elapsed_compute_apply_gantt_config_state = SubjectBuilder::new()
             .with_name(self.metrics_elapsed_compute_apply_gantt_processor_name)
             .with_json(&metrics_elapsed_compute_apply_gantt_config_json, 1)
             .unwrap()
@@ -1173,7 +1173,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let metrics_output_rows_apply_gantt_config_json =
             serde_json::to_vec(&metrics_output_rows_apply_gantt_config).unwrap();
-        let metrics_output_rows_apply_gantt_config_state = TableBuilder::new()
+        let metrics_output_rows_apply_gantt_config_state = SubjectBuilder::new()
             .with_name(self.metrics_output_rows_apply_gantt_processor_name)
             .with_json(&metrics_output_rows_apply_gantt_config_json, 1)
             .unwrap()
@@ -1189,7 +1189,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let traces_to_sequence_diagram_messages_config_json =
             serde_json::to_vec(&traces_to_sequence_diagram_messages_config).unwrap();
-        let traces_to_sequence_diagram_messages_config_state = TableBuilder::new()
+        let traces_to_sequence_diagram_messages_config_state = SubjectBuilder::new()
             .with_name(self.traces_to_sequence_diagram_messages_processor_name)
             .with_json(&traces_to_sequence_diagram_messages_config_json, 1)
             .unwrap()
@@ -1212,7 +1212,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let apply_sequence_diagram_messages_config_json =
             serde_json::to_vec(&apply_sequence_diagram_messages_config).unwrap();
-        let apply_sequence_diagram_messages_config_state = TableBuilder::new()
+        let apply_sequence_diagram_messages_config_state = SubjectBuilder::new()
             .with_name(self.apply_sequence_diagram_messages_processor_name)
             .with_json(&apply_sequence_diagram_messages_config_json, 1)
             .unwrap()
@@ -1254,7 +1254,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let select_sequence_diagram_messages_config_json =
             serde_json::to_vec(&select_sequence_diagram_messages_config).unwrap();
-        let select_sequence_diagram_messages_config_state = TableBuilder::new()
+        let select_sequence_diagram_messages_config_state = SubjectBuilder::new()
             .with_name(self.select_sequence_diagram_messages_processor_name)
             .with_json(&select_sequence_diagram_messages_config_json.clone(), 1)
             .unwrap()
@@ -1273,7 +1273,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let session_tasks_to_sequence_diagram_participants_config_json =
             serde_json::to_vec(&session_tasks_to_sequence_diagram_participants_config).unwrap();
-        let session_tasks_to_sequence_diagram_participants_config_state = TableBuilder::new()
+        let session_tasks_to_sequence_diagram_participants_config_state = SubjectBuilder::new()
             .with_name(self.session_tasks_to_sequence_diagram_participants_processor_name)
             .with_json(
                 &session_tasks_to_sequence_diagram_participants_config_json,
@@ -1304,7 +1304,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let apply_sequence_diagram_participants_config_json =
             serde_json::to_vec(&apply_sequence_diagram_participants_config).unwrap();
-        let apply_sequence_diagram_participants_config_state = TableBuilder::new()
+        let apply_sequence_diagram_participants_config_state = SubjectBuilder::new()
             .with_name(self.apply_sequence_diagram_participants_processor_name)
             .with_json(&apply_sequence_diagram_participants_config_json, 1)
             .unwrap()
@@ -1349,7 +1349,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let select_sequence_diagram_participants_config_json =
             serde_json::to_vec(&select_sequence_diagram_participants_config).unwrap();
-        let select_sequence_diagram_participants_config_state = TableBuilder::new()
+        let select_sequence_diagram_participants_config_state = SubjectBuilder::new()
             .with_name(self.select_sequence_diagram_participants_processor_name)
             .with_json(&select_sequence_diagram_participants_config_json.clone(), 1)
             .unwrap()
@@ -1372,7 +1372,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let apply_sequence_diagram_config_json =
             serde_json::to_vec(&apply_sequence_diagram_config).unwrap();
-        let apply_sequence_diagram_config_state = TableBuilder::new()
+        let apply_sequence_diagram_config_state = SubjectBuilder::new()
             .with_name(self.apply_sequence_diagram_processor_name)
             .with_json(&apply_sequence_diagram_config_json, 1)
             .unwrap()
@@ -1450,7 +1450,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let errors_select_and_cast_to_kanban_config_json =
             serde_json::to_vec(&errors_select_and_cast_to_kanban_config).unwrap();
-        let errors_select_and_cast_to_kanban_config_state = TableBuilder::new()
+        let errors_select_and_cast_to_kanban_config_state = SubjectBuilder::new()
             .with_name(self.errors_select_and_cast_to_kanban_processor_name)
             .with_json(&errors_select_and_cast_to_kanban_config_json.clone(), 1)
             .unwrap()
@@ -1470,7 +1470,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let errors_apply_kanban_config_json =
             serde_json::to_vec(&errors_apply_kanban_config).unwrap();
-        let errors_apply_kanban_config_state = TableBuilder::new()
+        let errors_apply_kanban_config_state = SubjectBuilder::new()
             .with_name(self.errors_apply_kanban_processor_name)
             .with_json(&errors_apply_kanban_config_json, 1)
             .unwrap()
@@ -1569,7 +1569,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let events_select_and_cast_to_kanban_1_config_json =
             serde_json::to_vec(&events_select_and_cast_to_kanban_1_config).unwrap();
-        let events_select_and_cast_to_kanban_1_config_state = TableBuilder::new()
+        let events_select_and_cast_to_kanban_1_config_state = SubjectBuilder::new()
             .with_name(self.events_select_and_cast_to_kanban_processor_1_name)
             .with_json(&events_select_and_cast_to_kanban_1_config_json.clone(), 1)
             .unwrap()
@@ -1645,7 +1645,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let events_select_and_cast_to_kanban_2_config_json =
             serde_json::to_vec(&events_select_and_cast_to_kanban_2_config).unwrap();
-        let events_select_and_cast_to_kanban_2_config_state = TableBuilder::new()
+        let events_select_and_cast_to_kanban_2_config_state = SubjectBuilder::new()
             .with_name(self.events_select_and_cast_to_kanban_processor_2_name)
             .with_json(&events_select_and_cast_to_kanban_2_config_json.clone(), 1)
             .unwrap()
@@ -1665,7 +1665,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let events_apply_kanban_config_json =
             serde_json::to_vec(&events_apply_kanban_config).unwrap();
-        let events_apply_kanban_config_state = TableBuilder::new()
+        let events_apply_kanban_config_state = SubjectBuilder::new()
             .with_name(self.events_apply_kanban_processor_name)
             .with_json(&events_apply_kanban_config_json, 1)
             .unwrap()
@@ -1680,7 +1680,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             ..Default::default()
         };
         let aggregator_1_config_json = serde_json::to_vec(&aggregator_1_config).unwrap();
-        let aggregator_1_state = TableBuilder::new()
+        let aggregator_1_state = SubjectBuilder::new()
             .with_name(self.traces_aggregate_sequence_diagram_content_processor_name)
             .with_json(&aggregator_1_config_json.clone(), 1)
             .unwrap()
@@ -1860,7 +1860,7 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, TableTrait, test_task,
+        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, SubjectTrait, test_task,
     };
     use phymes_diagnostics::{HashMap, HashSet};
 
@@ -1892,8 +1892,8 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublication::Replace {
-                table_name: "state_1".to_string(),
+            &Publication::Replace {
+                subject_name: "state_1".to_string(),
             },
             true,
         )?;
@@ -1911,8 +1911,8 @@ mod tests {
         let metrics_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
             .with_subject(AvailableSubjects::AnalyticsMetrics.to_string().as_str())
-            .with_update(&TablePublication::Replace {
-                table_name: AvailableSubjects::AnalyticsMetrics.to_string(),
+            .with_update(&Publication::Replace {
+                subject_name: AvailableSubjects::AnalyticsMetrics.to_string(),
             })
             .with_publisher(name)
             .make_name()?
@@ -1925,8 +1925,8 @@ mod tests {
         let traces_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
             .with_subject(AvailableSubjects::AnalyticsTraces.to_string().as_str())
-            .with_update(&TablePublication::Replace {
-                table_name: AvailableSubjects::AnalyticsTraces.to_string(),
+            .with_update(&Publication::Replace {
+                subject_name: AvailableSubjects::AnalyticsTraces.to_string(),
             })
             .with_publisher(name)
             .make_name()?
@@ -1939,8 +1939,8 @@ mod tests {
         let events_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
             .with_subject(AvailableSubjects::AnalyticsEvents.to_string().as_str())
-            .with_update(&TablePublication::Replace {
-                table_name: AvailableSubjects::AnalyticsEvents.to_string(),
+            .with_update(&Publication::Replace {
+                subject_name: AvailableSubjects::AnalyticsEvents.to_string(),
             })
             .with_publisher(name)
             .make_name()?
@@ -1953,8 +1953,8 @@ mod tests {
         let tasks_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
             .with_subject(AvailableSubjects::AnalyticsTasks.to_string().as_str())
-            .with_update(&TablePublication::Replace {
-                table_name: AvailableSubjects::AnalyticsTasks.to_string(),
+            .with_update(&Publication::Replace {
+                subject_name: AvailableSubjects::AnalyticsTasks.to_string(),
             })
             .with_publisher(name)
             .make_name()?
@@ -1969,8 +1969,8 @@ mod tests {
             let errors_message = IPCMessage::get_builder()
                 .with_message(table.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::AnalyticsErrors.to_string().as_str())
-                .with_update(&TablePublication::Replace {
-                    table_name: AvailableSubjects::AnalyticsErrors.to_string(),
+                .with_update(&Publication::Replace {
+                    subject_name: AvailableSubjects::AnalyticsErrors.to_string(),
                 })
                 .with_publisher(name)
                 .make_name()?
@@ -2793,12 +2793,12 @@ mod tests {
                 map.into_iter()
                     .filter_map(|(k, v)| {
                         if k.contains(diagnostic_session.session_context_name) {
-                            let table_name = v.get_subject().to_string();
+                            let subject_name = v.get_subject().to_string();
                             Some((
                                 k,
-                                TableBuilder::new_from_ipc_stream(&v.get_message_own())
+                                SubjectBuilder::new_from_ipc_stream(&v.get_message_own())
                                     .unwrap()
-                                    .with_name(table_name.as_str())
+                                    .with_name(subject_name.as_str())
                                     .build()
                                     .unwrap(),
                             ))

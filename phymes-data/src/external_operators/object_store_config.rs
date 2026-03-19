@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
-use phymes_core::{MappableTrait, ObjectStorageBackend, Table, TableTrait};
+use phymes_core::{MappableTrait, ObjectStorageBackend, Subject, SubjectTrait};
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -136,7 +136,7 @@ impl DataConfigTrait for ObjectStoreConfig {
     fn to_example_json(&self) -> Result<Vec<u8>, serde_json::Error> {
         serde_json::to_vec(&Self::default())
     }
-    fn from_table(table: &Table) -> Result<Self>
+    fn from_table(table: &Subject) -> Result<Self>
     where
         Self: Sized,
     {

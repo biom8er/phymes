@@ -4,8 +4,8 @@ use anyhow::Result;
 use arrow::array::RecordBatch;
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, MappableTrait, Table,
-    TableBuilder,
+    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, MappableTrait, Subject,
+    SubjectBuilder,
 };
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
@@ -133,7 +133,7 @@ impl Display for AvailableInterfaceSubjects {
 }
 
 impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
-    fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Table> {
+    fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Subject> {
         let name = match name {
             Some(name) => name.to_string(),
             None => self.to_string(),
@@ -162,7 +162,7 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             }
         }
     }
-    fn to_table_builder(&self, name: Option<&str>) -> TableBuilder {
+    fn to_table_builder(&self, name: Option<&str>) -> SubjectBuilder {
         let name = match name {
             Some(name) => name.to_string(),
             None => self.to_string(),

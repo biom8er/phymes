@@ -1,48 +1,49 @@
+use parking_lot::RwLock;
 use phymes_diagnostics::HashMap;
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 
-use crate::{MappableTrait, SubjectsMap, Table, TableSubscription, TableTrait};
+use crate::{MappableTrait, Subject, Subscription, SubjectTrait};
 
 /// Determine when all subscriptions are ready
-pub trait TableSubscribePolicyTrait: MappableTrait + Debug + Send + Sync {
+pub trait SubscribePolicyTrait: MappableTrait + Debug + Send + Sync {
     /// Check if the subscriptions for a processor are ready to be subscribed to
     ///
     /// # Arguments
-    /// * `subscriptions` - Slice of `TableSubscription`s for the processors
+    /// * `subscriptions` - Slice of `Subscription`s for the processors
     /// * `updates` - `HashMap` of subscription subject names and if they were updated
     /// * `state` - `HashMap` of the subject tables
     fn check_subscriptions(
         &self,
-        subscriptions: &[TableSubscription],
+        subscriptions: &[Subscription],
         updates: &HashMap<String, bool>,
-        state: &SubjectsMap,
+        state: &HashMap<String, Arc<RwLock<Subject>>>,
     ) -> bool;
-    fn new_box() -> Box<dyn TableSubscribePolicyTrait>
+    fn new_box() -> Box<dyn SubscribePolicyTrait>
     where
         Self: Sized;
-    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait>;
+    fn clone_boxed(&self) -> Box<dyn SubscribePolicyTrait>;
 }
 
 /// Always subscribe (dummy subscription check for testing)
 #[derive(Default, Debug, Clone)]
 pub struct AlwaysSubscribe;
 
-impl TableSubscribePolicyTrait for AlwaysSubscribe {
+impl SubscribePolicyTrait for AlwaysSubscribe {
     fn check_subscriptions(
         &self,
-        _subscriptions: &[TableSubscription],
+        _subscriptions: &[Subscription],
         _updates: &HashMap<String, bool>,
-        _state: &SubjectsMap,
+        _state: &HashMap<String, Arc<RwLock<Subject>>>,
     ) -> bool {
         true
     }
-    fn new_box() -> Box<dyn TableSubscribePolicyTrait>
+    fn new_box() -> Box<dyn SubscribePolicyTrait>
     where
         Self: Sized,
     {
         Box::new(Self)
     }
-    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {
+    fn clone_boxed(&self) -> Box<dyn SubscribePolicyTrait> {
         Box::new(self.clone())
     }
 }
@@ -58,14 +59,14 @@ impl MappableTrait for AlwaysSubscribe {
 
 /// Subscribe when any matching table name has been updated
 #[derive(Default, Debug, Clone)]
-pub struct AnyTableNameSubscribe;
+pub struct AnySubscribeNameSubscribe;
 
-impl TableSubscribePolicyTrait for AnyTableNameSubscribe {
+impl SubscribePolicyTrait for AnySubscribeNameSubscribe {
     fn check_subscriptions(
         &self,
-        subscriptions: &[TableSubscription],
+        subscriptions: &[Subscription],
         updates: &HashMap<String, bool>,
-        _state: &SubjectsMap,
+        _state: &HashMap<String, Arc<RwLock<Subject>>>,
     ) -> bool {
         let mut is_update_count: usize = 0;
         for subscription in subscriptions.iter() {
@@ -78,15 +79,15 @@ impl TableSubscribePolicyTrait for AnyTableNameSubscribe {
         }
         is_update_count == 0
     }
-    fn new_box() -> Box<dyn TableSubscribePolicyTrait> {
+    fn new_box() -> Box<dyn SubscribePolicyTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {
+    fn clone_boxed(&self) -> Box<dyn SubscribePolicyTrait> {
         Box::new(self.clone())
     }
 }
 
-impl MappableTrait for AnyTableNameSubscribe {
+impl MappableTrait for AnySubscribeNameSubscribe {
     fn get_static_name() -> &'static str {
         "Any"
     }
@@ -97,14 +98,14 @@ impl MappableTrait for AnyTableNameSubscribe {
 
 /// Subscribe when all matching table names has been updated
 #[derive(Default, Debug, Clone)]
-pub struct AllTableNamesSubscribe;
+pub struct AllSubjectNamesSubscribe;
 
-impl TableSubscribePolicyTrait for AllTableNamesSubscribe {
+impl SubscribePolicyTrait for AllSubjectNamesSubscribe {
     fn check_subscriptions(
         &self,
-        subscriptions: &[TableSubscription],
+        subscriptions: &[Subscription],
         updates: &HashMap<String, bool>,
-        _state: &SubjectsMap,
+        _state: &HashMap<String, Arc<RwLock<Subject>>>,
     ) -> bool {
         for subscription in subscriptions.iter() {
             if subscription.is_update()
@@ -115,15 +116,15 @@ impl TableSubscribePolicyTrait for AllTableNamesSubscribe {
         }
         true
     }
-    fn new_box() -> Box<dyn TableSubscribePolicyTrait> {
+    fn new_box() -> Box<dyn SubscribePolicyTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {
+    fn clone_boxed(&self) -> Box<dyn SubscribePolicyTrait> {
         Box::new(self.clone())
     }
 }
 
-impl MappableTrait for AllTableNamesSubscribe {
+impl MappableTrait for AllSubjectNamesSubscribe {
     fn get_static_name() -> &'static str {
         "All"
     }
@@ -134,20 +135,20 @@ impl MappableTrait for AllTableNamesSubscribe {
 
 /// Subscribe when any matching table schema has been updated
 #[derive(Default, Debug, Clone)]
-pub struct AnyTableSchemaSubscribe;
+pub struct AnySubjectSchemaSubscribe;
 
-impl TableSubscribePolicyTrait for AnyTableSchemaSubscribe {
+impl SubscribePolicyTrait for AnySubjectSchemaSubscribe {
     fn check_subscriptions(
         &self,
-        subscriptions: &[TableSubscription],
+        subscriptions: &[Subscription],
         updates: &HashMap<String, bool>,
-        state: &SubjectsMap,
+        state: &HashMap<String, Arc<RwLock<Subject>>>,
     ) -> bool {
         let mut is_update_count: usize = 0;
         for subscription in subscriptions.iter() {
             if subscription.is_update() {
                 is_update_count += 1;
-                for (table_name, update) in updates {
+                for (subject_name, update) in updates {
                     if state
                         .get(subscription.get_table_name())
                         .unwrap()
@@ -155,7 +156,7 @@ impl TableSubscribePolicyTrait for AnyTableSchemaSubscribe {
                         .unwrap()
                         .get_schema()
                         .eq(&state
-                            .get(table_name)
+                            .get(subject_name)
                             .unwrap()
                             .try_read()
                             .unwrap()
@@ -169,15 +170,15 @@ impl TableSubscribePolicyTrait for AnyTableSchemaSubscribe {
         }
         is_update_count == 0
     }
-    fn new_box() -> Box<dyn TableSubscribePolicyTrait> {
+    fn new_box() -> Box<dyn SubscribePolicyTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {
+    fn clone_boxed(&self) -> Box<dyn SubscribePolicyTrait> {
         Box::new(self.clone())
     }
 }
 
-impl MappableTrait for AnyTableSchemaSubscribe {
+impl MappableTrait for AnySubjectSchemaSubscribe {
     fn get_static_name() -> &'static str {
         "AnySchema"
     }
@@ -188,18 +189,18 @@ impl MappableTrait for AnyTableSchemaSubscribe {
 
 /// Subscribe when all matching table schemas has been updated
 #[derive(Default, Debug, Clone)]
-pub struct AllTableSchemasSubscribe;
+pub struct AllSubjectSchemasSubscribe;
 
-impl TableSubscribePolicyTrait for AllTableSchemasSubscribe {
+impl SubscribePolicyTrait for AllSubjectSchemasSubscribe {
     fn check_subscriptions(
         &self,
-        subscriptions: &[TableSubscription],
+        subscriptions: &[Subscription],
         updates: &HashMap<String, bool>,
-        state: &SubjectsMap,
+        state: &HashMap<String, Arc<RwLock<Subject>>>,
     ) -> bool {
         for subscription in subscriptions.iter() {
             if subscription.is_update() {
-                for (table_name, update) in updates {
+                for (subject_name, update) in updates {
                     if state
                         .get(subscription.get_table_name())
                         .unwrap()
@@ -207,7 +208,7 @@ impl TableSubscribePolicyTrait for AllTableSchemasSubscribe {
                         .unwrap()
                         .get_schema()
                         .eq(&state
-                            .get(table_name)
+                            .get(subject_name)
                             .unwrap()
                             .try_read()
                             .unwrap()
@@ -221,15 +222,15 @@ impl TableSubscribePolicyTrait for AllTableSchemasSubscribe {
         }
         true
     }
-    fn new_box() -> Box<dyn TableSubscribePolicyTrait> {
+    fn new_box() -> Box<dyn SubscribePolicyTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {
+    fn clone_boxed(&self) -> Box<dyn SubscribePolicyTrait> {
         Box::new(self.clone())
     }
 }
 
-impl MappableTrait for AllTableSchemasSubscribe {
+impl MappableTrait for AllSubjectSchemasSubscribe {
     fn get_static_name() -> &'static str {
         "AllSchema"
     }
@@ -252,7 +253,7 @@ impl ChatContentSubscribe {
         user_message_table_name: &str,
         tool_message_table_name: &str,
         error_message_table_name: &str,
-    ) -> Box<dyn TableSubscribePolicyTrait> {
+    ) -> Box<dyn SubscribePolicyTrait> {
         Box::new(Self {
             user_message_table_name: user_message_table_name.to_string(),
             tool_message_table_name: tool_message_table_name.to_string(),
@@ -261,12 +262,12 @@ impl ChatContentSubscribe {
     }
 }
 
-impl TableSubscribePolicyTrait for ChatContentSubscribe {
+impl SubscribePolicyTrait for ChatContentSubscribe {
     fn check_subscriptions(
         &self,
-        _subscriptions: &[TableSubscription],
+        _subscriptions: &[Subscription],
         updates: &HashMap<String, bool>,
-        _state: &SubjectsMap,
+        _state: &HashMap<String, Arc<RwLock<Subject>>>,
     ) -> bool {
         // DM: default to false to prevent unwanted subscriptions
         let user = updates.get(&self.user_message_table_name).unwrap_or(&false);
@@ -280,7 +281,7 @@ impl TableSubscribePolicyTrait for ChatContentSubscribe {
             && !updates.contains_key(&self.error_message_table_name);
         *tool || *user || *error || config
     }
-    fn new_box() -> Box<dyn TableSubscribePolicyTrait> {
+    fn new_box() -> Box<dyn SubscribePolicyTrait> {
         Box::new(Self {
             // DM: dangerous as the strings needs to stay syncronized with the actual table names
             // in `AvailableinterfaceSubjects` and `AvailableinterfaceSubjects`
@@ -289,7 +290,7 @@ impl TableSubscribePolicyTrait for ChatContentSubscribe {
             error_message_table_name: "SessionErrors".to_string(),
         })
     }
-    fn clone_boxed(&self) -> Box<dyn TableSubscribePolicyTrait> {
+    fn clone_boxed(&self) -> Box<dyn SubscribePolicyTrait> {
         Box::new(self.clone())
     }
 }
@@ -305,52 +306,52 @@ pub(crate) mod test_subscribe_policy {
 
     use parking_lot::RwLock;
 
-    use crate::table::table_trait::test_table::make_test_table;
+    use crate::test_subject::make_test_subject;
 
     use super::*;
 
     #[allow(dead_code)]
-    pub fn make_test_state() -> SubjectsMap {
-        let mut state = HashMap::<String, Arc<RwLock<Table>>>::new();
+    pub fn make_test_subjects_map() -> HashMap<String, Arc<RwLock<Subject>>> {
+        let mut state = HashMap::<String, Arc<RwLock<Subject>>>::new();
         state.insert(
             "t1".to_string(),
-            Arc::new(RwLock::new(make_test_table("t1", 1, 0, 1).unwrap())),
+            Arc::new(RwLock::new(make_test_subject("t1", 1, 0, 1).unwrap())),
         );
         state.insert(
             "t2".to_string(),
-            Arc::new(RwLock::new(make_test_table("t2", 1, 0, 1).unwrap())),
+            Arc::new(RwLock::new(make_test_subject("t2", 1, 0, 1).unwrap())),
         );
         state.insert(
             "t3".to_string(),
-            Arc::new(RwLock::new(make_test_table("t3", 1, 0, 1).unwrap())),
+            Arc::new(RwLock::new(make_test_subject("t3", 1, 0, 1).unwrap())),
         );
         state
     }
 
     #[allow(dead_code)]
-    pub fn make_test_subscriptions(use_table_name: bool) -> Vec<TableSubscription> {
+    pub fn make_test_subscriptions(use_table_name: bool) -> Vec<Subscription> {
         if use_table_name {
             vec![
-                TableSubscription::OnUpdateLastRecordBatch {
-                    table_name: "t1".to_string(),
+                Subscription::OnUpdateLastRecordBatch {
+                    subject_name: "t1".to_string(),
                 },
-                TableSubscription::OnUpdateLastRecordBatch {
-                    table_name: "t2".to_string(),
+                Subscription::OnUpdateLastRecordBatch {
+                    subject_name: "t2".to_string(),
                 },
-                TableSubscription::AlwaysLastRecordBatch {
-                    table_name: "t3".to_string(),
+                Subscription::AlwaysLastRecordBatch {
+                    subject_name: "t3".to_string(),
                 },
             ]
         } else {
             vec![
-                TableSubscription::OnUpdateLastRecordBatch {
-                    table_name: "t3".to_string(),
+                Subscription::OnUpdateLastRecordBatch {
+                    subject_name: "t3".to_string(),
                 },
-                TableSubscription::OnUpdateLastRecordBatch {
-                    table_name: "t3".to_string(),
+                Subscription::OnUpdateLastRecordBatch {
+                    subject_name: "t3".to_string(),
                 },
-                TableSubscription::AlwaysLastRecordBatch {
-                    table_name: "t3".to_string(),
+                Subscription::AlwaysLastRecordBatch {
+                    subject_name: "t3".to_string(),
                 },
             ]
         }
@@ -376,7 +377,7 @@ mod tests {
 
     #[test]
     fn test_always_subscribe() {
-        let state = test_subscribe_policy::make_test_state();
+        let state = test_subscribe_policy::make_test_subjects_map();
         let subscriptions = test_subscribe_policy::make_test_subscriptions(true);
         let updates = test_subscribe_policy::make_test_updates(true);
         let sub = AlwaysSubscribe::new_box();
@@ -385,10 +386,10 @@ mod tests {
 
     #[test]
     fn test_any_tablename_subscribe() {
-        let state = test_subscribe_policy::make_test_state();
+        let state = test_subscribe_policy::make_test_subjects_map();
         let subscriptions = test_subscribe_policy::make_test_subscriptions(true);
         let updates = test_subscribe_policy::make_test_updates(true);
-        let sub = AnyTableNameSubscribe::new_box();
+        let sub = AnySubscribeNameSubscribe::new_box();
         assert!(sub.check_subscriptions(&subscriptions, &updates, &state));
         let updates = test_subscribe_policy::make_test_updates(false);
         assert!(sub.check_subscriptions(&subscriptions, &updates, &state));
@@ -396,10 +397,10 @@ mod tests {
 
     #[test]
     fn test_all_tablename_subscribe() {
-        let state = test_subscribe_policy::make_test_state();
+        let state = test_subscribe_policy::make_test_subjects_map();
         let subscriptions = test_subscribe_policy::make_test_subscriptions(true);
         let updates = test_subscribe_policy::make_test_updates(true);
-        let sub = AllTableNamesSubscribe::new_box();
+        let sub = AllSubjectNamesSubscribe::new_box();
         assert!(!sub.check_subscriptions(&subscriptions, &updates, &state));
         let updates = test_subscribe_policy::make_test_updates(false);
         assert!(sub.check_subscriptions(&subscriptions, &updates, &state));
@@ -407,10 +408,10 @@ mod tests {
 
     #[test]
     fn test_any_schema_subscribe() {
-        let state = test_subscribe_policy::make_test_state();
+        let state = test_subscribe_policy::make_test_subjects_map();
         let subscriptions = test_subscribe_policy::make_test_subscriptions(false);
         let updates = test_subscribe_policy::make_test_updates(true);
-        let sub = AnyTableSchemaSubscribe::new_box();
+        let sub = AnySubjectSchemaSubscribe::new_box();
         assert!(sub.check_subscriptions(&subscriptions, &updates, &state));
         let updates = test_subscribe_policy::make_test_updates(false);
         assert!(sub.check_subscriptions(&subscriptions, &updates, &state));
@@ -418,10 +419,10 @@ mod tests {
 
     #[test]
     fn test_all_schema_subscribe() {
-        let state = test_subscribe_policy::make_test_state();
+        let state = test_subscribe_policy::make_test_subjects_map();
         let subscriptions = test_subscribe_policy::make_test_subscriptions(false);
         let updates = test_subscribe_policy::make_test_updates(true);
-        let sub = AllTableSchemasSubscribe::new_box();
+        let sub = AllSubjectSchemasSubscribe::new_box();
         assert!(!sub.check_subscriptions(&subscriptions, &updates, &state));
         let updates = test_subscribe_policy::make_test_updates(false);
         assert!(!sub.check_subscriptions(&subscriptions, &updates, &state));

@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
-use phymes_core::{AvailableSubjects, DataEncoding, DataFormat, MappableTrait, Table, TableTrait};
+use phymes_core::{AvailableSubjects, DataEncoding, DataFormat, MappableTrait, Subject, SubjectTrait};
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 
@@ -530,7 +530,7 @@ pub trait DataConfigTrait {
         Self: Serialize;
 
     /// Build the config from a [Table]
-    fn from_table(table: &Table) -> Result<Self>
+    fn from_table(table: &Subject) -> Result<Self>
     where
         Self: Sized;
 }
@@ -751,7 +751,7 @@ impl DataConfigTrait for DataConfig {
     fn to_example_json(&self) -> Result<Vec<u8>, serde_json::Error> {
         serde_json::to_vec(&Self::default())
     }
-    fn from_table(table: &Table) -> Result<Self>
+    fn from_table(table: &Subject) -> Result<Self>
     where
         Self: Sized,
     {

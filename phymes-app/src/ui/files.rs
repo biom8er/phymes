@@ -1,8 +1,8 @@
 use dioxus::{html::FileData, prelude::*};
 use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait};
 use phymes_core::{
-    create_attachments_batch, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, Table,
-    TableBuilderTrait, TablePublication, TableTrait,
+    create_attachments_batch, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, Subject,
+    SubjectBuilderTrait, Publication, SubjectTrait,
 };
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_server::create_session_name;
@@ -55,7 +55,7 @@ pub fn attach_files_input(
 ) -> Element {
     let enable_directory_upload = use_signal(|| false);
 
-    let read_files = move |files: Vec<FileData>, publish: TablePublication| async move {
+    let read_files = move |files: Vec<FileData>, publish: Publication| async move {
         for file in files {
             let filename = file.name();
             // Determine the file type
@@ -121,7 +121,7 @@ pub fn attach_files_input(
                                     vec![create_timestamp_micros()],
                                 )
                                 .unwrap();
-                                let message = Table::get_builder()
+                                let message = Subject::get_builder()
                                     .with_name(subject_name.as_str())
                                     .with_record_batches(vec![batch])
                                     .unwrap()
@@ -136,13 +136,13 @@ pub fn attach_files_input(
 
                             // Update the publish method
                             let publish = match publish {
-                                TablePublication::Extend { .. } => TablePublication::Extend {
-                                    table_name: subject_name.clone(),
+                                Publication::Extend { .. } => Publication::Extend {
+                                    subject_name: subject_name.clone(),
                                 },
-                                TablePublication::Replace { .. } => TablePublication::Replace {
-                                    table_name: subject_name.clone(),
+                                Publication::Replace { .. } => Publication::Replace {
+                                    subject_name: subject_name.clone(),
                                 },
-                                _ => TablePublication::None,
+                                _ => Publication::None,
                             };
 
                             // Create the message to upload
@@ -178,8 +178,8 @@ pub fn attach_files_input(
     let upload_files_extend = move |evt: FormEvent| async move {
         read_files(
             evt.files(),
-            TablePublication::Extend {
-                table_name: "".to_string(),
+            Publication::Extend {
+                subject_name: "".to_string(),
             },
         )
         .await;
@@ -188,8 +188,8 @@ pub fn attach_files_input(
     let upload_files_replace = move |evt: FormEvent| async move {
         read_files(
             evt.files(),
-            TablePublication::Replace {
-                table_name: "".to_string(),
+            Publication::Replace {
+                subject_name: "".to_string(),
             },
         )
         .await;
@@ -417,7 +417,7 @@ pub fn download_files_button(
                     .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                     .with_format(&data_format())
                     .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-                    .with_update(&TablePublication::None)
+                    .with_update(&Publication::None)
                     .with_stream(false)
                     .with_subject(&active_subject_name.read())
                     .make_name()

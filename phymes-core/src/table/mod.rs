@@ -1,19 +1,16 @@
-mod available_table_subscribe_policies;
-mod available_table_update_policies;
+mod available_subscribe_policies;
+mod available_update_policies;
 mod data_format;
 mod data_types;
 mod stream;
 mod stream_adapter;
-mod table_builder;
-mod table_publication;
-mod table_script;
-mod table_subscribe_policy;
-mod table_subscription;
-mod table_trait;
-mod table_update_policy;
+mod publication;
+mod subscribe_policy;
+mod subscription;
+mod update_policy;
 
-pub use available_table_subscribe_policies::AvailableTableSubscribePolicies;
-pub use available_table_update_policies::AvailableTableUpdatePolicies;
+pub use available_subscribe_policies::AvailableSubscribePolicies;
+pub use available_update_policies::AvailableUpdatePolicies;
 pub use data_format::{CsvFormat, DataFormat, JsonFormat, DataEncoding, make_filename, make_extension};
 pub use data_types::{from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type};
 pub use stream::{
@@ -24,24 +21,14 @@ pub use stream_adapter::{
     EmptyRecordBatchStream, RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder,
     RecordBatchStreamAdapter,
 };
-pub use table_builder::{TableBuilder, TableBuilderTrait};
-pub use table_publication::{TablePublication, TablePublicationTrait};
-pub use table_script::{TableScript, items_to_list};
-pub use table_subscribe_policy::TableSubscribePolicyTrait;
-pub(crate) use table_subscribe_policy::{
-    AllTableNamesSubscribe, AllTableSchemasSubscribe, AlwaysSubscribe, AnyTableNameSubscribe,
-    AnyTableSchemaSubscribe, ChatContentSubscribe,
+pub use publication::{Publication, TablePublicationTrait};
+pub use subscribe_policy::SubscribePolicyTrait;
+pub(crate) use subscribe_policy::{
+    AllSubjectNamesSubscribe, AllSubjectSchemasSubscribe, AlwaysSubscribe, AnySubscribeNameSubscribe,
+    AnySubjectSchemaSubscribe, ChatContentSubscribe,
 };
-pub use table_subscription::{TableSubscription, TableSubscriptionTrait};
-pub use table_trait::{Table, TableTrait, test_table};
-pub use table_update_policy::{
-    TableChangedSinceLastRunUpdate, TableExistsUpdate, TableHasBatchesUpdate,
-    TableUpdatePolicyTrait,
+pub use subscription::{Subscription, TableSubscriptionTrait};
+pub use update_policy::{
+    SubjectChangedSinceLastRunUpdate, SubjectExistsUpdate, SubjectHasBatchesUpdate,
+    UpdatePolicyTrait,
 };
-
-use parking_lot::RwLock;
-use phymes_diagnostics::HashMap;
-use std::sync::Arc;
-
-/// Table HashMap with Arc/RwLock for thread-safe multiple reads
-pub type SubjectsMap = HashMap<String, Arc<RwLock<Table>>>;

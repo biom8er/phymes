@@ -352,8 +352,8 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, CsvFormat,
-        IPCMessage, MappableTrait, MessageBuilderTrait, Table, TableBuilderTrait, TablePublication,
-        TableTrait,
+        IPCMessage, MappableTrait, MessageBuilderTrait, Subject, SubjectBuilderTrait, Publication,
+        SubjectTrait,
     };
     use phymes_diagnostics::HashMap;
 
@@ -442,7 +442,7 @@ mod tests {
             ("BMI", bmis),
             ("Statin", statins),
         ])?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name("PivotTable")
             .with_record_batches(vec![batch])?
             .build()?;
@@ -454,8 +454,8 @@ mod tests {
         let blob_message = IPCMessage::get_builder()
             .with_message(blob.to_ipc_stream()?)
             .with_subject(blob.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: blob.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: blob.get_name().to_string(),
             })
             .with_publisher(melt_study_data_session.session_context_name)
             .make_name()?

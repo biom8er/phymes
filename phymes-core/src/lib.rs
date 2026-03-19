@@ -1,3 +1,4 @@
+mod Index; // DM: change back to lower case after restart...
 mod message;
 mod patch;
 mod processor;
@@ -7,6 +8,15 @@ mod storage;
 mod subject;
 mod table;
 mod task;
+
+pub use Index::{
+    SubjectConstraintType, create_arrow_array_sequence, SubjectSequenceType,
+    IndexType,
+    BTreeIndexReader, HashIndexReader, GiSTIndexReader, SPGiSTIndexReader, GINIndexReader, BRINIndexReader,
+    BTreeIndexBuilder, HashIndexBuilder, GiSTIndexBuilder, SPGiSTIndexBuilder, GINIndexBuilder, BRINIndexBuilder,
+    btree_schema, hash_index_schema, gist_schema, spgist_schema, gin_schema, brin_schema,
+    BTreeIndex, BTreeNode, HashIndex, HashEntry, GiSTIndex, GiSTEntry, SPGiSTIndex, SPGiSTNode, GINIndex, GINPosting, BRINIndex, BRINRange
+};
 pub use message::{
     IPCMessage, IPCMessageBuilder, IPCMessageMap, MessageBuilderTrait, MessageTrait,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
@@ -59,23 +69,17 @@ pub use storage::{
     IpcReader, JsonReader, CsvReader, StorageReaderTrait, StorageStreamReaderTrait, storage_reader_get_result, storage_reader_stream_result,
     IpcWriter, JsonWriter, CsvWriter, IpcWriterMultipart, JsonWriterMultipart, CsvWriterMultipart, StorageWriterTrait, StorageWriterMultipartTrait, StorageStreamWriterTrait, storage_writer_multipart
 };
-pub use subject::{SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlan, SubjectPlanTrait, SubjectConstraintType, SubjectFilePartition, SubjectFolderPartition,
-    create_arrow_array_sequence, SubjectSequenceType,
-    IndexType,
-    BTreeIndexReader, HashIndexReader, GiSTIndexReader, SPGiSTIndexReader, GINIndexReader, BRINIndexReader,
-    BTreeIndexBuilder, HashIndexBuilder, GiSTIndexBuilder, SPGiSTIndexBuilder, GINIndexBuilder, BRINIndexBuilder,
-    btree_schema, hash_index_schema, gist_schema, spgist_schema, gin_schema, brin_schema,
-    BTreeIndex, BTreeNode, HashIndex, HashEntry, GiSTIndex, GiSTEntry, SPGiSTIndex, SPGiSTNode, GINIndex, GINPosting, BRINIndex, BRINRange
-};
+pub use subject::{SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlan, SubjectPlanTrait, SubjectFilePartition, SubjectFolderPartition,
+    Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, test_subject, SubjectScript, items_to_list};
 pub use table::{
-    AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, CsvFormat, DataEncoding, DataFormat,
+    AvailableSubscribePolicies, AvailableUpdatePolicies, CsvFormat, DataEncoding, DataFormat,
     IPCRecordBatchStream, JsonFormat, RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder,
     RecordBatchStream, RecordBatchStreamAdapter, SendableIPCRecordBatchStream,
-    SendableRecordBatchStream, SubjectsMap, Table, TableBuilder, TableBuilderTrait,
-    TableChangedSinceLastRunUpdate, TableExistsUpdate, TableHasBatchesUpdate, TablePublication,
-    TablePublicationTrait, TableScript, TableSubscribePolicyTrait, TableSubscription,
-    TableSubscriptionTrait, TableTrait, TableUpdatePolicyTrait, from_data_type_to_str,
-    from_str_to_data_type, items_to_list, make_filename, make_extension, parse_str_to_data_type, test_table,
+    SendableRecordBatchStream,
+    SubjectChangedSinceLastRunUpdate, SubjectExistsUpdate, SubjectHasBatchesUpdate, Publication,
+    TablePublicationTrait, SubscribePolicyTrait, Subscription,
+    TableSubscriptionTrait, UpdatePolicyTrait, from_data_type_to_str,
+    from_str_to_data_type, make_filename, make_extension, parse_str_to_data_type,
 };
 pub use task::{
     Task, TaskBuilder, TaskBuilderTrait, TaskMap, TaskPlan, TaskPlanBuilder, TaskTrait,

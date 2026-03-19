@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_user_batch, create_user_session_contexts_batch
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribePolicies, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, TaskPlan, create_user_batch, create_user_session_contexts_batch
 };
 use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator};
 use phymes_diagnostics::create_timestamp_micros;
@@ -67,7 +67,7 @@ impl<'a> UserSession<'a> {
         }
     }
 
-    pub fn make_user_table(&self) -> Result<Table> {
+    pub fn make_user_table(&self) -> Result<Subject> {
         let batch = create_user_batch(
             vec!["contact@biom8er.com".to_string()],
             vec!["con".to_string()],
@@ -75,13 +75,13 @@ impl<'a> UserSession<'a> {
             vec!["$2b$12$qJGwWR2rSZ9oBFZff0o2w.RXViv.Mf.BwfsWZTfVm4DmjjVfsaHzi".to_string()],
             vec![create_timestamp_micros()],
         )?;
-        TableBuilder::new()
+        SubjectBuilder::new()
             .with_name(AvailableSubjects::User.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
     }
 
-    pub fn make_user_session_context_table(&self) -> Result<Table> {
+    pub fn make_user_session_context_table(&self) -> Result<Subject> {
         let mut email = Vec::new();
         let mut session_context_name = Vec::new();
         for name in AvailableSessionPlans::get_all_session_plan_names() {
@@ -89,7 +89,7 @@ impl<'a> UserSession<'a> {
             session_context_name.push(name);
         }
         let batch = create_user_session_contexts_batch(email, session_context_name)?;
-        TableBuilder::new()
+        SubjectBuilder::new()
             .with_name(AvailableSubjects::UserSessionContexts.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
@@ -139,24 +139,24 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                     AvailableProcessors::Join
                         .build_arc(self.filter_session_contexts_by_email_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self
+                    Subscription::AlwaysLastRecordBatch {
+                        subject_name: self
                             .filter_session_contexts_by_email_processor_name
                             .to_string(),
                     },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::UserInbox.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: AvailableSubjects::UserInbox.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: AvailableSubjects::UserSessionContexts.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: AvailableSubjects::UserSessionContexts.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -165,24 +165,24 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                     AvailableProcessors::Join
                         .build_arc(self.join_session_contexts_with_mermaid_diagrams_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self
+                    Subscription::AlwaysLastRecordBatch {
+                        subject_name: self
                             .join_session_contexts_with_mermaid_diagrams_processor_name
                             .to_string(),
                     },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: AvailableSubjects::BuilderMermaid.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: AvailableSubjects::BuilderMermaid.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -191,22 +191,22 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                     AvailableProcessors::Join
                         .build_arc(self.filter_user_info_by_email_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self.filter_user_info_by_email_table_name.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: self.filter_user_info_by_email_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self.filter_user_info_by_email_processor_name.to_string(),
+                    Subscription::AlwaysLastRecordBatch {
+                        subject_name: self.filter_user_info_by_email_processor_name.to_string(),
                     },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableSubjects::UserInbox.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: AvailableSubjects::UserInbox.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: AvailableSubjects::User.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: AvailableSubjects::User.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -224,7 +224,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
         ])
     }
 
-    fn make_subjects(&self) -> Option<Vec<Table>> {
+    fn make_subjects(&self) -> Option<Vec<Subject>> {
         // Configs for filter
         let filter_user_info_data_config = DataConfig {
             operator: AvailableCandleOperators::Join,
@@ -239,7 +239,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
         };
         let filter_user_info_data_config_json =
             serde_json::to_vec(&filter_user_info_data_config).unwrap();
-        let filter_user_info_data_state = TableBuilder::new()
+        let filter_user_info_data_state = SubjectBuilder::new()
             .with_name(self.filter_user_info_by_email_processor_name)
             .with_json(&filter_user_info_data_config_json.clone(), 1)
             .unwrap()
@@ -260,7 +260,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
         };
         let filter_user_session_context_data_config_json =
             serde_json::to_vec(&filter_user_session_context_data_config).unwrap();
-        let filter_user_session_context_data_state = TableBuilder::new()
+        let filter_user_session_context_data_state = SubjectBuilder::new()
             .with_name(self.filter_session_contexts_by_email_processor_name)
             .with_json(&filter_user_session_context_data_config_json.clone(), 1)
             .unwrap()
@@ -281,7 +281,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
         };
         let join_user_session_context_data_config_json =
             serde_json::to_vec(&join_user_session_context_data_config).unwrap();
-        let join_user_session_context_data_state = TableBuilder::new()
+        let join_user_session_context_data_state = SubjectBuilder::new()
             .with_name(self.join_session_contexts_with_mermaid_diagrams_processor_name)
             .with_json(&join_user_session_context_data_config_json.clone(), 1)
             .unwrap()
@@ -314,7 +314,7 @@ pub(crate) mod user_session_inner {
     use anyhow::Result;
     use parking_lot::RwLock;
     use phymes_core::{
-        BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait, TableTrait,
+        BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait, SubjectTrait,
         create_user_inbox_batch,
     };
 
@@ -339,15 +339,15 @@ pub(crate) mod user_session_inner {
 
         // Make the user inbox message
         let batch = create_user_inbox_batch(vec!["contact@biom8er.com".to_string()])?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_record_batches(vec![batch])?
             .with_name(AvailableSubjects::UserInbox.to_string().as_str())
             .build()?;
         let message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
             .with_subject(table.get_name())
-            .with_update(&TablePublication::Replace {
-                table_name: table.get_name().to_string(),
+            .with_update(&Publication::Replace {
+                subject_name: table.get_name().to_string(),
             })
             .with_publisher(user_agent_session.session_context_name)
             .make_name()?
@@ -364,7 +364,7 @@ pub(crate) mod user_session_inner {
 mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{IPCMessage, TableTrait};
+    use phymes_core::{IPCMessage, SubjectTrait};
     use phymes_diagnostics::HashMap;
 
     use super::*;

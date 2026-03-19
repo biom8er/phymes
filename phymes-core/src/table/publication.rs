@@ -11,33 +11,31 @@ use arrow::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BuilderTrait, DataFormat, TableBuilder, TableBuilderTrait, runtime_env::MappableTrait,
+    BuilderTrait, DataFormat, SubjectBuilder, SubjectBuilderTrait, MappableTrait, Subject, SubjectTrait
 };
 
-use super::table_trait::{Table, TableTrait};
-
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Hash, Eq, Default)]
-pub enum TablePublication {
+pub enum Publication {
     /// Push a new vector of record batches onto the table
-    Extend { table_name: String },
+    Extend { subject_name: String },
     /// Push a new vector of record batches onto the table
     /// after joining the chunks along the named column
     ExtendChunks {
-        table_name: String,
+        subject_name: String,
         col_name: String,
     },
     /// Push a new vector of record batches onto the table
     /// after deserializing bytes from a specified format
     /// DM: intended for internal routing of messages
     ExtendBytes {
-        table_name: String,
+        subject_name: String,
         col_name: String,
         serialize_format: DataFormat,
     },
     /// Replace the existing vector of record batches with a new one
-    Replace { table_name: String },
+    Replace { subject_name: String },
     /// Replace only the last record batch
-    ReplaceLast { table_name: String },
+    ReplaceLast { subject_name: String },
     /// No updates
     #[default]
     None,
@@ -45,88 +43,88 @@ pub enum TablePublication {
     Custom(String),
 }
 
-impl TablePublication {
-    /// Short name for the [TablePublication] that omits the `table_name` and other information
-    pub fn get_short_name(&self) -> &str {
+impl Publication {
+    /// Short name for the [Publication] that omits the `subject_name` and other information
+    pub fn short_name(&self) -> &str {
         match self {
-            Self::Extend { table_name: _tn } => "Extend",
+            Self::Extend { subject_name: _tn } => "Extend",
             Self::ExtendChunks {
-                table_name: _tn,
+                subject_name: _tn,
                 col_name: _cn,
             } => "ExtendChunks",
             Self::ExtendBytes {
-                table_name: _tn,
+                subject_name: _tn,
                 col_name: _cn,
                 serialize_format: _sf,
             } => "ExtendBytes",
-            Self::Replace { table_name: _tn } => "Replace",
-            Self::ReplaceLast { table_name: _tn } => "ReplaceLast",
+            Self::Replace { subject_name: _tn } => "Replace",
+            Self::ReplaceLast { subject_name: _tn } => "ReplaceLast",
             Self::None => "None",
             Self::Custom(name) => name,
         }
     }
 
-    /// Full name for the [TablePublication] that includes the `table_name` and other information
-    pub fn get_full_name(&self) -> String {
+    /// Full name for the [Publication] that includes the `subject_name` and other information
+    pub fn full_name(&self) -> String {
         match self {
-            Self::Extend { table_name: tn } => format!("extend-{tn}"),
+            Self::Extend { subject_name: tn } => format!("extend-{tn}"),
             Self::ExtendChunks {
-                table_name: tn,
+                subject_name: tn,
                 col_name: cn,
             } => format!("extend-chunks-{tn}-{cn}"),
             Self::ExtendBytes {
-                table_name: tn,
+                subject_name: tn,
                 col_name: cn,
                 serialize_format: sf,
             } => format!("extend-values-{tn}-{cn}-{sf}"),
-            Self::Replace { table_name: tn } => format!("replace-{tn}"),
-            Self::ReplaceLast { table_name: tn } => format!("replace-last-{tn}"),
+            Self::Replace { subject_name: tn } => format!("replace-{tn}"),
+            Self::ReplaceLast { subject_name: tn } => format!("replace-last-{tn}"),
             Self::None => "none".to_string(),
             Self::Custom(name) => name.to_string(),
         }
     }
 
-    /// The `table_name` of the variant
-    pub fn get_table_name(&self) -> &str {
+    /// The `subject_name` of the variant
+    pub fn subject_name(&self) -> &str {
         match self {
-            Self::Extend { table_name: tn } => tn,
+            Self::Extend { subject_name: tn } => tn,
             Self::ExtendChunks {
-                table_name: tn,
+                subject_name: tn,
                 col_name: _cn,
             } => tn,
             Self::ExtendBytes {
-                table_name: tn,
+                subject_name: tn,
                 col_name: _cn,
                 serialize_format: _sf,
             } => tn,
-            Self::Replace { table_name: tn } => tn,
-            Self::ReplaceLast { table_name: tn } => tn,
+            Self::Replace { subject_name: tn } => tn,
+            Self::ReplaceLast { subject_name: tn } => tn,
             Self::None => "",
             Self::Custom(_name) => "",
         }
     }
 
-    /// New [TablePublication] from a short name identifying the variant and the `table_name`
-    pub fn from_str_fuzzy(name: &str, subject: &str) -> Result<TablePublication> {
+    /// New [Publication] from a short name identifying the variant and the `subject_name`
+    pub fn from_str_fuzzy(name: &str, subject: &str) -> Result<Publication> {
         let publication = if name.contains("ExtendChunks") {
-            TablePublication::ExtendChunks {
-                table_name: subject.to_string(),
+            Publication::ExtendChunks {
+                subject_name: subject.to_string(),
                 col_name: "content".to_string(),
             }
         } else if name.contains("Extend") {
-            TablePublication::Extend {
-                table_name: subject.to_string(),
+            Publication::Extend {
+                subject_name: subject.to_string(),
             }
         } else if name.contains("ReplaceLast") {
-            TablePublication::ReplaceLast {
-                table_name: subject.to_string(),
+            Publication::ReplaceLast {
+                subject_name: subject.to_string(),
             }
         } else if name.contains("Replace") {
-            TablePublication::Replace {
-                table_name: subject.to_string(),
+            Publication::Replace {
+                subject_name: subject.to_string(),
             }
         } else if name.contains("None") {
-            TablePublication::None {}
+            Publication::None {}
         } else {
             return Err(anyhow!(
                 "Variant for ArrowTablePublish {name} with subject {subject} was not recognized."
@@ -135,49 +133,49 @@ impl TablePublication {
         Ok(publication)
     }
 
-    /// New [TablePublication] from a short name identifying the variant, the subject `table_name`
+    /// New [Publication] from a short name identifying the variant, the subject `subject_name`
     ///   and the mermaid.js flowchart diagram link type
-    pub fn from_str_mermaid(line: &str, subject: &str) -> Result<TablePublication> {
+    pub fn from_str_mermaid(line: &str, subject: &str) -> Result<Publication> {
         if line.contains("|") & line.contains("-->") & line.contains("ExtendChunks") {
-            Ok(TablePublication::ExtendChunks {
-                table_name: subject.to_string(),
+            Ok(Publication::ExtendChunks {
+                subject_name: subject.to_string(),
                 col_name: "content".to_string(),
             })
         } else if line.contains("|") & line.contains("-->") & line.contains("Extend") {
-            Ok(TablePublication::Extend {
-                table_name: subject.to_string(),
+            Ok(Publication::Extend {
+                subject_name: subject.to_string(),
             })
         } else if line.contains("|") & line.contains("-->") & line.contains("ReplaceLast") {
-            Ok(TablePublication::ReplaceLast {
-                table_name: subject.to_string(),
+            Ok(Publication::ReplaceLast {
+                subject_name: subject.to_string(),
             })
         } else if line.contains("|") & line.contains("-->") & line.contains("Replace") {
-            Ok(TablePublication::Replace {
-                table_name: subject.to_string(),
+            Ok(Publication::Replace {
+                subject_name: subject.to_string(),
             })
         } else if line.contains("None") {
-            Ok(TablePublication::None {})
+            Ok(Publication::None {})
         } else {
             Err(anyhow!(
-                "Variant for TablePublication with subject {subject} was not recognized in string slice {line}."
+                "Variant for Publication with subject {subject} was not recognized in string slice {line}."
             ))
         }
     }
 }
 
-impl Display for TablePublication {
+impl Display for Publication {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Extend { table_name: _ } => write!(f, "Extend"),
-            Self::Replace { table_name: _ } => write!(f, "Replace"),
-            Self::ReplaceLast { table_name: _ } => write!(f, "ReplaceLast"),
+            Self::Extend { subject_name: _ } => write!(f, "Extend"),
+            Self::Replace { subject_name: _ } => write!(f, "Replace"),
+            Self::ReplaceLast { subject_name: _ } => write!(f, "ReplaceLast"),
             Self::None => write!(f, "None"),
             Self::ExtendChunks {
-                table_name: _,
+                subject_name: _,
                 col_name: _,
             } => write!(f, "ExtendChunks"),
             Self::ExtendBytes {
-                table_name: _,
+                subject_name: _,
                 col_name: _,
                 serialize_format: _,
             } => write!(f, "ExtendBytes"),
@@ -186,21 +184,21 @@ impl Display for TablePublication {
     }
 }
 
-impl MappableTrait for TablePublication {
+impl MappableTrait for Publication {
     fn get_name(&self) -> &str {
-        self.get_short_name()
+        self.short_name()
     }
 }
 
 /// Update an arrow table with record batches coming from a new table
-pub trait TablePublicationTrait: TableTrait {
-    fn publish_to_table(&mut self, new: Vec<RecordBatch>, update: TablePublication) -> Result<()>;
+pub trait TablePublicationTrait: SubjectTrait {
+    fn publish_to_table(&mut self, new: Vec<RecordBatch>, update: Publication) -> Result<()>;
 }
 
-impl TablePublicationTrait for Table {
-    fn publish_to_table(&mut self, new: Vec<RecordBatch>, update: TablePublication) -> Result<()> {
+impl TablePublicationTrait for Subject {
+    fn publish_to_table(&mut self, new: Vec<RecordBatch>, update: Publication) -> Result<()> {
         match update {
-            TablePublication::Extend { table_name: tn } => {
+            Publication::Extend { subject_name: tn } => {
                 if self.get_name() != tn {
                     return Err(anyhow!(
                         "Mismatch between table name {} and update table target {}.",
@@ -222,8 +220,8 @@ impl TablePublicationTrait for Table {
                 }
                 Ok(())
             }
-            TablePublication::ExtendChunks {
-                table_name: tn,
+            Publication::ExtendChunks {
+                subject_name: tn,
                 col_name: cn,
             } => {
                 if self.get_name() != tn {
@@ -256,8 +254,8 @@ impl TablePublicationTrait for Table {
                 self.get_record_batches_mut().push(new_first_row);
                 Ok(())
             }
-            TablePublication::ExtendBytes {
-                table_name: tn,
+            Publication::ExtendBytes {
+                subject_name: tn,
                 col_name: cn,
                 serialize_format: sf,
             } => {
@@ -269,7 +267,7 @@ impl TablePublicationTrait for Table {
                 }
                 let new_batches_res: Result<Vec<Vec<RecordBatch>>> = new.into_iter()
                     .map(|batch| {
-                        let new_table = TableBuilder::default()
+                        let new_table = SubjectBuilder::default()
                             .with_name("ExtendBytes")
                             .with_record_batches(vec![batch])?
                             .build()?;
@@ -279,7 +277,7 @@ impl TablePublicationTrait for Table {
                                     .into_iter()
                                     .flatten()
                                     .collect::<Vec<_>>();
-                                let batches = TableBuilder::new_from_ipc_stream(&bytes)?
+                                let batches = SubjectBuilder::new_from_ipc_stream(&bytes)?
                                     .with_name("ExtendBytesIpc")
                                     .build()?
                                     .get_record_batches_own();
@@ -290,7 +288,7 @@ impl TablePublicationTrait for Table {
                                     .into_iter()
                                     .flatten()
                                     .collect::<Vec<_>>();
-                                let batches = TableBuilder::new()
+                                let batches = SubjectBuilder::new()
                                     .with_schema(self.get_schema())
                                     .with_name("ExtendBytesBytes")
                                     .with_bytes(&bytes)?
@@ -318,7 +316,7 @@ impl TablePublicationTrait for Table {
                     Ok(())
                 }
             }
-            TablePublication::Replace { table_name: tn } => {
+            Publication::Replace { subject_name: tn } => {
                 if self.get_name() != tn {
                     return Err(anyhow!(
                         "Mismatch between table name {} and update table target {}.",
@@ -340,7 +338,7 @@ impl TablePublicationTrait for Table {
                 self.get_record_batches_mut().extend(new);
                 Ok(())
             }
-            TablePublication::ReplaceLast { table_name: tn } => {
+            Publication::ReplaceLast { subject_name: tn } => {
                 if self.get_name() != tn {
                     return Err(anyhow!(
                         "Mismatch between table name {} and update table target {}.",
@@ -360,8 +358,8 @@ impl TablePublicationTrait for Table {
                 self.get_record_batches_mut().last().replace(last);
                 Ok(())
             }
-            TablePublication::None => Ok(()),
-            TablePublication::Custom(_) => Ok(()),
+            Publication::None => Ok(()),
+            Publication::Custom(_) => Ok(()),
         }
     }
 }
@@ -504,10 +502,7 @@ fn create_record_batch_from_first_row(
 mod tests {
     use arrow::datatypes::Schema;
 
-    use crate::{
-        schemas::create_bytes_record_batch,
-        table::table_trait::test_table::{make_test_table, make_test_table_chat},
-    };
+    use crate::{create_bytes_record_batch, test_subject::{make_test_subject, make_test_subject_chat}};
 
     use super::*;
 
@@ -573,12 +568,12 @@ mod tests {
 
     #[test]
     fn test_table_publication_table_wrong_table_name() -> Result<()> {
-        let mut old = make_test_table("test_table", 4, 0, 3)?;
-        let new = make_test_table("test_table", 1, 0, 1)?;
+        let mut old = make_test_subject("test_table", 4, 0, 3)?;
+        let new = make_test_subject("test_table", 1, 0, 1)?;
         match old.publish_to_table(
             new.clone().get_record_batches_own(),
-            TablePublication::Extend {
-                table_name: "missing".to_string(),
+            Publication::Extend {
+                subject_name: "missing".to_string(),
             },
         ) {
             Ok(_) => panic!("Should have failed"),
@@ -589,8 +584,8 @@ mod tests {
         }
         match old.publish_to_table(
             new.clone().get_record_batches_own(),
-            TablePublication::Replace {
-                table_name: "missing".to_string(),
+            Publication::Replace {
+                subject_name: "missing".to_string(),
             },
         ) {
             Ok(_) => panic!("Should have failed"),
@@ -601,8 +596,8 @@ mod tests {
         }
         match old.publish_to_table(
             new.clone().get_record_batches_own(),
-            TablePublication::ReplaceLast {
-                table_name: "missing".to_string(),
+            Publication::ReplaceLast {
+                subject_name: "missing".to_string(),
             },
         ) {
             Ok(_) => panic!("Should have failed"),
@@ -613,8 +608,8 @@ mod tests {
         }
         match old.publish_to_table(
             new.clone().get_record_batches_own(),
-            TablePublication::ExtendChunks {
-                table_name: "missing".to_string(),
+            Publication::ExtendChunks {
+                subject_name: "missing".to_string(),
                 col_name: "missing".to_string(),
             },
         ) {
@@ -629,12 +624,12 @@ mod tests {
 
     #[test]
     fn test_table_publication_extend_update() -> Result<()> {
-        let mut old = make_test_table("test_table", 4, 0, 3)?;
-        let new = make_test_table("test_table", 1, 0, 1)?;
+        let mut old = make_test_subject("test_table", 4, 0, 3)?;
+        let new = make_test_subject("test_table", 1, 0, 1)?;
         old.publish_to_table(
             new.get_record_batches_own(),
-            TablePublication::Extend {
-                table_name: "test_table".to_string(),
+            Publication::Extend {
+                subject_name: "test_table".to_string(),
             },
         )?;
         assert_eq!(old.count_rows(), 13);
@@ -643,12 +638,12 @@ mod tests {
 
     #[test]
     fn test_table_publication_replace_update() -> Result<()> {
-        let mut old = make_test_table("test_table", 4, 0, 3)?;
-        let new = make_test_table("test_table", 1, 0, 1)?;
+        let mut old = make_test_subject("test_table", 4, 0, 3)?;
+        let new = make_test_subject("test_table", 1, 0, 1)?;
         old.publish_to_table(
             new.get_record_batches_own(),
-            TablePublication::Replace {
-                table_name: "test_table".to_string(),
+            Publication::Replace {
+                subject_name: "test_table".to_string(),
             },
         )?;
         assert_eq!(old.count_rows(), 1);
@@ -657,16 +652,16 @@ mod tests {
 
     #[test]
     fn test_table_publication_none_update() -> Result<()> {
-        let mut old = make_test_table("test_table", 4, 0, 3)?;
-        let new = make_test_table("test_table", 1, 0, 1)?;
-        old.publish_to_table(new.get_record_batches_own(), TablePublication::None)?;
+        let mut old = make_test_subject("test_table", 4, 0, 3)?;
+        let new = make_test_subject("test_table", 1, 0, 1)?;
+        old.publish_to_table(new.get_record_batches_own(), Publication::None)?;
         assert_eq!(old.count_rows(), 12);
         Ok(())
     }
 
     #[test]
     fn test_table_publication_extend_chunks_update() -> Result<()> {
-        let mut old = make_test_table_chat("messages")?;
+        let mut old = make_test_subject_chat("messages")?;
         // Example streamed chunks
         let role_1: ArrayRef = Arc::new(StringArray::from(vec![
             "assistant".to_string(),
@@ -684,8 +679,8 @@ mod tests {
         let new_2 = RecordBatch::try_from_iter(vec![("role", role_2), ("content", content_2)])?;
         old.publish_to_table(
             vec![new_1, new_2],
-            TablePublication::ExtendChunks {
-                table_name: "messages".to_string(),
+            Publication::ExtendChunks {
+                subject_name: "messages".to_string(),
                 col_name: "content".to_string(),
             },
         )?;
@@ -710,20 +705,20 @@ mod tests {
     #[test]
     fn test_table_publication_extend_bytes_update() -> Result<()> {
         // IPC format
-        let mut old = make_test_table("test_table", 1, 0, 1)?;
+        let mut old = make_test_subject("test_table", 1, 0, 1)?;
         let new = vec![
             create_bytes_record_batch(vec![
-                make_test_table("test_table", 2, 0, 2)?.to_ipc_stream()?,
+                make_test_subject("test_table", 2, 0, 2)?.to_ipc_stream()?,
             ])?,
             create_bytes_record_batch(vec![
-                make_test_table("test_table", 2, 0, 2)?.to_ipc_stream()?,
+                make_test_subject("test_table", 2, 0, 2)?.to_ipc_stream()?,
             ])?,
         ];
 
         old.publish_to_table(
             new,
-            TablePublication::ExtendBytes {
-                table_name: "test_table".to_string(),
+            Publication::ExtendBytes {
+                subject_name: "test_table".to_string(),
                 col_name: "bytes".to_string(),
                 serialize_format: DataFormat::Ipc,
             },
@@ -732,20 +727,20 @@ mod tests {
         assert_eq!(old.get_record_batches().len(), 5);
 
         // Bytes format
-        let mut old = make_test_table("test_table", 1, 0, 1)?;
+        let mut old = make_test_subject("test_table", 1, 0, 1)?;
         let new = vec![
             create_bytes_record_batch(vec![
-                make_test_table("test_table", 2, 0, 2)?.to_bytes()?.to_vec(),
+                make_test_subject("test_table", 2, 0, 2)?.to_bytes()?.to_vec(),
             ])?,
             create_bytes_record_batch(vec![
-                make_test_table("test_table", 2, 0, 2)?.to_bytes()?.to_vec(),
+                make_test_subject("test_table", 2, 0, 2)?.to_bytes()?.to_vec(),
             ])?,
         ];
 
         old.publish_to_table(
             new,
-            TablePublication::ExtendBytes {
-                table_name: "test_table".to_string(),
+            Publication::ExtendBytes {
+                subject_name: "test_table".to_string(),
                 col_name: "bytes".to_string(),
                 serialize_format: DataFormat::Bytes,
             },
@@ -759,32 +754,32 @@ mod tests {
     fn test_table_publication_from_str_mermaid() -> Result<()> {
         let line = "message_parser-publish-->|ExtendChunks|AssistantMessages-subject";
         let subject = "AssistantMessages";
-        let publication = TablePublication::ExtendChunks {
-            table_name: subject.to_string(),
+        let publication = Publication::ExtendChunks {
+            subject_name: subject.to_string(),
             col_name: "content".to_string(),
         };
-        let test = TablePublication::from_str_mermaid(line, subject)?;
+        let test = Publication::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
         let line = "message_parser-publish-->|Extend|AssistantMessages-subject";
-        let publication = TablePublication::Extend {
-            table_name: subject.to_string(),
+        let publication = Publication::Extend {
+            subject_name: subject.to_string(),
         };
-        let test = TablePublication::from_str_mermaid(line, subject)?;
+        let test = Publication::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
         let line = "message_parser-publish-->|ReplaceLast|AssistantMessages-subject";
-        let publication = TablePublication::ReplaceLast {
-            table_name: subject.to_string(),
+        let publication = Publication::ReplaceLast {
+            subject_name: subject.to_string(),
         };
-        let test = TablePublication::from_str_mermaid(line, subject)?;
+        let test = Publication::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
         let line = "message_parser-publish-->|Replace|AssistantMessages-subject";
-        let publication = TablePublication::Replace {
-            table_name: subject.to_string(),
+        let publication = Publication::Replace {
+            subject_name: subject.to_string(),
         };
-        let test = TablePublication::from_str_mermaid(line, subject)?;
+        let test = Publication::from_str_mermaid(line, subject)?;
         assert_eq!(test, publication);
 
         Ok(())

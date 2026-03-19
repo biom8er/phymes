@@ -9,7 +9,7 @@ use phymes_core::{
     MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
     SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait,
+    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilder, SubjectBuilderTrait,
     create_attachments_fields, remove_message_by_subject,
 };
 
@@ -159,7 +159,7 @@ impl AggregatorStream {
     }
 
     #[instrument(skip(self))]
-    fn init_config(&mut self, config_table: Table) -> Result<()> {
+    fn init_config(&mut self, config_table: Subject) -> Result<()> {
         if self.config.is_none() {
             let config = DataConfig::from_table(&config_table)?;
             self.config.replace(config);
@@ -210,7 +210,7 @@ impl Stream for AggregatorStream {
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
-            let config_table = TableBuilder::new()
+            let config_table = SubjectBuilder::new()
                 .with_name("config")
                 .with_record_batches(batches)?
                 .build()?;

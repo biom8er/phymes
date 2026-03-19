@@ -12,7 +12,7 @@ use anyhow::{Result, anyhow};
 use candle_core::{DType, Device, Tensor, op::CmpOp};
 use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
-    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+    MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
@@ -236,7 +236,7 @@ type TakeColumnsByUnmatchedIndicesResult = (Vec<(String, Arc<dyn Array>)>, usize
 /// Take the columns according to the UNMATCHED indices over the specified columns
 fn take_columns_by_unmatched_indices(
     column_names: &[String],
-    table: &Table,
+    table: &Subject,
     asort_arr: &ArrayRef,
     device: &Device,
 ) -> Result<TakeColumnsByUnmatchedIndicesResult> {
@@ -444,11 +444,11 @@ pub fn join(
     let rhs_sorted = sort(rhs_fk, rhs_args, true, device)?;
 
     // Wrap the lhs and rhs into an ArrowTable
-    let lhs_table = Table::get_builder()
+    let lhs_table = Subject::get_builder()
         .with_name("join_inner_lhs")
         .with_record_batches(vec![lhs_sorted])?
         .build()?;
-    let rhs_table = Table::get_builder()
+    let rhs_table = Subject::get_builder()
         .with_name("join_inner_rhs")
         .with_record_batches(vec![rhs_sorted])?
         .build()?;

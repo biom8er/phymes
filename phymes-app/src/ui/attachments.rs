@@ -11,8 +11,8 @@ use phymes_agents::{
     SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
 };
 use phymes_core::{
-    BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, TableBuilder, TableBuilderTrait,
-    TablePublication, TableTrait,
+    BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, SubjectBuilder, SubjectBuilderTrait,
+    Publication, SubjectTrait,
 };
 use phymes_server::create_session_name;
 
@@ -77,7 +77,7 @@ pub fn attachments_interface_view() -> Element {
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_stream(false)
     });
 
@@ -119,7 +119,7 @@ pub fn attachments_interface_view() -> Element {
                 while let Some(Ok(b)) = stream.next().await {
                     bytes.extend(b);
                 }
-                match TableBuilder::new_from_ipc_stream(&bytes) {
+                match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
                         let combined = table
@@ -193,9 +193,9 @@ pub fn attachments_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
-                match TableBuilder::new_from_ipc_stream(&bytes) {
+                match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
-                        use phymes_core::TableTrait;
+                        use phymes_core::SubjectTrait;
 
                         let table = builder.with_name("").build().unwrap();
                         let combined = table

@@ -262,8 +262,8 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
-        ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, TablePublication,
-        TableTrait, create_documents_batch,
+        ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, Publication,
+        SubjectTrait, create_documents_batch,
     };
     use phymes_diagnostics::HashMap;
 
@@ -336,8 +336,8 @@ mod tests {
         let document_message = IPCMessage::get_builder()
             .with_message(document.to_ipc_stream()?)
             .with_subject(document.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: document.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: document.get_name().to_string(),
             })
             .with_publisher(embed_text_session.session_context_name)
             .make_name()?
@@ -351,8 +351,8 @@ mod tests {
         let chat_message = IPCMessage::get_builder()
             .with_message(chat.to_ipc_stream()?)
             .with_subject(chat.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: chat.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: chat.get_name().to_string(),
             })
             .with_publisher(embed_text_session.session_context_name)
             .make_name()?

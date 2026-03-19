@@ -8,8 +8,8 @@ use arrow::{
 use candle_core::Device;
 use phymes_core::{
     AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, Function,
-    FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, PatchOperator, Table,
-    TableBuilderTrait, TableTrait, Tool, ToolType, apply_patch_auto,
+    FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, PatchOperator, Subject,
+    SubjectBuilderTrait, SubjectTrait, Tool, ToolType, apply_patch_auto,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -203,7 +203,7 @@ pub fn apply_patch(
     let rhs_args = if let Some(rhs_args) = rhs_args {
         rhs_args.to_vec()
     } else {
-        Table::get_builder()
+        Subject::get_builder()
             .with_name("apply_patch with doc_patch as Value")
             .with_schema(AvailableSubjects::WorkspacePatch.to_schema())
             .with_json_values(doc_patch)?
@@ -283,7 +283,7 @@ pub fn apply_patch(
     };
 
     // Apply `Delete`
-    let rhs_table = Table::get_builder()
+    let rhs_table = Subject::get_builder()
         .with_name("apply_patch rhs_args")
         .with_record_batches(vec![rhs_delete])?
         .build()?;
@@ -542,7 +542,7 @@ pub fn apply_patch(
         )?;
 
         // Apply `Update`
-        let lhs_update_table = Table::get_builder()
+        let lhs_update_table = Subject::get_builder()
             .with_name("apply_patch lhs_update")
             .with_record_batches(vec![lhs_update])?
             .build()?;
@@ -639,7 +639,7 @@ pub fn apply_patch(
         )?;
 
         // Apply `Create`
-        let lhs_create_table = Table::get_builder()
+        let lhs_create_table = Subject::get_builder()
             .with_name("apply_patch lhs_create")
             .with_record_batches(vec![lhs_create])?
             .build()?;
@@ -841,7 +841,7 @@ pub use todo::Todo"#,
         )?;
 
         // Check the results
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_name("test_apply_patch")
             .with_record_batches(vec![result])?
             .build()?;
@@ -885,7 +885,7 @@ pub use todo::Todo"#,
         )?;
 
         // Check the results
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_name("test_apply_patch")
             .with_record_batches(vec![result])?
             .build()?;
@@ -1007,7 +1007,7 @@ pub use todo::Todo"#,
         )?;
 
         // Check the results
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_name("test_apply_patch")
             .with_record_batches(vec![result])?
             .build()?;
@@ -1130,7 +1130,7 @@ pub use todo::Todo"#,
         )?;
 
         // Check the results
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_name("test_apply_patch")
             .with_record_batches(vec![result])?
             .build()?;
@@ -1176,7 +1176,7 @@ pub use todo::Todo"#,
         )?;
 
         // Check the results
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_name("test_apply_patch")
             .with_record_batches(vec![result])?
             .build()?;
@@ -1298,7 +1298,7 @@ pub use todo::Todo"#,
         )?;
 
         // Check the results
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_name("test_apply_patch")
             .with_record_batches(vec![result])?
             .build()?;
@@ -1342,7 +1342,7 @@ pub use todo::Todo"#,
         )?;
 
         // Check the results
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_name("test_apply_patch")
             .with_record_batches(vec![result])?
             .build()?;
@@ -1462,7 +1462,7 @@ pub use todo::Todo"#,
         )?;
 
         // Check the results
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_name("test_apply_patch")
             .with_record_batches(vec![result])?
             .build()?;
@@ -1504,7 +1504,7 @@ pub use todo::Todo"#,
         )?;
 
         // Check the results
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_name("test_apply_patch")
             .with_record_batches(vec![result])?
             .build()?;

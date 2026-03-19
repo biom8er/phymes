@@ -76,8 +76,8 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage,
-        MappableTrait, MessageBuilderTrait, PatchOperator, TableBuilder, TableBuilderTrait,
-        TablePublication, TableTrait, WorkspacePatchSubject, create_bytes_record_batch,
+        MappableTrait, MessageBuilderTrait, PatchOperator, SubjectBuilder, SubjectBuilderTrait,
+        Publication, SubjectTrait, WorkspacePatchSubject, create_bytes_record_batch,
         create_workspace_batch, create_workspace_patch_batch,
     };
     use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager};
@@ -154,8 +154,8 @@ pub use todo::Todo"#,
                     .with_name(table.get_name())
                     .with_publisher(patch_workspace_session.session_context_name)
                     .with_subject(table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: table.get_name().to_string(),
                     })
                     .with_message(table.to_ipc_stream()?)
                     .build()?,
@@ -191,8 +191,8 @@ pub use todo::Todo"#,
                     .with_name(table.get_name())
                     .with_publisher(patch_workspace_session.session_context_name)
                     .with_subject(table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: table.get_name().to_string(),
                     })
                     .with_message(table.to_ipc_stream()?)
                     .build()?,
@@ -215,7 +215,7 @@ pub use todo::Todo"#,
             let apply_patch_config_json = serde_json::to_vec(&apply_patch_config)?;
             let apply_patch_config_batch =
                 create_bytes_record_batch(vec![apply_patch_config_json])?;
-            let apply_patch_config_table = TableBuilder::new()
+            let apply_patch_config_table = SubjectBuilder::new()
                 .with_name("apply_patch_p")
                 .with_record_batches(vec![apply_patch_config_batch])?
                 .build()?;
@@ -225,8 +225,8 @@ pub use todo::Todo"#,
                     .with_name(apply_patch_config_table.get_name())
                     .with_publisher(patch_workspace_session.session_context_name)
                     .with_subject(apply_patch_config_table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: apply_patch_config_table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: apply_patch_config_table.get_name().to_string(),
                     })
                     .with_message(apply_patch_config_table.to_ipc_stream()?)
                     .build()?,
@@ -364,8 +364,8 @@ pub use todo::Todo"#,
                     .with_name(table.get_name())
                     .with_publisher(patch_workspace_session.session_context_name)
                     .with_subject(table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: table.get_name().to_string(),
                     })
                     .with_message(table.to_ipc_stream()?)
                     .build()?,
@@ -425,7 +425,7 @@ pub use todo::Todo"#,
             let apply_patch_config_json = serde_json::to_vec(&apply_patch_config)?;
             let apply_patch_config_batch =
                 create_bytes_record_batch(vec![apply_patch_config_json])?;
-            let apply_patch_config_table = TableBuilder::new()
+            let apply_patch_config_table = SubjectBuilder::new()
                 .with_name("apply_patch_p")
                 .with_record_batches(vec![apply_patch_config_batch])?
                 .build()?;
@@ -435,8 +435,8 @@ pub use todo::Todo"#,
                     .with_name(apply_patch_config_table.get_name())
                     .with_publisher(patch_workspace_session.session_context_name)
                     .with_subject(apply_patch_config_table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: apply_patch_config_table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: apply_patch_config_table.get_name().to_string(),
                     })
                     .with_message(apply_patch_config_table.to_ipc_stream()?)
                     .build()?,

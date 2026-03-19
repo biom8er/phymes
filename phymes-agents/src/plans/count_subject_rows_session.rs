@@ -92,7 +92,7 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait,
-        TablePublication, TableTrait, test_task,
+        Publication, SubjectTrait, test_task,
     };
     use phymes_diagnostics::HashMap;
 
@@ -141,8 +141,8 @@ mod tests {
                 "session_1",
                 "state_1",
                 "state_1",
-                &TablePublication::Replace {
-                    table_name: "state_1".to_string(),
+                &Publication::Replace {
+                    subject_name: "state_1".to_string(),
                 },
                 true,
             )?;
@@ -160,8 +160,8 @@ mod tests {
             let subjects_change_log_message = IPCMessage::get_builder()
                 .with_message(table.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .with_update(&TablePublication::Extend {
-                    table_name: AvailableSubjects::SubjectsChangeLog.to_string(),
+                .with_update(&Publication::Extend {
+                    subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
                 })
                 .with_publisher(subjects_session.session_context_name)
                 .make_name()?

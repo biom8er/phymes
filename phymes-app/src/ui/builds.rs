@@ -6,7 +6,7 @@ use phymes_agents::{
 };
 use phymes_core::{
     create_session_mermaid_batch, AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat,
-    MessageBuilderTrait, Table, TableBuilderTrait, TablePublication, TableTrait,
+    MessageBuilderTrait, Subject, SubjectBuilderTrait, Publication, SubjectTrait,
 };
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_server::create_session_name;
@@ -196,7 +196,7 @@ pub fn builds_dropdown_view(
 
                             // Update the mermaid state with the active diagram
                             let route = "/app/v1/put_state";
-                            let message = Table::get_builder()
+                            let message = Subject::get_builder()
                                 .with_name(AvailableSubjects::BuilderMermaid.to_string().as_str())
                                 .with_record_batches(vec![batch_deleted, batch])
                                 .unwrap()
@@ -208,7 +208,7 @@ pub fn builds_dropdown_view(
                                 .with_session_name(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
                                 .with_format(&DataFormat::Ipc)
                                 .with_publisher(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
-                                .with_update(&TablePublication::Replace { table_name: AvailableSubjects::BuilderMermaid.to_string() })
+                                .with_update(&Publication::Replace { subject_name: AvailableSubjects::BuilderMermaid.to_string() })
                                 .with_stream(false)
                                 .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
                                 .with_message(message)
@@ -316,7 +316,7 @@ pub fn builds_dropdown_view(
                             // Update the server with the new session
                             let route = "/app/v1/build";
                             let batch = create_session_mermaid_batch(vec![active_session_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
-                            let message = Table::get_builder()
+                            let message = Subject::get_builder()
                                 .with_name(AvailableSubjects::BuilderMermaid.to_string().as_str())
                                 .with_record_batches(vec![batch])
                                 .unwrap()
@@ -328,7 +328,7 @@ pub fn builds_dropdown_view(
                                 .with_session_name(&create_session_name(EMAIL().as_str(), active_session_name().as_str()))
                                 .with_format(&DataFormat::Ipc)
                                 .with_publisher(&create_session_name(EMAIL().as_str(), active_session_name().as_str()))
-                                .with_update(&TablePublication::None)
+                                .with_update(&Publication::None)
                                 .with_stream(false)
                                 .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
                                 .with_message(message)
@@ -399,7 +399,7 @@ pub fn builds_dropdown_view(
                             // Update the mermaid state with the active diagram
                             let route = "/app/v1/put_state";
                             let batch = create_session_mermaid_batch(vec![active_session_name()], vec![active_flowchart_diagram()], vec![active_er_diagram()], vec![create_timestamp_micros()]).unwrap();
-                            let message = Table::get_builder()
+                            let message = Subject::get_builder()
                                 .with_name(AvailableSubjects::BuilderMermaid.to_string().as_str())
                                 .with_record_batches(vec![batch])
                                 .unwrap()
@@ -411,7 +411,7 @@ pub fn builds_dropdown_view(
                                 .with_session_name(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
                                 .with_format(&DataFormat::Ipc)
                                 .with_publisher(&create_session_name(EMAIL().as_str(), AvailableSessionPlans::Builder.to_string().as_str()))
-                                .with_update(&TablePublication::Extend { table_name: AvailableSubjects::BuilderMermaid.to_string() })
+                                .with_update(&Publication::Extend { subject_name: AvailableSubjects::BuilderMermaid.to_string() })
                                 .with_stream(false)
                                 .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
                                 .with_message(message)

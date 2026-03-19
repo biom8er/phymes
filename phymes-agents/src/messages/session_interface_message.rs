@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use phymes_core::{
     BuildableTrait, BuilderTrait, DataFormat, MappableTrait, MessageBuilderTrait, MessageTrait,
-    TablePublication,
+    Publication,
 };
 
 /// Composition of [MessageTrait] with additional functions for inter-session communication
@@ -26,7 +26,7 @@ pub struct SessionInterfaceMessage {
     /// The actual message as byte stream
     message: Vec<u8>,
     /// How to update the state
-    update: TablePublication,
+    update: Publication,
     /// The name of the session
     session_name: String,
     /// Format of the message
@@ -42,7 +42,7 @@ impl SessionInterfaceMessage {
         subject: &str,
         publisher: &str,
         message: Option<Vec<u8>>,
-        update: Option<TablePublication>,
+        update: Option<Publication>,
         session_name: &str,
         format: &DataFormat,
         stream: bool,
@@ -84,7 +84,7 @@ impl MessageTrait for SessionInterfaceMessage {
     fn get_publisher(&self) -> &str {
         &self.publisher
     }
-    fn get_update(&self) -> &TablePublication {
+    fn get_update(&self) -> &Publication {
         &self.update
     }
     fn get_message(&self) -> &<Self as MessageTrait>::T {
@@ -127,7 +127,7 @@ pub struct SessionInterfaceMessageBuilder {
     /// The actually message
     pub message: Option<Vec<u8>>,
     /// How to update the state
-    pub update: Option<TablePublication>,
+    pub update: Option<Publication>,
     /// The name of the session
     pub session_name: Option<String>,
     /// Format of the message
@@ -185,7 +185,7 @@ impl MessageBuilderTrait for SessionInterfaceMessageBuilder {
         self.publisher = Some(name.to_string());
         self
     }
-    fn with_update(mut self, update: &TablePublication) -> Self {
+    fn with_update(mut self, update: &Publication) -> Self {
         self.update = Some(update.to_owned());
         self
     }
@@ -224,13 +224,13 @@ impl MessageBuilderTrait for SessionInterfaceMessageBuilder {
         self
     }
     fn check_subject(&self) -> Result<()> {
-        if self.update.as_ref().unwrap() != &TablePublication::None
-            && self.subject.as_ref().unwrap() != self.update.as_ref().unwrap().get_table_name()
+        if self.update.as_ref().unwrap() != &Publication::None
+            && self.subject.as_ref().unwrap() != self.update.as_ref().unwrap().subject_name()
         {
             Err(anyhow!(
                 "Mismatch between provided subject {} and table publish table name {}.",
                 self.subject.as_ref().unwrap(),
-                self.update.as_ref().unwrap().get_table_name()
+                self.update.as_ref().unwrap().subject_name()
             ))
         } else {
             Ok(())

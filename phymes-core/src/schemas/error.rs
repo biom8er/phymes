@@ -4,7 +4,7 @@ use phymes_diagnostics::{HashMap, create_timestamp_micros};
 use crate::{
     AvailableSubjects, BuilderTrait, IPCMessage, IPCMessageBuilder, MappableTrait,
     MessageBuilderTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
-    Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, create_chat_record_batch,
+    Subject, SubjectBuilder, SubjectBuilderTrait, Publication, SubjectTrait, create_chat_record_batch,
 };
 
 /// Create the error table
@@ -15,7 +15,7 @@ use crate::{
 ///
 /// # Notes
 /// - use :? and not .to_string() with Anyhow::Error to see full backtrace if available
-pub fn create_error_table(err: &Error, with_display: bool) -> Result<Table> {
+pub fn create_error_table(err: &Error, with_display: bool) -> Result<Subject> {
     let error_str = if with_display {
         format! {"{err:?}"}
     } else {
@@ -26,7 +26,7 @@ pub fn create_error_table(err: &Error, with_display: bool) -> Result<Table> {
         vec![error_str],
         vec![create_timestamp_micros()],
     )?;
-    TableBuilder::new()
+    SubjectBuilder::new()
         .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
         .with_record_batches(vec![batch])?
         .build()
@@ -41,8 +41,8 @@ pub fn create_error_message_map_stream(
     let message = SendableRecordBatchStreamMessageBuilder::new()
         .with_subject(table.get_name())
         .with_publisher(publisher)
-        .with_update(&TablePublication::Extend {
-            table_name: AvailableSubjects::SessionErrors.to_string(),
+        .with_update(&Publication::Extend {
+            subject_name: AvailableSubjects::SessionErrors.to_string(),
         })
         .with_message(table.to_record_batch_stream())
         .make_name()?
@@ -61,8 +61,8 @@ pub fn create_error_message_map(
     let message = IPCMessageBuilder::new()
         .with_subject(table.get_name())
         .with_publisher(publisher)
-        .with_update(&TablePublication::Extend {
-            table_name: AvailableSubjects::SessionErrors.to_string(),
+        .with_update(&Publication::Extend {
+            subject_name: AvailableSubjects::SessionErrors.to_string(),
         })
         .with_message(table.to_ipc_stream()?)
         .make_random_name()?

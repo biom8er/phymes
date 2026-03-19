@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, DataEncoding, DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Table, WorkspacePatchSubject, test_processor::{ProcessorError, ProcessorMock}
+    AvailableSubjects, DataEncoding, DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Subject, WorkspacePatchSubject, test_processor::{ProcessorError, ProcessorMock}
 };
 use phymes_data::{
     AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,
@@ -527,7 +527,7 @@ impl DataConfigTrait for AvailableProcessors {
             }),
         }
     }
-    fn from_table(_table: &Table) -> Result<Self>
+    fn from_table(_table: &Subject) -> Result<Self>
     where
         Self: Sized,
     {

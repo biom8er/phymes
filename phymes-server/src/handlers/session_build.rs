@@ -12,8 +12,8 @@ use anyhow::Result;
 use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
 use phymes_core::{
     AvailableSchemaTrait, AvailableSubjects, BuilderTrait, CsvFormat, DataFormat,
-    JoinUserInboxSessionContextsMermaidDiagrams, MessageTrait, TableBuilder, TableBuilderTrait,
-    TableTrait,
+    JoinUserInboxSessionContextsMermaidDiagrams, MessageTrait, SubjectBuilder, SubjectBuilderTrait,
+    SubjectTrait,
 };
 
 // Library imports
@@ -71,7 +71,7 @@ pub async fn session_build(
 
             // Extract out the Mermaid table
             let table = match payload.get_format() {
-                DataFormat::Csv(csv_format) => TableBuilder::new()
+                DataFormat::Csv(csv_format) => SubjectBuilder::new()
                     .with_schema(AvailableSubjects::SessionMermaid.to_schema())
                     .with_name(payload.get_subject())
                     .with_csv(
@@ -85,7 +85,7 @@ pub async fn session_build(
                     .unwrap(),
                 DataFormat::CsvDefault => {
                     let csv_format = CsvFormat::default();
-                    TableBuilder::new()
+                    SubjectBuilder::new()
                         .with_schema(AvailableSubjects::SessionMermaid.to_schema())
                         .with_name(payload.get_subject())
                         .with_csv(
@@ -101,7 +101,7 @@ pub async fn session_build(
                 DataFormat::JsonDefault => {
                     let json_value: Vec<serde_json::Value> =
                         serde_json::from_slice(payload.get_message()).unwrap();
-                    TableBuilder::new()
+                    SubjectBuilder::new()
                         .with_schema(AvailableSubjects::SessionMermaid.to_schema())
                         .with_name(payload.get_subject())
                         .with_json_values(&json_value)
@@ -109,14 +109,14 @@ pub async fn session_build(
                         .build()
                         .unwrap()
                 }
-                DataFormat::Bytes => TableBuilder::new()
+                DataFormat::Bytes => SubjectBuilder::new()
                     .with_schema(AvailableSubjects::SessionMermaid.to_schema())
                     .with_name(payload.get_subject())
                     .with_bytes(payload.get_message())
                     .unwrap()
                     .build()
                     .unwrap(),
-                DataFormat::Ipc => TableBuilder::new_from_ipc_stream(payload.get_message())
+                DataFormat::Ipc => SubjectBuilder::new_from_ipc_stream(payload.get_message())
                     .unwrap()
                     .with_name(payload.get_subject())
                     .build()

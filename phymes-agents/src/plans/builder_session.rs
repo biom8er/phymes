@@ -4,14 +4,14 @@ use crate::{
 };
 use anyhow::Result;
 use phymes_core::{
-    AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait,
-    ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait,
-    TablePublication, TableSubscription, TaskPlan, create_session_mermaid_batch,
+    AvailableSubjects, AvailableSubscribePolicies, BuildableTrait, BuilderTrait,
+    ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilderTrait,
+    Publication, Subscription, TaskPlan, create_session_mermaid_batch,
 };
 use phymes_diagnostics::create_timestamp_micros;
 
 /// Example Mermaid diagrams for chat, doc, and tool agent sessions
-pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Table> {
+pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Subject> {
     let available_session_plans = if deployable {
         AvailableSessionPlans::get_deployable_session_plan_names()
     } else {
@@ -36,7 +36,7 @@ pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Tab
     }
 
     // Create the table
-    let table_name = if builder {
+    let subject_name = if builder {
         AvailableSubjects::BuilderMermaid.to_string()
     } else {
         AvailableSubjects::SessionMermaid.to_string()
@@ -47,8 +47,8 @@ pub fn make_example_mermaid_table(deployable: bool, builder: bool) -> Result<Tab
         er_diagram,
         timestamp,
     )?;
-    Table::get_builder()
-        .with_name(table_name.as_str())
+    Subject::get_builder()
+        .with_name(subject_name.as_str())
         .with_record_batches(vec![batch])?
         .build()
 }
@@ -93,14 +93,14 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
                 .with_processor(
                     AvailableProcessors::ProcessorEcho.build_arc(self.session_context_name),
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: AvailableSubjects::BuilderMermaid.to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: AvailableSubjects::BuilderMermaid.to_string(),
                 }])
-                .with_subscriptions(&[TableSubscription::OnUpdateLastRecordBatch {
-                    table_name: AvailableSubjects::BuilderMermaid.to_string(),
+                .with_subscriptions(&[Subscription::OnUpdateLastRecordBatch {
+                    subject_name: AvailableSubjects::BuilderMermaid.to_string(),
                 }])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -113,7 +113,7 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
         Some(vec![RuntimeEnv::get_builder().with_name("rt_default").build().unwrap()])
     }
 
-    fn make_subjects(&self) -> Option<Vec<Table>> {
+    fn make_subjects(&self) -> Option<Vec<Subject>> {
         Some(vec![make_example_mermaid_table(true, true).unwrap()])
     }
 }

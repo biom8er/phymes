@@ -3,7 +3,7 @@ use std::{fmt::Display, sync::Arc};
 use anyhow::Result;
 use arrow::array::{ArrayRef, RecordBatch, StringArray};
 use clap::ValueEnum;
-use phymes_core::{BuilderTrait, MappableTrait, Table, TableBuilder, TableBuilderTrait};
+use phymes_core::{BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -208,7 +208,7 @@ impl AvailableCandleOperators {
     }
 }
 
-pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Option<Table> {
+pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Option<Subject> {
     let mut tool_id_vec = Vec::new();
     let mut tool_vec = Vec::new();
     for destination in destinations.iter() {
@@ -223,7 +223,7 @@ pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Opt
         let tool_id: ArrayRef = Arc::new(StringArray::from(tool_id_vec));
         let tool: ArrayRef = Arc::new(StringArray::from(tool_vec));
         let batch = RecordBatch::try_from_iter(vec![("tool_id", tool_id), ("tool", tool)]).unwrap();
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name(name)
             .with_record_batches(vec![batch])
             .unwrap()
@@ -235,7 +235,7 @@ pub fn convert_destinations_to_tools(name: &str, destinations: &[String]) -> Opt
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::TableTrait;
+    use phymes_core::SubjectTrait;
 
     use super::*;
 

@@ -374,7 +374,7 @@ impl RecordBatchStream for OpenAIChatStream {
 mod tests {
     #[allow(unused_imports)]
     use super::*;
-    use phymes_core::TablePublication;
+    use phymes_core::Publication;
     #[allow(unused_imports)]
     use phymes_core::{ChatBuilderTraitExt, TableBuilder};
     #[allow(unused_imports)]
@@ -429,7 +429,7 @@ mod tests {
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
@@ -439,7 +439,7 @@ mod tests {
                 .with_name(candle_chat_config_table.get_name())
                 .with_publisher("")
                 .with_subject(candle_chat_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(candle_chat_config_table.to_record_batch_stream())
                 .build()?,
         );

@@ -1,5 +1,5 @@
 use crate::runtime_env::BuilderTrait;
-use crate::table::{SendableRecordBatchStream, TablePublication};
+use crate::table::{SendableRecordBatchStream, Publication};
 use crate::{IPCMessage, SendableRecordBatchStreamMessage};
 
 use anyhow::{Result, anyhow};
@@ -22,7 +22,7 @@ pub trait MessageBuilderTrait: BuilderTrait + Send {
     fn make_random_name(self) -> Result<Self>
     where
         Self: Sized;
-    fn with_update(self, update: &TablePublication) -> Self;
+    fn with_update(self, update: &Publication) -> Self;
     fn with_message(self, message: <Self as MessageBuilderTrait>::T) -> Self;
     fn check_subject(&self) -> Result<()>;
 }
@@ -38,7 +38,7 @@ pub struct IPCMessageBuilder {
     /// The actually message
     pub message: Option<Vec<u8>>,
     /// How to update the state
-    pub update: Option<TablePublication>,
+    pub update: Option<Publication>,
 }
 
 impl BuilderTrait for IPCMessageBuilder {
@@ -84,7 +84,7 @@ impl MessageBuilderTrait for IPCMessageBuilder {
         self.publisher = Some(name.to_string());
         self
     }
-    fn with_update(mut self, update: &TablePublication) -> Self {
+    fn with_update(mut self, update: &Publication) -> Self {
         self.update = Some(update.to_owned());
         self
     }
@@ -117,13 +117,13 @@ impl MessageBuilderTrait for IPCMessageBuilder {
         self
     }
     fn check_subject(&self) -> Result<()> {
-        if self.update.as_ref().unwrap() != &TablePublication::None
-            && self.subject.as_ref().unwrap() != self.update.as_ref().unwrap().get_table_name()
+        if self.update.as_ref().unwrap() != &Publication::None
+            && self.subject.as_ref().unwrap() != self.update.as_ref().unwrap().subject_name()
         {
             Err(anyhow!(
                 "Mismatch between provided subject {} and table publish table name {}.",
                 self.subject.as_ref().unwrap(),
-                self.update.as_ref().unwrap().get_table_name()
+                self.update.as_ref().unwrap().subject_name()
             ))
         } else {
             Ok(())
@@ -142,7 +142,7 @@ pub struct SendableRecordBatchStreamMessageBuilder {
     /// The actually message
     pub message: Option<SendableRecordBatchStream>,
     /// How to update the state
-    pub update: Option<TablePublication>,
+    pub update: Option<Publication>,
 }
 
 impl BuilderTrait for SendableRecordBatchStreamMessageBuilder {
@@ -188,7 +188,7 @@ impl MessageBuilderTrait for SendableRecordBatchStreamMessageBuilder {
         self.publisher = Some(name.to_string());
         self
     }
-    fn with_update(mut self, update: &TablePublication) -> Self {
+    fn with_update(mut self, update: &Publication) -> Self {
         self.update = Some(update.to_owned());
         self
     }
@@ -221,13 +221,13 @@ impl MessageBuilderTrait for SendableRecordBatchStreamMessageBuilder {
         self
     }
     fn check_subject(&self) -> Result<()> {
-        if self.update.as_ref().unwrap() != &TablePublication::None
-            && self.subject.as_ref().unwrap() != self.update.as_ref().unwrap().get_table_name()
+        if self.update.as_ref().unwrap() != &Publication::None
+            && self.subject.as_ref().unwrap() != self.update.as_ref().unwrap().subject_name()
         {
             Err(anyhow!(
                 "Mismatch between provided subject {} and table publish table name {}.",
                 self.subject.as_ref().unwrap(),
-                self.update.as_ref().unwrap().get_table_name()
+                self.update.as_ref().unwrap().subject_name()
             ))
         } else {
             Ok(())
@@ -237,22 +237,22 @@ impl MessageBuilderTrait for SendableRecordBatchStreamMessageBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::{MappableTrait, MessageTrait, TableTrait, test_table};
+    use crate::{MappableTrait, MessageTrait, SubjectTrait, test_subject};
 
     use super::*;
 
     #[test]
     fn test_arrow_message_buiilders_success() -> Result<()> {
         // Test data
-        let test_table = test_table::make_test_table("test_table", 4, 8, 3)?;
+        let test_table = test_subject::make_test_subject("test_table", 4, 8, 3)?;
 
         // Case 1: with name
         let incoming_message = IPCMessageBuilder::new()
             .with_name("name")
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&TablePublication::Extend {
-                table_name: "subject".to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: "subject".to_string(),
             })
             .with_message(test_table.to_ipc_stream()?)
             .build()?;
@@ -261,8 +261,8 @@ mod tests {
         assert_eq!(incoming_message.get_publisher(), "publisher");
         assert_eq!(
             *incoming_message.get_update(),
-            TablePublication::Extend {
-                table_name: "subject".to_string()
+            Publication::Extend {
+                subject_name: "subject".to_string()
             }
         );
 
@@ -270,8 +270,8 @@ mod tests {
             .with_name("name")
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&TablePublication::Extend {
-                table_name: "subject".to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: "subject".to_string(),
             })
             .with_message(test_table.to_record_batch_stream())
             .build()?;
@@ -280,8 +280,8 @@ mod tests {
         assert_eq!(outgoing_message.get_publisher(), "publisher");
         assert_eq!(
             *outgoing_message.get_update(),
-            TablePublication::Extend {
-                table_name: "subject".to_string()
+            Publication::Extend {
+                subject_name: "subject".to_string()
             }
         );
         assert_eq!(
@@ -293,26 +293,26 @@ mod tests {
         let incoming_message = IPCMessageBuilder::new()
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .make_name()?
             .with_message(test_table.to_ipc_stream()?)
             .build()?;
         assert_eq!(incoming_message.get_name(), "from_publisher_on_subject");
         assert_eq!(incoming_message.get_subject(), "subject");
         assert_eq!(incoming_message.get_publisher(), "publisher");
-        assert_eq!(*incoming_message.get_update(), TablePublication::None);
+        assert_eq!(*incoming_message.get_update(), Publication::None);
 
         let outgoing_message = SendableRecordBatchStreamMessageBuilder::new()
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .make_name()?
             .with_message(test_table.to_record_batch_stream())
             .build()?;
         assert_eq!(outgoing_message.get_name(), "from_publisher_on_subject");
         assert_eq!(outgoing_message.get_subject(), "subject");
         assert_eq!(outgoing_message.get_publisher(), "publisher");
-        assert_eq!(*outgoing_message.get_update(), TablePublication::None);
+        assert_eq!(*outgoing_message.get_update(), Publication::None);
         assert_eq!(
             outgoing_message.get_message().schema(),
             test_table.get_schema()
@@ -324,15 +324,15 @@ mod tests {
     #[test]
     fn test_arrow_message_buiilders_mismatched_subjects() -> Result<()> {
         // Test data
-        let test_table = test_table::make_test_table("test_table", 4, 8, 3)?;
+        let test_table = test_subject::make_test_subject("test_table", 4, 8, 3)?;
 
         // Case 1: with name
         let result = IPCMessageBuilder::new()
             .with_name("name")
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&TablePublication::Extend {
-                table_name: "mismatch".to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: "mismatch".to_string(),
             })
             .with_message(test_table.to_ipc_stream()?)
             .build();
@@ -348,8 +348,8 @@ mod tests {
             .with_name("name")
             .with_subject("subject")
             .with_publisher("publisher")
-            .with_update(&TablePublication::Extend {
-                table_name: "mismatch".to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: "mismatch".to_string(),
             })
             .with_message(test_table.to_record_batch_stream())
             .build();

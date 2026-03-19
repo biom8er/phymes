@@ -234,7 +234,7 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage,
-        MappableTrait, MessageBuilderTrait, TablePublication, TableTrait, create_documents_batch,
+        MappableTrait, MessageBuilderTrait, Publication, SubjectTrait, create_documents_batch,
         create_documents_embeddings_batch, create_query_embeddings_batch,
     };
     use phymes_diagnostics::HashMap;
@@ -312,8 +312,8 @@ mod tests {
         let document_message = IPCMessage::get_builder()
             .with_message(document.to_ipc_stream()?)
             .with_subject(document.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: document.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: document.get_name().to_string(),
             })
             .with_publisher(retrieve_text_session.session_context_name)
             .make_name()?
@@ -3441,8 +3441,8 @@ mod tests {
         let document_embeddings_message = IPCMessage::get_builder()
             .with_message(document.to_ipc_stream()?)
             .with_subject(document.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: document.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: document.get_name().to_string(),
             })
             .with_publisher(retrieve_text_session.session_context_name)
             .make_name()?
@@ -3844,8 +3844,8 @@ mod tests {
         let query_embeddings_message = IPCMessage::get_builder()
             .with_message(query.to_ipc_stream()?)
             .with_subject(query.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: query.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: query.get_name().to_string(),
             })
             .with_publisher(retrieve_text_session.session_context_name)
             .make_name()?

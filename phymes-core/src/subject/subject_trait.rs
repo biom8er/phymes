@@ -3,7 +3,7 @@ use std::{
 };
 
 use crate::{
-    BuildableTrait, BuilderTrait, IpcWriter, MappableTrait, RecordBatchStreamAdapter, SendableRecordBatchStream, StorageStreamWriterTrait, StorageWriterTrait, TableBuilder
+    BuildableTrait, BuilderTrait, IpcWriter, MappableTrait, RecordBatchStreamAdapter, SendableRecordBatchStream, StorageStreamWriterTrait, StorageWriterTrait, SubjectBuilder
 };
 
 use anyhow::{Result, anyhow};
@@ -27,7 +27,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 /// Traits for a columnar table where all [RecordBatch]es are guaranteed to have the same [Schema]
-pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
+pub trait SubjectTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     fn get_schema(&self) -> SchemaRef;
     fn get_record_batches(&self) -> &Vec<RecordBatch>;
     fn get_record_batches_own(self) -> Vec<RecordBatch>;
@@ -793,13 +793,13 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
 }
 
 #[derive(Debug, Clone)]
-pub struct Table {
+pub struct Subject {
     pub(crate) name: String,
     pub(crate) schema: SchemaRef,
     pub(crate) record_batches: Vec<RecordBatch>,
 }
 
-impl Default for Table {
+impl Default for Subject {
     fn default() -> Self {
         Self {
             name: "".to_string(),
@@ -809,7 +809,7 @@ impl Default for Table {
     }
 }
 
-impl PartialEq for Table {
+impl PartialEq for Subject {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name
             && self.schema == other.schema
@@ -817,7 +817,7 @@ impl PartialEq for Table {
     }
 }
 
-impl Table {
+impl Subject {
     /// Concatenate multiple record batches into a single record batch
     pub fn concat_record_batches(mut self) -> Result<Self> {
         let concatenated = concat_batches(&self.schema, &self.record_batches)?;
@@ -826,14 +826,14 @@ impl Table {
     }
 }
 
-impl MappableTrait for Table {
+impl MappableTrait for Subject {
     fn get_name(&self) -> &str {
         &self.name
     }
 }
 
-impl BuildableTrait for Table {
-    type T = TableBuilder;
+impl BuildableTrait for Subject {
+    type T = SubjectBuilder;
     fn get_builder() -> Self::T
     where
         Self: Sized,
@@ -842,7 +842,7 @@ impl BuildableTrait for Table {
     }
 }
 
-impl TableTrait for Table {
+impl SubjectTrait for Subject {
     fn get_schema(&self) -> SchemaRef {
         self.schema.clone()
     }
@@ -858,8 +858,8 @@ impl TableTrait for Table {
 }
 
 /// Mock objects and functions for table testing
-pub mod test_table {
-    use crate::TableBuilderTrait;
+pub mod test_subject {
+    use crate::SubjectBuilderTrait;
 
     use super::*;
     use arrow::{
@@ -872,7 +872,7 @@ pub mod test_table {
 
     /// Test table struct
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-    pub struct TestTable {
+    pub struct TestSubject {
         id: u32,
         collection: String,
         title: String,
@@ -885,7 +885,7 @@ pub mod test_table {
 
     /// Make a test record batch schema with fields for id, title, text, metadata, score, and embeddings
     #[allow(dead_code)]
-    pub fn make_test_table_schema(embed_end: u32) -> Result<SchemaRef> {
+    pub fn make_test_subject_schema(embed_end: u32) -> Result<SchemaRef> {
         let id = Field::new("id", DataType::UInt32, false);
         let collection = Field::new("collection", DataType::Utf8, false);
         let title = Field::new("title", DataType::Utf8, false);
@@ -988,16 +988,16 @@ pub mod test_table {
 
     /// Make a test table with fields for id, title, text, metadata, score, and embeddings
     /// and with each record batch replicated per batch
-    pub fn make_test_table(
+    pub fn make_test_subject(
         name: &str,
         seq_end: u32,
         embed_end: u32,
         n_batches: usize,
-    ) -> Result<Table> {
+    ) -> Result<Subject> {
         let batch = make_test_record_batch(seq_end, embed_end)?;
         let schema = batch.schema();
         let batches: Vec<RecordBatch> = (0..n_batches).map(|_| batch.clone()).collect();
-        TableBuilder::new()
+        SubjectBuilder::new()
             .with_name(name)
             .with_schema(schema.clone())
             .with_record_batches(batches)?
@@ -1005,7 +1005,7 @@ pub mod test_table {
     }
 
     #[allow(dead_code)]
-    pub enum TestTableSizes {
+    pub enum TestSubjectSizes {
         XS,
         S,
         M,
@@ -1014,7 +1014,7 @@ pub mod test_table {
     }
 
     #[allow(dead_code)]
-    impl TestTableSizes {
+    impl TestSubjectSizes {
         /// Return the operation based on the name
         pub fn new_from_name(name: &str) -> Option<Self> {
             if name == "xs" {
@@ -1033,13 +1033,13 @@ pub mod test_table {
         }
 
         /// Get the test table by the test table size
-        pub fn get_test_table(&self, name: &str) -> Result<Table> {
+        pub fn get_test_subject(&self, name: &str) -> Result<Subject> {
             match self {
-                Self::XS => make_test_table(name, 1, 1512, 1),
-                Self::S => make_test_table(name, 100, 1512, 1),
-                Self::M => make_test_table(name, 1000, 1512, 1),
-                Self::L => make_test_table(name, 1000, 1512, 1000),
-                Self::XL => make_test_table(name, 1000000, 1512, 1000000),
+                Self::XS => make_test_subject(name, 1, 1512, 1),
+                Self::S => make_test_subject(name, 100, 1512, 1),
+                Self::M => make_test_subject(name, 1000, 1512, 1),
+                Self::L => make_test_subject(name, 1000, 1512, 1000),
+                Self::XL => make_test_subject(name, 1000000, 1512, 1000000),
             }
         }
 
@@ -1055,24 +1055,24 @@ pub mod test_table {
         }
 
         /// Get the test table by the name of the test table size
-        pub fn get_test_table_by_name(&self, name: &str) -> Result<Table> {
+        pub fn get_test_subject_by_name(&self, name: &str) -> Result<Subject> {
             if name == Self::XS.get_name() {
-                Self::XS.get_test_table(name)
+                Self::XS.get_test_subject(name)
             } else if name == Self::S.get_name() {
-                Self::S.get_test_table(name)
+                Self::S.get_test_subject(name)
             } else if name == Self::M.get_name() {
-                Self::M.get_test_table(name)
+                Self::M.get_test_subject(name)
             } else if name == Self::L.get_name() {
-                Self::L.get_test_table(name)
+                Self::L.get_test_subject(name)
             } else if name == Self::XL.get_name() {
-                Self::XL.get_test_table(name)
+                Self::XL.get_test_subject(name)
             } else {
                 Err(anyhow!("Test table size name {name} is not supported."))
             }
         }
     }
 
-    pub fn make_test_table_chat(name: &str) -> Result<Table> {
+    pub fn make_test_subject_chat(name: &str) -> Result<Subject> {
         let role: ArrayRef = Arc::new(StringArray::from(vec![
             "user".to_string(),
             "assistant".to_string(),
@@ -1111,7 +1111,7 @@ pub mod test_table {
         ])?;
 
         let schema = batch.schema();
-        TableBuilder::new()
+        SubjectBuilder::new()
             .with_name(name)
             .with_schema(schema.clone())
             .with_record_batches(vec![batch])?
@@ -1119,7 +1119,7 @@ pub mod test_table {
     }
 
     #[allow(dead_code)]
-    pub fn make_test_table_tool(name: &str) -> Result<Table> {
+    pub fn make_test_subject_tool(name: &str) -> Result<Subject> {
         let tool_id: ArrayRef = Arc::new(StringArray::from(vec![
             "tool1".to_string(),
             "no_tool".to_string(),
@@ -1132,7 +1132,7 @@ pub mod test_table {
         let batch = RecordBatch::try_from_iter(vec![("tool_id", tool_id), ("tool", tool)])?;
 
         let schema = batch.schema();
-        TableBuilder::new()
+        SubjectBuilder::new()
             .with_name(name)
             .with_schema(schema.clone())
             .with_record_batches(vec![batch])?
@@ -1143,8 +1143,7 @@ pub mod test_table {
 #[cfg(test)]
 mod tests {
     use crate::{
-        TableBuilderTrait,
-        table::test_table::{TestTable, make_test_table, make_test_table_schema},
+        SubjectBuilderTrait, test_subject::{TestSubject, make_test_subject, make_test_subject_schema},
     };
 
     use super::*;
@@ -1158,16 +1157,16 @@ mod tests {
     #[cfg(not(target_family = "wasm"))]
     #[test]
     fn test_to_from_ipc_file() -> Result<()> {
-        use crate::TableBuilderTrait;
+        use crate::SubjectBuilderTrait;
 
-        let test_table = make_test_table("test_table", 4, 8, 3)?;
+        let test_table = make_test_subject("test_table", 4, 8, 3)?;
 
         // Create a file inside of `env::temp_dir()`.
         let mut file = tempfile()?;
 
         // Write data to IPC file
         test_table.to_ipc_file(&mut file)?;
-        let test_table_read = TableBuilder::new_from_ipc_file(&file)?
+        let test_table_read = SubjectBuilder::new_from_ipc_file(&file)?
             .with_name("test_table")
             .build()?;
 
@@ -1183,9 +1182,9 @@ mod tests {
     #[cfg(not(target_family = "wasm"))]
     #[test]
     fn test_to_from_csv_file() -> Result<()> {
-        use crate::TableBuilderTrait;
+        use crate::SubjectBuilderTrait;
 
-        let test_table = make_test_table("test_table", 4, 0, 3)?;
+        let test_table = make_test_subject("test_table", 4, 0, 3)?;
 
         // Create a file inside of `env::temp_dir()`.
         let mut file = tempfile()?;
@@ -1195,7 +1194,7 @@ mod tests {
 
         // Read in the file with schema
         file.rewind().unwrap();
-        let test_table_read = TableBuilder::new()
+        let test_table_read = SubjectBuilder::new()
             .with_schema(test_table.get_schema())
             .with_csv_file(&file, b',', true, 4)?
             .with_name("test_table")
@@ -1209,7 +1208,7 @@ mod tests {
 
         // Read in the file without schema
         file.rewind().unwrap();
-        let test_table_read = TableBuilder::new()
+        let test_table_read = SubjectBuilder::new()
             .with_csv_file(&file, b',', true, 4)?
             .with_name("test_table")
             .build()?;
@@ -1231,7 +1230,7 @@ mod tests {
         );
 
         // Test that we can write csv with nested fields
-        let test_table = make_test_table("test_table", 4, 8, 3)?;
+        let test_table = make_test_subject("test_table", 4, 8, 3)?;
         let mut file = tempfile()?;
 
         // Write data to CSV file
@@ -1242,11 +1241,11 @@ mod tests {
 
     #[test]
     fn test_to_from_ipc_stream() -> Result<()> {
-        let test_table = make_test_table("test_table", 4, 8, 3)?;
+        let test_table = make_test_subject("test_table", 4, 8, 3)?;
 
         // Write data to IPC file
         let bytes = test_table.to_ipc_stream()?;
-        let test_table_read = TableBuilder::new_from_ipc_stream(&bytes)?
+        let test_table_read = SubjectBuilder::new_from_ipc_stream(&bytes)?
             .with_name("test_table")
             .build()?;
 
@@ -1262,11 +1261,11 @@ mod tests {
 
     #[test]
     fn test_to_from_json() -> Result<()> {
-        let test_table = make_test_table("test_table", 4, 0, 3)?;
+        let test_table = make_test_subject("test_table", 4, 0, 3)?;
 
         // Write data to json
         let bytes = test_table.to_json()?;
-        let test_table_read = TableBuilder::new()
+        let test_table_read = SubjectBuilder::new()
             .with_schema(test_table.get_schema().clone())
             .with_json(&bytes, 4)?
             .with_name("test_table")
@@ -1280,7 +1279,7 @@ mod tests {
         );
 
         // Test again but without the schema
-        let test_table_read = TableBuilder::new()
+        let test_table_read = SubjectBuilder::new()
             .with_json(&bytes, 4)?
             .with_name("test_table")
             .build()?;
@@ -1305,11 +1304,11 @@ mod tests {
 
     #[test]
     fn test_to_from_csv_str() -> Result<()> {
-        let test_table = make_test_table("test_table", 4, 0, 3)?;
+        let test_table = make_test_subject("test_table", 4, 0, 3)?;
 
         // Write data to json
         let bytes = test_table.to_csv(b',', true)?;
-        let test_table_read = TableBuilder::new()
+        let test_table_read = SubjectBuilder::new()
             .with_schema(test_table.get_schema().clone())
             .with_csv(&bytes, b',', true, 4)?
             .with_name("test_table")
@@ -1323,7 +1322,7 @@ mod tests {
         );
 
         // Test again but without the schema
-        let test_table_read = TableBuilder::new()
+        let test_table_read = SubjectBuilder::new()
             .with_csv(&bytes, b',', true, 4)?
             .with_name("test_table")
             .build()?;
@@ -1345,7 +1344,7 @@ mod tests {
         );
 
         // Test that we can write csv with nested fields
-        let test_table = make_test_table("test_table", 4, 8, 3)?;
+        let test_table = make_test_subject("test_table", 4, 8, 3)?;
 
         // Write data to CSV file
         test_table.to_csv(b',', true)?;
@@ -1355,7 +1354,7 @@ mod tests {
 
     #[test]
     fn test_to_from_json_object() -> Result<()> {
-        let test_table = make_test_table("test_table", 4, 0, 3)?;
+        let test_table = make_test_subject("test_table", 4, 0, 3)?;
 
         // Write data to JSON object
         let json_rows = test_table.to_json_object()?;
@@ -1381,7 +1380,7 @@ mod tests {
         let b: ArrayRef = Arc::new(UInt32Array::from(vec![0, 0, 0]));
         let c: ArrayRef = Arc::new(UInt16Array::from(vec![0, 0, 0]));
         let batch = RecordBatch::try_from_iter(vec![("a", a), ("b", b), ("c", c)])?;
-        let test_table = TableBuilder::new()
+        let test_table = SubjectBuilder::new()
             .with_name("test_table")
             .with_record_batches(vec![batch])?
             .build()?;
@@ -1391,7 +1390,7 @@ mod tests {
         let json_values: Vec<Value> = serde_json::from_str(json_str)?;
 
         // Build a new table from json
-        let test_table_read = TableBuilder::new()
+        let test_table_read = SubjectBuilder::new()
             .with_schema(test_table.get_schema())
             .with_json_values(&json_values)?
             .with_name("test_table")
@@ -1408,7 +1407,7 @@ mod tests {
 
     #[test]
     fn test_to_from_bytes() -> Result<()> {
-        let test_table = make_test_table("test_table", 4, 0, 3)?;
+        let test_table = make_test_subject("test_table", 4, 0, 3)?;
 
         // Write data to Bytes
         let json_bytes = test_table.to_bytes()?;
@@ -1423,7 +1422,7 @@ mod tests {
         );
 
         // Build a new table from json
-        let test_table_read = TableBuilder::new()
+        let test_table_read = SubjectBuilder::new()
             .with_schema(test_table.get_schema())
             .with_bytes(&json_bytes)?
             .with_name("test_table")
@@ -1440,11 +1439,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_to_from_record_batch_stream() -> Result<()> {
-        let test_table = make_test_table("test_table", 4, 8, 3)?;
+        let test_table = make_test_subject("test_table", 4, 8, 3)?;
 
         // Write data to IPC file
         let stream = test_table.to_record_batch_stream();
-        let test_table_read = TableBuilder::new_from_sendable_record_batch_stream(stream)
+        let test_table_read = SubjectBuilder::new_from_sendable_record_batch_stream(stream)
             .await?
             .with_name("test_table")
             .build()?;
@@ -1461,11 +1460,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_to_from_record_batch_stream_last_record_batch() -> Result<()> {
-        let test_table = make_test_table("test_table", 4, 8, 3)?;
+        let test_table = make_test_subject("test_table", 4, 8, 3)?;
 
         // Write data to IPC file
         let stream = test_table.to_record_batch_stream_last_record_batch();
-        let test_table_read = TableBuilder::new_from_sendable_record_batch_stream(stream)
+        let test_table_read = SubjectBuilder::new_from_sendable_record_batch_stream(stream)
             .await?
             .with_name("test_table")
             .build()?;
@@ -1483,14 +1482,14 @@ mod tests {
 
     #[test]
     fn test_to_from_struct() -> Result<()> {
-        let test_table = make_test_table("test_table", 4, 0, 3)?;
+        let test_table = make_test_subject("test_table", 4, 0, 3)?;
 
         // Write data struct
-        let s = test_table.to_struct::<TestTable>()?;
-        let test_table_read = TableBuilder::new()
-            .with_schema(make_test_table_schema(0)?)
+        let s = test_table.to_struct::<TestSubject>()?;
+        let test_table_read = SubjectBuilder::new()
+            .with_schema(make_test_subject_schema(0)?)
             .with_name("test_table")
-            .with_struct::<TestTable>(&s)?
+            .with_struct::<TestSubject>(&s)?
             .build()?;
 
         assert_eq!(test_table.get_name(), test_table_read.get_name());
@@ -1505,7 +1504,7 @@ mod tests {
 
     #[test]
     fn test_concat_record_batches() -> Result<()> {
-        let test_table = make_test_table("test_table", 4, 0, 3)?;
+        let test_table = make_test_subject("test_table", 4, 0, 3)?;
 
         let concat_table = test_table.concat_record_batches()?;
 
@@ -1518,7 +1517,7 @@ mod tests {
 
     #[test]
     fn test_count_rows() -> Result<()> {
-        let test_table = make_test_table("test_table", 4, 0, 3)?;
+        let test_table = make_test_subject("test_table", 4, 0, 3)?;
 
         let n_rows = test_table.count_rows();
         assert_eq!(n_rows, 12);

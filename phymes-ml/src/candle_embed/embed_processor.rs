@@ -18,7 +18,7 @@ use phymes_core::{
     MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
     SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait,
+    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
     remove_message_by_subject,
 };
 use phymes_data::{DataConfigTrait, device};
@@ -185,7 +185,7 @@ impl CandleEmbedStream {
         Ok(())
     }
 
-    fn init_config(&mut self, config_table: Table) -> Result<()> {
+    fn init_config(&mut self, config_table: Subject) -> Result<()> {
         if self.config.is_none() {
             let config = CandleEmbedConfig::from_table(&config_table)?;
             self.config.replace(config);
@@ -239,7 +239,7 @@ impl Stream for CandleEmbedStream {
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
-            let config_table = TableBuilder::new()
+            let config_table = SubjectBuilder::new()
                 .with_name("config")
                 .with_record_batches(batches)?
                 .build()?;
@@ -263,7 +263,7 @@ impl Stream for CandleEmbedStream {
             };
 
             // Convert to a list of queries
-            let table = TableBuilder::new()
+            let table = SubjectBuilder::new()
                 .with_name("queries")
                 .with_record_batches(vec![batch])?
                 .build()?;
@@ -342,7 +342,7 @@ impl Stream for CandleEmbedStream {
             };
 
             // Convert to a list of queries
-            let table = TableBuilder::new()
+            let table = SubjectBuilder::new()
                 .with_name("queries")
                 .with_record_batches(vec![batch])?
                 .build()?;
@@ -558,7 +558,7 @@ mod tests {
     use arrow::array::{Float32Array, ListArray, StringArray};
     use candle_core::Device;
     use futures::TryStreamExt;
-    use phymes_core::TablePublication;
+    use phymes_core::Publication;
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use crate::{
@@ -726,7 +726,7 @@ mod tests {
         };
 
         // Make the config
-        let config_table = Table::get_builder()
+        let config_table = Subject::get_builder()
             .with_name("candle_embed_processor")
             .with_json(&serde_json::to_vec(&config.clone())?, 1)?
             .build()?;
@@ -745,14 +745,14 @@ mod tests {
         ];
         let text: ArrayRef = Arc::new(StringArray::from(query_vec));
         let batch = RecordBatch::try_from_iter(vec![("text", text)])?;
-        let document_table = TableBuilder::new()
+        let document_table = SubjectBuilder::new()
             .with_name("text")
             .with_record_batches(vec![batch])?
             .build()?;
         let document_message = SendableRecordBatchStreamMessage::get_builder()
             .with_publisher("")
             .with_subject("text")
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_message(document_table.to_record_batch_stream())
             .make_name()?
             .build()?;
@@ -841,14 +841,14 @@ mod tests {
             let embeddings2: ArrayRef = Arc::new(StringArray::from(query_vec2));
             let batch1 = RecordBatch::try_from_iter(vec![("text", embeddings1)])?;
             let batch2 = RecordBatch::try_from_iter(vec![("text", embeddings2)])?;
-            let document_table = TableBuilder::new()
+            let document_table = SubjectBuilder::new()
                 .with_name("text")
                 .with_record_batches(vec![batch1, batch2])?
                 .build()?;
             let document_message = SendableRecordBatchStreamMessage::get_builder()
                 .with_publisher("")
                 .with_subject("text")
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(document_table.to_record_batch_stream())
                 .make_name()?
                 .build()?;
@@ -917,14 +917,14 @@ mod tests {
         ];
         let text: ArrayRef = Arc::new(StringArray::from(query_vec));
         let batch = RecordBatch::try_from_iter(vec![("text", text)])?;
-        let document_table = TableBuilder::new()
+        let document_table = SubjectBuilder::new()
             .with_name("text")
             .with_record_batches(vec![batch])?
             .build()?;
         let document_message = SendableRecordBatchStreamMessage::get_builder()
             .with_publisher("")
             .with_subject("text")
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_message(document_table.to_record_batch_stream())
             .make_name()?
             .build()?;
@@ -957,7 +957,7 @@ mod tests {
             ),
             ..Default::default()
         };
-        let config_table = Table::get_builder()
+        let config_table = Subject::get_builder()
             .with_name("candle_embed_processor")
             .with_json(&serde_json::to_vec(&config)?, 1)?
             .build()?;

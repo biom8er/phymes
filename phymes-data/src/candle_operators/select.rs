@@ -30,7 +30,7 @@ use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast, WrappingShl, WrappingShr};
 use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
-    MappableTrait, Table, TableBuilderTrait, TableScript, TableTrait, Tool, ToolType,
+    MappableTrait, Subject, SubjectBuilderTrait, SubjectScript, SubjectTrait, Tool, ToolType,
     from_str_to_data_type,
 };
 use phymes_diagnostics::HashSet;
@@ -316,9 +316,9 @@ fn column_binary_operator_tensor<T>(
 where
     T: Num + Bounded + NumCast + Send + Sync + WithDType + 'static,
 {
-    let lhs_vec = Table::get_array_as_vec_primitive::<T>(lhs_arr, lhs_column)?;
+    let lhs_vec = Subject::get_array_as_vec_primitive::<T>(lhs_arr, lhs_column)?;
     let lhs_tensor = Tensor::from_iter(lhs_vec, device)?;
-    let rhs_vec = Table::get_array_as_vec_primitive::<T>(rhs_arr, rhs_column)?;
+    let rhs_vec = Subject::get_array_as_vec_primitive::<T>(rhs_arr, rhs_column)?;
     let rhs_tensor = Tensor::from_iter(rhs_vec, device)?;
     let tensor = match column_operator {
         DataColumnOperator::Add => (lhs_tensor + rhs_tensor)?,
@@ -346,7 +346,7 @@ fn column_unary_operator_tensor<T>(
 where
     T: Num + Bounded + NumCast + Send + Sync + WithDType + 'static,
 {
-    let lhs_vec = Table::get_array_as_vec_primitive::<T>(lhs_arr, lhs_column)?;
+    let lhs_vec = Subject::get_array_as_vec_primitive::<T>(lhs_arr, lhs_column)?;
     let lhs_tensor = Tensor::from_iter(lhs_vec, device)?;
     let shape = lhs_tensor.shape().to_owned();
     let tensor = match column_operator {
@@ -382,11 +382,11 @@ where
     <D as ArrowPrimitiveType>::Native: WrappingShl<Output = <D as ArrowPrimitiveType>::Native>,
     <D as ArrowPrimitiveType>::Native: WrappingShr<Output = <D as ArrowPrimitiveType>::Native>,
 {
-    let lhs_vec = Table::get_array_as_vec_primitive::<T>(lhs_arr, lhs_column)?;
+    let lhs_vec = Subject::get_array_as_vec_primitive::<T>(lhs_arr, lhs_column)?;
     let mut builder = PrimitiveBuilder::<D>::new();
     builder.append_slice(&lhs_vec);
     let lhs_arr = builder.finish();
-    let rhs_vec = Table::get_array_as_vec_primitive::<T>(rhs_arr, rhs_column)?;
+    let rhs_vec = Subject::get_array_as_vec_primitive::<T>(rhs_arr, rhs_column)?;
     let mut builder = PrimitiveBuilder::<D>::new();
     builder.append_slice(&rhs_vec);
     let rhs_arr = builder.finish();
@@ -422,7 +422,7 @@ where
     <D as ArrowPrimitiveType>::Native: WrappingShl<Output = <D as ArrowPrimitiveType>::Native>,
     <D as ArrowPrimitiveType>::Native: WrappingShr<Output = <D as ArrowPrimitiveType>::Native>,
 {
-    let lhs_vec = Table::get_array_as_vec_primitive::<T>(lhs_arr, lhs_column)?;
+    let lhs_vec = Subject::get_array_as_vec_primitive::<T>(lhs_arr, lhs_column)?;
     let mut builder = PrimitiveBuilder::<D>::new();
     builder.append_slice(&lhs_vec);
     let lhs_arr = builder.finish();
@@ -442,7 +442,7 @@ where
 /// # Notes
 /// * The lhs_batches (new columns) are searched first to enable chaining up column updates
 fn find_column(
-    lhs_table: &Table,
+    lhs_table: &Subject,
     lhs_batches: &[&(&&str, ArrayRef)],
     column_name: &str,
 ) -> Result<ArrayRef> {
@@ -470,7 +470,7 @@ fn find_column(
 /// Helper function to get the rhs
 fn rhs_helper(
     rhs_values: &[&str],
-    lhs_table: &Table,
+    lhs_table: &Subject,
     lhs_batches: &[&(&&str, ArrayRef)],
     index: usize,
 ) -> Result<(Option<String>, Option<ArrayRef>)> {
@@ -605,7 +605,7 @@ pub fn select(
     device: &Device,
 ) -> Result<RecordBatch> {
     // Wrap the lhs into an ArrowTable
-    let lhs_table = Table::get_builder()
+    let lhs_table = Subject::get_builder()
         .with_name("select")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
@@ -1026,11 +1026,11 @@ pub fn select(
             }
             DataColumnOperator::List => match column_data_type {
                 DataType::UInt8 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<u8>(
+                    let lhs_vec = Subject::get_array_as_vec_primitive::<u8>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<u8>(
+                    let rhs_vec = Subject::get_array_as_vec_primitive::<u8>(
                         &find_column(
                             &lhs_table,
                             &batch_missing_vec,
@@ -1049,11 +1049,11 @@ pub fn select(
                     )
                 }
                 DataType::UInt32 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<u32>(
+                    let lhs_vec = Subject::get_array_as_vec_primitive::<u32>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<u32>(
+                    let rhs_vec = Subject::get_array_as_vec_primitive::<u32>(
                         &find_column(
                             &lhs_table,
                             &batch_missing_vec,
@@ -1072,11 +1072,11 @@ pub fn select(
                     )
                 }
                 DataType::Int64 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<i64>(
+                    let lhs_vec = Subject::get_array_as_vec_primitive::<i64>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<i64>(
+                    let rhs_vec = Subject::get_array_as_vec_primitive::<i64>(
                         &find_column(
                             &lhs_table,
                             &batch_missing_vec,
@@ -1095,11 +1095,11 @@ pub fn select(
                     )
                 }
                 DataType::Float32 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<f32>(
+                    let lhs_vec = Subject::get_array_as_vec_primitive::<f32>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<f32>(
+                    let rhs_vec = Subject::get_array_as_vec_primitive::<f32>(
                         &find_column(
                             &lhs_table,
                             &batch_missing_vec,
@@ -1118,11 +1118,11 @@ pub fn select(
                     )
                 }
                 DataType::Float64 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<f64>(
+                    let lhs_vec = Subject::get_array_as_vec_primitive::<f64>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<f64>(
+                    let rhs_vec = Subject::get_array_as_vec_primitive::<f64>(
                         &find_column(
                             &lhs_table,
                             &batch_missing_vec,
@@ -1141,11 +1141,11 @@ pub fn select(
                     )
                 }
                 DataType::Utf8 => {
-                    let lhs_vec = Table::get_array_as_vec_nonprimitive::<String>(
+                    let lhs_vec = Subject::get_array_as_vec_nonprimitive::<String>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let rhs_vec = Table::get_array_as_vec_nonprimitive::<String>(
+                    let rhs_vec = Subject::get_array_as_vec_nonprimitive::<String>(
                         &find_column(
                             &lhs_table,
                             &batch_missing_vec,
@@ -1172,7 +1172,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<u8>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -1188,7 +1188,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_primitive::<u8>(
+                                Subject::get_array_as_vec_primitive::<u8>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -1217,7 +1217,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<u32>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -1233,7 +1233,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_primitive::<u32>(
+                                Subject::get_array_as_vec_primitive::<u32>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -1262,7 +1262,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<i64>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -1278,7 +1278,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_primitive::<i64>(
+                                Subject::get_array_as_vec_primitive::<i64>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -1307,7 +1307,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<f32>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<f32>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -1323,7 +1323,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_primitive::<f32>(
+                                Subject::get_array_as_vec_primitive::<f32>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -1352,7 +1352,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<f64>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<f64>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -1368,7 +1368,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_primitive::<f64>(
+                                Subject::get_array_as_vec_primitive::<f64>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -1397,7 +1397,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_nonprimitive::<String>(&s, column_name)
+                                    Subject::get_array_as_vec_nonprimitive::<String>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -1413,7 +1413,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_nonprimitive::<String>(
+                                Subject::get_array_as_vec_nonprimitive::<String>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -1450,7 +1450,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<u8>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -1466,7 +1466,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_primitive::<u8>(
+                                Subject::get_array_as_vec_primitive::<u8>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -1495,7 +1495,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<u32>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -1511,7 +1511,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_primitive::<u32>(
+                                Subject::get_array_as_vec_primitive::<u32>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -1540,7 +1540,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<i64>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -1556,7 +1556,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_primitive::<i64>(
+                                Subject::get_array_as_vec_primitive::<i64>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -1585,7 +1585,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<f32>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<f32>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -1601,7 +1601,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_primitive::<f32>(
+                                Subject::get_array_as_vec_primitive::<f32>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -1630,7 +1630,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<f64>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<f64>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -1646,7 +1646,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_primitive::<f64>(
+                                Subject::get_array_as_vec_primitive::<f64>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -1675,7 +1675,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_nonprimitive::<String>(&s, column_name)
+                                    Subject::get_array_as_vec_nonprimitive::<String>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -1691,7 +1691,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_nonprimitive::<String>(
+                                Subject::get_array_as_vec_nonprimitive::<String>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -1728,11 +1728,11 @@ pub fn select(
             },
             DataColumnOperator::Set => match column_data_type {
                 DataType::UInt8 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<u8>(
+                    let lhs_vec = Subject::get_array_as_vec_primitive::<u8>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<u8>(
+                    let rhs_vec = Subject::get_array_as_vec_primitive::<u8>(
                         &find_column(
                             &lhs_table,
                             &batch_missing_vec,
@@ -1757,11 +1757,11 @@ pub fn select(
                     )
                 }
                 DataType::UInt32 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<u32>(
+                    let lhs_vec = Subject::get_array_as_vec_primitive::<u32>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<u32>(
+                    let rhs_vec = Subject::get_array_as_vec_primitive::<u32>(
                         &find_column(
                             &lhs_table,
                             &batch_missing_vec,
@@ -1786,11 +1786,11 @@ pub fn select(
                     )
                 }
                 DataType::Int64 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<i64>(
+                    let lhs_vec = Subject::get_array_as_vec_primitive::<i64>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let rhs_vec = Table::get_array_as_vec_primitive::<i64>(
+                    let rhs_vec = Subject::get_array_as_vec_primitive::<i64>(
                         &find_column(
                             &lhs_table,
                             &batch_missing_vec,
@@ -1815,11 +1815,11 @@ pub fn select(
                     )
                 }
                 DataType::Utf8 => {
-                    let lhs_vec = Table::get_array_as_vec_nonprimitive::<String>(
+                    let lhs_vec = Subject::get_array_as_vec_nonprimitive::<String>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let rhs_vec = Table::get_array_as_vec_nonprimitive::<String>(
+                    let rhs_vec = Subject::get_array_as_vec_nonprimitive::<String>(
                         &find_column(
                             &lhs_table,
                             &batch_missing_vec,
@@ -1852,7 +1852,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<u8>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -1868,7 +1868,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_primitive::<u8>(
+                                Subject::get_array_as_vec_primitive::<u8>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -1900,7 +1900,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<u32>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -1916,7 +1916,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_primitive::<u32>(
+                                Subject::get_array_as_vec_primitive::<u32>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -1948,7 +1948,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<i64>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -1964,7 +1964,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_primitive::<i64>(
+                                Subject::get_array_as_vec_primitive::<i64>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -1996,7 +1996,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_nonprimitive::<String>(&s, column_name)
+                                    Subject::get_array_as_vec_nonprimitive::<String>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2012,7 +2012,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_nonprimitive::<String>(
+                                Subject::get_array_as_vec_nonprimitive::<String>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -2052,7 +2052,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<u8>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2068,7 +2068,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_primitive::<u8>(
+                                Subject::get_array_as_vec_primitive::<u8>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -2100,7 +2100,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<u32>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2116,7 +2116,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_primitive::<u32>(
+                                Subject::get_array_as_vec_primitive::<u32>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -2148,7 +2148,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<i64>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2164,7 +2164,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_primitive::<i64>(
+                                Subject::get_array_as_vec_primitive::<i64>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -2196,7 +2196,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_nonprimitive::<String>(&s, column_name)
+                                    Subject::get_array_as_vec_nonprimitive::<String>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2212,7 +2212,7 @@ pub fn select(
                         .iter()
                         .filter_map(|s| {
                             s.map(|s| {
-                                Table::get_array_as_vec_nonprimitive::<String>(
+                                Subject::get_array_as_vec_nonprimitive::<String>(
                                     &s,
                                     rhs_values.get(index).unwrap(),
                                 )
@@ -2252,11 +2252,11 @@ pub fn select(
             },
             DataColumnOperator::Concat => match column_data_type {
                 DataType::Utf8 => {
-                    let lhs_vec = Table::get_array_as_vec_nonprimitive::<String>(
+                    let lhs_vec = Subject::get_array_as_vec_nonprimitive::<String>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
-                    let rhs_vec = Table::get_array_as_vec_nonprimitive::<String>(
+                    let rhs_vec = Subject::get_array_as_vec_nonprimitive::<String>(
                         &find_column(
                             &lhs_table,
                             &batch_missing_vec,
@@ -2375,7 +2375,7 @@ pub fn select(
             }
             DataColumnOperator::BroadcastList => match column_data_type {
                 DataType::UInt8 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<u8>(
+                    let lhs_vec = Subject::get_array_as_vec_primitive::<u8>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
@@ -2386,7 +2386,7 @@ pub fn select(
                     )
                 }
                 DataType::UInt32 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<u32>(
+                    let lhs_vec = Subject::get_array_as_vec_primitive::<u32>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
@@ -2397,7 +2397,7 @@ pub fn select(
                     )
                 }
                 DataType::Int64 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<i64>(
+                    let lhs_vec = Subject::get_array_as_vec_primitive::<i64>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
@@ -2408,7 +2408,7 @@ pub fn select(
                     )
                 }
                 DataType::Float32 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<f32>(
+                    let lhs_vec = Subject::get_array_as_vec_primitive::<f32>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
@@ -2419,7 +2419,7 @@ pub fn select(
                     )
                 }
                 DataType::Float64 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<f64>(
+                    let lhs_vec = Subject::get_array_as_vec_primitive::<f64>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
@@ -2430,7 +2430,7 @@ pub fn select(
                     )
                 }
                 DataType::Utf8 => {
-                    let lhs_vec = Table::get_array_as_vec_nonprimitive::<String>(
+                    let lhs_vec = Subject::get_array_as_vec_nonprimitive::<String>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?;
@@ -2449,7 +2449,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<u8>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2470,7 +2470,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<u32>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2491,7 +2491,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<i64>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2512,7 +2512,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<f32>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<f32>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2533,7 +2533,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<f64>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<f64>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2554,7 +2554,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_nonprimitive::<String>(&s, column_name)
+                                    Subject::get_array_as_vec_nonprimitive::<String>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2583,7 +2583,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<u8>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2604,7 +2604,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<u32>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2625,7 +2625,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<i64>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2646,7 +2646,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<f32>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<f32>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2667,7 +2667,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<f64>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<f64>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2688,7 +2688,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_nonprimitive::<String>(&s, column_name)
+                                    Subject::get_array_as_vec_nonprimitive::<String>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2717,7 +2717,7 @@ pub fn select(
             },
             DataColumnOperator::BroadcastSet => match column_data_type {
                 DataType::UInt8 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<u8>(
+                    let lhs_vec = Subject::get_array_as_vec_primitive::<u8>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?
@@ -2733,7 +2733,7 @@ pub fn select(
                     )
                 }
                 DataType::UInt32 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<u32>(
+                    let lhs_vec = Subject::get_array_as_vec_primitive::<u32>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?
@@ -2749,7 +2749,7 @@ pub fn select(
                     )
                 }
                 DataType::Int64 => {
-                    let lhs_vec = Table::get_array_as_vec_primitive::<i64>(
+                    let lhs_vec = Subject::get_array_as_vec_primitive::<i64>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?
@@ -2765,7 +2765,7 @@ pub fn select(
                     )
                 }
                 DataType::Utf8 => {
-                    let lhs_vec = Table::get_array_as_vec_nonprimitive::<String>(
+                    let lhs_vec = Subject::get_array_as_vec_nonprimitive::<String>(
                         &find_column(&lhs_table, &batch_missing_vec, column_name)?,
                         column_name,
                     )?
@@ -2789,7 +2789,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<u8>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2812,7 +2812,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<u32>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2835,7 +2835,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<i64>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2858,7 +2858,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_nonprimitive::<String>(&s, column_name)
+                                    Subject::get_array_as_vec_nonprimitive::<String>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2889,7 +2889,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<u8>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2912,7 +2912,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<u32>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2935,7 +2935,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                    Subject::get_array_as_vec_primitive::<i64>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -2958,7 +2958,7 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Table::get_array_as_vec_nonprimitive::<String>(&s, column_name)
+                                    Subject::get_array_as_vec_nonprimitive::<String>(&s, column_name)
                                         .unwrap_or_default()
                                 })
                             })
@@ -3020,7 +3020,7 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                        Subject::get_array_as_vec_primitive::<u8>(&s, column_name)
                                             .unwrap_or_default()
                                     })
                                 })
@@ -3039,7 +3039,7 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                        Subject::get_array_as_vec_primitive::<u32>(&s, column_name)
                                             .unwrap_or_default()
                                     })
                                 })
@@ -3061,7 +3061,7 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                        Subject::get_array_as_vec_primitive::<i64>(&s, column_name)
                                             .unwrap_or_default()
                                     })
                                 })
@@ -3090,7 +3090,7 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        Table::get_array_as_vec_primitive::<u8>(&s, column_name)
+                                        Subject::get_array_as_vec_primitive::<u8>(&s, column_name)
                                             .unwrap_or_default()
                                     })
                                 })
@@ -3109,7 +3109,7 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        Table::get_array_as_vec_primitive::<u32>(&s, column_name)
+                                        Subject::get_array_as_vec_primitive::<u32>(&s, column_name)
                                             .unwrap_or_default()
                                     })
                                 })
@@ -3131,7 +3131,7 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        Table::get_array_as_vec_primitive::<i64>(&s, column_name)
+                                        Subject::get_array_as_vec_primitive::<i64>(&s, column_name)
                                             .unwrap_or_default()
                                     })
                                 })
@@ -3199,7 +3199,7 @@ pub fn select(
             } else {
                 match column_data_type {
                     DataType::UInt8 => {
-                        let template = TableScript::new_from_template(template.to_string());
+                        let template = SubjectScript::new_from_template(template.to_string());
                         let arr_vec = column_cast
                             .as_any()
                             .downcast_ref::<UInt8Array>()
@@ -3216,7 +3216,7 @@ pub fn select(
                         Arc::new(StringArray::from(arr_vec))
                     }
                     DataType::UInt32 => {
-                        let template = TableScript::new_from_template(template.to_string());
+                        let template = SubjectScript::new_from_template(template.to_string());
                         let arr_vec = column_cast
                             .as_any()
                             .downcast_ref::<UInt32Array>()
@@ -3233,7 +3233,7 @@ pub fn select(
                         Arc::new(StringArray::from(arr_vec))
                     }
                     DataType::Int64 => {
-                        let template = TableScript::new_from_template(template.to_string());
+                        let template = SubjectScript::new_from_template(template.to_string());
                         let arr_vec = column_cast
                             .as_any()
                             .downcast_ref::<Int64Array>()
@@ -3250,7 +3250,7 @@ pub fn select(
                         Arc::new(StringArray::from(arr_vec))
                     }
                     DataType::Float32 => {
-                        let template = TableScript::new_from_template(template.to_string());
+                        let template = SubjectScript::new_from_template(template.to_string());
                         let arr_vec = column_cast
                             .as_any()
                             .downcast_ref::<Float32Array>()
@@ -3267,7 +3267,7 @@ pub fn select(
                         Arc::new(StringArray::from(arr_vec))
                     }
                     DataType::Float64 => {
-                        let template = TableScript::new_from_template(template.to_string());
+                        let template = SubjectScript::new_from_template(template.to_string());
                         let arr_vec = column_cast
                             .as_any()
                             .downcast_ref::<Float64Array>()
@@ -3284,7 +3284,7 @@ pub fn select(
                         Arc::new(StringArray::from(arr_vec))
                     }
                     DataType::Utf8 => {
-                        let template = TableScript::new_from_template(template.to_string());
+                        let template = SubjectScript::new_from_template(template.to_string());
                         let arr_vec = column_cast
                             .as_any()
                             .downcast_ref::<StringArray>()
@@ -3302,7 +3302,7 @@ pub fn select(
                     }
                     DataType::FixedSizeList(f, _) => match f.data_type() {
                         DataType::UInt8 => {
-                            let template = TableScript::new_from_template(template.to_string());
+                            let template = SubjectScript::new_from_template(template.to_string());
                             let arr_vec = column_cast
                                 .as_any()
                                 .downcast_ref::<FixedSizeListArray>()
@@ -3310,7 +3310,7 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<u8>(
+                                        let s_vec = Subject::get_array_as_vec_primitive::<u8>(
                                             &s,
                                             column_name,
                                         )
@@ -3326,7 +3326,7 @@ pub fn select(
                             Arc::new(StringArray::from(arr_vec))
                         }
                         DataType::UInt32 => {
-                            let template = TableScript::new_from_template(template.to_string());
+                            let template = SubjectScript::new_from_template(template.to_string());
                             let arr_vec = column_cast
                                 .as_any()
                                 .downcast_ref::<FixedSizeListArray>()
@@ -3334,7 +3334,7 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<u32>(
+                                        let s_vec = Subject::get_array_as_vec_primitive::<u32>(
                                             &s,
                                             column_name,
                                         )
@@ -3350,7 +3350,7 @@ pub fn select(
                             Arc::new(StringArray::from(arr_vec))
                         }
                         DataType::Int64 => {
-                            let template = TableScript::new_from_template(template.to_string());
+                            let template = SubjectScript::new_from_template(template.to_string());
                             let arr_vec = column_cast
                                 .as_any()
                                 .downcast_ref::<FixedSizeListArray>()
@@ -3358,7 +3358,7 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<i64>(
+                                        let s_vec = Subject::get_array_as_vec_primitive::<i64>(
                                             &s,
                                             column_name,
                                         )
@@ -3374,7 +3374,7 @@ pub fn select(
                             Arc::new(StringArray::from(arr_vec))
                         }
                         DataType::Float32 => {
-                            let template = TableScript::new_from_template(template.to_string());
+                            let template = SubjectScript::new_from_template(template.to_string());
                             let arr_vec = column_cast
                                 .as_any()
                                 .downcast_ref::<FixedSizeListArray>()
@@ -3382,7 +3382,7 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<f32>(
+                                        let s_vec = Subject::get_array_as_vec_primitive::<f32>(
                                             &s,
                                             column_name,
                                         )
@@ -3398,7 +3398,7 @@ pub fn select(
                             Arc::new(StringArray::from(arr_vec))
                         }
                         DataType::Float64 => {
-                            let template = TableScript::new_from_template(template.to_string());
+                            let template = SubjectScript::new_from_template(template.to_string());
                             let arr_vec = column_cast
                                 .as_any()
                                 .downcast_ref::<FixedSizeListArray>()
@@ -3406,7 +3406,7 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<f64>(
+                                        let s_vec = Subject::get_array_as_vec_primitive::<f64>(
                                             &s,
                                             column_name,
                                         )
@@ -3422,7 +3422,7 @@ pub fn select(
                             Arc::new(StringArray::from(arr_vec))
                         }
                         DataType::Utf8 => {
-                            let template = TableScript::new_from_template(template.to_string());
+                            let template = SubjectScript::new_from_template(template.to_string());
                             let arr_vec = column_cast
                                 .as_any()
                                 .downcast_ref::<FixedSizeListArray>()
@@ -3430,7 +3430,7 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_nonprimitive::<String>(
+                                        let s_vec = Subject::get_array_as_vec_nonprimitive::<String>(
                                             &s,
                                             column_name,
                                         )
@@ -3453,7 +3453,7 @@ pub fn select(
                     },
                     DataType::List(f) => match f.data_type() {
                         DataType::UInt8 => {
-                            let template = TableScript::new_from_template(template.to_string());
+                            let template = SubjectScript::new_from_template(template.to_string());
                             let arr_vec = column_cast
                                 .as_any()
                                 .downcast_ref::<ListArray>()
@@ -3461,7 +3461,7 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<u8>(
+                                        let s_vec = Subject::get_array_as_vec_primitive::<u8>(
                                             &s,
                                             column_name,
                                         )
@@ -3477,7 +3477,7 @@ pub fn select(
                             Arc::new(StringArray::from(arr_vec))
                         }
                         DataType::UInt32 => {
-                            let template = TableScript::new_from_template(template.to_string());
+                            let template = SubjectScript::new_from_template(template.to_string());
                             let arr_vec = column_cast
                                 .as_any()
                                 .downcast_ref::<ListArray>()
@@ -3485,7 +3485,7 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<u32>(
+                                        let s_vec = Subject::get_array_as_vec_primitive::<u32>(
                                             &s,
                                             column_name,
                                         )
@@ -3501,7 +3501,7 @@ pub fn select(
                             Arc::new(StringArray::from(arr_vec))
                         }
                         DataType::Int64 => {
-                            let template = TableScript::new_from_template(template.to_string());
+                            let template = SubjectScript::new_from_template(template.to_string());
                             let arr_vec = column_cast
                                 .as_any()
                                 .downcast_ref::<ListArray>()
@@ -3509,7 +3509,7 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<i64>(
+                                        let s_vec = Subject::get_array_as_vec_primitive::<i64>(
                                             &s,
                                             column_name,
                                         )
@@ -3525,7 +3525,7 @@ pub fn select(
                             Arc::new(StringArray::from(arr_vec))
                         }
                         DataType::Float32 => {
-                            let template = TableScript::new_from_template(template.to_string());
+                            let template = SubjectScript::new_from_template(template.to_string());
                             let arr_vec = column_cast
                                 .as_any()
                                 .downcast_ref::<ListArray>()
@@ -3533,7 +3533,7 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<f32>(
+                                        let s_vec = Subject::get_array_as_vec_primitive::<f32>(
                                             &s,
                                             column_name,
                                         )
@@ -3549,7 +3549,7 @@ pub fn select(
                             Arc::new(StringArray::from(arr_vec))
                         }
                         DataType::Float64 => {
-                            let template = TableScript::new_from_template(template.to_string());
+                            let template = SubjectScript::new_from_template(template.to_string());
                             let arr_vec = column_cast
                                 .as_any()
                                 .downcast_ref::<ListArray>()
@@ -3557,7 +3557,7 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_primitive::<f64>(
+                                        let s_vec = Subject::get_array_as_vec_primitive::<f64>(
                                             &s,
                                             column_name,
                                         )
@@ -3573,7 +3573,7 @@ pub fn select(
                             Arc::new(StringArray::from(arr_vec))
                         }
                         DataType::Utf8 => {
-                            let template = TableScript::new_from_template(template.to_string());
+                            let template = SubjectScript::new_from_template(template.to_string());
                             let arr_vec = column_cast
                                 .as_any()
                                 .downcast_ref::<ListArray>()
@@ -3581,7 +3581,7 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Table::get_array_as_vec_nonprimitive::<String>(
+                                        let s_vec = Subject::get_array_as_vec_nonprimitive::<String>(
                                             &s,
                                             column_name,
                                         )
@@ -3693,7 +3693,7 @@ mod tests {
             &["", "Into template {{ lhs_text }}", ""],
             &device,
         )?;
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;
@@ -3756,7 +3756,7 @@ mod tests {
             &["", "Into template {{ lhs_text }}", "", ""],
             &device,
         )?;
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;
@@ -3849,7 +3849,7 @@ mod tests {
             &["", "", "0.75", "", "", ""],
             &device,
         )?;
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;

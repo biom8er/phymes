@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableScript, TableTrait, Tool, ToolType, create_bytes_record_batch, create_mermaid_content_template_batch
+    BuildableTrait, BuilderTrait, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Subject, SubjectBuilderTrait, SubjectScript, SubjectTrait, Tool, ToolType, create_bytes_record_batch, create_mermaid_content_template_batch
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -173,7 +173,7 @@ pub fn apply_template(
     let doc_template = if let Some(rhs_args) = rhs_args {
         // 1. Use the rhs_args to help generate the template
         // Convert the RecordBatches into a json object
-        let rhs_json_object = Table::get_builder()
+        let rhs_json_object = Subject::get_builder()
             .with_name("rhs_apply_template")
             .with_record_batches(rhs_args.to_vec())?
             .build()?
@@ -181,7 +181,7 @@ pub fn apply_template(
         let input = json!({TEMPLATE_HEADER_EXPRESSION.to_string(): rhs_json_object});
 
         // Apply the template to create the actual template
-        TableScript::new_from_template(doc_template.to_template()).apply_template(&input)?
+        SubjectScript::new_from_template(doc_template.to_template()).apply_template(&input)?
     // 2. Use the lhs_args fields to help generate the template
     } else if doc_template.has_headers() {
         let headers = lhs_args
@@ -195,14 +195,14 @@ pub fn apply_template(
         let input = json!({TEMPLATE_HEADER_EXPRESSION.to_string(): headers});
 
         // Apply the template to create the actual template
-        TableScript::new_from_template(doc_template.to_template()).apply_template(&input)?
+        SubjectScript::new_from_template(doc_template.to_template()).apply_template(&input)?
     // 3. Use the template as is
     } else {
         doc_template.to_template()
     };
 
     // Convert the RecordBatches into a json object
-    let lhs_json_object = Table::get_builder()
+    let lhs_json_object = Subject::get_builder()
         .with_name("lhs_apply_template")
         .with_record_batches(lhs_args.to_vec())?
         .build()?
@@ -221,14 +221,14 @@ pub fn apply_template(
     };
 
     // Apply the template
-    let document = TableScript::new_from_template(doc_template).apply_template(&input)?;
+    let document = SubjectScript::new_from_template(doc_template).apply_template(&input)?;
 
     // Wrap into a table
     let batch = match format {
         DataFormat::None => create_mermaid_content_template_batch(vec![document])?,
         _ => create_bytes_record_batch(vec![document.as_bytes().to_vec()])?,
     };
-    let table = Table::get_builder()
+    let table = Subject::get_builder()
         .with_name(doc_name)
         .with_record_batches(vec![batch])?
         .build()?;
@@ -239,7 +239,7 @@ pub fn apply_template(
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::test_table::make_test_table_chat;
+    use phymes_core::test_subject::make_test_subject_chat;
 
     use crate::{device, template::test_minimal_html};
 
@@ -248,7 +248,7 @@ mod tests {
     #[test]
     fn test_apply_template_no_rhs_args() -> Result<()> {
         // Make the test record batches
-        let test_table = make_test_table_chat("messages")?;
+        let test_table = make_test_subject_chat("messages")?;
 
         let template = r#"""{%- if tools %}\n    {{- '<|im_start|>system\\n' }}\n    {%- if messages[0]['role'] == 'system' %}\n{{- messages[0]['content'] }}\n    {%- else %}\n{{- 'You are Qwen, created by Alibaba Cloud. You are a helpful assistant.' }}\n    {%- endif %}\n    {{- '\\n\\n# Tools\\n\\nYou may call one or more functions to assist with the user query.\\n\\nYou are provided with function signatures within <tools></tools> XML tags:\\n<tools>' }}\n    {%- for tool in tools %}\n{{- '\\n' }}\n{{- tool | tojson }}\n    {%- endfor %}\n    {{- '\\n</tools>\\n\\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\\n<tool_call>\\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\\n</tool_call><|im_end|>\\n' }}\n{%- else %}\n    {%- if messages[0]['role'] == 'system' %}\n{{- '<|im_start|>system\\n' + messages[0]['content'] + '<|im_end|>\\n' }}\n    {%- else %}\n{{- '<|im_start|>system\\nYou are Qwen, created by Alibaba Cloud. You are a helpful assistant.<|im_end|>\\n' }}\n    {%- endif %}\n{%- endif %}\n{%- for message in messages %}\n    {%- if (message.role == 'user') or (message.role == 'system' and not loop.first) or (message.role == 'assistant' and not message.tool_calls) %}\n{{- '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>' + '\\n' }}\n    {%- elif message.role == 'assistant' %}\n{{- '<|im_start|>' + message.role }}\n{%- if message.content %}\n    {{- '\\n' + message.content }}\n{%- endif %}\n{%- for tool_call in message.tool_calls %}\n    {%- if tool_call.function is defined %}\n{%- set tool_call = tool_call.function %}\n    {%- endif %}\n    {{- '\\n<tool_call>\\n{\"name\": \"' }}\n    {{- tool_call.name }}\n    {{- '\", \"arguments\": ' }}\n    {{- tool_call.arguments | tojson }}\n    {{- '}\\n</tool_call>' }}\n{%- endfor %}\n{{- '<|im_end|>\\n' }}\n    {%- elif message.role == 'tool' %}\n{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != 'tool') %}\n    {{- '<|im_start|>user' }}\n{%- endif %}\n{{- '\\n<tool_response>\\n' }}\n{{- message.content }}\n{{- '\\n</tool_response>' }}\n{%- if loop.last or (messages[loop.index0 + 1].role != 'tool') %}\n    {{- '<|im_end|>\\n' }}\n{%- endif %}\n    {%- endif %}\n{%- endfor %}\n{%- if add_generation_prompt %}\n    {{- '<|im_start|>assistant\\n' }}\n{%- endif %}\n"""#;
         let template = template.replace("message", "row");
@@ -274,7 +274,7 @@ mod tests {
         )?;
 
         // Check the results
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;
@@ -322,7 +322,7 @@ mod tests {
         )?;
 
         // Check the results
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;

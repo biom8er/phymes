@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde_json::json;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_schema_from_fields, create_tools_record_batch
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribePolicies, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, TaskPlan, create_schema_from_fields, create_tools_record_batch
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
@@ -112,7 +112,7 @@ impl<'a> ToolAgentSession<'a> {
             ..Default::default()
         }
     }
-    pub fn make_tools_table(&self) -> Result<Table> {
+    pub fn make_tools_table(&self) -> Result<Subject> {
         let tool_ids = vec![
             AvailableCandleOperators::Sort.to_string(),
             AvailableCandleOperators::HumanInTheLoop.to_string(),
@@ -122,7 +122,7 @@ impl<'a> ToolAgentSession<'a> {
             AvailableCandleOperators::HumanInTheLoop.to_json_tool_schema(),
         ];
         let batch = create_tools_record_batch(tool_ids, tools)?;
-        TableBuilder::new()
+        SubjectBuilder::new()
             .with_name(self.state_tools_table_name)
             .with_record_batches(vec![batch])?
             .build()
@@ -209,35 +209,35 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     AvailableProcessors::MessageAggregatorProcessor
                         .build_arc(self.message_aggregator_processor_1_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self.chat_task_name.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: self.chat_task_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    // TableSubscription::OnUpdateFullTable {
-                    //     table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                    // Subscription::OnUpdateFullTable {
+                    //     subject_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     // },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
                     },
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableSubjects::SessionErrors.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: AvailableSubjects::SessionErrors.to_string(),
                     },
-                    // TableSubscription::OnUpdateFullTable {
-                    //     table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    // Subscription::OnUpdateFullTable {
+                    //     subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     // },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     },
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self.message_aggregator_processor_1_name.to_string(),
+                    Subscription::AlwaysLastRecordBatch {
+                        subject_name: self.message_aggregator_processor_1_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
                     // AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
-                    AvailableTableSubscribePolicies::ChatContentSubscribe.build(),
+                    AvailableSubscribePolicies::ChatContentSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -246,22 +246,22 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     AvailableProcessors::MessageAggregatorProcessor
                         .build_arc(self.message_aggregator_processor_2_name),
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     },
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self.message_aggregator_processor_2_name.to_string(),
+                    Subscription::AlwaysLastRecordBatch {
+                        subject_name: self.message_aggregator_processor_2_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
+                    AvailableSubscribePolicies::AnySubjectNameSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -270,25 +270,25 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     AvailableProcessors::AttachmentAggregatorProcessor
                         .build_arc(self.attachment_aggregator_processor_name),
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: AvailableInterfaceSubjects::UserCsv.to_string(),
                     },
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
                     },
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::AssistantScript.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: AvailableInterfaceSubjects::AssistantScript.to_string(),
                     },
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self.attachment_aggregator_processor_name.to_string(),
+                    Subscription::AlwaysLastRecordBatch {
+                        subject_name: self.attachment_aggregator_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
+                    AvailableSubscribePolicies::AnySubjectNameSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -296,19 +296,19 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .with_processor(
                     AvailableProcessors::Select.build_arc(self.tool_vis_renamecols_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: AvailableSubjects::MermaidXYChart.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: AvailableSubjects::MermaidXYChart.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.tool_summary_task_name.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self.tool_summary_task_name.to_string(),
                     },
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self.tool_vis_renamecols_processor_name.to_string(),
+                    Subscription::AlwaysLastRecordBatch {
+                        subject_name: self.tool_vis_renamecols_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -317,19 +317,19 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     AvailableProcessors::ApplyTemplate
                         .build_arc(self.tool_vis_xychart_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: AvailableInterfaceSubjects::AssistantScript.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: AvailableInterfaceSubjects::AssistantScript.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: AvailableSubjects::MermaidXYChart.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: AvailableSubjects::MermaidXYChart.to_string(),
                     },
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self.tool_vis_xychart_processor_name.to_string(),
+                    Subscription::AlwaysLastRecordBatch {
+                        subject_name: self.tool_vis_xychart_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -338,22 +338,22 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .with_processor(
                     AvailableProcessors::OpenAIChatProcessor.build_arc(self.chat_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self.message_parser_task_name.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: self.message_parser_task_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.chat_task_name.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self.chat_task_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.state_tools_table_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.state_tools_table_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.chat_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.chat_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -362,22 +362,22 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .with_processor(
                     AvailableProcessors::CandleChatProcessor.build_arc(self.chat_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self.message_parser_task_name.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: self.message_parser_task_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.chat_task_name.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self.chat_task_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.state_tools_table_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.state_tools_table_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.chat_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.chat_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -387,28 +387,28 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                         .build_arc(self.message_parser_processor_name),
                 )
                 .with_publications(&[
-                    TablePublication::Extend {
+                    Publication::Extend {
                         // The first publication is the default publish target
-                        // table_name: self.chat_task_name.to_string(),
-                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                        // subject_name: self.chat_task_name.to_string(),
+                        subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     },
-                    TablePublication::Extend {
-                        table_name: self.tool_task_name.to_string(),
+                    Publication::Extend {
+                        subject_name: self.tool_task_name.to_string(),
                     },
-                    TablePublication::Extend {
-                        table_name: self.hitl_task_name.to_string(),
+                    Publication::Extend {
+                        subject_name: self.hitl_task_name.to_string(),
                     },
                 ])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.message_parser_task_name.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self.message_parser_task_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.message_parser_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.message_parser_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -417,19 +417,19 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     AvailableProcessors::ExtractTabular
                         .build_arc(self.extract_tabular_data_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self.state_scores_table_name.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: self.state_scores_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableInterfaceSubjects::UserCsv.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: AvailableInterfaceSubjects::UserCsv.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.extract_tabular_data_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.extract_tabular_data_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -437,19 +437,19 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .with_processor(
                     AvailableProcessors::CandleDataProcessor.build_arc(self.tool_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self.tool_summary_task_name.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: self.tool_summary_task_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: self.tool_task_name.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: self.tool_task_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.state_scores_table_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.state_scores_table_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -457,14 +457,14 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .with_processor(
                     AvailableProcessors::CandleDataProcessor.build_arc(self.hitl_processor_name),
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 }])
-                .with_subscriptions(&[TableSubscription::OnUpdateLastRecordBatch {
-                    table_name: self.hitl_task_name.to_string(),
+                .with_subscriptions(&[Subscription::OnUpdateLastRecordBatch {
+                    subject_name: self.hitl_task_name.to_string(),
                 }])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -472,19 +472,19 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .with_processor(
                     AvailableProcessors::PackTabular.build_arc(self.tool_attachment_processor_name),
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: AvailableInterfaceSubjects::AssistantCsv.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self.tool_attachment_processor_name.to_string(),
+                    Subscription::AlwaysLastRecordBatch {
+                        subject_name: self.tool_attachment_processor_name.to_string(),
                     },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.tool_summary_task_name.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self.tool_summary_task_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -492,19 +492,19 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .with_processor(
                     AvailableProcessors::PackTabular.build_arc(self.tool_summary_processor_name),
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: AvailableInterfaceSubjects::ToolMessages.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self.tool_summary_processor_name.to_string(),
+                    Subscription::AlwaysLastRecordBatch {
+                        subject_name: self.tool_summary_processor_name.to_string(),
                     },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.tool_summary_task_name.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self.tool_summary_task_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -512,19 +512,19 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .with_processor(
                     AvailableProcessors::PackTabular.build_arc(self.hitl_summary_processor_name),
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self.hitl_summary_processor_name.to_string(),
+                    Subscription::AlwaysLastRecordBatch {
+                        subject_name: self.hitl_summary_processor_name.to_string(),
                     },
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    Subscription::AlwaysLastRecordBatch {
+                        subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -542,7 +542,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         ])
     }
 
-    fn make_subjects(&self) -> Option<Vec<Table>> {
+    fn make_subjects(&self) -> Option<Vec<Subject>> {
         // Default chat config
         #[allow(unused_mut)]
         let mut candle_chat_config = CandleChatConfig {
@@ -601,7 +601,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         // Message Parser config
         candle_chat_config.messages = self.message_parser_task_name.to_string();
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config).unwrap();
-        let candle_message_parser_state = TableBuilder::new()
+        let candle_message_parser_state = SubjectBuilder::new()
             .with_name(self.message_parser_processor_name)
             .with_json(&candle_chat_config_json, 1)
             .unwrap()
@@ -612,7 +612,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         candle_chat_config.messages = self.chat_task_name.to_string();
         candle_chat_config.tools = Some(self.state_tools_table_name.to_string());
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config).unwrap();
-        let candle_chat_state = TableBuilder::new()
+        let candle_chat_state = SubjectBuilder::new()
             .with_name(self.chat_processor_name)
             .with_json(&candle_chat_config_json, 1)
             .unwrap()
@@ -627,19 +627,19 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
-        let aggregator_1_state = TableBuilder::new()
+        let aggregator_1_state = SubjectBuilder::new()
             .with_name(self.message_aggregator_processor_1_name)
             .with_json(&aggregator_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
-        let aggregator_2_state = TableBuilder::new()
+        let aggregator_2_state = SubjectBuilder::new()
             .with_name(self.message_aggregator_processor_2_name)
             .with_json(&aggregator_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
-        let aggregator_3_state = TableBuilder::new()
+        let aggregator_3_state = SubjectBuilder::new()
             .with_name(self.attachment_aggregator_processor_name)
             .with_json(&aggregator_config_json, 1)
             .unwrap()
@@ -658,7 +658,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         };
         let extract_tabular_data_config_json =
             serde_json::to_vec(&extract_tabular_data_config).unwrap();
-        let extract_tabular_data_state = TableBuilder::new()
+        let extract_tabular_data_state = SubjectBuilder::new()
             .with_name(self.extract_tabular_data_processor_name)
             .with_json(&extract_tabular_data_config_json.clone(), 1)
             .unwrap()
@@ -682,7 +682,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             ..Default::default()
         };
         let vis_renamecols_config_json = serde_json::to_vec(&vis_renamecols_config).unwrap();
-        let vis_renamecols_state = TableBuilder::new()
+        let vis_renamecols_state = SubjectBuilder::new()
             .with_name(self.tool_vis_renamecols_processor_name)
             .with_json(&vis_renamecols_config_json.clone(), 1)
             .unwrap()
@@ -707,7 +707,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             ..Default::default()
         };
         let vis_xychart_config_json = serde_json::to_vec(&vis_xychart_config).unwrap();
-        let vis_xychart_state = TableBuilder::new()
+        let vis_xychart_state = SubjectBuilder::new()
             .with_name(self.tool_vis_xychart_processor_name)
             .with_json(&vis_xychart_config_json.clone(), 1)
             .unwrap()
@@ -726,7 +726,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             ..Default::default()
         };
         let attachmen_config_json = serde_json::to_vec(&attachment_config).unwrap();
-        let attachmen_state = TableBuilder::new()
+        let attachmen_state = SubjectBuilder::new()
             .with_name(self.tool_attachment_processor_name)
             .with_json(&attachmen_config_json.clone(), 1)
             .unwrap()
@@ -745,7 +745,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             ..Default::default()
         };
         let summary_config_json = serde_json::to_vec(&summary_config).unwrap();
-        let summary_state_1 = TableBuilder::new()
+        let summary_state_1 = SubjectBuilder::new()
             .with_name(self.tool_summary_processor_name)
             .with_json(&summary_config_json.clone(), 1)
             .unwrap()
@@ -762,7 +762,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             ..Default::default()
         };
         let summary_config_json = serde_json::to_vec(&summary_config).unwrap();
-        let summary_state_2 = TableBuilder::new()
+        let summary_state_2 = SubjectBuilder::new()
             .with_name(self.hitl_summary_processor_name)
             .with_json(&summary_config_json, 1)
             .unwrap()
@@ -777,14 +777,14 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             ];
             Fields::from(fields_vec)
         }
-        let scores_table = Table::get_builder()
+        let scores_table = Subject::get_builder()
             .with_name(self.state_scores_table_name)
             .with_schema(create_schema_from_fields(&create_scores_fields))
             .with_record_batches(Vec::new())
             .unwrap()
             .build()
             .unwrap();
-        let tool_summary_table = Table::get_builder()
+        let tool_summary_table = Subject::get_builder()
             .with_name(self.tool_summary_task_name)
             .with_schema(create_schema_from_fields(&create_scores_fields))
             .with_record_batches(Vec::new())
@@ -861,7 +861,7 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         AttachmentBuilderTraitExt, ChatBuilderTraitExt, CsvFormat, IPCMessage, MappableTrait,
-        MessageBuilderTrait, MessageTrait, TableTrait,
+        MessageBuilderTrait, MessageTrait, SubjectTrait,
     };
     use phymes_data::test_extract_tabular_data::make_scores_table;
     use phymes_diagnostics::HashMap;
@@ -895,8 +895,8 @@ mod tests {
         let chat_message = IPCMessage::get_builder()
             .with_message(chat.to_ipc_stream()?)
             .with_subject(chat.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: chat.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: chat.get_name().to_string(),
             })
             .with_publisher(tool_agent_session.session_context_name)
             .make_name()?
@@ -908,8 +908,8 @@ mod tests {
         let blob_message = IPCMessage::get_builder()
             .with_message(blob.to_ipc_stream()?)
             .with_subject(blob.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: blob.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: blob.get_name().to_string(),
             })
             .with_publisher(tool_agent_session.session_context_name)
             .make_name()?
@@ -950,7 +950,7 @@ mod tests {
                 })
                 .flatten()
                 .collect::<Vec<_>>();
-            let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
+            let json_data = SubjectBuilder::new_from_ipc_stream(&bytes)?
                 .with_name("")
                 .build()?
                 .to_json_object()?;
@@ -972,7 +972,7 @@ mod tests {
                 })
                 .flatten()
                 .collect::<Vec<_>>();
-            let attachment_data = TableBuilder::new_from_ipc_stream(&bytes)?
+            let attachment_data = SubjectBuilder::new_from_ipc_stream(&bytes)?
                 .with_name("")
                 .build()?
                 .to_json_object()?;

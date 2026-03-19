@@ -2,7 +2,7 @@ use arrow::array::{
     Array, ArrowPrimitiveType, BooleanArray, ListArray, PrimitiveArray, RecordBatch, UInt64Array
 };
 
-use crate::subject::indices_structs::{BRINRange, BTreeNode, GINPosting, GiSTEntry, HashEntry, SPGiSTNode};
+use crate::{BRINRange, BTreeNode, GINPosting, GiSTEntry, HashEntry, SPGiSTNode};
 
 pub struct BTreeIndexReader<'a, K: ArrowPrimitiveType, V: ArrowPrimitiveType> {
     node_id: &'a UInt64Array,

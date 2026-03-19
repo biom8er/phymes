@@ -11,7 +11,7 @@ use arrow::{
 use candle_core::Device;
 use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
-    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+    MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType,
 };
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
@@ -64,7 +64,7 @@ pub fn from_traces_to_messages(
     device: &Device,
 ) -> Result<RecordBatch> {
     // Get the unique tasks and processors
-    let rhs_table = Table::get_builder()
+    let rhs_table = Subject::get_builder()
         .with_record_batches(rhs_args.to_vec())?
         .with_name("")
         .build()?;
@@ -93,7 +93,7 @@ pub fn from_traces_to_messages(
             lhs_sorted = sort(column_name, lhs_args, true, device)?;
         }
     }
-    let lhs_table = Table::get_builder()
+    let lhs_table = Subject::get_builder()
         .with_record_batches(vec![lhs_sorted])?
         .with_name("")
         .build()?;
@@ -1075,7 +1075,7 @@ mod tests {
         let device = device(true)?;
 
         let result = from_traces_to_messages(&[lhs_batch], &[rhs_batch], &device)?;
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;

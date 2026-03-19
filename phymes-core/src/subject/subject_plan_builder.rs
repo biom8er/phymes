@@ -1,10 +1,10 @@
 use std::{fmt::Debug, sync::Arc};
 use anyhow::{anyhow, Result};
 use arrow::datatypes::Schema;
-use crate::{BuildableTrait, BuilderTrait, IndexType, SubjectConstraintType, SubjectPlan, SubjectSequenceType, Table, TableBuilderTrait};
+use crate::{BuildableTrait, BuilderTrait, IndexType, SubjectConstraintType, SubjectPlan, SubjectSequenceType, Subject, SubjectBuilderTrait};
 
 pub trait SubjectPlanBuilderTrait: BuilderTrait + Debug + Send + Sync {
-    fn with_table(self, table: Table) -> Self;
+    fn with_subject(self, subject: Subject) -> Self;
     fn with_constraints(self, constraints: &[SubjectConstraintType]) -> Self;
     fn with_indices(self, indices: &[IndexType]) -> Self;
     fn with_sequences(self, sequences: &[SubjectSequenceType]) -> Self;
@@ -12,8 +12,8 @@ pub trait SubjectPlanBuilderTrait: BuilderTrait + Debug + Send + Sync {
 
 #[derive(Default, Debug, PartialEq, Clone)]
 pub struct SubjectPlanBuilder {
-    /// Subject table
-    pub table: Option<Table>,
+    /// Subject subject
+    pub subject: Option<Subject>,
     /// Constraints on the subject
     pub constraints: Option<Vec<SubjectConstraintType>>,
     /// Indexes on the subject
@@ -27,7 +27,7 @@ impl BuilderTrait for SubjectPlanBuilder {
 
     fn new() -> Self {
         Self {
-            table: None,
+            subject: None,
             constraints: None,
             indices: None,
             sequences: None,
@@ -35,12 +35,12 @@ impl BuilderTrait for SubjectPlanBuilder {
     }
 
     fn with_name(mut self, name: &str) -> Self {
-        let table = Table::get_builder()
+        let subject = Subject::get_builder()
             .with_name(name)
             .with_schema(Arc::new(Schema::empty()))
             .with_record_batches(Vec::new()).unwrap()
             .build().unwrap();
-        self.table = Some(table);
+        self.subject = Some(subject);
         self
     }
 
@@ -49,7 +49,7 @@ impl BuilderTrait for SubjectPlanBuilder {
         Self: Sized,
     {
         let t = Self::T {
-            table: self.table.ok_or(anyhow!("Please define the table before trying to build the subject plan!"))?,
+            subject: self.subject.ok_or(anyhow!("Please define the subject before trying to build the subject plan!"))?,
             constraints: self.constraints.unwrap_or_default(),
             indices: self.indices.unwrap_or_default(),
             sequences: self.sequences.unwrap_or_default(),
@@ -59,8 +59,8 @@ impl BuilderTrait for SubjectPlanBuilder {
 }
 
 impl SubjectPlanBuilderTrait for SubjectPlanBuilder {
-    fn with_table(mut self, table: Table) -> Self {
-        self.table = Some(table);
+    fn with_subject(mut self, subject: Subject) -> Self {
+        self.subject = Some(subject);
         self
     }
 

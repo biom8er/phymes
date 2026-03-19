@@ -37,8 +37,8 @@ mod tests {
     use anyhow::Result;
     use arrow::array::{ArrayRef, RecordBatch, StringArray};
     use phymes_core::{
-        BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableScript,
-        TableTrait,
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectScript,
+        SubjectTrait,
     };
     use serde_json::{Map, Value};
 
@@ -54,7 +54,7 @@ mod tests {
 
         let item_arr: ArrayRef = Arc::new(StringArray::from(item_vec));
         let batch = RecordBatch::try_from_iter(vec![("item", item_arr)])?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -67,7 +67,7 @@ mod tests {
             "li_class": "flex flex-col flex-content-start gap-1 my-2",
             "li_style": ""
         });
-        let input_string = TableScript::new_from_template(MINIMAL_LIST_INPUT.to_string())
+        let input_string = SubjectScript::new_from_template(MINIMAL_LIST_INPUT.to_string())
             .apply_template(&inputs)?
             .lines()
             .map(|line| line.trim())
@@ -82,7 +82,7 @@ mod tests {
         // Create and render the template with the inputs
         let template = [MINIMAL_HTML_PRE, MINIMAL_LIST_TEMPLATE, MINIMAL_HTML_POST].join("");
         let script_string =
-            TableScript::new_from_template(template).apply_template(&template_inputs)?;
+            SubjectScript::new_from_template(template).apply_template(&template_inputs)?;
 
         assert_eq!(
             script_string,

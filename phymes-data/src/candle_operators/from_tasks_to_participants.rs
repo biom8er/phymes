@@ -2,7 +2,7 @@ use anyhow::Result;
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableTrait,
+    BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait,
     create_mermaid_sequence_diagram_participants_template_batch,
 };
 use phymes_diagnostics::HashSet;
@@ -53,11 +53,11 @@ pub fn from_tasks_to_participants(
     _device: &Device,
 ) -> Result<RecordBatch> {
     // Wrap the lhs and rhs into tables
-    let lhs_table = Table::get_builder()
+    let lhs_table = Subject::get_builder()
         .with_record_batches(lhs_args.to_vec())?
         .with_name("")
         .build()?;
-    let rhs_table = Table::get_builder()
+    let rhs_table = Subject::get_builder()
         .with_record_batches(rhs_args.to_vec())?
         .with_name("")
         .build()?;
@@ -174,7 +174,7 @@ mod tests {
         let device = device(false)?;
 
         let result = from_tasks_to_participants(&[lhs_batch], &[rhs_batch], &device)?;
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;

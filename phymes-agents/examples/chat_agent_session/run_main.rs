@@ -16,8 +16,8 @@ use phymes_agents::{
 };
 use phymes_core::{
     AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage,
-    MappableTrait, MessageBuilderTrait, MessageTrait, TableBuilder, TableBuilderTrait,
-    TablePublication, TableTrait,
+    MappableTrait, MessageBuilderTrait, MessageTrait, SubjectBuilder, SubjectBuilderTrait,
+    Publication, SubjectTrait,
 };
 
 pub async fn run_main() -> Result<()> {
@@ -43,8 +43,8 @@ pub async fn run_main() -> Result<()> {
     let message = IPCMessage::get_builder()
         .with_message(chat.to_ipc_stream()?)
         .with_subject(chat.get_name())
-        .with_update(&TablePublication::Extend {
-            table_name: chat.get_name().to_string(),
+        .with_update(&Publication::Extend {
+            subject_name: chat.get_name().to_string(),
         })
         .with_publisher(chat_agent_session.session_context_name)
         .make_name()?
@@ -66,7 +66,7 @@ pub async fn run_main() -> Result<()> {
         })
         .flatten()
         .collect::<Vec<_>>();
-    let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
+    let json_data = SubjectBuilder::new_from_ipc_stream(&bytes)?
         .with_name("")
         .build()?
         .to_json_object()?;
@@ -84,8 +84,8 @@ pub async fn run_main() -> Result<()> {
     let message = IPCMessage::get_builder()
         .with_message(chat.to_ipc_stream()?)
         .with_subject(chat.get_name())
-        .with_update(&TablePublication::Extend {
-            table_name: chat.get_name().to_string(),
+        .with_update(&Publication::Extend {
+            subject_name: chat.get_name().to_string(),
         })
         .with_publisher(chat_agent_session.session_context_name)
         .make_name()?
@@ -107,7 +107,7 @@ pub async fn run_main() -> Result<()> {
         })
         .flatten()
         .collect::<Vec<_>>();
-    let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
+    let json_data = SubjectBuilder::new_from_ipc_stream(&bytes)?
         .with_name("")
         .build()?
         .to_json_object()?;

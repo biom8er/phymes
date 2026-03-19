@@ -386,7 +386,7 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage,
-        MappableTrait, MessageBuilderTrait, TablePublication, TableTrait,
+        MappableTrait, MessageBuilderTrait, Publication, SubjectTrait,
         create_bytes_record_batch,
     };
     use phymes_diagnostics::HashMap;
@@ -421,8 +421,8 @@ mod tests {
             let table = AvailableSubjects::Bytes.to_table(None, Some(vec![batch]))?;
             let session_tasks_message = IPCMessage::get_builder()
                 .with_subject(table.get_name())
-                .with_update(&TablePublication::Replace {
-                    table_name: table.get_name().to_string(),
+                .with_update(&Publication::Replace {
+                    subject_name: table.get_name().to_string(),
                 })
                 .with_publisher(tool_call_session.session_context_name)
                 .with_message(table.to_ipc_stream()?)
@@ -604,29 +604,29 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate"
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate"
                 ]
             );
             let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
@@ -721,15 +721,15 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate"
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate"
                 ]
             );
             let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;

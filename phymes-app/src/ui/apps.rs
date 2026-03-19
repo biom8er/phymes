@@ -4,8 +4,8 @@ use phymes_agents::{
     SessionInterfaceMessageBuilderTrait,
 };
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, TableBuilder,
-    TableBuilderTrait, TablePublication, TableTrait,
+    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, SubjectBuilder,
+    SubjectBuilderTrait, Publication, SubjectTrait,
 };
 use phymes_server::create_session_name;
 
@@ -73,7 +73,7 @@ pub fn apps_interface_view() -> Element {
             .with_session_name(&session_name)
             .with_format(&DataFormat::Ipc)
             .with_publisher(&session_name)
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_stream(false)
     });
 
@@ -119,7 +119,7 @@ pub fn apps_interface_view() -> Element {
                 while let Some(Ok(b)) = stream.next().await {
                     bytes.extend(b);
                 }
-                match TableBuilder::new_from_ipc_stream(&bytes) {
+                match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
                         let combined = table
@@ -183,7 +183,7 @@ pub fn apps_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
-                match TableBuilder::new_from_ipc_stream(&bytes) {
+                match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
                         let combined = table

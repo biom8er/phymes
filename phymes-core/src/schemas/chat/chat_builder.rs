@@ -1,6 +1,6 @@
 use crate::{
-    RecordBatchReceiverStream, SendableRecordBatchStream, Table, TableBuilder, TableBuilderTrait,
-    TableScript, TableTrait, create_chat_record_batch,
+    RecordBatchReceiverStream, SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait,
+    SubjectScript, SubjectTrait, create_chat_record_batch,
 };
 
 use anyhow::Result;
@@ -28,7 +28,7 @@ pub trait ChatTraitExt: Sized {
     fn to_openai_messages(self) -> Vec<ChatCompletionMessage>;
 }
 
-impl ChatTraitExt for Table {
+impl ChatTraitExt for Subject {
     fn to_chat_prompt(
         self,
         chat_template: &str,
@@ -53,7 +53,7 @@ impl ChatTraitExt for Table {
             "tools": tools,
         });
 
-        TableScript::new_from_template(chat_template.to_string())
+        SubjectScript::new_from_template(chat_template.to_string())
             .apply_template(&chat_template_inputs)
     }
 
@@ -129,7 +129,7 @@ pub trait ChatBuilderTraitExt: Sized {
     ) -> Result<(Self, SendableRecordBatchStream)>;
 }
 
-impl ChatBuilderTraitExt for TableBuilder {
+impl ChatBuilderTraitExt for SubjectBuilder {
     fn insert_system_template_str(mut self, system_prompt: &str) -> Result<Self> {
         // Fill in the system template
 
@@ -379,7 +379,7 @@ mod test_messages {
                 while let Some(Ok(batch)) = ready!(self.input.poll_next_unpin(cx)) {
                     batches.push(batch);
                 }
-                let messages = TableBuilder::new()
+                let messages = SubjectBuilder::new()
                     .with_name("messages")
                     .with_record_batches(batches)?
                     .build()?;
@@ -391,7 +391,7 @@ mod test_messages {
                         while let Some(Ok(batch)) = ready!(tools.poll_next_unpin(cx)) {
                             batches.push(batch);
                         }
-                        let tool_table = TableBuilder::new()
+                        let tool_table = SubjectBuilder::new()
                             .with_name("messages")
                             .with_record_batches(batches)?
                             .build()?;
@@ -472,8 +472,8 @@ mod tests {
     use super::openai_chat_completion::Tool;
     use crate::{
         BuildableTrait, BuilderTrait, MessageBuilderTrait, ProcessorTrait, RuntimeEnv,
-        SendableRecordBatchStreamMessage, TablePublication,
-        test_table::{make_test_table_chat, make_test_table_tool},
+        SendableRecordBatchStreamMessage, Publication,
+        test_subject::{make_test_subject_chat, make_test_subject_tool},
     };
     use futures::TryStreamExt;
     use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, HashMap};
@@ -482,7 +482,7 @@ mod tests {
 
     #[test]
     fn test_to_chat_prompt_no_tool_no_docs() -> Result<()> {
-        let test_table = make_test_table_chat("messages")?;
+        let test_table = make_test_subject_chat("messages")?;
 
         let chat_template = r#"""{%- if tools %}\n    {{- '<|im_start|>system\\n' }}\n    {%- if messages[0]['role'] == 'system' %}\n{{- messages[0]['content'] }}\n    {%- else %}\n{{- 'You are Qwen, created by Alibaba Cloud. You are a helpful assistant.' }}\n    {%- endif %}\n    {{- '\\n\\n# Tools\\n\\nYou may call one or more functions to assist with the user query.\\n\\nYou are provided with function signatures within <tools></tools> XML tags:\\n<tools>' }}\n    {%- for tool in tools %}\n{{- '\\n' }}\n{{- tool | tojson }}\n    {%- endfor %}\n    {{- '\\n</tools>\\n\\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\\n<tool_call>\\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\\n</tool_call><|im_end|>\\n' }}\n{%- else %}\n    {%- if messages[0]['role'] == 'system' %}\n{{- '<|im_start|>system\\n' + messages[0]['content'] + '<|im_end|>\\n' }}\n    {%- else %}\n{{- '<|im_start|>system\\nYou are Qwen, created by Alibaba Cloud. You are a helpful assistant.<|im_end|>\\n' }}\n    {%- endif %}\n{%- endif %}\n{%- for message in messages %}\n    {%- if (message.role == 'user') or (message.role == 'system' and not loop.first) or (message.role == 'assistant' and not message.tool_calls) %}\n{{- '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>' + '\\n' }}\n    {%- elif message.role == 'assistant' %}\n{{- '<|im_start|>' + message.role }}\n{%- if message.content %}\n    {{- '\\n' + message.content }}\n{%- endif %}\n{%- for tool_call in message.tool_calls %}\n    {%- if tool_call.function is defined %}\n{%- set tool_call = tool_call.function %}\n    {%- endif %}\n    {{- '\\n<tool_call>\\n{\"name\": \"' }}\n    {{- tool_call.name }}\n    {{- '\", \"arguments\": ' }}\n    {{- tool_call.arguments | tojson }}\n    {{- '}\\n</tool_call>' }}\n{%- endfor %}\n{{- '<|im_end|>\\n' }}\n    {%- elif message.role == 'tool' %}\n{%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != 'tool') %}\n    {{- '<|im_start|>user' }}\n{%- endif %}\n{{- '\\n<tool_response>\\n' }}\n{{- message.content }}\n{{- '\\n</tool_response>' }}\n{%- if loop.last or (messages[loop.index0 + 1].role != 'tool') %}\n    {{- '<|im_end|>\\n' }}\n{%- endif %}\n    {%- endif %}\n{%- endfor %}\n{%- if add_generation_prompt %}\n    {{- '<|im_start|>assistant\\n' }}\n{%- endif %}\n"""#;
 
@@ -499,7 +499,7 @@ mod tests {
 
     #[test]
     fn test_to_chat_prompt_with_tools() -> Result<()> {
-        let test_table = make_test_table_chat("messages")?;
+        let test_table = make_test_subject_chat("messages")?;
 
         let tools_string = r#"[{"type": "function", "function": {"name": "get_current_weather","description": "Get the current weather","parameters": {"type": "object","properties": {"location": {"type": "string","description": "The city and state, e.g. San Francisco, CA"},"format": {"type": "string", "enum_values": ["celsius", "fahrenheit"], "description": "The temperature unit to use. Infer this from the users location."}}, "required": ["location", "format"]}}}]"#.to_string();
         let test_tools: Vec<Tool> = serde_json::from_str(&tools_string).unwrap();
@@ -526,7 +526,7 @@ mod tests {
     fn test_to_openai_messages() -> Result<()> {
         //let tools_call_string = "[{\"type\": \"function\", \"function\": {\"name\": \"get_current_weather\", \"arguments\": {\"location\": \"Boston, MA\"}}}]";
         let tool_call_str = r#"[{"id":"fc_12345xyz","type":"function","function":{"name":"get_current_weather","arguments":"{\"location\":\"San Francisco, CA\",\"format\":\"celsius\"}"}}]"#;
-        let test_table = TableBuilder::new()
+        let test_table = SubjectBuilder::new()
             .with_name("messages")
             .insert_system_template_str("Hello from system.")?
             .append_new_user_query_str("Hello from user.", "user")?
@@ -590,7 +590,7 @@ mod tests {
     #[tokio::test]
     async fn test_message_builder_no_tool_no_doc() -> Result<()> {
         // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
+        let message_builder = SubjectBuilder::new()
             .with_name("messages")
             .insert_system_template_str("You are a helpful assistant.")?
             .append_new_user_query_str(
@@ -606,7 +606,7 @@ mod tests {
                 .with_name("messages")
                 .with_publisher("")
                 .with_subject("messages")
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
@@ -640,7 +640,7 @@ mod tests {
 
         // Check that the forwarded stream also matches
         let batches: Vec<RecordBatch> = stream.try_collect().await?;
-        let messages = TableBuilder::new()
+        let messages = SubjectBuilder::new()
             .with_name("")
             .with_record_batches(batches)?
             .build()?;
@@ -667,7 +667,7 @@ mod tests {
     #[tokio::test]
     async fn test_message_builder_with_tool() -> Result<()> {
         // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
+        let message_builder = SubjectBuilder::new()
             .with_name("messages")
             .insert_system_template_str("You are a helpful assistant.")?
             .append_new_user_query_str(
@@ -683,7 +683,7 @@ mod tests {
                 .with_name("messages")
                 .with_publisher("")
                 .with_subject("messages")
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
@@ -693,8 +693,8 @@ mod tests {
                 .with_name("tools")
                 .with_publisher("")
                 .with_subject("tools")
-                .with_update(&TablePublication::None)
-                .with_message(make_test_table_tool("tools")?.to_record_batch_stream())
+                .with_update(&Publication::None)
+                .with_message(make_test_subject_tool("tools")?.to_record_batch_stream())
                 .build()?,
         );
 
@@ -727,7 +727,7 @@ mod tests {
 
         // Check that the forwarded stream also matches
         let batches: Vec<RecordBatch> = stream.try_collect().await?;
-        let messages = TableBuilder::new()
+        let messages = SubjectBuilder::new()
             .with_name("")
             .with_record_batches(batches)?
             .build()?;

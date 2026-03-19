@@ -467,7 +467,7 @@ mod tests {
     use arrow::array::{ArrayRef, FixedSizeListArray, Float32Array, StringArray};
     #[allow(unused_imports)]
     use futures::TryStreamExt;
-    use phymes_core::TablePublication;
+    use phymes_core::Publication;
 
     #[allow(unused_imports)]
     use super::*;
@@ -514,7 +514,7 @@ mod tests {
         let document_message = SendableRecordBatchStreamMessage::get_builder()
             .with_publisher("")
             .with_subject("text")
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_message(document_table.to_record_batch_stream())
             .make_name()?
             .build()?;
@@ -598,7 +598,7 @@ mod tests {
         let document_message = SendableRecordBatchStreamMessage::get_builder()
             .with_publisher("")
             .with_subject("text")
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_message(document_table.to_record_batch_stream())
             .make_name()?
             .build()?;

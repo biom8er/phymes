@@ -1,5 +1,5 @@
 use crate::{
-    AvailableSchemaTrait, AvailableSubjectsTrait, create_bytes_fields, create_chat_fields, create_repository_fields, create_repository_patch_fields, create_workspace_fields, create_workspace_patch_fields, runtime_env::{BuildableTrait, BuilderTrait}, schemas::{
+    AvailableSchemaTrait, AvailableSubjectsTrait, Subject, SubjectBuilder, SubjectBuilderTrait, create_bytes_fields, create_chat_fields, create_repository_fields, create_repository_patch_fields, create_workspace_fields, create_workspace_patch_fields, runtime_env::{BuildableTrait, BuilderTrait}, schemas::{
         chat::create_values_fields, create_attachments_fields, create_document_embeddings_fields, create_documents_fields, create_embeddings_scores_fields, create_join_chunks_scores_fields, create_object_store_fields, create_queries_fields, create_query_embeddings_fields, create_route_bytes_fields, create_tools_fields, diagnostics::{
             create_events_fields, create_metrics_fields, create_metrics_mermaid_gantt_fields,
             create_metrics_pivot_fields, create_metrics_pivot_norm_time_fields,
@@ -31,7 +31,7 @@ use crate::{
             create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields,
             create_user_inbox_fields, create_user_session_contexts_fields,
         }
-    }, table::{Table, TableBuilder, TableBuilderTrait}
+    },
 };
 
 use anyhow::Result;
@@ -315,17 +315,17 @@ impl Display for AvailableSubjects {
 }
 
 impl AvailableSubjectsTrait for AvailableSubjects {
-    fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Table> {
+    fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Subject> {
         let builder = self.to_table_builder(name);
         let batches = batches.unwrap_or_default();
         builder.with_record_batches(batches)?.build()
     }
-    fn to_table_builder(&self, name: Option<&str>) -> TableBuilder {
+    fn to_table_builder(&self, name: Option<&str>) -> SubjectBuilder {
         let name = match name {
             Some(name) => name.to_string(),
             None => self.to_string(),
         };
-        Table::get_builder()
+        Subject::get_builder()
             .with_name(&name)
             .with_schema(self.to_schema())
     }

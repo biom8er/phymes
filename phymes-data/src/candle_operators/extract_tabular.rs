@@ -5,7 +5,7 @@ use arrow::array::RecordBatch;
 use candle_core::Device;
 use flate2::read::{DeflateDecoder, GzDecoder, ZlibDecoder};
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, JsonFormat, JsonSchemaTrait, MappableTrait, Table, TableBuilder, TableBuilderTrait, TableTrait, Tool, ToolType, open_alex
+    AvailableSubjects, BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, JsonFormat, JsonSchemaTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Tool, ToolType, open_alex
 };
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -138,7 +138,7 @@ pub fn extract_tabular(
     schema: &AvailableSubjects,
 ) -> Result<RecordBatch> {
     // Extract out the values
-    let args_table = Table::get_builder()
+    let args_table = Subject::get_builder()
         .with_name("extract_tabular")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
@@ -178,7 +178,7 @@ pub fn extract_tabular(
 
     // Parse the values depending upon the specified format
     let table = match format {
-        DataFormat::Csv(csv_format) => Table::get_builder()
+        DataFormat::Csv(csv_format) => Subject::get_builder()
             .with_name("attachment")
             .with_csv(
                 &values_vec,
@@ -189,7 +189,7 @@ pub fn extract_tabular(
             .build()?,
         DataFormat::CsvDefault => {
             let csv_format = CsvFormat::default();
-            Table::get_builder()
+            Subject::get_builder()
                 .with_name("attachment")
                 .with_csv(
                     &values_vec,
@@ -199,13 +199,13 @@ pub fn extract_tabular(
                 )?
                 .build()?
         }
-        DataFormat::Json(json_format) => Table::get_builder()
+        DataFormat::Json(json_format) => Subject::get_builder()
             .with_name("attachment")
             .with_json(&values_vec, json_format.batch_size)?
             .build()?,
         DataFormat::JsonDefault => {
             let json_format = JsonFormat::default();
-            Table::get_builder()
+            Subject::get_builder()
                 .with_name("attachment")
                 .with_json(&values_vec, json_format.batch_size)?
                 .build()?
@@ -215,7 +215,7 @@ pub fn extract_tabular(
                 match serde_json::from_slice::<open_alex::OpenAlexResponseWorks>(&values_vec) {
                     Ok(open_alex_response) => {
                         let batch = open_alex_response.to_record_batch("extract_tabular")?;
-                        Table::get_builder()
+                        Subject::get_builder()
                             .with_name("OpenAlexResponseWorks")
                             .with_record_batches(vec![batch])?
                             .build()?
@@ -231,7 +231,7 @@ pub fn extract_tabular(
                 match serde_json::from_slice::<open_alex::OpenAlexResponseAuthors>(&values_vec) {
                     Ok(open_alex_response) => {
                         let batch = open_alex_response.to_record_batch("extract_tabular")?;
-                        Table::get_builder()
+                        Subject::get_builder()
                             .with_name("OpenAlexResponseAuthors")
                             .with_record_batches(vec![batch])?
                             .build()?
@@ -248,7 +248,7 @@ pub fn extract_tabular(
                 {
                     Ok(open_alex_response) => {
                         let batch = open_alex_response.to_record_batch("extract_tabular")?;
-                        Table::get_builder()
+                        Subject::get_builder()
                             .with_name("OpenAlexResponseInstitutions")
                             .with_record_batches(vec![batch])?
                             .build()?
@@ -264,7 +264,7 @@ pub fn extract_tabular(
                 match serde_json::from_slice::<open_alex::OpenAlexResponseTopic>(&values_vec) {
                     Ok(open_alex_response) => {
                         let batch = open_alex_response.to_record_batch("extract_tabular")?;
-                        Table::get_builder()
+                        Subject::get_builder()
                             .with_name("OpenAlexResponseTopics")
                             .with_record_batches(vec![batch])?
                             .build()?
@@ -280,7 +280,7 @@ pub fn extract_tabular(
                 match serde_json::from_slice::<open_alex::OpenAlexResponseAward>(&values_vec) {
                     Ok(open_alex_response) => {
                         let batch = open_alex_response.to_record_batch("extract_tabular")?;
-                        Table::get_builder()
+                        Subject::get_builder()
                             .with_name("OpenAlexResponseAwards")
                             .with_record_batches(vec![batch])?
                             .build()?
@@ -296,7 +296,7 @@ pub fn extract_tabular(
                 match serde_json::from_slice::<open_alex::OpenAlexResponseFunder>(&values_vec) {
                     Ok(open_alex_response) => {
                         let batch = open_alex_response.to_record_batch("extract_tabular")?;
-                        Table::get_builder()
+                        Subject::get_builder()
                             .with_name("OpenAlexResponseFunders")
                             .with_record_batches(vec![batch])?
                             .build()?
@@ -312,7 +312,7 @@ pub fn extract_tabular(
                 match serde_json::from_slice::<open_alex::OpenAlexResponsePublisher>(&values_vec) {
                     Ok(open_alex_response) => {
                         let batch = open_alex_response.to_record_batch("extract_tabular")?;
-                        Table::get_builder()
+                        Subject::get_builder()
                             .with_name("OpenAlexResponsePublishers")
                             .with_record_batches(vec![batch])?
                             .build()?
@@ -328,7 +328,7 @@ pub fn extract_tabular(
                 match serde_json::from_slice::<open_alex::OpenAlexResponseSource>(&values_vec) {
                     Ok(open_alex_response) => {
                         let batch = open_alex_response.to_record_batch("extract_tabular")?;
-                        Table::get_builder()
+                        Subject::get_builder()
                             .with_name("OpenAlexResponseSources")
                             .with_record_batches(vec![batch])?
                             .build()?
@@ -346,7 +346,7 @@ pub fn extract_tabular(
                 ));
             }
         },
-        DataFormat::Ipc => TableBuilder::new_from_ipc_stream(&values_vec)?
+        DataFormat::Ipc => SubjectBuilder::new_from_ipc_stream(&values_vec)?
             .with_name("attachment")
             .build()?,
         _ => {
@@ -365,13 +365,13 @@ pub mod test_extract_tabular_data {
     use std::sync::Arc;
 
     use arrow::array::{ArrayRef, Float32Array, StringArray};
-    use phymes_core::{BuildableTrait, BuilderTrait, Table, TableBuilderTrait};
+    use phymes_core::{BuildableTrait, BuilderTrait, Subject, SubjectBuilderTrait};
 
-    pub fn make_scores_table() -> Result<Table> {
+    pub fn make_scores_table() -> Result<Subject> {
         let lhs_ids: ArrayRef = Arc::new(StringArray::from(vec!["a", "b", "c"]));
         let scores: ArrayRef = Arc::new(Float32Array::from(vec![3.0, 2.0, 1.0]));
         let batch = RecordBatch::try_from_iter(vec![("lhs_pk", lhs_ids), ("score", scores)])?;
-        Table::get_builder()
+        Subject::get_builder()
             .with_name("scores")
             .with_record_batches(vec![batch])?
             .build()
@@ -385,8 +385,8 @@ mod tests {
     use bytes::Bytes;
     use flate2::{Compression, write::{DeflateEncoder, GzEncoder, ZlibEncoder}};
     use phymes_core::{
-        BuildableTrait, BuilderTrait, CsvFormat, DataFormat, JsonFormat, Table, TableBuilderTrait,
-        TableTrait, create_attachments_batch,
+        BuildableTrait, BuilderTrait, CsvFormat, DataFormat, JsonFormat, Subject, SubjectBuilderTrait,
+        SubjectTrait, create_attachments_batch,
     };
     use phymes_diagnostics::create_timestamp_micros;
 
@@ -427,7 +427,7 @@ mod tests {
         assert_eq!(extracted.num_rows(), 3);
 
         // Check the contents of the extracted data
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name("extracted")
             .with_record_batches(vec![extracted])
             .unwrap()
@@ -475,7 +475,7 @@ mod tests {
         assert_eq!(extracted.num_rows(), 3);
 
         // Check the contents of the extracted data
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name("extracted")
             .with_record_batches(vec![extracted])
             .unwrap()
@@ -523,7 +523,7 @@ mod tests {
         assert_eq!(extracted.num_rows(), 3);
 
         // Check the contents of the extracted data
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name("extracted")
             .with_record_batches(vec![extracted])
             .unwrap()
@@ -571,7 +571,7 @@ mod tests {
         assert_eq!(extracted.num_rows(), 3);
 
         // Check the contents of the extracted data
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name("extracted")
             .with_record_batches(vec![extracted])
             .unwrap()
@@ -614,7 +614,7 @@ mod tests {
         assert_eq!(extracted.num_rows(), 3);
 
         // Check the contents of the extracted data
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name("extracted")
             .with_record_batches(vec![extracted])
             .unwrap()
@@ -649,7 +649,7 @@ mod tests {
         )?;
 
         // Check the contents of the extracted data
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name("extracted")
             .with_record_batches(vec![extracted])?
             .build()?;
@@ -733,11 +733,11 @@ mod tests {
                 "Ipc", "Ipc", "Ipc", "Ipc", "Ipc", "Ipc"
             ]
         );
-        let test_tables: Result<Vec<Table>> = table
+        let test_tables: Result<Vec<Subject>> = table
             .get_column_as_vec_nested_primitive::<u8>("bytes")?
             .into_iter()
             .map(|b| {
-                TableBuilder::new_from_ipc_stream(&b)?
+                SubjectBuilder::new_from_ipc_stream(&b)?
                     .with_name("extracted_bytes")
                     .build()
             })
@@ -811,7 +811,7 @@ mod tests {
         )?;
 
         // Check the contents of the extracted data
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name("extracted")
             .with_record_batches(vec![extracted])?
             .build()?;
@@ -884,7 +884,7 @@ mod tests {
         )?;
 
         // Check the contents of the extracted data
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name("extracted")
             .with_record_batches(vec![extracted])?
             .build()?;
@@ -971,7 +971,7 @@ mod tests {
         )?;
 
         // Check the contents of the extracted data
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name("extracted")
             .with_record_batches(vec![extracted])?
             .build()?;
@@ -1035,7 +1035,7 @@ mod tests {
         )?;
 
         // Check the contents of the extracted data
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name("extracted")
             .with_record_batches(vec![extracted])?
             .build()?;
@@ -1078,7 +1078,7 @@ mod tests {
         )?;
 
         // Check the contents of the extracted data
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name("extracted")
             .with_record_batches(vec![extracted])?
             .build()?;
@@ -1142,7 +1142,7 @@ mod tests {
         )?;
 
         // Check the contents of the extracted data
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name("extracted")
             .with_record_batches(vec![extracted])?
             .build()?;
@@ -1216,7 +1216,7 @@ mod tests {
         )?;
 
         // Check the contents of the extracted data
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name("extracted")
             .with_record_batches(vec![extracted])?
             .build()?;

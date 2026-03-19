@@ -9,8 +9,8 @@ use phymes_agents::{
 };
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt,
-    IPCMessage, MappableTrait, MessageBuilderTrait, Table, TableBuilderTrait, TablePublication,
-    TableTrait,
+    IPCMessage, MappableTrait, MessageBuilderTrait, Subject, SubjectBuilderTrait, Publication,
+    SubjectTrait,
 };
 use phymes_diagnostics::HashMap;
 
@@ -107,8 +107,8 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     let message = IPCMessage::get_builder()
                         .with_message(chat.to_ipc_stream()?)
                         .with_subject(chat.get_name())
-                        .with_update(&TablePublication::Extend {
-                            table_name: chat.get_name().to_string(),
+                        .with_update(&Publication::Extend {
+                            subject_name: chat.get_name().to_string(),
                         })
                         .with_publisher(&session_context_name)
                         .make_name()?
@@ -128,8 +128,8 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     let message = IPCMessage::get_builder()
                         .with_message(chat.to_ipc_stream()?)
                         .with_subject(chat.get_name())
-                        .with_update(&TablePublication::Extend {
-                            table_name: chat.get_name().to_string(),
+                        .with_update(&Publication::Extend {
+                            subject_name: chat.get_name().to_string(),
                         })
                         .with_publisher(&session_context_name)
                         .make_name()?
@@ -153,7 +153,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     .unwrap()
                     .into_inner()
                     .get_record_batches_own();
-                let table = Table::get_builder()
+                let table = Subject::get_builder()
                     .with_record_batches(batches)
                     .unwrap()
                     .with_name(sample_id.as_str())

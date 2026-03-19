@@ -7,7 +7,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvBuilderTrait, RuntimeEnvTrait, SubjectFilePartition, SubjectFolderPartition, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskPlanBuilder, create_session_mermaid_batch, create_session_processors_batch, create_session_runtime_envs_batch, create_session_subject_schemas_batch, create_session_tasks_batch, create_session_tasks_run_log_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_data_type_to_str, from_str_to_data_type
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribePolicies, AvailableUpdatePolicies, BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvBuilderTrait, RuntimeEnvTrait, SubjectFilePartition, SubjectFolderPartition, Subject, SubjectBuilderTrait, Publication, Subscription, SubjectTrait, TaskPlanBuilder, create_session_mermaid_batch, create_session_processors_batch, create_session_runtime_envs_batch, create_session_subject_schemas_batch, create_session_tasks_batch, create_session_tasks_run_log_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_data_type_to_str, from_str_to_data_type
 };
 use phymes_diagnostics::{HashSet, create_timestamp_micros};
 use serde_json::{Map, Value};
@@ -46,16 +46,16 @@ pub trait SessionContextBuilderTabularTrait {
         include_diagnostics: bool,
         include_tasks_run_log: bool,
         include_subjects_change_log: bool,
-    ) -> Result<Vec<Table>>;
+    ) -> Result<Vec<Subject>>;
 
     /// Get the subjects in tabular form
     ///
     /// # Arguments
     /// * `additional_tables` - Additional tables to include in addition to what is in the state
-    fn get_subjects_as_table(&self, additional_tables: &[Table]) -> Result<Table>;
+    fn get_subjects_as_table(&self, additional_tables: &[Subject]) -> Result<Subject>;
 
     /// Get the tasks in tabular form
-    fn get_tasks_as_table(&self) -> Result<Table>;
+    fn get_tasks_as_table(&self) -> Result<Subject>;
 
     /// Get the processors in tabular form
     ///
@@ -63,22 +63,22 @@ pub trait SessionContextBuilderTabularTrait {
     ///
     /// * No sorting is performed when generating the table
     ///   so that order of processors is maintained
-    fn get_processors_as_table(&self) -> Result<Table>;
+    fn get_processors_as_table(&self) -> Result<Subject>;
 
     /// Get the runtime environments in tabular form
-    fn get_runtime_envs_as_table(&self) -> Result<Table>;
+    fn get_runtime_envs_as_table(&self) -> Result<Subject>;
 
     /// Get mermaid js chart strings
-    fn get_mermaid_js_as_table(&self) -> Result<Table>;
+    fn get_mermaid_js_as_table(&self) -> Result<Subject>;
 
     /// Create the initial `TasksRunLog` table
-    fn get_tasks_run_log_as_table(&self) -> Result<Table>;
+    fn get_tasks_run_log_as_table(&self) -> Result<Subject>;
 
     /// Create the initial `SubjectsNumRows` table
-    fn get_subjects_num_rows_as_table(&self) -> Result<Table>;
+    fn get_subjects_num_rows_as_table(&self) -> Result<Subject>;
 
     /// Create the `SubjectsNumRows` and `SubjectsChangeLog` tables
-    fn get_subjects_change_log_as_table(&self) -> Result<Table>;
+    fn get_subjects_change_log_as_table(&self) -> Result<Subject>;
 
     /// Create the session from tables
     ///
@@ -95,21 +95,21 @@ pub trait SessionContextBuilderTabularTrait {
     /// * `state` - Optionally the subject data. If none the subject tables will be initialized.
     ///
     /// [SessionContext]: crate::SessionContext
-    fn from_arrow_tables(tables: &[&Table], state: Option<Vec<Table>>) -> Result<Self>
+    fn from_arrow_tables(tables: &[&Subject], state: Option<Vec<Subject>>) -> Result<Self>
     where
         Self: Sized;
 
     /// Create empty subject tables from `SessionSubjectSchemas`
-    fn with_subjects_as_tables(self, subjects: &Table) -> Result<Self>
+    fn with_subjects_as_tables(self, subjects: &Subject) -> Result<Self>
     where
         Self: Sized;
-    fn with_tasks_as_tables(self, tasks: &Table) -> Result<Self>
+    fn with_tasks_as_tables(self, tasks: &Subject) -> Result<Self>
     where
         Self: Sized;
-    fn with_processors_as_tables(self, processors: &Table) -> Result<Self>
+    fn with_processors_as_tables(self, processors: &Subject) -> Result<Self>
     where
         Self: Sized;
-    fn with_runtime_envs_as_tables(self, runtime_envs: &Table) -> Result<Self>
+    fn with_runtime_envs_as_tables(self, runtime_envs: &Subject) -> Result<Self>
     where
         Self: Sized;
 
@@ -134,7 +134,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         include_diagnostics: bool,
         include_tasks_run_log: bool,
         include_subjects_change_log: bool,
-    ) -> Result<Vec<Table>> {
+    ) -> Result<Vec<Subject>> {
         let mut tables = Vec::new();
         if include_mermaid {
             tables.push(self.get_mermaid_js_as_table()?);
@@ -165,7 +165,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         Ok(tables)
     }
 
-    fn from_arrow_tables(tables: &[&Table], mut state: Option<Vec<Table>>) -> Result<Self>
+    fn from_arrow_tables(tables: &[&Subject], mut state: Option<Vec<Subject>>) -> Result<Self>
     where
         Self: Sized,
     {
@@ -228,7 +228,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
     }
 
-    fn get_subjects_as_table(&self, additional_tables: &[Table]) -> Result<Table> {
+    fn get_subjects_as_table(&self, additional_tables: &[Subject]) -> Result<Subject> {
         // Check that the state exists
         if self.subjects.is_none() {
             return Err(anyhow!(
@@ -280,13 +280,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             create_session_subject_schemas_batch(session_names, subject_names, cols_names, type_names)?;
 
         // create the table
-        Table::get_builder()
+        Subject::get_builder()
             .with_name(AvailableSubjects::SessionSubjectSchemas.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
     }
 
-    fn get_tasks_as_table(&self) -> Result<Table> {
+    fn get_tasks_as_table(&self) -> Result<Subject> {
         // Check if there are members
         if self.tasks.is_none() {
             return Err(anyhow!("Add task plans before making the tasks table."));
@@ -337,13 +337,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         )?;
 
         // create the table
-        Table::get_builder()
+        Subject::get_builder()
             .with_name(AvailableSubjects::SessionTasks.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
     }
 
-    fn get_processors_as_table(&self) -> Result<Table> {
+    fn get_processors_as_table(&self) -> Result<Subject> {
         if self.processors.is_none() {
             return Err(anyhow!(
                 "Add processors before making the Mermaid Flowchart."
@@ -424,7 +424,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                                             ),
                                             s.get_name().to_string(),
                                         ),
-                                        s.get_table_name().to_string(),
+                                        s.subject_name().to_string(),
                                     ),
                                     0,
                                 ),
@@ -451,13 +451,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         )?;
 
         // create the table
-        Table::get_builder()
+        Subject::get_builder()
             .with_name(AvailableSubjects::SessionProcessors.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
     }
 
-    fn get_runtime_envs_as_table(&self) -> Result<Table> {
+    fn get_runtime_envs_as_table(&self) -> Result<Subject> {
         if self.runtime_env.is_none() {
             return Err(anyhow!(
                 "Add runtime environments before making the Mermaid Flowchart."
@@ -498,13 +498,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         )?;
 
         // create the table
-        Table::get_builder()
+        Subject::get_builder()
             .with_name(AvailableSubjects::SessionRuntimeEnvs.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
     }
 
-    fn get_mermaid_js_as_table(&self) -> Result<Table> {
+    fn get_mermaid_js_as_table(&self) -> Result<Subject> {
         let flowchart_diagram = self.to_mermaid_flowchart(false, false)?;
         let er_diagram = self.to_mermaid_erdiagram(false, true)?;
         let session_context_name = self.name.as_ref().unwrap().to_string();
@@ -519,13 +519,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         )?;
 
         // create the table
-        Table::get_builder()
+        Subject::get_builder()
             .with_name(AvailableSubjects::SessionMermaid.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
     }
 
-    fn get_tasks_run_log_as_table(&self) -> Result<Table> {
+    fn get_tasks_run_log_as_table(&self) -> Result<Subject> {
         if self.tasks.is_none() {
             return Err(anyhow!(
                 "Add task plans before making the tasks run log table."
@@ -557,13 +557,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             })
             .unzip();
         let batch = create_session_tasks_run_log_batch(session_names, task_names, supersteps, timestamps)?;
-        Table::get_builder()
+        Subject::get_builder()
             .with_name(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
     }
 
-    fn get_subjects_num_rows_as_table(&self) -> Result<Table> {
+    fn get_subjects_num_rows_as_table(&self) -> Result<Subject> {
         if self.subjects.is_none() {
             return Err(anyhow!(
                 "Add subjects before making the subjects num rows table."
@@ -586,13 +586,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             })
             .unzip();
         let batch = create_subjects_num_rows_batch(subject_names, num_rows)?;
-        Table::get_builder()
+        Subject::get_builder()
             .with_name(AvailableSubjects::SubjectsNumRows.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
     }
 
-    fn get_subjects_change_log_as_table(&self) -> Result<Table> {
+    fn get_subjects_change_log_as_table(&self) -> Result<Subject> {
         if self.subjects.is_none() {
             return Err(anyhow!(
                 "Add subjects before making the subjects change log table."
@@ -637,7 +637,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                                 self.get_sub_pub_for_task(&task.task_name);
                             let publication_names = publications
                                 .into_iter()
-                                .map(|p| p.get_table_name())
+                                .map(|p| p.subject_name())
                                 .collect::<Vec<_>>();
                             let subscription_names = subscriptions
                                 .into_iter()
@@ -678,13 +678,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             num_rows,
             timestamps,
         )?;
-        Table::get_builder()
+        Subject::get_builder()
             .with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()
     }
 
-    fn with_subjects_as_tables(self, subjects: &Table) -> Result<Self>
+    fn with_subjects_as_tables(self, subjects: &Subject) -> Result<Self>
     where
         Self: Sized,
     {
@@ -713,7 +713,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 }
             }
             let batch = RecordBatch::new_empty(Arc::new(Schema::new(fields)));
-            let table = Table::get_builder()
+            let table = Subject::get_builder()
                 .with_record_batches(vec![batch])?
                 .with_name(subject)
                 .build()?;
@@ -723,7 +723,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         Ok(self.with_subjects(state))
     }
 
-    fn with_tasks_as_tables(self, tasks: &Table) -> Result<Self>
+    fn with_tasks_as_tables(self, tasks: &Subject) -> Result<Self>
     where
         Self: Sized,
     {
@@ -767,7 +767,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         Ok(self.with_tasks(tasks))
     }
 
-    fn with_processors_as_tables(self, procesors: &Table) -> Result<Self>
+    fn with_processors_as_tables(self, procesors: &Subject) -> Result<Self>
     where
         Self: Sized,
     {
@@ -809,18 +809,18 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             for (name, t, s_t, u_t, sub, sub_tab, is_sub) in combined.iter() {
                 if name == &processor_name {
                     if **is_sub == 1 {
-                        let subscription = TableSubscription::from_str_fuzzy(sub, sub_tab)?;
+                        let subscription = Subscription::from_str_fuzzy(sub, sub_tab)?;
                         subscriptions.push(subscription);
                     } else {
-                        let publication = TablePublication::from_str_fuzzy(sub, sub_tab)?;
+                        let publication = Publication::from_str_fuzzy(sub, sub_tab)?;
                         publications.push(publication);
                     }
                     // DM: a short name is used for better front-end aesthetics
-                    let subscribe = AvailableTableSubscribePolicies::from_str_fuzzy(s_t)
+                    let subscribe = AvailableSubscribePolicies::from_str_fuzzy(s_t)
                         .map_err(|e| anyhow!("{e:?}"))?
                         .build();
                     subscribe_policy.replace(subscribe);
-                    let update = AvailableTableUpdatePolicies::from_str(u_t, false)
+                    let update = AvailableUpdatePolicies::from_str(u_t, false)
                         .map_err(|e| anyhow!("{e:?}"))?
                         .build();
                     update_policy.replace(update);
@@ -841,12 +841,12 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 .with_subscribe_policy(
                     subscribe_policy
                         .take()
-                        .unwrap_or(AvailableTableSubscribePolicies::default().build()),
+                        .unwrap_or(AvailableSubscribePolicies::default().build()),
                 )
                 .with_update_policy(
                     update_policy
                         .take()
-                        .unwrap_or(AvailableTableUpdatePolicies::default().build()),
+                        .unwrap_or(AvailableUpdatePolicies::default().build()),
                 )
                 .build()?;
             processors.push(processor_plan);
@@ -855,7 +855,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         Ok(self.with_processors(processors))
     }
 
-    fn with_runtime_envs_as_tables(self, runtime_envs: &Table) -> Result<Self>
+    fn with_runtime_envs_as_tables(self, runtime_envs: &Subject) -> Result<Self>
     where
         Self: Sized,
     {

@@ -16,7 +16,7 @@ use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
 use phymes_core::{
     AvailableSchemaTrait, BuildableTrait, BuilderTrait, DataFormat, IPCMessage,
     JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait,
-    Table, TableBuilder, TableBuilderTrait, TableTrait,
+    Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 
 // General imports
@@ -105,7 +105,7 @@ pub async fn session_stream(
                                     .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                             }
                         };
-                    Table::get_builder()
+                    Subject::get_builder()
                         .with_name(payload.get_subject())
                         .with_schema(schema)
                         .with_bytes(payload.get_message())
@@ -143,7 +143,7 @@ pub async fn session_stream(
                             .filter(|(_k, v)| v.get_name().contains(payload.get_session_name()))
                             .flat_map(|(_k, v)| {
                                 let name = v.get_name().to_string();
-                                TableBuilder::new_from_ipc_stream(&v.get_message_own())
+                                SubjectBuilder::new_from_ipc_stream(&v.get_message_own())
                                     .unwrap()
                                     .with_name(name.as_str())
                                     .build()
@@ -167,7 +167,7 @@ pub async fn session_stream(
                         .filter(|(_k, v)| v.get_name().contains(payload.get_session_name()))
                         .flat_map(|(_k, v)| {
                             let name = v.get_name().to_string();
-                            TableBuilder::new_from_ipc_stream(&v.get_message_own())
+                            SubjectBuilder::new_from_ipc_stream(&v.get_message_own())
                                 .unwrap()
                                 .with_name(name.as_str())
                                 .build()
@@ -223,7 +223,7 @@ pub async fn session_stream(
                                 .filter_map(|(_k, v)| {
                                     if v.get_name().contains(payload.get_session_name()) {
                                         let batches =
-                                            TableBuilder::new_from_ipc_stream(&v.get_message_own())
+                                            SubjectBuilder::new_from_ipc_stream(&v.get_message_own())
                                                 .unwrap()
                                                 .with_name("")
                                                 .build()
@@ -238,7 +238,7 @@ pub async fn session_stream(
                                 .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>();
-                    let response = TableBuilder::new()
+                    let response = SubjectBuilder::new()
                         .with_name("session_stream_response")
                         .with_record_batches(batches)
                         .unwrap()

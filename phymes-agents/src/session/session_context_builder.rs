@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use object_store::ObjectStore;
 use parking_lot::RwLock;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, ProcessorPlan, RuntimeEnv, RuntimeEnvBuilderTrait, SubjectPlan, SubjectPlanTrait, SubjectsMap, Table, TablePublication, TableSubscription, Task, TaskBuilderTrait, TaskMap, TaskPlan, make_store
+    BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, ProcessorPlan, RuntimeEnv, RuntimeEnvBuilderTrait, SubjectPlan, SubjectPlanTrait, SubjectsMap, Subject, Publication, Subscription, Task, TaskBuilderTrait, TaskMap, TaskPlan, make_store
 };
 use phymes_diagnostics::{HashMap, HashSet};
 
@@ -56,7 +56,7 @@ impl SessionContextBuilder {
     pub fn get_sub_pub_for_task(
         &self,
         task_name: &str,
-    ) -> (Vec<&TableSubscription>, Vec<&TablePublication>) {
+    ) -> (Vec<&Subscription>, Vec<&Publication>) {
         // Get the processor name
         let processors = self
             .tasks
@@ -83,12 +83,12 @@ impl SessionContextBuilder {
             .filter(|p| processors.contains(&p.get_name()))
             .for_each(|p| {
                 p.get_subscriptions().iter().for_each(|s| {
-                    if s != &TableSubscription::None {
+                    if s != &Subscription::None {
                         subscriptons_set.insert(s);
                     }
                 });
                 p.get_publications().iter().for_each(|s| {
-                    if s != &TablePublication::None {
+                    if s != &Publication::None {
                         publications_set.insert(s);
                     }
                 });
@@ -122,8 +122,8 @@ impl SessionContextBuilder {
             .flat_map(|t| {
                 let mut subjects = HashSet::new();
                 t.get_publications().iter().for_each(|s| {
-                    if !s.get_table_name().is_empty() {
-                        subjects.insert(s.get_table_name().to_string());
+                    if !s.subject_name().is_empty() {
+                        subjects.insert(s.subject_name().to_string());
                     }
                 });
                 t.get_subscriptions().iter().for_each(|s| {
@@ -415,7 +415,7 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 /// Mock objects and functions for session context builer testing
 pub mod test_session_context_builder {
     use phymes_core::{
-        AvailableTableSubscribePolicies, ProcessorPlanBuilder, SubjectPlanBuilderTrait, test_task
+        AvailableSubscribePolicies, ProcessorPlanBuilder, SubjectPlanBuilderTrait, test_task
     };
 
     use crate::AvailableProcessors;
@@ -457,55 +457,55 @@ pub mod test_session_context_builder {
         let processor_plans = vec![
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_1"))
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_1".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_1".to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: "state_1".to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: "state_1".to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: "processor_1".to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: "processor_1".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_2"))
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_2".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_2".to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: "state_2".to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: "state_2".to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: "processor_2".to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: "processor_2".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_3"))
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_3".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_3".to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: "state_3".to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: "state_3".to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: "processor_3".to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: "processor_3".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -522,55 +522,55 @@ pub mod test_session_context_builder {
         let processor_plans = vec![
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_1"))
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_1".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_1".to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: "state_1".to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: "state_1".to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: "processor_1".to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: "processor_1".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_2"))
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_1".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_1".to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: "state_1".to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: "state_1".to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: "processor_2".to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: "processor_2".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_3"))
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_1".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_1".to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: "state_1".to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: "state_1".to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: "processor_3".to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: "processor_3".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -592,7 +592,7 @@ pub mod test_session_context_builder {
         let mut subject_plans = Vec::new();
         for table in tables.into_iter() {
             let plan = SubjectPlan::get_builder()
-                .with_table(table)
+                .with_subject(table)
                 .build()?;
             subject_plans.push(plan);
         }
@@ -617,7 +617,7 @@ pub mod test_session_context_builder {
         let mut subject_plans = Vec::new();
         for table in tables.into_iter() {
             let plan = SubjectPlan::get_builder()
-                .with_table(table)
+                .with_subject(table)
                 .build()?;
             subject_plans.push(plan);
         }
@@ -641,7 +641,7 @@ pub mod test_session_context_builder {
         let mut subject_plans = Vec::new();
         for table in tables.into_iter() {
             let plan = SubjectPlan::get_builder()
-                .with_table(table)
+                .with_subject(table)
                 .build()?;
             subject_plans.push(plan);
         }
@@ -661,7 +661,7 @@ mod tests {
 
     use super::*;
     use phymes_core::{
-        AvailableTableSubscribePolicies, ProcessorPlanBuilder, SubjectPlanBuilderTrait, TableSubscription, test_task
+        AvailableSubscribePolicies, ProcessorPlanBuilder, SubjectPlanBuilderTrait, Subscription, test_task
     };
 
     #[test]
@@ -670,17 +670,17 @@ mod tests {
             test_session_context_builder::make_test_session_context_builder_parallel_processors();
         let (subscriptions, publications) = plan.get_sub_pub_for_task("task_1");
         assert!(
-            subscriptions.contains(&&TableSubscription::AlwaysFullTable {
-                table_name: "processor_1".to_string()
+            subscriptions.contains(&&Subscription::AlwaysFullTable {
+                subject_name: "processor_1".to_string()
             })
         );
         assert!(
-            subscriptions.contains(&&TableSubscription::OnUpdateFullTable {
-                table_name: "state_1".to_string()
+            subscriptions.contains(&&Subscription::OnUpdateFullTable {
+                subject_name: "state_1".to_string()
             })
         );
-        assert!(publications.contains(&&TablePublication::Extend {
-            table_name: "state_1".to_string()
+        assert!(publications.contains(&&Publication::Extend {
+            subject_name: "state_1".to_string()
         }));
     }
 
@@ -738,14 +738,14 @@ mod tests {
         let processor_plans = vec![
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_4"))
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_4".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_4".to_string(),
                 }])
-                .with_subscriptions(&[TableSubscription::OnUpdateLastRecordBatch {
-                    table_name: "state_4".to_string(),
+                .with_subscriptions(&[Subscription::OnUpdateLastRecordBatch {
+                    subject_name: "state_4".to_string(),
                 }])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()?,
         ];
@@ -756,7 +756,7 @@ mod tests {
         let mut subject_plans = Vec::new();
         for table in tables.into_iter() {
             let plan = SubjectPlan::get_builder()
-                .with_table(table)
+                .with_subject(table)
                 .build()?;
             subject_plans.push(plan);
         }
@@ -877,13 +877,13 @@ mod tests {
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_1"))
                 .with_publications(&[])
                 .with_subscriptions(&[])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::default().build())
+                .with_subscribe_policy(AvailableSubscribePolicies::default().build())
                 .build()?,
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_2"))
                 .with_publications(&[])
                 .with_subscriptions(&[])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::default().build())
+                .with_subscribe_policy(AvailableSubscribePolicies::default().build())
                 .build()?,
         ];
         let result = SessionContextBuilder::new()
@@ -907,25 +907,25 @@ mod tests {
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_1"))
                 .with_publications(&[])
                 .with_subscriptions(&[])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::default().build())
+                .with_subscribe_policy(AvailableSubscribePolicies::default().build())
                 .build()?,
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_2"))
                 .with_publications(&[])
                 .with_subscriptions(&[])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::default().build())
+                .with_subscribe_policy(AvailableSubscribePolicies::default().build())
                 .build()?,
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_3"))
                 .with_publications(&[])
                 .with_subscriptions(&[])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::default().build())
+                .with_subscribe_policy(AvailableSubscribePolicies::default().build())
                 .build()?,
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("not_found"))
                 .with_publications(&[])
                 .with_subscriptions(&[])
-                .with_subscribe_policy(AvailableTableSubscribePolicies::default().build())
+                .with_subscribe_policy(AvailableSubscribePolicies::default().build())
                 .build()?,
         ];
         let result = SessionContextBuilder::new()
@@ -997,7 +997,7 @@ mod tests {
         let mut subject_plans = Vec::new();
         for table in tables.into_iter() {
             let plan = SubjectPlan::get_builder()
-                .with_table(table)
+                .with_subject(table)
                 .build()?;
             subject_plans.push(plan);
         }
@@ -1023,7 +1023,7 @@ mod tests {
         let mut subject_plans = Vec::new();
         for table in tables.into_iter() {
             let plan = SubjectPlan::get_builder()
-                .with_table(table)
+                .with_subject(table)
                 .build()?;
             subject_plans.push(plan);
         }

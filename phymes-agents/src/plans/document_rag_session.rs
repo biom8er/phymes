@@ -1,5 +1,5 @@
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableSubscription, TaskPlan, create_schema_from_fields
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribePolicies, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, TaskPlan, create_schema_from_fields
 };
 use phymes_data::{
     AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
@@ -205,25 +205,25 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     AvailableProcessors::MessageAggregatorProcessor
                         .build_arc(self.message_aggregator_processor_1_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self.chat_task_name.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: self.chat_task_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.state_top_k_summary_docs_table_name.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self.state_top_k_summary_docs_table_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     },
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self.message_aggregator_processor_1_name.to_string(),
+                    Subscription::AlwaysLastRecordBatch {
+                        subject_name: self.message_aggregator_processor_1_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -232,22 +232,22 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     AvailableProcessors::MessageAggregatorProcessor
                         .build_arc(self.message_aggregator_processor_2_name),
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     },
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self.message_aggregator_processor_2_name.to_string(),
+                    Subscription::AlwaysLastRecordBatch {
+                        subject_name: self.message_aggregator_processor_2_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -256,19 +256,19 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     AvailableProcessors::AttachmentAggregatorProcessor
                         .build_arc(self.attachment_aggregator_processor_name),
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: AvailableInterfaceSubjects::AggregatedAttachments.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::UserPdf.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
                     },
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self.attachment_aggregator_processor_name.to_string(),
+                    Subscription::AlwaysLastRecordBatch {
+                        subject_name: self.attachment_aggregator_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
+                    AvailableSubscribePolicies::AnySubjectNameSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -276,19 +276,19 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .with_processor(
                     AvailableProcessors::Select.build_arc(self.message_to_query_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: AvailableInterfaceSubjects::UserQueries.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::UserMessages.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
-                    TableSubscription::AlwaysLastRecordBatch {
-                        table_name: self.message_to_query_processor_name.to_string(),
+                    Subscription::AlwaysLastRecordBatch {
+                        subject_name: self.message_to_query_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -297,20 +297,20 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .with_processor(
                     AvailableProcessors::OpenAIChatProcessor.build_arc(self.chat_processor_name),
                 )
-                .with_publications(&[TablePublication::ExtendChunks {
-                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                .with_publications(&[Publication::ExtendChunks {
+                    subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     col_name: "content".to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.chat_task_name.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self.chat_task_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.chat_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.chat_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -319,20 +319,20 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .with_processor(
                     AvailableProcessors::CandleChatProcessor.build_arc(self.chat_processor_name),
                 )
-                .with_publications(&[TablePublication::ExtendChunks {
-                    table_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
+                .with_publications(&[Publication::ExtendChunks {
+                    subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     col_name: "content".to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: self.chat_task_name.to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: self.chat_task_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.chat_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.chat_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -340,19 +340,19 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .with_processor(
                     AvailableProcessors::ExtractPDF.build_arc(self.extract_pdf_processor_name),
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: self.document_chunk_task_name.to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: self.document_chunk_task_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::UserPdf.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.extract_pdf_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.extract_pdf_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -361,19 +361,19 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     AvailableProcessors::ChunkDocuments
                         .build_arc(self.document_chunk_processor_name),
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: self.state_documents_table_name.to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: self.state_documents_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.document_chunk_task_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.document_chunk_task_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.document_chunk_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.document_chunk_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -383,19 +383,19 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     AvailableProcessors::OpenAIEmbedProcessor
                         .build_arc(self.embed_documents_processor_name),
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: self.state_doc_embed_table_name.to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: self.state_doc_embed_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: self.state_documents_table_name.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: self.state_documents_table_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.embed_documents_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.embed_documents_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -405,19 +405,19 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     AvailableProcessors::OpenAIEmbedProcessor
                         .build_arc(self.embed_query_processor_name),
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: self.state_q_embed_table_name.to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: self.state_q_embed_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: AvailableInterfaceSubjects::UserQueries.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.embed_query_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.embed_query_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -427,19 +427,19 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     AvailableProcessors::CandleEmbedProcessor
                         .build_arc(self.embed_documents_processor_name),
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: self.state_doc_embed_table_name.to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: self.state_doc_embed_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: self.state_documents_table_name.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: self.state_documents_table_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.embed_documents_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.embed_documents_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -449,19 +449,19 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     AvailableProcessors::CandleEmbedProcessor
                         .build_arc(self.embed_query_processor_name),
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: self.state_q_embed_table_name.to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: self.state_q_embed_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: AvailableInterfaceSubjects::UserQueries.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: AvailableInterfaceSubjects::UserQueries.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.embed_query_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.embed_query_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -470,22 +470,22 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     AvailableProcessors::VectorDistance
                         .build_arc(self.relative_similarity_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self.state_scores_table_name.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: self.state_scores_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.state_doc_embed_table_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.state_doc_embed_table_name.to_string(),
                     },
-                    TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: self.state_q_embed_table_name.to_string(),
+                    Subscription::OnUpdateLastRecordBatch {
+                        subject_name: self.state_q_embed_table_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.relative_similarity_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.relative_similarity_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -493,19 +493,19 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .with_processor(
                     AvailableProcessors::Sort.build_arc(self.sort_scores_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self.state_scores_table_name.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: self.state_scores_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.sort_scores_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.sort_scores_processor_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.state_scores_table_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.state_scores_table_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -513,22 +513,22 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .with_processor(
                     AvailableProcessors::Join.build_arc(self.join_chunks_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self.state_scores_chunks_join_table_name.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: self.state_scores_chunks_join_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.state_documents_table_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.state_documents_table_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.state_scores_table_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.state_scores_table_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.join_chunks_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.join_chunks_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -536,19 +536,19 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .with_processor(
                     AvailableProcessors::Select.build_arc(self.top_k_select_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self.state_top_k_select_docs_table_name.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: self.state_top_k_select_docs_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.top_k_select_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.top_k_select_processor_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.state_scores_chunks_join_table_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.state_scores_chunks_join_table_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -556,19 +556,19 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .with_processor(
                     AvailableProcessors::LimitProcessor.build_arc(self.top_k_limit_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self.state_top_k_limit_docs_table_name.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: self.state_top_k_limit_docs_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.top_k_limit_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.top_k_limit_processor_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.state_top_k_select_docs_table_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.state_top_k_select_docs_table_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -576,19 +576,19 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .with_processor(
                     AvailableProcessors::PackTabular.build_arc(self.top_k_summary_processor_name),
                 )
-                .with_publications(&[TablePublication::Replace {
-                    table_name: self.state_top_k_summary_docs_table_name.to_string(),
+                .with_publications(&[Publication::Replace {
+                    subject_name: self.state_top_k_summary_docs_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.top_k_summary_processor_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.top_k_summary_processor_name.to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: self.state_top_k_limit_docs_table_name.to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: self.state_top_k_limit_docs_table_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -608,7 +608,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         ])
     }
 
-    fn make_subjects(&self) -> Option<Vec<Table>> {
+    fn make_subjects(&self) -> Option<Vec<Subject>> {
         // Default chat config
         #[allow(unused_mut)]
         let mut candle_chat_config = CandleChatConfig {
@@ -663,7 +663,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         }
 
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config).unwrap();
-        let candle_chat_state = TableBuilder::new()
+        let candle_chat_state = SubjectBuilder::new()
             .with_name(self.chat_processor_name)
             .with_json(&candle_chat_config_json, 1)
             .unwrap()
@@ -745,7 +745,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             candle_embed_config.input_type = "query".to_string();
         }
         let candle_embed_config_json = serde_json::to_vec(&candle_embed_config).unwrap();
-        let candle_doc_embed_state = TableBuilder::new()
+        let candle_doc_embed_state = SubjectBuilder::new()
             .with_name(self.embed_documents_processor_name)
             .with_json(&candle_embed_config_json, 1)
             .unwrap()
@@ -753,7 +753,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             .unwrap();
         candle_embed_config.documents = AvailableInterfaceSubjects::UserQueries.to_string();
         let candle_embed_config_json = serde_json::to_vec(&candle_embed_config).unwrap();
-        let candle_query_embed_state = TableBuilder::new()
+        let candle_query_embed_state = SubjectBuilder::new()
             .with_name(self.embed_query_processor_name)
             .with_json(&candle_embed_config_json, 1)
             .unwrap()
@@ -768,19 +768,19 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             ..Default::default()
         };
         let aggregator_config_json = serde_json::to_vec(&aggregator_config).unwrap();
-        let aggregator_1_state = TableBuilder::new()
+        let aggregator_1_state = SubjectBuilder::new()
             .with_name(self.message_aggregator_processor_1_name)
             .with_json(&aggregator_config_json.clone(), 1)
             .unwrap()
             .build()
             .unwrap();
-        let aggregator_2_state = TableBuilder::new()
+        let aggregator_2_state = SubjectBuilder::new()
             .with_name(self.message_aggregator_processor_2_name)
             .with_json(&aggregator_config_json, 1)
             .unwrap()
             .build()
             .unwrap();
-        let aggregator_3_state = TableBuilder::new()
+        let aggregator_3_state = SubjectBuilder::new()
             .with_name(self.attachment_aggregator_processor_name)
             .with_json(&aggregator_config_json, 1)
             .unwrap()
@@ -801,7 +801,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             ..Default::default()
         };
         let message_to_query_config_json = serde_json::to_vec(&message_to_query_config).unwrap();
-        let message_to_query_state = TableBuilder::new()
+        let message_to_query_state = SubjectBuilder::new()
             .with_name(self.message_to_query_processor_name)
             .with_json(&message_to_query_config_json.clone(), 1)
             .unwrap()
@@ -817,7 +817,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             ..Default::default()
         };
         let extract_pdf_config_json = serde_json::to_vec(&extract_pdf_config).unwrap();
-        let extract_pdf_state = TableBuilder::new()
+        let extract_pdf_state = SubjectBuilder::new()
             .with_name(self.extract_pdf_processor_name)
             .with_json(&extract_pdf_config_json, 1)
             .unwrap()
@@ -834,7 +834,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             ..Default::default()
         };
         let chunk_document_config_json = serde_json::to_vec(&chunk_document_config).unwrap();
-        let chunk_document_state = TableBuilder::new()
+        let chunk_document_state = SubjectBuilder::new()
             .with_name(self.document_chunk_processor_name)
             .with_json(&chunk_document_config_json, 1)
             .unwrap()
@@ -856,7 +856,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             ..Default::default()
         };
         let rel_sim_config_json = serde_json::to_vec(&rel_sim_config).unwrap();
-        let rel_sim_state = TableBuilder::new()
+        let rel_sim_state = SubjectBuilder::new()
             .with_name(self.relative_similarity_processor_name)
             .with_json(&rel_sim_config_json, 1)
             .unwrap()
@@ -873,7 +873,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             ..Default::default()
         };
         let sort_scores_config_json = serde_json::to_vec(&sort_scores_config).unwrap();
-        let sort_scores_state = TableBuilder::new()
+        let sort_scores_state = SubjectBuilder::new()
             .with_name(self.sort_scores_processor_name)
             .with_json(&sort_scores_config_json, 1)
             .unwrap()
@@ -895,7 +895,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             ..Default::default()
         };
         let join_chunks_config_json = serde_json::to_vec(&join_chunks_config).unwrap();
-        let join_chunks_state = TableBuilder::new()
+        let join_chunks_state = SubjectBuilder::new()
             .with_name(self.join_chunks_processor_name)
             .with_json(&join_chunks_config_json, 1)
             .unwrap()
@@ -916,7 +916,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             ..Default::default()
         };
         let top_k_select_config_json = serde_json::to_vec(&top_k_select_config).unwrap();
-        let top_k_select_state = TableBuilder::new()
+        let top_k_select_state = SubjectBuilder::new()
             .with_name(self.top_k_select_processor_name)
             .with_json(&top_k_select_config_json, 1)
             .unwrap()
@@ -929,7 +929,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             skip: Some(0),
         };
         let top_k_limit_config_json = serde_json::to_vec(&top_k_limit_config).unwrap();
-        let top_k_limit_state = TableBuilder::new()
+        let top_k_limit_state = SubjectBuilder::new()
             .with_name(self.top_k_limit_processor_name)
             .with_json(&top_k_limit_config_json, 1)
             .unwrap()
@@ -941,14 +941,14 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             let fields_vec = vec![Field::new("text", DataType::Utf8, false)];
             Fields::from(fields_vec)
         }
-        let top_k_select_table = Table::get_builder()
+        let top_k_select_table = Subject::get_builder()
             .with_name(self.state_top_k_select_docs_table_name)
             .with_schema(create_schema_from_fields(&create_top_k_fields))
             .with_record_batches(Vec::new())
             .unwrap()
             .build()
             .unwrap();
-        let top_k_limit_table = Table::get_builder()
+        let top_k_limit_table = Subject::get_builder()
             .with_name(self.state_top_k_limit_docs_table_name)
             .with_schema(create_schema_from_fields(&create_top_k_fields))
             .with_record_batches(Vec::new())
@@ -968,7 +968,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             ..Default::default()
         };
         let top_k_summary_config_json = serde_json::to_vec(&top_k_summary_config).unwrap();
-        let top_k_summary_state = TableBuilder::new()
+        let top_k_summary_state = SubjectBuilder::new()
             .with_name(self.top_k_summary_processor_name)
             .with_json(&top_k_summary_config_json, 1)
             .unwrap()
@@ -1062,7 +1062,7 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         AttachmentBuilderTraitExt, BuildableTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait,
-        MessageBuilderTrait, MessageTrait, TableTrait,
+        MessageBuilderTrait, MessageTrait, SubjectTrait,
     };
     use phymes_data::make_pdf_document;
     use phymes_diagnostics::HashMap;
@@ -1107,8 +1107,8 @@ mod tests {
         let chat_message = IPCMessage::get_builder()
             .with_message(chat.to_ipc_stream()?)
             .with_subject(chat.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: chat.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: chat.get_name().to_string(),
             })
             .with_publisher(doc_rag_session.session_context_name)
             .make_name()?
@@ -1120,8 +1120,8 @@ mod tests {
         let blob_message = IPCMessage::get_builder()
             .with_message(blob.to_ipc_stream()?)
             .with_subject(blob.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: blob.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: blob.get_name().to_string(),
             })
             .with_publisher(doc_rag_session.session_context_name)
             .make_name()?
@@ -1159,7 +1159,7 @@ mod tests {
                 })
                 .flatten()
                 .collect::<Vec<_>>();
-            let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
+            let json_data = SubjectBuilder::new_from_ipc_stream(&bytes)?
                 .with_name("")
                 .build()?
                 .to_json_object()?;

@@ -16,7 +16,7 @@ use candle_core::{Device, Tensor, WithDType};
 use num_traits::{Bounded, Num, NumCast};
 use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
-    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+    MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType,
 };
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -179,7 +179,7 @@ fn comparator_operator_tensor<T>(
     index: usize,
     cmp_columns: &[&str],
     cmp_operators: &[DataComparatorOperator],
-    lhs_table: &Table,
+    lhs_table: &Subject,
     device: &Device,
 ) -> Result<Tensor>
 where
@@ -243,7 +243,7 @@ pub fn filter(
     device: &Device,
 ) -> Result<RecordBatch> {
     // Wrap the lhs into an ArrowTable
-    let lhs_table = Table::get_builder()
+    let lhs_table = Subject::get_builder()
         .with_name("filter")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
@@ -676,7 +676,7 @@ mod tests {
             &DataComparatorPredicate::All,
             &device,
         )?;
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;
@@ -701,7 +701,7 @@ mod tests {
             &DataComparatorPredicate::Any,
             &device,
         )?;
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;
@@ -723,7 +723,7 @@ mod tests {
             &DataComparatorPredicate::Any,
             &device,
         )?;
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;
@@ -788,7 +788,7 @@ mod tests {
             &DataComparatorPredicate::All,
             &device,
         )?;
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;
@@ -815,7 +815,7 @@ mod tests {
             &DataComparatorPredicate::All,
             &device,
         )?;
-        let result_table = Table::get_builder()
+        let result_table = Subject::get_builder()
             .with_record_batches(vec![result])?
             .with_name("")
             .build()?;

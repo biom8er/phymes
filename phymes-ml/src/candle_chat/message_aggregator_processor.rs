@@ -88,8 +88,8 @@ impl ProcessorTrait for MessageAggregatorProcessor {
 #[cfg(test)]
 mod tests {
     use phymes_core::{
-        TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
-        test_table::{make_test_table, make_test_table_chat},
+        SubjectBuilder, SubjectBuilderTrait, Publication, SubjectTrait,
+        test_subject::{make_test_subject, make_test_subject_chat},
     };
     use phymes_data::{AvailableCandleOperators, DataConfig};
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
@@ -106,8 +106,8 @@ mod tests {
                 .with_name("m1")
                 .with_publisher("s1")
                 .with_subject("messages")
-                .with_update(&TablePublication::None)
-                .with_message(make_test_table_chat("messages")?.to_record_batch_stream())
+                .with_update(&Publication::None)
+                .with_message(make_test_subject_chat("messages")?.to_record_batch_stream())
                 .build()?,
         );
         let _ = message_1.insert(
@@ -116,8 +116,8 @@ mod tests {
                 .with_name("m2")
                 .with_publisher("s1")
                 .with_subject("messages")
-                .with_update(&TablePublication::None)
-                .with_message(make_test_table_chat("messages")?.to_record_batch_stream())
+                .with_update(&Publication::None)
+                .with_message(make_test_subject_chat("messages")?.to_record_batch_stream())
                 .build()?,
         );
         let _ = message_1.insert(
@@ -126,8 +126,8 @@ mod tests {
                 .with_name("m3")
                 .with_publisher("s3")
                 .with_subject("messages")
-                .with_update(&TablePublication::None)
-                .with_message(make_test_table("t1", 4, 8, 3)?.to_record_batch_stream())
+                .with_update(&Publication::None)
+                .with_message(make_test_subject("t1", 4, 8, 3)?.to_record_batch_stream())
                 .build()?,
         );
 
@@ -139,7 +139,7 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = TableBuilder::new()
+        let config_table = SubjectBuilder::new()
             .with_name("aggregator_processor")
             .with_json(&config_json, 1)?
             .build()?;
@@ -149,7 +149,7 @@ mod tests {
                 .with_name("aggregator_processor")
                 .with_publisher("")
                 .with_subject("aggregator_processor")
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -170,7 +170,7 @@ mod tests {
         assert!(agg_stream.get("aggregator_processor").is_some());
 
         // Wrap the results in a table
-        let partitions = TableBuilder::new_from_sendable_record_batch_stream(
+        let partitions = SubjectBuilder::new_from_sendable_record_batch_stream(
             agg_stream
                 .remove("aggregator_processor")
                 .unwrap()

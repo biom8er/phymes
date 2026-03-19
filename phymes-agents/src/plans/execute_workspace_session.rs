@@ -261,7 +261,7 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait,
-        MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
+        MessageBuilderTrait, TableBuilder, TableBuilderTrait, Publication, TableTrait,
     };
     use phymes_data::test_command_sandbox_processor;
     use phymes_diagnostics::HashMap;
@@ -317,8 +317,8 @@ mod tests {
                     .with_name(workspace_name)
                     .with_publisher(execute_workspace_session.session_context_name)
                     .with_subject(workspace_name)
-                    .with_update(&TablePublication::Replace {
-                        table_name: workspace_name.to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: workspace_name.to_string(),
                     })
                     .with_message(workspace_table.to_ipc_stream()?)
                     .build()?,
@@ -336,8 +336,8 @@ mod tests {
                     .with_name(message_table.get_name())
                     .with_publisher(execute_workspace_session.session_context_name)
                     .with_subject(message_table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: message_table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: message_table.get_name().to_string(),
                     })
                     .with_message(message_table.to_ipc_stream()?)
                     .build()?,
@@ -454,8 +454,8 @@ mod tests {
                     .with_name(workspace_name)
                     .with_publisher(execute_workspace_session.session_context_name)
                     .with_subject(workspace_name)
-                    .with_update(&TablePublication::Replace {
-                        table_name: workspace_name.to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: workspace_name.to_string(),
                     })
                     .with_message(workspace_table.to_ipc_stream()?)
                     .build()?,
@@ -473,8 +473,8 @@ mod tests {
                     .with_name(message_table.get_name())
                     .with_publisher(execute_workspace_session.session_context_name)
                     .with_subject(message_table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: message_table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: message_table.get_name().to_string(),
                     })
                     .with_message(message_table.to_ipc_stream()?)
                     .build()?,

@@ -16,7 +16,7 @@ use phymes_core::{
     MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
     SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait, WorkspaceEditor,
+    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, WorkspaceEditor,
     create_bytes_fields, create_chat_record_batch, create_values_fields, remove_message_by_subject,
 };
 use phymes_diagnostics::{
@@ -196,11 +196,11 @@ pub struct CommandSandboxStream {
     /// State of the Runner
     runner_state: CommandSandboxRunnerState,
     /// The inbox of messages to processes
-    message_inbox: Option<Table>,
+    message_inbox: Option<Subject>,
     /// The inbox of CLI args to processes
     from_cli_args: bool,
     /// The inbox of workspace files to setup
-    workspace_inbox: Option<Table>,
+    workspace_inbox: Option<Subject>,
 }
 
 impl CommandSandboxStream {
@@ -239,7 +239,7 @@ impl Stream for CommandSandboxStream {
                     while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                         batches.push(batch);
                     }
-                    let config_table = TableBuilder::new()
+                    let config_table = SubjectBuilder::new()
                         .with_name("config")
                         .with_record_batches(batches)?
                         .build()?;
@@ -292,7 +292,7 @@ impl Stream for CommandSandboxStream {
 
                             // Replace the inbox
                             if !batches.is_empty() {
-                                let table = Table::get_builder()
+                                let table = Subject::get_builder()
                                     .with_name("workspace")
                                     .with_record_batches(batches)?
                                     .build()?;
@@ -333,7 +333,7 @@ impl Stream for CommandSandboxStream {
 
                             // Replace the inbox
                             if !batches.is_empty() {
-                                let table = Table::get_builder()
+                                let table = Subject::get_builder()
                                     .with_name("messages")
                                     .with_record_batches(batches)?
                                     .build()?;
@@ -1597,7 +1597,7 @@ impl Stream for CommandSandboxStream {
                             ) => {
                                 let json_values =
                                     serde_json::from_slice::<Vec<Value>>(&output.stdout)?;
-                                let table = TableBuilder::new()
+                                let table = SubjectBuilder::new()
                                     .with_name("sandbox_stdio_running")
                                     .with_schema(self.schema.clone())
                                     .with_json_values(&json_values)?
@@ -1615,7 +1615,7 @@ impl Stream for CommandSandboxStream {
                                         .as_ref()
                                         .expect("Missing output TempFile from runner."),
                                 )?;
-                                let table = TableBuilder::new_from_ipc_file(file)?
+                                let table = SubjectBuilder::new_from_ipc_file(file)?
                                     .with_name("sandbox_tempfile_running")
                                     .build()?;
                                 let batch = table.get_record_batches_own().pop().unwrap();
@@ -1728,7 +1728,7 @@ pub mod test_command_sandbox_processor {
 mod tests {
     use arrow::array::{ArrayRef, StringArray, UInt32Array};
     use futures::TryStreamExt;
-    use phymes_core::{ChatBuilderTraitExt, TableBuilder, TablePublication};
+    use phymes_core::{ChatBuilderTraitExt, SubjectBuilder, Publication};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
     use std::{fs::File, io::Write};
 
@@ -1775,7 +1775,7 @@ mod tests {
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
@@ -1788,7 +1788,7 @@ mod tests {
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -1807,7 +1807,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -1858,7 +1858,7 @@ mod tests {
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
@@ -1871,7 +1871,7 @@ mod tests {
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -1890,7 +1890,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -1956,7 +1956,7 @@ mod tests {
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
@@ -1969,7 +1969,7 @@ mod tests {
                 .with_name(workspace_table.get_name())
                 .with_publisher("")
                 .with_subject(workspace_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(workspace_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -1979,7 +1979,7 @@ mod tests {
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -1998,7 +1998,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -2033,7 +2033,7 @@ mod tests {
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
@@ -2046,7 +2046,7 @@ mod tests {
                 .with_name(workspace_table.get_name())
                 .with_publisher("")
                 .with_subject(workspace_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(workspace_table.to_record_batch_stream())
                 .build()?,
         );
@@ -2056,7 +2056,7 @@ mod tests {
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -2075,7 +2075,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -2121,7 +2121,7 @@ mod tests {
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
@@ -2134,7 +2134,7 @@ mod tests {
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -2153,7 +2153,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -2178,13 +2178,13 @@ mod tests {
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
+        let message_builder = SubjectBuilder::new()
             .with_name(messages)
             .append_new_user_query_str("Hello from Docker!", "user")?;
 
@@ -2196,7 +2196,7 @@ mod tests {
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
@@ -2206,7 +2206,7 @@ mod tests {
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -2225,7 +2225,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -2260,7 +2260,7 @@ mod tests {
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
@@ -2273,7 +2273,7 @@ mod tests {
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
@@ -2283,7 +2283,7 @@ mod tests {
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -2303,7 +2303,7 @@ mod tests {
             .try_collect::<Vec<_>>()
             .await?;
         let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -2364,7 +2364,7 @@ mod tests {
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
@@ -2377,7 +2377,7 @@ mod tests {
                 .with_name(workspace_table.get_name())
                 .with_publisher("")
                 .with_subject(workspace_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(workspace_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -2387,7 +2387,7 @@ mod tests {
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -2406,7 +2406,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_command_sandbox_processor_docker_bash_workspace From config")
             .with_record_batches(result)?
             .build()?;
@@ -2435,13 +2435,13 @@ mod tests {
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
+        let message_builder = SubjectBuilder::new()
             .with_name(messages)
             .append_new_user_query_str("Hello from Docker!", "user")?;
 
@@ -2453,7 +2453,7 @@ mod tests {
                 .with_name(workspace_table.get_name())
                 .with_publisher("")
                 .with_subject(workspace_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(workspace_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -2463,7 +2463,7 @@ mod tests {
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
@@ -2473,7 +2473,7 @@ mod tests {
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -2492,7 +2492,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_command_sandbox_processor_docker_bash_workspace From Stdio")
             .with_record_batches(result)?
             .build()?;
@@ -2523,7 +2523,7 @@ mod tests {
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
@@ -2536,7 +2536,7 @@ mod tests {
                 .with_name(workspace_table.get_name())
                 .with_publisher("")
                 .with_subject(workspace_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(workspace_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -2546,7 +2546,7 @@ mod tests {
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
@@ -2556,7 +2556,7 @@ mod tests {
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -2576,7 +2576,7 @@ mod tests {
             .try_collect::<Vec<_>>()
             .await?;
         let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_command_sandbox_processor_docker_bash_workspace From Tempfile")
             .with_record_batches(result)?
             .build()?;
@@ -2624,7 +2624,7 @@ mod tests {
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
@@ -2637,7 +2637,7 @@ mod tests {
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -2656,7 +2656,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_command_sandbox_processor_docker_py_run from Config")
             .with_record_batches(result)?
             .build()?;
@@ -2692,7 +2692,7 @@ mod tests {
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
@@ -2700,7 +2700,7 @@ mod tests {
         // Make the input data for the script
         let batch = test_command_sandbox_processor::create_messages()?;
 
-        let message_table = TableBuilder::new()
+        let message_table = SubjectBuilder::new()
             .with_record_batches(vec![batch])?
             .with_name(messages)
             .build()?;
@@ -2713,7 +2713,7 @@ mod tests {
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_table.to_record_batch_stream())
                 .build()?,
         );
@@ -2723,7 +2723,7 @@ mod tests {
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -2742,7 +2742,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_command_sandbox_processor_docker_py_run from STDIO")
             .with_record_batches(result)?
             .build()?;
@@ -2853,7 +2853,7 @@ if __name__ == '__main__':
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
@@ -2861,7 +2861,7 @@ if __name__ == '__main__':
         // Make the input data for the script
         let batch = test_command_sandbox_processor::create_messages()?;
 
-        let message_table = TableBuilder::new()
+        let message_table = SubjectBuilder::new()
             .with_record_batches(vec![batch])?
             .with_name(messages)
             .build()?;
@@ -2874,7 +2874,7 @@ if __name__ == '__main__':
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_table.to_record_batch_stream())
                 .build()?,
         );
@@ -2884,7 +2884,7 @@ if __name__ == '__main__':
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -2903,7 +2903,7 @@ if __name__ == '__main__':
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_command_sandbox_processor_docker_py_install")
             .with_record_batches(result)?
             .build()?;
@@ -2962,7 +2962,7 @@ if __name__ == '__main__':
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
@@ -2970,7 +2970,7 @@ if __name__ == '__main__':
         // Make the input data for the script
         let batch = test_command_sandbox_processor::create_messages()?;
 
-        let message_table = TableBuilder::new()
+        let message_table = SubjectBuilder::new()
             .with_record_batches(vec![batch])?
             .with_name(messages)
             .build()?;
@@ -2983,7 +2983,7 @@ if __name__ == '__main__':
                 .with_name(workspace_table.get_name())
                 .with_publisher("")
                 .with_subject(workspace_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(workspace_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -2993,7 +2993,7 @@ if __name__ == '__main__':
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_table.to_record_batch_stream())
                 .build()?,
         );
@@ -3003,7 +3003,7 @@ if __name__ == '__main__':
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -3022,7 +3022,7 @@ if __name__ == '__main__':
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_command_sandbox_processor_docker_py_install")
             .with_record_batches(result)?
             .build()?;
@@ -3142,7 +3142,7 @@ fn main() -> Result<()> {
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
@@ -3155,7 +3155,7 @@ fn main() -> Result<()> {
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -3254,7 +3254,7 @@ fn main() -> Result<()> {
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
@@ -3267,7 +3267,7 @@ fn main() -> Result<()> {
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -3286,7 +3286,7 @@ fn main() -> Result<()> {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_command_sandbox_processor_docker_rs")
             .with_record_batches(result)?
             .build()?;
@@ -3321,7 +3321,7 @@ fn main() -> Result<()> {
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
@@ -3329,7 +3329,7 @@ fn main() -> Result<()> {
         // Make the input data for the script
         let batch = test_command_sandbox_processor::create_messages()?;
 
-        let message_table = TableBuilder::new()
+        let message_table = SubjectBuilder::new()
             .with_record_batches(vec![batch.clone()])?
             .with_name(messages)
             .build()?;
@@ -3342,7 +3342,7 @@ fn main() -> Result<()> {
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_table.to_record_batch_stream())
                 .build()?,
         );
@@ -3352,7 +3352,7 @@ fn main() -> Result<()> {
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -3371,7 +3371,7 @@ fn main() -> Result<()> {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_command_sandbox_processor_docker_rs")
             .with_record_batches(result)?
             .build()?;
@@ -3478,13 +3478,13 @@ fn main() -> Result<()> {
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
 
         // Make the input data for the script
-        let message_table = TableBuilder::new()
+        let message_table = SubjectBuilder::new()
             .with_record_batches(vec![batch.clone()])?
             .with_name(messages)
             .build()?;
@@ -3497,7 +3497,7 @@ fn main() -> Result<()> {
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_table.to_record_batch_stream())
                 .build()?,
         );
@@ -3507,7 +3507,7 @@ fn main() -> Result<()> {
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -3526,7 +3526,7 @@ fn main() -> Result<()> {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_command_sandbox_processor_docker_rs")
             .with_record_batches(result)?
             .build()?;
@@ -3539,7 +3539,7 @@ fn main() -> Result<()> {
         // --- from TempFile (multiple batches), no initialization ---
 
         // State for the command processor config
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
@@ -3552,7 +3552,7 @@ fn main() -> Result<()> {
         let ages_arr: ArrayRef = Arc::new(UInt32Array::from(ages));
         let batch_2 = RecordBatch::try_from_iter(vec![("name", names_arr), ("age", ages_arr)])?;
 
-        let message_table = TableBuilder::new()
+        let message_table = SubjectBuilder::new()
             .with_record_batches(vec![batch_1, batch_2])?
             .with_name(messages)
             .build()?;
@@ -3565,7 +3565,7 @@ fn main() -> Result<()> {
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_table.to_record_batch_stream())
                 .build()?,
         );
@@ -3575,7 +3575,7 @@ fn main() -> Result<()> {
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -3594,7 +3594,7 @@ fn main() -> Result<()> {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_command_sandbox_processor_docker_rs")
             .with_record_batches(result)?
             .build()?;
@@ -3631,7 +3631,7 @@ apt install --assume-yes protobuf-compiler clang"#;
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
@@ -3639,7 +3639,7 @@ apt install --assume-yes protobuf-compiler clang"#;
         // Make the input data for the script
         let batch = test_command_sandbox_processor::create_messages()?;
 
-        let message_table = TableBuilder::new()
+        let message_table = SubjectBuilder::new()
             .with_record_batches(vec![batch])?
             .with_name(messages)
             .build()?;
@@ -3652,7 +3652,7 @@ apt install --assume-yes protobuf-compiler clang"#;
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_table.to_record_batch_stream())
                 .build()?,
         );
@@ -3662,7 +3662,7 @@ apt install --assume-yes protobuf-compiler clang"#;
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -3682,7 +3682,7 @@ apt install --assume-yes protobuf-compiler clang"#;
             .try_collect::<Vec<_>>()
             .await?;
         let _ = fs::remove_dir_all(project_dir);
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_command_sandbox_processor_docker_rs")
             .with_record_batches(result)?
             .build()?;
@@ -3741,7 +3741,7 @@ apt install --assume-yes protobuf-compiler clang"#;
             ..Default::default()
         };
         let command_config_json = serde_json::to_vec(&command_config)?;
-        let command_config_table = TableBuilder::new()
+        let command_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&command_config_json, 1)?
             .build()?;
@@ -3749,7 +3749,7 @@ apt install --assume-yes protobuf-compiler clang"#;
         // Make the input data for the script
         let batch = test_command_sandbox_processor::create_messages()?;
 
-        let message_table = TableBuilder::new()
+        let message_table = SubjectBuilder::new()
             .with_record_batches(vec![batch])?
             .with_name(messages)
             .build()?;
@@ -3762,7 +3762,7 @@ apt install --assume-yes protobuf-compiler clang"#;
                 .with_name(workspace_table.get_name())
                 .with_publisher("")
                 .with_subject(workspace_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(workspace_table.clone().to_record_batch_stream())
                 .build()?,
         );
@@ -3772,7 +3772,7 @@ apt install --assume-yes protobuf-compiler clang"#;
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_table.to_record_batch_stream())
                 .build()?,
         );
@@ -3782,7 +3782,7 @@ apt install --assume-yes protobuf-compiler clang"#;
                 .with_name(command_config_table.get_name())
                 .with_publisher("")
                 .with_subject(command_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(command_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -3802,7 +3802,7 @@ apt install --assume-yes protobuf-compiler clang"#;
             .try_collect::<Vec<_>>()
             .await?;
         let _ = fs::remove_dir_all(project_dir);
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("test_command_sandbox_processor_docker_rs")
             .with_record_batches(result)?
             .build()?;

@@ -102,8 +102,8 @@ impl Stream for SessionStream {
 mod tests {
     use futures::TryStreamExt;
     use phymes_core::{
-        AvailableSubjects, BuilderTrait, MappableTrait, MessageTrait, TableBuilder,
-        TableBuilderTrait, TablePublication, TableTrait, test_task::make_test_input_message,
+        AvailableSubjects, BuilderTrait, MappableTrait, MessageTrait, SubjectBuilder,
+        SubjectBuilderTrait, Publication, SubjectTrait, test_task::make_test_input_message,
     };
 
     use super::*;
@@ -126,8 +126,8 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublication::Replace {
-                table_name: "state_1".to_string(),
+            &Publication::Replace {
+                subject_name: "state_1".to_string(),
             },
             true,
         )?;
@@ -172,8 +172,8 @@ mod tests {
                 .get("from_session_1_on_state_1")
                 .unwrap()
                 .get_update(),
-            TablePublication::Extend {
-                table_name: "state_1".to_string()
+            Publication::Extend {
+                subject_name: "state_1".to_string()
             }
         );
         let bytes = response
@@ -182,7 +182,7 @@ mod tests {
             .remove("from_session_1_on_state_1")
             .unwrap()
             .get_message_own();
-        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+        let partitions = SubjectBuilder::new_from_ipc_stream(&bytes)?
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
@@ -193,7 +193,7 @@ mod tests {
             .remove("from_session_1_on_state_1")
             .unwrap()
             .get_message_own();
-        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+        let partitions = SubjectBuilder::new_from_ipc_stream(&bytes)?
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();

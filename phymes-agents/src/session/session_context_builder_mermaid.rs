@@ -12,9 +12,9 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder,
-    ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Table, TableBuilderTrait, TablePublication,
-    TableScript, TableSubscription, TableTrait, TaskPlanBuilder, from_data_type_to_str,
+    AvailableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder,
+    ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilderTrait, Publication,
+    SubjectScript, Subscription, SubjectTrait, TaskPlanBuilder, from_data_type_to_str,
     from_str_to_data_type, parse_str_to_data_type,
 };
 use phymes_data::{MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE};
@@ -298,13 +298,13 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         let publications = processor
                             .get_publications()
                             .iter()
-                            .filter(|p| !subjects_exclude.contains(p.get_table_name()))
+                            .filter(|p| !subjects_exclude.contains(p.subject_name()))
                             .collect::<Vec<_>>();
                         for publication in publications {
                             tasks_vec.push(format!(
                                 "\t\t{processor_name}-publish-->|{}|{}-subject",
-                                publication.get_short_name(),
-                                publication.get_table_name()
+                                publication.short_name(),
+                                publication.subject_name()
                             ));
                         }
 
@@ -386,13 +386,13 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             "rows": entities_vec
         });
         let entities_string =
-            TableScript::new_from_template(MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE.to_string())
+            SubjectScript::new_from_template(MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE.to_string())
                 .apply_template(&inputs)?;
         let inputs = serde_json::json!({
             "direction": "TB",
             "rows": [{"content": entities_string}]
         });
-        let script_string = TableScript::new_from_template(MERMAID_ER_DIAGRAM_TEMPLATE.to_string())
+        let script_string = SubjectScript::new_from_template(MERMAID_ER_DIAGRAM_TEMPLATE.to_string())
             .apply_template(&inputs)?;
 
         Ok(script_string.trim().to_owned())
@@ -484,7 +484,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                             ));
                         }
                         let subject = split_line.first().unwrap().trim().to_string();
-                        let subscription = match TableSubscription::from_str_mermaid(
+                        let subscription = match Subscription::from_str_mermaid(
                             split_line.last().unwrap(),
                             &subject,
                         ) {
@@ -758,7 +758,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                             .unwrap()
                             .trim()
                             .to_string();
-                        let publication = match TablePublication::from_str_mermaid(
+                        let publication = match Publication::from_str_mermaid(
                             split_line.last().unwrap(),
                             &subject,
                         ) {
@@ -1028,7 +1028,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     .split("-subscribe@{shape: diamond, label:")
                     .collect::<Vec<_>>();
                 let processor_name = split_line.first().unwrap().trim().to_string();
-                let subscribe = match AvailableTableSubscribePolicies::from_str_fuzzy(
+                let subscribe = match AvailableSubscribePolicies::from_str_fuzzy(
                     split_line.last().unwrap(),
                 ) {
                     Ok(subscribe) => subscribe.build(),
@@ -1282,13 +1282,13 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         // Build and add the table to the subjects list
                         let schema = Arc::new(Schema::new(fields));
                         let table = if with_values && !data.is_empty() {
-                            Table::get_builder()
+                            Subject::get_builder()
                                 .with_schema(schema)
                                 .with_json_values(&[serde_json::Value::Object(data)])?
                                 .with_name(subject_name)
                                 .build()?
                         } else {
-                            Table::get_builder()
+                            Subject::get_builder()
                                 .with_record_batches(vec![RecordBatch::new_empty(schema)])?
                                 .with_name(subject_name)
                                 .build()?

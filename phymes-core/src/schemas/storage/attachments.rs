@@ -8,7 +8,7 @@ use arrow::{
 use phymes_diagnostics::create_timestamp_micros;
 use serde::{Deserialize, Serialize};
 
-use crate::table::TableBuilder;
+use crate::SubjectBuilder;
 
 /// Attachments schema
 pub fn create_attachments_fields() -> Fields {
@@ -69,7 +69,7 @@ pub trait AttachmentBuilderTraitExt: Sized {
     ) -> Result<Self>;
 }
 
-impl AttachmentBuilderTraitExt for TableBuilder {
+impl AttachmentBuilderTraitExt for SubjectBuilder {
     fn with_attachment(
         mut self,
         filename: Option<&str>,

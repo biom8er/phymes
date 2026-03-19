@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use arrow::array::ArrowPrimitiveType;
 use phymes_diagnostics::HashMap;
 
-use crate::subject::indices_schema_builders::{BRINIndexBuilder, BTreeIndexBuilder, GINIndexBuilder, GiSTIndexBuilder, HashIndexBuilder, SPGiSTIndexBuilder};
+use crate::{BRINIndexBuilder, BTreeIndexBuilder, GINIndexBuilder, GiSTIndexBuilder, HashIndexBuilder, SPGiSTIndexBuilder};
 
 /// B‑Tree Index
 /// 

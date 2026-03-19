@@ -5,7 +5,7 @@ use arrow::array::RecordBatch;
 use candle_core::Device;
 use flate2::{Compression, write::{DeflateEncoder, GzEncoder, ZlibEncoder}};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType, create_attachments_batch, create_chat_record_batch, make_extension
+    BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType, create_attachments_batch, create_chat_record_batch, make_extension
 };
 use phymes_diagnostics::create_timestamp_micros;
 use serde::{Deserialize, Serialize};
@@ -143,7 +143,7 @@ fn encode_bytes(encoding: &DataEncoding, bytes: &[u8]) -> Result<Vec<u8>> {
 /// `content` - Optional string to include JUST the contents of column data `content`
 ///   which is needed for some tool calling and visualization generation methods
 pub fn table_and_data_format_to_record_batch(
-    table: &Table,
+    table: &Subject,
     encoding: &DataEncoding,
     format: &DataFormat,
     content: Option<&str>,
@@ -255,7 +255,7 @@ pub fn pack_tabular(
     doc_name: &str,
 ) -> Result<RecordBatch> {
     // Pack the values
-    let args_table = Table::get_builder()
+    let args_table = Subject::get_builder()
         .with_name(doc_name)
         .with_record_batches(lhs_args.to_vec())?
         .build()?
@@ -297,7 +297,7 @@ mod tests {
         )?;
 
         // Wrap the results in a table
-        let partitions = Table::get_builder()
+        let partitions = Subject::get_builder()
             .with_name("pack_tabular")
             .with_record_batches(vec![result])?
             .build()?
@@ -334,7 +334,7 @@ mod tests {
         )?;
 
         // Wrap the results in a table
-        let partitions = Table::get_builder()
+        let partitions = Subject::get_builder()
             .with_name("pack_tabular")
             .with_record_batches(vec![result])?
             .build()?
@@ -375,7 +375,7 @@ mod tests {
         )?;
 
         // Wrap the results in a table
-        let partitions = Table::get_builder()
+        let partitions = Subject::get_builder()
             .with_name("pack_tabular")
             .with_record_batches(vec![result])?
             .build()?

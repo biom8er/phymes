@@ -20,7 +20,7 @@ use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, DiagnosticsVisualizations,
     IPCMessage, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait,
-    MessageTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
+    MessageTrait, SubjectBuilder, SubjectBuilderTrait, Publication, SubjectTrait,
 };
 
 // General imports
@@ -116,8 +116,8 @@ pub async fn session_diagnostics(
                 let metrics_message = IPCMessage::get_builder()
                     .with_message(table.to_ipc_stream().unwrap())
                     .with_subject(AvailableSubjects::AnalyticsMetrics.to_string().as_str())
-                    .with_update(&TablePublication::Replace {
-                        table_name: AvailableSubjects::AnalyticsMetrics.to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: AvailableSubjects::AnalyticsMetrics.to_string(),
                     })
                     .with_publisher(diagnostic_session.session_context_name)
                     .make_name()
@@ -132,8 +132,8 @@ pub async fn session_diagnostics(
                 let traces_message = IPCMessage::get_builder()
                     .with_message(table.to_ipc_stream().unwrap())
                     .with_subject(AvailableSubjects::AnalyticsTraces.to_string().as_str())
-                    .with_update(&TablePublication::Replace {
-                        table_name: AvailableSubjects::AnalyticsTraces.to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: AvailableSubjects::AnalyticsTraces.to_string(),
                     })
                     .with_publisher(diagnostic_session.session_context_name)
                     .make_name()
@@ -148,8 +148,8 @@ pub async fn session_diagnostics(
                 let events_message = IPCMessage::get_builder()
                     .with_message(table.to_ipc_stream().unwrap())
                     .with_subject(AvailableSubjects::AnalyticsEvents.to_string().as_str())
-                    .with_update(&TablePublication::Replace {
-                        table_name: AvailableSubjects::AnalyticsEvents.to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: AvailableSubjects::AnalyticsEvents.to_string(),
                     })
                     .with_publisher(diagnostic_session.session_context_name)
                     .make_name()
@@ -164,8 +164,8 @@ pub async fn session_diagnostics(
                 let tasks_message = IPCMessage::get_builder()
                     .with_message(table.to_ipc_stream().unwrap())
                     .with_subject(AvailableSubjects::AnalyticsTasks.to_string().as_str())
-                    .with_update(&TablePublication::Replace {
-                        table_name: AvailableSubjects::AnalyticsTasks.to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: AvailableSubjects::AnalyticsTasks.to_string(),
                     })
                     .with_publisher(diagnostic_session.session_context_name)
                     .make_name()
@@ -181,8 +181,8 @@ pub async fn session_diagnostics(
                     let errors_message = IPCMessage::get_builder()
                         .with_message(table.to_ipc_stream().unwrap())
                         .with_subject(AvailableSubjects::AnalyticsErrors.to_string().as_str())
-                        .with_update(&TablePublication::Replace {
-                            table_name: AvailableSubjects::AnalyticsErrors.to_string(),
+                        .with_update(&Publication::Replace {
+                            subject_name: AvailableSubjects::AnalyticsErrors.to_string(),
                         })
                         .with_publisher(diagnostic_session.session_context_name)
                         .make_name()
@@ -251,7 +251,7 @@ pub async fn session_diagnostics(
                             })
                             .flat_map(|(_k, v)| {
                                 let name = v.get_name().to_string();
-                                TableBuilder::new_from_ipc_stream(&v.get_message_own())
+                                SubjectBuilder::new_from_ipc_stream(&v.get_message_own())
                                     .unwrap()
                                     .with_name(name.as_str())
                                     .build()
@@ -278,7 +278,7 @@ pub async fn session_diagnostics(
                         })
                         .flat_map(|(_k, v)| {
                             let name = v.get_name().to_string();
-                            TableBuilder::new_from_ipc_stream(&v.get_message_own())
+                            SubjectBuilder::new_from_ipc_stream(&v.get_message_own())
                                 .unwrap()
                                 .with_name(name.as_str())
                                 .build()
@@ -319,12 +319,12 @@ pub async fn session_diagnostics(
                             map.into_iter()
                                 .filter_map(|(k, v)| {
                                     if k.contains(diagnostic_session.session_context_name) {
-                                        let table_name = v.get_subject().to_string();
+                                        let subject_name = v.get_subject().to_string();
                                         Some((
                                             k,
-                                            TableBuilder::new_from_ipc_stream(&v.get_message_own())
+                                            SubjectBuilder::new_from_ipc_stream(&v.get_message_own())
                                                 .unwrap()
-                                                .with_name(table_name.as_str())
+                                                .with_name(subject_name.as_str())
                                                 .build()
                                                 .unwrap(),
                                         ))
@@ -338,7 +338,7 @@ pub async fn session_diagnostics(
                         .into_iter()
                         .flat_map(|(_k, v)| v.get_record_batches_own())
                         .collect::<Vec<_>>();
-                    let response = TableBuilder::new()
+                    let response = SubjectBuilder::new()
                         .with_record_batches(batches)
                         .unwrap()
                         .with_name(

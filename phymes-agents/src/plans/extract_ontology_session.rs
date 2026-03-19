@@ -1859,8 +1859,8 @@ mod tests {
     use anyhow::Result;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Table,
-        TableBuilderTrait, TablePublication, TableTrait, create_attachments_batch,
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Subject,
+        SubjectBuilderTrait, Publication, SubjectTrait, create_attachments_batch,
     };
     use phymes_diagnostics::{HashMap, create_timestamp_micros};
 
@@ -1982,15 +1982,15 @@ mod tests {
             vec!["".to_string()],
             vec![create_timestamp_micros()],
         )?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(AvailableInterfaceSubjects::UserScript.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
         let owl_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
             .with_subject(AvailableInterfaceSubjects::UserScript.to_string().as_str())
-            .with_update(&TablePublication::Replace {
-                table_name: AvailableInterfaceSubjects::UserScript.to_string(),
+            .with_update(&Publication::Replace {
+                subject_name: AvailableInterfaceSubjects::UserScript.to_string(),
             })
             .with_publisher(extract_onto_session.session_context_name)
             .make_name()?

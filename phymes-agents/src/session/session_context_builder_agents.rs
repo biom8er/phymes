@@ -6,7 +6,7 @@ use clap::ValueEnum;
 use object_store::ObjectStore;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, SubjectPlan, SubjectsMap, Table, TableBuilderTrait, TablePublication, TableSubscription, TableTrait, TaskMap, TaskPlan, create_bytes_fields, create_values_fields
+    AvailableSchemaTrait, AvailableSubjects, AvailableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, SubjectPlan, Subject, SubjectBuilderTrait, Publication, Subscription, SubjectTrait, TaskMap, TaskPlan, create_bytes_fields, create_values_fields
 };
 use phymes_data::{AvailableCandleOperators, DataConfig, DataConfigTrait, LimitConfig, device};
 #[cfg(feature = "api")]
@@ -29,7 +29,7 @@ type SessionContextInput = (
     usize,
     bool,
     Arc<dyn ObjectStore>,
-    Vec<Table>,
+    Vec<Subject>,
 );
 
 /// Trait extension for [SessionContextBuilderTrait] to facilitate building agentic workflows
@@ -907,7 +907,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
                     // Make the default config
                     let config = new_processor.to_example_json().unwrap();
-                    let table = Table::get_builder()
+                    let table = Subject::get_builder()
                         .with_name(p.get_name())
                         .with_json(&config, 1)
                         .unwrap()
@@ -954,7 +954,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         };
 
                     // Make the default config
-                    let table = Table::get_builder()
+                    let table = Subject::get_builder()
                         .with_schema(schema.clone())
                         .with_record_batches(vec![RecordBatch::new_empty(schema)])
                         .unwrap()
@@ -984,8 +984,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 let subscriptions = processor
                     .get_subscriptions()
                     .iter()
-                    .chain([&TableSubscription::AlwaysFullTable {
-                        table_name: to_update.get_name().to_string(),
+                    .chain([&Subscription::AlwaysFullTable {
+                        subject_name: to_update.get_name().to_string(),
                     }])
                     .cloned()
                     .collect::<Vec<_>>();
@@ -1036,8 +1036,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         let mut publications = subscriptions
             .map(|s| {
                 s.iter()
-                    .map(|s| TablePublication::Extend {
-                        table_name: s.to_string(),
+                    .map(|s| Publication::Extend {
+                        subject_name: s.to_string(),
                     })
                     .collect::<Vec<_>>()
             })
@@ -1045,8 +1045,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         let mut subscriptions = subscriptions
             .map(|s| {
                 s.iter()
-                    .map(|s| TableSubscription::OnUpdateLastRecordBatch {
-                        table_name: s.to_string(),
+                    .map(|s| Subscription::OnUpdateLastRecordBatch {
+                        subject_name: s.to_string(),
                     })
                     .collect::<Vec<_>>()
             })
@@ -1057,17 +1057,17 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     // DM: Leave the option for AvailableInterfaceSubjects to be both subscriptions and publications
                     // DM: Use publications/subscription policies that retain the information across sessions
                     if subject.is_session_publication() {
-                        publications.push(TablePublication::Extend {
-                            table_name: subject.to_string(),
+                        publications.push(Publication::Extend {
+                            subject_name: subject.to_string(),
                         });
                     }
                     if subject.is_session_subscription() {
-                        subscriptions.push(TableSubscription::OnUpdateLastRecordBatch {
-                            table_name: subject.to_string(),
+                        subscriptions.push(Subscription::OnUpdateLastRecordBatch {
+                            subject_name: subject.to_string(),
                         });
                         // DM: Since we use [ProcessorEcho], we also need to include the subscription in the publications so that it is "echoed" to the session!
-                        publications.push(TablePublication::Extend {
-                            table_name: subject.to_string(),
+                        publications.push(Publication::Extend {
+                            subject_name: subject.to_string(),
                         });
                     }
                 }
@@ -1079,7 +1079,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .with_processor(processor)
             .with_subscriptions(&subscriptions)
             .with_publications(&publications)
-            .with_subscribe_policy(AvailableTableSubscribePolicies::AnyTableNameSubscribe.build())
+            .with_subscribe_policy(AvailableSubscribePolicies::AnySubjectNameSubscribe.build())
             .build()?;
         processors.push(processor_plan);
         self.processors.replace(processors);
@@ -1197,26 +1197,26 @@ pub mod test_session_context_builder_agents {
 
     use crate::test_session_context_builder::make_test_session_context_builder_parallel_tasks;
     use phymes_core::{
-        AvailableTableSubscribePolicies, BuildableTrait, BuilderTrait, TableBuilderTrait,
-        TablePublication, TableSubscription, test_table::make_test_table,
+        AvailableSubscribePolicies, BuildableTrait, BuilderTrait, SubjectBuilderTrait,
+        Publication, Subscription, test_subject::make_test_subject,
         test_task::make_runtime_env,
     };
     use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator};
 
     use super::*;
 
-    pub fn make_test_state_agents() -> Result<Vec<Table>> {
+    pub fn make_test_state_agents() -> Result<Vec<Subject>> {
         let mut state = vec![
-            make_test_table("state_1", 4, 8, 3)?,
-            make_test_table("state_2", 4, 8, 3)?,
-            make_test_table("state_3", 4, 8, 3)?,
+            make_test_subject("state_1", 4, 8, 3)?,
+            make_test_subject("state_2", 4, 8, 3)?,
+            make_test_subject("state_3", 4, 8, 3)?,
         ];
         let processor_1 = DataConfig {
             lhs_name: Some("state_1".to_string()),
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&processor_1).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_1")
             .with_json(&join_config_json, 1)
             .unwrap()
@@ -1228,7 +1228,7 @@ pub mod test_session_context_builder_agents {
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&processor_2).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_2")
             .with_json(&join_config_json, 1)
             .unwrap()
@@ -1242,56 +1242,56 @@ pub mod test_session_context_builder_agents {
         let processor_plans = vec![
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_1"))
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_1".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_1".to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: "state_1".to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: "state_1".to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: "processor_1".to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: "processor_1".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()?,
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_2"))
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_2".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_2".to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: "state_2".to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: "state_2".to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: "processor_2".to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: "processor_2".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()?,
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::Join.build_arc("processor_3"))
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_3".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_3".to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: "state_1".to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: "state_1".to_string(),
                     },
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: "state_2".to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: "state_2".to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: "processor_3".to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: "processor_3".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()?,
         ];
@@ -1315,7 +1315,7 @@ pub mod test_session_context_builder_agents {
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
@@ -1337,7 +1337,7 @@ pub mod test_session_context_builder_agents {
 #[cfg(test)]
 mod tests {
     use crate::test_session_context_builder;
-    use phymes_core::{BuildableTrait, BuilderTrait, TableBuilderTrait, TaskTrait, test_task};
+    use phymes_core::{BuildableTrait, BuilderTrait, SubjectBuilderTrait, TaskTrait, test_task};
     use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator, DataStreamManager};
 
     use super::*;
@@ -1405,7 +1405,7 @@ mod tests {
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
@@ -1424,14 +1424,14 @@ mod tests {
         processor_plans.push(
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_4"))
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_3".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_3".to_string(),
                 }])
-                .with_subscriptions(&[TableSubscription::OnUpdateFullTable {
-                    table_name: "state_3".to_string(),
+                .with_subscriptions(&[Subscription::OnUpdateFullTable {
+                    subject_name: "state_3".to_string(),
                 }])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()?,
         );
@@ -1457,14 +1457,14 @@ mod tests {
         processor_plans.push(
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_4"))
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_3".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_3".to_string(),
                 }])
-                .with_subscriptions(&[TableSubscription::OnUpdateFullTable {
-                    table_name: "state_3".to_string(),
+                .with_subscriptions(&[Subscription::OnUpdateFullTable {
+                    subject_name: "state_3".to_string(),
                 }])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()?,
         );
@@ -1498,7 +1498,7 @@ mod tests {
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
@@ -1538,7 +1538,7 @@ mod tests {
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
@@ -1579,7 +1579,7 @@ mod tests {
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
@@ -1620,7 +1620,7 @@ mod tests {
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
@@ -1657,7 +1657,7 @@ mod tests {
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()
@@ -1694,7 +1694,7 @@ mod tests {
             ..Default::default()
         };
         let join_config_json = serde_json::to_vec(&join_config).unwrap();
-        let join_config_state = Table::get_builder()
+        let join_config_state = Subject::get_builder()
             .with_name("processor_3")
             .with_json(&join_config_json, 1)
             .unwrap()

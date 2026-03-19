@@ -11,7 +11,7 @@ use anyhow::{Result, anyhow};
 use candle_core::Device;
 use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
-    MappableTrait, Table, TableBuilderTrait, TableTrait, Tool, ToolType,
+    MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType,
 };
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
@@ -202,7 +202,7 @@ pub fn melt(
     _device: &Device,
 ) -> Result<RecordBatch> {
     // Wrap the lhs_args into a table
-    let lhs_table = Table::get_builder()
+    let lhs_table = Subject::get_builder()
         .with_name("melt")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
@@ -401,7 +401,7 @@ pub fn melt(
                 &lhs_table.get_column_as_array(column_name)?,
                 &DataType::Utf8,
             )?;
-            let values = Table::get_array_as_vec_nonprimitive::<String>(&arr, column_name)?;
+            let values = Subject::get_array_as_vec_nonprimitive::<String>(&arr, column_name)?;
             values_vec.extend(values);
         }
         batch_vec.push((&"value", Arc::new(StringArray::from(values_vec))));

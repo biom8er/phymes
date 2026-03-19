@@ -111,7 +111,7 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait,
-        MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
+        MessageBuilderTrait, TableBuilder, TableBuilderTrait, Publication, TableTrait,
         create_bytes_record_batch,
     };
     use phymes_data::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
@@ -177,8 +177,8 @@ mod tests {
                     .with_name(http_client_config_table.get_name())
                     .with_publisher(download_content_session.session_context_name)
                     .with_subject(http_client_config_table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: http_client_config_table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: http_client_config_table.get_name().to_string(),
                     })
                     .with_message(http_client_config_table.to_ipc_stream()?)
                     .build()?,
@@ -192,8 +192,8 @@ mod tests {
                     .with_name(messages)
                     .with_publisher(download_content_session.session_context_name)
                     .with_subject(messages)
-                    .with_update(&TablePublication::Replace {
-                        table_name: messages.to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: messages.to_string(),
                     })
                     .with_message(message_builder.clone().build()?.to_ipc_stream()?)
                     .build()?,
@@ -241,8 +241,8 @@ mod tests {
                     .with_name(http_client_config_table.get_name())
                     .with_publisher(download_content_session.session_context_name)
                     .with_subject(http_client_config_table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: http_client_config_table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: http_client_config_table.get_name().to_string(),
                     })
                     .with_message(http_client_config_table.to_ipc_stream()?)
                     .build()?,
@@ -256,8 +256,8 @@ mod tests {
                     .with_name(messages)
                     .with_publisher(download_content_session.session_context_name)
                     .with_subject(messages)
-                    .with_update(&TablePublication::Replace {
-                        table_name: messages.to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: messages.to_string(),
                     })
                     .with_message(message_builder.clone().build()?.to_ipc_stream()?)
                     .build()?,
@@ -403,8 +403,8 @@ mod tests {
                     .with_name(http_client_config_table.get_name())
                     .with_publisher(download_content_session.session_context_name)
                     .with_subject(http_client_config_table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: http_client_config_table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: http_client_config_table.get_name().to_string(),
                     })
                     .with_message(http_client_config_table.to_ipc_stream()?)
                     .build()?,
@@ -451,8 +451,8 @@ mod tests {
                     .with_name(http_client_config_table.get_name())
                     .with_publisher(download_content_session.session_context_name)
                     .with_subject(http_client_config_table.get_name())
-                    .with_update(&TablePublication::Replace {
-                        table_name: http_client_config_table.get_name().to_string(),
+                    .with_update(&Publication::Replace {
+                        subject_name: http_client_config_table.get_name().to_string(),
                     })
                     .with_message(http_client_config_table.to_ipc_stream()?)
                     .build()?,

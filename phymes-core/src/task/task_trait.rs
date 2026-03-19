@@ -6,7 +6,7 @@ use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, Tra
 use tracing::{Level, event};
 
 use crate::{
-    BuildableTrait, MappableTrait, ProcessorSubjectsMap, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, TableSubscription, TaskBuilder, subscribe_to_subject, task::publish_subscribe::build_and_publish_to_stream, update_publisher
+    BuildableTrait, MappableTrait, ProcessorSubjectsMap, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, Subscription, TaskBuilder, subscribe_to_subject, task::publish_subscribe::build_and_publish_to_stream, update_publisher
 };
 
 /// Trait to implement the actual task which could involve one or
@@ -181,59 +181,59 @@ impl TaskTrait for Task {
 pub mod test_task {
     use super::*;
     use crate::{
-        BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, ProcessorBuilder, ProcessorSubjects, ProcessorSubjectsBuilder, RuntimeEnv, SubjectPlan, SubjectPlanBuilderTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, TaskBuilderTrait, test_processor::ProcessorMock, test_table::{make_test_table, make_test_table_chat}
+        BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, ProcessorBuilder, ProcessorSubjects, ProcessorSubjectsBuilder, RuntimeEnv, SubjectPlan, SubjectPlanBuilderTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, SubjectTrait, TaskBuilderTrait, test_processor::ProcessorMock, test_subject::{make_test_subject, make_test_subject_chat}
     };
 
     use arrow::array::{ArrayRef, BooleanArray, StringArray};
     use phymes_diagnostics::HashMap;
     use std::sync::Arc;
 
-    pub fn make_config_tables(config_name: &str) -> Result<Table> {
+    pub fn make_config_tables(config_name: &str) -> Result<Subject> {
         // mock config for the task
         let a: ArrayRef = Arc::new(StringArray::from(vec!["HumanInTheLoop".to_string()]));
         let b: ArrayRef = Arc::new(BooleanArray::from(vec![true]));
         let c: ArrayRef = Arc::new(StringArray::from(vec!["Accumulate".to_string()]));
         let batch =
             RecordBatch::try_from_iter(vec![("operator", a), ("cpu", b), ("lhs_stream", c)])?;
-        let config = TableBuilder::new()
+        let config = SubjectBuilder::new()
             .with_name(config_name)
             .with_record_batches(vec![batch])?
             .build()?;
         Ok(config)
     }
 
-    pub fn make_subject_tables(table_name: &str, config_name: &str) -> Result<Vec<Table>> {
+    pub fn make_subject_tables(subject_name: &str, config_name: &str) -> Result<Vec<Subject>> {
         // mock config for the task
         let config = make_config_tables(config_name)?;
 
         // mock table for the task
-        let table = make_test_table(table_name, 4, 8, 3)?;
+        let table = make_test_subject(subject_name, 4, 8, 3)?;
         Ok(vec![config, table])
     }
 
-    pub fn make_subject_tables_empty(table_name: &str, config_name: &str) -> Result<Vec<Table>> {
+    pub fn make_subject_tables_empty(subject_name: &str, config_name: &str) -> Result<Vec<Subject>> {
         // mock config for the task
         let a: ArrayRef = Arc::new(StringArray::from(vec!["".to_string()]));
         let b: ArrayRef = Arc::new(BooleanArray::from(vec![true]));
         let c: ArrayRef = Arc::new(StringArray::from(vec!["".to_string()]));
         let batch =
             RecordBatch::try_from_iter(vec![("operator", a), ("cpu", b), ("lhs_stream", c)])?;
-        let config = TableBuilder::new()
+        let config = SubjectBuilder::new()
             .with_name(config_name)
             .with_record_batches(vec![batch])?
             .build()?;
 
         // mock table for the task
-        let table = make_test_table(table_name, 1, 8, 1)?;
+        let table = make_test_subject(subject_name, 1, 8, 1)?;
         Ok(vec![config, table])
     }
 
-    pub fn make_subjects(table_name: &str, config_name: &str) -> Result<Vec<SubjectPlan>> {
-        let tables = make_subject_tables(table_name, config_name)?;
+    pub fn make_subjects(subject_name: &str, config_name: &str) -> Result<Vec<SubjectPlan>> {
+        let tables = make_subject_tables(subject_name, config_name)?;
         let mut subject_plans = Vec::new();
         for table in tables.into_iter() {
             let plan = SubjectPlan::get_builder()
-                .with_table(table)
+                .with_subject(table)
                 .build()?;
             subject_plans.push(plan);
         }
@@ -248,7 +248,7 @@ pub mod test_task {
     pub fn make_test_task_single_processor(
         task_name: &str,
         processor_name: &str,
-        table_name: &str,
+        subject_name: &str,
     ) -> Result<(Task, ProcessorSubjectsMap)> {
         let processor = ProcessorBuilder::default()
             .with_name(processor_name)
@@ -261,15 +261,15 @@ pub mod test_task {
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name(processor_name)
             .with_subscriptions(&[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: table_name.to_string(),
+                Subscription::OnUpdateFullTable {
+                    subject_name: subject_name.to_string(),
                 },
-                TableSubscription::AlwaysFullTable {
-                    table_name: processor_name.to_string(),
+                Subscription::AlwaysFullTable {
+                    subject_name: processor_name.to_string(),
                 },
             ])
-            .with_publications(&[TablePublication::Extend {
-                table_name: table_name.to_string(),
+            .with_publications(&[Publication::Extend {
+                subject_name: subject_name.to_string(),
             }])
             .build()?;
         let mut processor_subjects_map = HashMap::<String, ProcessorSubjects>::new();
@@ -280,12 +280,12 @@ pub mod test_task {
     pub fn make_test_task_chained_processor(
         task_name: &str,
         processor_name: &str,
-        table_name: &str,
+        subject_name: &str,
     ) -> Result<(Task, ProcessorSubjectsMap)> {
         let processor_name_1 = format!("{processor_name}_1");
         let processor_name_2 = format!("{processor_name}_2");
         let processor_name_3 = format!("{processor_name}_3");
-        let table_name_1 = format!("{table_name}_1");
+        let table_name_1 = format!("{subject_name}_1");
         let task = Task::get_builder()
             .with_name(task_name)
             .with_processor(vec![
@@ -307,45 +307,45 @@ pub mod test_task {
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name(&processor_name_1)
             .with_subscriptions(&[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: table_name_1.to_string(),
+                Subscription::OnUpdateFullTable {
+                    subject_name: table_name_1.to_string(),
                 },
-                TableSubscription::AlwaysFullTable {
-                    table_name: processor_name_1.to_string(),
+                Subscription::AlwaysFullTable {
+                    subject_name: processor_name_1.to_string(),
                 },
             ])
-            .with_publications(&[TablePublication::Extend {
-                table_name: table_name_1.to_string(),
+            .with_publications(&[Publication::Extend {
+                subject_name: table_name_1.to_string(),
             }])
             .build()?;
         let _ = processor_subjects_map.insert(processor_name_1, processor_subjects);
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name(&processor_name_2)
             .with_subscriptions(&[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: table_name_1.to_string(),
+                Subscription::OnUpdateFullTable {
+                    subject_name: table_name_1.to_string(),
                 },
-                TableSubscription::AlwaysFullTable {
-                    table_name: processor_name_2.to_string(),
+                Subscription::AlwaysFullTable {
+                    subject_name: processor_name_2.to_string(),
                 },
             ])
-            .with_publications(&[TablePublication::Extend {
-                table_name: table_name_1.to_string(),
+            .with_publications(&[Publication::Extend {
+                subject_name: table_name_1.to_string(),
             }])
             .build()?;
         let _ = processor_subjects_map.insert(processor_name_2, processor_subjects);
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name(&processor_name_3)
             .with_subscriptions(&[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: table_name_1.to_string(),
+                Subscription::OnUpdateFullTable {
+                    subject_name: table_name_1.to_string(),
                 },
-                TableSubscription::AlwaysFullTable {
-                    table_name: processor_name_3.to_string(),
+                Subscription::AlwaysFullTable {
+                    subject_name: processor_name_3.to_string(),
                 },
             ])
-            .with_publications(&[TablePublication::Extend {
-                table_name: table_name_1.to_string(),
+            .with_publications(&[Publication::Extend {
+                subject_name: table_name_1.to_string(),
             }])
             .build()?;
         let _ = processor_subjects_map.insert(processor_name_3, processor_subjects);
@@ -355,14 +355,14 @@ pub mod test_task {
     pub fn make_test_task_multiple_subscriptions(
         task_name: &str,
         processor_name: &str,
-        table_name: &str,
+        subject_name: &str,
     ) -> Result<(Task, ProcessorSubjectsMap)> {
         let processor_name_1 = format!("{processor_name}_1");
         let processor_name_2 = format!("{processor_name}_2");
         let processor_name_3 = format!("{processor_name}_3");
-        let table_name_1 = format!("{table_name}_1");
-        let table_name_2 = format!("{table_name}_2");
-        let table_name_3 = format!("{table_name}_3");
+        let table_name_1 = format!("{subject_name}_1");
+        let table_name_2 = format!("{subject_name}_2");
+        let table_name_3 = format!("{subject_name}_3");
         let task = Task::get_builder()
             .with_name(task_name)
             .with_processor(vec![
@@ -384,45 +384,45 @@ pub mod test_task {
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name(&processor_name_1)
             .with_subscriptions(&[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: table_name_1.to_string(),
+                Subscription::OnUpdateFullTable {
+                    subject_name: table_name_1.to_string(),
                 },
-                TableSubscription::AlwaysFullTable {
-                    table_name: processor_name_1.to_string(),
+                Subscription::AlwaysFullTable {
+                    subject_name: processor_name_1.to_string(),
                 },
             ])
-            .with_publications(&[TablePublication::Extend {
-                table_name: table_name_1.to_string(),
+            .with_publications(&[Publication::Extend {
+                subject_name: table_name_1.to_string(),
             }])
             .build()?;
         let _ = processor_subjects_map.insert(processor_name_1, processor_subjects);
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name(&processor_name_2)
             .with_subscriptions(&[
-                TableSubscription::AlwaysFullTable {
-                    table_name: table_name_1.to_string(),
+                Subscription::AlwaysFullTable {
+                    subject_name: table_name_1.to_string(),
                 },
-                TableSubscription::AlwaysFullTable {
-                    table_name: processor_name_2.to_string(),
+                Subscription::AlwaysFullTable {
+                    subject_name: processor_name_2.to_string(),
                 },
             ])
-            .with_publications(&[TablePublication::Extend {
-                table_name: table_name_2.to_string(),
+            .with_publications(&[Publication::Extend {
+                subject_name: table_name_2.to_string(),
             }])
             .build()?;
         let _ = processor_subjects_map.insert(processor_name_2, processor_subjects);
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name(&processor_name_3)
             .with_subscriptions(&[
-                TableSubscription::OnUpdateFullTable {
-                    table_name: table_name_1.to_string(),
+                Subscription::OnUpdateFullTable {
+                    subject_name: table_name_1.to_string(),
                 },
-                TableSubscription::AlwaysFullTable {
-                    table_name: processor_name_3.to_string(),
+                Subscription::AlwaysFullTable {
+                    subject_name: processor_name_3.to_string(),
                 },
             ])
-            .with_publications(&[TablePublication::Extend {
-                table_name: table_name_3.to_string(),
+            .with_publications(&[Publication::Extend {
+                subject_name: table_name_3.to_string(),
             }])
             .build()?;
         let _ = processor_subjects_map.insert(processor_name_3, processor_subjects);
@@ -433,15 +433,15 @@ pub mod test_task {
         name: &str,
         publisher: &str,
         subject: &str,
-        table_name: &str,
-        update: &TablePublication,
+        subject_name: &str,
+        update: &Publication,
         test_table: bool,
     ) -> Result<IPCMessageMap> {
         // mock table as input
         let table = if test_table {
-            make_test_table(table_name, 4, 8, 3)?
+            make_test_subject(subject_name, 4, 8, 3)?
         } else {
-            make_test_table_chat(table_name)?
+            make_test_subject_chat(subject_name)?
         };
 
         // build the message
@@ -463,7 +463,7 @@ pub mod test_task {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{BuilderTrait, MessageTrait, SubjectPlanTrait, TableBuilder, TableBuilderTrait, TableTrait};
+    use crate::{BuilderTrait, MessageTrait, SubjectPlanTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     /// A compilation test to ensure that the `Task::get_name()` method can
@@ -488,7 +488,7 @@ mod tests {
         let rt = test_task::make_runtime_env("rt")?;
         let subjects = test_task::make_subjects("test_table", "test_processor")?;
         for subject in subjects {            
-            subject.table_own().to_ipc_object_store(rt.object_store(), None).await?;
+            subject.subject_own().to_ipc_object_store(rt.object_store(), None).await?;
         }
         let mut response = test_task.run(
             Some(&diagnostic_builder),
@@ -520,7 +520,7 @@ mod tests {
         );
         let stream = response.remove("from_test_task_on_test_table").unwrap();
         let partitions =
-            TableBuilder::new_from_sendable_record_batch_stream(stream.get_message_own())
+            SubjectBuilder::new_from_sendable_record_batch_stream(stream.get_message_own())
                 .await?
                 .with_name("")
                 .build()?;
@@ -546,7 +546,7 @@ mod tests {
         subjects.extend(test_task::make_subjects("test_table_3", "test_processor_3")?);
         let rt = test_task::make_runtime_env("rt")?;
         for subject in subjects {            
-            subject.table_own().to_ipc_object_store(rt.object_store(), None).await?;
+            subject.subject_own().to_ipc_object_store(rt.object_store(), None).await?;
         }
         let mut response = test_task.run(
             Some(&diagnostic_builder),
@@ -578,7 +578,7 @@ mod tests {
         );
         let stream = response.remove("from_test_task_on_test_table_1").unwrap();
         let partitions =
-            TableBuilder::new_from_sendable_record_batch_stream(stream.get_message_own())
+            SubjectBuilder::new_from_sendable_record_batch_stream(stream.get_message_own())
                 .await?
                 .with_name("")
                 .build()?;
@@ -604,7 +604,7 @@ mod tests {
         subjects.extend(test_task::make_subjects("test_table_3", "test_processor_3")?);
         let rt = test_task::make_runtime_env("rt")?;
         for subject in subjects {            
-            subject.table_own().to_ipc_object_store(rt.object_store(), None).await?;
+            subject.subject_own().to_ipc_object_store(rt.object_store(), None).await?;
         }
         let mut response = test_task.run(
             Some(&diagnostic_builder),
@@ -636,7 +636,7 @@ mod tests {
         );
         let stream = response.remove("from_test_task_on_test_table_2").unwrap();
         let partitions =
-            TableBuilder::new_from_sendable_record_batch_stream(stream.get_message_own())
+            SubjectBuilder::new_from_sendable_record_batch_stream(stream.get_message_own())
                 .await?
                 .with_name("")
                 .build()?;
@@ -666,7 +666,7 @@ mod tests {
         );
         let stream = response.remove("from_test_task_on_test_table_3").unwrap();
         let partitions =
-            TableBuilder::new_from_sendable_record_batch_stream(stream.get_message_own())
+            SubjectBuilder::new_from_sendable_record_batch_stream(stream.get_message_own())
                 .await?
                 .with_name("")
                 .build()?;

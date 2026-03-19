@@ -1,25 +1,25 @@
 use std::fmt::Debug;
-use crate::{BuildableTrait, IndexType, MappableTrait, SubjectConstraintType, SubjectPlanBuilder, SubjectSequenceType, Table};
+use crate::{BuildableTrait, IndexType, MappableTrait, SubjectConstraintType, SubjectPlanBuilder, SubjectSequenceType, Subject};
 
 pub trait SubjectPlanTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
-    fn table(&self) -> &Table;
-    fn table_own(self) -> Table;
+    fn subject(&self) -> &Subject;
+    fn subject_own(self) -> Subject;
     fn constraints(&self) -> &Vec<SubjectConstraintType>;
     fn indices(&self) -> &Vec<IndexType>;
     fn sequences(&self) -> &Vec<SubjectSequenceType>;
-    /// Create the additional tables for the constraints
+    /// Create the additional subjects for the constraints
     /// DM: missing operator to join the columns of RecordBatches
-    fn constraints_tables(&self) -> Vec<Table>;
-    /// Create the additional tables for the indices
-    fn indices_tables(&self) -> Vec<Table>;
-    /// Create the additional tables for the sequences
-    fn sequences_tables(&self) -> Vec<Table>;
+    fn constraints_subjects(&self) -> Vec<Subject>;
+    /// Create the additional subjects for the indices
+    fn indices_subjects(&self) -> Vec<Subject>;
+    /// Create the additional subjects for the sequences
+    fn sequences_subjects(&self) -> Vec<Subject>;
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SubjectPlan {
     /// Initial table with optional data
-    pub(crate) table: Table,
+    pub(crate) subject: Subject,
     /// Constraints on the subject
     pub(crate) constraints: Vec<SubjectConstraintType>,
     /// Indexes on the subject
@@ -30,7 +30,7 @@ pub struct SubjectPlan {
 
 impl MappableTrait for SubjectPlan {
     fn get_name(&self) -> &str {
-        &self.table.get_name()
+        &self.subject.get_name()
     }
 }
 
@@ -45,12 +45,12 @@ impl BuildableTrait for SubjectPlan {
 }
 
 impl SubjectPlanTrait for SubjectPlan {
-    fn table(&self) -> &Table {
-        &self.table
+    fn subject(&self) -> &Subject {
+        &self.subject
     }
     
-    fn table_own(self) -> Table {
-        self.table
+    fn subject_own(self) -> Subject {
+        self.subject
     }
 
     fn constraints(&self) -> &Vec<SubjectConstraintType> {
@@ -65,15 +65,15 @@ impl SubjectPlanTrait for SubjectPlan {
         &self.sequences
     }
     
-    fn constraints_tables(&self) -> Vec<Table> {
+    fn constraints_subjects(&self) -> Vec<Subject> {
         todo!()
     }
     
-    fn indices_tables(&self) -> Vec<Table> {
+    fn indices_subjects(&self) -> Vec<Subject> {
         todo!()
     }
     
-    fn sequences_tables(&self) -> Vec<Table> {
+    fn sequences_subjects(&self) -> Vec<Subject> {
         todo!()
     }
 }

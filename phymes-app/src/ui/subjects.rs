@@ -3,8 +3,8 @@ use phymes_agents::{
     SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
 };
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, TableBuilder,
-    TableBuilderTrait, TablePublication, TableTrait,
+    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, SubjectBuilder,
+    SubjectBuilderTrait, Publication, SubjectTrait,
 };
 use phymes_server::create_session_name;
 
@@ -63,7 +63,7 @@ pub fn subjects_interface_view() -> Element {
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_stream(false)
     });
 
@@ -103,7 +103,7 @@ pub fn subjects_interface_view() -> Element {
                 while let Some(Ok(b)) = stream.next().await {
                     bytes.extend(b);
                 }
-                match TableBuilder::new_from_ipc_stream(&bytes) {
+                match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
                         subject_schema_names.set(
@@ -148,7 +148,7 @@ pub fn subjects_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
-                match TableBuilder::new_from_ipc_stream(&bytes) {
+                match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
                         subject_schema_names.set(
@@ -206,7 +206,7 @@ pub fn subjects_interface_view() -> Element {
                 while let Some(Ok(b)) = stream.next().await {
                     bytes.extend(b);
                 }
-                match TableBuilder::new_from_ipc_stream(&bytes) {
+                match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
                         subject_names.set(
@@ -249,7 +249,7 @@ pub fn subjects_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
-                match TableBuilder::new_from_ipc_stream(&bytes) {
+                match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
                         subject_names.set(

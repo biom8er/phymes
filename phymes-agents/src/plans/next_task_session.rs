@@ -1,7 +1,7 @@
 use anyhow::Result;
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageMap,
-    MessageBuilderTrait, Table, TableBuilderTrait, TablePublication, TableTrait,
+    MessageBuilderTrait, Subject, SubjectBuilderTrait, Publication, SubjectTrait,
     create_session_tasks_subscribe_publish_batch,
 };
 use phymes_diagnostics::HashMap;
@@ -146,7 +146,7 @@ impl<'a> NextTaskSession<'a> {
             publication_names,
             publication_table_names,
         )?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(
                 AvailableSubjects::SessionTasksSubscribePublish
                     .to_string()
@@ -161,8 +161,8 @@ impl<'a> NextTaskSession<'a> {
                     .to_string()
                     .as_str(),
             )
-            .with_update(&TablePublication::Replace {
-                table_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+            .with_update(&Publication::Replace {
+                subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
             })
             .with_publisher(self.session_context_name)
             .make_name()?
@@ -276,7 +276,7 @@ impl<'a> NextTaskSession<'a> {
             publication_names,
             publication_table_names,
         )?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(
                 AvailableSubjects::SessionTasksSubscribePublish
                     .to_string()
@@ -291,8 +291,8 @@ impl<'a> NextTaskSession<'a> {
                     .to_string()
                     .as_str(),
             )
-            .with_update(&TablePublication::Replace {
-                table_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+            .with_update(&Publication::Replace {
+                subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
             })
             .with_publisher(self.session_context_name)
             .make_name()?
@@ -389,7 +389,7 @@ impl<'a> NextTaskSession<'a> {
             publication_names,
             publication_table_names,
         )?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(
                 AvailableSubjects::SessionTasksSubscribePublish
                     .to_string()
@@ -404,8 +404,8 @@ impl<'a> NextTaskSession<'a> {
                     .to_string()
                     .as_str(),
             )
-            .with_update(&TablePublication::Replace {
-                table_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+            .with_update(&Publication::Replace {
+                subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
             })
             .with_publisher(self.session_context_name)
             .make_name()?
@@ -879,7 +879,7 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait,
-        TablePublication, TableTrait, test_task,
+        Publication, SubjectTrait, test_task,
     };
     use phymes_diagnostics::HashMap;
 
@@ -929,8 +929,8 @@ mod tests {
                 "session_1",
                 "state_1",
                 "state_1",
-                &TablePublication::Replace {
-                    table_name: "state_1".to_string(),
+                &Publication::Replace {
+                    subject_name: "state_1".to_string(),
                 },
                 true,
             )?;
@@ -950,8 +950,8 @@ mod tests {
             let session_processor_message = IPCMessage::get_builder()
                 .with_message(table.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::SessionProcessors.to_string().as_str())
-                .with_update(&TablePublication::Replace {
-                    table_name: AvailableSubjects::SessionProcessors.to_string(),
+                .with_update(&Publication::Replace {
+                    subject_name: AvailableSubjects::SessionProcessors.to_string(),
                 })
                 .with_publisher(next_task_session.session_context_name)
                 .make_name()?
@@ -964,8 +964,8 @@ mod tests {
             let session_tasks_message = IPCMessage::get_builder()
                 .with_message(table.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::SessionTasks.to_string().as_str())
-                .with_update(&TablePublication::Replace {
-                    table_name: AvailableSubjects::SessionTasks.to_string(),
+                .with_update(&Publication::Replace {
+                    subject_name: AvailableSubjects::SessionTasks.to_string(),
                 })
                 .with_publisher(next_task_session.session_context_name)
                 .make_name()?
@@ -978,8 +978,8 @@ mod tests {
             let session_tasks_run_log_message = IPCMessage::get_builder()
                 .with_message(table.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .with_update(&TablePublication::Replace {
-                    table_name: AvailableSubjects::SessionTasksRunLog.to_string(),
+                .with_update(&Publication::Replace {
+                    subject_name: AvailableSubjects::SessionTasksRunLog.to_string(),
                 })
                 .with_publisher(next_task_session.session_context_name)
                 .make_name()?
@@ -992,8 +992,8 @@ mod tests {
             let subjects_change_log_message = IPCMessage::get_builder()
                 .with_message(table.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .with_update(&TablePublication::Replace {
-                    table_name: AvailableSubjects::SubjectsChangeLog.to_string(),
+                .with_update(&Publication::Replace {
+                    subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
                 })
                 .with_publisher(next_task_session.session_context_name)
                 .make_name()?
@@ -1110,13 +1110,13 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate"
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate"
                 ]
             );
             let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
@@ -1154,10 +1154,10 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate"
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate"
                 ]
             );
             let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
@@ -1236,10 +1236,10 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate",
-                    "TableChangedSinceLastRunUpdate"
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate",
+                    "SubjectChangedSinceLastRunUpdate"
                 ]
             );
             let column =

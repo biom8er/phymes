@@ -18,7 +18,7 @@ use phymes_agents::{
 use phymes_core::{
     AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
     ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait,
-    TableBuilder, TableBuilderTrait, TablePublication, TableTrait,
+    SubjectBuilder, SubjectBuilderTrait, Publication, SubjectTrait,
 };
 
 pub async fn run_main() -> Result<()> {
@@ -56,8 +56,8 @@ pub async fn run_main() -> Result<()> {
     let chat_message = IPCMessage::get_builder()
         .with_message(chat.to_ipc_stream()?)
         .with_subject(chat.get_name())
-        .with_update(&TablePublication::Extend {
-            table_name: chat.get_name().to_string(),
+        .with_update(&Publication::Extend {
+            subject_name: chat.get_name().to_string(),
         })
         .with_publisher(doc_rag_session.session_context_name)
         .make_name()?
@@ -69,8 +69,8 @@ pub async fn run_main() -> Result<()> {
     let blob_message = IPCMessage::get_builder()
         .with_message(blob.to_ipc_stream()?)
         .with_subject(blob.get_name())
-        .with_update(&TablePublication::Extend {
-            table_name: blob.get_name().to_string(),
+        .with_update(&Publication::Extend {
+            subject_name: blob.get_name().to_string(),
         })
         .with_publisher(doc_rag_session.session_context_name)
         .make_name()?
@@ -100,7 +100,7 @@ pub async fn run_main() -> Result<()> {
         })
         .flatten()
         .collect::<Vec<_>>();
-    let json_data = TableBuilder::new_from_ipc_stream(&bytes)?
+    let json_data = SubjectBuilder::new_from_ipc_stream(&bytes)?
         .with_name("")
         .build()?
         .to_json_object()?;

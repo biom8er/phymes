@@ -14,8 +14,8 @@ use phymes_agents::{
 };
 use phymes_core::{
     AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, DataFormat,
-    MappableTrait, MessageBuilderTrait, TableBuilder, TableBuilderTrait, TablePublication,
-    TableTrait,
+    MappableTrait, MessageBuilderTrait, SubjectBuilder, SubjectBuilderTrait, Publication,
+    SubjectTrait,
 };
 use phymes_server::create_session_name;
 
@@ -73,7 +73,7 @@ pub fn messaging_interface_view() -> Element {
                 EMAIL().as_str(),
                 ACTIVE_SESSION_NAME().as_str(),
             ))
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_stream(false)
     });
 
@@ -115,7 +115,7 @@ pub fn messaging_interface_view() -> Element {
                 while let Some(Ok(b)) = stream.next().await {
                     bytes.extend(b);
                 }
-                match TableBuilder::new_from_ipc_stream(&bytes) {
+                match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
                         let combined = table
@@ -199,7 +199,7 @@ pub fn messaging_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
-                match TableBuilder::new_from_ipc_stream(&bytes) {
+                match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();
                         let combined = table
@@ -426,7 +426,7 @@ pub fn messaging_interface_footer(
                                 .with_session_name(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
                                 .with_format(&DataFormat::Ipc)
                                 .with_publisher(&create_session_name(EMAIL().as_str(), ACTIVE_SESSION_NAME().as_str()))
-                                .with_update(&TablePublication::Extend { table_name: AvailableInterfaceSubjects::UserMessages.to_string() })
+                                .with_update(&Publication::Extend { subject_name: AvailableInterfaceSubjects::UserMessages.to_string() })
                                 .with_stream(false)
                                 .with_subject(chat.get_name())
                                 .with_message(chat.to_ipc_stream().unwrap())
@@ -465,7 +465,7 @@ pub fn messaging_interface_footer(
                                     }
 
                                     // Collect the batches
-                                    match TableBuilder::from_ipc_stream_to_record_batches(&bytes) {
+                                    match SubjectBuilder::from_ipc_stream_to_record_batches(&bytes) {
                                         Ok(builder) => {
                                             let batches = builder.into_iter()
                                                 .filter(|batch| batch.schema() // DM: filtering out UserQuery
@@ -478,7 +478,7 @@ pub fn messaging_interface_footer(
 
                                             // Update the messages
                                             if !batches.is_empty() {
-                                                let table = TableBuilder::new().with_record_batches(batches).unwrap().with_name("").build().unwrap();
+                                                let table = SubjectBuilder::new().with_record_batches(batches).unwrap().with_name("").build().unwrap();
                                                 let combined = table.get_column_as_vec_nonprimitive::<String>("role").unwrap().into_iter()
                                                     .zip(table.get_column_as_vec_nonprimitive::<String>("content").unwrap().into_iter())
                                                     .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())
@@ -558,7 +558,7 @@ pub fn messaging_interface_footer(
                                     }
 
                                     // Collect the batches
-                                    match TableBuilder::from_ipc_stream_to_record_batches(&bytes) {
+                                    match SubjectBuilder::from_ipc_stream_to_record_batches(&bytes) {
                                         Ok(builder) => {
                                             let batches = builder.into_iter()
                                                 .filter(|batch| batch.schema() // DM: filtering out UserQuery
@@ -571,7 +571,7 @@ pub fn messaging_interface_footer(
 
                                             // Update the messages
                                             if !batches.is_empty() {
-                                                let table = TableBuilder::new().with_record_batches(batches).unwrap().with_name("").build().unwrap();
+                                                let table = SubjectBuilder::new().with_record_batches(batches).unwrap().with_name("").build().unwrap();
                                                 let combined = table.get_column_as_vec_nonprimitive::<String>("role").unwrap().into_iter()
                                                     .zip(table.get_column_as_vec_nonprimitive::<String>("content").unwrap().into_iter())
                                                     .zip(table.get_column_as_vec_primitive::<i64>("timestamp").unwrap().into_iter())

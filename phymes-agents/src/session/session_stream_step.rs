@@ -5,8 +5,8 @@ use parking_lot::RwLock;
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessage, IPCMessageBuilder,
     IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjectsMap,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, TableBuilder,
-    TableBuilderTrait, TablePublication, TableTrait, TaskTrait, create_error_message_map,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, SubjectBuilder,
+    SubjectBuilderTrait, Publication, SubjectTrait, TaskTrait, create_error_message_map,
     create_error_message_map_stream, create_session_tasks_run_log_batch,
 };
 use phymes_diagnostics::{
@@ -148,8 +148,8 @@ pub trait SessionStreamStepTrait {
             let message = IPCMessageBuilder::new()
                 .with_subject(table.get_name())
                 .with_publisher(&session_context_name)
-                .with_update(&TablePublication::Extend {
-                    table_name: table.get_name().to_string(),
+                .with_update(&Publication::Extend {
+                    subject_name: table.get_name().to_string(),
                 })
                 .with_message(table.to_ipc_stream()?)
                 .make_random_name()?
@@ -162,8 +162,8 @@ pub trait SessionStreamStepTrait {
             let message = IPCMessageBuilder::new()
                 .with_subject(table.get_name())
                 .with_publisher(&session_context_name)
-                .with_update(&TablePublication::Extend {
-                    table_name: AvailableSubjects::SessionErrors.to_string(),
+                .with_update(&Publication::Extend {
+                    subject_name: AvailableSubjects::SessionErrors.to_string(),
                 })
                 .with_message(table.to_ipc_stream()?)
                 .make_random_name()?
@@ -178,8 +178,8 @@ pub trait SessionStreamStepTrait {
                 let message = IPCMessageBuilder::new()
                     .with_subject(table.get_name())
                     .with_publisher(&session_context_name)
-                    .with_update(&TablePublication::Extend {
-                        table_name: table.get_name().to_string(),
+                    .with_update(&Publication::Extend {
+                        subject_name: table.get_name().to_string(),
                     })
                     .with_message(table.to_ipc_stream()?)
                     .make_random_name()?
@@ -217,8 +217,8 @@ pub trait SessionStreamStepTrait {
             IPCMessageBuilder::new()
                 .with_subject(tasks_run_log_table.get_name())
                 .with_publisher(&session_context_name)
-                .with_update(&TablePublication::Extend {
-                    table_name: tasks_run_log_table.get_name().to_string(),
+                .with_update(&Publication::Extend {
+                    subject_name: tasks_run_log_table.get_name().to_string(),
                 })
                 .with_message(tasks_run_log_table.to_ipc_stream()?)
                 .make_random_name()?
@@ -240,8 +240,8 @@ pub trait SessionStreamStepTrait {
                 IPCMessageBuilder::new()
                     .with_subject(table.get_name())
                     .with_publisher(&session_context_name)
-                    .with_update(&TablePublication::Extend {
-                        table_name: table.get_name().to_string(),
+                    .with_update(&Publication::Extend {
+                        subject_name: table.get_name().to_string(),
                     })
                     .with_message(table.to_ipc_stream()?)
                     .make_random_name()?
@@ -495,7 +495,7 @@ pub trait SessionStreamStepTrait {
                     Ok((resp_name, resp)) => {
                         // Check the response
                         let message_map = match resp {
-                            Ok(batches) => match TableBuilder::new()
+                            Ok(batches) => match SubjectBuilder::new()
                                 .with_name(resp_name.as_str())
                                 .with_record_batches(batches)
                             {
@@ -667,7 +667,7 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
             // Check the response
             let (resp_name, resp) = response?;
             let batches = resp?;
-            let table = TableBuilder::new()
+            let table = SubjectBuilder::new()
                 .with_name(resp_name.as_str())
                 .with_record_batches(batches)?
                 .build()?;
@@ -736,8 +736,8 @@ mod tests {
         test_session_context_builder,
     };
     use phymes_core::{
-        AvailableSubjects, AvailableTableSubscribePolicies, ProcessorBuilder, ProcessorPlanBuilder,
-        TablePublication, TableSubscription, TaskPlan,
+        AvailableSubjects, AvailableSubscribePolicies, ProcessorBuilder, ProcessorPlanBuilder,
+        Publication, Subscription, TaskPlan,
         test_processor::{ProcessorError, ProcessorMock},
         test_task,
     };
@@ -761,7 +761,7 @@ mod tests {
                 "session_1",
                 "state_1",
                 "state_1",
-                &TablePublication::None,
+                &Publication::None,
                 true,
             )?,
         )
@@ -950,8 +950,8 @@ mod tests {
                 "session_1",
                 "state_1",
                 "state_1",
-                &TablePublication::Extend {
-                    table_name: "state_1".to_string(),
+                &Publication::Extend {
+                    subject_name: "state_1".to_string(),
                 },
                 true,
             )?,
@@ -1142,8 +1142,8 @@ mod tests {
                 "session_1",
                 "state_1",
                 "state_1",
-                &TablePublication::Replace {
-                    table_name: "state_1".to_string(),
+                &Publication::Replace {
+                    subject_name: "state_1".to_string(),
                 },
                 true,
             )?,
@@ -1333,8 +1333,8 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublication::Replace {
-                table_name: "state_1".to_string(),
+            &Publication::Replace {
+                subject_name: "state_1".to_string(),
             },
             true,
         )?;
@@ -1343,8 +1343,8 @@ mod tests {
             "session_1",
             "state_2",
             "state_2",
-            &TablePublication::Replace {
-                table_name: "state_2".to_string(),
+            &Publication::Replace {
+                subject_name: "state_2".to_string(),
             },
             true,
         )?);
@@ -1353,8 +1353,8 @@ mod tests {
             "session_1",
             "state_3",
             "state_3",
-            &TablePublication::Replace {
-                table_name: "state_3".to_string(),
+            &Publication::Replace {
+                subject_name: "state_3".to_string(),
             },
             true,
         )?);
@@ -1390,8 +1390,8 @@ mod tests {
                 .get("from_session_1_on_state_1")
                 .unwrap()
                 .get_update(),
-            TablePublication::Extend {
-                table_name: "state_1".to_string()
+            Publication::Extend {
+                subject_name: "state_1".to_string()
             }
         );
 
@@ -1399,7 +1399,7 @@ mod tests {
             .remove("from_session_1_on_state_1")
             .unwrap()
             .get_message_own();
-        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+        let partitions = SubjectBuilder::new_from_ipc_stream(&bytes)?
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
@@ -1431,8 +1431,8 @@ mod tests {
                 .get("from_session_1_on_state_2")
                 .unwrap()
                 .get_update(),
-            TablePublication::Extend {
-                table_name: "state_2".to_string()
+            Publication::Extend {
+                subject_name: "state_2".to_string()
             }
         );
 
@@ -1440,7 +1440,7 @@ mod tests {
             .remove("from_session_1_on_state_2")
             .unwrap()
             .get_message_own();
-        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+        let partitions = SubjectBuilder::new_from_ipc_stream(&bytes)?
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
@@ -1472,8 +1472,8 @@ mod tests {
                 .get("from_session_1_on_state_3")
                 .unwrap()
                 .get_update(),
-            TablePublication::Extend {
-                table_name: "state_3".to_string()
+            Publication::Extend {
+                subject_name: "state_3".to_string()
             }
         );
 
@@ -1481,7 +1481,7 @@ mod tests {
             .remove("from_session_1_on_state_3")
             .unwrap()
             .get_message_own();
-        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+        let partitions = SubjectBuilder::new_from_ipc_stream(&bytes)?
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
@@ -1713,8 +1713,8 @@ mod tests {
                 .get("from_session_1_on_state_1")
                 .unwrap()
                 .get_update(),
-            TablePublication::Extend {
-                table_name: "state_1".to_string()
+            Publication::Extend {
+                subject_name: "state_1".to_string()
             }
         );
 
@@ -1722,7 +1722,7 @@ mod tests {
             .remove("from_session_1_on_state_1")
             .unwrap()
             .get_message_own();
-        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+        let partitions = SubjectBuilder::new_from_ipc_stream(&bytes)?
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
@@ -1754,8 +1754,8 @@ mod tests {
                 .get("from_session_1_on_state_2")
                 .unwrap()
                 .get_update(),
-            TablePublication::Extend {
-                table_name: "state_2".to_string()
+            Publication::Extend {
+                subject_name: "state_2".to_string()
             }
         );
 
@@ -1763,7 +1763,7 @@ mod tests {
             .remove("from_session_1_on_state_2")
             .unwrap()
             .get_message_own();
-        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+        let partitions = SubjectBuilder::new_from_ipc_stream(&bytes)?
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
@@ -1795,8 +1795,8 @@ mod tests {
                 .get("from_session_1_on_state_3")
                 .unwrap()
                 .get_update(),
-            TablePublication::Extend {
-                table_name: "state_3".to_string()
+            Publication::Extend {
+                subject_name: "state_3".to_string()
             }
         );
 
@@ -1804,7 +1804,7 @@ mod tests {
             .remove("from_session_1_on_state_3")
             .unwrap()
             .get_message_own();
-        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+        let partitions = SubjectBuilder::new_from_ipc_stream(&bytes)?
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
@@ -2021,8 +2021,8 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublication::Replace {
-                table_name: "state_1".to_string(),
+            &Publication::Replace {
+                subject_name: "state_1".to_string(),
             },
             true,
         )?;
@@ -2060,8 +2060,8 @@ mod tests {
                 .get("from_session_1_on_state_1")
                 .unwrap()
                 .get_update(),
-            TablePublication::Extend {
-                table_name: "state_1".to_string()
+            Publication::Extend {
+                subject_name: "state_1".to_string()
             }
         );
 
@@ -2069,7 +2069,7 @@ mod tests {
             .remove("from_session_1_on_state_1")
             .unwrap()
             .get_message_own();
-        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+        let partitions = SubjectBuilder::new_from_ipc_stream(&bytes)?
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
@@ -2245,8 +2245,8 @@ mod tests {
                 .get("from_session_1_on_state_1")
                 .unwrap()
                 .get_update(),
-            TablePublication::Extend {
-                table_name: "state_1".to_string()
+            Publication::Extend {
+                subject_name: "state_1".to_string()
             }
         );
 
@@ -2254,7 +2254,7 @@ mod tests {
             .remove("from_session_1_on_state_1")
             .unwrap()
             .get_message_own();
-        let partitions = TableBuilder::new_from_ipc_stream(&bytes)?
+        let partitions = SubjectBuilder::new_from_ipc_stream(&bytes)?
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
@@ -2387,8 +2387,8 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublication::Replace {
-                table_name: "state_1".to_string(),
+            &Publication::Replace {
+                subject_name: "state_1".to_string(),
             },
             false,
         )?;
@@ -2437,19 +2437,19 @@ mod tests {
                         .with_type(ProcessorMock::get_static_name())
                         .build_arc::<ProcessorMock>()?,
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_1".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_1".to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: "state_1".to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: "state_1".to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: "processor_1".to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: "processor_1".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -2460,19 +2460,19 @@ mod tests {
                         .with_type(ProcessorError::get_static_name())
                         .build_arc::<ProcessorError>()?,
                 )
-                .with_publications(&[TablePublication::Extend {
-                    table_name: "state_1".to_string(),
+                .with_publications(&[Publication::Extend {
+                    subject_name: "state_1".to_string(),
                 }])
                 .with_subscriptions(&[
-                    TableSubscription::OnUpdateFullTable {
-                        table_name: "state_1".to_string(),
+                    Subscription::OnUpdateFullTable {
+                        subject_name: "state_1".to_string(),
                     },
-                    TableSubscription::AlwaysFullTable {
-                        table_name: "error_1".to_string(),
+                    Subscription::AlwaysFullTable {
+                        subject_name: "error_1".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableTableSubscribePolicies::AllTableNamesSubscribe.build(),
+                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -2497,8 +2497,8 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublication::Replace {
-                table_name: "state_1".to_string(),
+            &Publication::Replace {
+                subject_name: "state_1".to_string(),
             },
             true,
         )?;

@@ -12,7 +12,7 @@ pub(crate) fn raise_exception(err_text: String) -> Result<String, minijinja::Err
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-pub struct TableScript {
+pub struct SubjectScript {
     template: Template<'static, 'static>,
 }
 
@@ -26,7 +26,7 @@ pub struct TableScript {
 ///   i.e., \" as the opening quotation does not work and instead ' or " should be used
 ///   Recommend testing problematic templates using the Minijinja playground
 ///   <https://github.com/mitsuhiko/minijinja>
-impl TableScript {
+impl SubjectScript {
     /// Write record batches to a script described by a template
     /// calls `to_json_object` to populate the template
     #[instrument(level = "trace")]
@@ -70,7 +70,7 @@ pub fn items_to_list(items: &[&str]) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::table::table_trait::{TableTrait, test_table::make_test_table_chat};
+    use crate::{SubjectTrait, test_subject::make_test_subject_chat};
 
     #[test]
     fn test_items_to_list() -> Result<()> {
@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn test_to_from_script_with_template() -> Result<()> {
-        let test_table = make_test_table_chat("test_table_chat")?;
+        let test_table = make_test_subject_chat("test_table_chat")?;
 
         // Write data to script template
         let template = r#"
@@ -116,7 +116,7 @@ mod tests {
         });
 
         let script_string =
-            TableScript::new_from_template(template).apply_template(&chat_template_inputs)?;
+            SubjectScript::new_from_template(template).apply_template(&chat_template_inputs)?;
 
         assert_eq!(
             script_string,

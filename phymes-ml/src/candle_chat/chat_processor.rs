@@ -18,8 +18,8 @@ use phymes_core::{
     MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream,
     RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TablePublication,
-    TableTrait, Tool, create_chat_record_batch, remove_message_by_subject,
+    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilder, SubjectBuilderTrait, Publication,
+    SubjectTrait, Tool, create_chat_record_batch, remove_message_by_subject,
 };
 use phymes_data::{DataConfigTrait, device};
 use phymes_diagnostics::{
@@ -171,7 +171,7 @@ impl CandleChatStream {
 
     /// Initialize the config for text generation inference
     #[instrument(skip(self))]
-    fn init_config(&mut self, config_table: Table) -> Result<()> {
+    fn init_config(&mut self, config_table: Subject) -> Result<()> {
         if self.config.is_none() {
             let config = CandleChatConfig::from_table(&config_table)?;
             self.config.replace(config);
@@ -322,7 +322,7 @@ impl Stream for CandleChatStream {
             while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
-            let config_table = TableBuilder::new()
+            let config_table = SubjectBuilder::new()
                 .with_name("config")
                 .with_record_batches(batches)?
                 .build()?;
@@ -344,7 +344,7 @@ impl Stream for CandleChatStream {
             while let Some(Ok(batch)) = ready!(message_stream.poll_next_unpin(cx)) {
                 batches.push(batch);
             }
-            let messages = TableBuilder::new()
+            let messages = SubjectBuilder::new()
                 .with_name("messages")
                 .with_record_batches(batches)?
                 .build()?;
@@ -364,7 +364,7 @@ impl Stream for CandleChatStream {
                     while let Some(Ok(batch)) = ready!(tools_stream.poll_next_unpin(cx)) {
                         batches.push(batch);
                     }
-                    let tool_table = TableBuilder::new()
+                    let tool_table = SubjectBuilder::new()
                         .with_name("messages")
                         .with_record_batches(batches)?
                         .build()?;
@@ -653,16 +653,16 @@ pub mod bench_chat_processor {
         config: &CandleChatConfig,
         user_content: &str,
         name: &str,
-    ) -> Result<Table> {
+    ) -> Result<Subject> {
         // State for the chat processor config
         let candle_chat_config_json = serde_json::to_vec(config)?;
-        let candle_chat_config_table = TableBuilder::new()
+        let candle_chat_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&candle_chat_config_json, 1)?
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
+        let message_builder = SubjectBuilder::new()
             .with_name(&config.messages)
             .insert_system_template_str("You are a helpful assistant.")?
             .append_new_user_query_str(user_content, "user")?;
@@ -675,7 +675,7 @@ pub mod bench_chat_processor {
                 .with_name(&config.messages)
                 .with_publisher("")
                 .with_subject(&config.messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
@@ -685,7 +685,7 @@ pub mod bench_chat_processor {
                 .with_name(candle_chat_config_table.get_name())
                 .with_publisher("")
                 .with_subject(candle_chat_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(candle_chat_config_table.to_record_batch_stream())
                 .build()?,
         );
@@ -865,13 +865,13 @@ mod tests {
         };
 
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config)?;
-        let candle_chat_config_table = TableBuilder::new()
+        let candle_chat_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&candle_chat_config_json, 1)?
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
+        let message_builder = SubjectBuilder::new()
             .with_name(messages)
             .insert_system_template_str("You are a helpful assistant.")?
             .append_new_user_query_str(
@@ -887,7 +887,7 @@ mod tests {
                 .with_name(messages)
                 .with_publisher("")
                 .with_subject(messages)
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(message_builder.clone().build()?.to_record_batch_stream())
                 .build()?,
         );
@@ -897,7 +897,7 @@ mod tests {
                 .with_name(candle_chat_config_table.get_name())
                 .with_publisher("")
                 .with_subject(candle_chat_config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(candle_chat_config_table.to_record_batch_stream())
                 .build()?,
         );

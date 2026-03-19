@@ -16,8 +16,8 @@ use phymes_agents::{
 };
 use phymes_core::{
     AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage,
-    MappableTrait, MessageBuilderTrait, MessageTrait, Table, TableBuilder, TableBuilderTrait,
-    TablePublication, TableTrait, create_user_inbox_batch,
+    MappableTrait, MessageBuilderTrait, MessageTrait, Subject, SubjectBuilder, SubjectBuilderTrait,
+    Publication, SubjectTrait, create_user_inbox_batch,
 };
 
 pub async fn run_main() -> Result<()> {
@@ -33,7 +33,7 @@ pub async fn run_main() -> Result<()> {
 
     // Make the tabular data
     let batch = create_user_inbox_batch(vec!["contact@biom8er.com".to_string()])?;
-    let bytes = Table::get_builder()
+    let bytes = Subject::get_builder()
         .with_record_batches(vec![batch])?
         .with_name(AvailableInterfaceSubjects::UserJson.to_string().as_str())
         .build()?
@@ -47,8 +47,8 @@ pub async fn run_main() -> Result<()> {
     let blob_message = IPCMessage::get_builder()
         .with_message(blob.to_ipc_stream()?)
         .with_subject(blob.get_name())
-        .with_update(&TablePublication::Replace {
-            table_name: blob.get_name().to_string(),
+        .with_update(&Publication::Replace {
+            subject_name: blob.get_name().to_string(),
         })
         .with_publisher(user_agent_session.session_context_name)
         .make_name()?
@@ -69,7 +69,7 @@ pub async fn run_main() -> Result<()> {
         })
         .filter_map(|m| {
             m.map(|message| {
-                TableBuilder::new_from_ipc_stream(&message.get_message_own())
+                SubjectBuilder::new_from_ipc_stream(&message.get_message_own())
                     .unwrap()
                     .with_name("")
                     .build()

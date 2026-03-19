@@ -1,7 +1,7 @@
 use anyhow::Result;
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageMap,
-    MessageBuilderTrait, Table, TableBuilderTrait, TablePublication, TableTrait,
+    MessageBuilderTrait, Subject, SubjectBuilderTrait, Publication, SubjectTrait,
     create_session_tasks_subscribe_publish_batch,
 };
 
@@ -69,7 +69,7 @@ impl<'a> NextSuperstepSession<'a> {
             publication_names,
             publication_table_names,
         )?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(
                 AvailableSubjects::SessionTasksSubscribePublish
                     .to_string()
@@ -84,8 +84,8 @@ impl<'a> NextSuperstepSession<'a> {
                     .to_string()
                     .as_str(),
             )
-            .with_update(&TablePublication::Replace {
-                table_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+            .with_update(&Publication::Replace {
+                subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
             })
             .with_publisher(self.session_context_name)
             .make_name()?
@@ -146,7 +146,7 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait,
-        TablePublication, TableTrait, create_session_supersteps_batch,
+        Publication, SubjectTrait, create_session_supersteps_batch,
     };
     use phymes_diagnostics::HashMap;
 
@@ -184,15 +184,15 @@ mod tests {
             .collect::<Vec<_>>();
         let supersteps = vec![0, 1, 2, 3];
         let batch = create_session_supersteps_batch(session_names, supersteps)?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(AvailableSubjects::SessionSupersteps.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
         let superstep_message = IPCMessage::get_builder()
             .with_message(table.to_ipc_stream()?)
             .with_subject(AvailableSubjects::SessionSupersteps.to_string().as_str())
-            .with_update(&TablePublication::Replace {
-                table_name: AvailableSubjects::SessionSupersteps.to_string(),
+            .with_update(&Publication::Replace {
+                subject_name: AvailableSubjects::SessionSupersteps.to_string(),
             })
             .with_publisher(next_superstep_session.session_context_name)
             .make_name()?

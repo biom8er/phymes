@@ -16,8 +16,8 @@ use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
 use phymes_agents::{SessionStreamStep, SessionStreamStepTrait, create_message_map};
 use phymes_core::{
     BuilderTrait, CsvFormat, DataFormat, IPCMessageBuilder,
-    JoinUserInboxSessionContextsMermaidDiagrams, MessageBuilderTrait, MessageTrait, TableBuilder,
-    TableBuilderTrait, TableTrait,
+    JoinUserInboxSessionContextsMermaidDiagrams, MessageBuilderTrait, MessageTrait, SubjectBuilder,
+    SubjectBuilderTrait, SubjectTrait,
 };
 
 // Library imports
@@ -99,7 +99,7 @@ pub async fn session_put_state(
                     .to_response(StatusCode::INTERNAL_SERVER_ERROR);
             };
             let bytes = match payload.get_format() {
-                DataFormat::Csv(csv_format) => TableBuilder::new()
+                DataFormat::Csv(csv_format) => SubjectBuilder::new()
                     .with_schema(schema)
                     .with_name(payload.get_subject())
                     .with_csv(
@@ -115,7 +115,7 @@ pub async fn session_put_state(
                     .unwrap(),
                 DataFormat::CsvDefault => {
                     let csv_format = CsvFormat::default();
-                    TableBuilder::new()
+                    SubjectBuilder::new()
                         .with_schema(schema)
                         .with_name(payload.get_subject())
                         .with_csv(
@@ -133,7 +133,7 @@ pub async fn session_put_state(
                 DataFormat::JsonDefault => {
                     let json_value: Vec<serde_json::Value> =
                         serde_json::from_slice(payload.get_message()).unwrap();
-                    TableBuilder::new()
+                    SubjectBuilder::new()
                         .with_schema(schema)
                         .with_name(payload.get_subject())
                         .with_json_values(&json_value)
@@ -143,7 +143,7 @@ pub async fn session_put_state(
                         .to_ipc_stream()
                         .unwrap()
                 }
-                DataFormat::Bytes => TableBuilder::new()
+                DataFormat::Bytes => SubjectBuilder::new()
                     .with_schema(schema)
                     .with_name(payload.get_subject())
                     .with_bytes(payload.get_message())

@@ -10,7 +10,7 @@ use futures::{FutureExt, Stream, StreamExt};
 use object_store::{GetOptions, GetResult, MultipartUpload, ObjectMeta, ObjectStore, ObjectStoreExt, PutOptions, PutPayload, PutResult, WriteMultipart, path::Path};
 use parking_lot::Mutex;
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, ChunkedWriter, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, OnChunk, ProcessorTrait, RecordBatchStream, RuntimeEnv, RuntimeEnvTrait, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait, create_bytes_fields, create_object_store_batch, create_object_store_meta_batch, create_values_fields, make_store, remove_message_by_subject
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, ChunkedWriter, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, OnChunk, ProcessorTrait, RecordBatchStream, RuntimeEnv, RuntimeEnvTrait, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, create_bytes_fields, create_object_store_batch, create_object_store_meta_batch, create_values_fields, make_store, remove_message_by_subject
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
@@ -159,7 +159,7 @@ impl Stream for ObjectStoreStream {
                     while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                         batches.push(batch);
                     }
-                    let config_table = TableBuilder::new()
+                    let config_table = SubjectBuilder::new()
                         .with_name("config")
                         .with_record_batches(batches)?
                         .build()?;
@@ -201,7 +201,7 @@ impl Stream for ObjectStoreStream {
                             if let Some(Ok(batch)) =
                                 ready!(fut.get_message_mut().poll_next_unpin(cx))
                             {
-                                let json_object = TableBuilder::default()
+                                let json_object = SubjectBuilder::default()
                                     .with_name("")
                                     .with_record_batches(vec![batch])?
                                     .build()?
@@ -810,7 +810,7 @@ mod tests {
     use super::*;
     use futures::TryStreamExt;
     use phymes_core::{
-        ObjectStorageBackend, Table, TableBuilder, TablePublication, test_table
+        ObjectStorageBackend, Subject, SubjectBuilder, Publication, test_subject
     };
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
 
@@ -840,7 +840,7 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = TableBuilder::new()
+        let config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&config_json, 1)?
             .build()?;
@@ -850,9 +850,9 @@ mod tests {
         let bucket = ["bucket", "bucket"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let last_modified = (0..2).map(|i| i as i64).collect::<Vec<_>>();
         let metadata = ["etag_1", "etag_2"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let bytes = vec![test_table::make_test_table("location_1", 3, 4, 2)?.to_ipc_stream()?, test_table::make_test_table("location_2", 3, 0, 2)?.to_ipc_stream()?];
+        let bytes = vec![test_subject::make_test_subject("location_1", 3, 4, 2)?.to_ipc_stream()?, test_subject::make_test_subject("location_2", 3, 0, 2)?.to_ipc_stream()?];
         let batch = create_object_store_batch(location.clone(), bucket.clone(), metadata.clone(), last_modified.clone(), bytes)?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name(messages)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -865,7 +865,7 @@ mod tests {
                 .with_name(table.get_name())
                 .with_publisher("")
                 .with_subject(table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(table.to_record_batch_stream())
                 .build()?,
         );
@@ -875,7 +875,7 @@ mod tests {
                 .with_name(config_table.get_name())
                 .with_publisher("")
                 .with_subject(config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
         );   
@@ -894,7 +894,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -925,7 +925,7 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = TableBuilder::new()
+        let config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&config_json, 1)?
             .build()?;
@@ -934,7 +934,7 @@ mod tests {
         let size = (0..2).map(|i| i as u32).collect::<Vec<_>>();
         let version = ["version_1", "version_2"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let batch = create_object_store_meta_batch(location.clone(), bucket, metadata, version, size, last_modified)?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name(messages)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -947,7 +947,7 @@ mod tests {
                 .with_name(table.get_name())
                 .with_publisher("")
                 .with_subject(table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(table.to_record_batch_stream())
                 .build()?,
         );
@@ -957,7 +957,7 @@ mod tests {
                 .with_name(config_table.get_name())
                 .with_publisher("")
                 .with_subject(config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
         );   
@@ -976,7 +976,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -992,12 +992,12 @@ mod tests {
             assert!(res > 0);
         }
         let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?;
-        let tables: Result<Vec<Table>> = result.into_iter()
-            .map(|bytes| TableBuilder::new_from_ipc_stream(&bytes)?.with_name("IPC").build())
+        let tables: Result<Vec<Subject>> = result.into_iter()
+            .map(|bytes| SubjectBuilder::new_from_ipc_stream(&bytes)?.with_name("IPC").build())
             .collect();
         let tables = tables?;
-        assert_eq!(tables.first().unwrap(), &test_table::make_test_table("IPC", 3, 4, 2)?);
-        assert_eq!(tables.get(1).unwrap(), &test_table::make_test_table("IPC", 3, 0, 2)?);
+        assert_eq!(tables.first().unwrap(), &test_subject::make_test_subject("IPC", 3, 4, 2)?);
+        assert_eq!(tables.get(1).unwrap(), &test_subject::make_test_subject("IPC", 3, 0, 2)?);
 
         // GET from config
         // Config for the Processor
@@ -1012,7 +1012,7 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = TableBuilder::new()
+        let config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&config_json, 1)?
             .build()?;
@@ -1025,7 +1025,7 @@ mod tests {
                 .with_name(config_table.get_name())
                 .with_publisher("")
                 .with_subject(config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
         );   
@@ -1044,7 +1044,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -1060,12 +1060,12 @@ mod tests {
             assert!(res > 0);
         }
         let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?;
-        let tables: Result<Vec<Table>> = result.into_iter()
-            .map(|bytes| TableBuilder::new_from_ipc_stream(&bytes)?.with_name("IPC").build())
+        let tables: Result<Vec<Subject>> = result.into_iter()
+            .map(|bytes| SubjectBuilder::new_from_ipc_stream(&bytes)?.with_name("IPC").build())
             .collect();
         let tables = tables?;
-        assert_eq!(tables.first().unwrap(), &test_table::make_test_table("IPC", 3, 4, 2)?);
-        assert_eq!(tables.get(1).unwrap(), &test_table::make_test_table("IPC", 3, 0, 2)?);
+        assert_eq!(tables.first().unwrap(), &test_subject::make_test_subject("IPC", 3, 4, 2)?);
+        assert_eq!(tables.get(1).unwrap(), &test_subject::make_test_subject("IPC", 3, 0, 2)?);
 
         // List from config
         // Config for the Processor
@@ -1080,7 +1080,7 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = TableBuilder::new()
+        let config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&config_json, 1)?
             .build()?;
@@ -1093,7 +1093,7 @@ mod tests {
                 .with_name(config_table.get_name())
                 .with_publisher("")
                 .with_subject(config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
         );   
@@ -1112,7 +1112,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("List from config")
             .with_record_batches(result)?
             .build()?;
@@ -1143,7 +1143,7 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = TableBuilder::new()
+        let config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&config_json, 1)?
             .build()?;
@@ -1156,7 +1156,7 @@ mod tests {
                 .with_name(config_table.get_name())
                 .with_publisher("")
                 .with_subject(config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
         );   
@@ -1175,7 +1175,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name("Delete from config")
             .with_record_batches(result)?
             .build()?;
@@ -1206,7 +1206,7 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = TableBuilder::new()
+        let config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&config_json, 1)?
             .build()?;
@@ -1219,7 +1219,7 @@ mod tests {
                 .with_name(config_table.get_name())
                 .with_publisher("")
                 .with_subject(config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
         );   
@@ -1276,7 +1276,7 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = TableBuilder::new()
+        let config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&config_json, 1)?
             .build()?;
@@ -1286,9 +1286,9 @@ mod tests {
         let bucket = vec![project_dir.clone().as_path().to_str().unwrap().to_string(), project_dir.clone().as_path().to_str().unwrap().to_string()];
         let last_modified = (0..2).map(|i| i as i64).collect::<Vec<_>>();
         let metadata = ["etag_1", "etag_2"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let bytes = vec![test_table::make_test_table("location_1", 3, 4, 2)?.to_ipc_stream()?, test_table::make_test_table("location_2", 3, 0, 2)?.to_ipc_stream()?];
+        let bytes = vec![test_subject::make_test_subject("location_1", 3, 4, 2)?.to_ipc_stream()?, test_subject::make_test_subject("location_2", 3, 0, 2)?.to_ipc_stream()?];
         let batch = create_object_store_batch(location.clone(), bucket.clone(), metadata.clone(), last_modified.clone(), bytes)?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name(messages)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -1301,7 +1301,7 @@ mod tests {
                 .with_name(table.get_name())
                 .with_publisher("")
                 .with_subject(table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(table.to_record_batch_stream())
                 .build()?,
         );
@@ -1311,7 +1311,7 @@ mod tests {
                 .with_name(config_table.get_name())
                 .with_publisher("")
                 .with_subject(config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
         );   
@@ -1330,7 +1330,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -1361,7 +1361,7 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = TableBuilder::new()
+        let config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&config_json, 1)?
             .build()?;
@@ -1370,7 +1370,7 @@ mod tests {
         let size = (0..2).map(|i| i as u32).collect::<Vec<_>>();
         let version = ["version_1", "version_2"].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let batch = create_object_store_meta_batch(location.clone(), bucket, metadata, version, size, last_modified)?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name(messages)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -1383,7 +1383,7 @@ mod tests {
                 .with_name(table.get_name())
                 .with_publisher("")
                 .with_subject(table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(table.to_record_batch_stream())
                 .build()?,
         );
@@ -1393,7 +1393,7 @@ mod tests {
                 .with_name(config_table.get_name())
                 .with_publisher("")
                 .with_subject(config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
         );   
@@ -1412,7 +1412,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -1438,12 +1438,12 @@ mod tests {
             assert!(res > 0);
         }
         let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?;
-        let tables: Result<Vec<Table>> = result.into_iter()
-            .map(|bytes| TableBuilder::new_from_ipc_stream(&bytes)?.with_name("IPC").build())
+        let tables: Result<Vec<Subject>> = result.into_iter()
+            .map(|bytes| SubjectBuilder::new_from_ipc_stream(&bytes)?.with_name("IPC").build())
             .collect();
         let tables = tables?;
-        assert_eq!(tables.first().unwrap(), &test_table::make_test_table("IPC", 3, 4, 2)?);
-        assert_eq!(tables.get(1).unwrap(), &test_table::make_test_table("IPC", 3, 0, 2)?);
+        assert_eq!(tables.first().unwrap(), &test_subject::make_test_subject("IPC", 3, 4, 2)?);
+        assert_eq!(tables.get(1).unwrap(), &test_subject::make_test_subject("IPC", 3, 0, 2)?);
 
         // GET from config
         // Config for the Processor
@@ -1458,7 +1458,7 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = TableBuilder::new()
+        let config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&config_json, 1)?
             .build()?;
@@ -1471,7 +1471,7 @@ mod tests {
                 .with_name(config_table.get_name())
                 .with_publisher("")
                 .with_subject(config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
         );   
@@ -1490,7 +1490,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -1515,12 +1515,12 @@ mod tests {
             assert!(res > 0);
         }
         let result = table.get_column_as_vec_nested_primitive::<u8>("bytes")?;
-        let tables: Result<Vec<Table>> = result.into_iter()
-            .map(|bytes| TableBuilder::new_from_ipc_stream(&bytes)?.with_name("IPC").build())
+        let tables: Result<Vec<Subject>> = result.into_iter()
+            .map(|bytes| SubjectBuilder::new_from_ipc_stream(&bytes)?.with_name("IPC").build())
             .collect();
         let tables = tables?;
-        assert_eq!(tables.first().unwrap(), &test_table::make_test_table("IPC", 3, 4, 2)?);
-        assert_eq!(tables.get(1).unwrap(), &test_table::make_test_table("IPC", 3, 0, 2)?);
+        assert_eq!(tables.first().unwrap(), &test_subject::make_test_subject("IPC", 3, 4, 2)?);
+        assert_eq!(tables.get(1).unwrap(), &test_subject::make_test_subject("IPC", 3, 0, 2)?);
 
         let _ = std::fs::remove_dir_all(project_dir);
 
@@ -1564,7 +1564,7 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = TableBuilder::new()
+        let config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&config_json, 1)?
             .build()?;
@@ -1577,7 +1577,7 @@ mod tests {
         let size = (0..2).map(|_| 0 as u32).collect::<Vec<_>>();
         let version = ["", ""].into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let batch = create_object_store_meta_batch(location.clone(), bucket, metadata, version, size, last_modified)?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_name(messages)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -1590,7 +1590,7 @@ mod tests {
                 .with_name(table.get_name())
                 .with_publisher("")
                 .with_subject(table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(table.to_record_batch_stream())
                 .build()?,
         );
@@ -1600,7 +1600,7 @@ mod tests {
                 .with_name(config_table.get_name())
                 .with_publisher("")
                 .with_subject(config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
         );   
@@ -1619,7 +1619,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;
@@ -1668,7 +1668,7 @@ mod tests {
             ..Default::default()
         };
         let config_json = serde_json::to_vec(&config)?;
-        let config_table = TableBuilder::new()
+        let config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&config_json, 1)?
             .build()?;
@@ -1681,7 +1681,7 @@ mod tests {
                 .with_name(config_table.get_name())
                 .with_publisher("")
                 .with_subject(config_table.get_name())
-                .with_update(&TablePublication::None)
+                .with_update(&Publication::None)
                 .with_message(config_table.to_record_batch_stream())
                 .build()?,
         );   
@@ -1700,7 +1700,7 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let table = TableBuilder::new()
+        let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
             .build()?;

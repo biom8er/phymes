@@ -86,8 +86,8 @@ mod tests {
     };
     use phymes_core::{
         AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
-        ChatBuilderTraitExt, DataFormat, MappableTrait, MessageBuilderTrait, TablePublication,
-        TableTrait,
+        ChatBuilderTraitExt, DataFormat, MappableTrait, MessageBuilderTrait, Publication,
+        SubjectTrait,
     };
     use serde_json::{Map, Value};
 
@@ -160,7 +160,7 @@ mod tests {
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_stream(false)
             .with_subject(AvailableSubjects::SessionSubjectSchemas.to_string().as_str())
             .make_name()
@@ -222,7 +222,7 @@ mod tests {
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_stream(false)
             .with_subject(AvailableSubjects::SessionSubjectSchemas.to_string().as_str())
             .make_name()
@@ -253,7 +253,7 @@ mod tests {
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_stream(false)
             .with_subject(AvailableSubjects::SubjectsNumRows.to_string().as_str())
             .make_name()
@@ -284,7 +284,7 @@ mod tests {
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_stream(false)
             .with_subject(AvailableSubjects::SessionMermaid.to_string().as_str())
             .make_name()
@@ -321,8 +321,8 @@ mod tests {
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())
-            .with_update(&TablePublication::Extend {
-                table_name: chat.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: chat.get_name().to_string(),
             })
             .with_stream(true)
             .with_subject(chat.get_name())
@@ -357,7 +357,7 @@ mod tests {
             .with_session_name(session_name.as_str())
             .with_format(&DataFormat::Bytes)
             .with_publisher(session_name.as_str())
-            .with_update(&TablePublication::None)
+            .with_update(&Publication::None)
             .with_stream(false)
             .with_subject("")
             .make_name()

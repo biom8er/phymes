@@ -94,7 +94,7 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         AttachmentBuilderTraitExt, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
-        BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, TablePublication, TableTrait,
+        BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, SubjectTrait,
     };
     use phymes_data::make_pdf_document;
 
@@ -142,8 +142,8 @@ mod tests {
         let blob_message = IPCMessage::get_builder()
             .with_message(blob.to_ipc_stream()?)
             .with_subject(blob.get_name())
-            .with_update(&TablePublication::Extend {
-                table_name: blob.get_name().to_string(),
+            .with_update(&Publication::Extend {
+                subject_name: blob.get_name().to_string(),
             })
             .with_publisher(extract_pdf_session.session_context_name)
             .make_name()?

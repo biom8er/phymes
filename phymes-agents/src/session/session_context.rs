@@ -3,7 +3,7 @@ use arrow::datatypes::SchemaRef;
 use clap::ValueEnum;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, RuntimeEnv, SubjectsMap, Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableSubscription, TableTrait, TaskMap, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_diagnostics_to_tables, make_store
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribePolicies, AvailableUpdatePolicies, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, RuntimeEnv, SubjectsMap, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, TablePublicationTrait, Subscription, SubjectTrait, TaskMap, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_diagnostics_to_tables, make_store
 };
 use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
 use std::sync::Arc;
@@ -80,7 +80,7 @@ impl SessionContext {
             .get_record_batches_mut()
             .drain(0..)
             .collect::<Vec<_>>();
-        let table = TableBuilder::default()
+        let table = SubjectBuilder::default()
             .with_name(
                 AvailableSubjects::SessionTasksSubscribeAggregate
                     .to_string()
@@ -143,10 +143,10 @@ impl SessionContext {
                         .iter()
                         .zip(subscription_table_names.iter())
                         .map(|(name, subject)| {
-                            TableSubscription::from_str_fuzzy(name, subject).unwrap()
+                            Subscription::from_str_fuzzy(name, subject).unwrap()
                         })
                         .collect::<Vec<_>>();
-                    let update_policy = AvailableTableUpdatePolicies::from_str(update_type, false)
+                    let update_policy = AvailableUpdatePolicies::from_str(update_type, false)
                         .unwrap()
                         .build();
                     let subjects_change_log = subscription_table_names
@@ -163,7 +163,7 @@ impl SessionContext {
                         self.subjects(),
                     );
                     let subscribe_policy =
-                        AvailableTableSubscribePolicies::from_str_fuzzy(subscribe_type)
+                        AvailableSubscribePolicies::from_str_fuzzy(subscribe_type)
                             .unwrap()
                             .build();
                     let subscribe = subscribe_policy.check_subscriptions(
@@ -250,10 +250,10 @@ impl SessionContext {
                             .zip(supersteps_lasts)
                             .filter_map(|(((name, subject), superstep), superstep_last)| {
                                 let subscriptions = vec![
-                                    TableSubscription::from_str_fuzzy(&name, &subject).unwrap(),
+                                    Subscription::from_str_fuzzy(&name, &subject).unwrap(),
                                 ];
                                 let update_policy =
-                                    AvailableTableUpdatePolicies::from_str(update_type, false)
+                                    AvailableUpdatePolicies::from_str(update_type, false)
                                         .unwrap()
                                         .build();
                                 let mut subjects_change_log = HashMap::<String, i64>::new();
@@ -266,7 +266,7 @@ impl SessionContext {
                                     self.subjects(),
                                 );
                                 let subscribe_policy =
-                                    AvailableTableSubscribePolicies::from_str_fuzzy(subscribe_type)
+                                    AvailableSubscribePolicies::from_str_fuzzy(subscribe_type)
                                         .unwrap()
                                         .build();
                                 let subscribe = subscribe_policy.check_subscriptions(
@@ -314,7 +314,7 @@ impl SessionContext {
             subscription_names,
             subscription_table_names,
         )?;
-        let table = TableBuilder::default()
+        let table = SubjectBuilder::default()
             .with_name(
                 AvailableSubjects::SessionTasksSubscribe
                     .to_string()
@@ -327,8 +327,8 @@ impl SessionContext {
         let message = IPCMessageBuilder::default()
             .with_subject(table.get_name())
             .with_publisher(self.get_name())
-            .with_update(&TablePublication::Replace {
-                table_name: table.get_name().to_string(),
+            .with_update(&Publication::Replace {
+                subject_name: table.get_name().to_string(),
             })
             .with_message(table.to_ipc_stream()?)
             .make_name()?
@@ -379,7 +379,7 @@ impl SessionContext {
             return Ok(HashMap::<(String, String), ProcessorSubjectsMap>::new());
         }
 
-        let table = TableBuilder::default()
+        let table = SubjectBuilder::default()
             .with_name(
                 AvailableSubjects::SessionTasksSubscribePublish
                     .to_string()
@@ -431,7 +431,7 @@ impl SessionContext {
                         .iter()
                         .zip(subscription_table_names.iter())
                         .map(|(subscription_name, subscription_table_name)| {
-                            TableSubscription::from_str_fuzzy(
+                            Subscription::from_str_fuzzy(
                                 subscription_name,
                                 subscription_table_name,
                             )
@@ -442,7 +442,7 @@ impl SessionContext {
                         .iter()
                         .zip(publication_table_names.iter())
                         .map(|(publication_name, publication_table_name)| {
-                            TablePublication::from_str_fuzzy(
+                            Publication::from_str_fuzzy(
                                 publication_name,
                                 publication_table_name,
                             )
@@ -507,8 +507,8 @@ impl SessionContext {
                     .unwrap()
                     .publish_to_table(
                         metrics_table.get_record_batches_own(),
-                        TablePublication::Extend {
-                            table_name: AvailableSubjects::SessionMetrics
+                        Publication::Extend {
+                            subject_name: AvailableSubjects::SessionMetrics
                                 .to_string()
                                 .as_str()
                                 .to_string(),
@@ -540,8 +540,8 @@ impl SessionContext {
                     .unwrap()
                     .publish_to_table(
                         traces_table.get_record_batches_own(),
-                        TablePublication::Extend {
-                            table_name: AvailableSubjects::SessionTraces
+                        Publication::Extend {
+                            subject_name: AvailableSubjects::SessionTraces
                                 .to_string()
                                 .as_str()
                                 .to_string(),
@@ -573,8 +573,8 @@ impl SessionContext {
                     .unwrap()
                     .publish_to_table(
                         events_table.get_record_batches_own(),
-                        TablePublication::Extend {
-                            table_name: AvailableSubjects::SessionEvents
+                        Publication::Extend {
+                            subject_name: AvailableSubjects::SessionEvents
                                 .to_string()
                                 .as_str()
                                 .to_string(),
@@ -615,7 +615,7 @@ impl SessionContext {
             .collect::<Vec<_>>();
         let supersteps = vec![next_superstep];
         let batch = create_session_supersteps_batch(session_names, supersteps)?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(AvailableSubjects::SessionSupersteps.to_string().as_str())
             .with_record_batches(vec![batch])?
             .build()?;
@@ -625,8 +625,8 @@ impl SessionContext {
             IPCMessageBuilder::default()
                 .with_message(table.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::SessionSupersteps.to_string().as_str())
-                .with_update(&TablePublication::Replace {
-                    table_name: AvailableSubjects::SessionSupersteps.to_string(),
+                .with_update(&Publication::Replace {
+                    subject_name: AvailableSubjects::SessionSupersteps.to_string(),
                 })
                 .with_publisher(self.get_name())
                 .make_name()?
@@ -635,8 +635,8 @@ impl SessionContext {
             IPCMessageBuilder::default()
                 .with_message(table.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::SessionSupersteps.to_string().as_str())
-                .with_update(&TablePublication::Extend {
-                    table_name: AvailableSubjects::SessionSupersteps.to_string(),
+                .with_update(&Publication::Extend {
+                    subject_name: AvailableSubjects::SessionSupersteps.to_string(),
                 })
                 .with_publisher(self.get_name())
                 .make_name()?
@@ -692,7 +692,7 @@ impl SessionContext {
         let batch = create_subjects_num_rows_batch(subject_names, num_rows).unwrap();
 
         // create the table
-        let subject_num_rows_table = Table::get_builder()
+        let subject_num_rows_table = Subject::get_builder()
             .with_name(AvailableSubjects::SubjectsNumRows.to_string().as_str())
             .with_record_batches(vec![batch])
             .unwrap()
@@ -710,8 +710,8 @@ impl SessionContext {
                 .write()
                 .publish_to_table(
                     subject_num_rows_table.get_record_batches_own(),
-                    TablePublication::Replace {
-                        table_name: AvailableSubjects::SubjectsNumRows.to_string(),
+                    Publication::Replace {
+                        subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
                     },
                 )
                 .unwrap();
@@ -770,11 +770,11 @@ impl SessionContext {
         for (name, subject) in self.subjects.iter() {
             let pathname = format!("{path}/{tag}-{}-{name}", self.get_name());
             let file = std::fs::File::open(pathname)?;
-            match TableBuilder::new_from_ipc_file(&file) {
+            match SubjectBuilder::new_from_ipc_file(&file) {
                 Ok(table_builder) => {
                     let table = table_builder.with_name(name).build()?;
-                    let update = TablePublication::Replace {
-                        table_name: name.to_string(),
+                    let update = Publication::Replace {
+                        subject_name: name.to_string(),
                     };
                     subject
                         .write()
@@ -791,7 +791,7 @@ impl SessionContext {
     pub fn update_subjects_from_messages(
         &self,
         messages: IPCMessageMap,
-    ) -> (Option<Table>, Option<Table>) {
+    ) -> (Option<Subject>, Option<Subject>) {
         let mut subject_names = Vec::new();
         let mut task_names = Vec::new();
         let mut session_names = Vec::new();
@@ -804,20 +804,20 @@ impl SessionContext {
         for (_name, message) in messages.into_iter() {
             // Should the subject be updated?
             let update = message.get_update().clone();
-            if update == TablePublication::None {
+            if update == Publication::None {
                 continue;
             }
 
             // Try to update the state with the new record batches
-            let table_name = message.get_update().get_table_name().to_string();
-            if let Some(state) = self.subjects().get(table_name.as_str()) {
+            let subject_name = message.get_update().subject_name().to_string();
+            if let Some(state) = self.subjects().get(subject_name.as_str()) {
                 let publisher = message.get_publisher().to_string();
 
                 // Handle any inconsistencies in the message
                 // DM, todo!(): Mostly an issue with empty batches which should be ignored anyway
-                match TableBuilder::new_from_ipc_stream(&message.get_message_own()) {
+                match SubjectBuilder::new_from_ipc_stream(&message.get_message_own()) {
                     Ok(builder) => {
-                        let table = builder.with_name(table_name.as_str()).build().unwrap();
+                        let table = builder.with_name(subject_name.as_str()).build().unwrap();
                         let _num_rows = table.count_rows(); // DM: not used currently...
                         let batches = table.get_record_batches_own();
 
@@ -826,7 +826,7 @@ impl SessionContext {
                         let num_rows_old = state.read().count_rows();
                         if let Err(err) = state.write().publish_to_table(batches, update) {
                             let error = format!(
-                                "Subject `{table_name}` from publisher `{publisher}` failed to update the target table with error `{err:?}`"
+                                "Subject `{subject_name}` from publisher `{publisher}` failed to update the target table with error `{err:?}`"
                             );
                             errors.push(error);
                             continue;
@@ -842,7 +842,7 @@ impl SessionContext {
                     }
                     Err(err) => {
                         let error = format!(
-                            "Subject `{table_name}` with update `{update:?}` from publisher `{publisher}` failed to build the Table with error `{err:?}`"
+                            "Subject `{subject_name}` with update `{update:?}` from publisher `{publisher}` failed to build the Table with error `{err:?}`"
                         );
                         errors.push(error);
                     }
@@ -850,7 +850,7 @@ impl SessionContext {
             } else {
                 // Mismatch in table names of the update and state
                 let error = format!(
-                    "Subject `{table_name}` with update `{update:?}` is not in the session state tables! Available tables are {:?}",
+                    "Subject `{subject_name}` with update `{update:?}` is not in the session state tables! Available tables are {:?}",
                     self.subjects().keys()
                 );
                 errors.push(error);
@@ -927,7 +927,7 @@ mod tests {
     use phymes_core::{
         IPCMessage, Task, create_session_tasks_subscribe_aggregate_batch,
         create_session_tasks_subscribe_publish_batch,
-        test_table::{self, make_test_table_schema},
+        test_subject::{self, make_test_subject_schema},
         test_task,
     };
     #[cfg(not(target_family = "wasm"))]
@@ -939,12 +939,12 @@ mod tests {
             make_test_session_context_builder_parallel("session_1")?.build()?;
 
         // table should be found
-        let schema = make_test_table_schema(8)?;
+        let schema = make_test_subject_schema(8)?;
         let name = session_context.get_table_name_by_schema(&schema).unwrap();
         assert_eq!(name, "state_1");
 
         // table should not be found
-        let schema = make_test_table_schema(2)?;
+        let schema = make_test_subject_schema(2)?;
         let name = session_context.get_table_name_by_schema(&schema);
         assert!(name.is_none());
         Ok(())
@@ -1072,7 +1072,7 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublication::None,
+            &Publication::None,
             true,
         )?;
         let (updates, errors) = session_context.update_subjects_from_messages(input);
@@ -1135,8 +1135,8 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublication::Extend {
-                table_name: "state_1".to_string(),
+            &Publication::Extend {
+                subject_name: "state_1".to_string(),
             },
             true,
         )?;
@@ -1217,8 +1217,8 @@ mod tests {
             "session_1",
             "state_1",
             "state_1",
-            &TablePublication::Extend {
-                table_name: "state_1".to_string(),
+            &Publication::Extend {
+                subject_name: "state_1".to_string(),
             },
             false,
         )?;
@@ -1232,9 +1232,9 @@ mod tests {
             "task_1",
             "state_1",
             "session_1",
-            Some(test_table::make_test_table("state_1", 4, 8, 3)?.to_ipc_stream()?),
-            Some(TablePublication::Extend {
-                table_name: "NotFound".to_string(),
+            Some(test_subject::make_test_subject("state_1", 4, 8, 3)?.to_ipc_stream()?),
+            Some(Publication::Extend {
+                subject_name: "NotFound".to_string(),
             }),
         );
         let mut input = HashMap::<String, IPCMessage>::new();
@@ -1312,10 +1312,10 @@ mod tests {
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
         let update_types = [
-            "TableChangedSinceLastRunUpdate",
-            "TableChangedSinceLastRunUpdate",
-            "TableChangedSinceLastRunUpdate",
-            "TableChangedSinceLastRunUpdate",
+            "SubjectChangedSinceLastRunUpdate",
+            "SubjectChangedSinceLastRunUpdate",
+            "SubjectChangedSinceLastRunUpdate",
+            "SubjectChangedSinceLastRunUpdate",
         ]
         .into_iter()
         .map(|s| s.to_string())
@@ -1349,7 +1349,7 @@ mod tests {
             AvailableSubjects::SessionTasksSubscribe.to_table(None, None)?;
 
         // Make the session context for testing
-        let mut state = HashMap::<String, Arc<RwLock<Table>>>::new();
+        let mut state = HashMap::<String, Arc<RwLock<Subject>>>::new();
         let _ = state.insert(
             table_tasks_subscribe_aggregate.get_name().to_string(),
             Arc::new(RwLock::new(table_tasks_subscribe_aggregate)),
@@ -1520,10 +1520,10 @@ mod tests {
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
         let update_types = [
-            "TableChangedSinceLastRunUpdate",
-            "TableChangedSinceLastRunUpdate",
-            "TableChangedSinceLastRunUpdate",
-            "TableChangedSinceLastRunUpdate",
+            "SubjectChangedSinceLastRunUpdate",
+            "SubjectChangedSinceLastRunUpdate",
+            "SubjectChangedSinceLastRunUpdate",
+            "SubjectChangedSinceLastRunUpdate",
         ]
         .into_iter()
         .map(|s| s.to_string())
@@ -1553,7 +1553,7 @@ mod tests {
             AvailableSubjects::SessionTasksSubscribe.to_table(None, None)?;
 
         // Make the session context for testing
-        let mut state = HashMap::<String, Arc<RwLock<Table>>>::new();
+        let mut state = HashMap::<String, Arc<RwLock<Subject>>>::new();
         let _ = state.insert(
             table_tasks_subscribe_aggregate.get_name().to_string(),
             Arc::new(RwLock::new(table_tasks_subscribe_aggregate)),
@@ -1647,10 +1647,10 @@ mod tests {
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
         let update_types = [
-            "TableChangedSinceLastRunUpdate",
-            "TableChangedSinceLastRunUpdate",
-            "TableChangedSinceLastRunUpdate",
-            "TableChangedSinceLastRunUpdate",
+            "SubjectChangedSinceLastRunUpdate",
+            "SubjectChangedSinceLastRunUpdate",
+            "SubjectChangedSinceLastRunUpdate",
+            "SubjectChangedSinceLastRunUpdate",
         ]
         .into_iter()
         .map(|s| s.to_string())
@@ -1684,7 +1684,7 @@ mod tests {
             AvailableSubjects::SessionTasksSubscribe.to_table(None, None)?;
 
         // Make the session context for testing
-        let mut state = HashMap::<String, Arc<RwLock<Table>>>::new();
+        let mut state = HashMap::<String, Arc<RwLock<Subject>>>::new();
         let _ = state.insert(
             table_tasks_subscribe_aggregate.get_name().to_string(),
             Arc::new(RwLock::new(table_tasks_subscribe_aggregate)),
@@ -1835,7 +1835,7 @@ mod tests {
             AvailableSubjects::SessionTasksSubscribePublish.to_table(None, Some(vec![batch]))?;
 
         // Make the session context for testing
-        let mut state = HashMap::<String, Arc<RwLock<Table>>>::new();
+        let mut state = HashMap::<String, Arc<RwLock<Subject>>>::new();
         let _ = state.insert(
             table_tasks_subscribe_publish.get_name().to_string(),
             Arc::new(RwLock::new(table_tasks_subscribe_publish)),
@@ -1856,11 +1856,11 @@ mod tests {
         let mut processor_subjects_map = HashMap::<String, ProcessorSubjects>::new();
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name("session_1")
-            .with_subscriptions(&[TableSubscription::OnUpdateLastRecordBatch {
-                table_name: "state_1".to_string(),
+            .with_subscriptions(&[Subscription::OnUpdateLastRecordBatch {
+                subject_name: "state_1".to_string(),
             }])
-            .with_publications(&[TablePublication::Extend {
-                table_name: "state_1".to_string(),
+            .with_publications(&[Publication::Extend {
+                subject_name: "state_1".to_string(),
             }])
             .build()?;
         let _ = processor_subjects_map.insert("session_1".to_string(), processor_subjects);
@@ -1872,45 +1872,45 @@ mod tests {
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name("processor_1")
             .with_subscriptions(&[
-                TableSubscription::AlwaysFullTable {
-                    table_name: "processor_1".to_string(),
+                Subscription::AlwaysFullTable {
+                    subject_name: "processor_1".to_string(),
                 },
-                TableSubscription::OnUpdateFullTable {
-                    table_name: "state_1".to_string(),
+                Subscription::OnUpdateFullTable {
+                    subject_name: "state_1".to_string(),
                 },
             ])
-            .with_publications(&[TablePublication::Extend {
-                table_name: "state_1".to_string(),
+            .with_publications(&[Publication::Extend {
+                subject_name: "state_1".to_string(),
             }])
             .build()?;
         let _ = processor_subjects_map.insert("processor_1".to_string(), processor_subjects);
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name("processor_2")
             .with_subscriptions(&[
-                TableSubscription::AlwaysFullTable {
-                    table_name: "processor_2".to_string(),
+                Subscription::AlwaysFullTable {
+                    subject_name: "processor_2".to_string(),
                 },
-                TableSubscription::OnUpdateFullTable {
-                    table_name: "state_1".to_string(),
+                Subscription::OnUpdateFullTable {
+                    subject_name: "state_1".to_string(),
                 },
             ])
-            .with_publications(&[TablePublication::Extend {
-                table_name: "state_1".to_string(),
+            .with_publications(&[Publication::Extend {
+                subject_name: "state_1".to_string(),
             }])
             .build()?;
         let _ = processor_subjects_map.insert("processor_2".to_string(), processor_subjects);
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name("processor_3")
             .with_subscriptions(&[
-                TableSubscription::AlwaysFullTable {
-                    table_name: "processor_3".to_string(),
+                Subscription::AlwaysFullTable {
+                    subject_name: "processor_3".to_string(),
                 },
-                TableSubscription::OnUpdateFullTable {
-                    table_name: "state_1".to_string(),
+                Subscription::OnUpdateFullTable {
+                    subject_name: "state_1".to_string(),
                 },
             ])
-            .with_publications(&[TablePublication::Extend {
-                table_name: "state_1".to_string(),
+            .with_publications(&[Publication::Extend {
+                subject_name: "state_1".to_string(),
             }])
             .build()?;
         let _ = processor_subjects_map.insert("processor_3".to_string(), processor_subjects);

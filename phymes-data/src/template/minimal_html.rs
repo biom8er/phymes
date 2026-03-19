@@ -137,8 +137,8 @@ pub mod test_minimal_html {
 mod tests {
     use anyhow::Result;
     use phymes_core::{
-        BuildableTrait, BuilderTrait, MappableTrait, Table, TableBuilderTrait, TableScript,
-        TableTrait,
+        BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilderTrait, SubjectScript,
+        SubjectTrait,
     };
     use serde_json::Map;
 
@@ -149,7 +149,7 @@ mod tests {
     #[test]
     fn test_minimal_body_html() -> Result<()> {
         let batch = test_minimal_html::make_html_headers()?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(TEMPLATE_HEADER_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -159,7 +159,7 @@ mod tests {
         let _ = input_object.insert(table.get_name().to_string(), table.to_json_object()?.into());
         let template_inputs = serde_json::to_value(input_object)?;
         let rendered_template =
-            TableScript::new_from_template(MINIMAL_HTML_BODY_TEMPLATE.to_string())
+            SubjectScript::new_from_template(MINIMAL_HTML_BODY_TEMPLATE.to_string())
                 .apply_template(&template_inputs)?;
 
         assert_eq!(
@@ -168,7 +168,7 @@ mod tests {
         );
 
         let batch = test_minimal_html::make_html_rows()?;
-        let table = Table::get_builder()
+        let table = Subject::get_builder()
             .with_name(TEMPLATE_TABLE_EXPRESSION)
             .with_record_batches(vec![batch])?
             .build()?;
@@ -184,7 +184,7 @@ mod tests {
         ]
         .join("");
         let script_string =
-            TableScript::new_from_template(template).apply_template(&template_inputs)?;
+            SubjectScript::new_from_template(template).apply_template(&template_inputs)?;
 
         assert_eq!(
             script_string,
