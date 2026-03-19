@@ -1,13 +1,9 @@
 use std::{
-    fmt::Debug,
-    io::Write,
-    io::{Cursor, Seek},
-    sync::Arc,
+    fmt::Debug, io::{Cursor, Seek, Write}, pin::Pin, sync::Arc
 };
 
 use crate::{
-    BuildableTrait, BuilderTrait, MappableTrait, RecordBatchStreamAdapter,
-    SendableRecordBatchStream, TableBuilder,
+    BuildableTrait, BuilderTrait, IpcWriter, MappableTrait, RecordBatchStreamAdapter, SendableRecordBatchStream, StorageStreamWriterTrait, StorageWriterTrait, TableBuilder
 };
 
 use anyhow::{Result, anyhow};
@@ -26,6 +22,7 @@ use arrow::{
 };
 use bytes::Bytes;
 use num_traits::{Bounded, Num, NumCast};
+use object_store::{ObjectStore, path::Path};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -35,6 +32,24 @@ pub trait TableTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     fn get_record_batches(&self) -> &Vec<RecordBatch>;
     fn get_record_batches_own(self) -> Vec<RecordBatch>;
     fn get_record_batches_mut(&mut self) -> &mut Vec<RecordBatch>;
+
+    /// Write record batches to IPC object store, consuming self
+    fn to_ipc_object_store<'a>(&'a self, store: &'a Arc<dyn ObjectStore>, path: &'a Path) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
+        Box::pin(async move {
+            if self.get_record_batches().is_empty() {
+                return Err(anyhow!(
+                    "Cannot write empty record batches to IPC file since they cannot be read back in."
+                ));
+            }
+            let mut writer = IpcWriter::new_with_config(self.get_schema().clone())?;
+            for batch in self.get_record_batches() {
+                writer.write_batch(batch)?;
+            }
+            writer.finish_batch()?;
+            writer.put(&store, &path).await?;
+            Ok(())
+        })
+    }
 
     /// Write record batches to IPC file
     fn to_ipc_file<F>(&self, file: &mut F) -> Result<()>

@@ -57,7 +57,7 @@ pub use storage::{
     BatchWriter, ChunkedWriter, OnChunk, OnChunkTrait,
     ObjectStorageReader, ObjectStorageWriter,
     IpcReader, JsonReader, CsvReader, StorageReaderTrait, StorageStreamReaderTrait, storage_reader_get_result, storage_reader_stream_result,
-    IpcWriterMultipart, JsonWriterMultipart, CsvWriterMultipart, StorageWriterTrait, StorageWriterMultipartTrait, StorageStreamWriterTrait, storage_writer_multipart
+    IpcWriter, JsonWriter, CsvWriter, IpcWriterMultipart, JsonWriterMultipart, CsvWriterMultipart, StorageWriterTrait, StorageWriterMultipartTrait, StorageStreamWriterTrait, storage_writer_multipart
 };
 pub use subject::{SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlan, SubjectPlanTrait, SubjectConstraintType, SubjectFilePartition, SubjectFolderPartition,
     create_arrow_array_sequence, SubjectSequenceType,

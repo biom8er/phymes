@@ -472,7 +472,7 @@ mod tests {
     use super::openai_chat_completion::Tool;
     use crate::{
         BuildableTrait, BuilderTrait, MessageBuilderTrait, ProcessorTrait, RuntimeEnv,
-        RuntimeEnvTrait, SendableRecordBatchStreamMessage, TablePublication,
+        SendableRecordBatchStreamMessage, TablePublication,
         test_table::{make_test_table_chat, make_test_table_tool},
     };
     use futures::TryStreamExt;

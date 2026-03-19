@@ -14,7 +14,7 @@ pub use readers::{IpcReader, JsonReader, CsvReader};
 pub use storage_reader::ObjectStorageReader;
 pub use storage_writer::ObjectStorageWriter;
 pub use writer_trait::{StorageWriterTrait, StorageWriterMultipartTrait, StorageStreamWriterTrait, storage_writer_multipart};
-pub use writers::{IpcWriterMultipart, JsonWriterMultipart, CsvWriterMultipart};
+pub use writers::{IpcWriter, JsonWriter, CsvWriter, IpcWriterMultipart, JsonWriterMultipart, CsvWriterMultipart};
 
 #[cfg(test)]
 mod tests {
@@ -29,7 +29,7 @@ mod tests {
     use std::sync::Arc;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_storage_to_from_storage_ipc() -> anyhow::Result<()> {
+    async fn test_storage_to_from_storage_ipc_multipart() -> anyhow::Result<()> {
         let store: Arc<dyn object_store::ObjectStore> = Arc::new(InMemory::new());
         let path = Path::from("stress.arrow.ipc");
 
@@ -84,7 +84,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_storage_to_from_storage_json() -> anyhow::Result<()> {
+    async fn test_storage_to_from_storage_json_multipart() -> anyhow::Result<()> {
         let store: Arc<dyn object_store::ObjectStore> = Arc::new(InMemory::new());
         let path = Path::from("stress.arrow.json");
 
@@ -138,7 +138,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_storage_to_from_storage_csv() -> anyhow::Result<()> {
+    async fn test_storage_to_from_storage_csv_multipart() -> anyhow::Result<()> {
         let store: Arc<dyn object_store::ObjectStore> = Arc::new(InMemory::new());
         let path = Path::from("stress.arrow.csv");
 
@@ -187,6 +187,156 @@ mod tests {
         let n_rows = batches.iter().map(|batch| batch.num_rows()).sum::<usize>();
         assert_eq!(n_rows_read, n_rows);
         assert_eq!(read_batches.first().unwrap().schema(), batches.first().unwrap().schema());
+
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_storage_to_from_storage_ipc_singlepart() -> anyhow::Result<()> {
+        let store: Arc<dyn object_store::ObjectStore> = Arc::new(InMemory::new());
+        let path = Path::from("arrow.ipc");
+
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "value",
+            DataType::Int64,
+            false,
+        )]));
+
+        // Generate batches
+        let mut batches = Vec::new();
+        for _ in 0..2 {
+            let size = 10;
+            let arr = Int64Array::from_iter_values(0..size as i64);
+            let batch = RecordBatch::try_new(schema.clone(), vec![Arc::new(arr)])?;
+            batches.push(batch);
+        }
+
+        // --- Write ---
+        let mut writer = IpcWriter::new_with_config(schema)?;
+        for batch in &batches {
+            writer.write_batch(batch)?;
+        }
+        writer.finish_batch()?;
+
+        writer.put(&store, &path).await?;
+
+        // --- Read ---
+        let result = storage_reader_get_result(&store, &path).await?;
+        let mut stream = storage_reader_stream_result(result);
+        let mut read_batches = Vec::new();
+        while let Some(bytes) = stream.try_next().await? {
+            let mut reader = IpcReader::new_with_bytes(&bytes, None)?;
+            while let Some(batch) = reader.poll_next_batch()? {
+                read_batches.push(batch);
+            }
+        }
+
+        assert_eq!(read_batches.len(), batches.len());
+
+        for (expected, actual) in batches.iter().zip(read_batches.iter()) {
+            assert_eq!(expected.num_rows(), actual.num_rows());
+            assert_eq!(expected.schema(), actual.schema());
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_storage_to_from_storage_json_singlepart() -> anyhow::Result<()> {
+        let store: Arc<dyn object_store::ObjectStore> = Arc::new(InMemory::new());
+        let path = Path::from("arrow.ipc");
+
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "value",
+            DataType::Int64,
+            false,
+        )]));
+
+        // Generate batches
+        let mut batches = Vec::new();
+        for _ in 0..2 {
+            let size = 10;
+            let arr = Int64Array::from_iter_values(0..size as i64);
+            let batch = RecordBatch::try_new(schema.clone(), vec![Arc::new(arr)])?;
+            batches.push(batch);
+        }
+
+        // --- Write ---
+        let mut writer = JsonWriter::new_with_config()?;
+        for batch in &batches {
+            writer.write_batch(batch)?;
+        }
+        writer.finish_batch()?;
+
+        writer.put(&store, &path).await?;
+
+        // --- Read ---
+        let result = storage_reader_get_result(&store, &path).await?;
+        let mut stream = storage_reader_stream_result(result);
+        let mut read_batches = Vec::new();
+        while let Some(bytes) = stream.try_next().await? {
+            let mut reader = IpcReader::new_with_bytes(&bytes, None)?;
+            while let Some(batch) = reader.poll_next_batch()? {
+                read_batches.push(batch);
+            }
+        }
+
+        assert_eq!(read_batches.len(), batches.len());
+
+        for (expected, actual) in batches.iter().zip(read_batches.iter()) {
+            assert_eq!(expected.num_rows(), actual.num_rows());
+            assert_eq!(expected.schema(), actual.schema());
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_storage_to_from_storage_csv_singlepart() -> anyhow::Result<()> {
+        let store: Arc<dyn object_store::ObjectStore> = Arc::new(InMemory::new());
+        let path = Path::from("arrow.ipc");
+
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "value",
+            DataType::Int64,
+            false,
+        )]));
+
+        // Generate batches
+        let mut batches = Vec::new();
+        for _ in 0..2 {
+            let size = 10;
+            let arr = Int64Array::from_iter_values(0..size as i64);
+            let batch = RecordBatch::try_new(schema.clone(), vec![Arc::new(arr)])?;
+            batches.push(batch);
+        }
+
+        // --- Write ---
+        let mut writer = CsvWriter::new_with_config(false, b';')?;
+        for batch in &batches {
+            writer.write_batch(batch)?;
+        }
+        writer.finish_batch()?;
+
+        writer.put(&store, &path).await?;
+
+        // --- Read ---
+        let result = storage_reader_get_result(&store, &path).await?;
+        let mut stream = storage_reader_stream_result(result);
+        let mut read_batches = Vec::new();
+        while let Some(bytes) = stream.try_next().await? {
+            let mut reader = IpcReader::new_with_bytes(&bytes, None)?;
+            while let Some(batch) = reader.poll_next_batch()? {
+                read_batches.push(batch);
+            }
+        }
+
+        assert_eq!(read_batches.len(), batches.len());
+
+        for (expected, actual) in batches.iter().zip(read_batches.iter()) {
+            assert_eq!(expected.num_rows(), actual.num_rows());
+            assert_eq!(expected.schema(), actual.schema());
+        }
 
         Ok(())
     }

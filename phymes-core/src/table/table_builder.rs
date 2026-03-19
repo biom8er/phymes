@@ -1,12 +1,8 @@
 use std::{
-    fmt::Debug,
-    fs::File,
-    io::Read,
-    io::{Cursor, Seek},
-    sync::Arc,
+    fmt::Debug, fs::File, io::{Cursor, Read, Seek}, pin::Pin, sync::Arc
 };
 
-use crate::{BuilderTrait, SendableIPCRecordBatchStream, SendableRecordBatchStream, Table};
+use crate::{BuilderTrait, SendableIPCRecordBatchStream, SendableRecordBatchStream, Table, storage_reader_get_result, storage_reader_stream_result};
 use anyhow::{Result, anyhow};
 use arrow::{
     array::{
@@ -23,6 +19,7 @@ use arrow::{
     record_batch::RecordBatch,
 };
 use futures::TryStreamExt;
+use object_store::{ObjectStore, path::Path};
 use serde::Serialize;
 use serde_json::Value;
 use tracing::{Level, event};
@@ -33,6 +30,12 @@ pub trait TableBuilderTrait: BuilderTrait + Debug + Send + Sync {
 
     /// Add record batches
     fn with_record_batches(self, batches: Vec<RecordBatch>) -> Result<Self>
+    where
+        Self: Sized;
+
+    /// Create a new stream table with the provided object storage
+    /// from IPC format    
+    fn new_from_ipc_object_store<'a>(store: &'a Arc<dyn ObjectStore>, path: &'a Path) -> Pin<Box<dyn Future<Output = Result<Self>> + Send + 'a>>
     where
         Self: Sized;
 
@@ -191,6 +194,18 @@ impl TableBuilderTrait for TableBuilder {
         }
         self.record_batches = Some(batches);
         Ok(self)
+    }
+
+    fn new_from_ipc_object_store<'a>(store: &'a Arc<dyn ObjectStore>, path: &'a Path) -> Pin<Box<dyn Future<Output = Result<Self>> + Send + 'a>> {
+        Box::pin(async move { 
+            let result = storage_reader_get_result(&store, &path).await?;
+            let mut stream = storage_reader_stream_result(result);
+            let mut bytes = Vec::new();
+            while let Some(chunk) = stream.try_next().await? {
+                bytes.extend(chunk);
+            }
+            Self::new_from_ipc_stream(&bytes)
+        })
     }
 
     fn new_from_ipc_file<F>(file: F) -> Result<Self>
