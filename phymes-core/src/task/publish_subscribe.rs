@@ -6,7 +6,7 @@ use phymes_diagnostics::HashMap;
 
 use crate::{
     BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, SubjectsMap,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap,
     TablePublication, TableSubscription, TableSubscriptionTrait,
     message::SendableRecordBatchStreamMessageBuilderMap, remove_message_by_subject,
 };
@@ -40,6 +40,8 @@ pub fn subscribe_to_subject(
         if let Some(message) = remove_message_by_subject(subscription.get_table_name(), messages) {
             let _ = map.insert(message.get_name().to_string(), message);
         // 2. Check for subscriptions in the subjects
+        // DM: First, get the partitions from the subject metadata
+        //     Second, read the last or all of the partitions depending upon the subscription
         } else if let Some(table) = subjects.get(subscription.get_table_name())
             && let Some(stream) = table.read().subscribe_to_table(subscription)
         {
