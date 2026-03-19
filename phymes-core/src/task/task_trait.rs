@@ -2,15 +2,11 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use arrow::record_batch::RecordBatch;
-use parking_lot::RwLock;
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
 use tracing::{Level, event};
 
 use crate::{
-    BuildableTrait, MappableTrait, ProcessorSubjectsMap, ProcessorTrait, RuntimeEnv,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, SubjectsMap,
-    TableSubscription, TaskBuilder, subscribe_to_subject,
-    task::publish_subscribe::build_and_publish_to_stream, update_publisher,
+    BuildableTrait, MappableTrait, ProcessorSubjectsMap, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, TableSubscription, TaskBuilder, subscribe_to_subject, task::publish_subscribe::build_and_publish_to_stream, update_publisher
 };
 
 /// Trait to implement the actual task which could involve one or
@@ -59,7 +55,6 @@ pub trait TaskTrait: MappableTrait + BuildableTrait + Sync + Send {
         diagnostic_builder: Option<&DiagnosticBuilder>,
         processor_subjects: &ProcessorSubjectsMap,
         runtime_env: &Arc<RuntimeEnv>,
-        subjects: &SubjectsMap, // DM: update to channels when ready
     ) -> Result<SendableRecordBatchStreamMessageMap>;
 
     /// Get an immutable reference to the processors
@@ -97,7 +92,6 @@ impl TaskTrait for Task {
         diagnostic_builder: Option<&DiagnosticBuilder>,
         processor_subjects: &ProcessorSubjectsMap,
         runtime_env: &Arc<RuntimeEnv>,
-        subjects: &SubjectsMap, // DM: update to channels when ready
     ) -> Result<SendableRecordBatchStreamMessageMap> {
         event!(Level::INFO, "Running task {}", self.get_name());
 
@@ -131,7 +125,7 @@ impl TaskTrait for Task {
                 subscribe_to_subject(
                     &processor_subject.subscriptions,
                     &processor_subject.publications,
-                    subjects,
+                    runtime_env.object_store(),
                     &mut messages,
                 )?;
 
@@ -187,12 +181,7 @@ impl TaskTrait for Task {
 pub mod test_task {
     use super::*;
     use crate::{
-        BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait,
-        MessageBuilderTrait, ProcessorBuilder, ProcessorSubjects, ProcessorSubjectsBuilder,
-        RuntimeEnv, Table, TableBuilder, TableBuilderTrait, TablePublication,
-        TableTrait, TaskBuilderTrait,
-        test_processor::ProcessorMock,
-        test_table::{make_test_table, make_test_table_chat},
+        BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, ProcessorBuilder, ProcessorSubjects, ProcessorSubjectsBuilder, RuntimeEnv, SubjectPlan, SubjectPlanBuilderTrait, Table, TableBuilder, TableBuilderTrait, TablePublication, TableTrait, TaskBuilderTrait, test_processor::ProcessorMock, test_table::{make_test_table, make_test_table_chat}
     };
 
     use arrow::array::{ArrayRef, BooleanArray, StringArray};
@@ -239,15 +228,16 @@ pub mod test_task {
         Ok(vec![config, table])
     }
 
-    pub fn make_subjects(table_name: &str, config_name: &str) -> Result<SubjectsMap> {
+    pub fn make_subjects(table_name: &str, config_name: &str) -> Result<Vec<SubjectPlan>> {
         let tables = make_subject_tables(table_name, config_name)?;
-
-        // add mock config and table to the state
-        let mut state = HashMap::<String, Arc<RwLock<Table>>>::new();
+        let mut subject_plans = Vec::new();
         for table in tables.into_iter() {
-            state.insert(table.get_name().to_string(), Arc::new(RwLock::new(table)));
+            let plan = SubjectPlan::get_builder()
+                .with_table(table)
+                .build()?;
+            subject_plans.push(plan);
         }
-        Ok(state)
+        Ok(subject_plans)
     }
 
     pub fn make_runtime_env(name: &str) -> Result<Arc<RuntimeEnv>> {

@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{CsvWriter, IpcWriter, JsonWriter, storage::chunked_writer::{ChunkedWriter, OnChunk}};
+use crate::{CsvWriterMultipart, IpcWriterMultipart, JsonWriterMultipart, storage::chunked_writer::{ChunkedWriter, OnChunk}};
 
 /// Available object storage writers
 /// 
@@ -8,9 +8,9 @@ use crate::{CsvWriter, IpcWriter, JsonWriter, storage::chunked_writer::{ChunkedW
 /// - Add in `to_bytes`, `to_struct`, `to_values`, etc.
 #[derive(Debug)]
 pub enum ObjectStorageWriter {
-    Ipc(IpcWriter<ChunkedWriter<OnChunk>>),
-    Json(JsonWriter<ChunkedWriter<OnChunk>>),
-    Csv(CsvWriter<ChunkedWriter<OnChunk>>),
+    Ipc(IpcWriterMultipart<ChunkedWriter<OnChunk>>),
+    Json(JsonWriterMultipart<ChunkedWriter<OnChunk>>),
+    Csv(CsvWriterMultipart<ChunkedWriter<OnChunk>>),
 }
 impl Display for ObjectStorageWriter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

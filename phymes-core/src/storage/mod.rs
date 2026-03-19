@@ -8,13 +8,13 @@ mod writer_trait;
 mod writers;
 
 pub use backend::{ObjectStorageBackend, make_store};
-pub use chunked_writer::{ChunkedWriter, OnChunk, OnChunkTrait};
+pub use chunked_writer::{BatchWriter, ChunkedWriter, OnChunk, OnChunkTrait};
 pub use reader_trait::{StorageReaderTrait, StorageStreamReaderTrait, storage_reader_get_result, storage_reader_stream_result};
 pub use readers::{IpcReader, JsonReader, CsvReader};
 pub use storage_reader::ObjectStorageReader;
 pub use storage_writer::ObjectStorageWriter;
-pub use writer_trait::{StorageWriterTrait, StorageStreamWriterTrait, storage_writer_multipart};
-pub use writers::{IpcWriter, JsonWriter, CsvWriter};
+pub use writer_trait::{StorageWriterTrait, StorageWriterMultipartTrait, StorageStreamWriterTrait, storage_writer_multipart};
+pub use writers::{IpcWriterMultipart, JsonWriterMultipart, CsvWriterMultipart};
 
 #[cfg(test)]
 mod tests {
@@ -51,7 +51,7 @@ mod tests {
         // --- Write ---
         let mp = storage_writer_multipart(&store, &path).await?;
 
-        let mut writer = IpcWriter::new_with_config(mp, schema, 64 * 1024)?;
+        let mut writer = IpcWriterMultipart::new_with_config(mp, schema, 64 * 1024)?;
         for batch in &batches {
             writer.write_batch(batch)?;
         }
@@ -106,7 +106,7 @@ mod tests {
         // --- Write ---
         let mp = storage_writer_multipart(&store, &path).await?;
 
-        let mut writer = JsonWriter::new_with_config(mp, 64 * 1024)?;
+        let mut writer = JsonWriterMultipart::new_with_config(mp, 64 * 1024)?;
         for batch in &batches {
             writer.write_batch(batch)?;
         }
@@ -160,7 +160,7 @@ mod tests {
         // --- Write ---
         let mp = storage_writer_multipart(&store, &path).await?;
 
-        let mut writer = CsvWriter::new_with_config(mp, 64 * 1024, false, b';')?;
+        let mut writer = CsvWriterMultipart::new_with_config(mp, 64 * 1024, false, b';')?;
         for batch in &batches {
             writer.write_batch(batch)?;
         }

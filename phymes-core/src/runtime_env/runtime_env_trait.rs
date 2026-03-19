@@ -11,6 +11,9 @@ use crate::{BuildableTrait, MappableTrait, ObjectStorageBackend, RuntimeEnvBuild
 /// * Missing methods for disk usage and access
 pub trait RuntimeEnvTrait: BuildableTrait + MappableTrait + Send + Sync {
     fn new(name: &str, max_memory: usize, max_time: usize, max_steps: usize, max_tasks: usize, object_store: Arc<dyn ObjectStore>, object_store_config: &Map<String,Value>, subject_folder_partitioning: &SubjectFolderPartition, subject_file_partitioning: &SubjectFilePartition) -> Self;
+    fn max_steps(&self) -> usize;
+    fn max_tasks(&self) -> usize;
+    fn object_store(&self) -> &Arc<dyn ObjectStore>;
 }
 
 /// The runtime environment for the session
@@ -82,5 +85,17 @@ impl RuntimeEnvTrait for RuntimeEnv {
             object_store_config: object_store_config.to_owned(), 
             subject_folder_partitioning: subject_folder_partitioning.to_owned(), 
             subject_file_partitioning: subject_file_partitioning.to_owned() }
+    }
+    
+    fn max_steps(&self) -> usize {
+        self.max_steps
+    }
+    
+    fn max_tasks(&self) -> usize {
+        self.max_tasks
+    }
+    
+    fn object_store(&self) -> &Arc<dyn ObjectStore> {
+        &self.object_store
     }
 }

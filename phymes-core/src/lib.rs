@@ -54,10 +54,10 @@ pub use schemas::{
 };
 pub use storage::{
     ObjectStorageBackend, make_store,
-    ChunkedWriter, OnChunk, OnChunkTrait,
+    BatchWriter, ChunkedWriter, OnChunk, OnChunkTrait,
     ObjectStorageReader, ObjectStorageWriter,
     IpcReader, JsonReader, CsvReader, StorageReaderTrait, StorageStreamReaderTrait, storage_reader_get_result, storage_reader_stream_result,
-    IpcWriter, JsonWriter, CsvWriter, StorageWriterTrait, StorageStreamWriterTrait, storage_writer_multipart
+    IpcWriterMultipart, JsonWriterMultipart, CsvWriterMultipart, StorageWriterTrait, StorageWriterMultipartTrait, StorageStreamWriterTrait, storage_writer_multipart
 };
 pub use subject::{SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlan, SubjectPlanTrait, SubjectConstraintType, SubjectFilePartition, SubjectFolderPartition,
     create_arrow_array_sequence, SubjectSequenceType,

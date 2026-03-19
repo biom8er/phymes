@@ -1,7 +1,6 @@
 use anyhow::{Result, anyhow};
 use arrow::datatypes::SchemaRef;
 use clap::ValueEnum;
-use object_store::ObjectStore;
 use parking_lot::RwLock;
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, AvailableTableSubscribePolicies, AvailableTableUpdatePolicies, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, RuntimeEnv, SubjectsMap, Table, TableBuilder, TableBuilderTrait, TablePublication, TablePublicationTrait, TableSubscription, TableTrait, TaskMap, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_diagnostics_to_tables, make_store
@@ -54,10 +53,6 @@ impl SessionContext {
             runtime_env,
             diagnostics,
         }
-    }
-
-    pub fn store(&self) -> &Arc<dyn ObjectStore> {
-        &self.store
     }
 
     pub fn tasks(&self) -> &TaskMap {
@@ -941,7 +936,7 @@ mod tests {
     #[test]
     fn test_session_get_table_name_by_schema() -> Result<()> {
         let session_context =
-            make_test_session_context_builder_parallel("session_1", 25)?.build()?;
+            make_test_session_context_builder_parallel("session_1")?.build()?;
 
         // table should be found
         let schema = make_test_table_schema(8)?;
@@ -958,7 +953,7 @@ mod tests {
     #[test]
     fn test_session_update_subject_num_rows_table() -> Result<()> {
         let mut session_context =
-            make_test_session_context_builder_parallel("session_1", 25)?.build()?;
+            make_test_session_context_builder_parallel("session_1")?.build()?;
         session_context.update_subject_num_rows_table();
         let info = session_context
             .subjects()
@@ -1002,7 +997,7 @@ mod tests {
     fn test_session_read_write_state() -> Result<()> {
         // Create the session
         let session_context =
-            make_test_session_context_builder_parallel("session_1", 25)?.build()?;
+            make_test_session_context_builder_parallel("session_1")?.build()?;
 
         // Write the session to disk
         let tmp_dir = tempdir()?;
@@ -1071,7 +1066,7 @@ mod tests {
     fn test_session_update_subjects_from_messages() -> Result<()> {
         // Case 1: no state update
         let session_context =
-            make_test_session_context_builder_parallel("session_1", 25)?.build()?;
+            make_test_session_context_builder_parallel("session_1")?.build()?;
         let input = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -1368,7 +1363,6 @@ mod tests {
             HashMap::<String, Arc<Task>>::new(),
             state,
             HashMap::<String, Arc<RuntimeEnv>>::new(),
-            1,
             true,
             make_store(&ObjectStorageBackend::default(), None, None)?
         );
@@ -1573,7 +1567,6 @@ mod tests {
             HashMap::<String, Arc<Task>>::new(),
             state,
             HashMap::<String, Arc<RuntimeEnv>>::new(),
-            1,
             true,
             make_store(&ObjectStorageBackend::default(), None, None)?
         );
@@ -1705,7 +1698,6 @@ mod tests {
             HashMap::<String, Arc<Task>>::new(),
             state,
             HashMap::<String, Arc<RuntimeEnv>>::new(),
-            1,
             true,
             make_store(&ObjectStorageBackend::default(), None, None)?
         );
@@ -1853,7 +1845,6 @@ mod tests {
             HashMap::<String, Arc<Task>>::new(),
             state,
             HashMap::<String, Arc<RuntimeEnv>>::new(),
-            1,
             true,
             make_store(&ObjectStorageBackend::default(), None, None)?
         );

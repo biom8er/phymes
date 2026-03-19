@@ -81,3 +81,41 @@ where
         Ok(())
     }
 }
+
+pub struct BatchWriter<F>
+    where F: OnChunkTrait
+{
+    on_chunk: F,
+}
+
+impl<F: OnChunkTrait> BatchWriter<F> {
+    pub fn new(on_chunk: F) -> Self {
+        Self {
+            on_chunk,
+        }
+    }
+}
+
+impl<F> Debug for BatchWriter<F>
+where
+    F: OnChunkTrait,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CBatchWriter").field("on_chunk", &"FnMut(Vec<u8>)").finish()
+    }
+}
+
+impl<F> Write for BatchWriter<F>
+where
+    F: OnChunkTrait,
+{
+    fn write(&mut self, data: &[u8]) -> IoResult<usize> {
+        let total = data.len();
+        self.on_chunk.on_chunk(data.to_vec());
+        Ok(total)
+    }
+
+    fn flush(&mut self) -> IoResult<()> {
+        Ok(())
+    }
+}

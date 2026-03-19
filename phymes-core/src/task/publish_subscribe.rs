@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use anyhow::Result;
+use object_store::ObjectStore;
 use phymes_diagnostics::HashMap;
 
 use crate::{
@@ -28,7 +31,7 @@ use crate::{
 pub fn subscribe_to_subject(
     subscriptions: &[TableSubscription],
     publications: &[TablePublication],
-    subjects: &SubjectsMap,
+    object_store: &Arc<dyn ObjectStore>,
     messages: &mut SendableRecordBatchStreamMessageMap,
 ) -> Result<SendableRecordBatchStreamMessageMap> {
     let mut map = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -37,7 +40,6 @@ pub fn subscribe_to_subject(
         if let Some(message) = remove_message_by_subject(subscription.get_table_name(), messages) {
             let _ = map.insert(message.get_name().to_string(), message);
         // 2. Check for subscriptions in the subjects
-        // DM, todo!(): refactor to call `ObjectStore`
         } else if let Some(table) = subjects.get(subscription.get_table_name())
             && let Some(stream) = table.read().subscribe_to_table(subscription)
         {

@@ -415,7 +415,7 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 /// Mock objects and functions for session context builer testing
 pub mod test_session_context_builder {
     use phymes_core::{
-        AvailableTableSubscribePolicies, ProcessorPlanBuilder, test_task,
+        AvailableTableSubscribePolicies, ProcessorPlanBuilder, SubjectPlanBuilderTrait, test_task
     };
 
     use crate::AvailableProcessors;
@@ -586,14 +586,21 @@ pub mod test_session_context_builder {
         name: &str,
     ) -> Result<SessionContextBuilder> {
         // Init state
-        let mut subjects = test_task::make_subject_tables("state_1", "processor_1")?;
-        subjects.extend(test_task::make_subject_tables("state_2", "processor_2")?);
-        subjects.extend(test_task::make_subject_tables("state_3", "processor_3")?);
+        let mut tables = test_task::make_subject_tables("state_1", "processor_1")?;
+        tables.extend(test_task::make_subject_tables("state_2", "processor_2")?);
+        tables.extend(test_task::make_subject_tables("state_3", "processor_3")?);
+        let mut subject_plans = Vec::new();
+        for table in tables.into_iter() {
+            let plan = SubjectPlan::get_builder()
+                .with_table(table)
+                .build()?;
+            subject_plans.push(plan);
+        }
 
         let builder = make_test_session_context_builder_parallel_processors()
             .with_name(name)
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
-            .with_subjects(subjects);
+            .with_subjects(subject_plans);
 
         Ok(builder)
     }
@@ -604,14 +611,21 @@ pub mod test_session_context_builder {
     ) -> Result<SessionContextBuilder> {
 
         // Init state
-        let mut state = test_task::make_subject_tables_empty("state_1", "processor_1")?;
-        state.extend(test_task::make_subject_tables_empty("state_2", "processor_2")?);
-        state.extend(test_task::make_subject_tables_empty("state_3", "processor_3")?);
+        let mut tables = test_task::make_subject_tables_empty("state_1", "processor_1")?;
+        tables.extend(test_task::make_subject_tables_empty("state_2", "processor_2")?);
+        tables.extend(test_task::make_subject_tables_empty("state_3", "processor_3")?);
+        let mut subject_plans = Vec::new();
+        for table in tables.into_iter() {
+            let plan = SubjectPlan::get_builder()
+                .with_table(table)
+                .build()?;
+            subject_plans.push(plan);
+        }
 
         let builder = make_test_session_context_builder_parallel_processors()
             .with_name(name)
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
-            .with_subjects(state);
+            .with_subjects(subject_plans);
 
         Ok(builder)
     }
@@ -620,15 +634,22 @@ pub mod test_session_context_builder {
         name: &str,
         max_iter: usize,
     ) -> Result<SessionContextBuilder> {
-        // Init state
-        let mut state = test_task::make_subject_tables("state_1", "processor_1")?;
-        state.push(test_task::make_config_tables("processor_2")?);
-        state.push(test_task::make_config_tables("processor_3")?);
+        // Init subjects
+        let mut tables = test_task::make_subject_tables("state_1", "processor_1")?;
+        tables.push(test_task::make_config_tables("processor_2")?);
+        tables.push(test_task::make_config_tables("processor_3")?);
+        let mut subject_plans = Vec::new();
+        for table in tables.into_iter() {
+            let plan = SubjectPlan::get_builder()
+                .with_table(table)
+                .build()?;
+            subject_plans.push(plan);
+        }
 
         let builder = make_test_session_context_builder_sequential_processors()
             .with_name(name)
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
-            .with_subjects(state);
+            .with_subjects(subject_plans);
 
         Ok(builder)
     }
@@ -640,7 +661,7 @@ mod tests {
 
     use super::*;
     use phymes_core::{
-        AvailableTableSubscribePolicies, ProcessorPlanBuilder, TableSubscription, test_task,
+        AvailableTableSubscribePolicies, ProcessorPlanBuilder, SubjectPlanBuilderTrait, TableSubscription, test_task
     };
 
     #[test]
@@ -696,22 +717,13 @@ mod tests {
 
     #[test]
     fn test_session_context_builder_extend_duplicate() -> Result<()> {
-        let plan = test_session_context_builder::make_test_session_context_builder_parallel(
-            "session_1",
-            25,
-        )?;
+        let plan = test_session_context_builder::make_test_session_context_builder_parallel("session_1")?;
         let plan = plan.extend(
-            test_session_context_builder::make_test_session_context_builder_parallel(
-                "session_1",
-                25,
-            )?,
+            test_session_context_builder::make_test_session_context_builder_parallel("session_1")?,
         )?;
         assert_eq!(
             plan,
-            test_session_context_builder::make_test_session_context_builder_parallel(
-                "session_1",
-                25
-            )?
+            test_session_context_builder::make_test_session_context_builder_parallel("session_1")?
         );
 
         Ok(())
@@ -737,21 +749,25 @@ mod tests {
                 )
                 .build()?,
         ];
-        let mut state = test_task::make_subject_tables("state_1", "processor_1")?;
-        state.extend(test_task::make_subject_tables("state_2", "processor_2")?);
-        state.extend(test_task::make_subject_tables("state_3", "processor_3")?);
-        state.extend(test_task::make_subject_tables("state_4", "processor_4")?);
+        let mut tables = test_task::make_subject_tables("state_1", "processor_1")?;
+        tables.extend(test_task::make_subject_tables("state_2", "processor_2")?);
+        tables.extend(test_task::make_subject_tables("state_3", "processor_3")?);
+        tables.extend(test_task::make_subject_tables("state_4", "processor_4")?);
+        let mut subject_plans = Vec::new();
+        for table in tables.into_iter() {
+            let plan = SubjectPlan::get_builder()
+                .with_table(table)
+                .build()?;
+            subject_plans.push(plan);
+        }
         let other_plan = SessionContextBuilder::new()
             .with_tasks(task_plans)
             .with_processors(processor_plans)
             .with_name("other")
             .with_runtime_env(test_task::make_runtime_env("rt_4")?)
-            .with_subjects(state)
+            .with_subjects(subject_plans)
             .with_diagnostics(false);
-        let plan = test_session_context_builder::make_test_session_context_builder_parallel(
-            "session_1",
-            25,
-        )?
+        let plan = test_session_context_builder::make_test_session_context_builder_parallel("session_1")?
         .with_diagnostics(true);
         let plan = plan.extend(other_plan)?;
         assert_eq!(plan.name.unwrap(), "session_1");
@@ -802,13 +818,10 @@ mod tests {
 
     #[test]
     fn test_session_context_builder_build_success() -> Result<()> {
-        let session = test_session_context_builder::make_test_session_context_builder_parallel(
-            "session_1",
-            10,
-        )?
+        let session = test_session_context_builder::make_test_session_context_builder_parallel("session_1")?
         .with_diagnostics(true)
         .build()?;
-        assert_eq!(session.subjects().len(), 6);
+        assert_eq!(session.runtime_env.name, "rt_1");
         assert_eq!(session.tasks().len(), 3);
         assert_eq!(session.get_name(), "session_1");
         assert!(session.get_diagnostics());
@@ -980,11 +993,20 @@ mod tests {
         }
 
         // Missing state
+        let tables = test_task::make_subject_tables("state_1", "processor_1")?;
+        let mut subject_plans = Vec::new();
+        for table in tables.into_iter() {
+            let plan = SubjectPlan::get_builder()
+                .with_table(table)
+                .build()?;
+            subject_plans.push(plan);
+        }
+
         let result =
             test_session_context_builder::make_test_session_context_builder_parallel_processors()
                 .with_name("session_1")
                 .with_runtime_env(test_task::make_runtime_env("rt_1")?)
-                .with_subjects(test_task::make_subject_tables("state_1", "processor_1")?)
+                .with_subjects(subject_plans)
                 .build();
         match result {
             Ok(_) => panic!("Should have failed"),
@@ -995,14 +1017,21 @@ mod tests {
         }
 
         // State not found in plan
-        let mut state = test_task::make_subject_tables("state_1", "processor_1")?;
-        state.extend(test_task::make_subject_tables("state_2", "processor_2")?);
-        state.extend(test_task::make_subject_tables("not_found", "processor_3")?);
+        let mut tables = test_task::make_subject_tables("state_1", "processor_1")?;
+        tables.extend(test_task::make_subject_tables("state_2", "processor_2")?);
+        tables.extend(test_task::make_subject_tables("not_found", "processor_3")?);
+        let mut subject_plans = Vec::new();
+        for table in tables.into_iter() {
+            let plan = SubjectPlan::get_builder()
+                .with_table(table)
+                .build()?;
+            subject_plans.push(plan);
+        }
         let result =
             test_session_context_builder::make_test_session_context_builder_parallel_processors()
                 .with_name("session_1")
                 .with_runtime_env(test_task::make_runtime_env("rt_1")?)
-                .with_subjects(state)
+                .with_subjects(subject_plans)
                 .build();
         match result {
             Ok(_) => panic!("Should have failed"),
