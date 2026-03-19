@@ -34,10 +34,7 @@ use tokio::task::JoinSet;
 #[allow(unused_imports)]
 use super::task_trait::Task;
 
-use crate::table::{
-    EmptyRecordBatchStream, RecordBatchReceiverStream, RecordBatchStream, RecordBatchStreamAdapter,
-    SendableRecordBatchStream,
-};
+use crate::{EmptyRecordBatchStream, RecordBatchReceiverStream, RecordBatchStream, RecordBatchStreamAdapter, SendableRecordBatchStream};
 
 use arrow::{
     array::{ArrayRef, Int32Array},

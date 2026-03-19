@@ -5,11 +5,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     MappableTrait, SubjectChangedSinceLastRunUpdate, SubjectExistsUpdate, SubjectHasBatchesUpdate,
-    UpdatePolicyTrait,
+    UpdateEventTrait,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
-pub enum AvailableUpdatePolicies {
+pub enum AvailableUpdateEvents {
     #[value(name = "SubjectHasBatchesUpdate")]
     SubjectHasBatchesUpdate,
     #[default]
@@ -19,8 +19,8 @@ pub enum AvailableUpdatePolicies {
     SubjectExistsUpdate,
 }
 
-impl AvailableUpdatePolicies {
-    pub fn build(self) -> Box<dyn UpdatePolicyTrait> {
+impl AvailableUpdateEvents {
+    pub fn build(self) -> Box<dyn UpdateEventTrait> {
         match self {
             Self::SubjectHasBatchesUpdate => SubjectHasBatchesUpdate::new_box(),
             Self::SubjectChangedSinceLastRunUpdate => SubjectChangedSinceLastRunUpdate::new_box(),
@@ -29,7 +29,7 @@ impl AvailableUpdatePolicies {
     }
 }
 
-impl Display for AvailableUpdatePolicies {
+impl Display for AvailableUpdateEvents {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::SubjectHasBatchesUpdate => {

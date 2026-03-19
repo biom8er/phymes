@@ -4,7 +4,7 @@ use crate::{
 };
 use anyhow::Result;
 use phymes_core::{
-    AvailableSubjects, AvailableSubscribePolicies, BuildableTrait, BuilderTrait,
+    AvailableSubjects, AvailableSubscribeEvents, BuildableTrait, BuilderTrait,
     ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilderTrait,
     Publication, Subscription, TaskPlan, create_session_mermaid_batch,
 };
@@ -100,7 +100,7 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
                     subject_name: AvailableSubjects::BuilderMermaid.to_string(),
                 }])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),

@@ -12,7 +12,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder,
+    AvailableSubscribeEvents, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder,
     ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilderTrait, Publication,
     SubjectScript, Subscription, SubjectTrait, TaskPlanBuilder, from_data_type_to_str,
     from_str_to_data_type, parse_str_to_data_type,
@@ -268,20 +268,20 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         let subscriptions = processor
                             .get_subscriptions()
                             .iter()
-                            .filter(|p| !subjects_exclude.contains(p.get_table_name()))
+                            .filter(|p| !subjects_exclude.contains(p.subject_name()))
                             .collect::<Vec<_>>();
                         for subscription in subscriptions {
                             if subscription.is_update() {
                                 tasks_vec.push(format!(
                                     "\t\t{}-subject-.->|{}|{processor_name}-subscribe",
-                                    subscription.get_table_name(),
-                                    subscription.get_short_name()
+                                    subscription.subject_name(),
+                                    subscription.short_name()
                                 ));
                             } else {
                                 tasks_vec.push(format!(
                                     "\t\t{}-subject-->|{}|{processor_name}-subscribe",
-                                    subscription.get_table_name(),
-                                    subscription.get_short_name()
+                                    subscription.subject_name(),
+                                    subscription.short_name()
                                 ));
                             }
                         }
@@ -465,7 +465,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                         break;
 
                     // Subject, Subscription, Subscribe triple
-                    // e.g., state_1-subject-.->|FullTable|processor_1-subscribe
+                    // e.g., state_1-subject-.->|AllRecordBatches|processor_1-subscribe
                     } else if flowchart_lines.get(iter).unwrap().contains("-subject")
                         & flowchart_lines.get(iter).unwrap().contains("->")
                         & flowchart_lines.get(iter).unwrap().contains("|")
@@ -1028,7 +1028,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                     .split("-subscribe@{shape: diamond, label:")
                     .collect::<Vec<_>>();
                 let processor_name = split_line.first().unwrap().trim().to_string();
-                let subscribe = match AvailableSubscribePolicies::from_str_fuzzy(
+                let subscribe = match AvailableSubscribeEvents::from_str_fuzzy(
                     split_line.last().unwrap(),
                 ) {
                     Ok(subscribe) => subscribe.build(),
@@ -1494,12 +1494,12 @@ mod tests {
         let mermaid_js = builder.to_mermaid_flowchart(false, false)?;
         assert_eq!(
             mermaid_js,
-            "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|FullTable|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|FullTable|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|FullTable|processor_3-subscribe\n\t\tstate_2-subject-.->|FullTable|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}"
+            "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|AllRecordBatches|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|AllRecordBatches|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tstate_2-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}"
         );
         let mermaid_js = builder.to_mermaid_flowchart(false, true)?;
         assert_eq!(
             mermaid_js,
-            "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|FullTable|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|FullTable|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|FullTable|processor_3-subscribe\n\t\tstate_2-subject-.->|FullTable|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_2-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_3-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish-->|Extend|state_1-subject\n\t\tsession_1-publish-->|Extend|state_2-subject\n\t\tsession_1-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\tsession_1-runtime_env-rt-->session_1\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\tsession_1-processor@{shape: rect, label: ProcessorEcho}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tsession_1-runtime_env-rt@{shape: subproc, label: session_1-runtime_env}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tsession_1-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tsession_1-subscribe@{shape: diamond, label: Any}"
+            "flowchart TD\n\tsubgraph task_1\n\t\tstate_1-subject-.->|AllRecordBatches|processor_1-subscribe\n\t\tprocessor_1-subscribe-->processor_1-processor\n\t\tprocessor_1-processor-->processor_1-publish\n\t\tprocessor_1-publish-->|Extend|state_1-subject\n\tend\n\tsubgraph task_2\n\t\tstate_2-subject-.->|AllRecordBatches|processor_2-subscribe\n\t\tprocessor_2-subscribe-->processor_2-processor\n\t\tprocessor_2-processor-->processor_2-publish\n\t\tprocessor_2-publish-->|Extend|state_2-subject\n\tend\n\tsubgraph task_3\n\t\tstate_1-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tstate_2-subject-.->|AllRecordBatches|processor_3-subscribe\n\t\tprocessor_3-subscribe-->processor_3-processor\n\t\tprocessor_3-processor-->processor_3-publish\n\t\tprocessor_3-publish-->|Extend|state_3-subject\n\tend\n\tsubgraph session_1\n\t\tstate_1-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_2-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tstate_3-subject-.->|LastRecordBatch|session_1-subscribe\n\t\tsession_1-subscribe-->session_1-processor\n\t\tsession_1-processor-->session_1-publish\n\t\tsession_1-publish-->|Extend|state_1-subject\n\t\tsession_1-publish-->|Extend|state_2-subject\n\t\tsession_1-publish-->|Extend|state_3-subject\n\tend\n\trt_1-rt-->task_1\n\trt_1-rt-->task_2\n\trt_1-rt-->task_3\n\tsession_1-runtime_env-rt-->session_1\n\tprocessor_1-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_2-processor@{shape: rect, label: ProcessorMock}\n\tprocessor_3-processor@{shape: rect, label: Join}\n\tsession_1-processor@{shape: rect, label: ProcessorEcho}\n\trt_1-rt@{shape: subproc, label: rt_1}\n\tsession_1-runtime_env-rt@{shape: subproc, label: session_1-runtime_env}\n\tstate_1-subject@{shape: doc, label: state_1}\n\tstate_2-subject@{shape: doc, label: state_2}\n\tstate_3-subject@{shape: doc, label: state_3}\n\tprocessor_1-publish@{shape: fork}\n\tprocessor_2-publish@{shape: fork}\n\tprocessor_3-publish@{shape: fork}\n\tsession_1-publish@{shape: fork}\n\tprocessor_1-subscribe@{shape: diamond, label: All}\n\tprocessor_2-subscribe@{shape: diamond, label: All}\n\tprocessor_3-subscribe@{shape: diamond, label: All}\n\tsession_1-subscribe@{shape: diamond, label: Any}"
         );
 
         Ok(())

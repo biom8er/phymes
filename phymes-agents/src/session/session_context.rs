@@ -3,7 +3,7 @@ use arrow::datatypes::SchemaRef;
 use clap::ValueEnum;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribePolicies, AvailableUpdatePolicies, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, RuntimeEnv, SubjectsMap, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, TablePublicationTrait, Subscription, SubjectTrait, TaskMap, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_diagnostics_to_tables, make_store
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, RuntimeEnv, SubjectsMap, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, TablePublicationTrait, Subscription, SubjectTrait, TaskMap, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_diagnostics_to_tables, make_store
 };
 use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
 use std::sync::Arc;
@@ -146,7 +146,7 @@ impl SessionContext {
                             Subscription::from_str_fuzzy(name, subject).unwrap()
                         })
                         .collect::<Vec<_>>();
-                    let update_policy = AvailableUpdatePolicies::from_str(update_type, false)
+                    let update_policy = AvailableUpdateEvents::from_str(update_type, false)
                         .unwrap()
                         .build();
                     let subjects_change_log = subscription_table_names
@@ -163,7 +163,7 @@ impl SessionContext {
                         self.subjects(),
                     );
                     let subscribe_policy =
-                        AvailableSubscribePolicies::from_str_fuzzy(subscribe_type)
+                        AvailableSubscribeEvents::from_str_fuzzy(subscribe_type)
                             .unwrap()
                             .build();
                     let subscribe = subscribe_policy.check_subscriptions(
@@ -253,7 +253,7 @@ impl SessionContext {
                                     Subscription::from_str_fuzzy(&name, &subject).unwrap(),
                                 ];
                                 let update_policy =
-                                    AvailableUpdatePolicies::from_str(update_type, false)
+                                    AvailableUpdateEvents::from_str(update_type, false)
                                         .unwrap()
                                         .build();
                                 let mut subjects_change_log = HashMap::<String, i64>::new();
@@ -266,7 +266,7 @@ impl SessionContext {
                                     self.subjects(),
                                 );
                                 let subscribe_policy =
-                                    AvailableSubscribePolicies::from_str_fuzzy(subscribe_type)
+                                    AvailableSubscribeEvents::from_str_fuzzy(subscribe_type)
                                         .unwrap()
                                         .build();
                                 let subscribe = subscribe_policy.check_subscriptions(
@@ -1276,15 +1276,15 @@ mod tests {
                 .into_iter()
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>(),
-            ["AlwaysFullTable", "OnUpdateFullTable"]
+            ["AlwaysAllRecordBatches", "OnUpdateAllRecordBatches"]
                 .into_iter()
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>(),
-            ["AlwaysFullTable", "OnUpdateFullTable"]
+            ["AlwaysAllRecordBatches", "OnUpdateAllRecordBatches"]
                 .into_iter()
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>(),
-            ["AlwaysFullTable", "OnUpdateFullTable"]
+            ["AlwaysAllRecordBatches", "OnUpdateAllRecordBatches"]
                 .into_iter()
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>(),
@@ -1431,12 +1431,12 @@ mod tests {
             column,
             [
                 "OnUpdateLastRecordBatch",
-                "AlwaysFullTable",
-                "OnUpdateFullTable",
-                "AlwaysFullTable",
-                "OnUpdateFullTable",
-                "AlwaysFullTable",
-                "OnUpdateFullTable"
+                "AlwaysAllRecordBatches",
+                "OnUpdateAllRecordBatches",
+                "AlwaysAllRecordBatches",
+                "OnUpdateAllRecordBatches",
+                "AlwaysAllRecordBatches",
+                "OnUpdateAllRecordBatches"
             ]
         );
         let column = table_reading.get_column_as_vec_str("subscription_table_name");
@@ -1484,15 +1484,15 @@ mod tests {
                 .into_iter()
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>(),
-            ["AlwaysFullTable", "OnUpdateFullTable"]
+            ["AlwaysAllRecordBatches", "OnUpdateAllRecordBatches"]
                 .into_iter()
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>(),
-            ["AlwaysFullTable", "OnUpdateFullTable"]
+            ["AlwaysAllRecordBatches", "OnUpdateAllRecordBatches"]
                 .into_iter()
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>(),
-            ["AlwaysFullTable", "OnUpdateFullTable"]
+            ["AlwaysAllRecordBatches", "OnUpdateAllRecordBatches"]
                 .into_iter()
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>(),
@@ -1611,15 +1611,15 @@ mod tests {
                 .into_iter()
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>(),
-            ["AlwaysFullTable", "OnUpdateFullTable"]
+            ["AlwaysAllRecordBatches", "OnUpdateAllRecordBatches"]
                 .into_iter()
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>(),
-            ["AlwaysFullTable", "OnUpdateFullTable"]
+            ["AlwaysAllRecordBatches", "OnUpdateAllRecordBatches"]
                 .into_iter()
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>(),
-            ["AlwaysFullTable", "OnUpdateFullTable"]
+            ["AlwaysAllRecordBatches", "OnUpdateAllRecordBatches"]
                 .into_iter()
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>(),
@@ -1749,15 +1749,15 @@ mod tests {
         .map(|s| s.to_string())
         .collect::<Vec<_>>();
         let subscription_names = vec![
-            ["AlwaysFullTable", "OnUpdateFullTable"]
+            ["AlwaysAllRecordBatches", "OnUpdateAllRecordBatches"]
                 .into_iter()
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>(),
-            ["AlwaysFullTable", "OnUpdateFullTable"]
+            ["AlwaysAllRecordBatches", "OnUpdateAllRecordBatches"]
                 .into_iter()
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>(),
-            ["AlwaysFullTable", "OnUpdateFullTable"]
+            ["AlwaysAllRecordBatches", "OnUpdateAllRecordBatches"]
                 .into_iter()
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>(),
@@ -1872,10 +1872,10 @@ mod tests {
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name("processor_1")
             .with_subscriptions(&[
-                Subscription::AlwaysFullTable {
+                Subscription::AlwaysAllRecordBatches {
                     subject_name: "processor_1".to_string(),
                 },
-                Subscription::OnUpdateFullTable {
+                Subscription::OnUpdateAllRecordBatches {
                     subject_name: "state_1".to_string(),
                 },
             ])
@@ -1887,10 +1887,10 @@ mod tests {
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name("processor_2")
             .with_subscriptions(&[
-                Subscription::AlwaysFullTable {
+                Subscription::AlwaysAllRecordBatches {
                     subject_name: "processor_2".to_string(),
                 },
-                Subscription::OnUpdateFullTable {
+                Subscription::OnUpdateAllRecordBatches {
                     subject_name: "state_1".to_string(),
                 },
             ])
@@ -1902,10 +1902,10 @@ mod tests {
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name("processor_3")
             .with_subscriptions(&[
-                Subscription::AlwaysFullTable {
+                Subscription::AlwaysAllRecordBatches {
                     subject_name: "processor_3".to_string(),
                 },
-                Subscription::OnUpdateFullTable {
+                Subscription::OnUpdateAllRecordBatches {
                     subject_name: "state_1".to_string(),
                 },
             ])

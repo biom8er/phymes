@@ -25,7 +25,7 @@ impl<'a> DownloadContentSession<'a> {
     %% - The `tool_call_session` is used to trigger the download when only the config is updated
 	%% ------------------------------------------------------------------------------
 	subgraph download_pdf_t
-		http_client_request_pdf_s-subject-.->|FullTable|download_pdf_p-subscribe
+		http_client_request_pdf_s-subject-.->|AllRecordBatches|download_pdf_p-subscribe
 		download_pdf_p-subject-.->|LastRecordBatch|download_pdf_p-subscribe
 		download_pdf_p-subscribe-->download_pdf_p-processor
 		download_pdf_p-processor-->download_pdf_p-publish
@@ -46,7 +46,7 @@ impl<'a> DownloadContentSession<'a> {
     %% - The `tool_call_session` is used to trigger the download when only the config is updated
 	%% ------------------------------------------------------------------------------
 	subgraph download_json_t
-		http_client_request_json_s-subject-.->|FullTable|download_json_p-subscribe
+		http_client_request_json_s-subject-.->|AllRecordBatches|download_json_p-subscribe
 		download_json_p-subject-.->|LastRecordBatch|download_json_p-subscribe
 		download_json_p-subscribe-->download_json_p-processor
 		download_json_p-processor-->download_json_p-publish

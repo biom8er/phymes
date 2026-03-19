@@ -24,7 +24,7 @@ impl<'a> ExtractOntologySession<'a> {
 	%% OWL ontology extraction
 	%% ------------------------------------------------------------------------------
 	subgraph extract_owl_t
-	    UserScript-subject-.->|FullTable|extract_owl_p-subscribe
+	    UserScript-subject-.->|AllRecordBatches|extract_owl_p-subscribe
 	    extract_owl_p-subscribe-->extract_owl_p-processor
 	    extract_owl_p-processor-->extract_owl_p-publish
 	    extract_owl_p-publish-->|Extend|ParseOwl-subject
@@ -44,11 +44,11 @@ impl<'a> ExtractOntologySession<'a> {
 	    comparator_ontology_entity_p-subscribe-->comparator_ontology_entity_p-processor
 	    comparator_ontology_entity_p-processor-->comparator_ontology_entity_p-publish
 	    comparator_ontology_entity_p-publish-->|Replace|comparator_ontology_entity_s-subject
-	    comparator_ontology_entity_s-subject-->|FullTable|filter_ontology_entity_p-subscribe
+	    comparator_ontology_entity_s-subject-->|AllRecordBatches|filter_ontology_entity_p-subscribe
 	    filter_ontology_entity_p-subscribe-->filter_ontology_entity_p-processor
 	    filter_ontology_entity_p-processor-->filter_ontology_entity_p-publish
 	    filter_ontology_entity_p-publish-->|Replace|filter_ontology_entity_s-subject
-	    filter_ontology_entity_s-subject-->|FullTable|select_ontology_entity_p-subscribe
+	    filter_ontology_entity_s-subject-->|AllRecordBatches|select_ontology_entity_p-subscribe
 	    select_ontology_entity_p-subscribe-->select_ontology_entity_p-processor
 	    select_ontology_entity_p-processor-->select_ontology_entity_p-publish
 	    select_ontology_entity_p-publish-->|Extend|select_ontology_entity_s-subject
@@ -74,11 +74,11 @@ impl<'a> ExtractOntologySession<'a> {
 	    comparator_annotation_property_entity_p-subscribe-->comparator_annotation_property_entity_p-processor
 	    comparator_annotation_property_entity_p-processor-->comparator_annotation_property_entity_p-publish
 	    comparator_annotation_property_entity_p-publish-->|Replace|comparator_annotation_property_entity_s-subject
-	    comparator_annotation_property_entity_s-subject-->|FullTable|filter_annotation_property_entity_p-subscribe
+	    comparator_annotation_property_entity_s-subject-->|AllRecordBatches|filter_annotation_property_entity_p-subscribe
 	    filter_annotation_property_entity_p-subscribe-->filter_annotation_property_entity_p-processor
 	    filter_annotation_property_entity_p-processor-->filter_annotation_property_entity_p-publish
 	    filter_annotation_property_entity_p-publish-->|Replace|filter_annotation_property_entity_s-subject
-	    filter_annotation_property_entity_s-subject-->|FullTable|select_annotation_property_entity_p-subscribe
+	    filter_annotation_property_entity_s-subject-->|AllRecordBatches|select_annotation_property_entity_p-subscribe
 	    select_annotation_property_entity_p-subscribe-->select_annotation_property_entity_p-processor
 	    select_annotation_property_entity_p-processor-->select_annotation_property_entity_p-publish
 	    select_annotation_property_entity_p-publish-->|Extend|select_annotation_property_entity_s-subject
@@ -104,11 +104,11 @@ impl<'a> ExtractOntologySession<'a> {
 	    comparator_datatype_property_entity_p-subscribe-->comparator_datatype_property_entity_p-processor
 	    comparator_datatype_property_entity_p-processor-->comparator_datatype_property_entity_p-publish
 	    comparator_datatype_property_entity_p-publish-->|Replace|comparator_datatype_property_entity_s-subject
-	    comparator_datatype_property_entity_s-subject-->|FullTable|filter_datatype_property_entity_p-subscribe
+	    comparator_datatype_property_entity_s-subject-->|AllRecordBatches|filter_datatype_property_entity_p-subscribe
 	    filter_datatype_property_entity_p-subscribe-->filter_datatype_property_entity_p-processor
 	    filter_datatype_property_entity_p-processor-->filter_datatype_property_entity_p-publish
 	    filter_datatype_property_entity_p-publish-->|Replace|filter_datatype_property_entity_s-subject
-	    filter_datatype_property_entity_s-subject-->|FullTable|select_datatype_property_entity_p-subscribe
+	    filter_datatype_property_entity_s-subject-->|AllRecordBatches|select_datatype_property_entity_p-subscribe
 	    select_datatype_property_entity_p-subscribe-->select_datatype_property_entity_p-processor
 	    select_datatype_property_entity_p-processor-->select_datatype_property_entity_p-publish
 	    select_datatype_property_entity_p-publish-->|Extend|select_datatype_property_entity_s-subject
@@ -134,11 +134,11 @@ impl<'a> ExtractOntologySession<'a> {
 	    comparator_class_entity_p-subscribe-->comparator_class_entity_p-processor
 	    comparator_class_entity_p-processor-->comparator_class_entity_p-publish
 	    comparator_class_entity_p-publish-->|Replace|comparator_class_entity_s-subject
-	    comparator_class_entity_s-subject-->|FullTable|filter_class_entity_p-subscribe
+	    comparator_class_entity_s-subject-->|AllRecordBatches|filter_class_entity_p-subscribe
 	    filter_class_entity_p-subscribe-->filter_class_entity_p-processor
 	    filter_class_entity_p-processor-->filter_class_entity_p-publish
 	    filter_class_entity_p-publish-->|Replace|filter_class_entity_s-subject
-	    filter_class_entity_s-subject-->|FullTable|select_class_entity_p-subscribe
+	    filter_class_entity_s-subject-->|AllRecordBatches|select_class_entity_p-subscribe
 	    select_class_entity_p-subscribe-->select_class_entity_p-processor
 	    select_class_entity_p-processor-->select_class_entity_p-publish
 	    select_class_entity_p-publish-->|Extend|select_class_entity_s-subject
@@ -164,11 +164,11 @@ impl<'a> ExtractOntologySession<'a> {
 	    comparator_object_property_entity_p-subscribe-->comparator_object_property_entity_p-processor
 	    comparator_object_property_entity_p-processor-->comparator_object_property_entity_p-publish
 	    comparator_object_property_entity_p-publish-->|Replace|comparator_object_property_entity_s-subject
-	    comparator_object_property_entity_s-subject-->|FullTable|filter_object_property_entity_p-subscribe
+	    comparator_object_property_entity_s-subject-->|AllRecordBatches|filter_object_property_entity_p-subscribe
 	    filter_object_property_entity_p-subscribe-->filter_object_property_entity_p-processor
 	    filter_object_property_entity_p-processor-->filter_object_property_entity_p-publish
 	    filter_object_property_entity_p-publish-->|Replace|filter_object_property_entity_s-subject
-	    filter_object_property_entity_s-subject-->|FullTable|select_object_property_entity_p-subscribe
+	    filter_object_property_entity_s-subject-->|AllRecordBatches|select_object_property_entity_p-subscribe
 	    select_object_property_entity_p-subscribe-->select_object_property_entity_p-processor
 	    select_object_property_entity_p-processor-->select_object_property_entity_p-publish
 	    select_object_property_entity_p-publish-->|Extend|select_object_property_entity_s-subject
@@ -194,11 +194,11 @@ impl<'a> ExtractOntologySession<'a> {
 	    comparator_named_individual_entity_p-subscribe-->comparator_named_individual_entity_p-processor
 	    comparator_named_individual_entity_p-processor-->comparator_named_individual_entity_p-publish
 	    comparator_named_individual_entity_p-publish-->|Replace|comparator_named_individual_entity_s-subject
-	    comparator_named_individual_entity_s-subject-->|FullTable|filter_named_individual_entity_p-subscribe
+	    comparator_named_individual_entity_s-subject-->|AllRecordBatches|filter_named_individual_entity_p-subscribe
 	    filter_named_individual_entity_p-subscribe-->filter_named_individual_entity_p-processor
 	    filter_named_individual_entity_p-processor-->filter_named_individual_entity_p-publish
 	    filter_named_individual_entity_p-publish-->|Replace|filter_named_individual_entity_s-subject
-	    filter_named_individual_entity_s-subject-->|FullTable|select_named_individual_entity_p-subscribe
+	    filter_named_individual_entity_s-subject-->|AllRecordBatches|select_named_individual_entity_p-subscribe
 	    select_named_individual_entity_p-subscribe-->select_named_individual_entity_p-processor
 	    select_named_individual_entity_p-processor-->select_named_individual_entity_p-publish
 	    select_named_individual_entity_p-publish-->|Extend|select_named_individual_entity_s-subject
@@ -224,11 +224,11 @@ impl<'a> ExtractOntologySession<'a> {
 	    comparator_axiom_entity_p-subscribe-->comparator_axiom_entity_p-processor
 	    comparator_axiom_entity_p-processor-->comparator_axiom_entity_p-publish
 	    comparator_axiom_entity_p-publish-->|Replace|comparator_axiom_entity_s-subject
-	    comparator_axiom_entity_s-subject-->|FullTable|filter_axiom_entity_p-subscribe
+	    comparator_axiom_entity_s-subject-->|AllRecordBatches|filter_axiom_entity_p-subscribe
 	    filter_axiom_entity_p-subscribe-->filter_axiom_entity_p-processor
 	    filter_axiom_entity_p-processor-->filter_axiom_entity_p-publish
 	    filter_axiom_entity_p-publish-->|Replace|filter_axiom_entity_s-subject
-	    filter_axiom_entity_s-subject-->|FullTable|select_axiom_entity_p-subscribe
+	    filter_axiom_entity_s-subject-->|AllRecordBatches|select_axiom_entity_p-subscribe
 	    select_axiom_entity_p-subscribe-->select_axiom_entity_p-processor
 	    select_axiom_entity_p-processor-->select_axiom_entity_p-publish
 	    select_axiom_entity_p-publish-->|Extend|select_axiom_entity_s-subject
@@ -254,19 +254,19 @@ impl<'a> ExtractOntologySession<'a> {
 	    coalesce_annotation_property_entity_p-subscribe-->coalesce_annotation_property_entity_p-processor
 	    coalesce_annotation_property_entity_p-processor-->coalesce_annotation_property_entity_p-publish
 	    coalesce_annotation_property_entity_p-publish-->|Replace|coalesce_annotation_property_entity_s-subject
-	    coalesce_annotation_property_entity_s-subject-->|FullTable|comparator_predicate_annotation_property_entity_p-subscribe
+	    coalesce_annotation_property_entity_s-subject-->|AllRecordBatches|comparator_predicate_annotation_property_entity_p-subscribe
 	    comparator_predicate_annotation_property_entity_p-subscribe-->comparator_predicate_annotation_property_entity_p-processor
 	    comparator_predicate_annotation_property_entity_p-processor-->comparator_predicate_annotation_property_entity_p-publish
 	    comparator_predicate_annotation_property_entity_p-publish-->|Replace|comparator_predicate_annotation_property_entity_s-subject
-	    comparator_predicate_annotation_property_entity_s-subject-->|FullTable|filter_predicate_annotation_property_entity_p-subscribe
+	    comparator_predicate_annotation_property_entity_s-subject-->|AllRecordBatches|filter_predicate_annotation_property_entity_p-subscribe
 	    filter_predicate_annotation_property_entity_p-subscribe-->filter_predicate_annotation_property_entity_p-processor
 	    filter_predicate_annotation_property_entity_p-processor-->filter_predicate_annotation_property_entity_p-publish
 	    filter_predicate_annotation_property_entity_p-publish-->|Replace|filter_predicate_annotation_property_entity_s-subject
-	    filter_predicate_annotation_property_entity_s-subject-->|FullTable|select_predicate_annotation_property_entity_p-subscribe
+	    filter_predicate_annotation_property_entity_s-subject-->|AllRecordBatches|select_predicate_annotation_property_entity_p-subscribe
 	    select_predicate_annotation_property_entity_p-subscribe-->select_predicate_annotation_property_entity_p-processor
 	    select_predicate_annotation_property_entity_p-processor-->select_predicate_annotation_property_entity_p-publish
 	    select_predicate_annotation_property_entity_p-publish-->|Replace|select_predicate_annotation_property_entity_s-subject
-	    select_predicate_annotation_property_entity_s-subject-->|FullTable|pivot_annotation_property_entity_p-subscribe
+	    select_predicate_annotation_property_entity_s-subject-->|AllRecordBatches|pivot_annotation_property_entity_p-subscribe
 	    pivot_annotation_property_entity_p-subscribe-->pivot_annotation_property_entity_p-processor
 	    pivot_annotation_property_entity_p-processor-->pivot_annotation_property_entity_p-publish
 	    pivot_annotation_property_entity_p-publish-->|Replace|pivot_annotation_property_entity_s-subject
@@ -296,15 +296,15 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Owl:AnnotationProperty post-pivot cleanup
 	%% ------------------------------------------------------------------------------
 	subgraph post_pivot_annotation_property_t
-	    pivot_annotation_property_entity_s-subject-.->|FullTable|coalesce_annotation_property_pivot_p-subscribe
+	    pivot_annotation_property_entity_s-subject-.->|AllRecordBatches|coalesce_annotation_property_pivot_p-subscribe
 	    coalesce_annotation_property_pivot_p-subscribe-->coalesce_annotation_property_pivot_p-processor
 	    coalesce_annotation_property_pivot_p-processor-->coalesce_annotation_property_pivot_p-publish
 	    coalesce_annotation_property_pivot_p-publish-->|Replace|coalesce_annotation_property_pivot_s-subject
-	    coalesce_annotation_property_pivot_s-subject-->|FullTable|group_by_annotation_property_pivot_p-subscribe
+	    coalesce_annotation_property_pivot_s-subject-->|AllRecordBatches|group_by_annotation_property_pivot_p-subscribe
 	    group_by_annotation_property_pivot_p-subscribe-->group_by_annotation_property_pivot_p-processor
 	    group_by_annotation_property_pivot_p-processor-->group_by_annotation_property_pivot_p-publish
 	    group_by_annotation_property_pivot_p-publish-->|Replace|group_by_annotation_property_pivot_s-subject
-	    group_by_annotation_property_pivot_s-subject-->|FullTable|select_annotation_property_pivot_p-subscribe
+	    group_by_annotation_property_pivot_s-subject-->|AllRecordBatches|select_annotation_property_pivot_p-subscribe
 	    select_annotation_property_pivot_p-subscribe-->select_annotation_property_pivot_p-processor
 	    select_annotation_property_pivot_p-processor-->select_annotation_property_pivot_p-publish
 	    select_annotation_property_pivot_p-publish-->|Replace|select_annotation_property_pivot_s-subject
@@ -330,19 +330,19 @@ impl<'a> ExtractOntologySession<'a> {
 	    coalesce_class_entity_p-subscribe-->coalesce_class_entity_p-processor
 	    coalesce_class_entity_p-processor-->coalesce_class_entity_p-publish
 	    coalesce_class_entity_p-publish-->|Replace|coalesce_class_entity_s-subject
-	    coalesce_class_entity_s-subject-->|FullTable|comparator_predicate_class_entity_p-subscribe
+	    coalesce_class_entity_s-subject-->|AllRecordBatches|comparator_predicate_class_entity_p-subscribe
 	    comparator_predicate_class_entity_p-subscribe-->comparator_predicate_class_entity_p-processor
 	    comparator_predicate_class_entity_p-processor-->comparator_predicate_class_entity_p-publish
 	    comparator_predicate_class_entity_p-publish-->|Replace|comparator_predicate_class_entity_s-subject
-	    comparator_predicate_class_entity_s-subject-->|FullTable|filter_predicate_class_entity_p-subscribe
+	    comparator_predicate_class_entity_s-subject-->|AllRecordBatches|filter_predicate_class_entity_p-subscribe
 	    filter_predicate_class_entity_p-subscribe-->filter_predicate_class_entity_p-processor
 	    filter_predicate_class_entity_p-processor-->filter_predicate_class_entity_p-publish
 	    filter_predicate_class_entity_p-publish-->|Replace|filter_predicate_class_entity_s-subject
-	    filter_predicate_class_entity_s-subject-->|FullTable|select_predicate_class_entity_p-subscribe
+	    filter_predicate_class_entity_s-subject-->|AllRecordBatches|select_predicate_class_entity_p-subscribe
 	    select_predicate_class_entity_p-subscribe-->select_predicate_class_entity_p-processor
 	    select_predicate_class_entity_p-processor-->select_predicate_class_entity_p-publish
 	    select_predicate_class_entity_p-publish-->|Replace|select_predicate_class_entity_s-subject
-	    select_predicate_class_entity_s-subject-->|FullTable|pivot_class_entity_p-subscribe
+	    select_predicate_class_entity_s-subject-->|AllRecordBatches|pivot_class_entity_p-subscribe
 	    pivot_class_entity_p-subscribe-->pivot_class_entity_p-processor
 	    pivot_class_entity_p-processor-->pivot_class_entity_p-publish
 	    pivot_class_entity_p-publish-->|Replace|pivot_class_entity_s-subject
@@ -372,15 +372,15 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Owl:Class post-pivot cleanup
 	%% ------------------------------------------------------------------------------
 	subgraph post_pivot_class_entity_t
-	    pivot_class_entity_s-subject-.->|FullTable|coalesce_class_pivot_p-subscribe
+	    pivot_class_entity_s-subject-.->|AllRecordBatches|coalesce_class_pivot_p-subscribe
 	    coalesce_class_pivot_p-subscribe-->coalesce_class_pivot_p-processor
 	    coalesce_class_pivot_p-processor-->coalesce_class_pivot_p-publish
 	    coalesce_class_pivot_p-publish-->|Replace|coalesce_class_pivot_s-subject
-	    coalesce_class_pivot_s-subject-->|FullTable|group_by_class_pivot_p-subscribe
+	    coalesce_class_pivot_s-subject-->|AllRecordBatches|group_by_class_pivot_p-subscribe
 	    group_by_class_pivot_p-subscribe-->group_by_class_pivot_p-processor
 	    group_by_class_pivot_p-processor-->group_by_class_pivot_p-publish
 	    group_by_class_pivot_p-publish-->|Replace|group_by_class_pivot_s-subject
-	    group_by_class_pivot_s-subject-->|FullTable|select_class_pivot_p-subscribe
+	    group_by_class_pivot_s-subject-->|AllRecordBatches|select_class_pivot_p-subscribe
 	    select_class_pivot_p-subscribe-->select_class_pivot_p-processor
 	    select_class_pivot_p-processor-->select_class_pivot_p-publish
 	    select_class_pivot_p-publish-->|Extend|merge_object_property_class_named_individual_pivot_s-subject
@@ -406,19 +406,19 @@ impl<'a> ExtractOntologySession<'a> {
 	    coalesce_object_property_entity_p-subscribe-->coalesce_object_property_entity_p-processor
 	    coalesce_object_property_entity_p-processor-->coalesce_object_property_entity_p-publish
 	    coalesce_object_property_entity_p-publish-->|Replace|coalesce_object_property_entity_s-subject
-	    coalesce_object_property_entity_s-subject-->|FullTable|comparator_predicate_object_property_entity_p-subscribe
+	    coalesce_object_property_entity_s-subject-->|AllRecordBatches|comparator_predicate_object_property_entity_p-subscribe
 	    comparator_predicate_object_property_entity_p-subscribe-->comparator_predicate_object_property_entity_p-processor
 	    comparator_predicate_object_property_entity_p-processor-->comparator_predicate_object_property_entity_p-publish
 	    comparator_predicate_object_property_entity_p-publish-->|Replace|comparator_predicate_object_property_entity_s-subject
-	    comparator_predicate_object_property_entity_s-subject-->|FullTable|filter_predicate_object_property_entity_p-subscribe
+	    comparator_predicate_object_property_entity_s-subject-->|AllRecordBatches|filter_predicate_object_property_entity_p-subscribe
 	    filter_predicate_object_property_entity_p-subscribe-->filter_predicate_object_property_entity_p-processor
 	    filter_predicate_object_property_entity_p-processor-->filter_predicate_object_property_entity_p-publish
 	    filter_predicate_object_property_entity_p-publish-->|Replace|filter_predicate_object_property_entity_s-subject
-	    filter_predicate_object_property_entity_s-subject-->|FullTable|select_predicate_object_property_entity_p-subscribe
+	    filter_predicate_object_property_entity_s-subject-->|AllRecordBatches|select_predicate_object_property_entity_p-subscribe
 	    select_predicate_object_property_entity_p-subscribe-->select_predicate_object_property_entity_p-processor
 	    select_predicate_object_property_entity_p-processor-->select_predicate_object_property_entity_p-publish
 	    select_predicate_object_property_entity_p-publish-->|Replace|select_predicate_object_property_entity_s-subject
-	    select_predicate_object_property_entity_s-subject-->|FullTable|pivot_object_property_entity_p-subscribe
+	    select_predicate_object_property_entity_s-subject-->|AllRecordBatches|pivot_object_property_entity_p-subscribe
 	    pivot_object_property_entity_p-subscribe-->pivot_object_property_entity_p-processor
 	    pivot_object_property_entity_p-processor-->pivot_object_property_entity_p-publish
 	    pivot_object_property_entity_p-publish-->|Replace|pivot_object_property_entity_s-subject
@@ -448,15 +448,15 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Owl:ObjectProperty post-pivot cleanup
 	%% ------------------------------------------------------------------------------
 	subgraph post_pivot_object_property_t
-	    pivot_object_property_entity_s-subject-.->|FullTable|coalesce_object_property_pivot_p-subscribe
+	    pivot_object_property_entity_s-subject-.->|AllRecordBatches|coalesce_object_property_pivot_p-subscribe
 	    coalesce_object_property_pivot_p-subscribe-->coalesce_object_property_pivot_p-processor
 	    coalesce_object_property_pivot_p-processor-->coalesce_object_property_pivot_p-publish
 	    coalesce_object_property_pivot_p-publish-->|Replace|coalesce_object_property_pivot_s-subject
-	    coalesce_object_property_pivot_s-subject-->|FullTable|group_by_object_property_pivot_p-subscribe
+	    coalesce_object_property_pivot_s-subject-->|AllRecordBatches|group_by_object_property_pivot_p-subscribe
 	    group_by_object_property_pivot_p-subscribe-->group_by_object_property_pivot_p-processor
 	    group_by_object_property_pivot_p-processor-->group_by_object_property_pivot_p-publish
 	    group_by_object_property_pivot_p-publish-->|Replace|group_by_object_property_pivot_s-subject
-	    group_by_object_property_pivot_s-subject-->|FullTable|select_object_property_pivot_p-subscribe
+	    group_by_object_property_pivot_s-subject-->|AllRecordBatches|select_object_property_pivot_p-subscribe
 	    select_object_property_pivot_p-subscribe-->select_object_property_pivot_p-processor
 	    select_object_property_pivot_p-processor-->select_object_property_pivot_p-publish
 	    select_object_property_pivot_p-publish-->|Extend|merge_object_property_class_named_individual_pivot_s-subject
@@ -481,19 +481,19 @@ impl<'a> ExtractOntologySession<'a> {
 	    coalesce_named_individual_entity_p-subscribe-->coalesce_named_individual_entity_p-processor
 	    coalesce_named_individual_entity_p-processor-->coalesce_named_individual_entity_p-publish
 	    coalesce_named_individual_entity_p-publish-->|Replace|coalesce_named_individual_entity_s-subject
-	    coalesce_named_individual_entity_s-subject-->|FullTable|comparator_predicate_named_individual_entity_p-subscribe
+	    coalesce_named_individual_entity_s-subject-->|AllRecordBatches|comparator_predicate_named_individual_entity_p-subscribe
 	    comparator_predicate_named_individual_entity_p-subscribe-->comparator_predicate_named_individual_entity_p-processor
 	    comparator_predicate_named_individual_entity_p-processor-->comparator_predicate_named_individual_entity_p-publish
 	    comparator_predicate_named_individual_entity_p-publish-->|Replace|comparator_predicate_named_individual_entity_s-subject
-	    comparator_predicate_named_individual_entity_s-subject-->|FullTable|filter_predicate_named_individual_entity_p-subscribe
+	    comparator_predicate_named_individual_entity_s-subject-->|AllRecordBatches|filter_predicate_named_individual_entity_p-subscribe
 	    filter_predicate_named_individual_entity_p-subscribe-->filter_predicate_named_individual_entity_p-processor
 	    filter_predicate_named_individual_entity_p-processor-->filter_predicate_named_individual_entity_p-publish
 	    filter_predicate_named_individual_entity_p-publish-->|Replace|filter_predicate_named_individual_entity_s-subject
-	    filter_predicate_named_individual_entity_s-subject-->|FullTable|select_predicate_named_individual_entity_p-subscribe
+	    filter_predicate_named_individual_entity_s-subject-->|AllRecordBatches|select_predicate_named_individual_entity_p-subscribe
 	    select_predicate_named_individual_entity_p-subscribe-->select_predicate_named_individual_entity_p-processor
 	    select_predicate_named_individual_entity_p-processor-->select_predicate_named_individual_entity_p-publish
 	    select_predicate_named_individual_entity_p-publish-->|Replace|select_predicate_named_individual_entity_s-subject
-	    select_predicate_named_individual_entity_s-subject-->|FullTable|pivot_named_individual_entity_p-subscribe
+	    select_predicate_named_individual_entity_s-subject-->|AllRecordBatches|pivot_named_individual_entity_p-subscribe
 	    pivot_named_individual_entity_p-subscribe-->pivot_named_individual_entity_p-processor
 	    pivot_named_individual_entity_p-processor-->pivot_named_individual_entity_p-publish
 	    pivot_named_individual_entity_p-publish-->|Replace|pivot_named_individual_entity_s-subject
@@ -523,15 +523,15 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Owl:NamedIndividual post-pivot cleanup
 	%% ------------------------------------------------------------------------------
 	subgraph post_pivot_named_individual_t
-	    pivot_named_individual_entity_s-subject-.->|FullTable|coalesce_named_individual_pivot_p-subscribe
+	    pivot_named_individual_entity_s-subject-.->|AllRecordBatches|coalesce_named_individual_pivot_p-subscribe
 	    coalesce_named_individual_pivot_p-subscribe-->coalesce_named_individual_pivot_p-processor
 	    coalesce_named_individual_pivot_p-processor-->coalesce_named_individual_pivot_p-publish
 	    coalesce_named_individual_pivot_p-publish-->|Replace|coalesce_named_individual_pivot_s-subject
-	    coalesce_named_individual_pivot_s-subject-->|FullTable|group_by_named_individual_pivot_p-subscribe
+	    coalesce_named_individual_pivot_s-subject-->|AllRecordBatches|group_by_named_individual_pivot_p-subscribe
 	    group_by_named_individual_pivot_p-subscribe-->group_by_named_individual_pivot_p-processor
 	    group_by_named_individual_pivot_p-processor-->group_by_named_individual_pivot_p-publish
 	    group_by_named_individual_pivot_p-publish-->|Replace|group_by_named_individual_pivot_s-subject
-	    group_by_named_individual_pivot_s-subject-->|FullTable|select_named_individual_pivot_p-subscribe
+	    group_by_named_individual_pivot_s-subject-->|AllRecordBatches|select_named_individual_pivot_p-subscribe
 	    select_named_individual_pivot_p-subscribe-->select_named_individual_pivot_p-processor
 	    select_named_individual_pivot_p-processor-->select_named_individual_pivot_p-publish
 	    select_named_individual_pivot_p-publish-->|Extend|merge_object_property_class_named_individual_pivot_s-subject
@@ -552,12 +552,12 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Join Owl:AnnotationProperty with Owl:Class on predicates
 	%% ------------------------------------------------------------------------------
 	subgraph join_class_on_predicates_t
-	    select_class_entity_s-subject-.->|FullTable|join_predicates_class_entity_p-subscribe
-	    select_annotation_property_pivot_s-subject-.->|FullTable|join_predicates_class_entity_p-subscribe
+	    select_class_entity_s-subject-.->|AllRecordBatches|join_predicates_class_entity_p-subscribe
+	    select_annotation_property_pivot_s-subject-.->|AllRecordBatches|join_predicates_class_entity_p-subscribe
 	    join_predicates_class_entity_p-subscribe-->join_predicates_class_entity_p-processor
 	    join_predicates_class_entity_p-processor-->join_predicates_class_entity_p-publish
 	    join_predicates_class_entity_p-publish-->|Replace|join_predicates_class_entity_s-subject
-	    join_predicates_class_entity_s-subject-->|FullTable|select_predicates_class_entity_p-subscribe
+	    join_predicates_class_entity_s-subject-->|AllRecordBatches|select_predicates_class_entity_p-subscribe
 	    select_predicates_class_entity_p-subscribe-->select_predicates_class_entity_p-processor
 	    select_predicates_class_entity_p-processor-->select_predicates_class_entity_p-publish
 	    select_predicates_class_entity_p-publish-->|Replace|select_predicates_class_entity_s-subject
@@ -575,15 +575,15 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Filter Owl:Class for rdf:resource objects
 	%% ------------------------------------------------------------------------------
 	subgraph filter_resources_class_entity_t
-	    select_predicates_class_entity_s-subject-.->|FullTable|comparator_resource_class_entity_p-subscribe
+	    select_predicates_class_entity_s-subject-.->|AllRecordBatches|comparator_resource_class_entity_p-subscribe
 	    comparator_resource_class_entity_p-subscribe-->comparator_resource_class_entity_p-processor
 	    comparator_resource_class_entity_p-processor-->comparator_resource_class_entity_p-publish
 	    comparator_resource_class_entity_p-publish-->|Replace|comparator_resource_class_entity_s-subject
-	    comparator_resource_class_entity_s-subject-->|FullTable|filter_resource_class_entity_p-subscribe
+	    comparator_resource_class_entity_s-subject-->|AllRecordBatches|filter_resource_class_entity_p-subscribe
 	    filter_resource_class_entity_p-subscribe-->filter_resource_class_entity_p-processor
 	    filter_resource_class_entity_p-processor-->filter_resource_class_entity_p-publish
 	    filter_resource_class_entity_p-publish-->|Replace|filter_resource_class_entity_s-subject
-	    filter_resource_class_entity_s-subject-->|FullTable|select_resource_class_entity_p-subscribe
+	    filter_resource_class_entity_s-subject-->|AllRecordBatches|select_resource_class_entity_p-subscribe
 	    select_resource_class_entity_p-subscribe-->select_resource_class_entity_p-processor
 	    select_resource_class_entity_p-processor-->select_resource_class_entity_p-publish
 	    select_resource_class_entity_p-publish-->|Replace|select_resource_class_entity_s-subject
@@ -605,12 +605,12 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Join Owl:Class with Owl:Class on objects
 	%% ------------------------------------------------------------------------------
 	subgraph join_class_on_objects_t
-	    select_resource_class_entity_s-subject-.->|FullTable|join_objects_class_entity_p-subscribe
-	    merge_object_property_class_named_individual_pivot_s-subject-.->|FullTable|join_objects_class_entity_p-subscribe
+	    select_resource_class_entity_s-subject-.->|AllRecordBatches|join_objects_class_entity_p-subscribe
+	    merge_object_property_class_named_individual_pivot_s-subject-.->|AllRecordBatches|join_objects_class_entity_p-subscribe
 	    join_objects_class_entity_p-subscribe-->join_objects_class_entity_p-processor
 	    join_objects_class_entity_p-processor-->join_objects_class_entity_p-publish
 	    join_objects_class_entity_p-publish-->|Replace|join_objects_class_entity_s-subject
-	    join_objects_class_entity_s-subject-->|FullTable|select_objects_class_entity_p-subscribe
+	    join_objects_class_entity_s-subject-->|AllRecordBatches|select_objects_class_entity_p-subscribe
 	    select_objects_class_entity_p-subscribe-->select_objects_class_entity_p-processor
 	    select_objects_class_entity_p-processor-->select_objects_class_entity_p-publish
 	    select_objects_class_entity_p-publish-->|Extend|select_objects_class_entity_s-subject
@@ -633,15 +633,15 @@ impl<'a> ExtractOntologySession<'a> {
 	    pause_filter_literals_class_entity_p-subscribe-->pause_filter_literals_class_entity_p-processor
 	    pause_filter_literals_class_entity_p-processor-->pause_filter_literals_class_entity_p-publish
 	    pause_filter_literals_class_entity_p-publish-->|None|pause_filter_literals_class_entity_s-subject
-	    select_predicates_class_entity_s-subject-.->|FullTable|comparator_literal_class_entity_p-subscribe
+	    select_predicates_class_entity_s-subject-.->|AllRecordBatches|comparator_literal_class_entity_p-subscribe
 	    comparator_literal_class_entity_p-subscribe-->comparator_literal_class_entity_p-processor
 	    comparator_literal_class_entity_p-processor-->comparator_literal_class_entity_p-publish
 	    comparator_literal_class_entity_p-publish-->|Replace|comparator_literal_class_entity_s-subject
-	    comparator_literal_class_entity_s-subject-->|FullTable|filter_literal_class_entity_p-subscribe
+	    comparator_literal_class_entity_s-subject-->|AllRecordBatches|filter_literal_class_entity_p-subscribe
 	    filter_literal_class_entity_p-subscribe-->filter_literal_class_entity_p-processor
 	    filter_literal_class_entity_p-processor-->filter_literal_class_entity_p-publish
 	    filter_literal_class_entity_p-publish-->|Replace|filter_literal_class_entity_s-subject
-	    filter_literal_class_entity_s-subject-->|FullTable|select_literal_class_entity_p-subscribe
+	    filter_literal_class_entity_s-subject-->|AllRecordBatches|select_literal_class_entity_p-subscribe
 	    select_literal_class_entity_p-subscribe-->select_literal_class_entity_p-processor
 	    select_literal_class_entity_p-processor-->select_literal_class_entity_p-publish
 	    select_literal_class_entity_p-publish-->|Extend|select_objects_class_entity_s-subject
@@ -666,12 +666,12 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Join Owl:AnnotationProperty with Owl:ObjectProperty on predicates
 	%% ------------------------------------------------------------------------------
 	subgraph join_object_property_on_predicates_t
-	    select_object_property_entity_s-subject-.->|FullTable|join_predicates_object_property_entity_p-subscribe
-	    select_annotation_property_pivot_s-subject-.->|FullTable|join_predicates_object_property_entity_p-subscribe
+	    select_object_property_entity_s-subject-.->|AllRecordBatches|join_predicates_object_property_entity_p-subscribe
+	    select_annotation_property_pivot_s-subject-.->|AllRecordBatches|join_predicates_object_property_entity_p-subscribe
 	    join_predicates_object_property_entity_p-subscribe-->join_predicates_object_property_entity_p-processor
 	    join_predicates_object_property_entity_p-processor-->join_predicates_object_property_entity_p-publish
 	    join_predicates_object_property_entity_p-publish-->|Replace|join_predicates_object_property_entity_s-subject
-	    join_predicates_object_property_entity_s-subject-->|FullTable|select_predicates_object_property_entity_p-subscribe
+	    join_predicates_object_property_entity_s-subject-->|AllRecordBatches|select_predicates_object_property_entity_p-subscribe
 	    select_predicates_object_property_entity_p-subscribe-->select_predicates_object_property_entity_p-processor
 	    select_predicates_object_property_entity_p-processor-->select_predicates_object_property_entity_p-publish
 	    select_predicates_object_property_entity_p-publish-->|Replace|select_predicates_object_property_entity_s-subject
@@ -689,15 +689,15 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Filter Owl:ObjectProperty for rdf:resource objects
 	%% ------------------------------------------------------------------------------
 	subgraph filter_resources_object_property_entity_t
-	    select_predicates_object_property_entity_s-subject-.->|FullTable|comparator_resource_object_property_entity_p-subscribe
+	    select_predicates_object_property_entity_s-subject-.->|AllRecordBatches|comparator_resource_object_property_entity_p-subscribe
 	    comparator_resource_object_property_entity_p-subscribe-->comparator_resource_object_property_entity_p-processor
 	    comparator_resource_object_property_entity_p-processor-->comparator_resource_object_property_entity_p-publish
 	    comparator_resource_object_property_entity_p-publish-->|Replace|comparator_resource_object_property_entity_s-subject
-	    comparator_resource_object_property_entity_s-subject-->|FullTable|filter_resource_object_property_entity_p-subscribe
+	    comparator_resource_object_property_entity_s-subject-->|AllRecordBatches|filter_resource_object_property_entity_p-subscribe
 	    filter_resource_object_property_entity_p-subscribe-->filter_resource_object_property_entity_p-processor
 	    filter_resource_object_property_entity_p-processor-->filter_resource_object_property_entity_p-publish
 	    filter_resource_object_property_entity_p-publish-->|Replace|filter_resource_object_property_entity_s-subject
-	    filter_resource_object_property_entity_s-subject-->|FullTable|select_resource_object_property_entity_p-subscribe
+	    filter_resource_object_property_entity_s-subject-->|AllRecordBatches|select_resource_object_property_entity_p-subscribe
 	    select_resource_object_property_entity_p-subscribe-->select_resource_object_property_entity_p-processor
 	    select_resource_object_property_entity_p-processor-->select_resource_object_property_entity_p-publish
 	    select_resource_object_property_entity_p-publish-->|Replace|select_resource_object_property_entity_s-subject
@@ -719,12 +719,12 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Join Owl:Class with Owl:ObjectProperty on objects
 	%% ------------------------------------------------------------------------------
 	subgraph join_object_property_on_objects_t
-	    select_resource_object_property_entity_s-subject-.->|FullTable|join_objects_object_property_entity_p-subscribe
-	    merge_object_property_class_named_individual_pivot_s-subject-.->|FullTable|join_objects_object_property_entity_p-subscribe
+	    select_resource_object_property_entity_s-subject-.->|AllRecordBatches|join_objects_object_property_entity_p-subscribe
+	    merge_object_property_class_named_individual_pivot_s-subject-.->|AllRecordBatches|join_objects_object_property_entity_p-subscribe
 	    join_objects_object_property_entity_p-subscribe-->join_objects_object_property_entity_p-processor
 	    join_objects_object_property_entity_p-processor-->join_objects_object_property_entity_p-publish
 	    join_objects_object_property_entity_p-publish-->|Replace|join_objects_object_property_entity_s-subject
-	    join_objects_object_property_entity_s-subject-->|FullTable|select_objects_object_property_entity_p-subscribe
+	    join_objects_object_property_entity_s-subject-->|AllRecordBatches|select_objects_object_property_entity_p-subscribe
 	    select_objects_object_property_entity_p-subscribe-->select_objects_object_property_entity_p-processor
 	    select_objects_object_property_entity_p-processor-->select_objects_object_property_entity_p-publish
 	    select_objects_object_property_entity_p-publish-->|Extend|select_objects_object_property_entity_s-subject
@@ -747,15 +747,15 @@ impl<'a> ExtractOntologySession<'a> {
 	    pause_filter_literals_object_property_entity_p-subscribe-->pause_filter_literals_object_property_entity_p-processor
 	    pause_filter_literals_object_property_entity_p-processor-->pause_filter_literals_object_property_entity_p-publish
 	    pause_filter_literals_object_property_entity_p-publish-->|None|pause_filter_literals_object_property_entity_s-subject
-	    select_predicates_object_property_entity_s-subject-.->|FullTable|comparator_literal_object_property_entity_p-subscribe
+	    select_predicates_object_property_entity_s-subject-.->|AllRecordBatches|comparator_literal_object_property_entity_p-subscribe
 	    comparator_literal_object_property_entity_p-subscribe-->comparator_literal_object_property_entity_p-processor
 	    comparator_literal_object_property_entity_p-processor-->comparator_literal_object_property_entity_p-publish
 	    comparator_literal_object_property_entity_p-publish-->|Replace|comparator_literal_object_property_entity_s-subject
-	    comparator_literal_object_property_entity_s-subject-->|FullTable|filter_literal_object_property_entity_p-subscribe
+	    comparator_literal_object_property_entity_s-subject-->|AllRecordBatches|filter_literal_object_property_entity_p-subscribe
 	    filter_literal_object_property_entity_p-subscribe-->filter_literal_object_property_entity_p-processor
 	    filter_literal_object_property_entity_p-processor-->filter_literal_object_property_entity_p-publish
 	    filter_literal_object_property_entity_p-publish-->|Replace|filter_literal_object_property_entity_s-subject
-	    filter_literal_object_property_entity_s-subject-->|FullTable|select_literal_object_property_entity_p-subscribe
+	    filter_literal_object_property_entity_s-subject-->|AllRecordBatches|select_literal_object_property_entity_p-subscribe
 	    select_literal_object_property_entity_p-subscribe-->select_literal_object_property_entity_p-processor
 	    select_literal_object_property_entity_p-processor-->select_literal_object_property_entity_p-publish
 	    select_literal_object_property_entity_p-publish-->|Extend|select_objects_object_property_entity_s-subject
@@ -780,23 +780,23 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Apply embedding template to Owl:Class
 	%% ------------------------------------------------------------------------------
 	subgraph apply_embedding_template_class_t
-	    select_objects_class_entity_s-subject-.->|FullTable|concat_cols_class_entity_p-subscribe
+	    select_objects_class_entity_s-subject-.->|AllRecordBatches|concat_cols_class_entity_p-subscribe
 	    concat_cols_class_entity_p-subscribe-->concat_cols_class_entity_p-processor
 	    concat_cols_class_entity_p-processor-->concat_cols_class_entity_p-publish
 	    concat_cols_class_entity_p-publish-->|Replace|concat_cols_class_entity_s-subject
-	    concat_cols_class_entity_s-subject-->|FullTable|select_cols_class_entity_p-subscribe
+	    concat_cols_class_entity_s-subject-->|AllRecordBatches|select_cols_class_entity_p-subscribe
 	    select_cols_class_entity_p-subscribe-->select_cols_class_entity_p-processor
 	    select_cols_class_entity_p-processor-->select_cols_class_entity_p-publish
 	    select_cols_class_entity_p-publish-->|Replace|select_cols_class_entity_s-subject
-	    select_cols_class_entity_s-subject-->|FullTable|list_rows_class_entity_p-subscribe
+	    select_cols_class_entity_s-subject-->|AllRecordBatches|list_rows_class_entity_p-subscribe
 	    list_rows_class_entity_p-subscribe-->list_rows_class_entity_p-processor
 	    list_rows_class_entity_p-processor-->list_rows_class_entity_p-publish
 	    list_rows_class_entity_p-publish-->|Replace|list_rows_class_entity_s-subject
-	    list_rows_class_entity_s-subject-->|FullTable|select_rows_class_entity_p-subscribe
+	    list_rows_class_entity_s-subject-->|AllRecordBatches|select_rows_class_entity_p-subscribe
 	    select_rows_class_entity_p-subscribe-->select_rows_class_entity_p-processor
 	    select_rows_class_entity_p-processor-->select_rows_class_entity_p-publish
 	    select_rows_class_entity_p-publish-->|Replace|select_rows_class_entity_s-subject
-	    select_rows_class_entity_s-subject-->|FullTable|apply_template_class_entity_p-subscribe
+	    select_rows_class_entity_s-subject-->|AllRecordBatches|apply_template_class_entity_p-subscribe
 	    apply_template_class_entity_p-subscribe-->apply_template_class_entity_p-processor
 	    apply_template_class_entity_p-processor-->apply_template_class_entity_p-publish
 	    apply_template_class_entity_p-publish-->|Extend|Documents-subject
@@ -826,23 +826,23 @@ impl<'a> ExtractOntologySession<'a> {
 	%% Apply embedding template to Owl:ObjectProperty 
 	%% ------------------------------------------------------------------------------
 	subgraph apply_embedding_template_object_property_t
-	    select_objects_object_property_entity_s-subject-.->|FullTable|concat_cols_object_property_entity_p-subscribe
+	    select_objects_object_property_entity_s-subject-.->|AllRecordBatches|concat_cols_object_property_entity_p-subscribe
 	    concat_cols_object_property_entity_p-subscribe-->concat_cols_object_property_entity_p-processor
 	    concat_cols_object_property_entity_p-processor-->concat_cols_object_property_entity_p-publish
 	    concat_cols_object_property_entity_p-publish-->|Replace|concat_cols_object_property_entity_s-subject
-	    concat_cols_object_property_entity_s-subject-->|FullTable|select_cols_object_property_entity_p-subscribe
+	    concat_cols_object_property_entity_s-subject-->|AllRecordBatches|select_cols_object_property_entity_p-subscribe
 	    select_cols_object_property_entity_p-subscribe-->select_cols_object_property_entity_p-processor
 	    select_cols_object_property_entity_p-processor-->select_cols_object_property_entity_p-publish
 	    select_cols_object_property_entity_p-publish-->|Replace|select_cols_object_property_entity_s-subject
-	    select_cols_object_property_entity_s-subject-->|FullTable|list_rows_object_property_entity_p-subscribe
+	    select_cols_object_property_entity_s-subject-->|AllRecordBatches|list_rows_object_property_entity_p-subscribe
 	    list_rows_object_property_entity_p-subscribe-->list_rows_object_property_entity_p-processor
 	    list_rows_object_property_entity_p-processor-->list_rows_object_property_entity_p-publish
 	    list_rows_object_property_entity_p-publish-->|Replace|list_rows_object_property_entity_s-subject
-	    list_rows_object_property_entity_s-subject-->|FullTable|select_rows_object_property_entity_p-subscribe
+	    list_rows_object_property_entity_s-subject-->|AllRecordBatches|select_rows_object_property_entity_p-subscribe
 	    select_rows_object_property_entity_p-subscribe-->select_rows_object_property_entity_p-processor
 	    select_rows_object_property_entity_p-processor-->select_rows_object_property_entity_p-publish
 	    select_rows_object_property_entity_p-publish-->|Replace|select_rows_object_property_entity_s-subject
-	    select_rows_object_property_entity_s-subject-->|FullTable|apply_template_object_property_entity_p-subscribe
+	    select_rows_object_property_entity_s-subject-->|AllRecordBatches|apply_template_object_property_entity_p-subscribe
 	    apply_template_object_property_entity_p-subscribe-->apply_template_object_property_entity_p-processor
 	    apply_template_object_property_entity_p-processor-->apply_template_object_property_entity_p-publish
 	    apply_template_object_property_entity_p-publish-->|Extend|Documents-subject

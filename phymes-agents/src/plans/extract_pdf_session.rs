@@ -28,7 +28,7 @@ impl<'a> ExtractPDFSession<'a> {
 		extract_pdf_p-subscribe-->extract_pdf_p-processor
 		extract_pdf_p-processor-->extract_pdf_p-publish
 		extract_pdf_p-publish-->|Extend|extract_pdf_s-subject
-		extract_pdf_s-subject-->|FullTable|chunk_documents_p-subscribe
+		extract_pdf_s-subject-->|AllRecordBatches|chunk_documents_p-subscribe
 		chunk_documents_p-subscribe-->chunk_documents_p-processor
 		chunk_documents_p-processor-->chunk_documents_p-publish
 		chunk_documents_p-publish-->|Extend|Documents-subject

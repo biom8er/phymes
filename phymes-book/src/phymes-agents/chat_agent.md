@@ -24,9 +24,9 @@ The session starts when the user uploads their query to the session (1). The TGI
 ```mermaid
 flowchart TD
 	subgraph chat_task_1
-		messages-subject-.FullTable.->chat_processor_1-subscribe
+		messages-subject-.AllRecordBatches.->chat_processor_1-subscribe
 		-subject--None-->chat_processor_1-subscribe
-		chat_processor_1-subject--FullTable-->chat_processor_1-subscribe
+		chat_processor_1-subject--AllRecordBatches-->chat_processor_1-subscribe
 		chat_processor_1-subscribe-->chat_processor_1-processor
 		chat_processor_1-processor-->chat_processor_1-publish
 		chat_processor_1-publish--ExtendChunks-->messages-subject

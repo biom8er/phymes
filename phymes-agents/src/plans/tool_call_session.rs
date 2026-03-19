@@ -94,11 +94,11 @@ impl<'a> ToolCallSession<'a> {
     
 	subgraph group_by_processors_subscriptions_t
         {}
-		select_processors_subscriptions_s-subject-->|FullTable|group_by_processors_subscriptions_p-subscribe
+		select_processors_subscriptions_s-subject-->|AllRecordBatches|group_by_processors_subscriptions_p-subscribe
 		group_by_processors_subscriptions_p-subscribe-->group_by_processors_subscriptions_p-processor
 		group_by_processors_subscriptions_p-processor-->group_by_processors_subscriptions_p-publish
 		group_by_processors_subscriptions_p-publish-->|Replace|group_by_processors_subscriptions_s-subject
-		group_by_processors_subscriptions_s-subject-->|FullTable|select_processors_subscriptions_aggregated_p-subscribe
+		group_by_processors_subscriptions_s-subject-->|AllRecordBatches|select_processors_subscriptions_aggregated_p-subscribe
 		select_processors_subscriptions_aggregated_p-subscribe-->select_processors_subscriptions_aggregated_p-processor
 		select_processors_subscriptions_aggregated_p-processor-->select_processors_subscriptions_aggregated_p-publish
 		select_processors_subscriptions_aggregated_p-publish-->|Replace|select_processors_subscriptions_aggregated_s-subject
@@ -117,11 +117,11 @@ impl<'a> ToolCallSession<'a> {
     
 	subgraph group_by_processors_publications_t
         {}
-		select_processors_publications_s-subject-->|FullTable|group_by_processors_publications_p-subscribe
+		select_processors_publications_s-subject-->|AllRecordBatches|group_by_processors_publications_p-subscribe
 		group_by_processors_publications_p-subscribe-->group_by_processors_publications_p-processor
 		group_by_processors_publications_p-processor-->group_by_processors_publications_p-publish
 		group_by_processors_publications_p-publish-->|Replace|group_by_processors_publications_s-subject
-		group_by_processors_publications_s-subject-->|FullTable|select_processors_publications_aggregated_p-subscribe
+		group_by_processors_publications_s-subject-->|AllRecordBatches|select_processors_publications_aggregated_p-subscribe
 		select_processors_publications_aggregated_p-subscribe-->select_processors_publications_aggregated_p-processor
 		select_processors_publications_aggregated_p-processor-->select_processors_publications_aggregated_p-publish
 		select_processors_publications_aggregated_p-publish-->|Replace|select_processors_publications_aggregated_s-subject
@@ -138,17 +138,17 @@ impl<'a> ToolCallSession<'a> {
 	select_processors_publications_aggregated_s-subject@{{shape: doc, label: select_processors_publications_aggregated_s}}
 
 	subgraph join_tasks_processors_subscriptions_publications_aggregated_t
-		select_processors_subscriptions_aggregated_s-subject-.->|FullTable|join_processors_subscriptions_publications_aggregated_p-subscribe
-		select_processors_publications_aggregated_s-subject-.->|FullTable|join_processors_subscriptions_publications_aggregated_p-subscribe
+		select_processors_subscriptions_aggregated_s-subject-.->|AllRecordBatches|join_processors_subscriptions_publications_aggregated_p-subscribe
+		select_processors_publications_aggregated_s-subject-.->|AllRecordBatches|join_processors_subscriptions_publications_aggregated_p-subscribe
 		join_processors_subscriptions_publications_aggregated_p-subscribe-->join_processors_subscriptions_publications_aggregated_p-processor
 		join_processors_subscriptions_publications_aggregated_p-processor-->join_processors_subscriptions_publications_aggregated_p-publish
 		join_processors_subscriptions_publications_aggregated_p-publish-->|Replace|join_processors_subscriptions_publications_aggregated_s-subject
-		join_processors_subscriptions_publications_aggregated_s-subject-->|FullTable|join_tasks_processors_subscriptions_publications_aggregated_p-subscribe
-		SessionTasks-subject-->|FullTable|join_tasks_processors_subscriptions_publications_aggregated_p-subscribe
+		join_processors_subscriptions_publications_aggregated_s-subject-->|AllRecordBatches|join_tasks_processors_subscriptions_publications_aggregated_p-subscribe
+		SessionTasks-subject-->|AllRecordBatches|join_tasks_processors_subscriptions_publications_aggregated_p-subscribe
 		join_tasks_processors_subscriptions_publications_aggregated_p-subscribe-->join_tasks_processors_subscriptions_publications_aggregated_p-processor
 		join_tasks_processors_subscriptions_publications_aggregated_p-processor-->join_tasks_processors_subscriptions_publications_aggregated_p-publish
 		join_tasks_processors_subscriptions_publications_aggregated_p-publish-->|Replace|join_tasks_processors_subscriptions_publications_aggregated_s-subject
-		join_tasks_processors_subscriptions_publications_aggregated_s-subject-->|FullTable|select_tasks_processors_subscriptions_publications_aggregated_p-subscribe
+		join_tasks_processors_subscriptions_publications_aggregated_s-subject-->|AllRecordBatches|select_tasks_processors_subscriptions_publications_aggregated_p-subscribe
 		select_tasks_processors_subscriptions_publications_aggregated_p-subscribe-->select_tasks_processors_subscriptions_publications_aggregated_p-processor
 		select_tasks_processors_subscriptions_publications_aggregated_p-processor-->select_tasks_processors_subscriptions_publications_aggregated_p-publish
 		select_tasks_processors_subscriptions_publications_aggregated_p-publish-->|Replace|select_tasks_processors_subscriptions_publications_aggregated_s-subject
@@ -172,11 +172,11 @@ impl<'a> ToolCallSession<'a> {
 	%% Tool call processor that enables calling processors from their config
 	%% ------------------------------------------------------------------------------
 	subgraph call_processor_t
-        select_tasks_processors_subscriptions_publications_aggregated_s-subject-.->|FullTable|echo_processor_p-subscribe
+        select_tasks_processors_subscriptions_publications_aggregated_s-subject-.->|AllRecordBatches|echo_processor_p-subscribe
 		echo_processor_p-subscribe-->echo_processor_p-processor
 		echo_processor_p-processor-->echo_processor_p-publish
 		echo_processor_p-publish-->|Extend|select_tasks_processors_subscriptions_publications_aggregated_s-subject
-        select_tasks_processors_subscriptions_publications_aggregated_s-subject-->|FullTable|call_processor_p-subscribe
+        select_tasks_processors_subscriptions_publications_aggregated_s-subject-->|AllRecordBatches|call_processor_p-subscribe
 		{}
 		call_processor_p-subscribe-->call_processor_p-processor
 		call_processor_p-processor-->call_processor_p-publish
@@ -538,28 +538,28 @@ mod tests {
                 column,
                 [
                     "OnUpdateEmpty",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
                     "OnUpdateEmpty",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
                     "OnUpdateLastRecordBatch",
-                    "AlwaysFullTable"
+                    "AlwaysAllRecordBatches"
                 ]
             );
             let column = table_reading.get_column_as_vec_str("publication_subscription_table_name");
@@ -790,29 +790,29 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
-                    "AlwaysFullTable",
+                    "AlwaysAllRecordBatches",
                     "OnUpdateLastRecordBatch",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
                     "OnUpdateEmpty",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
                     "OnUpdateEmpty",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable"
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches"
                 ]
             );
             let column = table_reading
@@ -996,29 +996,29 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
-                    "AlwaysFullTable",
+                    "AlwaysAllRecordBatches",
                     "OnUpdateLastRecordBatch",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
                     "OnUpdateEmpty",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
                     "OnUpdateEmpty",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable",
-                    "AlwaysFullTable"
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "AlwaysAllRecordBatches"
                 ]
             );
             let column = table_reading

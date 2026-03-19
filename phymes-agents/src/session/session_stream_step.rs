@@ -736,7 +736,7 @@ mod tests {
         test_session_context_builder,
     };
     use phymes_core::{
-        AvailableSubjects, AvailableSubscribePolicies, ProcessorBuilder, ProcessorPlanBuilder,
+        AvailableSubjects, AvailableSubscribeEvents, ProcessorBuilder, ProcessorPlanBuilder,
         Publication, Subscription, TaskPlan,
         test_processor::{ProcessorError, ProcessorMock},
         test_task,
@@ -2441,15 +2441,15 @@ mod tests {
                     subject_name: "state_1".to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: "state_1".to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: "processor_1".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -2464,15 +2464,15 @@ mod tests {
                     subject_name: "state_1".to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: "state_1".to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: "error_1".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),

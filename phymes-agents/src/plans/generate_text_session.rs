@@ -170,10 +170,10 @@ impl<'a> GenerateTextSession<'a> {
 	%% Message aggregation for text generation
 	%% ------------------------------------------------------------------------------
 	subgraph aggregate_messages_generate_text_t
-		UserMessages-subject-->|FullTable|aggregate_messages_generate_text_p-subscribe
+		UserMessages-subject-->|AllRecordBatches|aggregate_messages_generate_text_p-subscribe
 		ToolMessages-subject-.->|LastRecordBatch|aggregate_messages_generate_text_p-subscribe
 		SessionErrors-subject-.->|LastRecordBatch|aggregate_messages_generate_text_p-subscribe
-		AssistantMessages-subject-->|FullTable|aggregate_messages_generate_text_p-subscribe
+		AssistantMessages-subject-->|AllRecordBatches|aggregate_messages_generate_text_p-subscribe
 		aggregate_messages_generate_text_p-subscribe-->aggregate_messages_generate_text_p-processor
 		aggregate_messages_generate_text_p-processor-->aggregate_messages_generate_text_p-publish
 		aggregate_messages_generate_text_p-publish-->|Replace|aggregate_messages_generate_text_s-subject
@@ -207,8 +207,8 @@ impl<'a> GenerateTextSession<'a> {
 	%% Text generation
 	%% ------------------------------------------------------------------------------
 	subgraph generate_text_inference_t
-		aggregate_messages_generate_text_s-subject-.->|FullTable|generate_text_inference_p-subscribe
-		Tools-subject-->|FullTable|generate_text_inference_p-subscribe
+		aggregate_messages_generate_text_s-subject-.->|AllRecordBatches|generate_text_inference_p-subscribe
+		Tools-subject-->|AllRecordBatches|generate_text_inference_p-subscribe
 		generate_text_inference_p-subscribe-->generate_text_inference_p-processor
 		generate_text_inference_p-processor-->generate_text_inference_p-publish
 		generate_text_inference_p-publish-->|Replace|generate_text_inference_s-subject
@@ -224,7 +224,7 @@ impl<'a> GenerateTextSession<'a> {
 	%% Parse generated text
 	%% ------------------------------------------------------------------------------
 	subgraph parse_generated_text_t
-		generate_text_inference_s-subject-.->|FullTable|parse_generated_text_p-subscribe
+		generate_text_inference_s-subject-.->|AllRecordBatches|parse_generated_text_p-subscribe
 		parse_generated_text_p-subscribe-->parse_generated_text_p-processor
 		parse_generated_text_p-processor-->parse_generated_text_p-publish
 		parse_generated_text_p-publish-->|Extend|AssistantMessages-subject

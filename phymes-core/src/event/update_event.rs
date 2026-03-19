@@ -1,69 +1,64 @@
-use std::{fmt::Debug, sync::Arc};
-
-use parking_lot::RwLock;
+use std::fmt::Debug;
 use phymes_diagnostics::HashMap;
 
-use crate::{MappableTrait, Subject, SubjectTrait, Subscription};
+use crate::{MappableTrait, Subscription};
 
-/// Determine when a table has been updated
-pub trait UpdatePolicyTrait: MappableTrait + Debug + Send + Sync {
-    /// Determine which tables have been updated with respect to the query processor
+/// Determine when a subject has been updated
+pub trait UpdateEventTrait: MappableTrait + Debug + Send + Sync {
+    /// Determine which subjects have been updated with respect to the query processor
     ///
     /// # Notes
-    /// * The output is the input to [UpdatePolicyTrait]
+    /// * The output is the input to [UpdateEventTrait]
     ///
     /// # Arguments
     ///
     /// * `subscriptions` - Slice of `Subscription`s for the processor
     /// * `last_run` - timestamp of the last run
     /// * `subjects_change_log` - `HashMap` of the subjects and when they were changed last
-    /// * `state` - `HashMap` of the subject tables
     fn determine_updates(
         &self,
         subscriptions: &[Subscription],
         last_run: &i64,
         subjects_change_log: &HashMap<String, i64>,
-        state: &HashMap<String, Arc<RwLock<Subject>>>,
     ) -> HashMap<String, bool>;
-    fn new_box() -> Box<dyn UpdatePolicyTrait>
+    fn new_box() -> Box<dyn UpdateEventTrait>
     where
         Self: Sized;
-    fn clone_boxed(&self) -> Box<dyn UpdatePolicyTrait>;
+    fn clone_boxed(&self) -> Box<dyn UpdateEventTrait>;
 }
 
-/// If a table has [RecordBatch]es, consider the table updated
+/// If a subject has [RecordBatch]es, consider the subject updated
 ///
 /// [RecordBatch]: arrow::record_batch::RecordBatch
 #[derive(Default, Debug, Clone)]
 pub struct SubjectHasBatchesUpdate {}
 
-impl UpdatePolicyTrait for SubjectHasBatchesUpdate {
+impl UpdateEventTrait for SubjectHasBatchesUpdate {
     fn determine_updates(
         &self,
         subscriptions: &[Subscription],
         _last_run: &i64,
-        _subjects_change_log: &HashMap<String, i64>,
-        state: &HashMap<String, Arc<RwLock<Subject>>>,
+        subjects_change_log: &HashMap<String, i64>,
     ) -> HashMap<String, bool> {
         subscriptions
             .iter()
             .map(|s| {
-                if let Some(table) = state.get(s.get_table_name()) {
-                    if !table.read().get_record_batches().is_empty() {
-                        (s.get_table_name().to_string(), true)
+                if let Some(timestamp) = subjects_change_log.get(s.get_subject_name()) {
+                    if timestamp > &0_i64 {
+                        (s.get_subject_name().to_string(), true)
                     } else {
-                        (s.get_table_name().to_string(), false)
+                        (s.get_subject_name().to_string(), false)
                     }
                 } else {
-                    (s.get_table_name().to_string(), false)
+                    (s.get_subject_name().to_string(), false)
                 }
             })
             .collect::<HashMap<_, _>>()
     }
-    fn new_box() -> Box<dyn UpdatePolicyTrait> {
+    fn new_box() -> Box<dyn UpdateEventTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(&self) -> Box<dyn UpdatePolicyTrait> {
+    fn clone_boxed(&self) -> Box<dyn UpdateEventTrait> {
         Box::new(self.clone())
     }
 }
@@ -74,37 +69,36 @@ impl MappableTrait for SubjectHasBatchesUpdate {
     }
 }
 
-/// If a table has been updated after the task/processor has ran, consider the table updated
+/// If a subject has been updated after the task/processor has ran, consider the subject updated
 #[derive(Default, Debug, Clone)]
 pub struct SubjectChangedSinceLastRunUpdate {}
 
-impl UpdatePolicyTrait for SubjectChangedSinceLastRunUpdate {
+impl UpdateEventTrait for SubjectChangedSinceLastRunUpdate {
     fn determine_updates(
         &self,
         subscriptions: &[Subscription],
         last_run: &i64,
         subjects_change_log: &HashMap<String, i64>,
-        _state: &HashMap<String, Arc<RwLock<Subject>>>,
     ) -> HashMap<String, bool> {
         subscriptions
             .iter()
             .map(|s| {
-                if let Some(timestamp) = subjects_change_log.get(s.get_table_name()) {
+                if let Some(timestamp) = subjects_change_log.get(s.get_subject_name()) {
                     if timestamp > last_run {
-                        (s.get_table_name().to_string(), true)
+                        (s.get_subject_name().to_string(), true)
                     } else {
-                        (s.get_table_name().to_string(), false)
+                        (s.get_subject_name().to_string(), false)
                     }
                 } else {
-                    (s.get_table_name().to_string(), false)
+                    (s.get_subject_name().to_string(), false)
                 }
             })
             .collect::<HashMap<_, _>>()
     }
-    fn new_box() -> Box<dyn UpdatePolicyTrait> {
+    fn new_box() -> Box<dyn UpdateEventTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(&self) -> Box<dyn UpdatePolicyTrait> {
+    fn clone_boxed(&self) -> Box<dyn UpdateEventTrait> {
         Box::new(self.clone())
     }
 }
@@ -115,33 +109,32 @@ impl MappableTrait for SubjectChangedSinceLastRunUpdate {
     }
 }
 
-/// if a table exists, consider the table updated
+/// if a subject exists, consider the subject updated
 #[derive(Default, Debug, Clone)]
 pub struct SubjectExistsUpdate {}
 
-impl UpdatePolicyTrait for SubjectExistsUpdate {
+impl UpdateEventTrait for SubjectExistsUpdate {
     fn determine_updates(
         &self,
         subscriptions: &[Subscription],
         _last_run: &i64,
-        _subjects_change_log: &HashMap<String, i64>,
-        state: &HashMap<String, Arc<RwLock<Subject>>>,
+        subjects_change_log: &HashMap<String, i64>,
     ) -> HashMap<String, bool> {
         subscriptions
             .iter()
             .map(|s| {
-                if state.contains_key(s.get_table_name()) {
-                    (s.get_table_name().to_string(), true)
+                if subjects_change_log.contains_key(s.get_subject_name()) {
+                    (s.get_subject_name().to_string(), true)
                 } else {
-                    (s.get_table_name().to_string(), false)
+                    (s.get_subject_name().to_string(), false)
                 }
             })
             .collect::<HashMap<_, _>>()
     }
-    fn new_box() -> Box<dyn UpdatePolicyTrait> {
+    fn new_box() -> Box<dyn UpdateEventTrait> {
         Box::new(Self {})
     }
-    fn clone_boxed(&self) -> Box<dyn UpdatePolicyTrait> {
+    fn clone_boxed(&self) -> Box<dyn UpdateEventTrait> {
         Box::new(self.clone())
     }
 }
@@ -167,27 +160,26 @@ mod test_update_policy {
 
 #[cfg(test)]
 mod tests {
-    use crate::table::subscribe_policy::test_subscribe_policy;
+    use crate::event::subscribe_event::test_subscribe_policy;
 
     use super::*;
 
     #[test]
-    fn test_table_exists_update() {
-        let mut state = test_subscribe_policy::make_test_subjects_map();
+    fn test_subject_exists_update() {
         let subscriptions = test_subscribe_policy::make_test_subscriptions(true);
-        let changes = test_update_policy::make_test_subjects_change_log();
+        let mut changes = test_update_policy::make_test_subjects_change_log();
         let up = SubjectExistsUpdate::new_box();
 
-        let updates = up.determine_updates(&subscriptions, &0, &changes, &state);
+        let updates = up.determine_updates(&subscriptions, &0, &changes);
         let mut updates_test = HashMap::<String, bool>::new();
         updates_test.insert("t1".to_string(), true);
         updates_test.insert("t2".to_string(), true);
         updates_test.insert("t3".to_string(), true);
         assert_eq!(updates, updates_test);
 
-        let _ = state.remove("t1").unwrap();
+        let _ = changes.remove("t1").unwrap();
 
-        let updates = up.determine_updates(&subscriptions, &0, &changes, &state);
+        let updates = up.determine_updates(&subscriptions, &0, &changes);
         let mut updates_test = HashMap::<String, bool>::new();
         updates_test.insert("t1".to_string(), false);
         updates_test.insert("t2".to_string(), true);
@@ -196,28 +188,21 @@ mod tests {
     }
 
     #[test]
-    fn test_table_has_batches_update() {
-        let mut state = test_subscribe_policy::make_test_subjects_map();
+    fn test_subject_has_batches_update() {
         let subscriptions = test_subscribe_policy::make_test_subscriptions(true);
-        let changes = test_update_policy::make_test_subjects_change_log();
+        let mut changes = test_update_policy::make_test_subjects_change_log();
         let up = SubjectHasBatchesUpdate::new_box();
 
-        let updates = up.determine_updates(&subscriptions, &0, &changes, &state);
+        let updates = up.determine_updates(&subscriptions, &0, &changes);
         let mut updates_test = HashMap::<String, bool>::new();
         updates_test.insert("t1".to_string(), true);
         updates_test.insert("t2".to_string(), true);
         updates_test.insert("t3".to_string(), true);
         assert_eq!(updates, updates_test);
 
-        state
-            .get_mut("t1")
-            .unwrap()
-            .try_write()
-            .unwrap()
-            .get_record_batches_mut()
-            .clear();
+        let _ = changes.remove("t1").unwrap();
 
-        let updates = up.determine_updates(&subscriptions, &0, &changes, &state);
+        let updates = up.determine_updates(&subscriptions, &0, &changes);
         let mut updates_test = HashMap::<String, bool>::new();
         updates_test.insert("t1".to_string(), false);
         updates_test.insert("t2".to_string(), true);
@@ -226,13 +211,12 @@ mod tests {
     }
 
     #[test]
-    fn test_table_changed_since_last_run_update() {
-        let state = test_subscribe_policy::make_test_subjects_map();
+    fn test_subject_changed_since_last_run_update() {
         let subscriptions = test_subscribe_policy::make_test_subscriptions(true);
         let changes = test_update_policy::make_test_subjects_change_log();
         let up = SubjectChangedSinceLastRunUpdate::new_box();
 
-        let updates = up.determine_updates(&subscriptions, &1, &changes, &state);
+        let updates = up.determine_updates(&subscriptions, &1, &changes);
         let mut updates_test = HashMap::<String, bool>::new();
         updates_test.insert("t1".to_string(), false);
         updates_test.insert("t2".to_string(), false);

@@ -22,28 +22,28 @@ impl<'a> RetrieveTextSession<'a> {
 	%% Vector search
 	%% ------------------------------------------------------------------------------
 	subgraph vector_search_t
-	    DocumentEmbeddings-subject-->|FullTable|vector_distance_p-subscribe
-	    QueryEmbeddings-subject-.->|FullTable|vector_distance_p-subscribe
+	    DocumentEmbeddings-subject-->|AllRecordBatches|vector_distance_p-subscribe
+	    QueryEmbeddings-subject-.->|AllRecordBatches|vector_distance_p-subscribe
 	    vector_distance_p-subscribe-->vector_distance_p-processor
 	    vector_distance_p-processor-->vector_distance_p-publish
 	    vector_distance_p-publish-->|Replace|vector_distance_s-subject
-	    vector_distance_s-subject-->|FullTable|threshold_scores_p-subscribe
+	    vector_distance_s-subject-->|AllRecordBatches|threshold_scores_p-subscribe
 	    threshold_scores_p-subscribe-->threshold_scores_p-processor
 	    threshold_scores_p-processor-->threshold_scores_p-publish
 	    threshold_scores_p-publish-->|Replace|threshold_scores_s-subject
-	    threshold_scores_s-subject-->|FullTable|filter_scores_p-subscribe
+	    threshold_scores_s-subject-->|AllRecordBatches|filter_scores_p-subscribe
 	    filter_scores_p-subscribe-->filter_scores_p-processor
 	    filter_scores_p-processor-->filter_scores_p-publish
 	    filter_scores_p-publish-->|Replace|filter_scores_s-subject
-	    filter_scores_s-subject-->|FullTable|select_scores_p-subscribe
+	    filter_scores_s-subject-->|AllRecordBatches|select_scores_p-subscribe
 	    select_scores_p-subscribe-->select_scores_p-processor
 	    select_scores_p-processor-->select_scores_p-publish
 	    select_scores_p-publish-->|Replace|select_scores_s-subject
-	    select_scores_s-subject-->|FullTable|sort_scores_p-subscribe
+	    select_scores_s-subject-->|AllRecordBatches|sort_scores_p-subscribe
 	    sort_scores_p-subscribe-->sort_scores_p-processor
 	    sort_scores_p-processor-->sort_scores_p-publish
 	    sort_scores_p-publish-->|Replace|sort_scores_s-subject
-	    sort_scores_s-subject-->|FullTable|limit_scores_p-subscribe
+	    sort_scores_s-subject-->|AllRecordBatches|limit_scores_p-subscribe
 	    limit_scores_p-subscribe-->limit_scores_p-processor
 	    limit_scores_p-processor-->limit_scores_p-publish
 	    limit_scores_p-publish-->|Replace|EmbeddingScores-subject
@@ -80,16 +80,16 @@ impl<'a> RetrieveTextSession<'a> {
 	%% Documents retrieval
 	%% ------------------------------------------------------------------------------
 	subgraph retrieve_documents_t
-	    Documents-subject-->|FullTable|join_documents_scores_p-subscribe
-	    EmbeddingScores-subject-.->|FullTable|join_documents_scores_p-subscribe
+	    Documents-subject-->|AllRecordBatches|join_documents_scores_p-subscribe
+	    EmbeddingScores-subject-.->|AllRecordBatches|join_documents_scores_p-subscribe
 	    join_documents_scores_p-subscribe-->join_documents_scores_p-processor
 	    join_documents_scores_p-processor-->join_documents_scores_p-publish
 	    join_documents_scores_p-publish-->|Replace|join_documents_scores_s-subject
-	    join_documents_scores_s-subject-->|FullTable|select_documents_scores_p-subscribe
+	    join_documents_scores_s-subject-->|AllRecordBatches|select_documents_scores_p-subscribe
 	    select_documents_scores_p-subscribe-->select_documents_scores_p-processor
 	    select_documents_scores_p-processor-->select_documents_scores_p-publish
 	    select_documents_scores_p-publish-->|Extend|select_documents_scores_s-subject		
-	    select_documents_scores_s-subject-->|FullTable|summarize_documents_scores_p-subscribe
+	    select_documents_scores_s-subject-->|AllRecordBatches|summarize_documents_scores_p-subscribe
 	    summarize_documents_scores_p-subscribe-->summarize_documents_scores_p-processor
 	    summarize_documents_scores_p-processor-->summarize_documents_scores_p-publish
 	    summarize_documents_scores_p-publish-->|Extend|ToolMessages-subject

@@ -1,3 +1,4 @@
+mod data;
 mod Index; // DM: change back to lower case after restart...
 mod message;
 mod patch;
@@ -5,10 +6,12 @@ mod processor;
 mod runtime_env;
 mod schemas;
 mod storage;
+mod stream;
 mod subject;
-mod table;
+mod event;
 mod task;
 
+pub use data::{CsvFormat, DataEncoding, DataFormat, JsonFormat, from_data_type_to_str, from_str_to_data_type, make_filename, make_extension, parse_str_to_data_type};
 pub use Index::{
     SubjectConstraintType, create_arrow_array_sequence, SubjectSequenceType,
     IndexType,
@@ -69,19 +72,14 @@ pub use storage::{
     IpcReader, JsonReader, CsvReader, StorageReaderTrait, StorageStreamReaderTrait, storage_reader_get_result, storage_reader_stream_result,
     IpcWriter, JsonWriter, CsvWriter, IpcWriterMultipart, JsonWriterMultipart, CsvWriterMultipart, StorageWriterTrait, StorageWriterMultipartTrait, StorageStreamWriterTrait, storage_writer_multipart
 };
+pub use stream::{IPCRecordBatchStream, RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder, RecordBatchStream, RecordBatchStreamAdapter, SendableIPCRecordBatchStream, SendableRecordBatchStream, EmptyRecordBatchStream};
 pub use subject::{SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlan, SubjectPlanTrait, SubjectFilePartition, SubjectFolderPartition,
     Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, test_subject, SubjectScript, items_to_list};
-pub use table::{
-    AvailableSubscribePolicies, AvailableUpdatePolicies, CsvFormat, DataEncoding, DataFormat,
-    IPCRecordBatchStream, JsonFormat, RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder,
-    RecordBatchStream, RecordBatchStreamAdapter, SendableIPCRecordBatchStream,
-    SendableRecordBatchStream,
-    SubjectChangedSinceLastRunUpdate, SubjectExistsUpdate, SubjectHasBatchesUpdate, Publication,
-    TablePublicationTrait, SubscribePolicyTrait, Subscription,
-    TableSubscriptionTrait, UpdatePolicyTrait, from_data_type_to_str,
-    from_str_to_data_type, make_filename, make_extension, parse_str_to_data_type,
+pub use event::{
+    AvailableSubscribeEvents, AvailableUpdateEvents, SubjectChangedSinceLastRunUpdate, SubjectExistsUpdate, SubjectHasBatchesUpdate, Publication,
+    TablePublicationTrait, SubscribeEventTrait, Subscription,
+    SubscriptionTrait, UpdateEventTrait, build_and_publish_to_stream, subscribe_to_subject, update_publisher,
 };
 pub use task::{
-    Task, TaskBuilder, TaskBuilderTrait, TaskMap, TaskPlan, TaskPlanBuilder, TaskTrait,
-    build_and_publish_to_stream, subscribe_to_subject, test_task, update_publisher,
+    Task, TaskBuilder, TaskBuilderTrait, TaskMap, TaskPlan, TaskPlanBuilder, TaskTrait, test_task
 };

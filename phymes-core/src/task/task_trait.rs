@@ -6,7 +6,7 @@ use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, Tra
 use tracing::{Level, event};
 
 use crate::{
-    BuildableTrait, MappableTrait, ProcessorSubjectsMap, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, Subscription, TaskBuilder, subscribe_to_subject, task::publish_subscribe::build_and_publish_to_stream, update_publisher
+    BuildableTrait, MappableTrait, ProcessorSubjectsMap, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, Subscription, TaskBuilder, subscribe_to_subject, build_and_publish_to_stream, update_publisher
 };
 
 /// Trait to implement the actual task which could involve one or
@@ -261,10 +261,10 @@ pub mod test_task {
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name(processor_name)
             .with_subscriptions(&[
-                Subscription::OnUpdateFullTable {
+                Subscription::OnUpdateAllRecordBatches {
                     subject_name: subject_name.to_string(),
                 },
-                Subscription::AlwaysFullTable {
+                Subscription::AlwaysAllRecordBatches {
                     subject_name: processor_name.to_string(),
                 },
             ])
@@ -307,10 +307,10 @@ pub mod test_task {
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name(&processor_name_1)
             .with_subscriptions(&[
-                Subscription::OnUpdateFullTable {
+                Subscription::OnUpdateAllRecordBatches {
                     subject_name: table_name_1.to_string(),
                 },
-                Subscription::AlwaysFullTable {
+                Subscription::AlwaysAllRecordBatches {
                     subject_name: processor_name_1.to_string(),
                 },
             ])
@@ -322,10 +322,10 @@ pub mod test_task {
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name(&processor_name_2)
             .with_subscriptions(&[
-                Subscription::OnUpdateFullTable {
+                Subscription::OnUpdateAllRecordBatches {
                     subject_name: table_name_1.to_string(),
                 },
-                Subscription::AlwaysFullTable {
+                Subscription::AlwaysAllRecordBatches {
                     subject_name: processor_name_2.to_string(),
                 },
             ])
@@ -337,10 +337,10 @@ pub mod test_task {
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name(&processor_name_3)
             .with_subscriptions(&[
-                Subscription::OnUpdateFullTable {
+                Subscription::OnUpdateAllRecordBatches {
                     subject_name: table_name_1.to_string(),
                 },
-                Subscription::AlwaysFullTable {
+                Subscription::AlwaysAllRecordBatches {
                     subject_name: processor_name_3.to_string(),
                 },
             ])
@@ -384,10 +384,10 @@ pub mod test_task {
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name(&processor_name_1)
             .with_subscriptions(&[
-                Subscription::OnUpdateFullTable {
+                Subscription::OnUpdateAllRecordBatches {
                     subject_name: table_name_1.to_string(),
                 },
-                Subscription::AlwaysFullTable {
+                Subscription::AlwaysAllRecordBatches {
                     subject_name: processor_name_1.to_string(),
                 },
             ])
@@ -399,10 +399,10 @@ pub mod test_task {
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name(&processor_name_2)
             .with_subscriptions(&[
-                Subscription::AlwaysFullTable {
+                Subscription::AlwaysAllRecordBatches {
                     subject_name: table_name_1.to_string(),
                 },
-                Subscription::AlwaysFullTable {
+                Subscription::AlwaysAllRecordBatches {
                     subject_name: processor_name_2.to_string(),
                 },
             ])
@@ -414,10 +414,10 @@ pub mod test_task {
         let processor_subjects = ProcessorSubjectsBuilder::default()
             .with_name(&processor_name_3)
             .with_subscriptions(&[
-                Subscription::OnUpdateFullTable {
+                Subscription::OnUpdateAllRecordBatches {
                     subject_name: table_name_1.to_string(),
                 },
-                Subscription::AlwaysFullTable {
+                Subscription::AlwaysAllRecordBatches {
                     subject_name: processor_name_3.to_string(),
                 },
             ])

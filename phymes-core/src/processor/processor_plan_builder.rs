@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    AvailableUpdatePolicies, ProcessorPlan, ProcessorSubjects, ProcessorTrait,
-    Publication, SubscribePolicyTrait, Subscription, UpdatePolicyTrait,
+    AvailableUpdateEvents, ProcessorPlan, ProcessorSubjects, ProcessorTrait,
+    Publication, SubscribeEventTrait, Subscription, UpdateEventTrait,
 };
 use anyhow::{Result, anyhow};
 
@@ -11,8 +11,8 @@ use anyhow::{Result, anyhow};
 pub struct ProcessorPlanBuilder {
     pub publications: Option<Vec<Publication>>,
     pub subscriptions: Option<Vec<Subscription>>,
-    pub subscribe_policy: Option<Box<dyn SubscribePolicyTrait>>,
-    pub update_policy: Option<Box<dyn UpdatePolicyTrait>>,
+    pub subscribe_policy: Option<Box<dyn SubscribeEventTrait>>,
+    pub update_policy: Option<Box<dyn UpdateEventTrait>>,
     pub processor: Option<Arc<dyn ProcessorTrait>>,
 }
 
@@ -27,12 +27,12 @@ impl ProcessorPlanBuilder {
     }
     pub fn with_subscribe_policy(
         mut self,
-        subscribe_policy: Box<dyn SubscribePolicyTrait>,
+        subscribe_policy: Box<dyn SubscribeEventTrait>,
     ) -> Self {
         self.subscribe_policy = Some(subscribe_policy);
         self
     }
-    pub fn with_update_policy(mut self, update_policy: Box<dyn UpdatePolicyTrait>) -> Self {
+    pub fn with_update_policy(mut self, update_policy: Box<dyn UpdateEventTrait>) -> Self {
         self.update_policy = Some(update_policy);
         self
     }
@@ -66,7 +66,7 @@ impl ProcessorPlanBuilder {
             self.subscribe_policy.take().unwrap(),
             self.update_policy
                 .take()
-                .unwrap_or(AvailableUpdatePolicies::default().build()),
+                .unwrap_or(AvailableUpdateEvents::default().build()),
         ))
     }
 }

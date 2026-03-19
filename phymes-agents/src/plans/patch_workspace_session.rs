@@ -28,8 +28,8 @@ impl<'a> PatchWorkspaceSession<'a> {
     %% - The `tool_call_session` is used to trigger the operator when only the config is updated
 	%% ------------------------------------------------------------------------------
 	subgraph apply_patch_t
-		WorkspacePatch-subject-.->|FullTable|apply_patch_p-subscribe
-		Workspace-subject-.->|FullTable|apply_patch_p-subscribe
+		WorkspacePatch-subject-.->|AllRecordBatches|apply_patch_p-subscribe
+		Workspace-subject-.->|AllRecordBatches|apply_patch_p-subscribe
 		apply_patch_p-subject-.->|LastRecordBatch|apply_patch_p-subscribe
 		apply_patch_p-subscribe-->apply_patch_p-processor
 		apply_patch_p-processor-->apply_patch_p-publish

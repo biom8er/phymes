@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribePolicies, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, TaskPlan, create_user_batch, create_user_session_contexts_batch
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, TaskPlan, create_user_batch, create_user_session_contexts_batch
 };
 use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator};
 use phymes_diagnostics::create_timestamp_micros;
@@ -148,15 +148,15 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                             .filter_session_contexts_by_email_processor_name
                             .to_string(),
                     },
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: AvailableSubjects::UserInbox.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: AvailableSubjects::UserSessionContexts.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -174,15 +174,15 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                             .join_session_contexts_with_mermaid_diagrams_processor_name
                             .to_string(),
                     },
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: AvailableSubjects::JoinUserInboxSessionContexts.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: AvailableSubjects::BuilderMermaid.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -198,15 +198,15 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                     Subscription::AlwaysLastRecordBatch {
                         subject_name: self.filter_user_info_by_email_processor_name.to_string(),
                     },
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: AvailableSubjects::UserInbox.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: AvailableSubjects::User.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),

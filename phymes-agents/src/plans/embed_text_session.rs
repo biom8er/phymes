@@ -160,11 +160,11 @@ impl<'a> EmbedTextSession<'a> {
 	%% Embed Documents
 	%% ------------------------------------------------------------------------------
 	subgraph embed_documents_t
-	    Documents-subject-.->|FullTable|coalesce_documents_p-subscribe
+	    Documents-subject-.->|AllRecordBatches|coalesce_documents_p-subscribe
 	    coalesce_documents_p-subscribe-->coalesce_documents_p-processor
 	    coalesce_documents_p-processor-->coalesce_documents_p-publish
 	    coalesce_documents_p-publish-->|Extend|coalesce_documents_s-subject
-	    coalesce_documents_s-subject-->|FullTable|embed_documents_p-subscribe
+	    coalesce_documents_s-subject-->|AllRecordBatches|embed_documents_p-subscribe
 	    embed_documents_p-subscribe-->embed_documents_p-processor
 	    embed_documents_p-processor-->embed_documents_p-publish
 	    embed_documents_p-publish-->|Extend|DocumentEmbeddings-subject

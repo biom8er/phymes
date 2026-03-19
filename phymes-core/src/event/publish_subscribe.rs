@@ -7,7 +7,7 @@ use phymes_diagnostics::HashMap;
 use crate::{
     BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap,
-    Publication, Subscription, TableSubscriptionTrait,
+    Publication, Subscription, SubscriptionTrait,
     message::SendableRecordBatchStreamMessageBuilderMap, remove_message_by_subject,
 };
 
@@ -37,7 +37,7 @@ pub fn subscribe_to_subject(
     let mut map = HashMap::<String, SendableRecordBatchStreamMessage>::new();
     for subscription in subscriptions.iter() {
         // 1. Check for subscriptions in the message stream
-        if let Some(message) = remove_message_by_subject(subscription.get_table_name(), messages) {
+        if let Some(message) = remove_message_by_subject(subscription.subject_name(), messages) {
             let _ = map.insert(message.get_name().to_string(), message);
         // 2. Check for subscriptions in the subjects
         // DM: First, get the partitions from the subject metadata
@@ -143,10 +143,10 @@ mod tests {
         let subject_name = "test_table";
         let config_name = "test_config";
         let subscriptions = vec![
-            Subscription::OnUpdateFullTable {
+            Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_name.to_string(),
             },
-            Subscription::AlwaysFullTable {
+            Subscription::AlwaysAllRecordBatches {
                 subject_name: config_name.to_string(),
             },
         ];
@@ -185,13 +185,13 @@ mod tests {
         // Create the subscriptions/publications
         let table_name_2 = "test_table_2";
         let subscriptions = vec![
-            Subscription::OnUpdateFullTable {
+            Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_name.to_string(),
             },
-            Subscription::OnUpdateFullTable {
+            Subscription::OnUpdateAllRecordBatches {
                 subject_name: table_name_2.to_string(),
             },
-            Subscription::AlwaysFullTable {
+            Subscription::AlwaysAllRecordBatches {
                 subject_name: config_name.to_string(),
             },
         ];
@@ -235,10 +235,10 @@ mod tests {
         // --- Case 3: from subjects and messages but missing the messages table ---
         // Create the subscriptions/publications
         let subscriptions = vec![
-            Subscription::OnUpdateFullTable {
+            Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject_name.to_string(),
             },
-            Subscription::AlwaysFullTable {
+            Subscription::AlwaysAllRecordBatches {
                 subject_name: config_name.to_string(),
             },
         ];

@@ -37,7 +37,7 @@ impl<'a> NextSuperstepSession<'a> {
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let subscription_names = vec![vec!["OnUpdateFullTable", "AlwaysFullTable"]]
+        let subscription_names = vec![vec!["OnUpdateAllRecordBatches", "AlwaysAllRecordBatches"]]
             .into_iter()
             .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
             .collect::<Vec<_>>();
@@ -101,7 +101,7 @@ impl<'a> NextSuperstepSession<'a> {
     NextSuperstepSession_runtime_env-rt@{shape: subproc, label: NextSuperstepSession_runtime_env}
 
 	subgraph max_superstep_t
-		SessionSupersteps-subject-.->|FullTable|group_by_session_superstep_p-subscribe
+		SessionSupersteps-subject-.->|AllRecordBatches|group_by_session_superstep_p-subscribe
 		group_by_session_superstep_p-subscribe-->group_by_session_superstep_p-processor
 		group_by_session_superstep_p-processor-->group_by_session_superstep_p-publish
 		group_by_session_superstep_p-publish-->|Replace|SessionSuperstepMax-subject

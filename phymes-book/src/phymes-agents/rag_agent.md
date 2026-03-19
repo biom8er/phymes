@@ -34,9 +34,9 @@ The session ends when there are no further updates to the subjects. If the user 
 ```mermaid
 flowchart TD
 	subgraph message_aggregator_task_1
-		user_messages-subject-.FullTable.->message_aggregator_1-subscribe
-		top_k-subject-.FullTable.->message_aggregator_1-subscribe
-		assistant_messages-subject--FullTable-->message_aggregator_1-subscribe
+		user_messages-subject-.AllRecordBatches.->message_aggregator_1-subscribe
+		top_k-subject-.AllRecordBatches.->message_aggregator_1-subscribe
+		assistant_messages-subject--AllRecordBatches-->message_aggregator_1-subscribe
 		message_aggregator_1-subject--LastRecordBatch-->message_aggregator_1-subscribe
 		message_aggregator_1-subscribe-->message_aggregator_1-processor
 		message_aggregator_1-processor-->message_aggregator_1-publish
@@ -51,57 +51,57 @@ flowchart TD
 		message_aggregator_2-publish--Extend-->messages-subject
 	end
 	subgraph chat_task_1
-		chat_task_1-subject-.FullTable.->chat_processor_1-subscribe
+		chat_task_1-subject-.AllRecordBatches.->chat_processor_1-subscribe
 		-subject--None-->chat_processor_1-subscribe
-		chat_processor_1-subject--FullTable-->chat_processor_1-subscribe
+		chat_processor_1-subject--AllRecordBatches-->chat_processor_1-subscribe
 		chat_processor_1-subscribe-->chat_processor_1-processor
 		chat_processor_1-processor-->chat_processor_1-publish
 		chat_processor_1-publish--ExtendChunks-->assistant_messages-subject
 	end
 	subgraph embed_documents_task_1
-		documents-subject-.FullTable.->chunk_documents_processor_1-subscribe
-		chunk_documents_processor_1-subject--FullTable-->chunk_documents_processor_1-subscribe
+		documents-subject-.AllRecordBatches.->chunk_documents_processor_1-subscribe
+		chunk_documents_processor_1-subject--AllRecordBatches-->chunk_documents_processor_1-subscribe
 		chunk_documents_processor_1-subscribe-->chunk_documents_processor_1-processor
 		chunk_documents_processor_1-processor-->chunk_documents_processor_1-publish
 		chunk_documents_processor_1-publish--Replace-->chunk_documents_task_1-subject
-		chunk_documents_task_1-subject--FullTable-->embed_documents_processor_1-subscribe
-		embed_documents_processor_1-subject--FullTable-->embed_documents_processor_1-subscribe
+		chunk_documents_task_1-subject--AllRecordBatches-->embed_documents_processor_1-subscribe
+		embed_documents_processor_1-subject--AllRecordBatches-->embed_documents_processor_1-subscribe
 		embed_documents_processor_1-subscribe-->embed_documents_processor_1-processor
 		embed_documents_processor_1-processor-->embed_documents_processor_1-publish
 		embed_documents_processor_1-publish--Replace-->doc_embeddings-subject
 	end
 	subgraph embed_query_task_1
-		queries-subject-.FullTable.->embed_query_processor_1-subscribe
-		embed_query_processor_1-subject--FullTable-->embed_query_processor_1-subscribe
+		queries-subject-.AllRecordBatches.->embed_query_processor_1-subscribe
+		embed_query_processor_1-subject--AllRecordBatches-->embed_query_processor_1-subscribe
 		embed_query_processor_1-subscribe-->embed_query_processor_1-processor
 		embed_query_processor_1-processor-->embed_query_processor_1-publish
 		embed_query_processor_1-publish--Replace-->q_embeddings-subject
 	end
 	subgraph vs_task_1
-		doc_embeddings-subject--FullTable-->rel_sim_processor_1-subscribe
-		q_embeddings-subject-.FullTable.->rel_sim_processor_1-subscribe
-		rel_sim_processor_1-subject--FullTable-->rel_sim_processor_1-subscribe
+		doc_embeddings-subject--AllRecordBatches-->rel_sim_processor_1-subscribe
+		q_embeddings-subject-.AllRecordBatches.->rel_sim_processor_1-subscribe
+		rel_sim_processor_1-subject--AllRecordBatches-->rel_sim_processor_1-subscribe
 		rel_sim_processor_1-subscribe-->rel_sim_processor_1-processor
 		rel_sim_processor_1-processor-->rel_sim_processor_1-publish
 		rel_sim_processor_1-publish--Replace-->tmp_scores-subject
-		sort_scores_processor_1-subject--FullTable-->sort_scores_processor_1-subscribe
-		tmp_scores-subject--FullTable-->sort_scores_processor_1-subscribe
+		sort_scores_processor_1-subject--AllRecordBatches-->sort_scores_processor_1-subscribe
+		tmp_scores-subject--AllRecordBatches-->sort_scores_processor_1-subscribe
 		sort_scores_processor_1-subscribe-->sort_scores_processor_1-processor
 		sort_scores_processor_1-processor-->sort_scores_processor_1-publish
 		sort_scores_processor_1-publish--Replace-->tmp_scores-subject
-		documents-subject--FullTable-->chunk_documents_processor_2-subscribe
-		chunk_documents_processor_2-subject--FullTable-->chunk_documents_processor_2-subscribe
+		documents-subject--AllRecordBatches-->chunk_documents_processor_2-subscribe
+		chunk_documents_processor_2-subject--AllRecordBatches-->chunk_documents_processor_2-subscribe
 		chunk_documents_processor_2-subscribe-->chunk_documents_processor_2-processor
 		chunk_documents_processor_2-processor-->chunk_documents_processor_2-publish
 		chunk_documents_processor_2-publish--Replace-->documents-subject
-		documents-subject--FullTable-->join_scores_chunks_processor_1-subscribe
-		tmp_scores-subject--FullTable-->join_scores_chunks_processor_1-subscribe
-		join_scores_chunks_processor_1-subject--FullTable-->join_scores_chunks_processor_1-subscribe
+		documents-subject--AllRecordBatches-->join_scores_chunks_processor_1-subscribe
+		tmp_scores-subject--AllRecordBatches-->join_scores_chunks_processor_1-subscribe
+		join_scores_chunks_processor_1-subject--AllRecordBatches-->join_scores_chunks_processor_1-subscribe
 		join_scores_chunks_processor_1-subscribe-->join_scores_chunks_processor_1-processor
 		join_scores_chunks_processor_1-processor-->join_scores_chunks_processor_1-publish
 		join_scores_chunks_processor_1-publish--Replace-->tmp_scores_chunks_join-subject
-		top_k_processor_1-subject--FullTable-->top_k_processor_1-subscribe
-		tmp_scores_chunks_join-subject--FullTable-->top_k_processor_1-subscribe
+		top_k_processor_1-subject--AllRecordBatches-->top_k_processor_1-subscribe
+		tmp_scores_chunks_join-subject--AllRecordBatches-->top_k_processor_1-subscribe
 		top_k_processor_1-subscribe-->top_k_processor_1-processor
 		top_k_processor_1-processor-->top_k_processor_1-publish
 		top_k_processor_1-publish--Replace-->top_k-subject

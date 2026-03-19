@@ -30,11 +30,11 @@ impl<'a> CountSubjectRowsSession<'a> {
     CountSubjectRowsSession_runtime_env-rt@{shape: subproc, label: CountSubjectRowsSession_runtime_env}
 
 	subgraph group_by_subject_change_log_delta_t
-		SubjectsChangeLog-subject-.->|FullTable|group_by_subject_change_log_delta_p-subscribe
+		SubjectsChangeLog-subject-.->|AllRecordBatches|group_by_subject_change_log_delta_p-subscribe
 		group_by_subject_change_log_delta_p-subscribe-->group_by_subject_change_log_delta_p-processor
 		group_by_subject_change_log_delta_p-processor-->group_by_subject_change_log_delta_p-publish
 		group_by_subject_change_log_delta_p-publish-->|Replace|group_by_subject_change_log_delta_t-subject
-		group_by_subject_change_log_delta_t-subject-->|FullTable|select_subject_change_log_delta_p-subscribe
+		group_by_subject_change_log_delta_t-subject-->|AllRecordBatches|select_subject_change_log_delta_p-subscribe
 		select_subject_change_log_delta_p-subscribe-->select_subject_change_log_delta_p-processor
 		select_subject_change_log_delta_p-processor-->select_subject_change_log_delta_p-publish
 		select_subject_change_log_delta_p-publish-->|Replace|SubjectsNumRows-subject

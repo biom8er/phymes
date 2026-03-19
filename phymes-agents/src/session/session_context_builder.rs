@@ -127,8 +127,8 @@ impl SessionContextBuilder {
                     }
                 });
                 t.get_subscriptions().iter().for_each(|s| {
-                    if !s.get_table_name().is_empty() {
-                        subjects.insert(s.get_table_name().to_string());
+                    if !s.subject_name().is_empty() {
+                        subjects.insert(s.subject_name().to_string());
                     }
                 });
                 subjects
@@ -415,7 +415,7 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 /// Mock objects and functions for session context builer testing
 pub mod test_session_context_builder {
     use phymes_core::{
-        AvailableSubscribePolicies, ProcessorPlanBuilder, SubjectPlanBuilderTrait, test_task
+        AvailableSubscribeEvents, ProcessorPlanBuilder, SubjectPlanBuilderTrait, test_task
     };
 
     use crate::AvailableProcessors;
@@ -461,15 +461,15 @@ pub mod test_session_context_builder {
                     subject_name: "state_1".to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: "state_1".to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: "processor_1".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -479,15 +479,15 @@ pub mod test_session_context_builder {
                     subject_name: "state_2".to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: "state_2".to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: "processor_2".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -497,15 +497,15 @@ pub mod test_session_context_builder {
                     subject_name: "state_3".to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: "state_3".to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: "processor_3".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -526,15 +526,15 @@ pub mod test_session_context_builder {
                     subject_name: "state_1".to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: "state_1".to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: "processor_1".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -544,15 +544,15 @@ pub mod test_session_context_builder {
                     subject_name: "state_1".to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: "state_1".to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: "processor_2".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -562,15 +562,15 @@ pub mod test_session_context_builder {
                     subject_name: "state_1".to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: "state_1".to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: "processor_3".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -661,7 +661,7 @@ mod tests {
 
     use super::*;
     use phymes_core::{
-        AvailableSubscribePolicies, ProcessorPlanBuilder, SubjectPlanBuilderTrait, Subscription, test_task
+        AvailableSubscribeEvents, ProcessorPlanBuilder, SubjectPlanBuilderTrait, Subscription, test_task
     };
 
     #[test]
@@ -670,12 +670,12 @@ mod tests {
             test_session_context_builder::make_test_session_context_builder_parallel_processors();
         let (subscriptions, publications) = plan.get_sub_pub_for_task("task_1");
         assert!(
-            subscriptions.contains(&&Subscription::AlwaysFullTable {
+            subscriptions.contains(&&Subscription::AlwaysAllRecordBatches {
                 subject_name: "processor_1".to_string()
             })
         );
         assert!(
-            subscriptions.contains(&&Subscription::OnUpdateFullTable {
+            subscriptions.contains(&&Subscription::OnUpdateAllRecordBatches {
                 subject_name: "state_1".to_string()
             })
         );
@@ -745,7 +745,7 @@ mod tests {
                     subject_name: "state_4".to_string(),
                 }])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()?,
         ];
@@ -877,13 +877,13 @@ mod tests {
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_1"))
                 .with_publications(&[])
                 .with_subscriptions(&[])
-                .with_subscribe_policy(AvailableSubscribePolicies::default().build())
+                .with_subscribe_policy(AvailableSubscribeEvents::default().build())
                 .build()?,
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_2"))
                 .with_publications(&[])
                 .with_subscriptions(&[])
-                .with_subscribe_policy(AvailableSubscribePolicies::default().build())
+                .with_subscribe_policy(AvailableSubscribeEvents::default().build())
                 .build()?,
         ];
         let result = SessionContextBuilder::new()
@@ -907,25 +907,25 @@ mod tests {
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_1"))
                 .with_publications(&[])
                 .with_subscriptions(&[])
-                .with_subscribe_policy(AvailableSubscribePolicies::default().build())
+                .with_subscribe_policy(AvailableSubscribeEvents::default().build())
                 .build()?,
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_2"))
                 .with_publications(&[])
                 .with_subscriptions(&[])
-                .with_subscribe_policy(AvailableSubscribePolicies::default().build())
+                .with_subscribe_policy(AvailableSubscribeEvents::default().build())
                 .build()?,
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_3"))
                 .with_publications(&[])
                 .with_subscriptions(&[])
-                .with_subscribe_policy(AvailableSubscribePolicies::default().build())
+                .with_subscribe_policy(AvailableSubscribeEvents::default().build())
                 .build()?,
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("not_found"))
                 .with_publications(&[])
                 .with_subscriptions(&[])
-                .with_subscribe_policy(AvailableSubscribePolicies::default().build())
+                .with_subscribe_policy(AvailableSubscribeEvents::default().build())
                 .build()?,
         ];
         let result = SessionContextBuilder::new()

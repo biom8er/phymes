@@ -1,5 +1,5 @@
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribePolicies, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, TaskPlan
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, TaskPlan
 };
 use phymes_data::{AvailableCandleOperators, DataConfig};
 #[cfg(feature = "api")]
@@ -91,10 +91,10 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                     subject_name: self.chat_task_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     },
                     Subscription::AlwaysLastRecordBatch {
@@ -102,7 +102,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -129,7 +129,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -148,15 +148,15 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                         col_name: "content".to_string(),
                     }])
                     .with_subscriptions(&[
-                        Subscription::OnUpdateFullTable {
+                        Subscription::OnUpdateAllRecordBatches {
                             subject_name: self.chat_task_name.to_string(),
                         },
-                        Subscription::AlwaysFullTable {
+                        Subscription::AlwaysAllRecordBatches {
                             subject_name: self.chat_processor_name.to_string(),
                         },
                     ])
                     .with_subscribe_policy(
-                        AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                        AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                     )
                     .build()
                     .unwrap(),
@@ -173,15 +173,15 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                         col_name: "content".to_string(),
                     }])
                     .with_subscriptions(&[
-                        Subscription::OnUpdateFullTable {
+                        Subscription::OnUpdateAllRecordBatches {
                             subject_name: self.chat_task_name.to_string(),
                         },
-                        Subscription::AlwaysFullTable {
+                        Subscription::AlwaysAllRecordBatches {
                             subject_name: self.chat_processor_name.to_string(),
                         },
                     ])
                     .with_subscribe_policy(
-                        AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                        AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                     )
                     .build()
                     .unwrap(),

@@ -1,5 +1,5 @@
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribePolicies, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, TaskPlan, create_schema_from_fields
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, TaskPlan, create_schema_from_fields
 };
 use phymes_data::{
     AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
@@ -209,13 +209,13 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     subject_name: self.chat_task_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: self.state_top_k_summary_docs_table_name.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     },
                     Subscription::AlwaysLastRecordBatch {
@@ -223,7 +223,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -247,7 +247,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -268,7 +268,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AnySubjectNameSubscribe.build(),
+                    AvailableSubscribeEvents::AnySubjectNameSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -288,7 +288,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -302,15 +302,15 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     col_name: "content".to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: self.chat_task_name.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.chat_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -324,15 +324,15 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     col_name: "content".to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: self.chat_task_name.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.chat_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -347,12 +347,12 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     Subscription::OnUpdateLastRecordBatch {
                         subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.extract_pdf_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -365,15 +365,15 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     subject_name: self.state_documents_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.document_chunk_task_name.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.document_chunk_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -390,12 +390,12 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     Subscription::OnUpdateLastRecordBatch {
                         subject_name: self.state_documents_table_name.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.embed_documents_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -412,12 +412,12 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     Subscription::OnUpdateLastRecordBatch {
                         subject_name: AvailableInterfaceSubjects::UserQueries.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.embed_query_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -434,12 +434,12 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     Subscription::OnUpdateLastRecordBatch {
                         subject_name: self.state_documents_table_name.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.embed_documents_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -456,12 +456,12 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     Subscription::OnUpdateLastRecordBatch {
                         subject_name: AvailableInterfaceSubjects::UserQueries.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.embed_query_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -474,18 +474,18 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     subject_name: self.state_scores_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.state_doc_embed_table_name.to_string(),
                     },
                     Subscription::OnUpdateLastRecordBatch {
                         subject_name: self.state_q_embed_table_name.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.relative_similarity_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -497,15 +497,15 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     subject_name: self.state_scores_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.sort_scores_processor_name.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.state_scores_table_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -517,18 +517,18 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     subject_name: self.state_scores_chunks_join_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.state_documents_table_name.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.state_scores_table_name.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.join_chunks_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -540,15 +540,15 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     subject_name: self.state_top_k_select_docs_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.top_k_select_processor_name.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.state_scores_chunks_join_table_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -560,15 +560,15 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     subject_name: self.state_top_k_limit_docs_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.top_k_limit_processor_name.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.state_top_k_select_docs_table_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -580,15 +580,15 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                     subject_name: self.state_top_k_summary_docs_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.top_k_summary_processor_name.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.state_top_k_limit_docs_table_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),

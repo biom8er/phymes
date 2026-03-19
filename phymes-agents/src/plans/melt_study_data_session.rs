@@ -140,11 +140,11 @@ impl<'a> MeltStudyDataSession<'a> {
 	    user_csv-subscribe-->user_csv-processor
 	    user_csv-processor-->user_csv-publish
 	    user_csv-publish-->|Replace|StudyData-subject
-	    StudyData-subject-->|FullTable|study_data_cast-subscribe
+	    StudyData-subject-->|AllRecordBatches|study_data_cast-subscribe
 	    study_data_cast-subscribe-->study_data_cast-processor
 	    study_data_cast-processor-->study_data_cast-publish
 	    study_data_cast-publish-->|Replace|StudyDataCast-subject
-	    StudyDataCast-subject-->|FullTable|study_data_melt-subscribe
+	    StudyDataCast-subject-->|AllRecordBatches|study_data_melt-subscribe
 	    study_data_melt-subscribe-->study_data_melt-processor
 	    study_data_melt-processor-->study_data_melt-publish
 	    study_data_melt-publish-->|Replace|StudyDataMelt-subject
@@ -172,7 +172,7 @@ impl<'a> MeltStudyDataSession<'a> {
 	    user_csv-subscribe-->user_csv-processor
 	    user_csv-processor-->user_csv-publish
 	    user_csv-publish-->|Replace|StudyData-subject
-	    StudyData-subject-->|FullTable|study_samples_select-subscribe
+	    StudyData-subject-->|AllRecordBatches|study_samples_select-subscribe
 	    study_samples_select-subscribe-->study_samples_select-processor
 	    study_samples_select-processor-->study_samples_select-publish
 	    study_samples_select-publish-->|Extend|StudySamplesMelt-subject
@@ -187,7 +187,7 @@ impl<'a> MeltStudyDataSession<'a> {
 	%% Samples Variables extraction
 	%% ---------------------------------
 	subgraph samples_variables_extraction
-	    StudyDataMelt-subject-.->|FullTable|samples_variables_select-subscribe
+	    StudyDataMelt-subject-.->|AllRecordBatches|samples_variables_select-subscribe
 	    samples_variables_select-subscribe-->samples_variables_select-processor
 	    samples_variables_select-processor-->samples_variables_select-publish
 	    samples_variables_select-publish-->|Replace|SamplesVariablesMelt-subject
@@ -203,11 +203,11 @@ impl<'a> MeltStudyDataSession<'a> {
 	%% TODO: need to add coalesce step because group by runs out of GPU memory
 	%% ---------------------------------
 	subgraph study_variables_extraction
-	    StudyDataMelt-subject-.->|FullTable|study_variables_group_by-subscribe
+	    StudyDataMelt-subject-.->|AllRecordBatches|study_variables_group_by-subscribe
 	    study_variables_group_by-subscribe-->study_variables_group_by-processor
 	    study_variables_group_by-processor-->study_variables_group_by-publish
 	    study_variables_group_by-publish-->|Replace|StudyVariablesMeltGroupBy-subject
-	    StudyVariablesMeltGroupBy-subject-->|FullTable|study_variables_select-subscribe
+	    StudyVariablesMeltGroupBy-subject-->|AllRecordBatches|study_variables_select-subscribe
 	    study_variables_select-subscribe-->study_variables_select-processor
 	    study_variables_select-processor-->study_variables_select-publish
 	    study_variables_select-publish-->|Replace|StudyVariablesMelt-subject

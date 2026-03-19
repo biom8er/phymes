@@ -5,15 +5,15 @@ use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    MappableTrait, SubscribePolicyTrait,
-    table::{
+    MappableTrait, SubscribeEventTrait,
+    event::{
         AllSubjectNamesSubscribe, AllSubjectSchemasSubscribe, AlwaysSubscribe, AnySubscribeNameSubscribe,
         AnySubjectSchemaSubscribe, ChatContentSubscribe,
     },
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
-pub enum AvailableSubscribePolicies {
+pub enum AvailableSubscribeEvents {
     #[value(name = "AlwaysSubscribe")]
     AlwaysSubscribe,
     #[value(name = "AnySubjectNameSubscribe")]
@@ -29,8 +29,8 @@ pub enum AvailableSubscribePolicies {
     ChatContentSubscribe,
 }
 
-impl AvailableSubscribePolicies {
-    pub fn build(self) -> Box<dyn SubscribePolicyTrait> {
+impl AvailableSubscribeEvents {
+    pub fn build(self) -> Box<dyn SubscribeEventTrait> {
         match self {
             Self::AlwaysSubscribe => AlwaysSubscribe::new_box(),
             Self::AnySubjectNameSubscribe => AnySubscribeNameSubscribe::new_box(),
@@ -40,21 +40,21 @@ impl AvailableSubscribePolicies {
             Self::ChatContentSubscribe => ChatContentSubscribe::new_box(),
         }
     }
-    /// Convert a [String] to a [TableSubscribePolicyTrait]
-    ///   by checking if the [String] contains the [TableSubscribePolicyTrait] name
+    /// Convert a [String] to a [TableSubscribeEventTrait]
+    ///   by checking if the [String] contains the [TableSubscribeEventTrait] name
     pub fn from_str_fuzzy(policy: &str) -> Result<Self> {
         let subscribe = if policy.contains(AllSubjectSchemasSubscribe::get_static_name()) {
-            AvailableSubscribePolicies::AllSubjectSchemasSubscribe
+            AvailableSubscribeEvents::AllSubjectSchemasSubscribe
         } else if policy.contains(AnySubjectSchemaSubscribe::get_static_name()) {
-            AvailableSubscribePolicies::AnySubjectSchemaSubscribe
+            AvailableSubscribeEvents::AnySubjectSchemaSubscribe
         } else if policy.contains(AllSubjectNamesSubscribe::get_static_name()) {
-            AvailableSubscribePolicies::AllSubjectNamesSubscribe
+            AvailableSubscribeEvents::AllSubjectNamesSubscribe
         } else if policy.contains(AnySubscribeNameSubscribe::get_static_name()) {
-            AvailableSubscribePolicies::AnySubjectNameSubscribe
+            AvailableSubscribeEvents::AnySubjectNameSubscribe
         } else if policy.contains(AlwaysSubscribe::get_static_name()) {
-            AvailableSubscribePolicies::AlwaysSubscribe
+            AvailableSubscribeEvents::AlwaysSubscribe
         } else if policy.contains(ChatContentSubscribe::get_static_name()) {
-            AvailableSubscribePolicies::ChatContentSubscribe
+            AvailableSubscribeEvents::ChatContentSubscribe
         } else {
             return Err(anyhow!("Subscribe policy {policy} was not recognized."));
         };
@@ -62,7 +62,7 @@ impl AvailableSubscribePolicies {
     }
 }
 
-impl Display for AvailableSubscribePolicies {
+impl Display for AvailableSubscribeEvents {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::AlwaysSubscribe => write!(f, "{}", AlwaysSubscribe::get_static_name()),

@@ -6,7 +6,7 @@ use clap::ValueEnum;
 use object_store::ObjectStore;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, AvailableSubscribePolicies, BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, SubjectPlan, Subject, SubjectBuilderTrait, Publication, Subscription, SubjectTrait, TaskMap, TaskPlan, create_bytes_fields, create_values_fields
+    AvailableSchemaTrait, AvailableSubjects, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, SubjectPlan, Subject, SubjectBuilderTrait, Publication, Subscription, SubjectTrait, TaskMap, TaskPlan, create_bytes_fields, create_values_fields
 };
 use phymes_data::{AvailableCandleOperators, DataConfig, DataConfigTrait, LimitConfig, device};
 #[cfg(feature = "api")]
@@ -175,7 +175,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .filter(|p| {
                 p.get_subscriptions()
                     .iter()
-                    .map(|s| s.get_table_name())
+                    .map(|s| s.subject_name())
                     .collect::<Vec<_>>()
                     .contains(&p.get_name())
             })
@@ -200,7 +200,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     .get_subscriptions()
                     .iter()
                     .filter_map(|s| {
-                        if &s.get_table_name() == name {
+                        if &s.subject_name() == name {
                             Some(name.to_string())
                         } else {
                             None
@@ -224,7 +224,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     .get_subscriptions()
                     .iter()
                     .filter_map(|s| {
-                        if &s.get_table_name() == name {
+                        if &s.subject_name() == name {
                             Some(name.to_string())
                         } else {
                             None
@@ -248,7 +248,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     .get_subscriptions()
                     .iter()
                     .filter_map(|s| {
-                        if &s.get_table_name() == name {
+                        if &s.subject_name() == name {
                             Some(name.to_string())
                         } else {
                             None
@@ -272,7 +272,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     .get_subscriptions()
                     .iter()
                     .filter_map(|s| {
-                        if &s.get_table_name() == name {
+                        if &s.subject_name() == name {
                             Some(name.to_string())
                         } else {
                             None
@@ -296,8 +296,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         .get_subscriptions()
                         .iter()
                         .filter_map(|s| {
-                            if names.contains(&s.get_table_name().to_string()) {
-                                Some(s.get_table_name().to_string())
+                            if names.contains(&s.subject_name().to_string()) {
+                                Some(s.subject_name().to_string())
                             } else {
                                 None
                             }
@@ -321,7 +321,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     .get_subscriptions()
                     .iter()
                     .filter_map(|s| {
-                        if &s.get_table_name() == name {
+                        if &s.subject_name() == name {
                             Some(name.to_string())
                         } else {
                             None
@@ -420,7 +420,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     .get_subscriptions()
                     .iter()
                     .filter_map(|s| {
-                        if &s.get_table_name() == name {
+                        if &s.subject_name() == name {
                             Some(name.to_string())
                         } else {
                             None
@@ -540,7 +540,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .filter_map(|p| {
                 if p.get_subscriptions()
                     .iter()
-                    .map(|s| s.get_table_name())
+                    .map(|s| s.subject_name())
                     .collect::<Vec<_>>()
                     .contains(&p.get_name())
                 {
@@ -835,7 +835,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 if self.name.as_ref().unwrap() == p.get_name()
                     || p.get_subscriptions()
                         .iter()
-                        .map(|s| s.get_table_name())
+                        .map(|s| s.subject_name())
                         .collect::<Vec<_>>()
                         .contains(&p.get_name())
                 {
@@ -876,7 +876,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     && !p
                         .get_subscriptions()
                         .iter()
-                        .map(|s| s.get_table_name())
+                        .map(|s| s.subject_name())
                         .collect::<Vec<_>>()
                         .contains(&p.get_name())
                 {
@@ -984,7 +984,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                 let subscriptions = processor
                     .get_subscriptions()
                     .iter()
-                    .chain([&Subscription::AlwaysFullTable {
+                    .chain([&Subscription::AlwaysAllRecordBatches {
                         subject_name: to_update.get_name().to_string(),
                     }])
                     .cloned()
@@ -1079,7 +1079,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .with_processor(processor)
             .with_subscriptions(&subscriptions)
             .with_publications(&publications)
-            .with_subscribe_policy(AvailableSubscribePolicies::AnySubjectNameSubscribe.build())
+            .with_subscribe_policy(AvailableSubscribeEvents::AnySubjectNameSubscribe.build())
             .build()?;
         processors.push(processor_plan);
         self.processors.replace(processors);
@@ -1197,7 +1197,7 @@ pub mod test_session_context_builder_agents {
 
     use crate::test_session_context_builder::make_test_session_context_builder_parallel_tasks;
     use phymes_core::{
-        AvailableSubscribePolicies, BuildableTrait, BuilderTrait, SubjectBuilderTrait,
+        AvailableSubscribeEvents, BuildableTrait, BuilderTrait, SubjectBuilderTrait,
         Publication, Subscription, test_subject::make_test_subject,
         test_task::make_runtime_env,
     };
@@ -1246,15 +1246,15 @@ pub mod test_session_context_builder_agents {
                     subject_name: "state_1".to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: "state_1".to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: "processor_1".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()?,
             ProcessorPlanBuilder::default()
@@ -1263,15 +1263,15 @@ pub mod test_session_context_builder_agents {
                     subject_name: "state_2".to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: "state_2".to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: "processor_2".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()?,
             ProcessorPlanBuilder::default()
@@ -1280,18 +1280,18 @@ pub mod test_session_context_builder_agents {
                     subject_name: "state_3".to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: "state_1".to_string(),
                     },
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: "state_2".to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: "processor_3".to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()?,
         ];
@@ -1427,11 +1427,11 @@ mod tests {
                 .with_publications(&[Publication::Extend {
                     subject_name: "state_3".to_string(),
                 }])
-                .with_subscriptions(&[Subscription::OnUpdateFullTable {
+                .with_subscriptions(&[Subscription::OnUpdateAllRecordBatches {
                     subject_name: "state_3".to_string(),
                 }])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()?,
         );
@@ -1460,11 +1460,11 @@ mod tests {
                 .with_publications(&[Publication::Extend {
                     subject_name: "state_3".to_string(),
                 }])
-                .with_subscriptions(&[Subscription::OnUpdateFullTable {
+                .with_subscriptions(&[Subscription::OnUpdateAllRecordBatches {
                     subject_name: "state_3".to_string(),
                 }])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()?,
         );

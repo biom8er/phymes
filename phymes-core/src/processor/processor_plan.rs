@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    MappableTrait, ProcessorTrait, Publication, SubscribePolicyTrait, Subscription,
-    UpdatePolicyTrait,
+    MappableTrait, ProcessorTrait, Publication, SubscribeEventTrait, Subscription,
+    UpdateEventTrait,
 };
 
 /// The plan for the processors
@@ -15,9 +15,9 @@ pub struct ProcessorPlan {
     /// The subjects the processor subscribes to
     subscriptions: Vec<Subscription>,
     /// The policy for subscribing to subjects
-    subscribe_policy: Box<dyn SubscribePolicyTrait>,
+    subscribe_policy: Box<dyn SubscribeEventTrait>,
     /// The policy for determining when tables have been updated
-    update_policy: Box<dyn UpdatePolicyTrait>,
+    update_policy: Box<dyn UpdateEventTrait>,
 }
 
 impl PartialEq for ProcessorPlan {
@@ -36,8 +36,8 @@ impl ProcessorPlan {
         processor: Arc<dyn ProcessorTrait>,
         publications: &[Publication],
         subscriptions: &[Subscription],
-        subscribe_policy: Box<dyn SubscribePolicyTrait>,
-        update_policy: Box<dyn UpdatePolicyTrait>,
+        subscribe_policy: Box<dyn SubscribeEventTrait>,
+        update_policy: Box<dyn UpdateEventTrait>,
     ) -> Self {
         ProcessorPlan {
             processor,
@@ -69,17 +69,17 @@ impl ProcessorPlan {
         self.publications
     }
     #[allow(clippy::borrowed_box)]
-    pub fn get_subscribe_policy(&self) -> &Box<dyn SubscribePolicyTrait> {
+    pub fn get_subscribe_policy(&self) -> &Box<dyn SubscribeEventTrait> {
         &self.subscribe_policy
     }
-    pub fn get_subscribe_policy_owned(self) -> Box<dyn SubscribePolicyTrait> {
+    pub fn get_subscribe_policy_owned(self) -> Box<dyn SubscribeEventTrait> {
         self.subscribe_policy
     }
     #[allow(clippy::borrowed_box)]
-    pub fn get_update_policy(&self) -> &Box<dyn UpdatePolicyTrait> {
+    pub fn get_update_policy(&self) -> &Box<dyn UpdateEventTrait> {
         &self.update_policy
     }
-    pub fn get_update_policy_owned(self) -> Box<dyn UpdatePolicyTrait> {
+    pub fn get_update_policy_owned(self) -> Box<dyn UpdateEventTrait> {
         self.update_policy
     }
 }

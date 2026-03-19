@@ -272,7 +272,7 @@ impl Stream for ToolCallStream {
                 .unwrap()
                 .subscription_name
                 .clone()
-                .unwrap_or("AlwaysFullTable".to_string());
+                .unwrap_or("AlwaysAllRecordBatches".to_string());
             let subject_names = self.config.as_ref().unwrap().subject_names.clone();
             let batch = {
                 let mut session_names = Vec::new();
@@ -542,9 +542,9 @@ mod tests {
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
         let subscription_names = vec![
-            vec!["OnUpdateFullTable", "AlwaysLastRecordBatch"],
-            vec!["OnUpdateFullTable", "AlwaysLastRecordBatch"],
-            vec!["OnUpdateFullTable", "AlwaysLastRecordBatch"],
+            vec!["OnUpdateAllRecordBatches", "AlwaysLastRecordBatch"],
+            vec!["OnUpdateAllRecordBatches", "AlwaysLastRecordBatch"],
+            vec!["OnUpdateAllRecordBatches", "AlwaysLastRecordBatch"],
         ]
         .into_iter()
         .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
@@ -621,10 +621,10 @@ mod tests {
         assert_eq!(
             flattened,
             [
-                "OnUpdateFullTable",
+                "OnUpdateAllRecordBatches",
                 "AlwaysLastRecordBatch",
-                "AlwaysFullTable",
-                "OnUpdateFullTable",
+                "AlwaysAllRecordBatches",
+                "OnUpdateAllRecordBatches",
                 "AlwaysLastRecordBatch"
             ]
         );
@@ -746,9 +746,9 @@ mod tests {
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
         let subscription_names = vec![
-            vec!["OnUpdateFullTable", "AlwaysLastRecordBatch"],
-            vec!["OnUpdateFullTable", "AlwaysLastRecordBatch"],
-            vec!["OnUpdateFullTable", "AlwaysLastRecordBatch"],
+            vec!["OnUpdateAllRecordBatches", "AlwaysLastRecordBatch"],
+            vec!["OnUpdateAllRecordBatches", "AlwaysLastRecordBatch"],
+            vec!["OnUpdateAllRecordBatches", "AlwaysLastRecordBatch"],
         ]
         .into_iter()
         .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
@@ -825,10 +825,10 @@ mod tests {
         assert_eq!(
             flattened,
             [
-                "OnUpdateFullTable",
+                "OnUpdateAllRecordBatches",
                 "AlwaysLastRecordBatch",
-                "AlwaysFullTable",
-                "OnUpdateFullTable",
+                "AlwaysAllRecordBatches",
+                "OnUpdateAllRecordBatches",
                 "AlwaysLastRecordBatch"
             ]
         );

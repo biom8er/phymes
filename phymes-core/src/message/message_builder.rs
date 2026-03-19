@@ -1,6 +1,4 @@
-use crate::runtime_env::BuilderTrait;
-use crate::table::{SendableRecordBatchStream, Publication};
-use crate::{IPCMessage, SendableRecordBatchStreamMessage};
+use crate::{IPCMessage, SendableRecordBatchStreamMessage, SendableRecordBatchStream, Publication, BuilderTrait};
 
 use anyhow::{Result, anyhow};
 

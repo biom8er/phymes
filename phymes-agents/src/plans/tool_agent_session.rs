@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde_json::json;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribePolicies, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, TaskPlan, create_schema_from_fields, create_tools_record_batch
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, TaskPlan, create_schema_from_fields, create_tools_record_batch
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
@@ -213,10 +213,10 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     subject_name: self.chat_task_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    // Subscription::OnUpdateFullTable {
+                    // Subscription::OnUpdateAllRecordBatches {
                     //     subject_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     // },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: AvailableInterfaceSubjects::UserMessages.to_string(),
                     },
                     Subscription::OnUpdateLastRecordBatch {
@@ -225,10 +225,10 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     Subscription::OnUpdateLastRecordBatch {
                         subject_name: AvailableSubjects::SessionErrors.to_string(),
                     },
-                    // Subscription::OnUpdateFullTable {
+                    // Subscription::OnUpdateAllRecordBatches {
                     //     subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     // },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     },
                     Subscription::AlwaysLastRecordBatch {
@@ -237,7 +237,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 ])
                 .with_subscribe_policy(
                     // AvailableTableSubscribePolicies::AnyTableNameSubscribe.build(),
-                    AvailableSubscribePolicies::ChatContentSubscribe.build(),
+                    AvailableSubscribeEvents::ChatContentSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -261,7 +261,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AnySubjectNameSubscribe.build(),
+                    AvailableSubscribeEvents::AnySubjectNameSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -288,7 +288,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AnySubjectNameSubscribe.build(),
+                    AvailableSubscribeEvents::AnySubjectNameSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -300,7 +300,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     subject_name: AvailableSubjects::MermaidXYChart.to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: self.tool_summary_task_name.to_string(),
                     },
                     Subscription::AlwaysLastRecordBatch {
@@ -308,7 +308,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -321,7 +321,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     subject_name: AvailableInterfaceSubjects::AssistantScript.to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: AvailableSubjects::MermaidXYChart.to_string(),
                     },
                     Subscription::AlwaysLastRecordBatch {
@@ -329,7 +329,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -342,18 +342,18 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     subject_name: self.message_parser_task_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: self.chat_task_name.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.state_tools_table_name.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.chat_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -366,18 +366,18 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     subject_name: self.message_parser_task_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: self.chat_task_name.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.state_tools_table_name.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.chat_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -400,15 +400,15 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     },
                 ])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: self.message_parser_task_name.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.message_parser_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -421,15 +421,15 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     subject_name: self.state_scores_table_name.to_string(),
                 }])
                 .with_subscriptions(&[
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: AvailableInterfaceSubjects::UserCsv.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.extract_tabular_data_processor_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -444,12 +444,12 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     Subscription::OnUpdateLastRecordBatch {
                         subject_name: self.tool_task_name.to_string(),
                     },
-                    Subscription::AlwaysFullTable {
+                    Subscription::AlwaysAllRecordBatches {
                         subject_name: self.state_scores_table_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -464,7 +464,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     subject_name: self.hitl_task_name.to_string(),
                 }])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -479,12 +479,12 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     Subscription::AlwaysLastRecordBatch {
                         subject_name: self.tool_attachment_processor_name.to_string(),
                     },
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: self.tool_summary_task_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -499,12 +499,12 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     Subscription::AlwaysLastRecordBatch {
                         subject_name: self.tool_summary_processor_name.to_string(),
                     },
-                    Subscription::OnUpdateFullTable {
+                    Subscription::OnUpdateAllRecordBatches {
                         subject_name: self.tool_summary_task_name.to_string(),
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),
@@ -524,7 +524,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                     },
                 ])
                 .with_subscribe_policy(
-                    AvailableSubscribePolicies::AllSubjectNamesSubscribe.build(),
+                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
                 )
                 .build()
                 .unwrap(),

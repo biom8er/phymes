@@ -65,14 +65,14 @@ impl<'a> NextTaskSession<'a> {
         .map(|s| s.to_string())
         .collect::<Vec<_>>();
         let subscription_names = vec![
-            vec!["OnUpdateFullTable", "AlwaysFullTable"],
-            vec!["AlwaysFullTable", "AlwaysFullTable"],
-            vec!["OnUpdateFullTable", "AlwaysFullTable"],
-            vec!["AlwaysFullTable", "AlwaysFullTable"],
-            vec!["AlwaysFullTable", "AlwaysFullTable"],
-            vec!["OnUpdateFullTable", "AlwaysFullTable"],
-            vec!["AlwaysFullTable", "AlwaysFullTable"],
-            vec!["AlwaysFullTable", "AlwaysFullTable"],
+            vec!["OnUpdateAllRecordBatches", "AlwaysAllRecordBatches"],
+            vec!["AlwaysAllRecordBatches", "AlwaysAllRecordBatches"],
+            vec!["OnUpdateAllRecordBatches", "AlwaysAllRecordBatches"],
+            vec!["AlwaysAllRecordBatches", "AlwaysAllRecordBatches"],
+            vec!["AlwaysAllRecordBatches", "AlwaysAllRecordBatches"],
+            vec!["OnUpdateAllRecordBatches", "AlwaysAllRecordBatches"],
+            vec!["AlwaysAllRecordBatches", "AlwaysAllRecordBatches"],
+            vec!["AlwaysAllRecordBatches", "AlwaysAllRecordBatches"],
         ]
         .into_iter()
         .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
@@ -197,12 +197,12 @@ impl<'a> NextTaskSession<'a> {
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
         let subscription_names = vec![
-            vec!["AlwaysFullTable", "AlwaysFullTable"],
-            vec!["OnUpdateFullTable", "AlwaysFullTable", "AlwaysFullTable"],
-            vec!["AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable"],
-            vec!["AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable"],
-            vec!["AlwaysFullTable", "AlwaysFullTable"],
-            vec!["AlwaysFullTable", "AlwaysFullTable"],
+            vec!["AlwaysAllRecordBatches", "AlwaysAllRecordBatches"],
+            vec!["OnUpdateAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches"],
+            vec!["AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches"],
+            vec!["AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches"],
+            vec!["AlwaysAllRecordBatches", "AlwaysAllRecordBatches"],
+            vec!["AlwaysAllRecordBatches", "AlwaysAllRecordBatches"],
         ]
         .into_iter()
         .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
@@ -326,10 +326,10 @@ impl<'a> NextTaskSession<'a> {
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
         let subscription_names = vec![
-            vec!["OnUpdateFullTable", "AlwaysFullTable"],
-            vec!["AlwaysFullTable", "AlwaysFullTable"],
-            vec!["AlwaysFullTable", "AlwaysFullTable", "AlwaysFullTable"],
-            vec!["AlwaysFullTable", "AlwaysFullTable"],
+            vec!["OnUpdateAllRecordBatches", "AlwaysAllRecordBatches"],
+            vec!["AlwaysAllRecordBatches", "AlwaysAllRecordBatches"],
+            vec!["AlwaysAllRecordBatches", "AlwaysAllRecordBatches", "AlwaysAllRecordBatches"],
+            vec!["AlwaysAllRecordBatches", "AlwaysAllRecordBatches"],
         ]
         .into_iter()
         .map(|v| v.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
@@ -421,11 +421,11 @@ impl<'a> NextTaskSession<'a> {
     NextTaskSession_runtime_env-rt@{shape: subproc, label: NextTaskSession_runtime_env}
 
 	subgraph group_by_tasks_run_log_superstep_t
-		SessionTasksRunLog-subject-.->|FullTable|group_by_tasks_run_log_superstep_p-subscribe
+		SessionTasksRunLog-subject-.->|AllRecordBatches|group_by_tasks_run_log_superstep_p-subscribe
 		group_by_tasks_run_log_superstep_p-subscribe-->group_by_tasks_run_log_superstep_p-processor
 		group_by_tasks_run_log_superstep_p-processor-->group_by_tasks_run_log_superstep_p-publish
 		group_by_tasks_run_log_superstep_p-publish-->|Replace|group_by_tasks_run_log_superstep_s-subject
-		group_by_tasks_run_log_superstep_s-subject-->|FullTable|select_tasks_run_log_superstep_p-subscribe
+		group_by_tasks_run_log_superstep_s-subject-->|AllRecordBatches|select_tasks_run_log_superstep_p-subscribe
 		select_tasks_run_log_superstep_p-subscribe-->select_tasks_run_log_superstep_p-processor
 		select_tasks_run_log_superstep_p-processor-->select_tasks_run_log_superstep_p-publish
 		select_tasks_run_log_superstep_p-publish-->|Replace|select_tasks_run_log_superstep_s-subject
@@ -442,15 +442,15 @@ impl<'a> NextTaskSession<'a> {
 	select_tasks_run_log_superstep_s-subject@{shape: doc, label: select_tasks_run_log_superstep_s}
 
 	subgraph filter_processors_subscriptions_t
-		SessionProcessors-subject-.->|FullTable|cmp_processors_subscriptions_p-subscribe
+		SessionProcessors-subject-.->|AllRecordBatches|cmp_processors_subscriptions_p-subscribe
 		cmp_processors_subscriptions_p-subscribe-->cmp_processors_subscriptions_p-processor
 		cmp_processors_subscriptions_p-processor-->cmp_processors_subscriptions_p-publish
 		cmp_processors_subscriptions_p-publish-->|Replace|cmp_processors_subscriptions_s-subject
-		cmp_processors_subscriptions_s-subject-->|FullTable|filter_processors_subscriptions_p-subscribe
+		cmp_processors_subscriptions_s-subject-->|AllRecordBatches|filter_processors_subscriptions_p-subscribe
 		filter_processors_subscriptions_p-subscribe-->filter_processors_subscriptions_p-processor
 		filter_processors_subscriptions_p-processor-->filter_processors_subscriptions_p-publish
 		filter_processors_subscriptions_p-publish-->|Replace|filter_processors_subscriptions_s-subject
-		filter_processors_subscriptions_s-subject-->|FullTable|select_processors_subscriptions_p-subscribe
+		filter_processors_subscriptions_s-subject-->|AllRecordBatches|select_processors_subscriptions_p-subscribe
 		select_processors_subscriptions_p-subscribe-->select_processors_subscriptions_p-processor
 		select_processors_subscriptions_p-processor-->select_processors_subscriptions_p-publish
 		select_processors_subscriptions_p-publish-->|Replace|select_processors_subscriptions_s-subject
@@ -471,30 +471,30 @@ impl<'a> NextTaskSession<'a> {
 	select_processors_subscriptions_s-subject@{shape: doc, label: select_processors_subscriptions_s}
 
 	subgraph join_tasks_run_log_superstep_t
-		SubjectsChangeLog-subject-->|FullTable|group_by_subject_change_log_superstep_p-subscribe
+		SubjectsChangeLog-subject-->|AllRecordBatches|group_by_subject_change_log_superstep_p-subscribe
 		group_by_subject_change_log_superstep_p-subscribe-->group_by_subject_change_log_superstep_p-processor
 		group_by_subject_change_log_superstep_p-processor-->group_by_subject_change_log_superstep_p-publish
 		group_by_subject_change_log_superstep_p-publish-->|Replace|group_by_subject_change_log_superstep_s-subject
-		select_tasks_run_log_superstep_s-subject-.->|FullTable|join_tasks_run_log_superstep_p-subscribe
-		SessionTasks-subject-->|FullTable|join_tasks_run_log_superstep_p-subscribe
+		select_tasks_run_log_superstep_s-subject-.->|AllRecordBatches|join_tasks_run_log_superstep_p-subscribe
+		SessionTasks-subject-->|AllRecordBatches|join_tasks_run_log_superstep_p-subscribe
 		join_tasks_run_log_superstep_p-subscribe-->join_tasks_run_log_superstep_p-processor
 		join_tasks_run_log_superstep_p-processor-->join_tasks_run_log_superstep_p-publish
 		join_tasks_run_log_superstep_p-publish-->|Replace|join_tasks_run_log_superstep_s-subject
-		join_tasks_run_log_superstep_s-subject-->|FullTable|join_tasks_processors_subscriptions_p-subscribe
-		select_processors_subscriptions_s-subject-->|FullTable|join_tasks_processors_subscriptions_p-subscribe
+		join_tasks_run_log_superstep_s-subject-->|AllRecordBatches|join_tasks_processors_subscriptions_p-subscribe
+		select_processors_subscriptions_s-subject-->|AllRecordBatches|join_tasks_processors_subscriptions_p-subscribe
 		join_tasks_processors_subscriptions_p-subscribe-->join_tasks_processors_subscriptions_p-processor
 		join_tasks_processors_subscriptions_p-processor-->join_tasks_processors_subscriptions_p-publish
 		join_tasks_processors_subscriptions_p-publish-->|Replace|join_tasks_processors_subscriptions_s-subject
-		join_tasks_processors_subscriptions_s-subject-->|FullTable|join_tasks_processors_subscriptions_subjects_p-subscribe
-		group_by_subject_change_log_superstep_s-subject-->|FullTable|join_tasks_processors_subscriptions_subjects_p-subscribe
+		join_tasks_processors_subscriptions_s-subject-->|AllRecordBatches|join_tasks_processors_subscriptions_subjects_p-subscribe
+		group_by_subject_change_log_superstep_s-subject-->|AllRecordBatches|join_tasks_processors_subscriptions_subjects_p-subscribe
 		join_tasks_processors_subscriptions_subjects_p-subscribe-->join_tasks_processors_subscriptions_subjects_p-processor
 		join_tasks_processors_subscriptions_subjects_p-processor-->join_tasks_processors_subscriptions_subjects_p-publish
 		join_tasks_processors_subscriptions_subjects_p-publish-->|Replace|join_tasks_processors_subscriptions_subjects_s-subject
-		join_tasks_processors_subscriptions_subjects_s-subject-->|FullTable|select_tasks_processors_subscriptions_subjects_p-subscribe
+		join_tasks_processors_subscriptions_subjects_s-subject-->|AllRecordBatches|select_tasks_processors_subscriptions_subjects_p-subscribe
 		select_tasks_processors_subscriptions_subjects_p-subscribe-->select_tasks_processors_subscriptions_subjects_p-processor
 		select_tasks_processors_subscriptions_subjects_p-processor-->select_tasks_processors_subscriptions_subjects_p-publish
 		select_tasks_processors_subscriptions_subjects_p-publish-->|Replace|select_tasks_processors_subscriptions_subjects_s-subject
-		select_tasks_processors_subscriptions_subjects_s-subject-->|FullTable|group_by_tasks_processors_subscriptions_p-subscribe
+		select_tasks_processors_subscriptions_subjects_s-subject-->|AllRecordBatches|group_by_tasks_processors_subscriptions_p-subscribe
 		group_by_tasks_processors_subscriptions_p-subscribe-->group_by_tasks_processors_subscriptions_p-processor
 		group_by_tasks_processors_subscriptions_p-processor-->group_by_tasks_processors_subscriptions_p-publish
 		group_by_tasks_processors_subscriptions_p-publish-->|Replace|SessionTasksSubscribeAggregate-subject
@@ -528,15 +528,15 @@ impl<'a> NextTaskSession<'a> {
 	SessionTasksSubscribeAggregate-subject@{shape: doc, label: SessionTasksSubscribeAggregate}
 
 	subgraph filter_processors_publications_t
-		SessionProcessors-subject-.->|FullTable|cmp_processors_publications_p-subscribe
+		SessionProcessors-subject-.->|AllRecordBatches|cmp_processors_publications_p-subscribe
 		cmp_processors_publications_p-subscribe-->cmp_processors_publications_p-processor
 		cmp_processors_publications_p-processor-->cmp_processors_publications_p-publish
 		cmp_processors_publications_p-publish-->|Replace|cmp_processors_publications_s-subject
-		cmp_processors_publications_s-subject-->|FullTable|filter_processors_publications_p-subscribe
+		cmp_processors_publications_s-subject-->|AllRecordBatches|filter_processors_publications_p-subscribe
 		filter_processors_publications_p-subscribe-->filter_processors_publications_p-processor
 		filter_processors_publications_p-processor-->filter_processors_publications_p-publish
 		filter_processors_publications_p-publish-->|Replace|filter_processors_publications_s-subject
-		filter_processors_publications_s-subject-->|FullTable|select_processors_publications_p-subscribe
+		filter_processors_publications_s-subject-->|AllRecordBatches|select_processors_publications_p-subscribe
 		select_processors_publications_p-subscribe-->select_processors_publications_p-processor
 		select_processors_publications_p-processor-->select_processors_publications_p-publish
 		select_processors_publications_p-publish-->|Replace|select_processors_publications_s-subject
@@ -556,20 +556,20 @@ impl<'a> NextTaskSession<'a> {
 	select_processors_publications_s-subject@{shape: doc, label: select_processors_publications_s}
 
 	subgraph select_tasks_processors_publications_t
-		SessionTasksSubscribe-subject-.->|FullTable|group_by_tasks_processors_subscriptions_subjects_p-subscribe
+		SessionTasksSubscribe-subject-.->|AllRecordBatches|group_by_tasks_processors_subscriptions_subjects_p-subscribe
 		group_by_tasks_processors_subscriptions_subjects_p-subscribe-->group_by_tasks_processors_subscriptions_subjects_p-processor
 		group_by_tasks_processors_subscriptions_subjects_p-processor-->group_by_tasks_processors_subscriptions_subjects_p-publish
 		group_by_tasks_processors_subscriptions_subjects_p-publish-->|Replace|group_by_tasks_processors_subscriptions_subjects_s-subject
-		select_processors_publications_s-subject-->|FullTable|group_by_tasks_processors_publications_p-subscribe
+		select_processors_publications_s-subject-->|AllRecordBatches|group_by_tasks_processors_publications_p-subscribe
 		group_by_tasks_processors_publications_p-subscribe-->group_by_tasks_processors_publications_p-processor
 		group_by_tasks_processors_publications_p-processor-->group_by_tasks_processors_publications_p-publish
 		group_by_tasks_processors_publications_p-publish-->|Replace|group_by_tasks_processors_publications_s-subject
-		group_by_tasks_processors_subscriptions_subjects_s-subject-->|FullTable|join_tasks_processors_publications_p-subscribe
-		group_by_tasks_processors_publications_s-subject-->|FullTable|join_tasks_processors_publications_p-subscribe
+		group_by_tasks_processors_subscriptions_subjects_s-subject-->|AllRecordBatches|join_tasks_processors_publications_p-subscribe
+		group_by_tasks_processors_publications_s-subject-->|AllRecordBatches|join_tasks_processors_publications_p-subscribe
 		join_tasks_processors_publications_p-subscribe-->join_tasks_processors_publications_p-processor
 		join_tasks_processors_publications_p-processor-->join_tasks_processors_publications_p-publish
 		join_tasks_processors_publications_p-publish-->|Replace|join_tasks_processors_publications_s-subject
-		join_tasks_processors_publications_s-subject-->|FullTable|select_tasks_processors_publications_p-subscribe
+		join_tasks_processors_publications_s-subject-->|AllRecordBatches|select_tasks_processors_publications_p-subscribe
 		select_tasks_processors_publications_p-subscribe-->select_tasks_processors_publications_p-processor
 		select_tasks_processors_publications_p-processor-->select_tasks_processors_publications_p-publish
 		select_tasks_processors_publications_p-publish-->|Replace|SessionTasksSubscribePublish-subject
@@ -1082,12 +1082,12 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
                     "OnUpdateLastRecordBatch"
                 ]
             );
@@ -1206,12 +1206,12 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
                     "OnUpdateLastRecordBatch",
                 ]
             );
@@ -1354,12 +1354,12 @@ mod tests {
             assert_eq!(
                 column,
                 [
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
                     "OnUpdateLastRecordBatch",
                 ]
             );
@@ -1422,12 +1422,12 @@ mod tests {
             assert_eq!(
                 flattened,
                 [
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
-                    "AlwaysFullTable",
-                    "OnUpdateFullTable",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
+                    "AlwaysAllRecordBatches",
+                    "OnUpdateAllRecordBatches",
                     "OnUpdateLastRecordBatch"
                 ]
             );

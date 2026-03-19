@@ -7,7 +7,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribePolicies, AvailableUpdatePolicies, BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvBuilderTrait, RuntimeEnvTrait, SubjectFilePartition, SubjectFolderPartition, Subject, SubjectBuilderTrait, Publication, Subscription, SubjectTrait, TaskPlanBuilder, create_session_mermaid_batch, create_session_processors_batch, create_session_runtime_envs_batch, create_session_subject_schemas_batch, create_session_tasks_batch, create_session_tasks_run_log_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_data_type_to_str, from_str_to_data_type
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvBuilderTrait, RuntimeEnvTrait, SubjectFilePartition, SubjectFolderPartition, Subject, SubjectBuilderTrait, Publication, Subscription, SubjectTrait, TaskPlanBuilder, create_session_mermaid_batch, create_session_processors_batch, create_session_runtime_envs_batch, create_session_subject_schemas_batch, create_session_tasks_batch, create_session_tasks_run_log_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_data_type_to_str, from_str_to_data_type
 };
 use phymes_diagnostics::{HashSet, create_timestamp_micros};
 use serde_json::{Map, Value};
@@ -396,7 +396,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                                             ),
                                             s.get_name().to_string(),
                                         ),
-                                        s.get_table_name().to_string(),
+                                        s.subject_name().to_string(),
                                     ),
                                     1,
                                 ),
@@ -641,7 +641,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                                 .collect::<Vec<_>>();
                             let subscription_names = subscriptions
                                 .into_iter()
-                                .map(|p| p.get_table_name())
+                                .map(|p| p.subject_name())
                                 .collect::<Vec<_>>();
                             let table_names = publication_names
                                 .into_iter()
@@ -816,11 +816,11 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                         publications.push(publication);
                     }
                     // DM: a short name is used for better front-end aesthetics
-                    let subscribe = AvailableSubscribePolicies::from_str_fuzzy(s_t)
+                    let subscribe = AvailableSubscribeEvents::from_str_fuzzy(s_t)
                         .map_err(|e| anyhow!("{e:?}"))?
                         .build();
                     subscribe_policy.replace(subscribe);
-                    let update = AvailableUpdatePolicies::from_str(u_t, false)
+                    let update = AvailableUpdateEvents::from_str(u_t, false)
                         .map_err(|e| anyhow!("{e:?}"))?
                         .build();
                     update_policy.replace(update);
@@ -841,12 +841,12 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 .with_subscribe_policy(
                     subscribe_policy
                         .take()
-                        .unwrap_or(AvailableSubscribePolicies::default().build()),
+                        .unwrap_or(AvailableSubscribeEvents::default().build()),
                 )
                 .with_update_policy(
                     update_policy
                         .take()
-                        .unwrap_or(AvailableUpdatePolicies::default().build()),
+                        .unwrap_or(AvailableUpdateEvents::default().build()),
                 )
                 .build()?;
             processors.push(processor_plan);
