@@ -42,28 +42,28 @@ pub fn subscribe_to_subject(
         // 2. Check for subscriptions in the subjects
         // DM: First, get the partitions from the subject metadata
         //     Second, read the last or all of the partitions depending upon the subscription
-        } else if let Some(table) = subjects.get(subscription.get_table_name())
-            && let Some(stream) = table.read().subscribe_to_table(subscription)
-        {
-            // A. check for a matching subject in the publications
-            let update = publications
-                .iter()
-                .filter(|p| p.get_table_name() == subscription.get_table_name())
-                .collect::<Vec<_>>();
-            let update = if let Some(update) = update.first() {
-                update
-            // B. default to None
-            } else {
-                &TablePublication::None
-            };
-            let message = SendableRecordBatchStreamMessage::get_builder()
-                .with_publisher("State")
-                .with_subject(subscription.get_table_name())
-                .with_update(update)
-                .with_message(stream)
-                .make_random_name()?
-                .build()?;
-            let _ = map.insert(message.get_name().to_string(), message);
+        // } else if let Some(table) = subjects.get(subscription.get_table_name())
+        //     && let Some(stream) = table.read().subscribe_to_table(subscription)
+        // {
+        //     // A. check for a matching subject in the publications
+        //     let update = publications
+        //         .iter()
+        //         .filter(|p| p.get_table_name() == subscription.get_table_name())
+        //         .collect::<Vec<_>>();
+        //     let update = if let Some(update) = update.first() {
+        //         update
+        //     // B. default to None
+        //     } else {
+        //         &TablePublication::None
+        //     };
+        //     let message = SendableRecordBatchStreamMessage::get_builder()
+        //         .with_publisher("State")
+        //         .with_subject(subscription.get_table_name())
+        //         .with_update(update)
+        //         .with_message(stream)
+        //         .make_random_name()?
+        //         .build()?;
+        //     let _ = map.insert(message.get_name().to_string(), message);
         }
     }
     Ok(map)

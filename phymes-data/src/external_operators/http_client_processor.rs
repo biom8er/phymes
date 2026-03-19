@@ -11,7 +11,7 @@ use phymes_core::{
     MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
     SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Table, TableBuilder, TableBuilderTrait, TableTrait,
+    SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait,
     create_attachments_batch, create_bytes_fields, create_chat_record_batch, create_values_fields,
     remove_message_by_subject,
 };
@@ -568,7 +568,7 @@ mod tests {
     use super::*;
     use futures::TryStreamExt;
     use phymes_core::{
-        ChatBuilderTraitExt, RuntimeEnvTrait, TableBuilder, TablePublication, open_alex,
+        ChatBuilderTraitExt, TableBuilder, TablePublication, open_alex,
         semantic_scholar,
     };
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};

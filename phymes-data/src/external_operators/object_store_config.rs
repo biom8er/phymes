@@ -13,7 +13,7 @@ use crate::DataConfigTrait;
 /// 
 /// # Todo
 /// - Support for other operations besides "Get", "GetStream", "GetMeta", "Put", and "PutMultipart"
-#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default, PartialEq)]
 pub enum ObjectStoreOptsType {
     #[default]
     #[value(name = "Get")]

@@ -10,10 +10,10 @@ use futures::{FutureExt, Stream, StreamExt};
 use object_store::{GetOptions, GetResult, MultipartUpload, ObjectMeta, ObjectStore, ObjectStoreExt, PutOptions, PutPayload, PutResult, WriteMultipart, path::Path};
 use parking_lot::Mutex;
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, ChunkedWriter, MappableTrait, MessageBuilderTrait, MessageTrait, OnChunk, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait, create_bytes_fields, create_object_store_batch, create_object_store_meta_batch, create_values_fields, make_store, remove_message_by_subject,
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, ChunkedWriter, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, OnChunk, ProcessorTrait, RecordBatchStream, RuntimeEnv, RuntimeEnvTrait, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, TableBuilder, TableBuilderTrait, TableTrait, create_bytes_fields, create_object_store_batch, create_object_store_meta_batch, create_values_fields, make_store, remove_message_by_subject
 };
 use phymes_diagnostics::{
-    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait,
+    DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
 };
 use serde_json::{Map, Value, json};
 
@@ -27,28 +27,17 @@ pub enum ObjectStoreState {
     StorageReaderGetResult(Pin<Box<dyn Future<Output = Result<GetResult, object_store::Error>> + Send>>),
     StorageReaderBytesResult(Pin<Box<dyn Future<Output = Result<Bytes, object_store::Error>> + Send>>),
     StorageReaderStreamResult(Pin<Box<dyn Stream<Item = Result<Bytes, object_store::Error>> + Send>>),
+    StorageReaderStreamList(Pin<Box<dyn Stream<Item = Result<ObjectMeta, object_store::Error>> + Send>>),
     StorageWriterMultipart(Pin<Box<dyn Future<Output = Result<Box<dyn MultipartUpload>, object_store::Error>> + Send>>),
     StorageWriterPutResult(Pin<Box<dyn Future<Output = Result<PutResult, object_store::Error>> + Send>>),
+    StorageWriterStreamDelete(Pin<Box<dyn Stream<Item = Result<Path, object_store::Error>> + Send>>),
     Done,
 }
 
 #[derive(Debug)]
 pub struct ObjectStoreProcessor {
     name: String,
-    r#type: String,
-    store: Option<Arc<dyn ObjectStore>>,
-    
-}
-
-impl ObjectStoreProcessor {
-    /// Cache for InMemory object store
-    pub fn with_object_store(self, store: Arc<dyn ObjectStore>) -> Self {
-        Self {
-            name: self.name,
-            r#type: self.r#type,
-            store: Some(store),
-        }
-    }
+    r#type: String,    
 }
 
 impl MappableTrait for ObjectStoreProcessor {
@@ -62,7 +51,6 @@ impl ProcessorTrait for ObjectStoreProcessor {
         Self {
             name: name.to_string(),
             r#type: r#type.to_string(),
-            store: None,
         }
     }
 
@@ -92,7 +80,6 @@ impl ProcessorTrait for ObjectStoreProcessor {
             config,
             Arc::clone(&runtime_env),
             diagnostic_builder.cloned(),
-            self.store.clone()
         )?);
 
         // Prepare the message builder
@@ -115,7 +102,7 @@ pub struct ObjectStoreStream {
     /// Parameters for chat inference
     config_stream: SendableRecordBatchStream,
     /// The candle assets needed for inference
-    _runtime_env: Arc<RuntimeEnv>,
+    runtime_env: Arc<RuntimeEnv>,
     /// Store
     store: Option<Arc<dyn ObjectStore>>,
     /// Path
@@ -141,15 +128,14 @@ impl ObjectStoreStream {
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<RuntimeEnv>,
         diagnostic_builder: Option<DiagnosticBuilder>,
-        store: Option<Arc<dyn ObjectStore>>,
     ) -> Result<Self> {
         Ok(Self {
             schema: AvailableSubjects::ObjectStore.to_schema(),
             messages,
             diagnostic_builder,
             config_stream,
-            _runtime_env: runtime_env,
-            store: store,
+            runtime_env,
+            store: None,
             path: None,
             config: None,
             state: ObjectStoreState::NotStarted,
@@ -251,46 +237,76 @@ impl Stream for ObjectStoreStream {
                     return Poll::Ready(None);
                 }
 
-                // Create the object store
-                if self.store.is_none() {
+                // Create the object store or use the runtime environment
+                if self.store.is_none() && self.config.as_ref().unwrap().backend == ObjectStorageBackend::InMemory {
+                    let store = self.runtime_env.object_store().clone();             
+                    self.store.replace(store);
+                } else if self.store.is_none() {
                     let bucket = self.config.as_ref().unwrap().bucket.clone();
                     let config = self.config.as_ref().unwrap().backend_config.clone();
                     let store = make_store(&self.config.as_ref().unwrap().backend, bucket.as_ref(), config.as_ref())?;                    
-                    self.store.replace(store.clone());
-                }                
+                    self.store.replace(store);
+                }           
 
                 // Get the location prioritizing the subject messages over the config
-                let location = if let Some(batch) = self.record_batches.take() {
-                    let location = if let Some(row) = batch.front() {
-                        let location = row.get("location").ok_or(anyhow!("Missing column `location` in RecordBatch for ObjectStoreStream."))?;
-                        location.as_str().ok_or(anyhow!("Value for key location `{location}` could not be parsed as a String for ObjectSToreStream."))?.to_string()
+                // Note: Delete supports bulk operations while all others support single path/row operations
+                let locations = if self.config.as_ref().unwrap().ops_type == ObjectStoreOptsType::Delete {
+                    if let Some(batch) = self.record_batches.take() {
+                        let locations_result: Result<Vec<Path>> = batch.into_iter()
+                            .map(|row| {
+                                let location = row.get("location").ok_or(anyhow!("Missing column `location` in RecordBatch for ObjectStoreStream."))?;
+                                let location = location.as_str().ok_or(anyhow!("Value for key location `{location}` could not be parsed as a String for ObjectSToreStream."))?.to_string();
+                                Ok(Path::from(location))
+                            })
+                            .collect();
+                        match locations_result {
+                            Ok(locations) => locations,
+                            Err(err) => {
+                                self.state = ObjectStoreState::Done;
+                                return Poll::Ready(Some(Err(anyhow!(err))));
+                            }
+                        }
+                    } else if let Some(locations) = self.locations.take() {
+                        locations.into_iter().map(|s| Path::from(s)).collect::<Vec<_>>()
                     } else {
                         self.state = ObjectStoreState::Done;
-                        let err = "Locations from RecordBatches is empty for ObjectStoreStream.";
-                        return Poll::Ready(Some(Err(anyhow!(err))));
-                    };
-                    self.record_batches.replace(batch);
-                    location
-                } else if let Some(mut locations) = self.locations.take() {
-                    if let Some(location) = locations.pop_front() {
-                        if locations.len() > 0 {
-                            self.locations.replace(locations);
-                        }                        
-                        location
-                    } else {
-                        self.state = ObjectStoreState::Done;
-                        let err = "Locations from Config is empty for ObjectStoreStream.";
+                        let err = "Location not provided for ObjectStoreStream.";
                         return Poll::Ready(Some(Err(anyhow!(err))));
                     }
                 } else {
-                    self.state = ObjectStoreState::Done;
-                    let err = "Location not provided for ObjectStoreStream.";
-                    return Poll::Ready(Some(Err(anyhow!(err))));
-                };
-                let path = Path::from(location);
+                    let location = if let Some(batch) = self.record_batches.take() {
+                        let location = if let Some(row) = batch.front() {
+                            let location = row.get("location").ok_or(anyhow!("Missing column `location` in RecordBatch for ObjectStoreStream."))?;
+                            location.as_str().ok_or(anyhow!("Value for key location `{location}` could not be parsed as a String for ObjectSToreStream."))?.to_string()
+                        } else {
+                            self.state = ObjectStoreState::Done;
+                            let err = "Locations from RecordBatches is empty for ObjectStoreStream.";
+                            return Poll::Ready(Some(Err(anyhow!(err))));
+                        };
+                        self.record_batches.replace(batch);
+                        location
+                    } else if let Some(mut locations) = self.locations.take() {
+                        if let Some(location) = locations.pop_front() {
+                            if locations.len() > 0 {
+                                self.locations.replace(locations);
+                            }                        
+                            location
+                        } else {
+                            self.state = ObjectStoreState::Done;
+                            let err = "Locations from Config is empty for ObjectStoreStream.";
+                            return Poll::Ready(Some(Err(anyhow!(err))));
+                        }
+                    } else {
+                        self.state = ObjectStoreState::Done;
+                        let err = "Location not provided for ObjectStoreStream.";
+                        return Poll::Ready(Some(Err(anyhow!(err))));
+                    };
 
-                // Save the path for subsequent polling
-                self.path.replace(path.clone());
+                    // Save the path for subsequent polling
+                    let path = Path::from(location);
+                    self.path.replace(path.clone());
+                    vec![path]                
+                };
 
                 // Determine the opts type
                 match self.config.as_ref().unwrap().ops_type {
@@ -305,7 +321,7 @@ impl Stream for ObjectStoreStream {
 
                         // Get operation
                         let store = self.store.as_ref().unwrap().clone();
-                        let path = path.clone();
+                        let path = self.path.as_ref().unwrap().clone();
 
                         // Add in any addition `GetOptions`
                         if let Some(options) = self.config.as_ref().unwrap().get_options.as_ref() {
@@ -321,9 +337,29 @@ impl Stream for ObjectStoreStream {
                         }
                         
                     }
+                    ObjectStoreOptsType::List => {                        
+                        // Check if there are more batches for the next round
+                        if let Some(mut batch) = self.record_batches.take() {
+                            let _ = batch.pop_front();
+                            if batch.len() > 0 {
+                                self.record_batches.replace(batch);
+                            }                            
+                        }
+
+                        // List operation
+                        let store = self.store.as_ref().unwrap().clone();
+                        let path = if self.path.as_ref().unwrap().is_root() {
+                            None
+                        } else {
+                            Some(self.path.as_ref().unwrap().clone())
+                        };
+                        let stream = store.list(path.as_ref());                        
+                        self.state = ObjectStoreState::StorageReaderStreamList(stream);
+                        self.poll_next(cx)
+                    }
                     ObjectStoreOptsType::PutMultipart => {
                         let store = self.store.as_ref().unwrap().clone();
-                        let path = path.clone();
+                        let path = self.path.as_ref().unwrap().clone();
                         let fut = Box::pin(async move { store.put_multipart(&path).await });
                         self.state = ObjectStoreState::StorageWriterMultipart(fut);
                         self.poll_next(cx)
@@ -356,7 +392,7 @@ impl Stream for ObjectStoreStream {
 
                         // Put operation
                         let store = self.store.as_ref().unwrap().clone();
-                        let path = path.clone();
+                        let path = self.path.as_ref().unwrap().clone();
 
                         // Add in additional `PutOptions`
                         if let Some(options) = self.config.as_ref().unwrap().put_options.as_ref() {
@@ -369,6 +405,16 @@ impl Stream for ObjectStoreStream {
                             self.state = ObjectStoreState::StorageWriterPutResult(fut);
                             self.poll_next(cx)
                         }
+                    }
+                    ObjectStoreOptsType::Delete => {
+                        // Convert locations to futures
+                        let paths = futures::stream::iter(locations.into_iter().map(Ok)).boxed();
+
+                        // Delete operation
+                        let store = self.store.as_ref().unwrap().clone();
+                        let stream = store.delete_stream(paths);                        
+                        self.state = ObjectStoreState::StorageWriterStreamDelete(stream);
+                        self.poll_next(cx)
                     }
                     _ => {
                         self.state = ObjectStoreState::Done;
@@ -538,6 +584,54 @@ impl Stream for ObjectStoreStream {
                     self.poll_next(cx)
                 }
             },
+            ObjectStoreState::StorageReaderStreamList(stream) => match ready!(stream.as_mut().poll_next_unpin(cx)) {
+                Some(Ok(meta)) => {
+                    // Initialize the metrics
+                    let baseline_metrics =
+                        if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                            Some(
+                                diagnostic_builder
+                                    .clone()
+                                    .to_child("ObjectStoreStream")?
+                                    .baseline_metrics(
+                                        line!(),
+                                        file!(),
+                                        "poll_next.ObjectStoreState::ToBytes",
+                                    ),
+                            )
+                        } else {
+                            None
+                        };
+                    let _timer = baseline_metrics
+                        .as_ref()
+                        .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
+
+                    // Make the object store metadata
+                    let location = vec![meta.location.to_string()];
+                    let bucket = vec![self.config.as_ref().unwrap().bucket.clone().unwrap_or_default()];
+                    let last_modified = vec![meta.last_modified.timestamp_micros()];
+                    let size = vec![meta.size as u32];
+                    let version = vec![meta.version.unwrap_or_default()];
+                    let e_tag = vec![meta.e_tag.unwrap_or_default()];
+                    let batch = create_object_store_meta_batch(location, bucket, e_tag, version, size, last_modified)?;
+
+                    // Record the poll
+                    let poll = Poll::Ready(Some(Ok(batch)));
+                    if let Some(baseline_metrics) = &baseline_metrics {
+                        baseline_metrics.record_poll(poll)
+                    } else {
+                        poll
+                    }
+                }
+                Some(Err(err)) => {
+                    self.state = ObjectStoreState::Done;
+                    Poll::Ready(Some(Err(err.into())))
+                }
+                None => {
+                    self.state = ObjectStoreState::NotStarted;
+                    self.poll_next(cx)
+                }
+            },
             ObjectStoreState::StorageWriterMultipart(fut) => match ready!(fut.as_mut().poll_unpin(cx)) {
                 Ok(mp) => {
                     // Initialize the metrics
@@ -648,6 +742,54 @@ impl Stream for ObjectStoreStream {
                     Poll::Ready(Some(Err(err.into())))
                 }
             },
+            ObjectStoreState::StorageWriterStreamDelete(stream) => match ready!(stream.as_mut().poll_next_unpin(cx)) {
+                Some(Ok(location)) => {
+                    // Initialize the metrics
+                    let baseline_metrics =
+                        if let Some(diagnostic_builder) = &self.diagnostic_builder {
+                            Some(
+                                diagnostic_builder
+                                    .clone()
+                                    .to_child("ObjectStoreStream")?
+                                    .baseline_metrics(
+                                        line!(),
+                                        file!(),
+                                        "poll_next.ObjectStoreState::ToBytes",
+                                    ),
+                            )
+                        } else {
+                            None
+                        };
+                    let _timer = baseline_metrics
+                        .as_ref()
+                        .map(|baseline_metrics| baseline_metrics.elapsed_compute().timer());
+
+                    // Make the object store metadata
+                    let location = vec![location.to_string()];
+                    let bucket = vec![self.config.as_ref().unwrap().bucket.clone().unwrap_or_default()];
+                    let last_modified = vec![create_timestamp_micros()];
+                    let size = vec![0];
+                    let version = vec![String::new()];
+                    let e_tag = vec![String::new()];
+                    let batch = create_object_store_meta_batch(location, bucket, e_tag, version, size, last_modified)?;
+
+                    // Record the poll
+                    let poll = Poll::Ready(Some(Ok(batch)));
+                    if let Some(baseline_metrics) = &baseline_metrics {
+                        baseline_metrics.record_poll(poll)
+                    } else {
+                        poll
+                    }
+                }
+                Some(Err(err)) => {
+                    self.state = ObjectStoreState::Done;
+                    Poll::Ready(Some(Err(err.into())))
+                }
+                None => {
+                    self.state = ObjectStoreState::NotStarted;
+                    self.poll_next(cx)
+                }
+            },
             ObjectStoreState::Done => Poll::Ready(None),
         }
     }
@@ -668,7 +810,7 @@ mod tests {
     use super::*;
     use futures::TryStreamExt;
     use phymes_core::{
-        ObjectStorageBackend, RuntimeEnvTrait, Table, TableBuilder, TablePublication, test_table
+        ObjectStorageBackend, Table, TableBuilder, TablePublication, test_table
     };
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
 
@@ -679,7 +821,6 @@ mod tests {
 
         // Runtime env
         let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
-        let store = make_store(&ObjectStorageBackend::InMemory, None, None)?;
 
         // Metrics to compute time and rows
         let span = SpanBuilder::default().with_span("test").build()?;
@@ -741,8 +882,7 @@ mod tests {
 
         // Build the processor
         let processor =
-            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name())
-            .with_object_store(store.clone());
+            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
         // Check the response
@@ -824,8 +964,7 @@ mod tests {
 
         // Build the processor
         let processor =
-            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name())
-            .with_object_store(store.clone());
+            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
         let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
         // Check the response
@@ -867,7 +1006,7 @@ mod tests {
             ops_type: ObjectStoreOptsType::Get,
             backend: ObjectStorageBackend::InMemory,
             bucket: None,
-            locations: Some(location),
+            locations: Some(location.clone()),
             chunk_size: None,
             subject_name: None,
             ..Default::default()
@@ -893,9 +1032,8 @@ mod tests {
 
         // Build the processor
         let processor =
-            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name())
-            .with_object_store(store.clone());
-        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env)?;
+            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
 
         // Check the response
         let result = stream
@@ -928,6 +1066,179 @@ mod tests {
         let tables = tables?;
         assert_eq!(tables.first().unwrap(), &test_table::make_test_table("IPC", 3, 4, 2)?);
         assert_eq!(tables.get(1).unwrap(), &test_table::make_test_table("IPC", 3, 0, 2)?);
+
+        // List from config
+        // Config for the Processor
+        let config = ObjectStoreConfig {
+            timeout: 5,
+            ops_type: ObjectStoreOptsType::List,
+            backend: ObjectStorageBackend::InMemory,
+            bucket: None,
+            locations: Some(vec![String::new()]),
+            chunk_size: None,
+            subject_name: None,
+            ..Default::default()
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&config_json, 1)?
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(config_table.get_name())
+                .with_publisher("")
+                .with_subject(config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(config_table.to_record_batch_stream())
+                .build()?,
+        );   
+
+        // Build the processor
+        let processor =
+            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_name("List from config")
+            .with_record_batches(result)?
+            .build()?;
+
+        let result = table.get_column_as_vec_str("location");
+        assert_eq!(result, ["location_1.ipc", "location_2.ipc"]);
+        let result = table.get_column_as_vec_str("bucket");
+        assert_eq!(result, ["", ""]);
+        let result = table.get_column_as_vec_str("version");
+        assert_eq!(result, ["", ""]);
+        let result = table.get_column_as_vec_primitive::<u32>("size")?;
+        assert_eq!(result, [4104, 3336]);
+        let result = table.get_column_as_vec_primitive::<i64>("last_modified")?;
+        for res in result {
+            assert!(res > 0);
+        }
+
+        // Delete from config
+        // Config for the Processor
+        let config = ObjectStoreConfig {
+            timeout: 5,
+            ops_type: ObjectStoreOptsType::Delete,
+            backend: ObjectStorageBackend::InMemory,
+            bucket: None,
+            locations: Some(location),
+            chunk_size: None,
+            subject_name: None,
+            ..Default::default()
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&config_json, 1)?
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(config_table.get_name())
+                .with_publisher("")
+                .with_subject(config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(config_table.to_record_batch_stream())
+                .build()?,
+        );   
+
+        // Build the processor
+        let processor =
+            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        let table = TableBuilder::new()
+            .with_name("Delete from config")
+            .with_record_batches(result)?
+            .build()?;
+
+        let result = table.get_column_as_vec_str("location");
+        assert_eq!(result, ["location_1.ipc", "location_2.ipc"]);
+        let result = table.get_column_as_vec_str("bucket");
+        assert_eq!(result, ["", ""]);
+        let result = table.get_column_as_vec_str("version");
+        assert_eq!(result, ["", ""]);
+        let result = table.get_column_as_vec_primitive::<u32>("size")?;
+        assert_eq!(result, [0, 0]);
+        let result = table.get_column_as_vec_primitive::<i64>("last_modified")?;
+        for res in result {
+            assert!(res > 0);
+        }        
+
+        // Confirm the deletion from config
+        // Config for the Processor
+        let config = ObjectStoreConfig {
+            timeout: 5,
+            ops_type: ObjectStoreOptsType::List,
+            backend: ObjectStorageBackend::InMemory,
+            bucket: None,
+            locations: Some(vec![String::new()]),
+            chunk_size: None,
+            subject_name: None,
+            ..Default::default()
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = TableBuilder::new()
+            .with_name(name)
+            .with_json(&config_json, 1)?
+            .build()?;
+
+        // Build the current message state
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            config_table.get_name().to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(config_table.get_name())
+                .with_publisher("")
+                .with_subject(config_table.get_name())
+                .with_update(&TablePublication::None)
+                .with_message(config_table.to_record_batch_stream())
+                .build()?,
+        );   
+
+        // Build the processor
+        let processor =
+            ObjectStoreProcessor::new(name, ObjectStoreProcessor::get_static_name());
+        let mut stream = processor.process(message, Some(&diagnostic_builder), rt_env.clone())?;
+
+        // Check the response
+        let result = stream
+            .remove(name)
+            .unwrap()
+            .message
+            .take()
+            .unwrap()
+            .try_collect::<Vec<_>>()
+            .await?;
+        assert_eq!(result.len(), 0);
 
         Ok(())
     }

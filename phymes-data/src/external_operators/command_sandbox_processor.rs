@@ -1728,7 +1728,7 @@ pub mod test_command_sandbox_processor {
 mod tests {
     use arrow::array::{ArrayRef, StringArray, UInt32Array};
     use futures::TryStreamExt;
-    use phymes_core::{ChatBuilderTraitExt, RuntimeEnvTrait, TableBuilder, TablePublication};
+    use phymes_core::{ChatBuilderTraitExt, TableBuilder, TablePublication};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
     use std::{fs::File, io::Write};
 
