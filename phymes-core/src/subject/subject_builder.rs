@@ -2,7 +2,7 @@ use std::{
     fmt::Debug, fs::File, io::{Cursor, Read, Seek}, pin::Pin, sync::Arc
 };
 
-use crate::{BuilderTrait, SendableIPCRecordBatchStream, SendableRecordBatchStream, Subject, storage_reader_get_result, storage_reader_stream_result};
+use crate::{BuilderTrait, SendableIPCRecordBatchStream, SendableRecordBatchStream, Subject};
 use anyhow::{Result, anyhow};
 use arrow::{
     array::{

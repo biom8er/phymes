@@ -1,5 +1,6 @@
 use anyhow::{Result, anyhow};
 use arrow::datatypes::Schema;
+use object_store::{ObjectStore, path::Path};
 use phymes_diagnostics::{TraceableTrait, Tracer};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, sync::Arc};
@@ -19,14 +20,6 @@ pub enum Subscription {
     AlwaysAllRecordBatches { subject_name: String },
     /// Always copy just the last record batch
     AlwaysLastRecordBatch { subject_name: String },
-    /// Only when the subject has been updated, drain the full table
-    OnUpdateAllRecordBatchesDrain { subject_name: String },
-    /// Only when the subject has been updated, and just pop the last RecordBatch
-    OnUpdateLastRecordBatchPop { subject_name: String },
-    /// Always drain the full table
-    AlwaysAllRecordBatchesDrain { subject_name: String },
-    /// Always pop just the last record batch
-    AlwaysLastRecordBatchPop { subject_name: String },
     /// No reading of the table
     #[default]
     None,
@@ -43,10 +36,6 @@ impl Subscription {
             Self::OnUpdateEmpty { subject_name: tn } => tn,
             Self::AlwaysAllRecordBatches { subject_name: tn } => tn,
             Self::AlwaysLastRecordBatch { subject_name: tn } => tn,
-            Self::OnUpdateAllRecordBatchesDrain { subject_name: tn } => tn,
-            Self::OnUpdateLastRecordBatchPop { subject_name: tn } => tn,
-            Self::AlwaysAllRecordBatchesDrain { subject_name: tn } => tn,
-            Self::AlwaysLastRecordBatchPop { subject_name: tn } => tn,
             Self::None => "",
             Self::Custom(_name) => "",
         }
@@ -63,16 +52,6 @@ impl Subscription {
             Self::OnUpdateEmpty { subject_name: tn } => format!("OnUpdateEmpty-{tn}"),
             Self::AlwaysAllRecordBatches { subject_name: tn } => format!("AlwaysAllRecordBatches-{tn}"),
             Self::AlwaysLastRecordBatch { subject_name: tn } => format!("AlwaysLastRecordBatch-{tn}"),
-            Self::OnUpdateAllRecordBatchesDrain { subject_name: tn } => {
-                format!("OnUpdateAllRecordBatchesDrain-{tn}")
-            }
-            Self::OnUpdateLastRecordBatchPop { subject_name: tn } => {
-                format!("OnUpdateLastRecordBatchPop-{tn}")
-            }
-            Self::AlwaysAllRecordBatchesDrain { subject_name: tn } => format!("AlwaysAllRecordBatchesDrain-{tn}"),
-            Self::AlwaysLastRecordBatchPop { subject_name: tn } => {
-                format!("AlwaysLastRecordBatchPop-{tn}")
-            }
             Self::None => "None".to_string(),
             Self::Custom(name) => name.to_string(),
         }
@@ -83,47 +62,9 @@ impl Subscription {
         match self {
             Self::OnUpdateAllRecordBatches { subject_name: _tn }
             | Self::OnUpdateLastRecordBatch { subject_name: _tn }
-            | Self::OnUpdateAllRecordBatchesDrain { subject_name: _tn }
-            | Self::OnUpdateLastRecordBatchPop { subject_name: _tn }
             | Self::OnUpdateEmpty { subject_name: _tn } => true,
             Self::AlwaysAllRecordBatches { subject_name: _tn }
-            | Self::AlwaysLastRecordBatch { subject_name: _tn }
-            | Self::AlwaysAllRecordBatchesDrain { subject_name: _tn }
-            | Self::AlwaysLastRecordBatchPop { subject_name: _tn } => false,
-            Self::None => false,
-            Self::Custom(_name) => false,
-        }
-    }
-
-    /// Does the subscription result in a clone of the table?
-    pub fn is_clone(&self) -> bool {
-        match self {
-            Self::OnUpdateAllRecordBatches { subject_name: _tn }
-            | Self::OnUpdateLastRecordBatch { subject_name: _tn }
-            | Self::OnUpdateEmpty { subject_name: _tn }
-            | Self::AlwaysAllRecordBatches { subject_name: _tn }
-            | Self::AlwaysLastRecordBatch { subject_name: _tn } => true,
-            Self::OnUpdateAllRecordBatchesDrain { subject_name: _tn }
-            | Self::OnUpdateLastRecordBatchPop { subject_name: _tn }
-            | Self::AlwaysAllRecordBatchesDrain { subject_name: _tn }
-            | Self::AlwaysLastRecordBatchPop { subject_name: _tn } => false,
-            Self::None => false,
-            Self::Custom(_name) => false,
-        }
-    }
-
-    /// Does the subscription result in mutating the table?
-    pub fn is_mut(&self) -> bool {
-        match self {
-            Self::OnUpdateAllRecordBatches { subject_name: _tn }
-            | Self::OnUpdateLastRecordBatch { subject_name: _tn }
-            | Self::OnUpdateEmpty { subject_name: _tn }
-            | Self::AlwaysAllRecordBatches { subject_name: _tn }
             | Self::AlwaysLastRecordBatch { subject_name: _tn } => false,
-            Self::OnUpdateAllRecordBatchesDrain { subject_name: _tn }
-            | Self::OnUpdateLastRecordBatchPop { subject_name: _tn }
-            | Self::AlwaysAllRecordBatchesDrain { subject_name: _tn }
-            | Self::AlwaysLastRecordBatchPop { subject_name: _tn } => true,
             Self::None => false,
             Self::Custom(_name) => false,
         }
@@ -137,10 +78,6 @@ impl Subscription {
             Self::OnUpdateEmpty { subject_name: _tn } => "Empty",
             Self::AlwaysAllRecordBatches { subject_name: _tn } => "AllRecordBatches",
             Self::AlwaysLastRecordBatch { subject_name: _tn } => "LastRecordBatch",
-            Self::OnUpdateAllRecordBatchesDrain { subject_name: _tn } => "AllRecordBatchesDrain",
-            Self::OnUpdateLastRecordBatchPop { subject_name: _tn } => "LastRecordBatchPop",
-            Self::AlwaysAllRecordBatchesDrain { subject_name: _tn } => "AllRecordBatchesDrain",
-            Self::AlwaysLastRecordBatchPop { subject_name: _tn } => "LastRecordBatchPop",
             Self::None => "None",
             Self::Custom(name) => name,
         }
@@ -148,23 +85,7 @@ impl Subscription {
 
     /// New [Subscription] from a short name identifying the variant and the `subject_name`
     pub fn from_str_fuzzy(name: &str, subject: &str) -> Result<Subscription> {
-        let subscription = if name.contains("OnUpdateAllRecordBatchesDrain") {
-            Subscription::OnUpdateAllRecordBatchesDrain {
-                subject_name: subject.to_string(),
-            }
-        } else if name.contains("AlwaysAllRecordBatchesDrain") {
-            Subscription::AlwaysAllRecordBatchesDrain {
-                subject_name: subject.to_string(),
-            }
-        } else if name.contains("OnUpdateLastRecordBatchPop") {
-            Subscription::OnUpdateLastRecordBatchPop {
-                subject_name: subject.to_string(),
-            }
-        } else if name.contains("AlwaysLastRecordBatchPop") {
-            Subscription::AlwaysLastRecordBatchPop {
-                subject_name: subject.to_string(),
-            }
-        } else if name.contains("OnUpdateAllRecordBatches") {
+        let subscription = if name.contains("OnUpdateAllRecordBatches") {
             Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject.to_string(),
             }
@@ -251,10 +172,6 @@ impl MappableTrait for Subscription {
             Self::OnUpdateEmpty { subject_name: _tn } => "OnUpdateEmpty",
             Self::AlwaysAllRecordBatches { subject_name: _tn } => "AlwaysAllRecordBatches",
             Self::AlwaysLastRecordBatch { subject_name: _tn } => "AlwaysLastRecordBatch",
-            Self::OnUpdateAllRecordBatchesDrain { subject_name: _tn } => "OnUpdateAllRecordBatchesDrain",
-            Self::OnUpdateLastRecordBatchPop { subject_name: _tn } => "OnUpdateLastRecordBatchPop",
-            Self::AlwaysAllRecordBatchesDrain { subject_name: _tn } => "AlwaysAllRecordBatchesDrain",
-            Self::AlwaysLastRecordBatchPop { subject_name: _tn } => "AlwaysLastRecordBatchPop",
             Self::None => "None",
             Self::Custom(name) => name,
         }
@@ -268,7 +185,7 @@ impl TraceableTrait for Subscription {
 }
 
 /// Subscribe to an arrow table
-pub trait SubscriptionTrait: SubjectTrait {
+pub trait SubscriptionTrait {
     /// Implement the subscription
     ///
     /// # Notes
@@ -278,53 +195,39 @@ pub trait SubscriptionTrait: SubjectTrait {
     ///
     /// # Arguments
     ///
-    /// * `updated` - whether the table has been updated or not
-    /// * `subscribe` - `ArrowTableSubscribe` the subscription enum
     /// * `store` - `Arc<dyn ObjectStore>` the object store
     fn subscribe_to_subject(
         &self,
-        subscribe: &Subscription,
-    ) -> Option<SendableRecordBatchStream>;
-
-    /// Implement the subscription mutating the table
-    ///
-    /// # Notes
-    ///
-    /// * Empty tables are skipped
-    /// * `Subscription` where `is_mut` = false are skipped
-    ///
-    /// # Arguments
-    ///
-    /// * `updated` - whether the table has been updated or not
-    /// * `subscribe` - `ArrowTableSubscribe` the subscription enum
-    fn subscribe_to_table_mut(
-        &mut self,
-        subscribe: &Subscription,
+        store: &Arc<dyn ObjectStore>,
     ) -> Option<SendableRecordBatchStream>;
 }
 
-impl SubscriptionTrait for Subject {
+impl SubscriptionTrait for Subscription {
     fn subscribe_to_subject(
         &self,
-        subscribe: &Subscription,
+        store: &Arc<dyn ObjectStore>,
     ) -> Option<SendableRecordBatchStream> {
+        // 1. List the partitions (RecordBatches)
+        
+        // 2. Get all or only the most recent
         if self.count_rows() == 0 {
             return None;
         }
-        match subscribe {
-            Subscription::AlwaysAllRecordBatches { subject_name: _ } => {
-                Some(self.to_record_batch_stream())
+        match self {
+            Self::AlwaysAllRecordBatches { subject_name: sn } => {
+                let path = Path::from(sn.to_string());
+                let list = store.list(Some(&path)).map_ok(|m| m.location).boxed();
             }
-            Subscription::AlwaysLastRecordBatch { subject_name: _ } => {
+            Self::AlwaysLastRecordBatch { subject_name: _ } => {
                 Some(self.to_record_batch_stream_last_record_batch())
             }
-            Subscription::OnUpdateAllRecordBatches { subject_name: _ } => {
+            Self::OnUpdateAllRecordBatches { subject_name: _ } => {
                 Some(self.to_record_batch_stream())
             }
-            Subscription::OnUpdateLastRecordBatch { subject_name: _ } => {
+            Self::OnUpdateLastRecordBatch { subject_name: _ } => {
                 Some(self.to_record_batch_stream_last_record_batch())
             }
-            Subscription::OnUpdateEmpty { subject_name: _ } => {
+            Self::OnUpdateEmpty { subject_name: _ } => {
                 let schema = Schema::empty();
                 let stream = futures::stream::iter(Vec::new().into_iter().map(Ok));
                 Some(Box::pin(RecordBatchStreamAdapter::new(
@@ -332,41 +235,8 @@ impl SubscriptionTrait for Subject {
                     stream,
                 )))
             }
-            Subscription::AlwaysAllRecordBatchesDrain { subject_name: _ } => None,
-            Subscription::AlwaysLastRecordBatchPop { subject_name: _ } => None,
-            Subscription::OnUpdateAllRecordBatchesDrain { subject_name: _ } => None,
-            Subscription::OnUpdateLastRecordBatchPop { subject_name: _ } => None,
-            Subscription::None => None,
-            Subscription::Custom(_) => None,
-        }
-    }
-    fn subscribe_to_table_mut(
-        &mut self,
-        subscribe: &Subscription,
-    ) -> Option<SendableRecordBatchStream> {
-        if self.count_rows() == 0 {
-            return None;
-        }
-        match subscribe {
-            Subscription::AlwaysAllRecordBatchesDrain { subject_name: _ } => {
-                Some(self.to_record_batch_stream_drain())
-            }
-            Subscription::AlwaysLastRecordBatchPop { subject_name: _ } => {
-                Some(self.to_record_batch_stream_last_record_batch_pop())
-            }
-            Subscription::OnUpdateAllRecordBatchesDrain { subject_name: _ } => {
-                Some(self.to_record_batch_stream_drain())
-            }
-            Subscription::OnUpdateLastRecordBatchPop { subject_name: _ } => {
-                Some(self.to_record_batch_stream_last_record_batch_pop())
-            }
-            Subscription::OnUpdateEmpty { subject_name: _ } => None,
-            Subscription::AlwaysAllRecordBatches { subject_name: _ } => None,
-            Subscription::AlwaysLastRecordBatch { subject_name: _ } => None,
-            Subscription::OnUpdateAllRecordBatches { subject_name: _ } => None,
-            Subscription::OnUpdateLastRecordBatch { subject_name: _ } => None,
-            Subscription::None => None,
-            Subscription::Custom(_) => None,
+            Self::None => None,
+            Self::Custom(_) => None,
         }
     }
 }

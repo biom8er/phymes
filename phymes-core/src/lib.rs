@@ -69,7 +69,7 @@ pub use storage::{
     ObjectStorageBackend, make_store,
     BatchWriter, ChunkedWriter, OnChunk, OnChunkTrait,
     ObjectStorageReader, ObjectStorageWriter,
-    IpcReader, JsonReader, CsvReader, StorageReaderTrait, StorageStreamReaderTrait, storage_reader_get_result, storage_reader_stream_result,
+    IpcReader, JsonReader, CsvReader, StorageReaderTrait, StorageStreamReaderTrait,
     IpcWriter, JsonWriter, CsvWriter, IpcWriterMultipart, JsonWriterMultipart, CsvWriterMultipart, StorageWriterTrait, StorageWriterMultipartTrait, StorageStreamWriterTrait, storage_writer_multipart
 };
 pub use stream::{IPCRecordBatchStream, RecordBatchReceiverStream, RecordBatchReceiverStreamBuilder, RecordBatchStream, RecordBatchStreamAdapter, SendableIPCRecordBatchStream, SendableRecordBatchStream, EmptyRecordBatchStream};

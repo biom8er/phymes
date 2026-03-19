@@ -43,14 +43,14 @@ impl UpdateEventTrait for SubjectHasBatchesUpdate {
         subscriptions
             .iter()
             .map(|s| {
-                if let Some(timestamp) = subjects_change_log.get(s.get_subject_name()) {
+                if let Some(timestamp) = subjects_change_log.get(s.subject_name()) {
                     if timestamp > &0_i64 {
-                        (s.get_subject_name().to_string(), true)
+                        (s.subject_name().to_string(), true)
                     } else {
-                        (s.get_subject_name().to_string(), false)
+                        (s.subject_name().to_string(), false)
                     }
                 } else {
-                    (s.get_subject_name().to_string(), false)
+                    (s.subject_name().to_string(), false)
                 }
             })
             .collect::<HashMap<_, _>>()
@@ -83,14 +83,14 @@ impl UpdateEventTrait for SubjectChangedSinceLastRunUpdate {
         subscriptions
             .iter()
             .map(|s| {
-                if let Some(timestamp) = subjects_change_log.get(s.get_subject_name()) {
+                if let Some(timestamp) = subjects_change_log.get(s.subject_name()) {
                     if timestamp > last_run {
-                        (s.get_subject_name().to_string(), true)
+                        (s.subject_name().to_string(), true)
                     } else {
-                        (s.get_subject_name().to_string(), false)
+                        (s.subject_name().to_string(), false)
                     }
                 } else {
-                    (s.get_subject_name().to_string(), false)
+                    (s.subject_name().to_string(), false)
                 }
             })
             .collect::<HashMap<_, _>>()
@@ -123,10 +123,10 @@ impl UpdateEventTrait for SubjectExistsUpdate {
         subscriptions
             .iter()
             .map(|s| {
-                if subjects_change_log.contains_key(s.get_subject_name()) {
-                    (s.get_subject_name().to_string(), true)
+                if subjects_change_log.contains_key(s.subject_name()) {
+                    (s.subject_name().to_string(), true)
                 } else {
-                    (s.get_subject_name().to_string(), false)
+                    (s.subject_name().to_string(), false)
                 }
             })
             .collect::<HashMap<_, _>>()

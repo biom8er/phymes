@@ -30,10 +30,6 @@ use std::{
 };
 use tokio::task::JoinSet;
 
-// Required for documentation
-#[allow(unused_imports)]
-use super::task_trait::Task;
-
 use crate::{EmptyRecordBatchStream, RecordBatchReceiverStream, RecordBatchStream, RecordBatchStreamAdapter, SendableRecordBatchStream};
 
 use arrow::{
@@ -103,7 +99,7 @@ pub async fn collect_partitions_runs(
     Ok(batches)
 }
 
-/// Run the [`Task`] and return a vec with one stream per output
+/// Run the partition and return a vec with one stream per output
 /// partition
 ///
 /// # Aborting Execution
@@ -137,7 +133,7 @@ pub async fn collect_stream_helper(stream: SendableRecordBatchStream) -> Result<
     stream.try_collect::<Vec<_>>().await
 }
 
-/// Run the [`Task`] and return a single stream of `RecordBatch`es.
+/// Run the partition and return a single stream of `RecordBatch`es.
 ///
 /// # Aborting Execution
 ///

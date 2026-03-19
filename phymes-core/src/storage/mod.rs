@@ -9,7 +9,7 @@ mod writers;
 
 pub use backend::{ObjectStorageBackend, make_store};
 pub use chunked_writer::{BatchWriter, ChunkedWriter, OnChunk, OnChunkTrait};
-pub use reader_trait::{StorageReaderTrait, StorageStreamReaderTrait, storage_reader_get_result, storage_reader_stream_result};
+pub use reader_trait::{StorageReaderTrait, StorageStreamReaderTrait};
 pub use readers::{IpcReader, JsonReader, CsvReader};
 pub use storage_reader::ObjectStorageReader;
 pub use storage_writer::ObjectStorageWriter;
@@ -24,7 +24,7 @@ mod tests {
         datatypes::{DataType, Field, Schema},
     };
     use futures::TryStreamExt;
-    use object_store::memory::InMemory;
+    use object_store::{ObjectStoreExt, memory::InMemory};
     use object_store::path::Path;
     use std::sync::Arc;
 
@@ -63,8 +63,8 @@ mod tests {
         writer.finish_chunks().await?;
 
         // --- Read ---
-        let result = storage_reader_get_result(&store, &path).await?;
-        let mut stream = storage_reader_stream_result(result);
+        let result = store.get(&path).await?;
+        let mut stream = result.into_stream();
         let mut read_batches = Vec::new();
         while let Some(bytes) = stream.try_next().await? {
             let mut reader = IpcReader::new_with_bytes(&bytes, None)?;
@@ -118,8 +118,8 @@ mod tests {
         writer.finish_chunks().await?;
 
         // --- Read ---
-        let result = storage_reader_get_result(&store, &path).await?;
-        let mut stream = storage_reader_stream_result(result);
+        let result = store.get(&path).await?;
+        let mut stream = result.into_stream();
         let mut read_batches = Vec::new();
         while let Some(bytes) = stream.try_next().await? {
             let mut reader = JsonReader::new_with_bytes(&bytes, 512, Some(schema.clone()))?;
@@ -172,8 +172,8 @@ mod tests {
         writer.finish_chunks().await?;
 
         // --- Read ---
-        let result = storage_reader_get_result(&store, &path).await?;
-        let mut stream = storage_reader_stream_result(result);
+        let result = store.get(&path).await?;
+        let mut stream = result.into_stream();
         let mut read_batches = Vec::new();
         while let Some(bytes) = stream.try_next().await? {
             let mut reader = CsvReader::new_with_bytes(&bytes, false, b';', 512, Some(schema.clone()))?;
@@ -220,8 +220,8 @@ mod tests {
         writer.put(&store, &path).await?;
 
         // --- Read ---
-        let result = storage_reader_get_result(&store, &path).await?;
-        let mut stream = storage_reader_stream_result(result);
+        let result = store.get(&path).await?;
+        let mut stream = result.into_stream();
         let mut read_batches = Vec::new();
         while let Some(bytes) = stream.try_next().await? {
             let mut reader = IpcReader::new_with_bytes(&bytes, None)?;
@@ -270,8 +270,8 @@ mod tests {
         writer.put(&store, &path).await?;
 
         // --- Read ---
-        let result = storage_reader_get_result(&store, &path).await?;
-        let mut stream = storage_reader_stream_result(result);
+        let result = store.get(&path).await?;
+        let mut stream = result.into_stream();
         let mut read_batches = Vec::new();
         while let Some(bytes) = stream.try_next().await? {
             let mut reader = IpcReader::new_with_bytes(&bytes, None)?;
@@ -320,8 +320,8 @@ mod tests {
         writer.put(&store, &path).await?;
 
         // --- Read ---
-        let result = storage_reader_get_result(&store, &path).await?;
-        let mut stream = storage_reader_stream_result(result);
+        let result = store.get(&path).await?;
+        let mut stream = result.into_stream();
         let mut read_batches = Vec::new();
         while let Some(bytes) = stream.try_next().await? {
             let mut reader = IpcReader::new_with_bytes(&bytes, None)?;

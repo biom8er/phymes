@@ -5,8 +5,8 @@ use std::task::{Context, Poll};
 use anyhow::{Result, anyhow};
 use phymes_diagnostics::BaselineMetrics;
 
-use crate::table::stream::{RecordBatchStream, SendableRecordBatchStream};
-use crate::task::SendableRecordBatchExecTrait;
+use crate::stream::SendableRecordBatchExecTrait;
+use crate::{RecordBatchStream, SendableRecordBatchStream};
 
 use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 
@@ -465,8 +465,8 @@ mod test {
     use arrow::datatypes::{DataType, Field, Schema};
 
     #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
-    use crate::task::BlockingExec;
-    use crate::task::{MockExec, PanicExecWrapper};
+    use crate::stream::BlockingExec;
+    use crate::stream::{MockExec, PanicExecWrapper};
 
     #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
     use crate::task::assert_strong_count_converges_to_zero;
