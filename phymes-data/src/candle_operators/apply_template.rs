@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Subject, SubjectBuilderTrait, SubjectScript, SubjectTrait, Tool, ToolType, create_bytes_record_batch, create_mermaid_content_template_batch
+    AvailableSubjects, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Subject, SubjectBuilderTrait, SubjectScript, SubjectTrait, Tool, ToolType, create_bytes_record_batch, create_mermaid_content_template_batch
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -25,6 +25,7 @@ pub struct ApplyTemplate {
     doc_input: Value,
     encoding: DataEncoding,
     format: DataFormat,
+    schema: AvailableSubjects,
 }
 
 impl MappableTrait for ApplyTemplate {
@@ -92,6 +93,7 @@ impl DataOperatorTrait for ApplyTemplate {
             &self.doc_input,
             &self.encoding,
             &self.format,
+            &self.schema,
             device,
         )
     }
@@ -120,6 +122,10 @@ impl DataOperatorTrait for ApplyTemplate {
             "Missing `format` for `{}`.",
             Self::get_static_name()
         ))?;
+        let schema = config.schema.ok_or(anyhow!(
+            "Missing `schema` for `{}`.",
+            Self::get_static_name()
+        ))?;
 
         // Make the object
         Ok(ApplyTemplate {
@@ -128,6 +134,7 @@ impl DataOperatorTrait for ApplyTemplate {
             doc_input,
             encoding,
             format,
+            schema,
         })
     }
 }
@@ -157,6 +164,7 @@ impl DataOperatorTrait for ApplyTemplate {
 ///   where the table_expression will be inserted into to complete the input for the template
 /// * `encoding` - The document encoding
 /// * `format` - The document format
+/// * `schema` - The document schema
 /// * `device` - The compute device
 #[instrument(skip(lhs_args, rhs_args, doc_template, doc_name, doc_input, encoding, format, _device))]
 pub fn apply_template(
@@ -167,6 +175,7 @@ pub fn apply_template(
     doc_input: &Value,
     encoding: &DataEncoding,
     format: &DataFormat,
+    schema: &AvailableSubjects,
     _device: &Device,
 ) -> Result<RecordBatch> {
     // Create the template
@@ -234,7 +243,7 @@ pub fn apply_template(
         .build()?;
 
     // Convert to the desired format
-    table_and_data_format_to_record_batch(&table, encoding, format, Some("content"))
+    table_and_data_format_to_record_batch(&table, encoding, format, schema, Some("content"))
 }
 
 #[cfg(test)]
@@ -270,6 +279,7 @@ mod tests {
             &input_template,
             &DataEncoding::None,
             &DataFormat::Html,
+            &AvailableSubjects::Attachments,
             &device,
         )?;
 
@@ -318,6 +328,7 @@ mod tests {
             &Value::Null,
             &DataEncoding::None,
             &DataFormat::Html,
+            &AvailableSubjects::Attachments,
             &device,
         )?;
 

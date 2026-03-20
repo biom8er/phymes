@@ -186,6 +186,7 @@ impl DataConfigTrait for AvailableProcessors {
                 doc_input: Some("{}".to_string()),
                 encoding: Some(DataEncoding::default()),
                 format: Some(DataFormat::Html),
+                schema: Some(AvailableSubjects::default()),
                 cpu: false,
                 operator: AvailableCandleOperators::ApplyTemplate,
                 lhs_stream: DataStreamManager::Accumulate,
@@ -339,9 +340,11 @@ impl DataConfigTrait for AvailableProcessors {
                 ..Default::default()
             }),
             Self::PackTabular => serde_json::to_vec(&DataConfig {
+                lhs_name: Some("lhs_name".to_string()),
                 encoding: Some(DataEncoding::default()),
                 format: Some(DataFormat::None),
                 doc_name: Some("doc_name".to_string()),
+                schema: Some(AvailableSubjects::default()),
                 cpu: false,
                 operator: AvailableCandleOperators::PackTabular,
                 lhs_stream: DataStreamManager::Accumulate,

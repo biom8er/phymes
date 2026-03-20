@@ -8,50 +8,116 @@ use arrow::{
     },
     datatypes::{DataType, Field, Schema},
 };
-use object_store::{ObjectStore, path::Path};
 use phymes_core::{
-    BuilderTrait, DataFormat, MappableTrait, Publication, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait
+    AvailableSubjects, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, MappableTrait, MessageBuilderTrait, ObjectStorageBackend, Publication, RuntimeEnv, SendableRecordBatchStreamMessage, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait
 };
+use phymes_data::{AvailableCandleOperators, CandleDataStream, DataConfig, DataStreamManager, ObjectStoreConfig, ObjectStoreOptsType, ObjectStoreStream};
+use phymes_diagnostics::HashMap;
+
+/// Generate the object store path
+/// 
+/// # Todo
+/// * Handle more complex partitioning schemes
+fn make_object_store_path(subject_name: &str, step: u32, partition: u32) -> String {
+    format!("{subject_name}/superstep={step}/partition={partition}/{subject_name}.ipc")
+}
 
 /// Update an subject with record batches coming from a new table
 pub trait TablePublicationTrait {
-    fn publish_to_subject(&self, runtime_env: &Arc<RuntimeEnv>, new: Vec<RecordBatch>) -> Result<()>;
+    fn publish_to_subject(&self, runtime_env: &Arc<RuntimeEnv>, new: Vec<RecordBatch>, step: u32) -> Result<()>;
 }
 
 impl TablePublicationTrait for Publication {
-    fn publish_to_subject(&self, runtime_env: &Arc<RuntimeEnv>, new: Vec<RecordBatch>) -> Result<()> {
+    fn publish_to_subject(&self, runtime_env: &Arc<RuntimeEnv>, new: Vec<RecordBatch>, step: u32) -> Result<()> {
         match self {
-            Self::Extend { subject_name: tn } => {
-                if self.get_name() != tn {
-                    return Err(anyhow!(
-                        "Mismatch between table name {} and update table target {}.",
-                        self.get_name(),
-                        tn
-                    ));
-                }
-                for batch in new.into_iter() {
-                    if !self.get_schema().eq(&batch.schema()) {
-                        return Err(anyhow!(
-                            "Mismatch between schema {:?} and batches {:?} when attempting to update table {}.",
-                            self.get_schema(),
-                            &batch.schema(),
-                            self.get_name()
-                        ));
-                    } else {
-                        self.get_record_batches_mut().push(batch);
-                    }
-                }
+            Self::Extend { subject_name: sn } => {
+                // 1. Create the locations column
+                let locations = (0..new.len()).map(|i| make_object_store_path(sn, step, i as u32)).collect::<Vec<_>>();
+
+                // 2. Pack the tabular data
+                let config = DataConfig {
+                    lhs_name: Some(sn.to_string()),
+                    encoding: Some(DataEncoding::default()),
+                    format: Some(DataFormat::Ipc),
+                    schema: Some(AvailableSubjects::ObjectStore),
+                    doc_name: Some(sn.to_string()),
+                    cpu: false,
+                    operator: AvailableCandleOperators::PackTabular,
+                    lhs_stream: DataStreamManager::Stream,
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config)?;
+                let config_table = SubjectBuilder::new()
+                    .with_name("DataConfig")
+                    .with_json(&config_json, 1)?
+                    .build()?;
+                let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+                let _ = message.insert(
+                    sn.to_string(),
+                    SendableRecordBatchStreamMessage::get_builder()
+                        .with_name(sn)
+                        .with_publisher("")
+                        .with_subject(sn)
+                        .with_update(&Publication::None)
+                        .with_message(Subject::get_builder()
+                            .with_name(sn)
+                            .with_record_batches(new)?
+                            .build()?
+                            .to_record_batch_stream())
+                        .build()?,
+                ); 
+                let stream = Box::pin(CandleDataStream::new(
+                    message,
+                    config_table.to_record_batch_stream(),
+                    Arc::clone(&runtime_env),
+                    None
+                )?);
+
+                // 3. Replace the locations column
+                // DM: new operator?
+
+                // 4. Put into the object store
+                let config = ObjectStoreConfig {
+                    timeout: 5,
+                    ops_type: ObjectStoreOptsType::Put,
+                    backend: ObjectStorageBackend::InMemory, // Force use of the runtime_env
+                    locations: None,
+                    subject_name: Some(sn.to_string()),
+                    ..Default::default()
+                };
+                let config_json = serde_json::to_vec(&config)?;
+                let config_table = SubjectBuilder::new()
+                    .with_name("ObjectStoreConfig")
+                    .with_json(&config_json, 1)?
+                    .build()?;
+                let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+                let _ = message.insert(
+                    sn.to_string(),
+                    SendableRecordBatchStreamMessage::get_builder()
+                        .with_name(sn)
+                        .with_publisher("")
+                        .with_subject(sn)
+                        .with_update(&Publication::None)
+                        .with_message(stream)
+                        .build()?,
+                ); 
+                let stream = Box::pin(ObjectStoreStream::new(
+                    message,
+                    config_table.to_record_batch_stream(),
+                    Arc::clone(&runtime_env),
+                    None
+                )?);
                 Ok(())
             }
             Publication::ExtendChunks {
-                subject_name: tn,
+                subject_name: sn,
                 col_name: cn,
             } => {
-                if self.get_name() != tn {
+                if self.get_name() != sn {
                     return Err(anyhow!(
                         "Mismatch between table name {} and update table target {}.",
                         self.get_name(),
-                        tn
+                        sn
                     ));
                 }
                 let chunks = new
@@ -78,13 +144,13 @@ impl TablePublicationTrait for Publication {
                 Ok(())
             }
             Publication::ExtendBytes {
-                subject_name: tn,
+                subject_name: sn,
                 col_name: cn,
                 serialize_format: sf,
             } => {
-                if self.get_name() != tn {
+                if self.get_name() != sn {
                     return Err(anyhow!(
-                        "Mismatch between table name {} and update table target {tn}.",
+                        "Mismatch between table name {} and update table target {sn}.",
                         self.get_name(),
                     ));
                 }
@@ -120,7 +186,7 @@ impl TablePublicationTrait for Publication {
                                 Ok(batches)
                             }
                             _ => Err(anyhow!(
-                                "Serialization format {sf} for table name {} and update table target {tn} is not supported.",
+                                "Serialization format {sf} for table name {} and update table target {sn} is not supported.",
                                 self.get_name(),
                             ))
                         }
@@ -139,12 +205,12 @@ impl TablePublicationTrait for Publication {
                     Ok(())
                 }
             }
-            Publication::Replace { subject_name: tn } => {
-                if self.get_name() != tn {
+            Publication::Replace { subject_name: sn } => {
+                if self.get_name() != sn {
                     return Err(anyhow!(
                         "Mismatch between table name {} and update table target {}.",
                         self.get_name(),
-                        tn
+                        sn
                     ));
                 }
                 for batch in new.iter() {
@@ -161,12 +227,12 @@ impl TablePublicationTrait for Publication {
                 self.get_record_batches_mut().extend(new);
                 Ok(())
             }
-            Publication::ReplaceLast { subject_name: tn } => {
-                if self.get_name() != tn {
+            Publication::ReplaceLast { subject_name: sn } => {
+                if self.get_name() != sn {
                     return Err(anyhow!(
                         "Mismatch between table name {} and update table target {}.",
                         self.get_name(),
-                        tn
+                        sn
                     ));
                 }
                 let last = new.last().unwrap();

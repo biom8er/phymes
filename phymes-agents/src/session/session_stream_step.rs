@@ -6,7 +6,7 @@ use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessage, IPCMessageBuilder,
     IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjectsMap,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, SubjectBuilder,
-    SubjectBuilderTrait, Publication, SubjectTrait, TaskTrait, create_error_message_map,
+    SubjectBuilderTrait, Publication, SubjectTrait, create_error_message_map,
     create_error_message_map_stream, create_session_tasks_run_log_batch,
 };
 use phymes_diagnostics::{
@@ -18,7 +18,7 @@ use tokio::task::JoinSet;
 use tracing::{Level, event};
 
 use crate::{
-    SessionContext, create_message_map,
+    TaskTrait, SessionContext, create_message_map,
     plans::{NextSuperstepSession, NextTaskSession},
 };
 

@@ -5,7 +5,7 @@ use arrow::array::RecordBatch;
 use candle_core::Device;
 use flate2::{Compression, write::{DeflateEncoder, GzEncoder, ZlibEncoder}};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType, create_attachments_batch, create_chat_record_batch, make_extension
+    AvailableSubjects, BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType, create_attachments_batch, create_chat_record_batch, make_extension
 };
 use phymes_diagnostics::create_timestamp_micros;
 use serde::{Deserialize, Serialize};
@@ -18,6 +18,7 @@ use crate::{ToolTrait, candle_data::DataConfig, candle_operators::DataOperatorTr
 pub struct PackTabular {
     encoding: DataEncoding,
     format: DataFormat,
+    schema: AvailableSubjects,
     doc_name: String,
 }
 
@@ -93,11 +94,15 @@ impl DataOperatorTrait for PackTabular {
             "Missing `format` for `{}`.",
             Self::get_static_name()
         ))?;
+        let schema = config.schema.ok_or(anyhow!(
+            "Missing `schema` for `{}`.",
+            Self::get_static_name()
+        ))?;
         let doc_name = config.doc_name.clone().ok_or(anyhow!(
             "Missing `doc_name` for `{}`.",
             Self::get_static_name()
         ))?;
-        Ok(PackTabular { encoding, format, doc_name })
+        Ok(PackTabular { encoding, format, schema, doc_name })
     }
     fn forward(
         &self,
@@ -105,7 +110,7 @@ impl DataOperatorTrait for PackTabular {
         _rhs_args: Option<&[RecordBatch]>,
         _device: &Device,
     ) -> Result<RecordBatch> {
-        pack_tabular(lhs_args, &self.encoding, &self.format, &self.doc_name)
+        pack_tabular(lhs_args, &self.encoding, &self.format, &self.schema, &self.doc_name)
     }
 }
 
@@ -140,12 +145,14 @@ fn encode_bytes(encoding: &DataEncoding, bytes: &[u8]) -> Result<Vec<u8>> {
 /// `table` - the [Table] containing the data
 /// `encoding` - the desired output [DataEncoding]
 /// `format` - the desired output [DataFormat]
+/// `schema` - the desired output [AvailableSubjects]
 /// `content` - Optional string to include JUST the contents of column data `content`
 ///   which is needed for some tool calling and visualization generation methods
 pub fn table_and_data_format_to_record_batch(
     table: &Subject,
     encoding: &DataEncoding,
     format: &DataFormat,
+    schema: &AvailableSubjects,
     content: Option<&str>,
 ) -> Result<RecordBatch> {
 
@@ -252,6 +259,7 @@ pub fn pack_tabular(
     lhs_args: &[RecordBatch],
     encoding: &DataEncoding,
     format: &DataFormat,
+    schema: &AvailableSubjects,
     doc_name: &str,
 ) -> Result<RecordBatch> {
     // Pack the values
@@ -262,7 +270,7 @@ pub fn pack_tabular(
         .concat_record_batches()?;
 
     // Convert to the desired format
-    let batch = table_and_data_format_to_record_batch(&args_table, encoding, format, None)?;
+    let batch = table_and_data_format_to_record_batch(&args_table, encoding, format, schema, None)?;
     Ok(batch)
 }
 
@@ -293,6 +301,7 @@ mod tests {
             &[lhs_batch],
             &DataEncoding::None,
             &DataFormat::None,
+            &AvailableSubjects::Messages,
             "test_pack_tabular_message_format",
         )?;
 
@@ -330,6 +339,7 @@ mod tests {
             &[lhs_batch],
             &DataEncoding::None,
             &DataFormat::CsvDefault,
+            &AvailableSubjects::Attachments,
             "test_pack_tabular_blob_formats",
         )?;
 
@@ -371,6 +381,7 @@ mod tests {
             &[lhs_batch],
             &DataEncoding::Gz,
             &DataFormat::CsvDefault,
+            &AvailableSubjects::Attachments,
             "test_pack_tabular_blob_formats",
         )?;
 
