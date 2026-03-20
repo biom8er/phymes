@@ -283,14 +283,14 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
             self.make_user_table().unwrap(),
             self.make_user_session_context_table().unwrap(),
             AvailableSubjects::User
-                .to_table(Some(self.filter_user_info_by_email_table_name), None)
+                .to_subject(Some(self.filter_user_info_by_email_table_name), None)
                 .unwrap(),
-            AvailableSubjects::UserInbox.to_table(None, None).unwrap(),
+            AvailableSubjects::UserInbox.to_subject(None, None).unwrap(),
             AvailableSubjects::JoinUserInboxSessionContexts
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableSubjects::JoinUserInboxSessionContextsMermaid
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             make_example_mermaid_table(false, true).unwrap(),
         ])

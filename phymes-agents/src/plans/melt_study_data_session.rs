@@ -448,7 +448,7 @@ mod tests {
             .build()?;
         let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
         let blob = AvailableInterfaceSubjects::UserCsv
-            .to_table_builder(None)
+            .to_subject_builder(None)
             .with_attachment(None, Some("csv"), &bytes, None)?
             .build()?;
         let blob_message = IPCMessage::get_builder()

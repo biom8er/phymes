@@ -371,7 +371,7 @@ mod tests {
         let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
 
         // User message
-        let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+        let chat = AvailableInterfaceSubjects::UserMessages.to_subject_builder(None)
             .append_new_user_query_str("Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.", "user")?
             .build()?;
         let chat_message = IPCMessage::get_builder()
@@ -532,7 +532,7 @@ mod tests {
         // Add the target tool subjects to the session for testing
         let _ = session_ctx_arc.write().subjects.insert(
             AvailableCandleOperators::Sort.to_string(),
-            Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(
+            Arc::new(RwLock::new(AvailableSubjects::Bytes.to_subject(
                 Some(AvailableCandleOperators::Sort.to_string().as_str()),
                 None,
             )?)),
@@ -540,7 +540,7 @@ mod tests {
         let _ = session_ctx_arc.write().subjects.insert(
             AvailableCandleOperators::HumanInTheLoop.to_string(),
             Arc::new(RwLock::new(
-                AvailableSubjects::Bytes.to_table(
+                AvailableSubjects::Bytes.to_subject(
                     Some(
                         AvailableCandleOperators::HumanInTheLoop
                             .to_string()
@@ -576,7 +576,7 @@ mod tests {
             .build()?;
 
         // User message
-        let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+        let chat = AvailableInterfaceSubjects::UserMessages.to_subject_builder(None)
             .append_new_user_query_str("Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.", "user")?
             .build()?;
         let chat_message = IPCMessage::get_builder()
@@ -750,7 +750,7 @@ mod tests {
         // Add the target tool subjects to the session for testing
         let _ = session_ctx_arc.write().subjects.insert(
             AvailableCandleOperators::Sort.to_string(),
-            Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(
+            Arc::new(RwLock::new(AvailableSubjects::Bytes.to_subject(
                 Some(AvailableCandleOperators::Sort.to_string().as_str()),
                 None,
             )?)),
@@ -758,7 +758,7 @@ mod tests {
         let _ = session_ctx_arc.write().subjects.insert(
             AvailableCandleOperators::HumanInTheLoop.to_string(),
             Arc::new(RwLock::new(
-                AvailableSubjects::Bytes.to_table(
+                AvailableSubjects::Bytes.to_subject(
                     Some(
                         AvailableCandleOperators::HumanInTheLoop
                             .to_string()
@@ -794,7 +794,7 @@ mod tests {
             .build()?;
 
         // User message
-        let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+        let chat = AvailableInterfaceSubjects::UserMessages.to_subject_builder(None)
             .append_new_user_query_str("Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.", "user")?
             .build()?;
         let chat_message = IPCMessage::get_builder()
@@ -808,7 +808,7 @@ mod tests {
             .build()?;
 
         // Tool response
-        let tool = AvailableInterfaceSubjects::ToolMessages.to_table_builder(None)
+        let tool = AvailableInterfaceSubjects::ToolMessages.to_subject_builder(None)
             .append_new_user_query_str("[{\"lhs_pk\":\"c\",\"score\":1.0}, {\"lhs_pk\":\"b\",\"score\":2.0}, {\"lhs_pk\":\"a\",\"score\":3.0}]", "tool")?
             .build()?;
         let tool_response = IPCMessage::get_builder()
@@ -991,7 +991,7 @@ mod tests {
         // Add the target tool subjects to the session for testing
         let _ = session_ctx_arc.write().subjects.insert(
             AvailableCandleOperators::Sort.to_string(),
-            Arc::new(RwLock::new(AvailableSubjects::Bytes.to_table(
+            Arc::new(RwLock::new(AvailableSubjects::Bytes.to_subject(
                 Some(AvailableCandleOperators::Sort.to_string().as_str()),
                 None,
             )?)),
@@ -999,7 +999,7 @@ mod tests {
         let _ = session_ctx_arc.write().subjects.insert(
             AvailableCandleOperators::HumanInTheLoop.to_string(),
             Arc::new(RwLock::new(
-                AvailableSubjects::Bytes.to_table(
+                AvailableSubjects::Bytes.to_subject(
                     Some(
                         AvailableCandleOperators::HumanInTheLoop
                             .to_string()
@@ -1035,7 +1035,7 @@ mod tests {
             .build()?;
 
         // User message
-        let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+        let chat = AvailableInterfaceSubjects::UserMessages.to_subject_builder(None)
             .append_new_user_query_str("Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.", "user")?
             .build()?;
         let chat_message = IPCMessage::get_builder()
@@ -1049,7 +1049,7 @@ mod tests {
             .build()?;
 
         // Error response
-        let tool = AvailableSubjects::SessionErrors.to_table_builder(None)
+        let tool = AvailableSubjects::SessionErrors.to_subject_builder(None)
             .append_new_user_query_str("lhs_name `available_data_1` was not found. Available options are [`available_data_0`, `available_data_2`, `available_data_3`].", "tool")?
             .build()?;
         let tool_response = IPCMessage::get_builder()

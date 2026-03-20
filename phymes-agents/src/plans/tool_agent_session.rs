@@ -801,47 +801,47 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             scores_table,
             tool_summary_table,
             AvailableSubjects::MermaidXYChart
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             self.make_tools_table().unwrap(),
             AvailableInterfaceSubjects::AggregatedMessages
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableInterfaceSubjects::UserMessages
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableInterfaceSubjects::UserCsv
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableInterfaceSubjects::AssistantMessages
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableInterfaceSubjects::ToolMessages
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableSubjects::Messages
-                .to_table(Some(self.chat_task_name), None)
+                .to_subject(Some(self.chat_task_name), None)
                 .unwrap(),
             AvailableSubjects::Messages
-                .to_table(Some(self.message_parser_task_name), None)
+                .to_subject(Some(self.message_parser_task_name), None)
                 .unwrap(),
             AvailableSubjects::Bytes
-                .to_table(Some(self.tool_task_name), None)
+                .to_subject(Some(self.tool_task_name), None)
                 .unwrap(),
             AvailableSubjects::Bytes
-                .to_table(Some(self.hitl_task_name), None)
+                .to_subject(Some(self.hitl_task_name), None)
                 .unwrap(),
             AvailableInterfaceSubjects::AssistantCsv
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableInterfaceSubjects::AggregatedAttachments
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableInterfaceSubjects::AssistantScript
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableSubjects::SessionErrors
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
         ])
     }
@@ -883,7 +883,7 @@ mod tests {
         let bytes = tabular_data.to_csv(csv_format.delimiter, csv_format.header)?;
 
         // Wrap into the message
-        let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+        let chat = AvailableInterfaceSubjects::UserMessages.to_subject_builder(None)
             .append_new_user_query_str("Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`.", "user")?
             .build()?;
         let chat_message = IPCMessage::get_builder()
@@ -896,7 +896,7 @@ mod tests {
             .make_name()?
             .build()?;
         let blob = AvailableInterfaceSubjects::UserCsv
-            .to_table_builder(None)
+            .to_subject_builder(None)
             .with_attachment(None, Some("csv"), &bytes, None)?
             .build()?;
         let blob_message = IPCMessage::get_builder()

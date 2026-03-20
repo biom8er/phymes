@@ -417,7 +417,7 @@ pub fn messaging_interface_footer(
                                 create_timestamp_micros());
 
                             // create the message
-                            let chat = AvailableInterfaceSubjects::UserMessages.to_table_builder(None)
+                            let chat = AvailableInterfaceSubjects::UserMessages.to_subject_builder(None)
                                 .append_new_user_query_str(&prompt.read(), "user")
                                 .unwrap()
                                 .build()

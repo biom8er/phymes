@@ -312,7 +312,7 @@ mod tests {
 
         // Test session_stream using serverless_app
         let chat = AvailableInterfaceSubjects::UserMessages
-            .to_table_builder(None)
+            .to_subject_builder(None)
             .append_new_user_query_str("Write a function to count prime numbers up to N.", "user")
             .unwrap()
             .build()

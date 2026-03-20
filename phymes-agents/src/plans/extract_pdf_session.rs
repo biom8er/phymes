@@ -136,7 +136,7 @@ mod tests {
 
         // Wrap into the message
         let blob = AvailableInterfaceSubjects::UserPdf
-            .to_table_builder(None)
+            .to_subject_builder(None)
             .with_attachment(Some("WikiBioComponents"), Some("pdf"), &bytes, None)?
             .build()?;
         let blob_message = IPCMessage::get_builder()

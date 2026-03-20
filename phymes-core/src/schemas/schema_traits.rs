@@ -4,7 +4,7 @@ use arrow::{
     record_batch::RecordBatch,
 };
 
-use crate::{Subject, SubjectBuilder};
+use crate::{Subject, SubjectBuilder, SubjectPlan};
 
 /// Todo
 /// - initialize an `object_store_metadata` subject for each subject backed by object storage
@@ -23,7 +23,8 @@ pub trait AvailableSchemaTrait {
 
 /// Materialize the [Table] or [TableBuilder] for building the table for the object
 pub trait AvailableSubjectsTrait: AvailableSchemaTrait {
-    fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Subject>;
-    fn to_table_builder(&self, name: Option<&str>) -> SubjectBuilder;
+    fn to_subject(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Subject>;
+    fn to_subject_builder(&self, name: Option<&str>) -> SubjectBuilder;
+    fn to_subject_plan(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<SubjectPlan>;
 }
 

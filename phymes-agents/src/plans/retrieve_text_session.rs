@@ -308,7 +308,7 @@ mod tests {
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
         let batch = create_documents_batch(chunk_id, document_id, text)?;
-        let document = AvailableSubjects::Documents.to_table(None, Some(vec![batch]))?;
+        let document = AvailableSubjects::Documents.to_subject(None, Some(vec![batch]))?;
         let document_message = IPCMessage::get_builder()
             .with_message(document.to_ipc_stream()?)
             .with_subject(document.get_name())
@@ -3437,7 +3437,7 @@ mod tests {
             ],
         ];
         let batch = create_documents_embeddings_batch(chunk_id, document_id, embeddings)?;
-        let document = AvailableSubjects::DocumentEmbeddings.to_table(None, Some(vec![batch]))?;
+        let document = AvailableSubjects::DocumentEmbeddings.to_subject(None, Some(vec![batch]))?;
         let document_embeddings_message = IPCMessage::get_builder()
             .with_message(document.to_ipc_stream()?)
             .with_subject(document.get_name())
@@ -3840,7 +3840,7 @@ mod tests {
             -0.18943891,
         ]];
         let batch = create_query_embeddings_batch(query_id, embeddings)?;
-        let query = AvailableSubjects::QueryEmbeddings.to_table(None, Some(vec![batch]))?;
+        let query = AvailableSubjects::QueryEmbeddings.to_subject(None, Some(vec![batch]))?;
         let query_embeddings_message = IPCMessage::get_builder()
             .with_message(query.to_ipc_stream()?)
             .with_subject(query.get_name())

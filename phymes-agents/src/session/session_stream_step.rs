@@ -212,7 +212,7 @@ pub trait SessionStreamStepTrait {
         let tasks_run_log_batch =
             create_session_tasks_run_log_batch(session_names, task_names, supersteps, timestamps)?;
         let tasks_run_log_table = AvailableSubjects::SessionTasksRunLog
-            .to_table(None, Some(vec![tasks_run_log_batch]))?;
+            .to_subject(None, Some(vec![tasks_run_log_batch]))?;
         let messages = create_message_map(vec![
             IPCMessageBuilder::new()
                 .with_subject(tasks_run_log_table.get_name())

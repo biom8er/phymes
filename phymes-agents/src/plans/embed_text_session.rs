@@ -332,7 +332,7 @@ mod tests {
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
         let batch = create_documents_batch(chunk_id, document_id, text)?;
-        let document = AvailableSubjects::Documents.to_table(None, Some(vec![batch]))?;
+        let document = AvailableSubjects::Documents.to_subject(None, Some(vec![batch]))?;
         let document_message = IPCMessage::get_builder()
             .with_message(document.to_ipc_stream()?)
             .with_subject(document.get_name())
@@ -345,7 +345,7 @@ mod tests {
 
         // Chat message
         let chat = AvailableInterfaceSubjects::UserMessages
-            .to_table_builder(None)
+            .to_subject_builder(None)
             .append_new_user_query_str("What are the four molecules that compose DNA?", "user")?
             .build()?;
         let chat_message = IPCMessage::get_builder()

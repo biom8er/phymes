@@ -37,7 +37,7 @@ pub async fn run_main() -> Result<()> {
 
     // ----- Query #1 -----
     let chat = AvailableInterfaceSubjects::UserMessages
-        .to_table_builder(None)
+        .to_subject_builder(None)
         .append_new_user_query_str("Write a function to count prime numbers up to N.", "user")?
         .build()?;
     let message = IPCMessage::get_builder()
@@ -78,7 +78,7 @@ pub async fn run_main() -> Result<()> {
 
     // ----- Query #2 -----
     let chat = AvailableInterfaceSubjects::UserMessages
-        .to_table_builder(None)
+        .to_subject_builder(None)
         .append_new_user_query_str("Please provide an example using the functions.", "user")?
         .build()?;
     let message = IPCMessage::get_builder()

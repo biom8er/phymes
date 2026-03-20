@@ -152,7 +152,7 @@ mod tests {
         // Replace the Bytes to trigger the session
         let message_map = {
             let batch = create_bytes_record_batch(vec!["{}".into()])?;
-            let table = AvailableSubjects::Bytes.to_table(None, Some(vec![batch]))?;
+            let table = AvailableSubjects::Bytes.to_subject(None, Some(vec![batch]))?;
             let session_tasks_message = IPCMessage::get_builder()
                 .with_subject(table.get_name())
                 .with_update(&Publication::Replace {

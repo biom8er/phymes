@@ -156,7 +156,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     .unwrap();
                 let _messages = rt.block_on(async {
                     let blob = AvailableInterfaceSubjects::UserPdf
-                        .to_table_builder(None)
+                        .to_subject_builder(None)
                         .with_attachment(None, Some("pdf"), bytes, None)?
                         .build()?;
                     let blob_message = IPCMessage::get_builder()
@@ -177,7 +177,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 });
                 let _messages = rt.block_on(async {
                     let chat = AvailableInterfaceSubjects::UserMessages
-                        .to_table_builder(None)
+                        .to_subject_builder(None)
                         .append_new_user_query_str(user_query, "user")?
                         .build()?;
                     let chat_message = IPCMessage::get_builder()

@@ -7,7 +7,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvBuilderTrait, RuntimeEnvTrait, Subject, SubjectBuilderTrait, SubjectFilePartition, SubjectFolderPartition, SubjectPlan, SubjectTrait, Subscription, create_session_mermaid_batch, create_session_processors_batch, create_session_runtime_envs_batch, create_session_subject_schemas_batch, create_session_tasks_batch, create_session_tasks_run_log_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_data_type_to_str, from_str_to_data_type
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvBuilderTrait, RuntimeEnvTrait, Subject, SubjectBuilderTrait, SubjectFilePartition, SubjectFolderPartition, SubjectPlan, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait, Subscription, create_session_mermaid_batch, create_session_processors_batch, create_session_runtime_envs_batch, create_session_subject_schemas_batch, create_session_tasks_batch, create_session_tasks_run_log_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_data_type_to_str, from_str_to_data_type
 };
 use phymes_diagnostics::{HashSet, create_timestamp_micros};
 use serde_json::{Map, Value};
@@ -95,7 +95,7 @@ pub trait SessionContextBuilderTabularTrait {
     /// * `subjects` - Optionally the subject data. If none the subject tables will be initialized.
     ///
     /// [SessionContext]: crate::SessionContext
-    fn from_subject_plans(subject_plans: &[&SubjectPlan], subjects: Option<Vec<Subject>>) -> Result<Self>
+    fn from_subject_plans(subject_plans: &[&SubjectPlan], subjects: Option<Vec<SubjectPlan>>) -> Result<Self>
     where
         Self: Sized;
 
@@ -121,9 +121,6 @@ pub trait SessionContextBuilderTabularTrait {
 
     /// Subjects to exclude from the tables
     fn subjects_to_exclude(&self) -> Result<HashSet<String>>;
-
-    /// Runtime environments to exclude from the tables
-    fn runtime_envs_to_exclude(&self) -> Result<HashSet<String>>;
 }
 
 impl SessionContextBuilderTabularTrait for SessionContextBuilder {
@@ -140,12 +137,12 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             tables.push(self.get_mermaid_js_as_subject_plan()?);
         }
         if include_errors {
-            tables.push(AvailableSubjects::SessionErrors.to_table(None, None)?);
+            tables.push(AvailableSubjects::SessionErrors.to_subject_plan(None, None)?);
         }
         if include_diagnostics {
-            tables.push(AvailableSubjects::SessionMetrics.to_table(None, None)?);
-            tables.push(AvailableSubjects::SessionTraces.to_table(None, None)?);
-            tables.push(AvailableSubjects::SessionEvents.to_table(None, None)?);
+            tables.push(AvailableSubjects::SessionMetrics.to_subject_plan(None, None)?);
+            tables.push(AvailableSubjects::SessionTraces.to_subject_plan(None, None)?);
+            tables.push(AvailableSubjects::SessionEvents.to_subject_plan(None, None)?);
         }
         // include_tasks_run_log is after include_subjects_change_log
         // so that the timestamp of all tasks is greater than the timestamp of all subjects
@@ -165,7 +162,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         Ok(tables)
     }
 
-    fn from_subject_plans(tables: &[&SubjectPlan], mut subjects: Option<Vec<Subject>>) -> Result<Self>
+    fn from_subject_plans(subject_plans: &[&SubjectPlan], mut subjects: Option<Vec<SubjectPlan>>) -> Result<Self>
     where
         Self: Sized,
     {
@@ -173,40 +170,40 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let mut builder = Self::new();
 
         // extract the schema
-        for table in tables {
-            if table.get_name() == AvailableSubjects::SessionSubjectSchemas.to_string().as_str()
+        for subject_plan in subject_plans {
+            if subject_plan.get_name() == AvailableSubjects::SessionSubjectSchemas.to_string().as_str()
                 && subjects.is_none()
             {
-                builder = builder.with_subjects_as_subject_plans(table)?;
-            } else if table.get_name() == AvailableSubjects::SessionTasks.to_string().as_str() {
-                builder = builder.with_tasks_as_subject_plans(table)?;
-            } else if table.get_name() == AvailableSubjects::SessionProcessors.to_string().as_str()
+                builder = builder.with_subjects_as_subject_plans(subject_plan)?;
+            } else if subject_plan.get_name() == AvailableSubjects::SessionTasks.to_string().as_str() {
+                builder = builder.with_tasks_as_subject_plans(subject_plan)?;
+            } else if subject_plan.get_name() == AvailableSubjects::SessionProcessors.to_string().as_str()
             {
-                builder = builder.with_processors_as_subject_plans(table)?;
-            } else if table.get_name() == AvailableSubjects::SessionRuntimeEnvs.to_string().as_str()
+                builder = builder.with_processors_as_subject_plans(subject_plan)?;
+            } else if subject_plan.get_name() == AvailableSubjects::SessionRuntimeEnvs.to_string().as_str()
             {
-                builder = builder.with_runtime_envs_as_subject_plans(table)?;
-            } else if table.get_name() == AvailableSubjects::SessionMermaid.to_string().as_str()
+                builder = builder.with_runtime_envs_as_subject_plans(subject_plan)?;
+            } else if subject_plan.get_name() == AvailableSubjects::SessionMermaid.to_string().as_str()
                 // Diagnostic tables
-                || table.get_name() == AvailableSubjects::SessionErrors.to_string().as_str()
-                || table.get_name() == AvailableSubjects::SessionTraces.to_string().as_str()
-                || table.get_name() == AvailableSubjects::SessionMetrics.to_string().as_str()
-                || table.get_name() == AvailableSubjects::SessionEvents.to_string().as_str()
-                || table.get_name() == AvailableSubjects::MetricPivot.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::SessionErrors.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::SessionTraces.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::SessionMetrics.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::SessionEvents.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::MetricPivot.to_string().as_str()
                 // Subjects change log tables
-                || table.get_name() == AvailableSubjects::SubjectsNumRows.to_string().as_str()
-                || table.get_name() == AvailableSubjects::SubjectsChangeLog.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::SubjectsNumRows.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::SubjectsChangeLog.to_string().as_str()
                 // Tasks run log tables
-                || table.get_name() == AvailableSubjects::SessionTasksCheck.to_string().as_str()
-                || table.get_name() == AvailableSubjects::SessionTasksPublish.to_string().as_str()
-                || table.get_name() == AvailableSubjects::SessionTasksPublishAggregate.to_string().as_str()
-                || table.get_name() == AvailableSubjects::SessionTasksRunLog.to_string().as_str()
-                || table.get_name() == AvailableSubjects::SessionTasksSubscribe.to_string().as_str()
-                || table.get_name() == AvailableSubjects::SessionTasksSubscribeAggregate.to_string().as_str()
-                || table.get_name() == AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::SessionTasksCheck.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::SessionTasksPublish.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::SessionTasksPublishAggregate.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::SessionTasksRunLog.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::SessionTasksSubscribe.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::SessionTasksSubscribeAggregate.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str()
                 // Session superstep tables
-                || table.get_name() == AvailableSubjects::SessionSupersteps.to_string().as_str()
-                || table.get_name() == AvailableSubjects::SessionSuperstepMax.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::SessionSupersteps.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::SessionSuperstepMax.to_string().as_str()
             {
                 // These tables are created on the fly so we do not want to duplicate them.
                 // If the user wishes to continue already generated tables they can do so
@@ -215,7 +212,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             } else {
                 return Err(anyhow!(
                     "Unrecognized table {} found when creating SessionContextBuilder",
-                    table.get_name()
+                    subject_plan.get_name()
                 ));
             }
         }
@@ -228,7 +225,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         }
     }
 
-    fn get_subjects_as_subject_plan(&self, additional_tables: &[Subject]) -> Result<SubjectPlan> {
+    fn get_subjects_as_subject_plan(&self, additional_subjects: &[SubjectPlan]) -> Result<SubjectPlan> {
         // Check that the subjects exists
         if self.subjects.is_none() {
             return Err(anyhow!(
@@ -258,13 +255,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .as_ref()
             .unwrap()
             .iter()
-            .chain(additional_tables)
+            .chain(additional_subjects)
             .filter(|t| !exclusion_set.contains(t.get_name()))
             .collect::<Vec<_>>();
         sorted_subjects.sort_by(|a, b| a.get_name().cmp(b.get_name()));
         for subject in sorted_subjects.iter() {
             if !subject_names.contains(&subject.get_name().to_string()) {
-                let fields = subject.get_schema().fields().clone();
+                let fields = subject.subject().get_schema().fields().clone();
                 for field in fields.iter() {
                     let type_name = from_data_type_to_str(field.data_type());
                     session_names.push(session_name.to_string());
@@ -279,10 +276,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let batch =
             create_session_subject_schemas_batch(session_names, subject_names, cols_names, type_names)?;
 
-        // create the table
-        Subject::get_builder()
+        // create the subject
+        let subject = Subject::get_builder()
             .with_name(AvailableSubjects::SessionSubjectSchemas.to_string().as_str())
             .with_record_batches(vec![batch])?
+            .build()?;
+        SubjectPlan::get_builder()
+            .with_subject(subject)
             .build()
     }
 
@@ -303,10 +303,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
 
         // extract the tasks in order
         #[allow(clippy::type_complexity)]
-        let (((session_names, task_names), processor_names), runtime_env_names): (
-            ((Vec<String>, Vec<String>), Vec<String>),
-            Vec<String>,
-        ) = self
+        let ((session_names, task_names), processor_names): (
+            (Vec<String>, Vec<String>), Vec<String>) = self
             .tasks
             .as_ref()
             .unwrap()
@@ -317,11 +315,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                     .iter()
                     .map(|p| {
                         (
-                            (
-                                (session_name.to_string(), t.task_name.to_string()),
-                                p.to_string(),
-                            ),
-                            t.runtime_env_name.to_string(),
+                            (session_name.to_string(), t.task_name.to_string()),
+                            p.to_string(),
                         )
                     })
                     .collect::<Vec<_>>()
@@ -333,13 +328,15 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             session_names,
             task_names,
             processor_names,
-            runtime_env_names,
         )?;
 
         // create the table
-        Subject::get_builder()
+        let subject = Subject::get_builder()
             .with_name(AvailableSubjects::SessionTasks.to_string().as_str())
             .with_record_batches(vec![batch])?
+            .build()?;
+        SubjectPlan::get_builder()
+            .with_subject(subject)
             .build()
     }
 
@@ -451,16 +448,19 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         )?;
 
         // create the table
-        Subject::get_builder()
+        let subject = Subject::get_builder()
             .with_name(AvailableSubjects::SessionProcessors.to_string().as_str())
             .with_record_batches(vec![batch])?
+            .build()?;
+        SubjectPlan::get_builder()
+            .with_subject(subject)
             .build()
     }
 
     fn get_runtime_envs_as_subject_plan(&self) -> Result<SubjectPlan> {
         if self.runtime_env.is_none() {
             return Err(anyhow!(
-                "Add runtime environments before making the Mermaid Flowchart."
+                "Add runtime environments before making the subject tables."
             ));
         }
         let session_name = if let Some(session_name) = self.name.as_ref() {
@@ -470,37 +470,26 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 "Add session name before making the subject tables."
             ));
         };
-        let exclusion_set = self.runtime_envs_to_exclude()?;
-
-        // Sort the runtime environments
-        let mut sorted_rts = self
-            .runtime_env
-            .as_ref()
-            .unwrap()
-            .iter()
-            .filter(|r| !exclusion_set.contains(r.get_name()))
-            .collect::<Vec<_>>();
-        sorted_rts.sort_by(|a, b| a.name.cmp(&b.name));
-        let ((((((((session_names, runtime_env_names), object_store_backend), object_store_bucket), object_store_backend_config), subject_folder_partitioning), subject_file_partitioning), memory_limits), time_limits) = sorted_rts
-            .iter()
-            .map(|r| {
-                ((((((((session_name.to_string(), r.get_name().to_string()), r.object_store_backend.to_string()), r.object_store_bucket.to_string()), serde_json::to_string(&r.object_store_backend_config).unwrap()), r.subject_folder_partitioning.to_string()), r.subject_file_partitioning.to_string()), r.max_memory as u32), r.max_time as u32)
-            })
-            .unzip();
 
         // create the record batch
-        let batch = create_session_runtime_envs_batch(
-            session_names,
-            runtime_env_names,
-            object_store_backend, object_store_bucket, object_store_backend_config, subject_folder_partitioning, subject_file_partitioning,
-            memory_limits,
-            time_limits,
-        )?;
+        let session_names = vec![session_name.to_string()];
+        let runtime_env_names = vec![self.runtime_env.as_ref().unwrap().get_name().to_string()];
+        let object_store_config = vec![serde_json::to_string(&self.runtime_env.as_ref().unwrap().object_store_config).unwrap()];
+        let subject_folder_partitioning = vec![self.runtime_env.as_ref().unwrap().subject_folder_partitioning.to_string()];
+        let subject_file_partitioning = vec![self.runtime_env.as_ref().unwrap().subject_file_partitioning.to_string()];
+        let max_memory = vec![self.runtime_env.as_ref().unwrap().max_memory as u32];
+        let max_time = vec![self.runtime_env.as_ref().unwrap().max_time as u32];
+        let max_steps = vec![self.runtime_env.as_ref().unwrap().max_steps as u32];
+        let max_tasks = vec![self.runtime_env.as_ref().unwrap().max_tasks as u32];
+        let batch = create_session_runtime_envs_batch(session_names, runtime_env_names, object_store_config, subject_folder_partitioning, subject_file_partitioning, max_memory, max_time, max_steps, max_tasks)?;
 
         // create the table
-        Subject::get_builder()
+        let subject = Subject::get_builder()
             .with_name(AvailableSubjects::SessionRuntimeEnvs.to_string().as_str())
             .with_record_batches(vec![batch])?
+            .build()?;
+        SubjectPlan::get_builder()
+            .with_subject(subject)
             .build()
     }
 
@@ -519,9 +508,12 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         )?;
 
         // create the table
-        Subject::get_builder()
+        let subject = Subject::get_builder()
             .with_name(AvailableSubjects::SessionMermaid.to_string().as_str())
             .with_record_batches(vec![batch])?
+            .build()?;
+        SubjectPlan::get_builder()
+            .with_subject(subject)
             .build()
     }
 
@@ -557,9 +549,12 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             })
             .unzip();
         let batch = create_session_tasks_run_log_batch(session_names, task_names, supersteps, timestamps)?;
-        Subject::get_builder()
+        let subject = Subject::get_builder()
             .with_name(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
             .with_record_batches(vec![batch])?
+            .build()?;
+        SubjectPlan::get_builder()
+            .with_subject(subject)
             .build()
     }
 
@@ -581,14 +576,17 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 if exclusion_set.contains(t.get_name()) {
                     None
                 } else {
-                    Some((t.get_name().to_string(), t.count_rows() as i64))
+                    Some((t.get_name().to_string(), t.subject().count_rows() as i64))
                 }
             })
             .unzip();
         let batch = create_subjects_num_rows_batch(subject_names, num_rows)?;
-        Subject::get_builder()
+        let subject = Subject::get_builder()
             .with_name(AvailableSubjects::SubjectsNumRows.to_string().as_str())
             .with_record_batches(vec![batch])?
+            .build()?;
+        SubjectPlan::get_builder()
+            .with_subject(subject)
             .build()
     }
 
@@ -678,9 +676,12 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             num_rows,
             timestamps,
         )?;
-        Subject::get_builder()
+        let subject = Subject::get_builder()
             .with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
             .with_record_batches(vec![batch])?
+            .build()?;
+        SubjectPlan::get_builder()
+            .with_subject(subject)
             .build()
     }
 
@@ -1130,97 +1131,26 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .collect::<HashSet<_>>();
         Ok(exclusion_set)
     }
-
-    fn runtime_envs_to_exclude(&self) -> Result<HashSet<String>> {
-        // Exclude subjects from `NextTaskSession`
-        let next_task_session = NextTaskSession::default();
-        let tasks_publish_subscribe = if let Some(session_name) = self.name.as_ref() {
-            if session_name != next_task_session.session_context_name {
-                SessionContextBuilder::from_mermaid_flowchart(
-                    next_task_session.as_mermaid_flowchart(),
-                    false,
-                )?
-                .runtime_env
-                .unwrap()
-                .iter()
-                .map(|r| r.get_name().to_string())
-                .collect::<Vec<_>>()
-            } else {
-                Vec::new()
-            }
-        } else {
-            Vec::new()
-        };
-
-        // Exclude subjects from `NextSuperstepSession`
-        let next_superstep = NextSuperstepSession::default();
-        let tasks_next_superstep = if let Some(session_name) = self.name.as_ref() {
-            if session_name != next_superstep.session_context_name {
-                SessionContextBuilder::from_mermaid_flowchart(
-                    next_superstep.as_mermaid_flowchart(),
-                    false,
-                )?
-                .runtime_env
-                .unwrap()
-                .iter()
-                .map(|r| r.get_name().to_string())
-                .collect::<Vec<_>>()
-            } else {
-                Vec::new()
-            }
-        } else {
-            Vec::new()
-        };
-
-        // Exclude subjects from `SubjectsNumRowsSession`
-        let subjects_session = CountSubjectRowsSession::default();
-        let tasks_subjects = if let Some(session_name) = self.name.as_ref() {
-            if session_name != subjects_session.session_context_name {
-                SessionContextBuilder::from_mermaid_flowchart(
-                    subjects_session.as_mermaid_flowchart(),
-                    false,
-                )?
-                .runtime_env
-                .unwrap()
-                .iter()
-                .map(|r| r.get_name().to_string())
-                .collect::<Vec<_>>()
-            } else {
-                Vec::new()
-            }
-        } else {
-            Vec::new()
-        };
-
-        // Wrap into a HashSet
-        let exclusion_set = tasks_publish_subscribe
-            .into_iter()
-            .chain(tasks_next_superstep)
-            .chain(tasks_subjects)
-            .collect::<HashSet<_>>();
-        Ok(exclusion_set)
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::test_session_context_builder::make_test_session_context_builder_parallel_processors;
-    use phymes_core::test_task::{make_runtime_env, make_subject_tables};
+    use crate::{test_session_context_builder, test_task};
 
     use super::*;
 
     #[test]
     fn test_to_from_arrow_tables() -> Result<()> {
         // Init runtime env
-        let runtime_envs = vec![make_runtime_env("rt_1")?];
+        let runtime_envs = vec![test_task::make_runtime_env("rt_1")?];
 
         // Init subjects
-        let mut subjects = make_subject_tables("subjects_1", "config_1")?;
-        subjects.extend(make_subject_tables("subjects_2", "config_2")?);
-        subjects.extend(make_subject_tables("subjects_3", "config_3")?);
+        let mut subjects = test_task::make_subject_tables("subjects_1", "config_1")?;
+        subjects.extend(test_task::make_subject_tables("subjects_2", "config_2")?);
+        subjects.extend(test_task::make_subject_tables("subjects_3", "config_3")?);
 
         // Make the builder
-        let builder = make_test_session_context_builder_parallel_processors()
+        let builder = test_session_context_builder::make_test_session_context_builder_parallel_processors()
             .with_name("")
             .with_runtime_env(runtime_envs)
             .with_subjects(subjects);

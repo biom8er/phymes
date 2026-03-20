@@ -157,7 +157,13 @@ pub fn create_session_processors_batch(
 }
 
 pub(crate) fn create_session_runtime_envs_fields() -> Fields {
-    let field_names = ["session_name", "runtime_env_name", "object_store_backend", "object_store_bucket", "object_store_config", "subject_folder_partitioning", "subject_file_partitioning"];
+    let field_names = ["session_name", "runtime_env_name", 
+        // "object_store_backend", 
+        // "object_store_bucket", 
+        "object_store_config", 
+        "subject_folder_partitioning", 
+        "subject_file_partitioning"
+    ];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -175,8 +181,8 @@ pub(crate) fn create_session_runtime_envs_fields() -> Fields {
 pub fn create_session_runtime_envs_batch(
     session_names: Vec<String>,
     runtime_env_names: Vec<String>,
-    object_store_backend: Vec<String>,
-    object_store_bucket: Vec<String>,
+    // object_store_backend: Vec<String>,
+    // object_store_bucket: Vec<String>,
     object_store_config: Vec<String>,
     subject_folder_partitioning: Vec<String>,
     subject_file_partitioning: Vec<String>,
@@ -187,8 +193,8 @@ pub fn create_session_runtime_envs_batch(
 ) -> Result<RecordBatch> {
     let session_names: ArrayRef = Arc::new(StringArray::from(session_names));
     let runtime_env_names: ArrayRef = Arc::new(StringArray::from(runtime_env_names));
-    let object_store_backend: ArrayRef = Arc::new(StringArray::from(object_store_backend));
-    let object_store_bucket: ArrayRef = Arc::new(StringArray::from(object_store_bucket));
+    // let object_store_backend: ArrayRef = Arc::new(StringArray::from(object_store_backend));
+    // let object_store_bucket: ArrayRef = Arc::new(StringArray::from(object_store_bucket));
     let object_store_config: ArrayRef = Arc::new(StringArray::from(object_store_config));
     let subject_folder_partitioning: ArrayRef = Arc::new(StringArray::from(subject_folder_partitioning));
     let subject_file_partitioning: ArrayRef = Arc::new(StringArray::from(subject_file_partitioning));
@@ -199,8 +205,8 @@ pub fn create_session_runtime_envs_batch(
     let batch = RecordBatch::try_from_iter(vec![
         ("session_name", session_names),
         ("runtime_env_name", runtime_env_names),
-        ("object_store_backend", object_store_backend),
-        ("object_store_bucket", object_store_bucket),
+        // ("object_store_backend", object_store_backend),
+        // ("object_store_bucket", object_store_bucket),
         ("object_store_config", object_store_config),
         ("subject_folder_partitioning", subject_folder_partitioning),
         ("subject_file_partitioning", subject_file_partitioning),

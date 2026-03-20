@@ -1704,32 +1704,32 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             events_apply_kanban_config_state,
             // Metrics
             AvailableSubjects::AnalyticsMetrics
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
-            AvailableSubjects::MetricPivot.to_table(None, None).unwrap(),
+            AvailableSubjects::MetricPivot.to_subject(None, None).unwrap(),
             AvailableSubjects::MetricPivotNormTime
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableSubjects::MermaidGanttTemplate
-                .to_table(
+                .to_subject(
                     Some(self.metrics_processors_traces_select_and_cast_to_gantt_task_name),
                     None,
                 )
                 .unwrap(),
             AvailableSubjects::MermaidGanttTemplate
-                .to_table(
+                .to_subject(
                     Some(self.metrics_elapsed_compute_select_and_cast_to_gantt_task_name),
                     None,
                 )
                 .unwrap(),
             AvailableSubjects::MermaidGanttTemplate
-                .to_table(
+                .to_subject(
                     Some(self.metrics_output_rows_select_and_cast_to_gantt_task_name),
                     None,
                 )
                 .unwrap(),
             AvailableSubjects::Attachments
-                .to_table(
+                .to_subject(
                     Some(
                         DiagnosticsVisualizations::MetricProcessorTracesGantt
                             .to_string()
@@ -1739,7 +1739,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 )
                 .unwrap(),
             AvailableSubjects::Attachments
-                .to_table(
+                .to_subject(
                     Some(
                         DiagnosticsVisualizations::MetricElapsedComputeGantt
                             .to_string()
@@ -1749,7 +1749,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 )
                 .unwrap(),
             AvailableSubjects::Attachments
-                .to_table(
+                .to_subject(
                     Some(
                         DiagnosticsVisualizations::MetricOutputRowsGantt
                             .to_string()
@@ -1760,49 +1760,49 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .unwrap(),
             // Traces
             AvailableSubjects::AnalyticsTasks
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableSubjects::MermaidSequenceDiagramParticipantsTemplate
-                .to_table(
+                .to_subject(
                     Some(self.session_tasks_to_sequence_diagram_participants_task_name),
                     None,
                 )
                 .unwrap(),
             AvailableSubjects::AnalyticsTraces
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableSubjects::MermaidSequenceDiagramMessagesTemplate
-                .to_table(
+                .to_subject(
                     Some(self.traces_to_sequence_diagram_messages_task_name),
                     None,
                 )
                 .unwrap(),
             AvailableSubjects::Messages
-                .to_table(
+                .to_subject(
                     Some(self.apply_sequence_diagram_participants_task_name),
                     None,
                 )
                 .unwrap(),
             AvailableSubjects::Messages
-                .to_table(
+                .to_subject(
                     Some(self.select_sequence_diagram_participants_task_name),
                     None,
                 )
                 .unwrap(),
             AvailableSubjects::Messages
-                .to_table(Some(self.apply_sequence_diagram_messages_task_name), None)
+                .to_subject(Some(self.apply_sequence_diagram_messages_task_name), None)
                 .unwrap(),
             AvailableSubjects::Messages
-                .to_table(Some(self.select_sequence_diagram_messages_task_name), None)
+                .to_subject(Some(self.select_sequence_diagram_messages_task_name), None)
                 .unwrap(),
             AvailableSubjects::Messages
-                .to_table(
+                .to_subject(
                     Some(self.traces_aggregate_sequence_diagram_content_task_name),
                     None,
                 )
                 .unwrap(),
             AvailableSubjects::Attachments
-                .to_table(
+                .to_subject(
                     Some(
                         DiagnosticsVisualizations::TraceSequenceDiagram
                             .to_string()
@@ -1813,29 +1813,29 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .unwrap(),
             // Errors
             AvailableSubjects::AnalyticsErrors
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableSubjects::MermaidKanbanTemplate
-                .to_table(Some(self.errors_select_and_cast_to_kanban_task_name), None)
+                .to_subject(Some(self.errors_select_and_cast_to_kanban_task_name), None)
                 .unwrap(),
             AvailableSubjects::Attachments
-                .to_table(
+                .to_subject(
                     Some(DiagnosticsVisualizations::ErrorKanban.to_string().as_str()),
                     None,
                 )
                 .unwrap(),
             // Events
             AvailableSubjects::AnalyticsEvents
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableSubjects::AnalyticsEvents
-                .to_table(Some(self.events_select_and_cast_tmp), None)
+                .to_subject(Some(self.events_select_and_cast_tmp), None)
                 .unwrap(),
             AvailableSubjects::MermaidKanbanTemplate
-                .to_table(Some(self.events_select_and_cast_to_kanban_task_name), None)
+                .to_subject(Some(self.events_select_and_cast_to_kanban_task_name), None)
                 .unwrap(),
             AvailableSubjects::Attachments
-                .to_table(
+                .to_subject(
                     Some(DiagnosticsVisualizations::EventKanban.to_string().as_str()),
                     None,
                 )

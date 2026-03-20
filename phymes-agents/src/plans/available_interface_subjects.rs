@@ -133,7 +133,7 @@ impl Display for AvailableInterfaceSubjects {
 }
 
 impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
-    fn to_table(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Subject> {
+    fn to_subject(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Subject> {
         let name = match name {
             Some(name) => name.to_string(),
             None => self.to_string(),
@@ -143,9 +143,9 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AggregatedMessages
             | Self::AssistantMessages
             | Self::ToolMessages => {
-                AvailableSubjects::Messages.to_table(Some(name.as_str()), batches)
+                AvailableSubjects::Messages.to_subject(Some(name.as_str()), batches)
             }
-            Self::UserQueries => AvailableSubjects::Queries.to_table(Some(name.as_str()), batches),
+            Self::UserQueries => AvailableSubjects::Queries.to_subject(Some(name.as_str()), batches),
             Self::UserPdf
             | Self::UserAudio
             | Self::UserVideo
@@ -158,11 +158,11 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AssistantJson
             | Self::AggregatedAttachments
             | Self::AssistantScript => {
-                AvailableSubjects::Attachments.to_table(Some(name.as_str()), batches)
+                AvailableSubjects::Attachments.to_subject(Some(name.as_str()), batches)
             }
         }
     }
-    fn to_table_builder(&self, name: Option<&str>) -> SubjectBuilder {
+    fn to_subject_builder(&self, name: Option<&str>) -> SubjectBuilder {
         let name = match name {
             Some(name) => name.to_string(),
             None => self.to_string(),
@@ -172,9 +172,9 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AggregatedMessages
             | Self::AssistantMessages
             | Self::ToolMessages => {
-                AvailableSubjects::Messages.to_table_builder(Some(name.as_str()))
+                AvailableSubjects::Messages.to_subject_builder(Some(name.as_str()))
             }
-            Self::UserQueries => AvailableSubjects::Queries.to_table_builder(Some(name.as_str())),
+            Self::UserQueries => AvailableSubjects::Queries.to_subject_builder(Some(name.as_str())),
             Self::UserPdf
             | Self::UserAudio
             | Self::UserVideo
@@ -187,7 +187,7 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             | Self::AssistantJson
             | Self::AggregatedAttachments
             | Self::AssistantScript => {
-                AvailableSubjects::Attachments.to_table_builder(Some(name.as_str()))
+                AvailableSubjects::Attachments.to_subject_builder(Some(name.as_str()))
             }
         }
     }

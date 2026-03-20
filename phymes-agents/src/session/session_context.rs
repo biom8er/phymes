@@ -876,7 +876,7 @@ impl SessionContext {
             .unwrap();
             Some(
                 AvailableSubjects::SubjectsChangeLog
-                    .to_table(None, Some(vec![batch]))
+                    .to_subject(None, Some(vec![batch]))
                     .unwrap(),
             )
         } else {
@@ -896,7 +896,7 @@ impl SessionContext {
             let batch = create_chat_record_batch(tools, errors, timestamps).unwrap();
             Some(
                 AvailableSubjects::SessionErrors
-                    .to_table(None, Some(vec![batch]))
+                    .to_subject(None, Some(vec![batch]))
                     .unwrap(),
             )
         } else {
@@ -1348,9 +1348,9 @@ mod tests {
             superstep_lasts,
         )?;
         let table_tasks_subscribe_aggregate =
-            AvailableSubjects::SessionTasksSubscribeAggregate.to_table(None, Some(vec![batch]))?;
+            AvailableSubjects::SessionTasksSubscribeAggregate.to_subject(None, Some(vec![batch]))?;
         let table_tasks_subscribe =
-            AvailableSubjects::SessionTasksSubscribe.to_table(None, None)?;
+            AvailableSubjects::SessionTasksSubscribe.to_subject(None, None)?;
 
         // Make the session context for testing
         let mut state = HashMap::<String, Arc<RwLock<Subject>>>::new();
@@ -1552,9 +1552,9 @@ mod tests {
             superstep_lasts,
         )?;
         let table_tasks_subscribe_aggregate =
-            AvailableSubjects::SessionTasksSubscribeAggregate.to_table(None, Some(vec![batch]))?;
+            AvailableSubjects::SessionTasksSubscribeAggregate.to_subject(None, Some(vec![batch]))?;
         let table_tasks_subscribe =
-            AvailableSubjects::SessionTasksSubscribe.to_table(None, None)?;
+            AvailableSubjects::SessionTasksSubscribe.to_subject(None, None)?;
 
         // Make the session context for testing
         let mut state = HashMap::<String, Arc<RwLock<Subject>>>::new();
@@ -1683,9 +1683,9 @@ mod tests {
             superstep_lasts,
         )?;
         let table_tasks_subscribe_aggregate =
-            AvailableSubjects::SessionTasksSubscribeAggregate.to_table(None, Some(vec![batch]))?;
+            AvailableSubjects::SessionTasksSubscribeAggregate.to_subject(None, Some(vec![batch]))?;
         let table_tasks_subscribe =
-            AvailableSubjects::SessionTasksSubscribe.to_table(None, None)?;
+            AvailableSubjects::SessionTasksSubscribe.to_subject(None, None)?;
 
         // Make the session context for testing
         let mut state = HashMap::<String, Arc<RwLock<Subject>>>::new();
@@ -1836,7 +1836,7 @@ mod tests {
             publication_table_names,
         )?;
         let table_tasks_subscribe_publish =
-            AvailableSubjects::SessionTasksSubscribePublish.to_table(None, Some(vec![batch]))?;
+            AvailableSubjects::SessionTasksSubscribePublish.to_subject(None, Some(vec![batch]))?;
 
         // Make the session context for testing
         let mut state = HashMap::<String, Arc<RwLock<Subject>>>::new();

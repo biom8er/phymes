@@ -280,16 +280,16 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             aggregator_1_state,
             aggregator_2_state,
             AvailableSubjects::Messages
-                .to_table(Some(self.chat_task_name), None)
+                .to_subject(Some(self.chat_task_name), None)
                 .unwrap(),
             AvailableInterfaceSubjects::UserMessages
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableInterfaceSubjects::AssistantMessages
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableInterfaceSubjects::AggregatedMessages
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
         ];
         let subject_plans = subjects.into_iter()
@@ -339,7 +339,7 @@ mod tests {
         )) {
             // ----- Query #1 -----
             let chat = AvailableInterfaceSubjects::UserMessages
-                .to_table_builder(None)
+                .to_subject_builder(None)
                 .append_new_user_query_str(
                     "Write a function to count prime numbers up to N.",
                     "user",
@@ -401,7 +401,7 @@ mod tests {
 
             // ----- Query #2 -----
             let chat = AvailableInterfaceSubjects::UserMessages
-                .to_table_builder(None)
+                .to_subject_builder(None)
                 .append_new_user_query_str(
                     "Please provide an example using the functions.",
                     "user",

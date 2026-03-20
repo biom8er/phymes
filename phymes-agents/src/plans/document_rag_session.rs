@@ -985,48 +985,48 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             top_k_limit_state,
             top_k_summary_state,
             AvailableSubjects::Messages
-                .to_table(Some(self.chat_task_name), None)
+                .to_subject(Some(self.chat_task_name), None)
                 .unwrap(),
             AvailableInterfaceSubjects::AggregatedMessages
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableInterfaceSubjects::UserMessages
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableInterfaceSubjects::AssistantMessages
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             top_k_select_table,
             top_k_limit_table,
             AvailableSubjects::Messages
-                .to_table(Some(self.state_top_k_summary_docs_table_name), None)
+                .to_subject(Some(self.state_top_k_summary_docs_table_name), None)
                 .unwrap(),
             AvailableInterfaceSubjects::UserPdf
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableSubjects::Documents
-                .to_table(Some(self.state_documents_table_name), None)
+                .to_subject(Some(self.state_documents_table_name), None)
                 .unwrap(),
             AvailableSubjects::Documents
-                .to_table(Some(self.document_chunk_task_name), None)
+                .to_subject(Some(self.document_chunk_task_name), None)
                 .unwrap(),
             AvailableInterfaceSubjects::UserQueries
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
             AvailableSubjects::DocumentEmbeddings
-                .to_table(Some(self.state_doc_embed_table_name), None)
+                .to_subject(Some(self.state_doc_embed_table_name), None)
                 .unwrap(),
             AvailableSubjects::QueryEmbeddings
-                .to_table(Some(self.state_q_embed_table_name), None)
+                .to_subject(Some(self.state_q_embed_table_name), None)
                 .unwrap(),
             AvailableSubjects::EmbeddingScores
-                .to_table(Some(self.state_scores_table_name), None)
+                .to_subject(Some(self.state_scores_table_name), None)
                 .unwrap(),
             AvailableSubjects::JoinChunksScores
-                .to_table(Some(self.state_scores_chunks_join_table_name), None)
+                .to_subject(Some(self.state_scores_chunks_join_table_name), None)
                 .unwrap(),
             AvailableInterfaceSubjects::AggregatedAttachments
-                .to_table(None, None)
+                .to_subject(None, None)
                 .unwrap(),
         ])
     }
@@ -1094,7 +1094,7 @@ mod tests {
 
         // Wrap into the message
         let chat = AvailableInterfaceSubjects::UserMessages
-            .to_table_builder(None)
+            .to_subject_builder(None)
             .append_new_user_query_str("What are the four molecules that compose DNA?", "user")?
             .build()?;
         let chat_message = IPCMessage::get_builder()
@@ -1107,7 +1107,7 @@ mod tests {
             .make_name()?
             .build()?;
         let blob = AvailableInterfaceSubjects::UserPdf
-            .to_table_builder(None)
+            .to_subject_builder(None)
             .with_attachment(None, Some("pdf"), &bytes, None)?
             .build()?;
         let blob_message = IPCMessage::get_builder()

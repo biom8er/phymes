@@ -41,7 +41,7 @@ pub async fn run_main() -> Result<()> {
 
     // Wrap into the message
     let blob = AvailableInterfaceSubjects::UserJson
-        .to_table_builder(None)
+        .to_subject_builder(None)
         .with_attachment(None, Some("json"), &bytes, None)?
         .build()?;
     let blob_message = IPCMessage::get_builder()

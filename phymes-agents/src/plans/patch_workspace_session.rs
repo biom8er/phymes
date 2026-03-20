@@ -147,7 +147,7 @@ pub use todo::Todo"#,
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
             let batch = create_workspace_batch(path, content)?;
-            let table = AvailableSubjects::Workspace.to_table(None, Some(vec![batch]))?;
+            let table = AvailableSubjects::Workspace.to_subject(None, Some(vec![batch]))?;
             let _ = message_map.insert(
                 table.get_name().to_string(),
                 IPCMessage::get_builder()
@@ -184,7 +184,7 @@ pub use todo::Todo"#,
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
             let batch = create_workspace_patch_batch(filename, content, operator)?;
-            let table = AvailableSubjects::WorkspacePatch.to_table(None, Some(vec![batch]))?;
+            let table = AvailableSubjects::WorkspacePatch.to_subject(None, Some(vec![batch]))?;
             let _ = message_map.insert(
                 table.get_name().to_string(),
                 IPCMessage::get_builder()
@@ -357,7 +357,7 @@ pub use todo::Todo"#,
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
             let batch = create_workspace_batch(path, content)?;
-            let table = AvailableSubjects::Workspace.to_table(None, Some(vec![batch]))?;
+            let table = AvailableSubjects::Workspace.to_subject(None, Some(vec![batch]))?;
             let _ = message_map.insert(
                 table.get_name().to_string(),
                 IPCMessage::get_builder()

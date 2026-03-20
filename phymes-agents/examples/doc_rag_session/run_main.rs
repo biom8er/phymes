@@ -50,7 +50,7 @@ pub async fn run_main() -> Result<()> {
 
     // Wrap into the message
     let chat = AvailableInterfaceSubjects::UserMessages
-        .to_table_builder(None)
+        .to_subject_builder(None)
         .append_new_user_query_str("What are the four molecules that compose DNA?", "user")?
         .build()?;
     let chat_message = IPCMessage::get_builder()
@@ -63,7 +63,7 @@ pub async fn run_main() -> Result<()> {
         .make_name()?
         .build()?;
     let blob = AvailableInterfaceSubjects::UserPdf
-        .to_table_builder(None)
+        .to_subject_builder(None)
         .with_attachment(None, Some("pdf"), &bytes, None)?
         .build()?;
     let blob_message = IPCMessage::get_builder()
