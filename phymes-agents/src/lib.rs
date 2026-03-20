@@ -1,6 +1,8 @@
 mod messages;
 mod plans;
 mod session;
+mod event;
+mod task;
 
 pub use messages::{
     SessionInterfaceMessage, SessionInterfaceMessageBuilder, SessionInterfaceMessageBuilderTrait,
@@ -24,4 +26,8 @@ pub use session::{
     SessionContextBuilderMermaidTrait, SessionContextBuilderTabularTrait,
     SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait,
     test_session_context_builder, test_session_context_builder_agents,
+};
+pub use event::{TablePublicationTrait, SubscriptionTrait, build_and_publish_to_stream, subscribe_to_subject, update_publisher};
+pub use task::{
+    Task, TaskBuilder, TaskBuilderTrait, TaskMap, TaskPlan, TaskPlanBuilder, TaskTrait, test_task
 };

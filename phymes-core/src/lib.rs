@@ -9,7 +9,6 @@ mod storage;
 mod stream;
 mod subject;
 mod event;
-mod task;
 
 pub use data::{CsvFormat, DataEncoding, DataFormat, JsonFormat, from_data_type_to_str, from_str_to_data_type, make_filename, make_extension, parse_str_to_data_type};
 pub use Index::{
@@ -77,9 +76,5 @@ pub use subject::{SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlan, Subj
     Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, test_subject, SubjectScript, items_to_list};
 pub use event::{
     AvailableSubscribeEvents, AvailableUpdateEvents, SubjectChangedSinceLastRunUpdate, SubjectExistsUpdate, SubjectHasBatchesUpdate, Publication,
-    TablePublicationTrait, SubscribeEventTrait, Subscription,
-    SubscriptionTrait, UpdateEventTrait, build_and_publish_to_stream, subscribe_to_subject, update_publisher,
-};
-pub use task::{
-    Task, TaskBuilder, TaskBuilderTrait, TaskMap, TaskPlan, TaskPlanBuilder, TaskTrait, test_task
+    SubscribeEventTrait, Subscription, UpdateEventTrait
 };

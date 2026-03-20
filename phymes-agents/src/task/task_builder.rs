@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use arrow::record_batch::RecordBatch;
+use phymes_core::{BuilderTrait, ProcessorTrait};
 
-use crate::{BuilderTrait, ProcessorTrait, Task};
+use crate::Task;
 
 pub trait TaskBuilderTrait: BuilderTrait {
     fn with_processor(self, processor: Vec<Arc<dyn ProcessorTrait>>) -> Self;

@@ -3,17 +3,16 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use arrow::record_batch::RecordBatch;
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
+use phymes_core::{BuildableTrait, MappableTrait, ProcessorSubjectsMap, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, Subscription};
 use tracing::{Level, event};
 
-use crate::{
-    BuildableTrait, MappableTrait, ProcessorSubjectsMap, ProcessorTrait, RuntimeEnv, RuntimeEnvTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, Subscription, TaskBuilder, subscribe_to_subject, build_and_publish_to_stream, update_publisher
-};
+use crate::{TaskBuilder, subscribe_to_subject, build_and_publish_to_stream, update_publisher};
 
 /// Trait to implement the actual task which could involve one or
 ///   more operators over [`RecordBatch`]s often originating from
-///   structs implementing the [`TableTrait`].
+///   structs implementing the [`SubjectTrait`].
 ///
-/// [`TableTrait`]: crate::table::TableTrait
+/// [`SubjectTrait`]: phymes_core::SubjectTrait
 ///
 /// The trait allows for the schema of the data to change (e.g. after joins),
 ///   but the logic must be implemented by the user
@@ -40,12 +39,7 @@ use crate::{
 /// # Example: Parallel execution
 ///
 /// Result = Apply Task (t1) over (Taable (d1), Taable (d2), Taable (d3), ...)
-/// where the same task is run over different ArrowTables in parallel. The results can then
-///    be collected is a single stream per table using [`collect_partitions_runs`] or
-///    as a single stream using [`collect_task_runs`]
-///
-/// [`collect_partitions_runs`]: super::test_exec::collect_partitions_runs
-/// [`collect_task_runs`]: super::test_exec::collect_task_runs
+/// where the same task is run over different ArrowTables in parallel.
 ///
 /// Parallel execution could be integrated into any uses case to improve execution speed
 pub trait TaskTrait: MappableTrait + BuildableTrait + Sync + Send {
@@ -121,7 +115,7 @@ impl TaskTrait for Task {
                 processor.get_name(),
                 processor_subjects.keys()
             ))?;
-            let message_sub: hashbrown::HashMap<String, SendableRecordBatchStreamMessage> =
+            let message_sub: HashMap<String, SendableRecordBatchStreamMessage> =
                 subscribe_to_subject(
                     &processor_subject.subscriptions,
                     &processor_subject.publications,
@@ -180,8 +174,9 @@ impl TaskTrait for Task {
 /// Mock objects and functions for task testing
 pub mod test_task {
     use super::*;
-    use crate::{
-        BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, ProcessorBuilder, ProcessorSubjects, ProcessorSubjectsBuilder, RuntimeEnv, SubjectPlan, SubjectPlanBuilderTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, SubjectTrait, TaskBuilderTrait, test_processor::ProcessorMock, test_subject::{make_test_subject, make_test_subject_chat}
+    use crate::TaskBuilderTrait;
+    use phymes_core::{
+        BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, ProcessorBuilder, ProcessorSubjects, ProcessorSubjectsBuilder, RuntimeEnv, SubjectPlan, SubjectPlanBuilderTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, SubjectTrait, test_processor, test_subject
     };
 
     use arrow::array::{ArrayRef, BooleanArray, StringArray};
@@ -207,7 +202,7 @@ pub mod test_task {
         let config = make_config_tables(config_name)?;
 
         // mock table for the task
-        let table = make_test_subject(subject_name, 4, 8, 3)?;
+        let table = test_subject::make_test_subject(subject_name, 4, 8, 3)?;
         Ok(vec![config, table])
     }
 
@@ -224,7 +219,7 @@ pub mod test_task {
             .build()?;
 
         // mock table for the task
-        let table = make_test_subject(subject_name, 1, 8, 1)?;
+        let table = test_subject::make_test_subject(subject_name, 1, 8, 1)?;
         Ok(vec![config, table])
     }
 
@@ -252,8 +247,8 @@ pub mod test_task {
     ) -> Result<(Task, ProcessorSubjectsMap)> {
         let processor = ProcessorBuilder::default()
             .with_name(processor_name)
-            .with_type(ProcessorMock::get_static_name())
-            .build_arc::<ProcessorMock>()?;
+            .with_type(test_processor::ProcessorMock::get_static_name())
+            .build_arc::<test_processor::ProcessorMock>()?;
         let task = Task::get_builder()
             .with_name(task_name)
             .with_processor(vec![processor])
@@ -291,16 +286,16 @@ pub mod test_task {
             .with_processor(vec![
                 ProcessorBuilder::default()
                     .with_name(processor_name_1.as_str())
-                    .with_type(ProcessorMock::get_static_name())
-                    .build_arc::<ProcessorMock>()?,
+                    .with_type(test_processor::ProcessorMock::get_static_name())
+                    .build_arc::<test_processor::ProcessorMock>()?,
                 ProcessorBuilder::default()
                     .with_name(processor_name_2.as_str())
-                    .with_type(ProcessorMock::get_static_name())
-                    .build_arc::<ProcessorMock>()?,
+                    .with_type(test_processor::ProcessorMock::get_static_name())
+                    .build_arc::<test_processor::ProcessorMock>()?,
                 ProcessorBuilder::default()
                     .with_name(processor_name_3.as_str())
-                    .with_type(ProcessorMock::get_static_name())
-                    .build_arc::<ProcessorMock>()?,
+                    .with_type(test_processor::ProcessorMock::get_static_name())
+                    .build_arc::<test_processor::ProcessorMock>()?,
             ])
             .build()?;
         let mut processor_subjects_map = HashMap::<String, ProcessorSubjects>::new();
@@ -368,16 +363,16 @@ pub mod test_task {
             .with_processor(vec![
                 ProcessorBuilder::default()
                     .with_name(processor_name_1.as_str())
-                    .with_type(ProcessorMock::get_static_name())
-                    .build_arc::<ProcessorMock>()?,
+                    .with_type(test_processor::ProcessorMock::get_static_name())
+                    .build_arc::<test_processor::ProcessorMock>()?,
                 ProcessorBuilder::default()
                     .with_name(processor_name_2.as_str())
-                    .with_type(ProcessorMock::get_static_name())
-                    .build_arc::<ProcessorMock>()?,
+                    .with_type(test_processor::ProcessorMock::get_static_name())
+                    .build_arc::<test_processor::ProcessorMock>()?,
                 ProcessorBuilder::default()
                     .with_name(processor_name_3.as_str())
-                    .with_type(ProcessorMock::get_static_name())
-                    .build_arc::<ProcessorMock>()?,
+                    .with_type(test_processor::ProcessorMock::get_static_name())
+                    .build_arc::<test_processor::ProcessorMock>()?,
             ])
             .build()?;
         let mut processor_subjects_map = HashMap::<String, ProcessorSubjects>::new();
@@ -439,9 +434,9 @@ pub mod test_task {
     ) -> Result<IPCMessageMap> {
         // mock table as input
         let table = if test_table {
-            make_test_subject(subject_name, 4, 8, 3)?
+            test_subject::make_test_subject(subject_name, 4, 8, 3)?
         } else {
-            make_test_subject_chat(subject_name)?
+            test_subject::make_test_subject_chat(subject_name)?
         };
 
         // build the message
@@ -463,7 +458,7 @@ pub mod test_task {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{BuilderTrait, MessageTrait, SubjectPlanTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
+    use phymes_core::{BuilderTrait, MessageTrait, SubjectPlanTrait, SubjectBuilder, SubjectBuilderTrait, SubjectTrait};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     /// A compilation test to ensure that the `Task::get_name()` method can

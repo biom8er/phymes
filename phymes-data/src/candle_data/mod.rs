@@ -15,9 +15,9 @@ pub use data_config::{
     DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataJoinOperator,
     DataStreamManager,
 };
-pub use data_processor::CandleDataProcessor;
+pub use data_processor::{CandleDataProcessor, CandleDataStream};
 #[allow(unused_imports)]
 pub(crate) use data_processor::test_candle_ops_processor;
 pub use limit_config::LimitConfig;
-pub use limit_processor::LimitProcessor;
+pub use limit_processor::{LimitProcessor, LimitStream};
 pub use tensor_service::{CandleTensorService, TensorProcessorTrait, device};

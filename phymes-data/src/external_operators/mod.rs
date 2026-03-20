@@ -16,3 +16,4 @@ pub use http_client_config::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPCli
 #[cfg(feature = "api")]
 pub use http_client_processor::{HTTPClientRequestProcessor, HTTPClientRequestState};
 pub use object_store_config::{ObjectStoreConfig, ObjectStoreOptsType};
+pub use object_store_processor::{ObjectStoreProcessor, ObjectStoreStream};

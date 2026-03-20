@@ -4,10 +4,10 @@ mod external_operators;
 mod template;
 
 pub use candle_data::{
-    AggregatorStream, AttachmentAggregatorProcessor, CandleDataProcessor, CandleTensorService,
+    AggregatorStream, AttachmentAggregatorProcessor, CandleDataProcessor, CandleDataStream, CandleTensorService,
     CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator,
     DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait,
-    DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig, LimitProcessor,
+    DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig, LimitProcessor, LimitStream,
     TensorProcessorTrait, collect_messages_by_schema, device,
 };
 pub use candle_operators::{
@@ -21,7 +21,7 @@ pub use candle_operators::{
 #[cfg(feature = "api")]
 pub use external_operators::{CommandSandboxProcessor, HTTPClientRequestProcessor, HTTPClientRequestState, test_command_sandbox_processor};
 pub use external_operators::{CommandSandboxConfig, CommandSandboxEnvironments, CommandSandboxRunners, DataIOMethod, HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType,
-    ObjectStoreConfig, ObjectStoreOptsType};
+    ObjectStoreConfig, ObjectStoreOptsType, ObjectStoreProcessor, ObjectStoreStream};
 pub use template::{
     AvailableJinja2Templates, MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_INPUT,
     MERMAID_ER_DIAGRAM_RELATIONS_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE, MERMAID_FLOWCHART_INPUT,

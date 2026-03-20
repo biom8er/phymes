@@ -19,7 +19,7 @@ use arrow::{
     record_batch::RecordBatch,
 };
 use futures::{Stream, StreamExt, TryStreamExt};
-use object_store::{ObjectMeta, ObjectStore, path::Path};
+use object_store::{ObjectMeta, ObjectStore, ObjectStoreExt, path::Path};
 use serde::Serialize;
 use serde_json::Value;
 use tracing::{Level, event};
@@ -223,8 +223,8 @@ impl SubjectBuilderTrait for SubjectBuilder {
 
     fn new_from_ipc_object_store<'a>(store: &'a Arc<dyn ObjectStore>, path: &'a Path) -> Pin<Box<dyn Future<Output = Result<Self>> + Send + 'a>> {
         Box::pin(async move { 
-            let result = storage_reader_get_result(&store, &path).await?;
-            let mut stream = storage_reader_stream_result(result);
+            let result = store.get(path).await?;
+            let mut stream = result.into_stream();
             let mut bytes = Vec::new();
             while let Some(chunk) = stream.try_next().await? {
                 bytes.extend(chunk);

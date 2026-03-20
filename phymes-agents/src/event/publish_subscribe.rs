@@ -3,12 +3,10 @@ use std::sync::Arc;
 use anyhow::Result;
 use object_store::ObjectStore;
 use phymes_diagnostics::HashMap;
-
-use crate::{
+use phymes_core::{
     BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait,
     SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap,
-    Publication, Subscription, SubscriptionTrait,
-    message::SendableRecordBatchStreamMessageBuilderMap, remove_message_by_subject,
+    Publication, Subscription, SendableRecordBatchStreamMessageBuilderMap, remove_message_by_subject,
 };
 
 /// Subscribe to the subject
@@ -132,7 +130,8 @@ pub fn update_publisher(
 
 #[cfg(test)]
 mod tests {
-    use crate::{ObjectStorageBackend, SendableRecordBatchStreamMessageBuilder, SubjectPlanTrait, SubjectTrait, make_store, test_subject, test_task};
+    use phymes_core::{ObjectStorageBackend, SendableRecordBatchStreamMessageBuilder, SubjectPlanTrait, SubjectTrait, make_store, test_subject};
+    use crate::test_task;
 
     use super::*;
 

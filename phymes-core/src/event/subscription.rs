@@ -1,11 +1,9 @@
 use anyhow::{Result, anyhow};
-use arrow::datatypes::Schema;
-use object_store::{ObjectStore, path::Path};
 use phymes_diagnostics::{TraceableTrait, Tracer};
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
 
-use crate::{RecordBatchStreamAdapter, MappableTrait, SendableRecordBatchStream, Subject, SubjectTrait};
+use crate::{MappableTrait};
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Hash, Eq, Default)]
 pub enum Subscription {
@@ -118,23 +116,7 @@ impl Subscription {
     /// New [Subscription] from a short name identifying the variant, the subject `subject_name`
     ///   and the mermaid.js flowchart diagram link type
     pub fn from_str_mermaid(line: &str, subject: &str) -> Result<Subscription> {
-        if line.contains("|") & line.contains("-.->") & line.contains("AllRecordBatchesDrain") {
-            Ok(Subscription::OnUpdateAllRecordBatchesDrain {
-                subject_name: subject.to_string(),
-            })
-        } else if line.contains("|") & line.contains("-->") & line.contains("AllRecordBatchesDrain") {
-            Ok(Subscription::AlwaysAllRecordBatchesDrain {
-                subject_name: subject.to_string(),
-            })
-        } else if line.contains("|") & line.contains("-.->") & line.contains("LastRecordBatchPop") {
-            Ok(Subscription::OnUpdateLastRecordBatchPop {
-                subject_name: subject.to_string(),
-            })
-        } else if line.contains("|") & line.contains("-->") & line.contains("LastRecordBatchPop") {
-            Ok(Subscription::AlwaysLastRecordBatchPop {
-                subject_name: subject.to_string(),
-            })
-        } else if line.contains("|") & line.contains("-.->") & line.contains("AllRecordBatches") {
+        if line.contains("|") & line.contains("-.->") & line.contains("AllRecordBatches") {
             Ok(Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject.to_string(),
             })
@@ -184,63 +166,6 @@ impl TraceableTrait for Subscription {
     }
 }
 
-/// Subscribe to an arrow table
-pub trait SubscriptionTrait {
-    /// Implement the subscription
-    ///
-    /// # Notes
-    ///
-    /// * Empty tables are skipped
-    /// * `Subscription` where `is_clone` = false are skipped
-    ///
-    /// # Arguments
-    ///
-    /// * `store` - `Arc<dyn ObjectStore>` the object store
-    fn subscribe_to_subject(
-        &self,
-        store: &Arc<dyn ObjectStore>,
-    ) -> Option<SendableRecordBatchStream>;
-}
-
-impl SubscriptionTrait for Subscription {
-    fn subscribe_to_subject(
-        &self,
-        store: &Arc<dyn ObjectStore>,
-    ) -> Option<SendableRecordBatchStream> {
-        // 1. List the partitions (RecordBatches)
-        
-        // 2. Get all or only the most recent
-        if self.count_rows() == 0 {
-            return None;
-        }
-        match self {
-            Self::AlwaysAllRecordBatches { subject_name: sn } => {
-                let path = Path::from(sn.to_string());
-                let list = store.list(Some(&path)).map_ok(|m| m.location).boxed();
-            }
-            Self::AlwaysLastRecordBatch { subject_name: _ } => {
-                Some(self.to_record_batch_stream_last_record_batch())
-            }
-            Self::OnUpdateAllRecordBatches { subject_name: _ } => {
-                Some(self.to_record_batch_stream())
-            }
-            Self::OnUpdateLastRecordBatch { subject_name: _ } => {
-                Some(self.to_record_batch_stream_last_record_batch())
-            }
-            Self::OnUpdateEmpty { subject_name: _ } => {
-                let schema = Schema::empty();
-                let stream = futures::stream::iter(Vec::new().into_iter().map(Ok));
-                Some(Box::pin(RecordBatchStreamAdapter::new(
-                    Arc::new(schema),
-                    stream,
-                )))
-            }
-            Self::None => None,
-            Self::Custom(_) => None,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -278,35 +203,6 @@ mod tests {
 
         let line = "message_parsing-subject-.->|Empty|message_parser-subscribe";
         let publication = Subscription::OnUpdateEmpty {
-            subject_name: subject.to_string(),
-        };
-        let test = Subscription::from_str_mermaid(line, subject)?;
-        assert_eq!(test, publication);
-
-        let line = "message_parsing-subject-->|AllRecordBatchesDrain|message_parser-subscribe";
-        let subject = "message_parser";
-        let publication = Subscription::AlwaysAllRecordBatchesDrain {
-            subject_name: subject.to_string(),
-        };
-        let test = Subscription::from_str_mermaid(line, subject)?;
-        assert_eq!(test, publication);
-
-        let line = "message_parsing-subject-.->|AllRecordBatchesDrain|message_parser-subscribe";
-        let publication = Subscription::OnUpdateAllRecordBatchesDrain {
-            subject_name: subject.to_string(),
-        };
-        let test = Subscription::from_str_mermaid(line, subject)?;
-        assert_eq!(test, publication);
-
-        let line = "message_parsing-subject-->|LastRecordBatchPop|message_parser-subscribe";
-        let publication = Subscription::AlwaysLastRecordBatchPop {
-            subject_name: subject.to_string(),
-        };
-        let test = Subscription::from_str_mermaid(line, subject)?;
-        assert_eq!(test, publication);
-
-        let line = "message_parsing-subject-.->|LastRecordBatchPop|message_parser-subscribe";
-        let publication = Subscription::OnUpdateLastRecordBatchPop {
             subject_name: subject.to_string(),
         };
         let test = Subscription::from_str_mermaid(line, subject)?;
