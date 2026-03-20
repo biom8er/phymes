@@ -476,6 +476,7 @@ impl Stream for ObjectStoreStream {
 
                             // Record the poll
                             self.state = ObjectStoreState::NotStarted;
+                            self.schema = AvailableSubjects::ObjectStoreMeta.to_schema();
                             let poll = Poll::Ready(Some(Ok(batch)));
                             if let Some(baseline_metrics) = &baseline_metrics {
                                 baseline_metrics.record_poll(poll)
@@ -524,6 +525,7 @@ impl Stream for ObjectStoreStream {
 
                     // Record the poll
                     self.state = ObjectStoreState::NotStarted;
+                    self.schema = AvailableSubjects::ObjectStore.to_schema();
                     let poll = Poll::Ready(Some(Ok(batch)));
                     if let Some(baseline_metrics) = &baseline_metrics {
                         baseline_metrics.record_poll(poll)
@@ -568,6 +570,7 @@ impl Stream for ObjectStoreStream {
                     let batch = create_object_store_batch(location, bucket, metadata, last_modified, bytes)?;
 
                     // Record the poll
+                    self.schema = AvailableSubjects::ObjectStore.to_schema();
                     let poll = Poll::Ready(Some(Ok(batch)));
                     if let Some(baseline_metrics) = &baseline_metrics {
                         baseline_metrics.record_poll(poll)
@@ -616,6 +619,7 @@ impl Stream for ObjectStoreStream {
                     let batch = create_object_store_meta_batch(location, bucket, e_tag, version, size, last_modified)?;
 
                     // Record the poll
+                    self.schema = AvailableSubjects::ObjectStoreMeta.to_schema();
                     let poll = Poll::Ready(Some(Ok(batch)));
                     if let Some(baseline_metrics) = &baseline_metrics {
                         baseline_metrics.record_poll(poll)
@@ -730,6 +734,7 @@ impl Stream for ObjectStoreStream {
 
                     // Record the poll
                     self.state = ObjectStoreState::NotStarted;
+                    self.schema = AvailableSubjects::ObjectStoreMeta.to_schema();
                     let poll = Poll::Ready(Some(Ok(batch)));
                     if let Some(baseline_metrics) = &baseline_metrics {
                         baseline_metrics.record_poll(poll)
@@ -774,6 +779,7 @@ impl Stream for ObjectStoreStream {
                     let batch = create_object_store_meta_batch(location, bucket, e_tag, version, size, last_modified)?;
 
                     // Record the poll
+                    self.schema = AvailableSubjects::ObjectStoreMeta.to_schema();
                     let poll = Poll::Ready(Some(Ok(batch)));
                     if let Some(baseline_metrics) = &baseline_metrics {
                         baseline_metrics.record_poll(poll)

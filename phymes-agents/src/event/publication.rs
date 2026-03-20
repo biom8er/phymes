@@ -8,11 +8,14 @@ use arrow::{
     },
     datatypes::{DataType, Field, Schema},
 };
+use futures::StreamExt;
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, MappableTrait, MessageBuilderTrait, ObjectStorageBackend, Publication, RuntimeEnv, SendableRecordBatchStreamMessage, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait
+    AvailableSubjects, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, MappableTrait, MessageBuilderTrait, ObjectStorageBackend, Publication, RecordBatchStreamAdapter, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait
 };
-use phymes_data::{AvailableCandleOperators, CandleDataStream, DataConfig, DataStreamManager, ObjectStoreConfig, ObjectStoreOptsType, ObjectStoreStream};
+use phymes_data::{AvailableCandleOperators, CandleDataStream, DataColumnOperator, DataConfig, DataJoinOperator, DataStreamManager, ObjectStoreConfig, ObjectStoreOptsType, ObjectStoreStream};
 use phymes_diagnostics::HashMap;
+
+use crate::list_subject;
 
 /// Generate the object store path
 /// 
@@ -22,104 +25,275 @@ fn make_object_store_path(subject_name: &str, step: u32, partition: u32) -> Stri
     format!("{subject_name}/superstep={step}/partition={partition}/{subject_name}.ipc")
 }
 
+/// Generate the a vector of record batches of locations to put the subject
+fn make_object_store_paths_record_batch(subject_name: &str, step: u32, n_batches: u32) -> Vec<RecordBatch> {
+        (0..n_batches).map(|i| {
+            let location = make_object_store_path(subject_name, step, i as u32);
+            let pk: Vec<u32> = vec![0];
+            let location: ArrayRef = Arc::new(StringArray::from(vec![location]));
+            let pk: ArrayRef = Arc::new(UInt32Array::from(pk));
+            RecordBatch::try_from_iter(vec![("location_updated", location), ("pk", pk)]).unwrap()
+        })
+        .collect::<Vec<_>>()
+}
+
+/// Pipeline stream to `extend` the subject in object storage
+fn extend_subject(runtime_env: &Arc<RuntimeEnv>, sn: &str, new: Vec<RecordBatch>, step: u32) -> Result<SendableRecordBatchStream> {
+    // 1. Create the locations RecordBatches
+    let ln = "locations";
+    let locations = Subject::get_builder()
+        .with_name(ln)
+        .with_record_batches(make_object_store_paths_record_batch(sn, step, new.len() as u32))?
+        .build()?
+        .to_record_batch_stream();
+
+    // 2. Pack the tabular data
+    let config = DataConfig {
+        lhs_name: Some(sn.to_string()),
+        encoding: Some(DataEncoding::default()),
+        format: Some(DataFormat::Ipc),
+        schema: Some(AvailableSubjects::ObjectStore),
+        doc_name: Some(sn.to_string()),
+        cpu: false,
+        operator: AvailableCandleOperators::PackTabular,
+        lhs_stream: DataStreamManager::Stream,
+        ..Default::default()
+    };
+    let config_json = serde_json::to_vec(&config)?;
+    let config_table = SubjectBuilder::new()
+        .with_name("DataConfig")
+        .with_json(&config_json, 1)?
+        .build()?;
+    let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+    let _ = message.insert(
+        sn.to_string(),
+        SendableRecordBatchStreamMessage::get_builder()
+            .with_name(sn)
+            .with_publisher("")
+            .with_subject(sn)
+            .with_update(&Publication::None)
+            .with_message(Subject::get_builder()
+                .with_name(sn)
+                .with_record_batches(new)?
+                .build()?
+                .to_record_batch_stream())
+            .build()?,
+    ); 
+    let stream = Box::pin(CandleDataStream::new(
+        message,
+        config_table.to_record_batch_stream(),
+        Arc::clone(&runtime_env),
+        None
+    )?);
+
+    // 3. Add PK to subject stream (and drop all other columns that are not needed)
+    let config = DataConfig {
+        lhs_name: Some(sn.to_string()),
+        lhs_values: Some(vec!["location".to_string(), "bytes".to_string(), "pk".to_string()]),
+        rhs_values: None,
+        as_columns: Some(vec!["location".to_string(), "bytes".to_string(), "pk".to_string()]),
+        column_operators: Some(vec![DataColumnOperator::None, DataColumnOperator::None, DataColumnOperator::Zeros]),
+        cast_operators: None,
+        cast_datatypes: Some(vec![DataType::Utf8.to_string(), "List-UInt8".to_string(), DataType::UInt32.to_string()]),
+        cast_templates: None,
+        cpu: false,
+        operator: AvailableCandleOperators::Select,
+        lhs_stream: DataStreamManager::Stream,
+        ..Default::default()
+    };
+    let config_json = serde_json::to_vec(&config)?;
+    let config_table = SubjectBuilder::new()
+        .with_name("DataConfig")
+        .with_json(&config_json, 1)?
+        .build()?;
+    let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+    let _ = message.insert(
+        sn.to_string(),
+        SendableRecordBatchStreamMessage::get_builder()
+            .with_name(sn)
+            .with_publisher("")
+            .with_subject(sn)
+            .with_update(&Publication::None)
+            .with_message(stream)
+            .build()?,
+    ); 
+    let stream = Box::pin(CandleDataStream::new(
+        message,
+        config_table.to_record_batch_stream(),
+        Arc::clone(&runtime_env),
+        None
+    )?);
+
+    // 4. Join on locations stream
+    let config = DataConfig {
+        lhs_name: Some(sn.to_string()),
+        rhs_name: Some(ln.to_string()),
+        lhs_pk: Some("pk".to_string()),
+        rhs_pk: Some("pk".to_string()),
+        lhs_fk: Some("pk".to_string()),
+        rhs_fk: Some("pk".to_string()),
+        cpu: false,
+        operator: AvailableCandleOperators::Join,
+        join_operators: Some(DataJoinOperator::Inner),
+        lhs_stream: DataStreamManager::Stream,
+        rhs_stream: Some(DataStreamManager::Stream),
+        ..Default::default()
+    };
+    let config_json = serde_json::to_vec(&config)?;
+    let config_table = SubjectBuilder::new()
+        .with_name("DataConfig")
+        .with_json(&config_json, 1)?
+        .build()?;
+    let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+    let _ = message.insert(
+        sn.to_string(),
+        SendableRecordBatchStreamMessage::get_builder()
+            .with_name(sn)
+            .with_publisher("")
+            .with_subject(sn)
+            .with_update(&Publication::None)
+            .with_message(stream)
+            .build()?,
+    ); 
+    let _ = message.insert(
+        ln.to_string(),
+        SendableRecordBatchStreamMessage::get_builder()
+            .with_name(ln)
+            .with_publisher("")
+            .with_subject(ln)
+            .with_update(&Publication::None)
+            .with_message(locations)
+            .build()?,
+    ); 
+    let stream = Box::pin(CandleDataStream::new(
+        message,
+        config_table.to_record_batch_stream(),
+        Arc::clone(&runtime_env),
+        None
+    )?);
+
+    // 5. Replace the locations column
+    let config = DataConfig {
+        lhs_name: Some(sn.to_string()),
+        lhs_values: Some(vec!["location_updated".to_string(), "bytes".to_string()]),
+        as_columns: Some(vec!["location".to_string(), "bytes".to_string()]),
+        cpu: false,
+        operator: AvailableCandleOperators::Select,
+        lhs_stream: DataStreamManager::Stream,
+        ..Default::default()
+    };
+    let config_json = serde_json::to_vec(&config)?;
+    let config_table = SubjectBuilder::new()
+        .with_name("DataConfig")
+        .with_json(&config_json, 1)?
+        .build()?;
+    let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+    let _ = message.insert(
+        sn.to_string(),
+        SendableRecordBatchStreamMessage::get_builder()
+            .with_name(sn)
+            .with_publisher("")
+            .with_subject(sn)
+            .with_update(&Publication::None)
+            .with_message(stream)
+            .build()?,
+    ); 
+    let stream = Box::pin(CandleDataStream::new(
+        message,
+        config_table.to_record_batch_stream(),
+        Arc::clone(&runtime_env),
+        None
+    )?);
+
+    // 6. Put into the object store
+    let config = ObjectStoreConfig {
+        timeout: 5,
+        ops_type: ObjectStoreOptsType::Put,
+        backend: ObjectStorageBackend::InMemory, // Force use of the runtime_env
+        locations: None,
+        subject_name: Some(sn.to_string()),
+        ..Default::default()
+    };
+    let config_json = serde_json::to_vec(&config)?;
+    let config_table = SubjectBuilder::new()
+        .with_name("ObjectStoreConfig")
+        .with_json(&config_json, 1)?
+        .build()?;
+    let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+    let _ = message.insert(
+        sn.to_string(),
+        SendableRecordBatchStreamMessage::get_builder()
+            .with_name(sn)
+            .with_publisher("")
+            .with_subject(sn)
+            .with_update(&Publication::None)
+            .with_message(stream)
+            .build()?,
+    ); 
+    let stream = Box::pin(ObjectStoreStream::new(
+        message,
+        config_table.to_record_batch_stream(),
+        Arc::clone(&runtime_env),
+        None
+    )?);
+    Ok(stream)
+}
+
+/// Pipeline stream to `clear` the subject data from object storage (optionally limiting to jsut the last partition)
+fn clear_subject(runtime_env: &Arc<RuntimeEnv>, sn: &str, last: bool) -> Result<SendableRecordBatchStream> {
+    // 1. List the locations
+    let stream = list_subject(runtime_env, sn, last)?;
+
+    // 2. Delete the partitions at the locations listed
+    let config = ObjectStoreConfig {
+        timeout: 5,
+        ops_type: ObjectStoreOptsType::Delete,
+        backend: ObjectStorageBackend::InMemory, // Force use of the runtime_env
+        locations: None,
+        subject_name: Some(sn.to_string()),
+        ..Default::default()
+    };
+    let config_json = serde_json::to_vec(&config)?;
+    let config_table = SubjectBuilder::new()
+        .with_name("ObjectStoreConfig")
+        .with_json(&config_json, 1)?
+        .build()?;
+    let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+    let _ = message.insert(
+        sn.to_string(),
+        SendableRecordBatchStreamMessage::get_builder()
+            .with_name(sn)
+            .with_publisher("")
+            .with_subject(sn)
+            .with_update(&Publication::None)
+            .with_message(stream)
+            .build()?,
+    ); 
+    let stream = Box::pin(ObjectStoreStream::new(
+        message,
+        config_table.to_record_batch_stream(),
+        Arc::clone(&runtime_env),
+        None
+    )?);
+    Ok(stream)
+}
+
 /// Update an subject with record batches coming from a new table
 pub trait TablePublicationTrait {
-    fn publish_to_subject(&self, runtime_env: &Arc<RuntimeEnv>, new: Vec<RecordBatch>, step: u32) -> Result<()>;
+    fn publish_to_subject(&self, runtime_env: &Arc<RuntimeEnv>, new: Vec<RecordBatch>, step: u32) -> Result<Option<SendableRecordBatchStream>>;
 }
 
 impl TablePublicationTrait for Publication {
-    fn publish_to_subject(&self, runtime_env: &Arc<RuntimeEnv>, new: Vec<RecordBatch>, step: u32) -> Result<()> {
+    fn publish_to_subject(&self, runtime_env: &Arc<RuntimeEnv>, new: Vec<RecordBatch>, step: u32) -> Result<Option<SendableRecordBatchStream>> {
         match self {
             Self::Extend { subject_name: sn } => {
-                // 1. Create the locations column
-                let locations = (0..new.len()).map(|i| make_object_store_path(sn, step, i as u32)).collect::<Vec<_>>();
-
-                // 2. Pack the tabular data
-                let config = DataConfig {
-                    lhs_name: Some(sn.to_string()),
-                    encoding: Some(DataEncoding::default()),
-                    format: Some(DataFormat::Ipc),
-                    schema: Some(AvailableSubjects::ObjectStore),
-                    doc_name: Some(sn.to_string()),
-                    cpu: false,
-                    operator: AvailableCandleOperators::PackTabular,
-                    lhs_stream: DataStreamManager::Stream,
-                    ..Default::default()
-                };
-                let config_json = serde_json::to_vec(&config)?;
-                let config_table = SubjectBuilder::new()
-                    .with_name("DataConfig")
-                    .with_json(&config_json, 1)?
-                    .build()?;
-                let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-                let _ = message.insert(
-                    sn.to_string(),
-                    SendableRecordBatchStreamMessage::get_builder()
-                        .with_name(sn)
-                        .with_publisher("")
-                        .with_subject(sn)
-                        .with_update(&Publication::None)
-                        .with_message(Subject::get_builder()
-                            .with_name(sn)
-                            .with_record_batches(new)?
-                            .build()?
-                            .to_record_batch_stream())
-                        .build()?,
-                ); 
-                let stream = Box::pin(CandleDataStream::new(
-                    message,
-                    config_table.to_record_batch_stream(),
-                    Arc::clone(&runtime_env),
-                    None
-                )?);
-
-                // 3. Replace the locations column
-                // DM: new operator? or Patch?
-
-                // 4. Put into the object store
-                let config = ObjectStoreConfig {
-                    timeout: 5,
-                    ops_type: ObjectStoreOptsType::Put,
-                    backend: ObjectStorageBackend::InMemory, // Force use of the runtime_env
-                    locations: None,
-                    subject_name: Some(sn.to_string()),
-                    ..Default::default()
-                };
-                let config_json = serde_json::to_vec(&config)?;
-                let config_table = SubjectBuilder::new()
-                    .with_name("ObjectStoreConfig")
-                    .with_json(&config_json, 1)?
-                    .build()?;
-                let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
-                let _ = message.insert(
-                    sn.to_string(),
-                    SendableRecordBatchStreamMessage::get_builder()
-                        .with_name(sn)
-                        .with_publisher("")
-                        .with_subject(sn)
-                        .with_update(&Publication::None)
-                        .with_message(stream)
-                        .build()?,
-                ); 
-                let stream = Box::pin(ObjectStoreStream::new(
-                    message,
-                    config_table.to_record_batch_stream(),
-                    Arc::clone(&runtime_env),
-                    None
-                )?);
-                Ok(())
+                let stream = extend_subject(runtime_env, sn, new, step)?;
+                Ok(Some(stream))
             }
             Publication::ExtendChunks {
                 subject_name: sn,
                 col_name: cn,
             } => {
-                if self.get_name() != sn {
-                    return Err(anyhow!(
-                        "Mismatch between table name {} and update table target {}.",
-                        self.get_name(),
-                        sn
-                    ));
-                }
                 let chunks = new
                     .iter()
                     .flat_map(|batch| {
@@ -140,20 +314,14 @@ impl TablePublicationTrait for Publication {
                     cn.as_str(),
                     chunks.as_str(),
                 )?;
-                self.get_record_batches_mut().push(new_first_row);
-                Ok(())
+                let stream = extend_subject(runtime_env, sn, vec![new_first_row], step)?;
+                Ok(Some(stream))
             }
             Publication::ExtendBytes {
                 subject_name: sn,
                 col_name: cn,
                 serialize_format: sf,
             } => {
-                if self.get_name() != sn {
-                    return Err(anyhow!(
-                        "Mismatch between table name {} and update table target {sn}.",
-                        self.get_name(),
-                    ));
-                }
                 let new_batches_res: Result<Vec<Vec<RecordBatch>>> = new.into_iter()
                     .map(|batch| {
                         let new_table = SubjectBuilder::default()
@@ -172,19 +340,20 @@ impl TablePublicationTrait for Publication {
                                     .get_record_batches_own();
                                 Ok(batches)
                             }
-                            DataFormat::Bytes => {
-                                let bytes = new_table.get_column_as_vec_nested_primitive::<u8>(&cn)?
-                                    .into_iter()
-                                    .flatten()
-                                    .collect::<Vec<_>>();
-                                let batches = SubjectBuilder::new()
-                                    .with_schema(self.get_schema())
-                                    .with_name("ExtendBytesBytes")
-                                    .with_bytes(&bytes)?
-                                    .build()?
-                                    .get_record_batches_own();
-                                Ok(batches)
-                            }
+                            // DM: Bytes requires additional schema information...
+                            // DataFormat::Bytes => {
+                            //     let bytes = new_table.get_column_as_vec_nested_primitive::<u8>(&cn)?
+                            //         .into_iter()
+                            //         .flatten()
+                            //         .collect::<Vec<_>>();
+                            //     let batches = SubjectBuilder::new()
+                            //         .with_schema(self.get_schema())
+                            //         .with_name("ExtendBytesBytes")
+                            //         .with_bytes(&bytes)?
+                            //         .build()?
+                            //         .get_record_batches_own();
+                            //     Ok(batches)
+                            // }
                             _ => Err(anyhow!(
                                 "Serialization format {sf} for table name {} and update table target {sn} is not supported.",
                                 self.get_name(),
@@ -193,62 +362,35 @@ impl TablePublicationTrait for Publication {
                     })
                     .collect();
                 let new_batches = new_batches_res?.into_iter().flatten().collect::<Vec<_>>();
-                if !self.get_schema().eq(&new_batches.first().unwrap().schema()) {
-                    Err(anyhow!(
-                        "Mismatch between schema {:?} and batches {:?} when attempting to update table {}.",
-                        self.get_schema(),
-                        &new_batches.first().unwrap(),
-                        self.get_name()
-                    ))
-                } else {
-                    self.get_record_batches_mut().extend(new_batches);
-                    Ok(())
-                }
+                let stream = extend_subject(runtime_env, sn, new_batches, step)?;
+                Ok(Some(stream))
             }
             Publication::Replace { subject_name: sn } => {
-                if self.get_name() != sn {
-                    return Err(anyhow!(
-                        "Mismatch between table name {} and update table target {}.",
-                        self.get_name(),
-                        sn
-                    ));
-                }
-                for batch in new.iter() {
-                    if !self.get_schema().eq(&batch.schema()) {
-                        return Err(anyhow!(
-                            "Mismatch between schema {:?} and batches {:?} when attempting to update table {}.",
-                            self.get_schema(),
-                            &batch.schema(),
-                            self.get_name()
-                        ));
-                    }
-                }
-                self.get_record_batches_mut().clear();
-                self.get_record_batches_mut().extend(new);
-                Ok(())
+                // Delete all RecordBatches
+                let clear = clear_subject(runtime_env, sn, false)?;
+
+                // Extend the subject with the new record batches
+                let stream = extend_subject(runtime_env, sn, new, step)?;
+                let stream = Box::pin(RecordBatchStreamAdapter::new(
+                    Arc::clone(&stream.schema()),
+                    clear.chain(stream),
+                ));
+                Ok(Some(stream))
             }
             Publication::ReplaceLast { subject_name: sn } => {
-                if self.get_name() != sn {
-                    return Err(anyhow!(
-                        "Mismatch between table name {} and update table target {}.",
-                        self.get_name(),
-                        sn
-                    ));
-                }
-                let last = new.last().unwrap();
-                if !self.get_schema().eq(&last.schema()) {
-                    return Err(anyhow!(
-                        "Mismatch between schema {:?} and batches {:?} when attempting to update table {}.",
-                        self.get_schema(),
-                        &last.schema(),
-                        self.get_name()
-                    ));
-                }
-                self.get_record_batches_mut().last().replace(last);
-                Ok(())
+                // Delete the last RecordBatch
+                let clear = clear_subject(runtime_env, sn, true)?;
+
+                // Extend the subject with the new record batches
+                let stream = extend_subject(runtime_env, sn, new, step)?;
+                let stream = Box::pin(RecordBatchStreamAdapter::new(
+                    Arc::clone(&stream.schema()),
+                    clear.chain(stream),
+                ));
+                Ok(Some(stream))
             }
-            Publication::None => Ok(()),
-            Publication::Custom(_) => Ok(()),
+            Publication::None => Ok(None),
+            Publication::Custom(_) => Ok(None),
         }
     }
 }
