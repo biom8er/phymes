@@ -103,25 +103,25 @@ mod tests {
     use futures::TryStreamExt;
     use phymes_core::{
         AvailableSubjects, BuilderTrait, MappableTrait, MessageTrait, SubjectBuilder,
-        SubjectBuilderTrait, Publication, SubjectTrait, test_task::make_test_input_message,
+        SubjectBuilderTrait, Publication, SubjectTrait,
     };
 
     use super::*;
     use crate::{
         SessionContextBuilderAgentsTrait, SessionContextBuilderTrait,
-        test_session_context_builder::make_test_session_context_builder_sequential,
+        test_session_context_builder, test_task
     };
 
     #[tokio::test]
     async fn test_session_stream_replace_state_update_sequential_tasks() -> Result<()> {
         // Build the session
-        let session_context = make_test_session_context_builder_sequential("session_1", 2)?
+        let session_context = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 2)?
             .with_diagnostics(true)
             .add_session_interface(Some(&["state_1"]))?
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let input = make_test_input_message(
+        let input = test_task::make_test_input_message(
             "task_1",
             "session_1",
             "state_1",

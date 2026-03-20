@@ -3,13 +3,13 @@ use arrow::datatypes::SchemaRef;
 use clap::ValueEnum;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, RuntimeEnv, SubjectsMap, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, TablePublicationTrait, Subscription, SubjectTrait, TaskMap, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_diagnostics_to_tables, make_store
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, SubjectTrait, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_diagnostics_to_tables, make_store
 };
 use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
 use std::sync::Arc;
 use tracing::{Level, event};
 
-use crate::{SessionContextBuilder, create_message_map};
+use crate::{PublicationTrait, TaskMap, SessionContextBuilder, create_message_map};
 
 /// The [SessionContext] creates a (dynamic) execution graph based on a [TaskPlan]
 ///   and manages the running of individual [Task]s and the [Message]s passed between them.
@@ -160,7 +160,6 @@ impl SessionContext {
                         &subscriptions,
                         supersteps.last().unwrap(),
                         &subjects_change_log,
-                        self.subjects(),
                     );
                     let subscribe_policy =
                         AvailableSubscribeEvents::from_str_fuzzy(subscribe_type)
@@ -169,7 +168,7 @@ impl SessionContext {
                     let subscribe = subscribe_policy.check_subscriptions(
                         &subscriptions,
                         &updates,
-                        self.subjects(),
+                        &HashMap::<String, SchemaRef>::new(),
                     );
                     (
                         session_name,
@@ -263,7 +262,6 @@ impl SessionContext {
                                     &subscriptions,
                                     &superstep,
                                     &subjects_change_log,
-                                    self.subjects(),
                                 );
                                 let subscribe_policy =
                                     AvailableSubscribeEvents::from_str_fuzzy(subscribe_type)
@@ -272,7 +270,7 @@ impl SessionContext {
                                 let subscribe = subscribe_policy.check_subscriptions(
                                     &subscriptions,
                                     &updates,
-                                    self.subjects(),
+                                    &HashMap::<String, SchemaRef>::new(),
                                 );
                                 if subscribe {
                                     Some((
@@ -919,16 +917,13 @@ impl BuildableTrait for SessionContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_session_context_builder::{
-        make_test_session_context_builder_parallel,
-        make_test_session_context_builder_parallel_empty,
+    use crate::{test_session_context_builder, Task, test_task
     };
     use arrow::array::Int64Array;
     use phymes_core::{
-        IPCMessage, Task, create_session_tasks_subscribe_aggregate_batch,
+        IPCMessage, create_session_tasks_subscribe_aggregate_batch,
         create_session_tasks_subscribe_publish_batch,
-        test_subject::{self, make_test_subject_schema},
-        test_task,
+        test_subject,
     };
     #[cfg(not(target_family = "wasm"))]
     use tempfile::tempdir;
@@ -936,15 +931,15 @@ mod tests {
     #[test]
     fn test_session_get_table_name_by_schema() -> Result<()> {
         let session_context =
-            make_test_session_context_builder_parallel("session_1")?.build()?;
+            test_session_context_builder::make_test_session_context_builder_parallel("session_1")?.build()?;
 
         // table should be found
-        let schema = make_test_subject_schema(8)?;
+        let schema = test_subject::make_test_subject_schema(8)?;
         let name = session_context.get_table_name_by_schema(&schema).unwrap();
         assert_eq!(name, "state_1");
 
         // table should not be found
-        let schema = make_test_subject_schema(2)?;
+        let schema = test_subject::make_test_subject_schema(2)?;
         let name = session_context.get_table_name_by_schema(&schema);
         assert!(name.is_none());
         Ok(())
@@ -953,7 +948,7 @@ mod tests {
     #[test]
     fn test_session_update_subject_num_rows_table() -> Result<()> {
         let mut session_context =
-            make_test_session_context_builder_parallel("session_1")?.build()?;
+            test_session_context_builder::make_test_session_context_builder_parallel("session_1")?.build()?;
         session_context.update_subject_num_rows_table();
         let info = session_context
             .subjects()
@@ -997,7 +992,7 @@ mod tests {
     fn test_session_read_write_state() -> Result<()> {
         // Create the session
         let session_context =
-            make_test_session_context_builder_parallel("session_1")?.build()?;
+            test_session_context_builder::make_test_session_context_builder_parallel("session_1")?.build()?;
 
         // Write the session to disk
         let tmp_dir = tempdir()?;
@@ -1005,7 +1000,7 @@ mod tests {
 
         // Read the state
         let mut session_context_empty =
-            make_test_session_context_builder_parallel_empty("session_1", 25)?.build()?;
+            test_session_context_builder::make_test_session_context_builder_parallel_empty("session_1", 25)?.build()?;
         session_context_empty.read_state(tmp_dir.path().to_str().unwrap(), "tag")?;
 
         for subject in session_context.subjects().keys() {
@@ -1066,7 +1061,7 @@ mod tests {
     fn test_session_update_subjects_from_messages() -> Result<()> {
         // Case 1: no state update
         let session_context =
-            make_test_session_context_builder_parallel("session_1")?.build()?;
+            test_session_context_builder::make_test_session_context_builder_parallel("session_1")?.build()?;
         let input = test_task::make_test_input_message(
             "task_1",
             "session_1",

@@ -1,14 +1,12 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use object_store::ObjectStore;
-use parking_lot::RwLock;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, ProcessorPlan, RuntimeEnv, RuntimeEnvBuilderTrait, SubjectPlan, SubjectPlanTrait, SubjectsMap, Subject, Publication, Subscription, Task, TaskBuilderTrait, TaskMap, TaskPlan, make_store
+    BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, RuntimeEnv, RuntimeEnvBuilderTrait, SubjectPlan, SubjectPlanTrait, Subject, Publication, Subscription,
 };
 use phymes_diagnostics::{HashMap, HashSet};
 
-use crate::SessionContext;
+use crate::{SessionContext, Task, TaskBuilderTrait, TaskMap, TaskPlan};
 pub trait SessionContextBuilderTrait: BuilderTrait {
     /// The [ProcessorPlan]s to include in the session
     fn with_processors(self, processors: Vec<ProcessorPlan>) -> Self;
@@ -415,10 +413,10 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 /// Mock objects and functions for session context builer testing
 pub mod test_session_context_builder {
     use phymes_core::{
-        AvailableSubscribeEvents, ProcessorPlanBuilder, SubjectPlanBuilderTrait, test_task
+        AvailableSubscribeEvents, ProcessorPlanBuilder, SubjectPlanBuilderTrait
     };
 
-    use crate::AvailableProcessors;
+    use crate::{AvailableProcessors, test_task};
 
     use super::*;
 
@@ -657,11 +655,11 @@ pub mod test_session_context_builder {
 
 #[cfg(test)]
 mod tests {
-    use crate::AvailableProcessors;
+    use crate::{AvailableProcessors, test_task};
 
     use super::*;
     use phymes_core::{
-        AvailableSubscribeEvents, ProcessorPlanBuilder, SubjectPlanBuilderTrait, Subscription, test_task
+        AvailableSubscribeEvents, ProcessorPlanBuilder, SubjectPlanBuilderTrait, Subscription
     };
 
     #[test]

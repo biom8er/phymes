@@ -1,12 +1,12 @@
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, TaskPlan
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription
 };
 use phymes_data::{AvailableCandleOperators, DataConfig};
 #[cfg(feature = "api")]
 use phymes_ml::AvailableOpenAIAssets;
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 
-use crate::{AvailableInterfaceSubjects, AvailableProcessors, CustomAgentsBuilderTrait};
+use crate::{AvailableInterfaceSubjects, AvailableProcessors, CustomAgentsBuilderTrait, TaskPlan};
 
 pub struct ChatAgentSession<'a> {
     /// Chat tasks
@@ -59,17 +59,14 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         let tasks = vec![
             TaskPlan {
                 task_name: self.message_aggregator_task_1_name.to_string(),
-                runtime_env_name: self.message_aggregator_runtime_env_name.to_string(),
                 processor_names: vec![self.message_aggregator_processor_1_name.to_string()],
             },
             TaskPlan {
                 task_name: self.message_aggregator_task_2_name.to_string(),
-                runtime_env_name: self.message_aggregator_runtime_env_name.to_string(),
                 processor_names: vec![self.message_aggregator_processor_2_name.to_string()],
             },
             TaskPlan {
                 task_name: self.chat_task_name.to_string(),
-                runtime_env_name: self.chat_runtime_env_name.to_string(),
                 processor_names: vec![self.chat_processor_name.to_string()],
             },
         ];
@@ -191,14 +188,11 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         Some(processors)
     }
 
-    fn make_runtime_env(&self) -> Option<Vec<RuntimeEnv>> {
-        Some(vec![
-            RuntimeEnv::get_builder().with_name(self.chat_runtime_env_name).build().unwrap(),
-            RuntimeEnv::get_builder().with_name(self.message_aggregator_runtime_env_name).build().unwrap(),
-        ])
+    fn make_runtime_env(&self) -> Option<RuntimeEnv> {
+        Some(RuntimeEnv::get_builder().with_name(self.chat_runtime_env_name).build().unwrap())
     }
 
-    fn make_subjects(&self) -> Option<Vec<Subject>> {
+    fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
         // Default chat config
         #[allow(unused_mut)]
         let mut candle_chat_config = CandleChatConfig {
@@ -281,7 +275,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             .build()
             .unwrap();
 
-        Some(vec![
+        let subjects = vec![
             config,
             aggregator_1_state,
             aggregator_2_state,
@@ -297,7 +291,13 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
             AvailableInterfaceSubjects::AggregatedMessages
                 .to_table(None, None)
                 .unwrap(),
-        ])
+        ];
+        let subject_plans = subjects.into_iter()
+            .map(|s| SubjectPlan::get_builder()
+            .with_subject(s)
+            .build().unwrap())
+        .collect::<Vec<_>>();
+        Some(subject_plans)
     }
 }
 

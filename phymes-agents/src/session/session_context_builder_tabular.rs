@@ -7,7 +7,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvBuilderTrait, RuntimeEnvTrait, SubjectFilePartition, SubjectFolderPartition, Subject, SubjectBuilderTrait, Publication, Subscription, SubjectTrait, TaskPlanBuilder, create_session_mermaid_batch, create_session_processors_batch, create_session_runtime_envs_batch, create_session_subject_schemas_batch, create_session_tasks_batch, create_session_tasks_run_log_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_data_type_to_str, from_str_to_data_type
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvBuilderTrait, RuntimeEnvTrait, SubjectFilePartition, SubjectFolderPartition, Subject, SubjectBuilderTrait, Publication, Subscription, SubjectTrait, create_session_mermaid_batch, create_session_processors_batch, create_session_runtime_envs_batch, create_session_subject_schemas_batch, create_session_tasks_batch, create_session_tasks_run_log_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_data_type_to_str, from_str_to_data_type
 };
 use phymes_diagnostics::{HashSet, create_timestamp_micros};
 use serde_json::{Map, Value};
@@ -15,7 +15,7 @@ use serde_json::{Map, Value};
 use crate::{
     AvailableProcessors, SessionContextBuilder, SessionContextBuilderAgentsTrait,
     SessionContextBuilderMermaidTrait, SessionContextBuilderTrait,
-    plans::{CountSubjectRowsSession, NextSuperstepSession, NextTaskSession},
+    plans::{CountSubjectRowsSession, NextSuperstepSession, NextTaskSession}, TaskPlanBuilder,
 };
 
 /// Trait extension for [SessionContextBuilderTrait] to enable exporting to and importing from tabular format

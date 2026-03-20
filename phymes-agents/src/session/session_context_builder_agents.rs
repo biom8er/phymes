@@ -3,10 +3,9 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::Schema};
 use clap::ValueEnum;
-use object_store::ObjectStore;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, SubjectPlan, Subject, SubjectBuilderTrait, Publication, Subscription, SubjectTrait, TaskMap, TaskPlan, create_bytes_fields, create_values_fields
+    AvailableSchemaTrait, AvailableSubjects, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, SubjectPlan, Subject, SubjectBuilderTrait, Publication, Subscription, SubjectTrait, create_bytes_fields, create_values_fields
 };
 use phymes_data::{AvailableCandleOperators, DataConfig, DataConfigTrait, LimitConfig, device};
 #[cfg(feature = "api")]
@@ -18,17 +17,14 @@ use crate::{
     AvailableInterfaceSubjects, AvailableProcessors, SessionContext, SessionContextBuilder,
     SessionContextBuilderMermaidTrait, SessionContextBuilderTabularTrait,
     SessionContextBuilderTrait,
-    plans::{CountSubjectRowsSession, NextSuperstepSession, NextTaskSession},
+    plans::{CountSubjectRowsSession, NextSuperstepSession, NextTaskSession}, TaskMap, TaskPlan,
 };
 
 type SessionContextInput = (
     String,
     TaskMap,
-    SubjectsMap,
-    HashMap<String, Arc<RuntimeEnv>>,
-    usize,
+    Arc<RuntimeEnv>,
     bool,
-    Arc<dyn ObjectStore>,
     Vec<Subject>,
 );
 
@@ -122,7 +118,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         self.check_processor_config_builds()?;
 
         // build the tasks, state, and runtime objects
-        let (name, tasks, mut state, runtime_envs, max_iter, diagnostics, store, tables) =
+        let (name, tasks, runtime_envs, diagnostics, tables) =
             self.build_inner_with_tables()?;
 
         // update the state with the schema tables
@@ -134,25 +130,19 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         Ok(SessionContext::new(
             name,
             tasks,
-            state,
             runtime_envs,
-            max_iter,
             diagnostics,
-            store
         ))
     }
 
     fn build_inner_with_tables(self) -> Result<SessionContextInput> {
         let tables = self.to_arrow_tables(true, true, true, true, true)?;
-        let (name, tasks, state, runtime_envs, max_iter, diagnostics, store) = self.build_inner()?;
+        let (name, tasks, runtime_envs, diagnostics) = self.build_inner()?;
         Ok((
             name,
             tasks,
-            state,
             runtime_envs,
-            max_iter,
             diagnostics,
-            store,
             tables,
         ))
     }
@@ -1195,21 +1185,19 @@ pub mod test_session_context_builder_agents {
 
     use std::vec;
 
-    use crate::test_session_context_builder::make_test_session_context_builder_parallel_tasks;
+    use crate::{test_session_context_builder, test_task};
     use phymes_core::{
         AvailableSubscribeEvents, BuildableTrait, BuilderTrait, SubjectBuilderTrait,
-        Publication, Subscription, test_subject::make_test_subject,
-        test_task::make_runtime_env,
-    };
+        Publication, Subscription, test_subject};
     use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator};
 
     use super::*;
 
     pub fn make_test_state_agents() -> Result<Vec<Subject>> {
         let mut state = vec![
-            make_test_subject("state_1", 4, 8, 3)?,
-            make_test_subject("state_2", 4, 8, 3)?,
-            make_test_subject("state_3", 4, 8, 3)?,
+            test_subject::make_test_subject("state_1", 4, 8, 3)?,
+            test_subject::make_test_subject("state_2", 4, 8, 3)?,
+            test_subject::make_test_subject("state_3", 4, 8, 3)?,
         ];
         let processor_1 = DataConfig {
             lhs_name: Some("state_1".to_string()),
@@ -1325,9 +1313,9 @@ pub mod test_session_context_builder_agents {
 
         let builder = SessionContextBuilder::new()
             .with_name(name)
-            .with_tasks(make_test_session_context_builder_parallel_tasks())
+            .with_tasks(test_session_context_builder::make_test_session_context_builder_parallel_tasks())
             .with_processors(processor_plans)
-            .with_runtime_env(vec![make_runtime_env("rt_1")?])
+            .with_runtime_env(vec![test_task::make_runtime_env("rt_1")?])
             .with_subjects(state)
             .with_diagnostics(true);
         Ok(builder)
@@ -1413,7 +1401,7 @@ mod tests {
             .unwrap();
         state.push(join_config_state);
         let mut task_plans =
-            test_session_context_builder::make_test_session_context_builder_parallel_tasks();
+            test_session_context_builder::test_session_context_builder::make_test_session_context_builder_parallel_tasks();
         task_plans.push(TaskPlan {
             task_name: "task_4".to_string(),
             runtime_env_name: "rt_1".to_string(),
@@ -1509,7 +1497,7 @@ mod tests {
 
         let result = SessionContextBuilder::new()
             .with_tasks(
-                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+                test_session_context_builder::test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
             )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
@@ -1549,7 +1537,7 @@ mod tests {
 
         let result = SessionContextBuilder::new()
             .with_tasks(
-                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+                test_session_context_builder::test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
             )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
@@ -1590,7 +1578,7 @@ mod tests {
 
         let result = SessionContextBuilder::new()
             .with_tasks(
-                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+                test_session_context_builder::test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
             )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
@@ -1631,7 +1619,7 @@ mod tests {
 
         let result = SessionContextBuilder::new()
             .with_tasks(
-                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+                test_session_context_builder::test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
             )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
@@ -1668,7 +1656,7 @@ mod tests {
 
         let result = SessionContextBuilder::new()
             .with_tasks(
-                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+                test_session_context_builder::test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
             )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")
@@ -1705,7 +1693,7 @@ mod tests {
 
         let result = SessionContextBuilder::new()
             .with_tasks(
-                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+                test_session_context_builder::test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
             )
             .with_processors(test_session_context_builder_agents::make_test_processors_agents()?)
             .with_name("session_1")

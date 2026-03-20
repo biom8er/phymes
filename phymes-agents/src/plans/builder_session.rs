@@ -1,12 +1,10 @@
 use crate::{
     AvailableProcessors, AvailableSessionPlans, CustomAgentsBuilderTrait,
-    SessionContextBuilderMermaidTrait,
+    SessionContextBuilderMermaidTrait, TaskPlan,
 };
 use anyhow::Result;
 use phymes_core::{
-    AvailableSubjects, AvailableSubscribeEvents, BuildableTrait, BuilderTrait,
-    ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilderTrait,
-    Publication, Subscription, TaskPlan, create_session_mermaid_batch,
+    AvailableSubjects, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription, create_session_mermaid_batch
 };
 use phymes_diagnostics::create_timestamp_micros;
 
@@ -79,7 +77,6 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
     fn make_task_plans(&self) -> Option<Vec<TaskPlan>> {
         let tasks = vec![TaskPlan {
             task_name: self.session_context_name.to_string(),
-            runtime_env_name: "rt_default".to_string(),
             processor_names: vec![self.session_context_name.to_string()],
         }];
 
@@ -109,12 +106,15 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
         Some(processors)
     }
 
-    fn make_runtime_env(&self) -> Option<Vec<RuntimeEnv>> {
-        Some(vec![RuntimeEnv::get_builder().with_name("rt_default").build().unwrap()])
+    fn make_runtime_env(&self) -> Option<RuntimeEnv> {
+        Some(RuntimeEnv::get_builder().with_name("rt_default").build().unwrap())
     }
 
-    fn make_subjects(&self) -> Option<Vec<Subject>> {
-        Some(vec![make_example_mermaid_table(true, true).unwrap()])
+    fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
+        let subject_plan = SubjectPlan::get_builder()
+            .with_subject(make_example_mermaid_table(true, true).unwrap())
+            .build().unwrap();
+        Some(vec![subject_plan])
     }
 }
 

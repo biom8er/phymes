@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait,
     SessionContextBuilderTrait,
-    plans::{AvailableProcessors, NextSuperstepSession, NextTaskSession, check_agent_subjects},
+    plans::{AvailableProcessors, NextSuperstepSession, NextTaskSession, check_agent_subjects}, TaskPlanBuilder,
 };
 use anyhow::{Result, anyhow};
 use arrow::{
@@ -14,7 +14,7 @@ use clap::ValueEnum;
 use phymes_core::{
     AvailableSubscribeEvents, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder,
     ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilderTrait, Publication,
-    SubjectScript, Subscription, SubjectTrait, TaskPlanBuilder, from_data_type_to_str,
+    SubjectScript, Subscription, SubjectTrait, from_data_type_to_str,
     from_str_to_data_type, parse_str_to_data_type,
 };
 use phymes_data::{MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE};

@@ -279,11 +279,11 @@ fn clear_subject(runtime_env: &Arc<RuntimeEnv>, sn: &str, last: bool) -> Result<
 }
 
 /// Update an subject with record batches coming from a new table
-pub trait TablePublicationTrait {
+pub trait PublicationTrait {
     fn publish_to_subject(&self, runtime_env: &Arc<RuntimeEnv>, new: Vec<RecordBatch>, step: u32) -> Result<Option<SendableRecordBatchStream>>;
 }
 
-impl TablePublicationTrait for Publication {
+impl PublicationTrait for Publication {
     fn publish_to_subject(&self, runtime_env: &Arc<RuntimeEnv>, new: Vec<RecordBatch>, step: u32) -> Result<Option<SendableRecordBatchStream>> {
         match self {
             Self::Extend { subject_name: sn } => {

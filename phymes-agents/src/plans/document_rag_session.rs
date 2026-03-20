@@ -597,7 +597,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         Some(processors)
     }
 
-    fn make_runtime_env(&self) -> Option<Vec<RuntimeEnv>> {
+    fn make_runtime_env(&self) -> Option<RuntimeEnv> {
         Some(vec![
             RuntimeEnv::get_builder().with_name(self.chat_runtime_env_name).build().unwrap(),
             RuntimeEnv::get_builder().with_name(self.embed_documents_runtime_env_name).build().unwrap(),
@@ -608,7 +608,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         ])
     }
 
-    fn make_subjects(&self) -> Option<Vec<Subject>> {
+    fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
         // Default chat config
         #[allow(unused_mut)]
         let mut candle_chat_config = CandleChatConfig {
