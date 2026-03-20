@@ -12,7 +12,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubscribeEvents, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilderTrait, SubjectPlanTrait, SubjectScript, SubjectTrait, Subscription, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type
+    AvailableSubscribeEvents, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectScript, SubjectTrait, Subscription, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type
 };
 use phymes_data::{MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE};
 use phymes_diagnostics::{HashMap, HashSet};
@@ -219,7 +219,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
 
         let mut runtime_envs_vec = Vec::new();
         runtime_envs_vec.push(format!(
-            "\t{runtime_env_name}-rt@{{shape: subproc, label: {runtime_env_name}}}",
+            "\t{}-rt@{{shape: subproc, label: {}}}",
             self.runtime_env.as_ref().unwrap().get_name(),
             self.runtime_env.as_ref().unwrap().get_name()
         ));
@@ -877,45 +877,6 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 }
 
                 // Update
-                if task_plan_builders
-                    .get(&task_name)
-                    .unwrap()
-                    .runtime_env_name
-                    .as_ref()
-                    .is_some()
-                    && task_plan_builders
-                        .get(&task_name)
-                        .unwrap()
-                        .runtime_env_name
-                        .as_ref()
-                        .unwrap()
-                        != &runtime_env_name
-                {
-                    return Err(anyhow!(
-                        "Parsing Error on line {iter}: {}. Runtime environment {} does not match task {} runtime environment {}.",
-                        runtime_env_name,
-                        task_name,
-                        task_plan_builders
-                            .get(&task_name)
-                            .unwrap()
-                            .runtime_env_name
-                            .as_ref()
-                            .unwrap(),
-                        flowchart_lines.get(iter).unwrap()
-                    ));
-                } else if task_plan_builders
-                    .get(&task_name)
-                    .unwrap()
-                    .runtime_env_name
-                    .as_ref()
-                    .is_none()
-                {
-                    task_plan_builders
-                        .get_mut(&task_name)
-                        .unwrap()
-                        .runtime_env_name
-                        .replace(runtime_env_name.to_owned());
-                }
                 task_names.insert(task_name);
                 runtime_envs_names.insert(runtime_env_name);
 
@@ -1142,6 +1103,16 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 "There is an inconsistency in the runtime environment labels {runtime_env_names_vec:?} and runtime environment mentions {runtime_envs_names_sorted:?}"
             ));
         }
+        if runtime_env_names_vec.is_empty() {
+            return Err(anyhow!(
+                "No runtime environment was found."
+            ));
+        }
+        if runtime_env_names_vec.len() > 1 {
+            return Err(anyhow!(
+                "More than one runtime environment labels was found {runtime_env_names_vec:?}"
+            ));
+        }
         for name in runtime_env_names_vec {
             let runtime_env = RuntimeEnv::get_builder().with_name(&name).build()?;
             runtime_envs.push(runtime_env);
@@ -1197,7 +1168,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         let builder = Self::new()
             .with_tasks(task_plans)
             .with_processors(processors)
-            .with_runtime_env(runtime_envs);
+            .with_runtime_env(runtime_envs.pop().unwrap().into());
         Ok(builder)
     }
 
@@ -1208,8 +1179,8 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         with_values: bool,
     ) -> Result<Self> {
         // Subjects to be collected
-        let mut subjects = Vec::new();
-        let mut subject_names = HashSet::new();
+        let mut subject_builders = Vec::<SubjectPlanBuilder>::new();
+        let mut subject_names = HashSet::<String>::new();
 
         // Parse the mermaid.js flowchart string
         let erdiagram_lines = erdiagram.lines().collect::<Vec<_>>();
@@ -1280,7 +1251,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                                 .with_name(subject_name)
                                 .build()?
                         };
-                        subjects.push(table);
+                        subject_builders.push(SubjectPlanBuilder::new().with_subject(table));
                         break;
 
                     // Extract the field and data type
@@ -1366,9 +1337,9 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         }
 
         // Check the subjects
-        let mut subjects_vec = subjects
+        let mut subjects_vec = subject_builders
             .iter()
-            .map(|t| t.get_name().to_string())
+            .map(|t| t.get_name().unwrap())
             .collect::<Vec<_>>();
         let subjects_set = subjects_vec.clone().into_iter().collect::<HashSet<_>>();
         if subjects_vec.len() != subject_names.len() || subjects_set != subject_names {
@@ -1383,6 +1354,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             check_agent_subjects(&subject_names.into_iter().collect::<Vec<_>>())?;
         }
 
+        let subjects = subject_builders.into_iter().map(|s| s.build()?).collect::<Vec<_>>();
         Ok(self.with_subjects(subjects))
     }
 }

@@ -1,13 +1,14 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use arrow::datatypes::SchemaRef;
+use arrow::{array::RecordBatch, datatypes::SchemaRef};
+use futures::TryStreamExt;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, RuntimeEnv, RuntimeEnvBuilderTrait, SubjectPlan, SubjectPlanTrait, Subject, Publication, Subscription,
+    BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, Publication, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectPlan, SubjectPlanTrait, SubjectTrait, Subscription
 };
 use phymes_diagnostics::{HashMap, HashSet};
 
-use crate::{SessionContext, Task, TaskBuilderTrait, TaskMap, TaskPlan};
+use crate::{PublicationTrait, SessionContext, Task, TaskBuilderTrait, TaskMap, TaskPlan};
 pub trait SessionContextBuilderTrait: BuilderTrait {
     /// The [ProcessorPlan]s to include in the session
     fn with_processors(self, processors: Vec<ProcessorPlan>) -> Self;
@@ -47,6 +48,7 @@ type SessionContextInput = (
     String,
     TaskMap,
     HashMap<String, SchemaRef>,
+    Vec<Subject>,
     Arc<RuntimeEnv>,
     bool,
 );
@@ -153,17 +155,23 @@ impl SessionContextBuilder {
     }
 
     /// Build the [SessionContext] members
-    pub fn build_inner(mut self) -> Result<SessionContextInput> {        
+    pub fn build_inner(mut self) -> Result<SessionContextInput> {
         let runtime_env = if let Some(rt) = self.runtime_env.take() {
             rt
         } else {
             Arc::new(RuntimeEnv::default())
         };
 
-        // Add the subjects to the session's object store
-        let subjects_map = HashMap::<String, SchemaRef>::new();
+        let mut schemas_map = HashMap::<String, SchemaRef>::new();
+        let mut subjects_vec = Vec::new();
         if let Some(subjects) = self.subjects.take() {
-            todo!()
+            for subject in subjects {
+                let subject_name = subject.subject().get_name().to_string();
+                let _ = schemas_map.insert(subject.subject().get_name().to_string(), subject.subject().get_schema().clone());
+                if subject.subject().count_rows() > 0 {
+                    subjects_vec.push(subject.subject_own());
+                }
+            }
         }
 
         let task_map = self
@@ -199,7 +207,8 @@ impl SessionContextBuilder {
         Ok((
             name,
             task_map,
-            subjects_map,
+            schemas_map,
+            subjects_vec,
             runtime_env,
             self.diagnostics.unwrap_or_default(),
         ))
@@ -302,12 +311,13 @@ impl BuilderTrait for SessionContextBuilder {
         self.check_subjects()?;
 
         // build the tasks, state, metrics, and runtime objects
-        let (name, tasks, subjects, runtime_env, diagnostics) = self.build_inner()?;
+        let (name, tasks, schemas, subjects, runtime_env, diagnostics) = self.build_inner();
 
         // ready to build the session
         Ok(Self::T {
             name,
             tasks,
+            schemas,
             subjects,
             runtime_env,
             diagnostics,

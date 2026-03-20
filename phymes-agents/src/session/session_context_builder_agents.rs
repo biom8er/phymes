@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use arrow::{array::RecordBatch, datatypes::Schema};
+use arrow::{array::RecordBatch, datatypes::{Schema, SchemaRef}};
 use clap::ValueEnum;
 use parking_lot::RwLock;
 use phymes_core::{
@@ -23,9 +23,10 @@ use crate::{
 type SessionContextInput = (
     String,
     TaskMap,
+    HashMap<String, SchemaRef>,
+    Vec<Subject>,
     Arc<RuntimeEnv>,
     bool,
-    Vec<Subject>,
 );
 
 /// Trait extension for [SessionContextBuilderTrait] to facilitate building agentic workflows
@@ -137,7 +138,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
     }
 
     fn build_inner_with_tables(self) -> Result<SessionContextInput> {
-        let tables = self.to_arrow_tables(true, true, true, true, true)?;
+        let tables = self.to_subject_plans(true, true, true, true, true)?;
         let (name, tasks, subjects, runtime_envs, diagnostics) = self.build_inner()?;
         Ok((
             name,

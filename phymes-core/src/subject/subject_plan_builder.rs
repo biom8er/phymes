@@ -1,13 +1,14 @@
 use std::{fmt::Debug, sync::Arc};
 use anyhow::{anyhow, Result};
 use arrow::datatypes::Schema;
-use crate::{BuildableTrait, BuilderTrait, IndexType, SubjectConstraintType, SubjectPlan, SubjectSequenceType, Subject, SubjectBuilderTrait};
+use crate::{BuildableTrait, BuilderTrait, IndexType, MappableTrait, Subject, SubjectBuilderTrait, SubjectConstraintType, SubjectPlan, SubjectSequenceType};
 
 pub trait SubjectPlanBuilderTrait: BuilderTrait + Debug + Send + Sync {
     fn with_subject(self, subject: Subject) -> Self;
     fn with_constraints(self, constraints: &[SubjectConstraintType]) -> Self;
     fn with_indices(self, indices: &[IndexType]) -> Self;
     fn with_sequences(self, sequences: &[SubjectSequenceType]) -> Self;
+    fn get_name(&self) -> Result<String>;
 }
 
 #[derive(Default, Debug, PartialEq, Clone)]
@@ -77,5 +78,10 @@ impl SubjectPlanBuilderTrait for SubjectPlanBuilder {
     fn with_sequences(mut self, sequences: &[SubjectSequenceType]) -> Self {
         self.sequences = Some(sequences.to_owned());
         self
+    }
+    
+    fn get_name(&self) -> Result<String> {
+        let name = self.subject.as_ref().ok_or(anyhow!("Please define the subject before trying to get the subject name!"))?.get_name().to_string();
+        Ok(name)
     }
 }

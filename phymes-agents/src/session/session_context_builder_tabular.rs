@@ -7,7 +7,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvBuilderTrait, RuntimeEnvTrait, SubjectFilePartition, SubjectFolderPartition, Subject, SubjectBuilderTrait, Publication, Subscription, SubjectTrait, create_session_mermaid_batch, create_session_processors_batch, create_session_runtime_envs_batch, create_session_subject_schemas_batch, create_session_tasks_batch, create_session_tasks_run_log_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_data_type_to_str, from_str_to_data_type
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, MappableTrait, ObjectStorageBackend, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvBuilderTrait, RuntimeEnvTrait, Subject, SubjectBuilderTrait, SubjectFilePartition, SubjectFolderPartition, SubjectPlan, SubjectTrait, Subscription, create_session_mermaid_batch, create_session_processors_batch, create_session_runtime_envs_batch, create_session_subject_schemas_batch, create_session_tasks_batch, create_session_tasks_run_log_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_data_type_to_str, from_str_to_data_type
 };
 use phymes_diagnostics::{HashSet, create_timestamp_micros};
 use serde_json::{Map, Value};
@@ -24,7 +24,7 @@ pub trait SessionContextBuilderTabularTrait {
     ///
     /// # Notes
     ///
-    /// * All subjects that are a part of the state are included
+    /// * All subjects that are a part of the subjects are included
     /// * Additional meta tables describing the SessionContext schema are included
     /// * Mermaid_js scripts are also included
     ///
@@ -38,24 +38,24 @@ pub trait SessionContextBuilderTabularTrait {
     ///
     /// # Returns
     ///
-    /// * `Vec<ArrowTable>` with the SessionContext in tabular format and Optional `Vec<ArrowTable>` with the state
-    fn to_arrow_tables(
+    /// * `Vec<SubjectPlan>` with the SessionContext in tabular format and Optional with the subject data
+    fn to_subject_plans(
         &self,
         include_mermaid: bool,
         include_errors: bool,
         include_diagnostics: bool,
         include_tasks_run_log: bool,
         include_subjects_change_log: bool,
-    ) -> Result<Vec<Subject>>;
+    ) -> Result<Vec<SubjectPlan>>;
 
     /// Get the subjects in tabular form
     ///
     /// # Arguments
-    /// * `additional_tables` - Additional tables to include in addition to what is in the state
-    fn get_subjects_as_table(&self, additional_tables: &[Subject]) -> Result<Subject>;
+    /// * `additional_tables` - Additional tables to include in addition to what is in the subjects
+    fn get_subjects_as_subject_plan(&self, additional_subjects: &[SubjectPlan]) -> Result<SubjectPlan>;
 
     /// Get the tasks in tabular form
-    fn get_tasks_as_table(&self) -> Result<Subject>;
+    fn get_tasks_as_subject_plan(&self) -> Result<SubjectPlan>;
 
     /// Get the processors in tabular form
     ///
@@ -63,53 +63,53 @@ pub trait SessionContextBuilderTabularTrait {
     ///
     /// * No sorting is performed when generating the table
     ///   so that order of processors is maintained
-    fn get_processors_as_table(&self) -> Result<Subject>;
+    fn get_processors_as_subject_plan(&self) -> Result<SubjectPlan>;
 
     /// Get the runtime environments in tabular form
-    fn get_runtime_envs_as_table(&self) -> Result<Subject>;
+    fn get_runtime_envs_as_subject_plan(&self) -> Result<SubjectPlan>;
 
     /// Get mermaid js chart strings
-    fn get_mermaid_js_as_table(&self) -> Result<Subject>;
+    fn get_mermaid_js_as_subject_plan(&self) -> Result<SubjectPlan>;
 
     /// Create the initial `TasksRunLog` table
-    fn get_tasks_run_log_as_table(&self) -> Result<Subject>;
+    fn get_tasks_run_log_as_subject_plan(&self) -> Result<SubjectPlan>;
 
     /// Create the initial `SubjectsNumRows` table
-    fn get_subjects_num_rows_as_table(&self) -> Result<Subject>;
+    fn get_subjects_num_rows_as_subject_plan(&self) -> Result<SubjectPlan>;
 
     /// Create the `SubjectsNumRows` and `SubjectsChangeLog` tables
-    fn get_subjects_change_log_as_table(&self) -> Result<Subject>;
+    fn get_subjects_change_log_as_subject_plan(&self) -> Result<SubjectPlan>;
 
-    /// Create the session from tables
+    /// Create the session from subjects
     ///
     /// # Notes
     ///
-    /// * Minimally, the meta tables describing the [SessionContext] schema must be included
-    /// * Optionally, the subject tables will be populated with data if the state tables are included
+    /// * Minimally, the meta subject describing the [SessionContext] schema must be included
+    /// * Optionally, the subject will be populated with data if the subjects data are included
     /// * Mermaid_js scripts are ignored
     ///
     /// # Arguments
     ///
-    /// * `tables` - List of [Table]s describing the [SessionContext] schema with
+    /// * `subject_plans` - List of [SubjectPlan]s describing the [SessionContext] schema with
     ///   optional subject tables with the actual data
-    /// * `state` - Optionally the subject data. If none the subject tables will be initialized.
+    /// * `subjects` - Optionally the subject data. If none the subject tables will be initialized.
     ///
     /// [SessionContext]: crate::SessionContext
-    fn from_arrow_tables(tables: &[&Subject], state: Option<Vec<Subject>>) -> Result<Self>
+    fn from_subject_plans(subject_plans: &[&SubjectPlan], subjects: Option<Vec<Subject>>) -> Result<Self>
     where
         Self: Sized;
 
-    /// Create empty subject tables from `SessionSubjectSchemas`
-    fn with_subjects_as_tables(self, subjects: &Subject) -> Result<Self>
+    /// Create empty subjects from `SessionSubjectSchemas`
+    fn with_subjects_as_subject_plans(self, subjects: &SubjectPlan) -> Result<Self>
     where
         Self: Sized;
-    fn with_tasks_as_tables(self, tasks: &Subject) -> Result<Self>
+    fn with_tasks_as_subject_plans(self, tasks: &SubjectPlan) -> Result<Self>
     where
         Self: Sized;
-    fn with_processors_as_tables(self, processors: &Subject) -> Result<Self>
+    fn with_processors_as_subject_plans(self, processors: &SubjectPlan) -> Result<Self>
     where
         Self: Sized;
-    fn with_runtime_envs_as_tables(self, runtime_envs: &Subject) -> Result<Self>
+    fn with_runtime_envs_as_subject_plans(self, runtime_envs: &SubjectPlan) -> Result<Self>
     where
         Self: Sized;
 
@@ -127,17 +127,17 @@ pub trait SessionContextBuilderTabularTrait {
 }
 
 impl SessionContextBuilderTabularTrait for SessionContextBuilder {
-    fn to_arrow_tables(
+    fn to_subject_plans(
         &self,
         include_mermaid: bool,
         include_errors: bool,
         include_diagnostics: bool,
         include_tasks_run_log: bool,
         include_subjects_change_log: bool,
-    ) -> Result<Vec<Subject>> {
+    ) -> Result<Vec<SubjectPlan>> {
         let mut tables = Vec::new();
         if include_mermaid {
-            tables.push(self.get_mermaid_js_as_table()?);
+            tables.push(self.get_mermaid_js_as_subject_plan()?);
         }
         if include_errors {
             tables.push(AvailableSubjects::SessionErrors.to_table(None, None)?);
@@ -150,22 +150,22 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // include_tasks_run_log is after include_subjects_change_log
         // so that the timestamp of all tasks is greater than the timestamp of all subjects
         if include_subjects_change_log {
-            tables.push(self.get_subjects_num_rows_as_table()?);
-            tables.push(self.get_subjects_change_log_as_table()?);
+            tables.push(self.get_subjects_num_rows_as_subject_plan()?);
+            tables.push(self.get_subjects_change_log_as_subject_plan()?);
         }
         if include_tasks_run_log {
-            tables.push(self.get_tasks_run_log_as_table()?);
+            tables.push(self.get_tasks_run_log_as_subject_plan()?);
         }
         tables.extend([
-            self.get_subjects_as_table(&tables)?,
-            self.get_tasks_as_table()?,
-            self.get_processors_as_table()?,
-            self.get_runtime_envs_as_table()?,
+            self.get_subjects_as_subject_plan(&tables)?,
+            self.get_tasks_as_subject_plan()?,
+            self.get_processors_as_subject_plan()?,
+            self.get_runtime_envs_as_subject_plan()?,
         ]);
         Ok(tables)
     }
 
-    fn from_arrow_tables(tables: &[&Subject], mut state: Option<Vec<Subject>>) -> Result<Self>
+    fn from_subject_plans(tables: &[&SubjectPlan], mut subjects: Option<Vec<Subject>>) -> Result<Self>
     where
         Self: Sized,
     {
@@ -175,17 +175,17 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         // extract the schema
         for table in tables {
             if table.get_name() == AvailableSubjects::SessionSubjectSchemas.to_string().as_str()
-                && state.is_none()
+                && subjects.is_none()
             {
-                builder = builder.with_subjects_as_tables(table)?;
+                builder = builder.with_subjects_as_subject_plans(table)?;
             } else if table.get_name() == AvailableSubjects::SessionTasks.to_string().as_str() {
-                builder = builder.with_tasks_as_tables(table)?;
+                builder = builder.with_tasks_as_subject_plans(table)?;
             } else if table.get_name() == AvailableSubjects::SessionProcessors.to_string().as_str()
             {
-                builder = builder.with_processors_as_tables(table)?;
+                builder = builder.with_processors_as_subject_plans(table)?;
             } else if table.get_name() == AvailableSubjects::SessionRuntimeEnvs.to_string().as_str()
             {
-                builder = builder.with_runtime_envs_as_tables(table)?;
+                builder = builder.with_runtime_envs_as_subject_plans(table)?;
             } else if table.get_name() == AvailableSubjects::SessionMermaid.to_string().as_str()
                 // Diagnostic tables
                 || table.get_name() == AvailableSubjects::SessionErrors.to_string().as_str()
@@ -210,7 +210,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             {
                 // These tables are created on the fly so we do not want to duplicate them.
                 // If the user wishes to continue already generated tables they can do so
-                // by passing them as optional state.
+                // by passing them as optional subjects.
                 continue;
             } else {
                 return Err(anyhow!(
@@ -220,19 +220,19 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             }
         }
 
-        // Add the optional state
-        if state.is_some() {
-            Ok(builder.with_subjects(state.take().unwrap()))
+        // Add the optional subjects
+        if subjects.is_some() {
+            Ok(builder.with_subjects(subjects.take().unwrap()))
         } else {
             Ok(builder)
         }
     }
 
-    fn get_subjects_as_table(&self, additional_tables: &[Subject]) -> Result<Subject> {
-        // Check that the state exists
+    fn get_subjects_as_subject_plan(&self, additional_tables: &[Subject]) -> Result<SubjectPlan> {
+        // Check that the subjects exists
         if self.subjects.is_none() {
             return Err(anyhow!(
-                "Add state subjects before making the subject tables."
+                "Add subjects before making the subject tables."
             ));
         }
         let session_name = if let Some(session_name) = self.name.as_ref() {
@@ -253,7 +253,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let mut type_names = Vec::<String>::new();
 
         // Sort the hashmap
-        let mut sorted_state = self
+        let mut sorted_subjects = self
             .subjects
             .as_ref()
             .unwrap()
@@ -261,8 +261,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .chain(additional_tables)
             .filter(|t| !exclusion_set.contains(t.get_name()))
             .collect::<Vec<_>>();
-        sorted_state.sort_by(|a, b| a.get_name().cmp(b.get_name()));
-        for subject in sorted_state.iter() {
+        sorted_subjects.sort_by(|a, b| a.get_name().cmp(b.get_name()));
+        for subject in sorted_subjects.iter() {
             if !subject_names.contains(&subject.get_name().to_string()) {
                 let fields = subject.get_schema().fields().clone();
                 for field in fields.iter() {
@@ -286,7 +286,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .build()
     }
 
-    fn get_tasks_as_table(&self) -> Result<Subject> {
+    fn get_tasks_as_subject_plan(&self) -> Result<SubjectPlan> {
         // Check if there are members
         if self.tasks.is_none() {
             return Err(anyhow!("Add task plans before making the tasks table."));
@@ -343,7 +343,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .build()
     }
 
-    fn get_processors_as_table(&self) -> Result<Subject> {
+    fn get_processors_as_subject_plan(&self) -> Result<SubjectPlan> {
         if self.processors.is_none() {
             return Err(anyhow!(
                 "Add processors before making the Mermaid Flowchart."
@@ -457,7 +457,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .build()
     }
 
-    fn get_runtime_envs_as_table(&self) -> Result<Subject> {
+    fn get_runtime_envs_as_subject_plan(&self) -> Result<SubjectPlan> {
         if self.runtime_env.is_none() {
             return Err(anyhow!(
                 "Add runtime environments before making the Mermaid Flowchart."
@@ -504,7 +504,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .build()
     }
 
-    fn get_mermaid_js_as_table(&self) -> Result<Subject> {
+    fn get_mermaid_js_as_subject_plan(&self) -> Result<SubjectPlan> {
         let flowchart_diagram = self.to_mermaid_flowchart(false, false)?;
         let er_diagram = self.to_mermaid_erdiagram(false, true)?;
         let session_context_name = self.name.as_ref().unwrap().to_string();
@@ -525,7 +525,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .build()
     }
 
-    fn get_tasks_run_log_as_table(&self) -> Result<Subject> {
+    fn get_tasks_run_log_as_subject_plan(&self) -> Result<SubjectPlan> {
         if self.tasks.is_none() {
             return Err(anyhow!(
                 "Add task plans before making the tasks run log table."
@@ -563,7 +563,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .build()
     }
 
-    fn get_subjects_num_rows_as_table(&self) -> Result<Subject> {
+    fn get_subjects_num_rows_as_subject_plan(&self) -> Result<SubjectPlan> {
         if self.subjects.is_none() {
             return Err(anyhow!(
                 "Add subjects before making the subjects num rows table."
@@ -592,7 +592,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .build()
     }
 
-    fn get_subjects_change_log_as_table(&self) -> Result<Subject> {
+    fn get_subjects_change_log_as_subject_plan(&self) -> Result<SubjectPlan> {
         if self.subjects.is_none() {
             return Err(anyhow!(
                 "Add subjects before making the subjects change log table."
@@ -684,7 +684,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .build()
     }
 
-    fn with_subjects_as_tables(self, subjects: &Subject) -> Result<Self>
+    fn with_subjects_as_subject_plans(self, subjects: &SubjectPlan) -> Result<Self>
     where
         Self: Sized,
     {
@@ -702,8 +702,8 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .map(|((x, y), z)| (x, y, z))
             .collect::<Vec<_>>();
 
-        // build the state tables
-        let mut state = Vec::new();
+        // build the subjects tables
+        let mut subjects = Vec::new();
         for subject in subjects_unique {
             let mut fields = Vec::new();
             for (s, c, t) in combined.iter() {
@@ -717,13 +717,13 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 .with_record_batches(vec![batch])?
                 .with_name(subject)
                 .build()?;
-            state.push(table);
+            subjects.push(table);
         }
 
-        Ok(self.with_subjects(state))
+        Ok(self.with_subjects(subjects))
     }
 
-    fn with_tasks_as_tables(self, tasks: &Subject) -> Result<Self>
+    fn with_tasks_as_subject_plans(self, tasks: &SubjectPlan) -> Result<Self>
     where
         Self: Sized,
     {
@@ -767,7 +767,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         Ok(self.with_tasks(tasks))
     }
 
-    fn with_processors_as_tables(self, procesors: &Subject) -> Result<Self>
+    fn with_processors_as_subject_plans(self, procesors: &SubjectPlan) -> Result<Self>
     where
         Self: Sized,
     {
@@ -855,7 +855,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         Ok(self.with_processors(processors))
     }
 
-    fn with_runtime_envs_as_tables(self, runtime_envs: &Subject) -> Result<Self>
+    fn with_runtime_envs_as_subject_plans(self, runtime_envs: &SubjectPlan) -> Result<Self>
     where
         Self: Sized,
     {
@@ -914,7 +914,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                     next_task_session.as_mermaid_flowchart(),
                     false,
                 )?
-                .with_state_from_mermaid_erdiagram(
+                .with_subjects_from_mermaid_erdiagram(
                     next_task_session.as_mermaid_erdiagram(),
                     false,
                     false,
@@ -963,7 +963,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                     subjects_session.as_mermaid_flowchart(),
                     false,
                 )?
-                .with_state_from_mermaid_erdiagram(
+                .with_subjects_from_mermaid_erdiagram(
                     subjects_session.as_mermaid_erdiagram(),
                     false,
                     false,
@@ -1214,19 +1214,19 @@ mod tests {
         // Init runtime env
         let runtime_envs = vec![make_runtime_env("rt_1")?];
 
-        // Init state
-        let mut state = make_subject_tables("state_1", "config_1")?;
-        state.extend(make_subject_tables("state_2", "config_2")?);
-        state.extend(make_subject_tables("state_3", "config_3")?);
+        // Init subjects
+        let mut subjects = make_subject_tables("subjects_1", "config_1")?;
+        subjects.extend(make_subject_tables("subjects_2", "config_2")?);
+        subjects.extend(make_subject_tables("subjects_3", "config_3")?);
 
         // Make the builder
         let builder = make_test_session_context_builder_parallel_processors()
             .with_name("")
             .with_runtime_env(runtime_envs)
-            .with_subjects(state);
+            .with_subjects(subjects);
 
         // Test to tables
-        let tables = builder.to_arrow_tables(true, true, true, true, true)?;
+        let tables = builder.to_subject_plans(true, true, true, true, true)?;
 
         // Check the tables
         assert_eq!(
@@ -1280,9 +1280,9 @@ mod tests {
 
         // Test from tables
         let tables_test =
-            SessionContextBuilder::from_arrow_tables(&tables.iter().collect::<Vec<_>>(), None)?
+            SessionContextBuilder::from_subject_plans(&tables.iter().collect::<Vec<_>>(), None)?
                 .with_name("")
-                .to_arrow_tables(true, true, true, true, true)?;
+                .to_subject_plans(true, true, true, true, true)?;
 
         // Check the tables
         assert_eq!(
@@ -1670,8 +1670,8 @@ mod tests {
         //     .get_column_as_vec_str("subject_name")
         //     .into_iter()
         //     .collect::<HashSet<_>>();
-        // left: {"SessionTasksRunLog", "SessionEvents", "state_1", "config_2", "SessionMetrics", "SessionTraces", "SubjectsNumRows", "SubjectsChangeLog", "state_3", "SessionErrors", "state_2", "config_3", "config_1", "SessionMermaid"}
-        // right: {"config_2", "state_3", "state_1", "config_1", "state_2", "config_3"}
+        // left: {"SessionTasksRunLog", "SessionEvents", "subjects_1", "config_2", "SessionMetrics", "SessionTraces", "SubjectsNumRows", "SubjectsChangeLog", "subjects_3", "SessionErrors", "subjects_2", "config_3", "config_1", "SessionMermaid"}
+        // right: {"config_2", "subjects_3", "subjects_1", "config_1", "subjects_2", "config_3"}
         // assert_eq!(tables_test_set, tables_set);
         assert_eq!(
             tables_test.get(6).unwrap().get_name(),
