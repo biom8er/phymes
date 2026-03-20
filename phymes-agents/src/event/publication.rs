@@ -74,7 +74,7 @@ impl TablePublicationTrait for Publication {
                 )?);
 
                 // 3. Replace the locations column
-                // DM: new operator?
+                // DM: new operator? or Patch?
 
                 // 4. Put into the object store
                 let config = ObjectStoreConfig {
