@@ -27,7 +27,7 @@ pub use session::{
     SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait,
     test_session_context_builder, test_session_context_builder_agents,
 };
-pub use event::{PublicationTrait, SubscriptionTrait, build_and_publish_to_stream, subscribe_to_subject, update_publisher, list_subject, get_subject};
+pub use event::{PublicationTrait, SubscriptionTrait, build_and_publish_to_stream, subscribe_to_subject, update_publisher, list_subject, get_subject, make_object_store_path, make_object_store_paths_record_batch, extend_subject, clear_subject};
 pub use task::{
     Task, TaskBuilder, TaskBuilderTrait, TaskMap, TaskPlan, TaskPlanBuilder, TaskTrait, test_task
 };

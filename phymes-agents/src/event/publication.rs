@@ -21,24 +21,24 @@ use crate::list_subject;
 /// 
 /// # Todo
 /// * Handle more complex partitioning schemes
-fn make_object_store_path(subject_name: &str, step: u32, partition: u32) -> String {
+pub fn make_object_store_path(subject_name: &str, step: u32, partition: u32) -> String {
     format!("{subject_name}/superstep={step}/partition={partition}/{subject_name}.ipc")
 }
 
 /// Generate the a vector of record batches of locations to put the subject
-fn make_object_store_paths_record_batch(subject_name: &str, step: u32, n_batches: u32) -> Vec<RecordBatch> {
-        (0..n_batches).map(|i| {
-            let location = make_object_store_path(subject_name, step, i as u32);
-            let pk: Vec<u32> = vec![0];
-            let location: ArrayRef = Arc::new(StringArray::from(vec![location]));
-            let pk: ArrayRef = Arc::new(UInt32Array::from(pk));
-            RecordBatch::try_from_iter(vec![("location_updated", location), ("pk", pk)]).unwrap()
-        })
-        .collect::<Vec<_>>()
+pub fn make_object_store_paths_record_batch(subject_name: &str, step: u32, n_batches: u32) -> Vec<RecordBatch> {
+    (0..n_batches).map(|i| {
+        let location = make_object_store_path(subject_name, step, i as u32);
+        let pk: Vec<u32> = vec![0];
+        let location: ArrayRef = Arc::new(StringArray::from(vec![location]));
+        let pk: ArrayRef = Arc::new(UInt32Array::from(pk));
+        RecordBatch::try_from_iter(vec![("location_updated", location), ("pk", pk)]).unwrap()
+    })
+    .collect::<Vec<_>>()
 }
 
 /// Pipeline stream to `extend` the subject in object storage
-fn extend_subject(runtime_env: &Arc<RuntimeEnv>, sn: &str, new: Vec<RecordBatch>, step: u32) -> Result<SendableRecordBatchStream> {
+pub fn extend_subject(runtime_env: &Arc<RuntimeEnv>, sn: &str, new: Vec<RecordBatch>, step: u32) -> Result<SendableRecordBatchStream> {
     // 1. Create the locations RecordBatches
     let ln = "locations";
     let locations = Subject::get_builder()
@@ -240,7 +240,7 @@ fn extend_subject(runtime_env: &Arc<RuntimeEnv>, sn: &str, new: Vec<RecordBatch>
 }
 
 /// Pipeline stream to `clear` the subject data from object storage (optionally limiting to jsut the last partition)
-fn clear_subject(runtime_env: &Arc<RuntimeEnv>, sn: &str, last: bool) -> Result<SendableRecordBatchStream> {
+pub fn clear_subject(runtime_env: &Arc<RuntimeEnv>, sn: &str, last: bool) -> Result<SendableRecordBatchStream> {
     // 1. List the locations
     let stream = list_subject(runtime_env, sn, last)?;
 

@@ -92,14 +92,14 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait,
-        Publication, SubjectTrait, test_task,
+        Publication, SubjectTrait,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
         SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
         SessionContextBuilderTrait, SessionStream, create_message_map,
-        test_session_context_builder,
+        test_session_context_builder, test_task,
     };
 
     use super::*;

@@ -118,7 +118,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         self.check_processor_config_builds()?;
 
         // build the tasks, state, and runtime objects
-        let (name, tasks, runtime_envs, diagnostics, tables) =
+        let (name, tasks, subjects, runtime_envs, diagnostics, tables) =
             self.build_inner_with_tables()?;
 
         // update the state with the schema tables
@@ -130,6 +130,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         Ok(SessionContext::new(
             name,
             tasks,
+            subjects,
             runtime_envs,
             diagnostics,
         ))
@@ -137,10 +138,11 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
     fn build_inner_with_tables(self) -> Result<SessionContextInput> {
         let tables = self.to_arrow_tables(true, true, true, true, true)?;
-        let (name, tasks, runtime_envs, diagnostics) = self.build_inner()?;
+        let (name, tasks, subjects, runtime_envs, diagnostics) = self.build_inner()?;
         Ok((
             name,
             tasks,
+            subjects,
             runtime_envs,
             diagnostics,
             tables,

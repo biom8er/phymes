@@ -1,6 +1,6 @@
 use arrow::datatypes::DataType;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, DiagnosticsVisualizations, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, TaskPlan
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, DiagnosticsVisualizations, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator,
@@ -8,7 +8,7 @@ use phymes_data::{
 };
 use serde_json::json;
 
-use crate::{AvailableProcessors, CustomAgentsBuilderTrait};
+use crate::{AvailableProcessors, TaskPlan, CustomAgentsBuilderTrait};
 
 /// A session for gathering analytics based on the session metrics
 ///
@@ -857,15 +857,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
     }
 
     fn make_runtime_env(&self) -> Option<RuntimeEnv> {
-        Some(vec![
-            RuntimeEnv::get_builder().with_name(self.metrics_runtime_env_name).build().unwrap(),
-            RuntimeEnv::get_builder().with_name(self.metrics_processors_traces_runtime_env_name).build().unwrap(),
-            RuntimeEnv::get_builder().with_name(self.metrics_elapsed_compute_runtime_env_name).build().unwrap(),
-            RuntimeEnv::get_builder().with_name(self.metrics_output_rows_runtime_env_name).build().unwrap(),
-            RuntimeEnv::get_builder().with_name(self.traces_runtime_env_name).build().unwrap(),
-            RuntimeEnv::get_builder().with_name(self.events_runtime_env_name).build().unwrap(),
-            RuntimeEnv::get_builder().with_name(self.errors_runtime_env_name).build().unwrap(),
-        ])
+        Some(RuntimeEnv::get_builder().with_name(self.session_context_name).build().unwrap())
     }
 
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
@@ -1860,14 +1852,14 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, SubjectTrait, test_task,
+        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, SubjectTrait,
     };
     use phymes_diagnostics::{HashMap, HashSet};
 
     use crate::{
         SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream,
         SessionStreamStep, SessionStreamStepTrait, create_message_map,
-        test_session_context_builder,
+        test_session_context_builder, test_task,
     };
 
     use super::*;

@@ -210,7 +210,57 @@ impl SubscriptionTrait for Subscription {
 
 #[cfg(test)]
 mod tests {
+    use arrow::array::RecordBatch;
+    use futures::TryStreamExt;
+    use object_store::path::Path;
+    use phymes_core::{IpcWriter, RuntimeEnvTrait, StorageStreamWriterTrait, StorageWriterTrait, Subject, test_subject};
+
+    use crate::make_object_store_path;
+
     use super::*;
+
+    #[tokio::test]
+    async fn test_subscribe_publish_list_subject() -> Result<()> {
+        let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
+
+        // Create some dummy batches
+        let messages = "messages";
+        let subjects = test_subject::make_test_subject(messages, 4, 8, 3)?;
+
+        // Write them to object storage
+        for (i, batch) in subjects.get_record_batches().iter().enumerate() {
+            let mut writer = IpcWriter::new_with_config(subjects.get_schema())?;
+            writer.write_batch(batch)?;
+            writer.finish_batch()?;
+            let location = make_object_store_path(messages, 0, i as u32);
+            let path = Path::from(location);
+            writer.put(rt_env.object_store(), &path).await?;
+        }
+
+        // List all locations
+        let results: Vec<RecordBatch> = list_subject(&rt_env, messages, false)?.try_collect().await?;
+        assert_eq!(results.len(), 3);
+        let subject = Subject::get_builder()
+            .with_name(messages)
+            .with_record_batches(results)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 3);
+        let result = subject.get_column_as_vec_str("location");
+        assert_eq!(result, ["messages/superstep=0/partition=0/messages.ipc", "messages/superstep=0/partition=1/messages.ipc", "messages/superstep=0/partition=2/messages.ipc"]);
+
+        // List last locations
+        let results: Vec<RecordBatch> = list_subject(&rt_env, messages, false)?.try_collect().await?;
+        assert_eq!(results.len(), 1);
+        let subject = Subject::get_builder()
+            .with_name(messages)
+            .with_record_batches(results)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 1);
+        let result = subject.get_column_as_vec_str("location");
+        assert_eq!(result, ["messages/superstep=0/partition=2/messages.ipc"]);
+
+        Ok(())
+    }
 
     #[test]
     fn test_subscribe_to_subject() -> Result<()> {

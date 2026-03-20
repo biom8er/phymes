@@ -1,5 +1,5 @@
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, TaskPlan, create_schema_from_fields
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, create_schema_from_fields
 };
 use phymes_data::{
     AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
@@ -11,7 +11,7 @@ use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig};
 
 use arrow::datatypes::{DataType, Field, Fields, SchemaRef};
 
-use crate::{AvailableInterfaceSubjects, AvailableProcessors, CustomAgentsBuilderTrait};
+use crate::{AvailableInterfaceSubjects, AvailableProcessors, CustomAgentsBuilderTrait, TaskPlan};
 
 /// Document Retrieval Augmented Generation (RAG) session plan.
 ///
@@ -598,14 +598,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
     }
 
     fn make_runtime_env(&self) -> Option<RuntimeEnv> {
-        Some(vec![
-            RuntimeEnv::get_builder().with_name(self.chat_runtime_env_name).build().unwrap(),
-            RuntimeEnv::get_builder().with_name(self.embed_documents_runtime_env_name).build().unwrap(),
-            RuntimeEnv::get_builder().with_name(self.embed_query_runtime_env_name).build().unwrap(),
-            RuntimeEnv::get_builder().with_name(self.vector_search_runtime_env_name).build().unwrap(),
-            RuntimeEnv::get_builder().with_name(self.attachment_aggregator_runtime_env_name).build().unwrap(),
-            RuntimeEnv::get_builder().with_name("rt_default").build().unwrap(),
-        ])
+        Some(RuntimeEnv::get_builder().with_name(self.session_context_name).build().unwrap())
     }
 
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {

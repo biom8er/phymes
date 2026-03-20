@@ -2,14 +2,14 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, TaskPlan, create_user_batch, create_user_session_contexts_batch
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, create_user_batch, create_user_session_contexts_batch
 };
 use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator};
 use phymes_diagnostics::create_timestamp_micros;
 
 use crate::{
     AvailableProcessors, AvailableSessionPlans, CustomAgentsBuilderTrait,
-    make_example_mermaid_table,
+    make_example_mermaid_table, TaskPlan,
 };
 
 /// A session for all user management tasks
@@ -101,9 +101,6 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
         let tasks = vec![
             TaskPlan {
                 task_name: self.filter_session_contexts_by_email_task_name.to_string(),
-                runtime_env_name: self
-                    .filter_session_contexts_by_email_runtime_env_name
-                    .to_string(),
                 processor_names: vec![
                     self.filter_session_contexts_by_email_processor_name
                         .to_string(),
@@ -113,9 +110,6 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 task_name: self
                     .join_session_contexts_with_mermaid_diagrams_task_name
                     .to_string(),
-                runtime_env_name: self
-                    .join_session_contexts_with_mermaid_diagrams_runtime_env_name
-                    .to_string(),
                 processor_names: vec![
                     self.join_session_contexts_with_mermaid_diagrams_processor_name
                         .to_string(),
@@ -123,7 +117,6 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
             },
             TaskPlan {
                 task_name: self.filter_user_info_by_email_task_name.to_string(),
-                runtime_env_name: self.filter_user_info_by_email_runtime_env_name.to_string(),
                 processor_names: vec![self.filter_user_info_by_email_processor_name.to_string()],
             },
         ];
@@ -216,12 +209,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
     }
 
     fn make_runtime_env(&self) -> Option<RuntimeEnv> {
-        Some(vec![
-            RuntimeEnv::get_builder().with_name(self.filter_session_contexts_by_email_runtime_env_name).build().unwrap(),
-            RuntimeEnv::get_builder()
-                .with_name(self.join_session_contexts_with_mermaid_diagrams_runtime_env_name).build().unwrap(),
-            RuntimeEnv::get_builder().with_name(self.filter_user_info_by_email_runtime_env_name).build().unwrap(),
-        ])
+        Some(RuntimeEnv::get_builder().with_name(self.session_context_name).build().unwrap())
     }
 
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {

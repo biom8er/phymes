@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
+use arrow::datatypes::SchemaRef;
 use phymes_core::{
     BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, RuntimeEnv, RuntimeEnvBuilderTrait, SubjectPlan, SubjectPlanTrait, Subject, Publication, Subscription,
 };
@@ -45,6 +46,7 @@ pub struct SessionContextBuilder {
 type SessionContextInput = (
     String,
     TaskMap,
+    HashMap<String, SchemaRef>,
     Arc<RuntimeEnv>,
     bool,
 );
@@ -159,6 +161,7 @@ impl SessionContextBuilder {
         };
 
         // Add the subjects to the session's object store
+        let subjects_map = HashMap::<String, SchemaRef>::new();
         if let Some(subjects) = self.subjects.take() {
             todo!()
         }
@@ -196,6 +199,7 @@ impl SessionContextBuilder {
         Ok((
             name,
             task_map,
+            subjects_map,
             runtime_env,
             self.diagnostics.unwrap_or_default(),
         ))
@@ -298,12 +302,13 @@ impl BuilderTrait for SessionContextBuilder {
         self.check_subjects()?;
 
         // build the tasks, state, metrics, and runtime objects
-        let (name, tasks, runtime_env, diagnostics) = self.build_inner()?;
+        let (name, tasks, subjects, runtime_env, diagnostics) = self.build_inner()?;
 
         // ready to build the session
         Ok(Self::T {
             name,
             tasks,
+            subjects,
             runtime_env,
             diagnostics,
         })

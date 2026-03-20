@@ -12,10 +12,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubscribeEvents, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder,
-    ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilderTrait, Publication,
-    SubjectScript, Subscription, SubjectTrait, from_data_type_to_str,
-    from_str_to_data_type, parse_str_to_data_type,
+    AvailableSubscribeEvents, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilderTrait, SubjectPlanTrait, SubjectScript, SubjectTrait, Subscription, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type
 };
 use phymes_data::{MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE};
 use phymes_diagnostics::{HashMap, HashSet};
@@ -119,7 +116,6 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         // Tasks, Processors, and Runtime_envs to exclude
         let mut tasks_exclude = HashSet::new();
         let mut processors_exclude = HashSet::new();
-        let mut runtime_envs_exclude = HashSet::new();
         let mut subjects_exclude = HashSet::new();
         {
             // Exclusions from `NextTaskSession`
@@ -138,7 +134,6 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             if let Some(tasks) = tasks_publish_subscribe.tasks {
                 for task in tasks {
                     tasks_exclude.insert(task.task_name);
-                    runtime_envs_exclude.insert(task.runtime_env_name);
                     let processors = task.processor_names.into_iter().collect::<HashSet<_>>();
                     processors_exclude.extend(processors);
                 }
@@ -166,7 +161,6 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             if let Some(tasks) = tasks_next_superstep.tasks {
                 for task in tasks {
                     tasks_exclude.insert(task.task_name);
-                    runtime_envs_exclude.insert(task.runtime_env_name);
                     let processors = task.processor_names.into_iter().collect::<HashSet<_>>();
                     processors_exclude.extend(processors);
                 }
@@ -189,7 +183,6 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         if !with_session_interface {
             tasks_exclude.insert(session_name.to_owned());
             processors_exclude.insert(session_name.to_owned());
-            runtime_envs_exclude.insert(runtime_env_name.to_owned());
         }
 
         // Entities with expanded shape/label attributes that will be appended to flowchart
@@ -225,17 +218,11 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         }
 
         let mut runtime_envs_vec = Vec::new();
-        let mut sorted_runtime_env_names = self
-            .get_runtime_env_names()
-            .into_iter()
-            .filter(|p| !runtime_envs_exclude.contains(p))
-            .collect::<Vec<_>>();
-        sorted_runtime_env_names.sort();
-        for runtime_env_name in sorted_runtime_env_names {
-            runtime_envs_vec.push(format!(
-                "\t{runtime_env_name}-rt@{{shape: subproc, label: {runtime_env_name}}}"
-            ));
-        }
+        runtime_envs_vec.push(format!(
+            "\t{runtime_env_name}-rt@{{shape: subproc, label: {runtime_env_name}}}",
+            self.runtime_env.as_ref().unwrap().get_name(),
+            self.runtime_env.as_ref().unwrap().get_name()
+        ));
 
         // Subgraphs
         let mut tasks_vec = Vec::new();
@@ -253,7 +240,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             tasks_vec.push(format!("\tsubgraph {}", task.task_name));
             runtime_envs_to_tasks_vec.push(format!(
                 "\t{}-rt-->{}",
-                task.runtime_env_name, task.task_name
+                self.runtime_env.as_ref().unwrap().get_name(), task.task_name
             ));
 
             // Iterate through each processor
@@ -348,7 +335,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         let mut sorted_map = self.subjects.as_ref().unwrap().iter().collect::<Vec<_>>();
         sorted_map.sort_by(|a, b| a.get_name().cmp(b.get_name()));
         for subject in sorted_map {
-            for field in subject.get_schema().fields().iter() {
+            for field in subject.subject().get_schema().fields().iter() {
                 let mut row = Map::new();
                 row.insert("entity_alias".to_string(), subject.get_name().into());
                 row.insert(
@@ -366,7 +353,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 let value = if config_data && processor_names.contains(subject.get_name())
                     || example_data
                 {
-                    if let Ok(mut example_data) = subject.get_column_as_vec_string(field.name()) {
+                    if let Ok(mut example_data) = subject.subject().get_column_as_vec_string(field.name()) {
                         example_data.pop().unwrap_or_default()
                     } else {
                         String::new()

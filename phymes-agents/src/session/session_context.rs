@@ -23,6 +23,8 @@ pub struct SessionContext {
     pub(crate) name: String,
     /// The list of available tasks that can be run during the session
     pub(crate) tasks: TaskMap,
+    /// Cache of subjects and their schemas
+    pub(crate) subjects: HashMap<String, SchemaRef>,
     /// Runtime environment configuration to use during task runs
     pub(crate) runtime_env: Arc<RuntimeEnv>,
     /// Whether to gather diagnostic information or not
@@ -34,6 +36,7 @@ impl Default for SessionContext {
         Self { 
             name: Default::default(), 
             tasks: Default::default(), 
+            subjects: Default::default(), 
             runtime_env: Default::default(), 
             diagnostics: Default::default(), 
         }
@@ -44,12 +47,14 @@ impl SessionContext {
     pub fn new(
         name: String,
         tasks: TaskMap,
+        subjects: HashMap<String, SchemaRef>,
         runtime_env: Arc<RuntimeEnv>,
         diagnostics: bool,
     ) -> SessionContext {
         Self {
             name,
             tasks,
+            subjects,
             runtime_env,
             diagnostics,
         }
@@ -57,6 +62,10 @@ impl SessionContext {
 
     pub fn tasks(&self) -> &TaskMap {
         &self.tasks
+    }
+
+    pub fn subjects(&self) -> &HashMap<String, SchemaRef> {
+        &self.subjects
     }
 
     /// Compute the next tasks to subscribe
