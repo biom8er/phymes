@@ -1834,7 +1834,6 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
         BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, SubjectTrait,
     };
@@ -1873,19 +1872,24 @@ mod tests {
             },
             true,
         )?;
-        let session_context_arc = Arc::new(session_context)
+        let session_context_arc = Arc::new(session_context);
         let session_stream = SessionStream::new(messages, Arc::clone(&session_context_arc));
         let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         // Extract the subjects
-        let usss = session_context_arc.read();
-        let table = usss
-            .subjects()
-            .get(AvailableSubjects::SessionMetrics.to_string().as_str())
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
-            .read();
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SessionMetrics.to_string().as_str())
+            .with_record_batches(batches)
+            .unwrap()
+            .build()
+            .unwrap();
         let metrics_message = IPCMessage::get_builder()
-            .with_message(table.to_ipc_stream()?)
+            .with_message(subject.to_ipc_stream()?)
             .with_subject(AvailableSubjects::AnalyticsMetrics.to_string().as_str())
             .with_update(&Publication::Replace {
                 subject_name: AvailableSubjects::AnalyticsMetrics.to_string(),
@@ -1893,13 +1897,19 @@ mod tests {
             .with_publisher(name)
             .make_name()?
             .build()?;
-        let table = usss
-            .subjects()
-            .get(AvailableSubjects::SessionTraces.to_string().as_str())
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTraces.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
-            .read();
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
+            .with_record_batches(batches)
+            .unwrap()
+            .build()
+            .unwrap();
         let traces_message = IPCMessage::get_builder()
-            .with_message(table.to_ipc_stream()?)
+            .with_message(subject.to_ipc_stream()?)
             .with_subject(AvailableSubjects::AnalyticsTraces.to_string().as_str())
             .with_update(&Publication::Replace {
                 subject_name: AvailableSubjects::AnalyticsTraces.to_string(),
@@ -1907,13 +1917,19 @@ mod tests {
             .with_publisher(name)
             .make_name()?
             .build()?;
-        let table = usss
-            .subjects()
-            .get(AvailableSubjects::SessionEvents.to_string().as_str())
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionEvents.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
-            .read();
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SessionEvents.to_string().as_str())
+            .with_record_batches(batches)
+            .unwrap()
+            .build()
+            .unwrap();
         let events_message = IPCMessage::get_builder()
-            .with_message(table.to_ipc_stream()?)
+            .with_message(subject.to_ipc_stream()?)
             .with_subject(AvailableSubjects::AnalyticsEvents.to_string().as_str())
             .with_update(&Publication::Replace {
                 subject_name: AvailableSubjects::AnalyticsEvents.to_string(),
@@ -1921,13 +1937,19 @@ mod tests {
             .with_publisher(name)
             .make_name()?
             .build()?;
-        let table = usss
-            .subjects()
-            .get(AvailableSubjects::SessionTasks.to_string().as_str())
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasks.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
-            .read();
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SessionTasks.to_string().as_str())
+            .with_record_batches(batches)
+            .unwrap()
+            .build()
+            .unwrap();
         let tasks_message = IPCMessage::get_builder()
-            .with_message(table.to_ipc_stream()?)
+            .with_message(subject.to_ipc_stream()?)
             .with_subject(AvailableSubjects::AnalyticsTasks.to_string().as_str())
             .with_update(&Publication::Replace {
                 subject_name: AvailableSubjects::AnalyticsTasks.to_string(),
@@ -1935,15 +1957,21 @@ mod tests {
             .with_publisher(name)
             .make_name()?
             .build()?;
-        let table = usss
-            .subjects()
-            .get(AvailableSubjects::SessionErrors.to_string().as_str())
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
-            .read();
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+            .with_record_batches(batches)
+            .unwrap()
+            .build()
+            .unwrap();
 
-        let messages = if table.count_rows() > 0 {
+        let messages = if subject.count_rows() > 0 {
             let errors_message = IPCMessage::get_builder()
-                .with_message(table.to_ipc_stream()?)
+                .with_message(subject.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::AnalyticsErrors.to_string().as_str())
                 .with_update(&Publication::Replace {
                     subject_name: AvailableSubjects::AnalyticsErrors.to_string(),
@@ -1977,7 +2005,6 @@ mod tests {
         let session_ctx = diagnostic_session
             .build()
             .with_name(diagnostic_session.session_context_name)
-            .with_max_iter(25)
             .with_diagnostics(true) // Debugging
             .add_session_interface(Some(&[
                 DiagnosticsVisualizations::MetricProcessorTracesGantt

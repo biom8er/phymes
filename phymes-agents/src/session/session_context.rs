@@ -888,8 +888,6 @@ mod tests {
     use phymes_core::{
         AvailableSchemaTrait, IPCMessage, create_session_tasks_subscribe_aggregate_batch, create_session_tasks_subscribe_publish_batch, test_subject
     };
-    #[cfg(not(target_family = "wasm"))]
-    use tempfile::tempdir;
 
     #[test]
     fn test_session_get_subject_name_by_schema() -> Result<()> {
@@ -1446,43 +1444,43 @@ mod tests {
             supersteps,
             superstep_lasts,
         )?;
-        let table_tasks_subscribe_aggregate =
-            AvailableSubjects::SessionTasksSubscribeAggregate.to_subject(None, Some(vec![batch]))?;
-        let table_tasks_subscribe =
-            AvailableSubjects::SessionTasksSubscribe.to_subject(None, None)?;
 
-        // Make the session context for testing
-        let mut state = HashMap::<String, Arc<RwLock<Subject>>>::new();
-        let _ = state.insert(
-            table_tasks_subscribe_aggregate.get_name().to_string(),
-            Arc::new(RwLock::new(table_tasks_subscribe_aggregate)),
-        );
-        let _ = state.insert(
-            table_tasks_subscribe.get_name().to_string(),
-            Arc::new(RwLock::new(table_tasks_subscribe)),
-        );
+        // Make the schemas
+        let mut schemas = HashMap::<String, SchemaRef>::new();
+        let _ = schemas.insert(AvailableSubjects::SessionTasksSubscribeAggregate.to_string(), AvailableSubjects::SessionTasksSubscribeAggregate.to_schema());
+        let _ = schemas.insert(AvailableSubjects::SessionTasksSubscribe.to_string(), AvailableSubjects::SessionTasksSubscribe.to_schema());
+
+        // Write the data to the object store
+        let runtime_env = test_task::make_runtime_env("rt")?;
+        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string() }
+            .publish_to_subject(&runtime_env, vec![batch], 0)?
+            .unwrap()
+            .try_collect()
+            .await?;
+
+        // Make the session context
         let session_context = SessionContext::new(
             "session_1".to_string(),
             HashMap::<String, Arc<Task>>::new(),
-            state,
-            HashMap::<String, Arc<RuntimeEnv>>::new(),
+            schemas,
+            runtime_env,
             true,
-            make_store(&ObjectStorageBackend::default(), None, None)?
+            None
         );
 
         // Run and check the updated state
-        session_context.tasks_subscribe()?;
-        let table_reading = session_context
-            .subjects()
-            .get("SessionTasksSubscribe")
+        let _ = session_context.tasks_subscribe().await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "SessionTasksSubscribe".to_string() }
+            .subscribe_to_subject(session_context.runtime_env())?
             .unwrap()
-            .read();
-        assert_eq!(table_reading.count_rows(), 0);
+            .try_collect()
+            .await?;        
+        assert_eq!(batches.len(), 0);
         Ok(())
     }
 
-    #[test]
-    fn test_session_tasks_subscribe_some_subscribe() -> Result<()> {
+    #[tokio::test]
+    async fn test_session_tasks_subscribe_some_subscribe() -> Result<()> {
         // Make the test data
         let session_names = ["session_1", "session_1", "session_1", "session_1"]
             .into_iter()
@@ -1577,54 +1575,60 @@ mod tests {
             supersteps,
             superstep_lasts,
         )?;
-        let table_tasks_subscribe_aggregate =
-            AvailableSubjects::SessionTasksSubscribeAggregate.to_subject(None, Some(vec![batch]))?;
-        let table_tasks_subscribe =
-            AvailableSubjects::SessionTasksSubscribe.to_subject(None, None)?;
 
-        // Make the session context for testing
-        let mut state = HashMap::<String, Arc<RwLock<Subject>>>::new();
-        let _ = state.insert(
-            table_tasks_subscribe_aggregate.get_name().to_string(),
-            Arc::new(RwLock::new(table_tasks_subscribe_aggregate)),
-        );
-        let _ = state.insert(
-            table_tasks_subscribe.get_name().to_string(),
-            Arc::new(RwLock::new(table_tasks_subscribe)),
-        );
+        // Make the schemas
+        let mut schemas = HashMap::<String, SchemaRef>::new();
+        let _ = schemas.insert(AvailableSubjects::SessionTasksSubscribeAggregate.to_string(), AvailableSubjects::SessionTasksSubscribeAggregate.to_schema());
+        let _ = schemas.insert(AvailableSubjects::SessionTasksSubscribe.to_string(), AvailableSubjects::SessionTasksSubscribe.to_schema());
+
+        // Write the data to the object store
+        let runtime_env = test_task::make_runtime_env("rt")?;
+        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string() }
+            .publish_to_subject(&runtime_env, vec![batch], 0)?
+            .unwrap()
+            .try_collect()
+            .await?;
+
+        // Make the session context
         let session_context = SessionContext::new(
             "session_1".to_string(),
             HashMap::<String, Arc<Task>>::new(),
-            state,
-            HashMap::<String, Arc<RuntimeEnv>>::new(),
+            schemas,
+            runtime_env,
             true,
-            make_store(&ObjectStorageBackend::default(), None, None)?
+            None
         );
 
         // Run and check the updated state
-        session_context.tasks_subscribe()?;
-        let table_reading = session_context
-            .subjects()
-            .get("SessionTasksSubscribe")
+        let _ = session_context.tasks_subscribe().await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "SessionTasksSubscribe".to_string() }
+            .subscribe_to_subject(session_context.runtime_env())?
             .unwrap()
-            .read();
-        let column = table_reading.get_column_as_vec_str("session_name");
+            .try_collect()
+            .await?;
+		let subject = Subject::get_builder()
+			.with_name("SessionTasksSubscribe")
+			.with_record_batches(batches)
+			.unwrap()
+			.build()
+			.unwrap();
+        let column = subject.get_column_as_vec_str("session_name");
         assert_eq!(column, ["session_1"]);
-        let column = table_reading.get_column_as_vec_str("task_name");
+        let column = subject.get_column_as_vec_str("task_name");
         assert_eq!(column, ["session_1"]);
-        let column = table_reading.get_column_as_vec_str("processor_name");
+        let column = subject.get_column_as_vec_str("processor_name");
         assert_eq!(column, ["session_1"]);
-        let column = table_reading.get_column_as_vec_str("processor_type");
+        let column = subject.get_column_as_vec_str("processor_type");
         assert_eq!(column, ["ProcessorEcho"]);
-        let column = table_reading.get_column_as_vec_str("subscription_name");
+        let column = subject.get_column_as_vec_str("subscription_name");
         assert_eq!(column, ["OnUpdateLastRecordBatch"]);
-        let column = table_reading.get_column_as_vec_str("subscription_table_name");
+        let column = subject.get_column_as_vec_str("subscription_table_name");
         assert_eq!(column, ["state_1"]);
         Ok(())
     }
 
-    #[test]
-    fn test_session_tasks_subscribe_publish() -> Result<()> {
+    #[tokio::test]
+    async fn test_session_tasks_subscribe_publish() -> Result<()> {
         // Make the test data
         let session_names = ["session_1", "session_1", "session_1", "session_1"]
             .into_iter()
@@ -1730,26 +1734,31 @@ mod tests {
             publication_names,
             publication_table_names,
         )?;
-        let table_tasks_subscribe_publish =
-            AvailableSubjects::SessionTasksSubscribePublish.to_subject(None, Some(vec![batch]))?;
 
-        // Make the session context for testing
-        let mut state = HashMap::<String, Arc<RwLock<Subject>>>::new();
-        let _ = state.insert(
-            table_tasks_subscribe_publish.get_name().to_string(),
-            Arc::new(RwLock::new(table_tasks_subscribe_publish)),
-        );
+        // Make the schemas
+        let mut schemas = HashMap::<String, SchemaRef>::new();
+        let _ = schemas.insert(AvailableSubjects::SessionTasksSubscribePublish.to_string(), AvailableSubjects::SessionTasksSubscribePublish.to_schema());
+
+        // Write the data to the object store
+        let runtime_env = test_task::make_runtime_env("rt")?;
+        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string() }
+            .publish_to_subject(&runtime_env, vec![batch], 0)?
+            .unwrap()
+            .try_collect()
+            .await?;
+
+        // Make the session context
         let session_context = SessionContext::new(
             "session_1".to_string(),
             HashMap::<String, Arc<Task>>::new(),
-            state,
-            HashMap::<String, Arc<RuntimeEnv>>::new(),
+            schemas,
+            runtime_env,
             true,
-            make_store(&ObjectStorageBackend::default(), None, None)?
+            None
         );
 
         // Run and check the updated state
-        let tasks = session_context.tasks_subscribe_publish()?;
+        let tasks = session_context.tasks_subscribe_publish().await?;
         let mut expected_tasks =
             HashMap::<(String, String), HashMap<String, ProcessorSubjects>>::new();
         let mut processor_subjects_map = HashMap::<String, ProcessorSubjects>::new();

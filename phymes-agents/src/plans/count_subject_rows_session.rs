@@ -91,15 +91,12 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait,
-        Publication, SubjectTrait,
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream, create_message_map,
-        test_session_context_builder, test_task,
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map, test_session_context_builder, test_task
     };
 
     use super::*;
@@ -146,18 +143,24 @@ mod tests {
                 },
                 true,
             )?;
-            let session_context_arc = Arc::new(session_context)
+            let session_context_arc = Arc::new(session_context);
             let session_stream = SessionStream::new(messages, Arc::clone(&session_context_arc));
             let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
             // Extract out the subjects for the test
-            let table = session_ctx_arc
-                .subjects()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
+                .subscribe_to_subject(session_context_arc.runtime_env())?
                 .unwrap()
-                .read();
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .with_record_batches(batches)
+                .unwrap()
+                .build()
+                .unwrap();
             let subjects_change_log_message = IPCMessage::get_builder()
-                .with_message(table.to_ipc_stream()?)
+                .with_message(subject.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .with_update(&Publication::Extend {
                     subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
@@ -174,33 +177,36 @@ mod tests {
 
         assert_eq!(response.len(), 0);
 
-        {
-            // Test session stream
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-                .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("subject_name");
-            assert_eq!(
-                column,
-                [
-                    "SessionTasksRunLog",
-                    "SubjectsChangeLog",
-                    "SubjectsNumRows",
-                    "group_by_subject_change_log_delta_p",
-                    "group_by_subject_change_log_delta_t",
-                    "processor_1",
-                    "processor_2",
-                    "processor_3",
-                    "select_subject_change_log_delta_p",
-                    "state_1"
-                ]
-            );
-            let column = table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
-            assert_eq!(column, [4, 12, 0, 0, 0, 0, 0, 0, 0, 72]);
-        }
+        // Test session stream
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SubjectsNumRows.to_string().as_str())
+            .with_record_batches(batches)
+            .unwrap()
+            .build()
+            .unwrap();
+        let column = subject.get_column_as_vec_str("subject_name");
+        assert_eq!(
+            column,
+            [
+                "SessionTasksRunLog",
+                "SubjectsChangeLog",
+                "SubjectsNumRows",
+                "group_by_subject_change_log_delta_p",
+                "group_by_subject_change_log_delta_t",
+                "processor_1",
+                "processor_2",
+                "processor_3",
+                "select_subject_change_log_delta_p",
+                "state_1"
+            ]
+        );
+        let column = subject.get_column_as_vec_primitive::<i64>("num_rows")?;
+        assert_eq!(column, [4, 12, 0, 0, 0, 0, 0, 0, 0, 72]);
 
         Ok(())
     }

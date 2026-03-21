@@ -167,7 +167,7 @@ pub async fn session_stream(
                     let response = Bytes::from(serde_json::to_string(&response).unwrap());
 
                     // Update the row counts
-                    session_ctx_arc.update_subject_num_rows().await;
+                    let _ = session_ctx_arc.update_subject_num_rows().await;
 
                     // Send the stream
                     Body::from(response).into_response()
@@ -224,7 +224,7 @@ pub async fn session_stream(
                         .unwrap();
 
                     // Update the row counts
-                    session_ctx_arc.update_subject_num_rows().await;
+                    let _ = session_ctx_arc.update_subject_num_rows().await;
 
                     // Send the stream
                     Body::from(response).into_response()
