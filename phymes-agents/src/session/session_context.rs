@@ -886,9 +886,7 @@ mod tests {
     };
     use arrow::array::Int64Array;
     use phymes_core::{
-        IPCMessage, create_session_tasks_subscribe_aggregate_batch,
-        create_session_tasks_subscribe_publish_batch,
-        test_subject,
+        AvailableSchemaTrait, IPCMessage, create_session_tasks_subscribe_aggregate_batch, create_session_tasks_subscribe_publish_batch, test_subject
     };
     #[cfg(not(target_family = "wasm"))]
     use tempfile::tempdir;
@@ -910,19 +908,25 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn test_session_update_subject_num_rows_subject() -> Result<()> {
+    #[tokio::test]
+    async fn test_session_update_subject_num_rows_subject() -> Result<()> {
         let mut session_context =
             test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?.build()?;
         session_context.update_subject_num_rows();
-        let info = session_context
-            .subjects()
-            .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
+            .subscribe_to_subject(session_context.runtime_env())?
             .unwrap()
-            .read();
+            .try_collect()
+            .await?;
+		let subject = Subject::get_builder()
+			.with_name(AvailableSubjects::SubjectsNumRows.to_string().as_str())
+			.with_record_batches(batches)
+			.unwrap()
+			.build()
+			.unwrap();
 
         assert_eq!(
-            info.get_column_as_vec_str("subject_name"),
+            subject.get_column_as_vec_str("subject_name"),
             [
                 "processor_1",
                 "processor_2",
@@ -932,7 +936,7 @@ mod tests {
                 "state_3",
             ]
         );
-        let num_rows = info
+        let num_rows = subject
             .get_record_batches()
             .iter()
             .flat_map(|batch| {
@@ -952,78 +956,8 @@ mod tests {
         Ok(())
     }
 
-    #[cfg(not(target_family = "wasm"))]
-    #[test]
-    fn test_session_read_write_state() -> Result<()> {
-        // Create the session
-        let session_context =
-            test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?.build()?;
-
-        // Write the session to disk
-        let tmp_dir = tempdir()?;
-        session_context.write_state(tmp_dir.path().to_str().unwrap(), "tag")?;
-
-        // Read the state
-        let mut session_context_empty =
-            test_session_context_builder::make_test_session_context_builder_parallel_empty("session_1", 25)?.build()?;
-        session_context_empty.read_state(tmp_dir.path().to_str().unwrap(), "tag")?;
-
-        for subject in session_context.subjects().keys() {
-            assert_eq!(
-                session_context
-                    .subjects()
-                    .get(subject)
-                    .unwrap()
-                    .try_read()
-                    .unwrap()
-                    .get_record_batches(),
-                session_context_empty
-                    .subjects()
-                    .get(subject)
-                    .unwrap()
-                    .try_read()
-                    .unwrap()
-                    .get_record_batches()
-            );
-            assert_eq!(
-                session_context
-                    .subjects()
-                    .get(subject)
-                    .unwrap()
-                    .try_read()
-                    .unwrap()
-                    .get_schema(),
-                session_context_empty
-                    .subjects()
-                    .get(subject)
-                    .unwrap()
-                    .try_read()
-                    .unwrap()
-                    .get_schema()
-            );
-            assert_eq!(
-                session_context
-                    .subjects()
-                    .get(subject)
-                    .unwrap()
-                    .try_read()
-                    .unwrap()
-                    .get_name(),
-                session_context_empty
-                    .subjects()
-                    .get(subject)
-                    .unwrap()
-                    .try_read()
-                    .unwrap()
-                    .get_name()
-            );
-        }
-        tmp_dir.close()?;
-        Ok(())
-    }
-
-    #[test]
-    fn test_session_update_subjects_from_messages() -> Result<()> {
+    #[tokio::test]
+    async fn test_session_update_subjects_from_messages() -> Result<()> {
         // Case 1: no state update
         let session_context =
             test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?.build()?;
@@ -1035,59 +969,33 @@ mod tests {
             &Publication::None,
             true,
         )?;
-        let (updates, errors) = session_context.update_subjects_from_messages(input);
+        let (changelog, meta, errors) = session_context.update_subjects_from_messages(input).await;
 
         // check the updates
-        assert!(updates.is_none());
+        assert!(changelog.is_none());
+        assert!(meta.is_none());
         assert!(errors.is_none());
 
         // check the session
-        assert_eq!(
-            session_context
-                .subjects()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context
-                .subjects()
-                .get("state_2")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context
-                .subjects()
-                .get("state_3")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context
-                .subjects()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            4
-        );
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
+            .subscribe_to_subject(session_context.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 3);
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 4);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_2".to_string() }
+            .subscribe_to_subject(session_context.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 3);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_3".to_string() }
+            .subscribe_to_subject(session_context.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 3);
 
         // Case 2: update state
         let input = test_task::make_test_input_message(
@@ -1100,76 +1008,99 @@ mod tests {
             },
             true,
         )?;
-        let (updates, errors) = session_context.update_subjects_from_messages(input);
+        let (changelog, meta, errors) = session_context.update_subjects_from_messages(input).await;
+        assert!(errors.is_none());
 
         // check the updates
-        assert_eq!(updates.as_ref().unwrap().count_rows(), 1);
-        assert!(errors.is_none());
-        let col = updates
+        assert_eq!(changelog.as_ref().unwrap().count_rows(), 1);
+        let col = changelog
             .as_ref()
             .unwrap()
             .get_column_as_vec_str("subject_name");
         assert_eq!(col, ["state_1"]);
-        let col = updates.as_ref().unwrap().get_column_as_vec_str("task_name");
+        let col = changelog.as_ref().unwrap().get_column_as_vec_str("task_name");
         assert_eq!(col, ["session_1"]);
-        let col = updates
+        let col = changelog
             .as_ref()
             .unwrap()
             .get_column_as_vec_str("session_name");
         assert_eq!(col, ["session_1"]);
-        let col = updates
+        let col = changelog
             .as_ref()
             .unwrap()
             .get_column_as_vec_primitive::<i64>("num_rows")?;
         assert_eq!(col, [12]);
 
+        // check the object store metadata
+        assert_eq!(meta.as_ref().unwrap().count_rows(), 1);
+        let col = meta
+            .as_ref()
+            .unwrap()
+            .get_column_as_vec_str("subject_name");
+        assert_eq!(col, ["state_1"]);
+        let col = meta.as_ref().unwrap().get_column_as_vec_str("task_name");
+        assert_eq!(col, ["session_1"]);
+        let col = meta
+            .as_ref()
+            .unwrap()
+            .get_column_as_vec_str("session_name");
+        assert_eq!(col, ["session_1"]);
+        let col = meta
+            .as_ref()
+            .unwrap()
+            .get_column_as_vec_primitive::<i64>("num_rows")?;
+        assert_eq!(col, [12]);
+        let col = meta
+            .as_ref()
+            .unwrap()
+            .get_column_as_vec_str("location");
+        assert_eq!(col, ["session_1"]);
+        let col = meta
+            .as_ref()
+            .unwrap()
+            .get_column_as_vec_str("bucket");
+        assert_eq!(col, ["session_1"]);
+        let col = meta
+            .as_ref()
+            .unwrap()
+            .get_column_as_vec_str("e_tag");
+        assert_eq!(col, ["session_1"]);
+        let col = meta
+            .as_ref()
+            .unwrap()
+            .get_column_as_vec_str("version");
+        assert_eq!(col, ["session_1"]);
+        let col = meta
+            .as_ref()
+            .unwrap()
+            .get_column_as_vec_primitive::<u32>("size")?;
+        assert_eq!(col, [12]);
+        let col = meta
+            .as_ref()
+            .unwrap()
+            .get_column_as_vec_primitive::<i64>("last_modified")?;
+        assert_eq!(col, [12]);
+
         // check the session context
-        assert_eq!(
-            session_context
-                .subjects()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            6
-        ); // Originally 3
-        assert_eq!(
-            session_context
-                .subjects()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            4
-        );
-        assert_eq!(
-            session_context
-                .subjects()
-                .get("state_2")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context
-                .subjects()
-                .get("state_3")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
+            .subscribe_to_subject(session_context.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 6);
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 4);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_2".to_string() }
+            .subscribe_to_subject(session_context.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 3);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_3".to_string() }
+            .subscribe_to_subject(session_context.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 3);
 
         // Case 3: Error due to mismatching schemas
         let input = test_task::make_test_input_message(
@@ -1182,8 +1113,9 @@ mod tests {
             },
             false,
         )?;
-        let (updates, errors) = session_context.update_subjects_from_messages(input);
-        assert!(updates.is_none());
+        let (changelog, meta, errors) = session_context.update_subjects_from_messages(input).await;
+        assert!(changelog.is_none());
+        assert!(meta.is_none());
         assert!(errors.is_some());
         assert_eq!(errors.unwrap().count_rows(), 1);
 
@@ -1199,16 +1131,17 @@ mod tests {
         );
         let mut input = HashMap::<String, IPCMessage>::new();
         input.insert(message.get_name().to_string(), message);
-        let (updates, errors) = session_context.update_subjects_from_messages(input);
-        assert!(updates.is_none());
+        let (changelog, meta, errors) = session_context.update_subjects_from_messages(input).await;
+        assert!(changelog.is_none());
+        assert!(meta.is_none());
         assert!(errors.is_some());
         assert_eq!(errors.unwrap().count_rows(), 1);
 
         Ok(())
     }
 
-    #[test]
-    fn test_session_tasks_subscribe_all_subscribe() -> Result<()> {
+    #[tokio::test]
+    async fn test_session_tasks_subscribe_all_subscribe() -> Result<()> {
         // Make the test data
         let session_names = ["session_1", "session_1", "session_1", "session_1"]
             .into_iter()
@@ -1303,38 +1236,44 @@ mod tests {
             supersteps,
             superstep_lasts,
         )?;
-        let table_tasks_subscribe_aggregate =
-            AvailableSubjects::SessionTasksSubscribeAggregate.to_subject(None, Some(vec![batch]))?;
-        let table_tasks_subscribe =
-            AvailableSubjects::SessionTasksSubscribe.to_subject(None, None)?;
 
-        // Make the session context for testing
-        let mut state = HashMap::<String, Arc<RwLock<Subject>>>::new();
-        let _ = state.insert(
-            table_tasks_subscribe_aggregate.get_name().to_string(),
-            Arc::new(RwLock::new(table_tasks_subscribe_aggregate)),
-        );
-        let _ = state.insert(
-            table_tasks_subscribe.get_name().to_string(),
-            Arc::new(RwLock::new(table_tasks_subscribe)),
-        );
+        // Make the schemas
+        let mut schemas = HashMap::<String, SchemaRef>::new();
+        let _ = schemas.insert(AvailableSubjects::SessionTasksSubscribeAggregate.to_string(), AvailableSubjects::SessionTasksSubscribeAggregate.to_schema());
+        let _ = schemas.insert(AvailableSubjects::SessionTasksSubscribe.to_string(), AvailableSubjects::SessionTasksSubscribe.to_schema());
+
+        // Write the data to the object store
+        let runtime_env = test_task::make_runtime_env("rt")?;
+        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string() }
+            .publish_to_subject(&runtime_env, vec![batch], 0)?
+            .unwrap()
+            .try_collect()
+            .await?;
+
+        // Make the session context
         let session_context = SessionContext::new(
             "session_1".to_string(),
             HashMap::<String, Arc<Task>>::new(),
-            state,
-            HashMap::<String, Arc<RuntimeEnv>>::new(),
+            schemas,
+            runtime_env,
             true,
-            make_store(&ObjectStorageBackend::default(), None, None)?
+            None
         );
 
         // Run and check the updated state
-        session_context.tasks_subscribe()?;
-        let table_reading = session_context
-            .subjects()
-            .get("SessionTasksSubscribe")
+        let _ = session_context.tasks_subscribe().await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "SessionTasksSubscribe".to_string() }
+            .subscribe_to_subject(session_context.runtime_env())?
             .unwrap()
-            .read();
-        let column = table_reading.get_column_as_vec_str("session_name");
+            .try_collect()
+            .await?;
+		let subject = Subject::get_builder()
+			.with_name("SessionTasksSubscribe")
+			.with_record_batches(batches)
+			.unwrap()
+			.build()
+			.unwrap();
+        let column = subject.get_column_as_vec_str("session_name");
         assert_eq!(
             column,
             [
@@ -1347,7 +1286,7 @@ mod tests {
                 "session_1"
             ]
         );
-        let column = table_reading.get_column_as_vec_str("task_name");
+        let column = subject.get_column_as_vec_str("task_name");
         assert_eq!(
             column,
             [
@@ -1360,7 +1299,7 @@ mod tests {
                 "task_1"
             ]
         );
-        let column = table_reading.get_column_as_vec_str("processor_name");
+        let column = subject.get_column_as_vec_str("processor_name");
         assert_eq!(
             column,
             [
@@ -1373,7 +1312,7 @@ mod tests {
                 "processor_3"
             ]
         );
-        let column = table_reading.get_column_as_vec_str("processor_type");
+        let column = subject.get_column_as_vec_str("processor_type");
         assert_eq!(
             column,
             [
@@ -1386,7 +1325,7 @@ mod tests {
                 "ProcessorMock"
             ]
         );
-        let column = table_reading.get_column_as_vec_str("subscription_name");
+        let column = subject.get_column_as_vec_str("subscription_name");
         assert_eq!(
             column,
             [
@@ -1399,7 +1338,7 @@ mod tests {
                 "OnUpdateAllRecordBatches"
             ]
         );
-        let column = table_reading.get_column_as_vec_str("subscription_table_name");
+        let column = subject.get_column_as_vec_str("subscription_table_name");
         assert_eq!(
             column,
             [
@@ -1415,8 +1354,8 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn test_session_tasks_subscribe_none_subscribe() -> Result<()> {
+    #[tokio::test]
+    async fn test_session_tasks_subscribe_none_subscribe() -> Result<()> {
         // Make the test data
         let session_names = ["session_1", "session_1", "session_1", "session_1"]
             .into_iter()

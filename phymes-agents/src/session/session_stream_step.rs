@@ -1,5 +1,4 @@
 use anyhow::{Result, anyhow};
-use arrow::record_batch::RecordBatch;
 use futures::{FutureExt, TryStreamExt};
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjectsMap, Publication, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_error_message_map, create_error_message_map_stream, create_session_tasks_run_log_batch
