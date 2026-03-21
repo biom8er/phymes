@@ -59,7 +59,7 @@ pub use session::{
 };
 
 mod subjects;
-pub use subjects::{create_subjects_change_log_batch, create_subjects_num_rows_batch};
+pub use subjects::{create_subjects_change_log_batch, create_subjects_num_rows_batch, create_subjects_object_store_meta_batch};
 
 mod graph;
 pub use graph::{

@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow};
 use arrow::record_batch::RecordBatch;
-use futures::TryStreamExt;
+use futures::{FutureExt, TryStreamExt};
 use parking_lot::RwLock;
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjectsMap, Publication, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_error_message_map, create_error_message_map_stream, create_session_tasks_run_log_batch
@@ -9,7 +9,7 @@ use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap, Span,
     SpanBuilder, TraceBuilderTrait, TraceRecord, create_timestamp_micros,
 };
-use std::sync::Arc;
+use std::{pin::Pin, sync::Arc};
 use tokio::task::JoinSet;
 use tracing::{Level, event};
 
@@ -113,70 +113,94 @@ pub trait SessionStreamStepTrait {
     }
 
     /// Exit the span
-    fn exit_span(
+    async fn exit_span(
         session_context: &Arc<RwLock<SessionContext>>,
         messages: &IPCMessageMap,
         diagnostics_vec: Vec<Diagnostics>,
         trace: TraceRecord,
     ) -> Result<()> {
         trace.exit(&messages.values().collect::<Vec<_>>());
-        let (_metrics_updated, _traces_updated, _events_updated) = session_context
+        let _ = session_context
             .write()
-            .update_metrics_table(&diagnostics_vec)?;
+            .update_metrics_subjects(&diagnostics_vec).await?;
 
         Ok(())
     }
 
     /// Update the session context subjects from messages including updating the subjects change log
-    fn update_subjects_and_changelog_from_messages(
+    async fn update_subjects_and_changelog_from_messages(
         session_context: &Arc<RwLock<SessionContext>>,
         messages: IPCMessageMap,
     ) -> Result<()> {
         // Update the session_context and handle any errors
         let session_context_name = session_context.read().get_name().to_string();
-        let (update, errors) = session_context
+        let (changelog, meta, errors) = session_context
             .write()
-            .update_subjects_from_messages(messages);
+            .update_subjects_from_messages(messages).await;
 
         let mut messages = Vec::new();
-        if let Some(table) = update {
+        if let Some(subject) = changelog {
             let message = IPCMessageBuilder::new()
-                .with_subject(table.get_name())
+                .with_subject(subject.get_name())
                 .with_publisher(&session_context_name)
                 .with_update(&Publication::Extend {
-                    subject_name: table.get_name().to_string(),
+                    subject_name: subject.get_name().to_string(),
                 })
-                .with_message(table.to_ipc_stream()?)
+                .with_message(subject.to_ipc_stream()?)
+                .make_random_name()?
+                .build()?;
+            messages.push(message);
+        }
+        if let Some(subject) = meta {
+            let message = IPCMessageBuilder::new()
+                .with_subject(subject.get_name())
+                .with_publisher(&session_context_name)
+                .with_update(&Publication::Extend {
+                    subject_name: subject.get_name().to_string(),
+                })
+                .with_message(subject.to_ipc_stream()?)
                 .make_random_name()?
                 .build()?;
             messages.push(message);
         }
 
         // Update the errors
-        if let Some(table) = errors {
+        if let Some(subject) = errors {
             let message = IPCMessageBuilder::new()
-                .with_subject(table.get_name())
+                .with_subject(subject.get_name())
                 .with_publisher(&session_context_name)
                 .with_update(&Publication::Extend {
                     subject_name: AvailableSubjects::SessionErrors.to_string(),
                 })
-                .with_message(table.to_ipc_stream()?)
+                .with_message(subject.to_ipc_stream()?)
                 .make_random_name()?
                 .build()?;
             let mut message_map = HashMap::<String, IPCMessage>::new();
             let _ = message_map.insert(message.get_name().to_string(), message);
-            let (update, _errors) = session_context
+            let (update, meta, _errors) = session_context
                 .write()
-                .update_subjects_from_messages(message_map);
+                .update_subjects_from_messages(message_map).await;
 
-            if let Some(table) = update {
+            if let Some(subject) = update {
                 let message = IPCMessageBuilder::new()
-                    .with_subject(table.get_name())
+                    .with_subject(subject.get_name())
                     .with_publisher(&session_context_name)
                     .with_update(&Publication::Extend {
-                        subject_name: table.get_name().to_string(),
+                        subject_name: subject.get_name().to_string(),
                     })
-                    .with_message(table.to_ipc_stream()?)
+                    .with_message(subject.to_ipc_stream()?)
+                    .make_random_name()?
+                    .build()?;
+                messages.push(message);
+            }
+            if let Some(subject) = meta {
+                let message = IPCMessageBuilder::new()
+                    .with_subject(subject.get_name())
+                    .with_publisher(&session_context_name)
+                    .with_update(&Publication::Extend {
+                        subject_name: subject.get_name().to_string(),
+                    })
+                    .with_message(subject.to_ipc_stream()?)
                     .make_random_name()?
                     .build()?;
                 messages.push(message);
@@ -187,7 +211,7 @@ pub trait SessionStreamStepTrait {
         let messages = create_message_map(messages);
         let _ = session_context
             .write()
-            .update_subjects_from_messages(messages);
+            .update_subjects_from_messages(messages).await;
 
         Ok(())
     }
@@ -196,62 +220,78 @@ pub trait SessionStreamStepTrait {
     fn update_subjects_and_changelog_from_tasks(
         session_context: &Arc<RwLock<SessionContext>>,
         tasks: HashMap<(String, String), ProcessorSubjectsMap>,
-    ) -> Result<()> {
-        // Create the tasks run log message
-        let step = session_context.read().current_superstep()?;
-        let session_context_name = session_context.read().get_name().to_string();
-        let (session_names, (task_names, (supersteps, timestamps))): (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))) = tasks
-            .into_iter()
-            .map(|((task_name, session_name), _)| (session_name, (task_name, (step as i64, create_timestamp_micros()))))
-            .unzip();
-        let tasks_run_log_batch =
-            create_session_tasks_run_log_batch(session_names, task_names, supersteps, timestamps)?;
-        let tasks_run_log_table = AvailableSubjects::SessionTasksRunLog
-            .to_subject(None, Some(vec![tasks_run_log_batch]))?;
-        let messages = create_message_map(vec![
-            IPCMessageBuilder::new()
-                .with_subject(tasks_run_log_table.get_name())
-                .with_publisher(&session_context_name)
-                .with_update(&Publication::Extend {
-                    subject_name: tasks_run_log_table.get_name().to_string(),
-                })
-                .with_message(tasks_run_log_table.to_ipc_stream()?)
-                .make_random_name()?
-                .build()?,
-        ]);
-
-        // Update the tasks run log
-        let (update, errors) = session_context
-            .write()
-            .update_subjects_from_messages(messages);
-        if let Some(table) = errors {
-            let error = table.get_column_as_vec_str("content").join("; ");
-            return Err(anyhow!(error));
-        }
-
-        // Update the subjects change log
-        if let Some(table) = update {
+    ) -> Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>> {
+        let session_context = Arc::clone(session_context);
+        async move {
+            // Create the tasks run log message
+            let step = session_context.read().current_superstep().await?;
+            let session_context_name = session_context.read().get_name().to_string();
+            let (session_names, (task_names, (supersteps, timestamps))): (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))) = tasks
+                .into_iter()
+                .map(|((task_name, session_name), _)| (session_name, (task_name, (step as i64, create_timestamp_micros()))))
+                .unzip();
+            let tasks_run_log_batch =
+                create_session_tasks_run_log_batch(session_names, task_names, supersteps, timestamps)?;
+            let tasks_run_log_table = AvailableSubjects::SessionTasksRunLog
+                .to_subject(None, Some(vec![tasks_run_log_batch]))?;
             let messages = create_message_map(vec![
                 IPCMessageBuilder::new()
-                    .with_subject(table.get_name())
+                    .with_subject(tasks_run_log_table.get_name())
                     .with_publisher(&session_context_name)
                     .with_update(&Publication::Extend {
-                        subject_name: table.get_name().to_string(),
+                        subject_name: tasks_run_log_table.get_name().to_string(),
                     })
-                    .with_message(table.to_ipc_stream()?)
+                    .with_message(tasks_run_log_table.to_ipc_stream()?)
                     .make_random_name()?
                     .build()?,
             ]);
-            let (_update, errors) = session_context
+
+            // Update the tasks run log
+            let (changelog, meta, errors) = session_context
                 .write()
-                .update_subjects_from_messages(messages);
+                .update_subjects_from_messages(messages).await;
             if let Some(table) = errors {
                 let error = table.get_column_as_vec_str("content").join("; ");
                 return Err(anyhow!(error));
             }
-        }
 
-        Ok(())
+            // Update the subjects change log
+            let mut messages = Vec::new();
+            if let Some(subject) = changelog {
+                let message = IPCMessageBuilder::new()
+                    .with_subject(subject.get_name())
+                    .with_publisher(&session_context_name)
+                    .with_update(&Publication::Extend {
+                        subject_name: subject.get_name().to_string(),
+                    })
+                    .with_message(subject.to_ipc_stream()?)
+                    .make_random_name()?
+                    .build()?;
+                messages.push(message);
+            }
+            if let Some(subject) = meta {
+                let message = IPCMessageBuilder::new()
+                    .with_subject(subject.get_name())
+                    .with_publisher(&session_context_name)
+                    .with_update(&Publication::Extend {
+                        subject_name: subject.get_name().to_string(),
+                    })
+                    .with_message(subject.to_ipc_stream()?)
+                    .make_random_name()?
+                    .build()?;
+                messages.push(message);
+            }
+            let messages = create_message_map(messages);
+            let (_update, _meta, errors) = session_context
+                .write()
+                .update_subjects_from_messages(messages).await;
+            if let Some(table) = errors {
+                let error = table.get_column_as_vec_str("content").join("; ");
+                return Err(anyhow!(error));
+            }
+
+            Ok(())
+        }.boxed()
     }
 
     /// Get the next superstep using the [NextSuperstepSession] pre-compiled tasks and [SessionContext] helpers
@@ -279,7 +319,7 @@ pub trait SessionStreamStepTrait {
             // Return the next superstep
             session_context
                 .read()
-                .current_superstep()
+                .current_superstep().await
                 .unwrap_or_else(|err| panic!("Error `{err}` reading the `current_superstep`."))
         }
     }

@@ -280,7 +280,7 @@ pub async fn session_get_state(
                     session_ctx_arc
                         .try_write()
                         .unwrap()
-                        .update_subject_num_rows_table();
+                        .update_subject_num_rows();
 
                     match payload.get_format() {
                         DataFormat::Bytes => {

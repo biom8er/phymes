@@ -1,16 +1,16 @@
 use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use clap::ValueEnum;
-use futures::TryStreamExt;
+use futures::{StreamExt, TryStreamExt};
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_diagnostics_to_tables, make_store
+    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, create_subjects_object_store_meta_batch, from_diagnostics_to_tables, make_store
 };
 use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
 use std::sync::Arc;
 use tracing::{Level, event};
 
-use crate::{SessionContextBuilder, SubscriptionTrait, TaskMap, clear_subject, create_message_map};
+use crate::{PublicationTrait, SessionContextBuilder, SubscriptionTrait, TaskMap, clear_subject, create_message_map};
 
 /// The [SessionContext] creates a (dynamic) execution graph based on a [TaskPlan]
 ///   and manages the running of individual [Task]s and the [Message]s passed between them.
@@ -354,7 +354,7 @@ impl SessionContext {
             .make_name()?
             .build()?;
         let messages = create_message_map(vec![message]);
-        let (_update, errors) = self.update_subjects_from_messages(messages);
+        let (_update, _meta, errors) = self.update_subjects_from_messages(messages).await;
         if let Some(table) = errors {
             let error = table.get_column_as_vec_str("content").join("; ");
             return Err(anyhow!(error));
@@ -502,120 +502,66 @@ impl SessionContext {
     }
 
     /// Create the metrics table if it does not exist or update with the new metrics
-    pub fn update_metrics_table(
+    pub async fn update_metrics_subjects(
         &mut self,
         diagnostics_vec: &[Diagnostics],
-    ) -> Result<(bool, bool, bool)> {
+    ) -> Result<()> {
         // create the pivot table and clear the metrics
-        let (metrics_table, traces_table, events_table) =
+        let (metrics_subject, traces_subject, events_subject) =
             from_diagnostics_to_tables(diagnostics_vec)?;
+        
+        // DM: does it make sense to cache the current step?
+        let step = self.current_superstep().await?;
 
         // update the state with the metrics
-        let updated_metrics = if let Some(metrics_table) = metrics_table {
-            // Add the metrics pivot table to the state or update
-            if self
-                .subjects
-                .contains_key(AvailableSubjects::SessionMetrics.to_string().as_str())
-            {
-                self.subjects
-                    .get_mut(AvailableSubjects::SessionMetrics.to_string().as_str())
-                    .unwrap()
-                    .try_write()
-                    .unwrap()
-                    .publish_to_table(
-                        metrics_table.get_record_batches_own(),
-                        Publication::Extend {
-                            subject_name: AvailableSubjects::SessionMetrics
-                                .to_string()
-                                .as_str()
-                                .to_string(),
-                        },
-                    )?;
-            } else {
-                self.subjects.insert(
-                    AvailableSubjects::SessionMetrics.to_string(),
-                    Arc::new(RwLock::new(metrics_table)),
-                );
+        if let Some(metrics_subject) = metrics_subject {
+            if !self.subjects().contains_key(AvailableSubjects::SessionMetrics.to_string().as_str()) {
+                let _ = self.subjects.insert(AvailableSubjects::SessionMetrics.to_string(), AvailableSubjects::SessionMetrics.to_schema());
             }
-
-            true
-        } else {
-            false
-        };
+            let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionMetrics.to_string() }
+                .publish_to_subject(self.runtime_env(), metrics_subject.get_record_batches_own(), step)?
+                .ok_or(anyhow!("Unable to put the subject `{}` into object storage for session `{}` while updating the metrics tables.",
+                    AvailableSubjects::SessionMetrics,
+                    self.get_name()))?
+                .try_collect()
+                .await?;
+        }
 
         // update the state with the traces
-        let updated_traces = if let Some(traces_table) = traces_table {
-            // Add the metrics pivot table to the state or update
-            if self
-                .subjects
-                .contains_key(AvailableSubjects::SessionTraces.to_string().as_str())
-            {
-                self.subjects
-                    .get_mut(AvailableSubjects::SessionTraces.to_string().as_str())
-                    .unwrap()
-                    .try_write()
-                    .unwrap()
-                    .publish_to_table(
-                        traces_table.get_record_batches_own(),
-                        Publication::Extend {
-                            subject_name: AvailableSubjects::SessionTraces
-                                .to_string()
-                                .as_str()
-                                .to_string(),
-                        },
-                    )?;
-            } else {
-                self.subjects.insert(
-                    AvailableSubjects::SessionTraces.to_string(),
-                    Arc::new(RwLock::new(traces_table)),
-                );
+        if let Some(traces_subject) = traces_subject {
+            if !self.subjects().contains_key(AvailableSubjects::SessionTraces.to_string().as_str()) {
+                let _ = self.subjects.insert(AvailableSubjects::SessionTraces.to_string(), AvailableSubjects::SessionTraces.to_schema());
             }
-
-            true
-        } else {
-            false
-        };
+            let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTraces.to_string() }
+                .publish_to_subject(self.runtime_env(), traces_subject.get_record_batches_own(), step)?
+                .ok_or(anyhow!("Unable to put the subject `{}` into object storage for session `{}` while updating the metrics tables.",
+                    AvailableSubjects::SessionTraces,
+                    self.get_name()))?
+                .try_collect()
+                .await?;
+        }
 
         // update the state with the events
-        let updated_events = if let Some(events_table) = events_table {
-            // Add the metrics pivot table to the state or update
-            if self
-                .subjects
-                .contains_key(AvailableSubjects::SessionEvents.to_string().as_str())
-            {
-                self.subjects
-                    .get_mut(AvailableSubjects::SessionEvents.to_string().as_str())
-                    .unwrap()
-                    .try_write()
-                    .unwrap()
-                    .publish_to_table(
-                        events_table.get_record_batches_own(),
-                        Publication::Extend {
-                            subject_name: AvailableSubjects::SessionEvents
-                                .to_string()
-                                .as_str()
-                                .to_string(),
-                        },
-                    )?;
-            } else {
-                self.subjects.insert(
-                    AvailableSubjects::SessionEvents.to_string(),
-                    Arc::new(RwLock::new(events_table)),
-                );
+        if let Some(events_subject) = events_subject {
+            if !self.subjects().contains_key(AvailableSubjects::SessionEvents.to_string().as_str()) {
+                let _ = self.subjects.insert(AvailableSubjects::SessionEvents.to_string(), AvailableSubjects::SessionEvents.to_schema());
             }
+            let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionEvents.to_string() }
+                .publish_to_subject(self.runtime_env(), events_subject.get_record_batches_own(), step)?
+                .ok_or(anyhow!("Unable to put the subject `{}` into object storage for session `{}` while updating the metrics tables.",
+                    AvailableSubjects::SessionEvents,
+                    self.get_name()))?
+                .try_collect()
+                .await?;
+        }
 
-            true
-        } else {
-            false
-        };
-
-        Ok((updated_metrics, updated_traces, updated_events))
+        Ok(())
     }
 
     /// Increment the session superstep
-    pub fn increment_superstep(&self) -> Result<u32> {
+    pub async fn increment_superstep(&self) -> Result<u32> {
         // Increment the superstep
-        let next_superstep = self.current_superstep().unwrap_or_default() + 1;
+        let next_superstep = self.current_superstep().await.unwrap_or_default() + 1;
         let session_names = [self.get_name()]
             .into_iter()
             .map(|s| s.to_string())
@@ -650,7 +596,7 @@ impl SessionContext {
                 .build()?
         };
         let messages = create_message_map(vec![superstep_message]);
-        let (_update, errors) = self.update_subjects_from_messages(messages);
+        let (_update, _meta, errors) = self.update_subjects_from_messages(messages).await;
         if let Some(table) = errors {
             let error = table.get_column_as_vec_str("content").join("; ");
             return Err(anyhow!(error));
@@ -659,16 +605,20 @@ impl SessionContext {
     }
 
     /// Get the current session superstep
-    pub fn current_superstep(&self) -> Result<u32> {
-        let current_superstep = self
-            .subjects()
-            .get(AvailableSubjects::SessionSuperstepMax.to_string().as_str())
-            .ok_or(anyhow!(
-                "Missing table for `{}` in session `{}`.",
+    pub async fn current_superstep(&self) -> Result<u32> {
+        let batches: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSuperstepMax.to_string() }
+            .subscribe_to_subject(self.runtime_env())?
+            .ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` while getting the current superstep.", 
                 AvailableSubjects::SessionSuperstepMax,
                 self.get_name()
             ))?
-            .read()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SessionSuperstepMax.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        let current_superstep = subject
             .get_column_as_vec_primitive::<u32>("superstep-Max")?
             .last()
             .ok_or(anyhow!(
@@ -681,133 +631,83 @@ impl SessionContext {
     }
 
     /// Update the row counts for the subjects
-    pub fn update_subject_num_rows_table(&mut self) {
+    pub async fn update_subject_num_rows(&mut self) -> Result<()> {
         let mut subject_names = Vec::new();
         let mut num_rows = Vec::new();
 
-        // Sort the hashmap
-        let mut sorted_map = self.subjects.iter().collect::<Vec<_>>();
-        sorted_map.sort_by(|a, b| a.0.cmp(b.0));
-        for (_name, state) in sorted_map.iter() {
-            let name = state.read().get_name().to_string();
-            let num_row = state.read().count_rows() as i64;
-            subject_names.push(name.clone());
-            num_rows.push(num_row);
-        }
+        // DM: migrate to using `CountSubjectRowsSession` 
+        // // Sort the hashmap
+        // let mut sorted_map = self.subjects.iter().collect::<Vec<_>>();
+        // sorted_map.sort_by(|a, b| a.0.cmp(b.0));
+        // for (_name, state) in sorted_map.iter() {
+        //     let name = state.read().get_name().to_string();
+        //     let num_row = state.read().count_rows() as i64;
+        //     subject_names.push(name.clone());
+        //     num_rows.push(num_row);
+        // }
 
         // create the record batch
-        let batch = create_subjects_num_rows_batch(subject_names, num_rows).unwrap();
+        let batch = create_subjects_num_rows_batch(subject_names, num_rows)?;
 
         // create the table
-        let subject_num_rows_table = Subject::get_builder()
+        let subject_num_rows = Subject::get_builder()
             .with_name(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-            .with_record_batches(vec![batch])
-            .unwrap()
-            .build()
-            .unwrap();
+            .with_record_batches(vec![batch])?
+            .build()?;
 
         // Add the subjects num rows table to the state or update
-        if self
-            .subjects
-            .contains_key(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-        {
-            self.subjects
-                .get_mut(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-                .unwrap()
-                .write()
-                .publish_to_table(
-                    subject_num_rows_table.get_record_batches_own(),
-                    Publication::Replace {
-                        subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
-                    },
-                )
-                .unwrap();
-        } else {
-            self.subjects.insert(
-                AvailableSubjects::SubjectsNumRows.to_string(),
-                Arc::new(RwLock::new(subject_num_rows_table)),
-            );
+        if !self.subjects().contains_key(AvailableSubjects::SubjectsNumRows.to_string().as_str()) {
+            let _ = self.subjects.insert(AvailableSubjects::SubjectsNumRows.to_string(), AvailableSubjects::SubjectsNumRows.to_schema());
         }
+        let step = self.current_superstep().await?;
+        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
+            .publish_to_subject(self.runtime_env(), subject_num_rows.get_record_batches_own(), step)?
+            .ok_or(anyhow!("Unable to put the subject `{}` into object storage for session `{}` while updating the subject number rows.",
+                AvailableSubjects::SessionMetrics,
+                self.get_name()))?
+            .try_collect()
+            .await?;
+        Ok(())
     }
 
     /// Find the table by matching schemas
-    pub fn get_table_name_by_schema(&self, schema: &SchemaRef) -> Option<&str> {
+    pub fn get_subject_name_by_schema(&self, schema: &SchemaRef) -> Option<&str> {
         let mut sorted_map = self.subjects.iter().collect::<Vec<_>>();
         sorted_map.sort_by(|a, b| a.0.cmp(b.0));
-        for (name, table) in sorted_map.iter() {
-            if schema.eq(&table.read().get_schema()) {
+        for (name, subject) in sorted_map.iter() {
+            if schema.eq(subject) {
                 return Some(name);
             }
         }
         None
     }
 
-    /// Get the subject as a csv string
-    pub fn get_subject_as_csv_str(
-        &self,
-        name: &str,
-        delimiter: u8,
-        header: bool,
-    ) -> Result<String> {
-        let csv = self
-            .subjects
-            .get(name)
-            .unwrap()
-            .read()
-            .to_csv(delimiter, header)?;
-        let csv_str = String::from_utf8_lossy(csv.as_ref()).into_owned();
-        Ok(csv_str)
-    }
-
-    /// Save the current state to disk
-    pub fn write_state(&self, path: &str, tag: &str) -> Result<()> {
-        for (name, subject) in self.subjects.iter() {
-            let pathname = format!("{path}/{tag}-{}-{name}", self.get_name());
-            let mut file = std::fs::File::create(pathname)?;
-            match subject.read().to_ipc_file(&mut file) {
-                Ok(()) => (),
-                Err(e) => event!(Level::ERROR, "Error writing state: {e:?}"),
-            };
-        }
-        Ok(())
-    }
-
-    /// Read state
-    pub fn read_state(&mut self, path: &str, tag: &str) -> Result<()> {
-        for (name, subject) in self.subjects.iter() {
-            let pathname = format!("{path}/{tag}-{}-{name}", self.get_name());
-            let file = std::fs::File::open(pathname)?;
-            match SubjectBuilder::new_from_ipc_file(&file) {
-                Ok(table_builder) => {
-                    let table = table_builder.with_name(name).build()?;
-                    let update = Publication::Replace {
-                        subject_name: name.to_string(),
-                    };
-                    subject
-                        .write()
-                        .publish_to_table(table.get_record_batches_own(), update)?;
-                }
-                Err(e) => event!(Level::ERROR, "Error reading state: {e:?}"),
-            };
-        }
-        Ok(())
-    }
-
     /// Update the state from the published messages
     ///   and return a table of subject change logs and any errors
-    pub fn update_subjects_from_messages(
+    pub async fn update_subjects_from_messages(
         &self,
         messages: IPCMessageMap,
-    ) -> (Option<Subject>, Option<Subject>) {
-        let mut subject_names = Vec::new();
-        let mut task_names = Vec::new();
-        let mut session_names = Vec::new();
-        let mut num_rows_deltas = Vec::new();
-        let mut supersteps = Vec::new();
+    ) -> (Option<Subject>, Option<Subject>, Option<Subject>) {
+        let mut change_log_subject_names = Vec::new();
+        let mut change_log_task_names = Vec::new();
+        let mut change_log_session_names = Vec::new();
+        let mut change_log_num_rows = Vec::new();
+        let mut change_log_supersteps = Vec::new();
+        let mut store_meta_subject_names = Vec::new();
+        let mut store_meta_task_names = Vec::new();
+        let mut store_meta_session_names = Vec::new();
+        let mut store_meta_num_rows = Vec::new();
+        let mut store_meta_supersteps = Vec::new();
+        let mut store_meta_location = Vec::new();
+        let mut store_meta_bucket = Vec::new();
+        let mut store_meta_e_tag = Vec::new();
+        let mut store_meta_version = Vec::new();
+        let mut store_meta_size = Vec::new();
+        let mut store_meta_last_modified = Vec::new();
         let mut errors = Vec::new();
 
         // Update the subjects with each of the messages
-        let step = self.current_superstep().unwrap_or_default();
+        let step = self.current_superstep().await.unwrap_or_default();
         for (_name, message) in messages.into_iter() {
             // Should the subject be updated?
             let update = message.get_update().clone();
@@ -817,61 +717,106 @@ impl SessionContext {
 
             // Try to update the state with the new record batches
             let subject_name = message.get_update().subject_name().to_string();
-            if let Some(state) = self.subjects().get(subject_name.as_str()) {
+            if let Some(schema) = self.subjects().get(subject_name.as_str()) {
                 let publisher = message.get_publisher().to_string();
 
                 // Handle any inconsistencies in the message
                 // DM, todo!(): Mostly an issue with empty batches which should be ignored anyway
                 match SubjectBuilder::new_from_ipc_stream(&message.get_message_own()) {
                     Ok(builder) => {
-                        let table = builder.with_name(subject_name.as_str()).build().unwrap();
-                        let _num_rows = table.count_rows(); // DM: not used currently...
-                        let batches = table.get_record_batches_own();
+                        let subject = builder.with_name(subject_name.as_str()).build().unwrap();
+                        let num_rows = subject.count_rows(); // DM: not used currently...
 
-                        // Update the state
                         // Check for a mismatch in the schema and intercept any errors
-                        let num_rows_old = state.read().count_rows();
-                        if let Err(err) = state.write().publish_to_table(batches, update) {
+                        if schema.ne(&subject.get_schema()) {                            
                             let error = format!(
-                                "Subject `{subject_name}` from publisher `{publisher}` failed to update the target table with error `{err:?}`"
+                                "Schema `{}` for Subject `{subject_name}` from publisher `{publisher}` does match the cached Subject Schema `{}`",
+                                    subject.get_schema(), schema
                             );
                             errors.push(error);
                             continue;
                         }
-                        let num_rows_new = state.read().count_rows();
 
-                        // Record the table name that was updated and the pubisher who updated it
-                        subject_names.push(state.read().get_name().to_string());
-                        task_names.push(publisher);
-                        session_names.push(self.get_name().to_string());
-                        num_rows_deltas.push(num_rows_new as i64 - num_rows_old as i64);
-                        supersteps.push(step as i64);
+                        // Publish to the object store
+                        let mut object_store_metadata = Vec::new();
+                        if let Ok(Some(mut stream)) = update
+                            .publish_to_subject(self.runtime_env(), subject.get_record_batches_own(), step) {
+                            while let Some(batch) = stream.next().await {
+                                match batch {
+                                    Ok(metadata) => {
+                                        // Record the subject object store metadata
+                                        object_store_metadata.push(metadata);
+                                    },
+                                    Err(err) => {
+                                        // Record the error
+                                        let error = format!(
+                                            "Subject `{subject_name}` from publisher `{publisher}` failed to update the target subject with error `{err:?}`"
+                                        );
+                                        errors.push(error);
+                                    },
+                                }
+                            }
+                        } else {
+                            // Record the error
+                            let error = format!(
+                                "Subject `{subject_name}` from publisher `{publisher}` failed to put to the object store"
+                            );
+                            errors.push(error);
+                        }
+
+                        if !object_store_metadata.is_empty() {
+                            // Record the subject object store metadata
+                            let metadata_subject = Subject::get_builder()
+                                .with_name("object_store_metadata")
+                                .with_record_batches(object_store_metadata).unwrap()
+                                .build().unwrap();
+                            let n_rows = metadata_subject.count_rows();
+                            store_meta_subject_names.extend((0..n_rows).map(|_| subject_name.clone()).collect::<Vec<_>>());
+                            store_meta_task_names.extend((0..n_rows).map(|_| publisher.clone()).collect::<Vec<_>>());
+                            store_meta_session_names.extend((0..n_rows).map(|_| self.get_name().to_string()).collect::<Vec<_>>());
+                            store_meta_num_rows.extend((0..n_rows).map(|_| num_rows as i64).collect::<Vec<_>>());
+                            store_meta_supersteps.extend((0..n_rows).map(|_| step as i64).collect::<Vec<_>>());
+                            store_meta_location.extend(metadata_subject.get_column_as_vec_nonprimitive::<String>("location").unwrap());
+                            store_meta_bucket.extend(metadata_subject.get_column_as_vec_nonprimitive::<String>("bucket").unwrap());
+                            store_meta_e_tag.extend(metadata_subject.get_column_as_vec_nonprimitive::<String>("e_tag").unwrap());
+                            store_meta_version.extend(metadata_subject.get_column_as_vec_nonprimitive::<String>("version").unwrap());
+                            store_meta_size.extend(metadata_subject.get_column_as_vec_primitive::<u32>("size").unwrap());
+                            store_meta_last_modified.extend(metadata_subject.get_column_as_vec_primitive::<i64>("last_modified").unwrap());
+
+                            // Record the subject change log information
+                            change_log_subject_names.push(subject_name);
+                            change_log_task_names.push(publisher);
+                            change_log_session_names.push(self.get_name().to_string());
+                            change_log_num_rows.push(num_rows as i64);
+                            change_log_supersteps.push(step as i64);
+                        }
+                        
                     }
                     Err(err) => {
                         let error = format!(
-                            "Subject `{subject_name}` with update `{update:?}` from publisher `{publisher}` failed to build the Table with error `{err:?}`"
+                            "Subject `{subject_name}` with update `{update:?}` from publisher `{publisher}` failed to build the object store with error `{err:?}`"
                         );
                         errors.push(error);
                     }
                 }
             } else {
-                // Mismatch in table names of the update and state
+                // Mismatch in subject names of the update and cache
                 let error = format!(
-                    "Subject `{subject_name}` with update `{update:?}` is not in the session state tables! Available tables are {:?}",
+                    "Subject `{subject_name}` with update `{update:?}` is not in the session subject schema cache! Cached subjects are {:?}",
                     self.subjects().keys()
                 );
                 errors.push(error);
             }
         }
 
-        // Prepare the change log table
-        let change_log = if !subject_names.is_empty() {
+        // Prepare the change log subject
+        let change_log = if !change_log_subject_names.is_empty() {
             let batch = create_subjects_change_log_batch(
-                subject_names,
-                task_names,
-                session_names,
-                num_rows_deltas,
-                supersteps,
+                change_log_subject_names,
+                change_log_task_names,
+                change_log_session_names,
+                change_log_num_rows,
+                change_log_supersteps,
             )
             .unwrap();
             Some(
@@ -883,7 +828,32 @@ impl SessionContext {
             None
         };
 
-        // Prepare the errors table
+        // Prepare the object metadata subject
+        let store_meta = if !store_meta_subject_names.is_empty() {
+            let batch = create_subjects_object_store_meta_batch(
+                store_meta_subject_names,
+                store_meta_task_names,
+                store_meta_session_names,
+                store_meta_num_rows,
+                store_meta_supersteps,
+                store_meta_location,
+                store_meta_bucket,
+                store_meta_e_tag,
+                store_meta_version,
+                store_meta_size,
+                store_meta_last_modified,
+            )
+            .unwrap();
+            Some(
+                AvailableSubjects::SubjectsObjectStoreMeta
+                    .to_subject(None, Some(vec![batch]))
+                    .unwrap(),
+            )
+        } else {
+            None
+        };
+
+        // Prepare the errors subject
         let error_log = if !errors.is_empty() {
             let tools = errors
                 .iter()
@@ -903,7 +873,7 @@ impl SessionContext {
             None
         };
 
-        (change_log, error_log)
+        (change_log, store_meta, error_log)
     }
 }
 
@@ -938,7 +908,7 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn test_session_get_table_name_by_schema() -> Result<()> {
+    fn test_session_get_subject_name_by_schema() -> Result<()> {
         let session_context =
             test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?.build()?;
 
@@ -955,10 +925,10 @@ mod tests {
     }
 
     #[test]
-    fn test_session_update_subject_num_rows_table() -> Result<()> {
+    fn test_session_update_subject_num_rows_subject() -> Result<()> {
         let mut session_context =
             test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?.build()?;
-        session_context.update_subject_num_rows_table();
+        session_context.update_subject_num_rows();
         let info = session_context
             .subjects()
             .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())

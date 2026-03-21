@@ -182,7 +182,7 @@ pub async fn session_stream(
                     session_ctx_arc
                         .try_write()
                         .unwrap()
-                        .update_subject_num_rows_table();
+                        .update_subject_num_rows();
 
                     // Write the updates to disk
                     if let Err(e) = state.write_session_contexts(
@@ -253,7 +253,7 @@ pub async fn session_stream(
                     session_ctx_arc
                         .try_write()
                         .unwrap()
-                        .update_subject_num_rows_table();
+                        .update_subject_num_rows();
 
                     // Write the updates to disk
                     if let Err(e) = state.write_session_contexts(

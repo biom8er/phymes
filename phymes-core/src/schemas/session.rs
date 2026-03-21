@@ -158,8 +158,8 @@ pub fn create_session_processors_batch(
 
 pub(crate) fn create_session_runtime_envs_fields() -> Fields {
     let field_names = ["session_name", "runtime_env_name", 
-        // "object_store_backend", 
-        // "object_store_bucket", 
+        "object_store_backend", 
+        "object_store_bucket", 
         "object_store_config", 
         "subject_folder_partitioning", 
         "subject_file_partitioning"

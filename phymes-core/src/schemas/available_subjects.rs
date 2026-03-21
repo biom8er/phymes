@@ -26,7 +26,7 @@ use crate::{
             create_session_tasks_publish_fields, create_session_tasks_run_log_fields,
             create_session_tasks_subscribe_aggregate_fields, create_session_tasks_subscribe_fields,
             create_session_tasks_subscribe_publish_fields,
-        }, storage::create_object_store_meta_fields, subjects::{create_subjects_change_log_fields, create_subjects_num_rows_fields}, user::{
+        }, storage::create_object_store_meta_fields, subjects::{create_subjects_change_log_fields, create_subjects_num_rows_fields, create_subjects_object_store_meta_fields}, user::{
             create_join_user_inbox_session_contexts_fields,
             create_join_user_inbox_session_contexts_mermaid_diagrams_fields, create_user_fields,
             create_user_inbox_fields, create_user_session_contexts_fields,
@@ -131,6 +131,8 @@ pub enum AvailableSubjects {
     SubjectsNumRows,
     #[value(name = "SubjectsChangeLog")]
     SubjectsChangeLog,
+    #[value(name = "SubjectsObjectStoreMeta")]
+    SubjectsObjectStoreMeta,
     #[value(name = "MermaidContentTemplate")]
     MermaidContentTemplate,
     #[value(name = "MermaidXYChart")]
@@ -252,6 +254,7 @@ impl Display for AvailableSubjects {
             AvailableSubjects::SessionTasksRunLog => write!(f, "SessionTasksRunLog"),
             AvailableSubjects::SubjectsNumRows => write!(f, "SubjectsNumRows"),
             AvailableSubjects::SubjectsChangeLog => write!(f, "SubjectsChangeLog"),
+            AvailableSubjects::SubjectsObjectStoreMeta => write!(f, "SubjectsObjectStoreMeta"),
             AvailableSubjects::MermaidContentTemplate => write!(f, "MermaidContentTemplate"),
             AvailableSubjects::MermaidGanttTemplate => write!(f, "MermaidGanttTemplate"),
             AvailableSubjects::MermaidFlowchartNodesTemplate => {
@@ -421,6 +424,9 @@ impl AvailableSchemaTrait for AvailableSubjects {
             }
             AvailableSubjects::SubjectsChangeLog => {
                 create_schema_from_fields(&create_subjects_change_log_fields)
+            }
+            AvailableSubjects::SubjectsObjectStoreMeta => {
+                create_schema_from_fields(&create_subjects_object_store_meta_fields)
             }
             AvailableSubjects::MermaidContentTemplate => {
                 create_schema_from_fields(&create_mermaid_content_template_fields)
