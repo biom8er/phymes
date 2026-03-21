@@ -1,15 +1,16 @@
 use anyhow::{Result, anyhow};
-use arrow::datatypes::SchemaRef;
+use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use clap::ValueEnum;
+use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, SubjectTrait, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_diagnostics_to_tables, make_store
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, from_diagnostics_to_tables, make_store
 };
 use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
 use std::sync::Arc;
 use tracing::{Level, event};
 
-use crate::{TaskMap, SessionContextBuilder, create_message_map};
+use crate::{SessionContextBuilder, SubscriptionTrait, TaskMap, clear_subject, create_message_map};
 
 /// The [SessionContext] creates a (dynamic) execution graph based on a [TaskPlan]
 ///   and manages the running of individual [Task]s and the [Message]s passed between them.
@@ -77,28 +78,26 @@ impl SessionContext {
         &self.runtime_env
     }
 
+    pub fn get_max_steps(&self) -> usize {
+        self.runtime_env().max_steps()
+    }
+
+    pub fn get_diagnostics(&self) -> bool {
+        self.diagnostics
+    }
+
     /// Compute the next tasks to subscribe
-    pub fn tasks_subscribe(&self) -> Result<()> {
-        // Extract the columns
-        let batches = self
-            .subjects()
-            .get(
-                AvailableSubjects::SessionTasksSubscribeAggregate
-                    .to_string()
-                    .as_str(),
-            )
-            .unwrap_or_else(|| {
-                panic!(
-                    "Missing table for `{}` in session `{}`.",
-                    AvailableSubjects::SessionTasksSubscribeAggregate,
-                    self.get_name()
-                )
-            })
-            .write()
-            .get_record_batches_mut()
-            .drain(0..)
-            .collect::<Vec<_>>();
-        let table = SubjectBuilder::default()
+    pub async fn tasks_subscribe(&self) -> Result<()> {
+        // Get the subject
+        let batches: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string() }
+            .subscribe_to_subject(self.runtime_env())?
+            .ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` during tasks_subscribe.", 
+                AvailableSubjects::SessionTasksSubscribeAggregate,
+                self.get_name()
+            ))?
+            .try_collect()
+            .await?;
+        let subject = SubjectBuilder::default()
             .with_name(
                 AvailableSubjects::SessionTasksSubscribeAggregate
                     .to_string()
@@ -107,20 +106,25 @@ impl SessionContext {
             .with_record_batches(batches)?
             .build()?;
 
+        // Clear the subject
+        let _locations: Vec<RecordBatch> = clear_subject(self.runtime_env(), &AvailableSubjects::SessionTasksSubscribeAggregate.to_string(), false)?
+            .try_collect()
+            .await?;
+
         // Extract out the columns
-        let session_names = table.get_column_as_vec_str("session_name");
-        let task_names = table.get_column_as_vec_str("task_name");
-        let processor_names = table.get_column_as_vec_str("processor_name");
-        let processor_types = table.get_column_as_vec_str("processor_type");
+        let session_names = subject.get_column_as_vec_str("session_name");
+        let task_names = subject.get_column_as_vec_str("task_name");
+        let processor_names = subject.get_column_as_vec_str("processor_name");
+        let processor_types = subject.get_column_as_vec_str("processor_type");
         let subscription_names =
-            table.get_column_as_vec_nested_nonprimitive::<String>("subscription_name-List")?;
-        let subscription_table_names = table
+            subject.get_column_as_vec_nested_nonprimitive::<String>("subscription_name-List")?;
+        let subscription_table_names = subject
             .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_name-List")?;
-        let subscribe_types = table.get_column_as_vec_str("subscribe_type-Last");
-        let update_types = table.get_column_as_vec_str("update_type-Last");
-        let supersteps = table.get_column_as_vec_nested_primitive::<i64>("superstep-List")?;
+        let subscribe_types = subject.get_column_as_vec_str("subscribe_type-Last");
+        let update_types = subject.get_column_as_vec_str("update_type-Last");
+        let supersteps = subject.get_column_as_vec_nested_primitive::<i64>("superstep-List")?;
         let superstep_lasts =
-            table.get_column_as_vec_nested_primitive::<i64>("superstep-Max-List")?;
+            subject.get_column_as_vec_nested_primitive::<i64>("superstep-Max-List")?;
 
         // Determine the processor subscriptions
         let processors_subscribe = session_names
@@ -367,35 +371,25 @@ impl SessionContext {
     /// 
     /// # Todo
     /// * Update the schema to include the backend, bucket, and additional storage config information
-    pub fn tasks_subscribe_publish(
+    pub async fn tasks_subscribe_publish(
         &self,
     ) -> Result<HashMap<(String, String), ProcessorSubjectsMap>> {
-        // Extract out the columns
-        let batches = self
-            .subjects()
-            .get(
-                AvailableSubjects::SessionTasksSubscribePublish
-                    .to_string()
-                    .as_str(),
-            )
-            .unwrap_or_else(|| {
-                panic!(
-                    "Missing table for `{}` in session `{}`.",
-                    AvailableSubjects::SessionTasksSubscribePublish,
-                    self.get_name()
-                )
-            })
-            .write()
-            .get_record_batches_mut()
-            .drain(0..)
-            .collect::<Vec<_>>();
+        // Get the subject
+        let batches: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string() }
+            .subscribe_to_subject(self.runtime_env())?
+            .ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` during tasks_subscribe.", 
+                AvailableSubjects::SessionTasksSubscribePublish,
+                self.get_name()
+            ))?
+            .try_collect()
+            .await?;
 
         // Return if there are no tasks
         if batches.is_empty() {
             return Ok(HashMap::<(String, String), ProcessorSubjectsMap>::new());
         }
 
-        let table = SubjectBuilder::default()
+        let subject = SubjectBuilder::default()
             .with_name(
                 AvailableSubjects::SessionTasksSubscribePublish
                     .to_string()
@@ -403,18 +397,25 @@ impl SessionContext {
             )
             .with_record_batches(batches)?
             .build()?;
-        let task_names = table.get_column_as_vec_nonprimitive::<String>("task_name")?;
-        let processor_names = table.get_column_as_vec_nonprimitive::<String>("processor_name")?;
-        let processor_types = table.get_column_as_vec_nonprimitive::<String>("processor_type")?;
+
+        // Clear the subject
+        let _locations: Vec<RecordBatch> = clear_subject(self.runtime_env(), &AvailableSubjects::SessionTasksSubscribePublish.to_string(), false)?
+            .try_collect()
+            .await?;
+
+        // Extract the columns
+        let task_names = subject.get_column_as_vec_nonprimitive::<String>("task_name")?;
+        let processor_names = subject.get_column_as_vec_nonprimitive::<String>("processor_name")?;
+        let processor_types = subject.get_column_as_vec_nonprimitive::<String>("processor_type")?;
         let subscription_names =
-            table.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
+            subject.get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
         let subscription_table_names =
-            table.get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
+            subject.get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
         let publication_names =
-            table.get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
+            subject.get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
         let publication_table_names =
-            table.get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
-        let session_names = table.get_column_as_vec_nonprimitive::<String>("session_name")?;
+            subject.get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
+        let session_names = subject.get_column_as_vec_nonprimitive::<String>("session_name")?;
 
         // Map to objects
         let combined = task_names
@@ -609,16 +610,6 @@ impl SessionContext {
         };
 
         Ok((updated_metrics, updated_traces, updated_events))
-    }
-
-    /// Get the max iterations
-    pub fn get_max_iter(&self) -> usize {
-        self.max_iter
-    }
-
-    /// Get the diagnostics
-    pub fn get_diagnostics(&self) -> bool {
-        self.diagnostics
     }
 
     /// Increment the session superstep

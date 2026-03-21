@@ -1361,7 +1361,7 @@ mod tests {
         assert_eq!(session.subjects().len(), 18);
         assert_eq!(session.tasks().len(), 3);
         assert_eq!(session.get_name(), "session_1");
-        assert_eq!(session.get_max_iter(), 25);
+        assert_eq!(session.get_max_steps(), 25);
         assert!(session.get_diagnostics());
         Ok(())
     }
@@ -1388,7 +1388,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(test, ["session_1"]);
         assert_eq!(session.get_name(), "session_1");
-        assert_eq!(session.get_max_iter(), 25);
+        assert_eq!(session.get_max_steps(), 25);
         assert!(session.get_diagnostics());
         Ok(())
     }
@@ -1485,7 +1485,7 @@ mod tests {
         assert_eq!(session.subjects().len(), 19);
         assert_eq!(session.tasks().len(), 4);
         assert_eq!(session.get_name(), "session_1");
-        assert_eq!(session.get_max_iter(), 25);
+        assert_eq!(session.get_max_steps(), 25);
         Ok(())
     }
 

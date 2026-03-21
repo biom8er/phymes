@@ -31,7 +31,7 @@ pub struct SessionStream {
 impl SessionStream {
     /// New [SessionStream]
     pub fn new(messages: IPCMessageMap, session_context: Arc<RwLock<SessionContext>>) -> Self {
-        let max_steps = session_context.read().get_max_iter();
+        let max_steps = session_context.read().get_max_steps();
         let step = 0;
         #[allow(clippy::type_complexity)]
         let next_step: Option<
