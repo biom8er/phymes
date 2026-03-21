@@ -91,17 +91,14 @@ mod tests {
     use std::sync::Arc;
 
     use anyhow::Result;
-    use parking_lot::RwLock;
+    use futures::TryStreamExt;
     use phymes_core::{
-        AttachmentBuilderTraitExt, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
-        BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, SubjectTrait,
+        AttachmentBuilderTraitExt, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription
     };
     use phymes_data::make_pdf_document;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep,
-        SessionStreamStepTrait, create_message_map,
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep, SessionStreamStepTrait, SubscriptionTrait, create_message_map
     };
 
     use super::*;
@@ -159,20 +156,23 @@ mod tests {
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::Documents.to_string().as_str())
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::Documents.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 21);
-            let column = table_reading.get_column_as_vec_str("chunk_id");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::Documents.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 21);
+            let column = subject.get_column_as_vec_str("chunk_id");
             assert_eq!(column.first().unwrap(), &"WikiBioComponents_1_0");
             assert_eq!(column.last().unwrap(), &"WikiBioComponents_4_2");
-            let column = table_reading.get_column_as_vec_str("document_id");
+            let column = subject.get_column_as_vec_str("document_id");
             assert_eq!(column.first().unwrap(), &"WikiBioComponents");
             assert_eq!(column.last().unwrap(), &"WikiBioComponents");
-            let column = table_reading.get_column_as_vec_str("text");
+            let column = subject.get_column_as_vec_str("text");
             assert_eq!(
                 column.first().unwrap(),
                 &"Proteins are large biomolecules and macromolecules that comprise one or more long chains of amino acid residues. Proteins perform a vast array of functions within organisms, including catalysing metabolic reactions, DNA replication, responding to stimuli, providing structure to cells and organisms, and transporting molecules from one location to another. Proteins differ from one another primarily in their sequence of amino acids, which is dictated by the nucleotide sequence of their genes, and which usually"

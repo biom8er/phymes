@@ -334,17 +334,13 @@ mod tests {
     use futures::TryStreamExt;
     use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
-        ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, SubjectBuilder,
-        SubjectBuilderTrait, Publication, SubjectTrait, create_tools_record_batch,
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_tools_record_batch
     };
     use phymes_data::{AvailableCandleOperators, ToolTrait};
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
-        create_message_map,
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map
     };
 
     use super::*;
@@ -400,85 +396,92 @@ mod tests {
 
             {
                 // Test supsersteps
-                let session_reading = session_ctx_arc.read();
-                let table_reading = session_reading
-                    .subjects()
-                    .get(
-                        AvailableInterfaceSubjects::AssistantMessages
-                            .to_string()
-                            .as_str(),
-                    )
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableInterfaceSubjects::AssistantMessages.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 let assistant_content = column.first().unwrap();
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
-                    .subjects()
-                    .get(
-                        AvailableInterfaceSubjects::ToolMessages
-                            .to_string()
-                            .as_str(),
-                    )
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::ToolMessages.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 0);
-                let table_reading = session_reading
-                    .subjects()
-                    .get(
-                        AvailableInterfaceSubjects::AggregatedMessages
-                            .to_string()
-                            .as_str(),
-                    )
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableInterfaceSubjects::ToolMessages.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 0);
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 2);
-                let column = table_reading.get_column_as_vec_str("role");
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableInterfaceSubjects::AggregatedMessages.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 2);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
                 assert_eq!(column.last().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 assert_eq!(
                     column.first().unwrap(),
                     &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
                 );
                 assert_eq!(column.last().unwrap(), assistant_content);
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
-                    .subjects()
-                    .get("aggregate_messages_generate_text_s")
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "aggregate_messages_generate_text_s".to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name("aggregate_messages_generate_text_s")
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 assert_eq!(
                     column.first().unwrap(),
                     &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
                 );
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
-                    .subjects()
-                    .get("generate_text_inference_s")
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "generate_text_inference_s".to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
-                assert!(table_reading.count_rows() > 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name("generate_text_inference_s")
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert!(subject.count_rows() > 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"assistant");
                 assert_eq!(column.last().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
@@ -604,19 +607,19 @@ mod tests {
             {
                 // Debug any errors
                 let subjects_reading = session_ctx_arc.read();
-                let table_reading = subjects_reading
+                let subject = subjects_reading
                     .subjects()
                     .get(AvailableSubjects::SessionErrors.to_string().as_str())
                     .unwrap()
                     .read();
-                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+                println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
                 let subjects_reading = session_ctx_arc.read();
-                let table_reading = subjects_reading
+                let subject = subjects_reading
                     .subjects()
                     .get(AvailableSubjects::SessionTraces.to_string().as_str())
                     .unwrap()
                     .read();
-                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+                println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
             }
 
             assert_eq!(response.len(), 0);
@@ -624,7 +627,7 @@ mod tests {
             {
                 // Test supsersteps
                 let session_reading = session_ctx_arc.read();
-                let table_reading = session_reading
+                let subject = session_reading
                     .subjects()
                     .get(
                         AvailableInterfaceSubjects::AssistantMessages
@@ -633,9 +636,9 @@ mod tests {
                     )
                     .unwrap()
                     .read();
-                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-                assert_eq!(table_reading.count_rows(), 0);
-                let table_reading = session_reading
+                println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
+                assert_eq!(subject.count_rows(), 0);
+                let subject = session_reading
                     .subjects()
                     .get(
                         AvailableInterfaceSubjects::ToolMessages
@@ -644,8 +647,8 @@ mod tests {
                     )
                     .unwrap()
                     .read();
-                assert_eq!(table_reading.count_rows(), 0);
-                let table_reading = session_reading
+                assert_eq!(subject.count_rows(), 0);
+                let subject = session_reading
                     .subjects()
                     .get(
                         AvailableInterfaceSubjects::AggregatedMessages
@@ -654,49 +657,49 @@ mod tests {
                     )
                     .unwrap()
                     .read();
-                assert_eq!(table_reading.count_rows(), 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                assert_eq!(subject.count_rows(), 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 assert_eq!(
                     column.first().unwrap(),
                     &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
                 );
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
+                let subject = session_reading
                     .subjects()
                     .get("aggregate_messages_generate_text_s")
                     .unwrap()
                     .read();
-                assert_eq!(table_reading.count_rows(), 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                assert_eq!(subject.count_rows(), 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 assert_eq!(
                     column.first().unwrap(),
                     &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
                 );
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
+                let subject = session_reading
                     .subjects()
                     .get("generate_text_inference_s")
                     .unwrap()
                     .read();
-                assert!(table_reading.count_rows() > 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                assert!(subject.count_rows() > 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"assistant");
                 assert_eq!(column.last().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
+                let subject = session_reading
                     .subjects()
                     .get(
                         AvailableCandleOperators::HumanInTheLoop
@@ -705,14 +708,14 @@ mod tests {
                     )
                     .unwrap()
                     .read();
-                assert_eq!(table_reading.count_rows(), 0);
-                let table_reading = session_reading
+                assert_eq!(subject.count_rows(), 0);
+                let subject = session_reading
                     .subjects()
                     .get(AvailableCandleOperators::Sort.to_string().as_str())
                     .unwrap()
                     .read();
-                assert_eq!(table_reading.count_rows(), 1);
-                let column = table_reading
+                assert_eq!(subject.count_rows(), 1);
+                let column = subject
                     .get_column_as_vec_nested_primitive::<u8>("bytes")?
                     .into_iter()
                     .map(|b| String::from_utf8(b).unwrap())
@@ -836,12 +839,12 @@ mod tests {
             // {
             //     // Debug any errors
             //     let subjects_reading = session_ctx_arc.read();
-            //     let table_reading = subjects_reading
+            //     let subject = subjects_reading
             //         .get_states()
             //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
             //         .unwrap()
             //         .read();
-            //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+            //     println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
             // }
 
             assert_eq!(response.len(), 0);
@@ -849,7 +852,7 @@ mod tests {
             {
                 // Test supsersteps
                 let session_reading = session_ctx_arc.read();
-                let table_reading = session_reading
+                let subject = session_reading
                     .subjects()
                     .get(
                         AvailableInterfaceSubjects::AssistantMessages
@@ -858,16 +861,16 @@ mod tests {
                     )
                     .unwrap()
                     .read();
-                assert_eq!(table_reading.count_rows(), 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                assert_eq!(subject.count_rows(), 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 let assistant_content = column.first().unwrap();
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
+                let subject = session_reading
                     .subjects()
                     .get(
                         AvailableInterfaceSubjects::AggregatedMessages
@@ -876,30 +879,30 @@ mod tests {
                     )
                     .unwrap()
                     .read();
-                assert_eq!(table_reading.count_rows(), 2);
-                let column = table_reading.get_column_as_vec_str("role");
+                assert_eq!(subject.count_rows(), 2);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
                 assert_eq!(column.last().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 assert_eq!(
                     column.first().unwrap(),
                     &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
                 );
                 assert_eq!(column.last().unwrap(), assistant_content);
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
+                let subject = session_reading
                     .subjects()
                     .get("aggregate_messages_generate_text_s")
                     .unwrap()
                     .read();
-                assert_eq!(table_reading.count_rows(), 2);
-                let column = table_reading.get_column_as_vec_str("role");
+                assert_eq!(subject.count_rows(), 2);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
                 assert_eq!(column.last().unwrap(), &"tool");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 assert_eq!(
                     column.first().unwrap(),
                     &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
@@ -908,30 +911,30 @@ mod tests {
                     column.last().unwrap(),
                     &"[{\"lhs_pk\":\"c\",\"score\":1.0}, {\"lhs_pk\":\"b\",\"score\":2.0}, {\"lhs_pk\":\"a\",\"score\":3.0}]"
                 );
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
+                let subject = session_reading
                     .subjects()
                     .get("generate_text_inference_s")
                     .unwrap()
                     .read();
-                assert!(table_reading.count_rows() > 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                assert!(subject.count_rows() > 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"assistant");
                 assert_eq!(column.last().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
+                let subject = session_reading
                     .subjects()
                     .get(AvailableCandleOperators::Sort.to_string().as_str())
                     .unwrap()
                     .read();
-                assert_eq!(table_reading.count_rows(), 0);
-                let table_reading = session_reading
+                assert_eq!(subject.count_rows(), 0);
+                let subject = session_reading
                     .subjects()
                     .get(
                         AvailableCandleOperators::HumanInTheLoop
@@ -940,7 +943,7 @@ mod tests {
                     )
                     .unwrap()
                     .read();
-                assert_eq!(table_reading.count_rows(), 0);
+                assert_eq!(subject.count_rows(), 0);
             }
         }
         Ok(())
@@ -1077,12 +1080,12 @@ mod tests {
             {
                 // Debug any errors
                 let subjects_reading = session_ctx_arc.read();
-                let table_reading = subjects_reading
+                let subject = subjects_reading
                     .subjects()
                     .get(AvailableSubjects::SessionErrors.to_string().as_str())
                     .unwrap()
                     .read();
-                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
+                println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
             }
 
             assert_eq!(response.len(), 0);
@@ -1090,7 +1093,7 @@ mod tests {
             {
                 // Test supsersteps
                 let session_reading = session_ctx_arc.read();
-                let table_reading = session_reading
+                let subject = session_reading
                     .subjects()
                     .get(
                         AvailableInterfaceSubjects::AssistantMessages
@@ -1099,21 +1102,21 @@ mod tests {
                     )
                     .unwrap()
                     .read();
-                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-                assert_eq!(table_reading.count_rows(), 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
+                assert_eq!(subject.count_rows(), 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 let assistant_content = column.first().unwrap();
                 // assert!(assistant_content.contains("available_data_0")); //DM : response does not always contain the available subjects
                 assert!(assistant_content.contains("available_data_1"));
                 // assert!(assistant_content.contains("available_data_2"));
                 // assert!(assistant_content.contains("available_data_3"));
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
+                let subject = session_reading
                     .subjects()
                     .get(
                         AvailableInterfaceSubjects::AggregatedMessages
@@ -1122,30 +1125,30 @@ mod tests {
                     )
                     .unwrap()
                     .read();
-                assert_eq!(table_reading.count_rows(), 2);
-                let column = table_reading.get_column_as_vec_str("role");
+                assert_eq!(subject.count_rows(), 2);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
                 assert_eq!(column.last().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 assert_eq!(
                     column.first().unwrap(),
                     &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
                 );
                 assert_eq!(column.last().unwrap(), assistant_content);
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
+                let subject = session_reading
                     .subjects()
                     .get("aggregate_messages_generate_text_s")
                     .unwrap()
                     .read();
-                assert_eq!(table_reading.count_rows(), 2);
-                let column = table_reading.get_column_as_vec_str("role");
+                assert_eq!(subject.count_rows(), 2);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
                 assert_eq!(column.last().unwrap(), &"tool");
-                let column = table_reading.get_column_as_vec_str("content");
+                let column = subject.get_column_as_vec_str("content");
                 assert_eq!(
                     column.first().unwrap(),
                     &"Sort a list of scores in ascending order. The lhs_name is `available_data_1`, the lhs_pk is `lhs_pk` and the lhs_values is `score`."
@@ -1154,30 +1157,30 @@ mod tests {
                     column.last().unwrap(),
                     &"lhs_name `available_data_1` was not found. Available options are [`available_data_0`, `available_data_2`, `available_data_3`]."
                 );
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
+                let subject = session_reading
                     .subjects()
                     .get("generate_text_inference_s")
                     .unwrap()
                     .read();
-                assert!(table_reading.count_rows() > 1);
-                let column = table_reading.get_column_as_vec_str("role");
+                assert!(subject.count_rows() > 1);
+                let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"assistant");
                 assert_eq!(column.last().unwrap(), &"assistant");
-                let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
                 for t in column {
                     assert!(t > 0);
                 }
-                let table_reading = session_reading
+                let subject = session_reading
                     .subjects()
                     .get(AvailableCandleOperators::Sort.to_string().as_str())
                     .unwrap()
                     .read();
-                assert_eq!(table_reading.count_rows(), 0);
-                let table_reading = session_reading
+                assert_eq!(subject.count_rows(), 0);
+                let subject = session_reading
                     .subjects()
                     .get(
                         AvailableCandleOperators::HumanInTheLoop
@@ -1186,9 +1189,9 @@ mod tests {
                     )
                     .unwrap()
                     .read();
-                assert_eq!(table_reading.count_rows(), 0);
-                // assert_eq!(table_reading.count_rows(), 1);
-                // let column = table_reading.get_column_as_vec_str("values");
+                assert_eq!(subject.count_rows(), 0);
+                // assert_eq!(subject.count_rows(), 1);
+                // let column = subject.get_column_as_vec_str("values");
                 // assert_eq!(column.first().unwrap(), &"");
             }
         }

@@ -876,17 +876,14 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait,
-        Publication, SubjectTrait,
+        Publication, SubjectTrait, Subscription,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait,
-        create_message_map, test_session_context_builder, test_task,
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, SubscriptionTrait, create_message_map, test_session_context_builder, test_task
     };
 
     use super::*;
@@ -921,7 +918,7 @@ mod tests {
                 .add_next_tasks()? // DM required for 'SessionTasksSubscribePublish' table
                 .add_next_supersteps()?
                 .build_with_tables()?;
-            let session_context_arc = Arc::new(session_context)
+            let session_context_arc = Arc::new(session_context);
 
             // Mimic a superstep update without running the superstep
             let messages = test_task::make_test_input_message(
@@ -935,20 +932,23 @@ mod tests {
                 true,
             )?;
             let _step = SessionStreamStep::current_superstep(&session_context_arc).await;
-            SessionStreamStep::update_subjects_and_changelog_from_messages(
+            let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(
                 &session_context_arc,
                 messages,
-            )?;
+            ).await?;
 
             // Extract out the subjects for the test
-            let session_ctx_reading = session_context_arc.read();
-            let table = session_ctx_reading
-                .subjects()
-                .get(AvailableSubjects::SessionProcessors.to_string().as_str())
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionProcessors.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionProcessors.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
             let session_processor_message = IPCMessage::get_builder()
-                .with_message(table.to_ipc_stream()?)
+                .with_message(subject.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::SessionProcessors.to_string().as_str())
                 .with_update(&Publication::Replace {
                     subject_name: AvailableSubjects::SessionProcessors.to_string(),
@@ -956,13 +956,17 @@ mod tests {
                 .with_publisher(next_task_session.session_context_name)
                 .make_name()?
                 .build()?;
-            let table = session_ctx_reading
-                .subjects()
-                .get(AvailableSubjects::SessionTasks.to_string().as_str())
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasks.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionTasks.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
             let session_tasks_message = IPCMessage::get_builder()
-                .with_message(table.to_ipc_stream()?)
+                .with_message(subject.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::SessionTasks.to_string().as_str())
                 .with_update(&Publication::Replace {
                     subject_name: AvailableSubjects::SessionTasks.to_string(),
@@ -970,13 +974,17 @@ mod tests {
                 .with_publisher(next_task_session.session_context_name)
                 .make_name()?
                 .build()?;
-            let table = session_ctx_reading
-                .subjects()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
             let session_tasks_run_log_message = IPCMessage::get_builder()
-                .with_message(table.to_ipc_stream()?)
+                .with_message(subject.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
                 .with_update(&Publication::Replace {
                     subject_name: AvailableSubjects::SessionTasksRunLog.to_string(),
@@ -984,13 +992,17 @@ mod tests {
                 .with_publisher(next_task_session.session_context_name)
                 .make_name()?
                 .build()?;
-            let table = session_ctx_reading
-                .subjects()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
             let subjects_change_log_message = IPCMessage::get_builder()
-                .with_message(table.to_ipc_stream()?)
+                .with_message(subject.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .with_update(&Publication::Replace {
                     subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
@@ -1021,25 +1033,32 @@ mod tests {
 
         {
             // Test supserstep 1
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get("select_tasks_run_log_superstep_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_tasks_run_log_superstep_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("task_name");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_tasks_run_log_superstep_s")
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("task_name");
             assert_eq!(column, ["session_1", "task_1"]);
-            let column = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
+            let column = subject.get_column_as_vec_primitive::<i64>("superstep")?;
             for superstep in column {
                 assert_eq!(superstep, 0);
             }
 
-            let table_reading = session_reading
-                .subjects()
-                .get("select_processors_subscriptions_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_processors_subscriptions_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("session_name");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_processors_subscriptions_s")
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("session_name");
             assert_eq!(
                 column,
                 [
@@ -1052,7 +1071,7 @@ mod tests {
                     "session_1"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("processor_name");
+            let column = subject.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
                 [
@@ -1065,7 +1084,7 @@ mod tests {
                     "session_1"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("processor_type");
+            let column = subject.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
                 [
@@ -1078,7 +1097,7 @@ mod tests {
                     "ProcessorEcho"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("publication_subscription_name");
+            let column = subject.get_column_as_vec_str("publication_subscription_name");
             assert_eq!(
                 column,
                 [
@@ -1091,7 +1110,7 @@ mod tests {
                     "OnUpdateLastRecordBatch"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("publication_subscription_table_name");
+            let column = subject.get_column_as_vec_str("publication_subscription_table_name");
             assert_eq!(
                 column,
                 [
@@ -1104,9 +1123,9 @@ mod tests {
                     "state_1"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("subscribe_type");
+            let column = subject.get_column_as_vec_str("subscribe_type");
             assert_eq!(column, ["All", "All", "All", "All", "All", "All", "Any"]);
-            let column = table_reading.get_column_as_vec_str("update_type");
+            let column = subject.get_column_as_vec_str("update_type");
             assert_eq!(
                 column,
                 [
@@ -1119,22 +1138,26 @@ mod tests {
                     "SubjectChangedSinceLastRunUpdate"
                 ]
             );
-            let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
+            let column = subject.get_column_as_vec_primitive::<u8>("is_subscription")?;
             assert_eq!(column, [1, 1, 1, 1, 1, 1, 1]);
 
-            let table_reading = session_reading
-                .subjects()
-                .get("select_processors_publications_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_processors_publications_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("session_name");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_processors_publications_s")
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("session_name");
             assert_eq!(column, ["session_1", "session_1", "session_1", "session_1"]);
-            let column = table_reading.get_column_as_vec_str("processor_name");
+            let column = subject.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
                 ["processor_1", "processor_2", "processor_3", "session_1"]
             );
-            let column = table_reading.get_column_as_vec_str("processor_type");
+            let column = subject.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
                 [
@@ -1144,13 +1167,13 @@ mod tests {
                     "ProcessorEcho"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("publication_subscription_name");
+            let column = subject.get_column_as_vec_str("publication_subscription_name");
             assert_eq!(column, ["Extend", "Extend", "Extend", "Extend"]);
-            let column = table_reading.get_column_as_vec_str("publication_subscription_table_name");
+            let column = subject.get_column_as_vec_str("publication_subscription_table_name");
             assert_eq!(column, ["state_1", "state_1", "state_1", "state_1"]);
-            let column = table_reading.get_column_as_vec_str("subscribe_type");
+            let column = subject.get_column_as_vec_str("subscribe_type");
             assert_eq!(column, ["All", "All", "All", "Any"]);
-            let column = table_reading.get_column_as_vec_str("update_type");
+            let column = subject.get_column_as_vec_str("update_type");
             assert_eq!(
                 column,
                 [
@@ -1160,7 +1183,7 @@ mod tests {
                     "SubjectChangedSinceLastRunUpdate"
                 ]
             );
-            let column = table_reading.get_column_as_vec_primitive::<u8>("is_subscription")?;
+            let column = subject.get_column_as_vec_primitive::<u8>("is_subscription")?;
             assert_eq!(column, [0, 0, 0, 0]);
         }
 
@@ -1175,22 +1198,25 @@ mod tests {
 
         {
             // Test supserstep 2
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get("SessionTasksSubscribeAggregate")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "SessionTasksSubscribeAggregate".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("session_name");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("SessionTasksSubscribeAggregate")
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("session_name");
             assert_eq!(column, ["session_1", "session_1", "session_1", "session_1"]);
-            let column = table_reading.get_column_as_vec_str("task_name");
+            let column = subject.get_column_as_vec_str("task_name");
             assert_eq!(column, ["task_1", "task_1", "task_1", "session_1"]);
-            let column = table_reading.get_column_as_vec_str("processor_name");
+            let column = subject.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
                 ["processor_1", "processor_2", "processor_3", "session_1"]
             );
-            let column = table_reading.get_column_as_vec_str("processor_type");
+            let column = subject.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
                 [
@@ -1200,7 +1226,7 @@ mod tests {
                     "ProcessorEcho",
                 ]
             );
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_nested_nonprimitive::<String>("subscription_name-List")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
@@ -1215,7 +1241,7 @@ mod tests {
                     "OnUpdateLastRecordBatch",
                 ]
             );
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_name-List")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
@@ -1230,9 +1256,9 @@ mod tests {
                     "state_1",
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("subscribe_type-Last");
+            let column = subject.get_column_as_vec_str("subscribe_type-Last");
             assert_eq!(column, ["All", "All", "All", "Any"]);
-            let column = table_reading.get_column_as_vec_str("update_type-Last");
+            let column = subject.get_column_as_vec_str("update_type-Last");
             assert_eq!(
                 column,
                 [
@@ -1243,14 +1269,14 @@ mod tests {
                 ]
             );
             let column =
-                table_reading.get_column_as_vec_nested_primitive::<i64>("superstep-List")?;
+                subject.get_column_as_vec_nested_primitive::<i64>("superstep-List")?;
             for supersteps in column {
                 for superstep in supersteps {
                     assert_eq!(superstep, 0);
                 }
             }
             let column =
-                table_reading.get_column_as_vec_nested_primitive::<i64>("superstep-Max-List")?;
+                subject.get_column_as_vec_nested_primitive::<i64>("superstep-Max-List")?;
             for supersteps in column {
                 for superstep in supersteps {
                     assert!(superstep >= 0);
@@ -1263,42 +1289,17 @@ mod tests {
         session_ctx_arc.read().tasks_subscribe()?;
 
         {
-            // {
-            //     // Debug any errors
-            //     let subjects_reading = session_ctx_arc.read();
-            //     let table_reading = subjects_reading
-            //         .get_states()
-            //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
-            //         .unwrap()
-            //         .read();
-            //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            //     let subjects_reading = session_ctx_arc.read();
-            //     let table_reading = subjects_reading
-            //         .get_states()
-            //         .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
-            //         .unwrap()
-            //         .read();
-            //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            //     let table_reading = subjects_reading
-            //         .get_states()
-            //         .get(AvailableSubjects::SessionSuperstepMax.to_string().as_str())
-            //         .unwrap()
-            //         .read();
-            //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            // }
-
             // Test the tasks subscribe
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get(
-                    AvailableSubjects::SessionTasksSubscribe
-                        .to_string()
-                        .as_str(),
-                )
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksSubscribe.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("session_name");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionTasksSubscribe.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("session_name");
             assert_eq!(
                 column,
                 [
@@ -1311,7 +1312,7 @@ mod tests {
                     "session_1"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("task_name");
+            let column = subject.get_column_as_vec_str("task_name");
             assert_eq!(
                 column,
                 [
@@ -1324,7 +1325,7 @@ mod tests {
                     "session_1",
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("processor_name");
+            let column = subject.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
                 [
@@ -1337,7 +1338,7 @@ mod tests {
                     "session_1",
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("processor_type");
+            let column = subject.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
                 [
@@ -1350,7 +1351,7 @@ mod tests {
                     "ProcessorEcho",
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("subscription_name");
+            let column = subject.get_column_as_vec_str("subscription_name");
             assert_eq!(
                 column,
                 [
@@ -1363,7 +1364,7 @@ mod tests {
                     "OnUpdateLastRecordBatch",
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("subscription_table_name");
+            let column = subject.get_column_as_vec_str("subscription_table_name");
             assert_eq!(
                 column,
                 [
@@ -1389,24 +1390,23 @@ mod tests {
 
         {
             // Test supserstep 3
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get(
-                    AvailableSubjects::SessionTasksSubscribePublish
-                        .to_string()
-                        .as_str(),
-                )
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("session_name");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionTasksSubscribePublish.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("session_name");
             assert_eq!(column, ["session_1", "session_1", "session_1", "session_1"]);
-            let column = table_reading.get_column_as_vec_str("processor_name");
+            let column = subject.get_column_as_vec_str("processor_name");
             assert_eq!(
                 column,
                 ["processor_1", "processor_2", "processor_3", "session_1"]
             );
-            let column = table_reading.get_column_as_vec_str("processor_type");
+            let column = subject.get_column_as_vec_str("processor_type");
             assert_eq!(
                 column,
                 [
@@ -1416,7 +1416,7 @@ mod tests {
                     "ProcessorEcho"
                 ]
             );
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_nested_nonprimitive::<String>("subscription_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
@@ -1431,7 +1431,7 @@ mod tests {
                     "OnUpdateLastRecordBatch"
                 ]
             );
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_nested_nonprimitive::<String>("subscription_table_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(
@@ -1446,11 +1446,11 @@ mod tests {
                     "state_1"
                 ]
             );
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_nested_nonprimitive::<String>("publication_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(flattened, ["Extend", "Extend", "Extend", "Extend"]);
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_nested_nonprimitive::<String>("publication_table_names")?;
             let flattened = column.into_iter().flatten().collect::<Vec<_>>();
             assert_eq!(flattened, ["state_1", "state_1", "state_1", "state_1"]);

@@ -143,16 +143,13 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait,
-        Publication, SubjectTrait, create_session_supersteps_batch,
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Publication, SubjectTrait, Subscription, create_session_supersteps_batch
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
-        SessionContextBuilderTrait, SessionStream, create_message_map,
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map
     };
 
     use super::*;
@@ -215,15 +212,18 @@ mod tests {
 
         {
             // Test supserstep 1
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::SessionSuperstepMax.to_string().as_str())
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSuperstepMax.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("session_name");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionSuperstepMax.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("session_name");
             assert_eq!(column, ["session_1"]);
-            let column = table_reading.get_column_as_vec_primitive::<u32>("superstep-Max")?;
+            let column = subject.get_column_as_vec_primitive::<u32>("superstep-Max")?;
             assert_eq!(column, [3]);
         }
 

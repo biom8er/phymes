@@ -349,18 +349,13 @@ mod tests {
     use anyhow::Result;
     use arrow::array::{ArrayRef, Float64Array, Int64Array, RecordBatch, StringArray};
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
-        AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, CsvFormat,
-        IPCMessage, MappableTrait, MessageBuilderTrait, Subject, SubjectBuilderTrait, Publication,
-        SubjectTrait,
+        AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, CsvFormat, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
-        create_message_map,
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map
     };
 
     use super::*;
@@ -470,28 +465,35 @@ mod tests {
 
         {
             // Test session context
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get("StudySamplesMelt")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "StudySamplesMelt".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("sample_name");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("StudySamplesMelt")
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("sample_name");
             assert_eq!(
                 column,
                 [
                     "4088", "4089", "4090", "4091", "4092", "4093", "4094", "4095"
                 ]
             );
-            let column = table_reading.get_column_as_vec_primitive::<u32>("study_id")?;
+            let column = subject.get_column_as_vec_primitive::<u32>("study_id")?;
             assert!(!column.is_empty());
 
-            let table_reading = session_reading
-                .subjects()
-                .get("SamplesVariablesMelt")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "SamplesVariablesMelt".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("sample_name");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("SamplesVariablesMelt")
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("sample_name");
             assert_eq!(
                 column,
                 [
@@ -503,7 +505,7 @@ mod tests {
                     "4090", "4091", "4092", "4093", "4094", "4095"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("variable_name");
+            let column = subject.get_column_as_vec_str("variable_name");
             assert_eq!(
                 column,
                 [
@@ -565,7 +567,7 @@ mod tests {
                     "Statin"
                 ]
             );
-            let column = table_reading.get_column_as_vec_str("value");
+            let column = subject.get_column_as_vec_str("value");
             assert_eq!(
                 column,
                 [
@@ -627,27 +629,31 @@ mod tests {
                     "0"
                 ]
             );
-            let column = table_reading.get_column_as_vec_primitive::<u32>("study_id")?;
+            let column = subject.get_column_as_vec_primitive::<u32>("study_id")?;
             assert!(!column.is_empty());
 
-            let table_reading = session_reading
-                .subjects()
-                .get("StudyVariablesMelt")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "StudyVariablesMelt".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("variable_name");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("StudyVariablesMelt")
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("variable_name");
             assert_eq!(
                 column,
                 ["Age", "BMI", "Ethnicity", "Gender", "RFFT", "Statin", "VAT"]
             );
-            let column = table_reading.get_column_as_vec_str("data_type");
+            let column = subject.get_column_as_vec_str("data_type");
             assert_eq!(
                 column,
                 [
                     "Int64", "Float64", "Int64", "Int64", "Int64", "Int64", "Int64"
                 ]
             );
-            let column = table_reading.get_column_as_vec_primitive::<u32>("study_id")?;
+            let column = subject.get_column_as_vec_primitive::<u32>("study_id")?;
             assert!(!column.is_empty());
         }
 
