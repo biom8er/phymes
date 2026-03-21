@@ -259,18 +259,14 @@ mod tests {
     use std::sync::Arc;
 
     use anyhow::Result;
-    use parking_lot::RwLock;
+    use futures::TryStreamExt;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
-        ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, Publication,
-        SubjectTrait, create_documents_batch,
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription, create_documents_batch
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep,
-        SessionStreamStepTrait, create_message_map,
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep, SessionStreamStepTrait, SubscriptionTrait, create_message_map
     };
 
     use super::*;
@@ -375,16 +371,19 @@ mod tests {
 
             {
                 // Test supsersteps
-                let session_reading = session_ctx_arc.read();
-                let table_reading = session_reading
-                    .subjects()
-                    .get(AvailableInterfaceSubjects::UserQueries.to_string().as_str())
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::UserQueries.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 1);
-                let column = table_reading.get_column_as_vec_str("query_id");
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableInterfaceSubjects::UserQueries.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 1);
+                let column = subject.get_column_as_vec_str("query_id");
                 assert!(!column.is_empty());
-                let column = table_reading.get_column_as_vec_str("text");
+                let column = subject.get_column_as_vec_str("text");
                 assert_eq!(
                     column.first().unwrap(),
                     &"What are the four molecules that compose DNA?"
@@ -403,36 +402,43 @@ mod tests {
 
             {
                 // Test supsersteps
-                let session_reading = session_ctx_arc.read();
-                let table_reading = session_reading
-                    .subjects()
-                    .get(AvailableSubjects::QueryEmbeddings.to_string().as_str())
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::QueryEmbeddings.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 1);
-                let column = table_reading.get_column_as_vec_str("query_id");
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableSubjects::QueryEmbeddings.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 1);
+                let column = subject.get_column_as_vec_str("query_id");
                 assert!(!column.is_empty());
                 let column =
-                    table_reading.get_column_as_vec_nested_primitive::<f32>("embedding")?;
+                    subject.get_column_as_vec_nested_primitive::<f32>("embedding")?;
                 assert_eq!(column.len(), 1);
                 #[cfg(feature = "hf_hub")]
                 assert_eq!(column.first().unwrap().len(), 1536);
                 #[cfg(not(feature = "hf_hub"))]
                 assert_eq!(column.first().unwrap().len(), 384);
-                let table_reading = session_reading
-                    .subjects()
-                    .get(AvailableSubjects::DocumentEmbeddings.to_string().as_str())
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::DocumentEmbeddings.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
-                assert_eq!(table_reading.count_rows(), 8);
-                let column = table_reading.get_column_as_vec_str("chunk_id");
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableSubjects::DocumentEmbeddings.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
+                assert_eq!(subject.count_rows(), 8);
+                let column = subject.get_column_as_vec_str("chunk_id");
                 assert_eq!(column.first().unwrap(), &"WikiBioComponents_2_0");
                 assert_eq!(column.last().unwrap(), &"WikiBioComponents_3_0");
-                let column = table_reading.get_column_as_vec_str("document_id");
+                let column = subject.get_column_as_vec_str("document_id");
                 assert_eq!(column.first().unwrap(), &"WikiBioComponents");
                 assert_eq!(column.last().unwrap(), &"WikiBioComponents");
                 let column =
-                    table_reading.get_column_as_vec_nested_primitive::<f32>("embedding")?;
+                    subject.get_column_as_vec_nested_primitive::<f32>("embedding")?;
                 assert_eq!(column.len(), 8);
                 #[cfg(feature = "hf_hub")]
                 assert_eq!(column.first().unwrap().len(), 1536);

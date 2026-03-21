@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use arrow::datatypes::DataType;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, DiagnosticsVisualizations, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, DiagnosticsVisualizations, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator,
@@ -1835,14 +1835,12 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{
-        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, SubjectTrait,
+        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, Subject, SubjectTrait
     };
     use phymes_diagnostics::{HashMap, HashSet};
 
     use crate::{
-        SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream,
-        SessionStreamStep, SessionStreamStepTrait, create_message_map,
-        test_session_context_builder, test_task,
+        SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, SubscriptionTrait, create_message_map, test_session_context_builder, test_task
     };
 
     use super::*;
@@ -2036,20 +2034,24 @@ mod tests {
             .unwrap();
         assert_eq!(result.len(), 0);
 
-        {
             // Check the session
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let subject_names = table_reading.get_column_as_vec_str("subject_name");
-            let task_names = table_reading.get_column_as_vec_str("task_name");
-            let session_names = table_reading.get_column_as_vec_str("session_name");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .with_record_batches(batches)
+                .unwrap()
+                .build()
+                .unwrap();
+            let subject_names = subject.get_column_as_vec_str("subject_name");
+            let task_names = subject.get_column_as_vec_str("task_name");
+            let session_names = subject.get_column_as_vec_str("session_name");
             let num_rows_deltas =
-                table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
-            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
+                subject.get_column_as_vec_primitive::<i64>("num_rows")?;
+            let supersteps = subject.get_column_as_vec_primitive::<i64>("superstep")?;
             let mut combined = subject_names
                 .into_iter()
                 .zip(task_names)
@@ -2095,15 +2097,21 @@ mod tests {
                 ]
             );
 
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let task_names = table_reading.get_column_as_vec_str("task_name");
-            let session_names = table_reading.get_column_as_vec_str("session_name");
-            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
-            let _timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .with_record_batches(batches)
+                .unwrap()
+                .build()
+                .unwrap();
+            let task_names = subject.get_column_as_vec_str("task_name");
+            let session_names = subject.get_column_as_vec_str("session_name");
+            let supersteps = subject.get_column_as_vec_primitive::<i64>("superstep")?;
+            let _timestamps = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
             let mut combined = session_names
                 .into_iter()
                 .zip(task_names)
@@ -2133,7 +2141,6 @@ mod tests {
                     ),
                 ]
             );
-        }
 
         // Step 2
         let result = SessionStreamStep::run_superstep(
@@ -2144,20 +2151,24 @@ mod tests {
         .unwrap();
         assert_eq!(result.len(), 0);
 
-        {
             // Check the session
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let subject_names = table_reading.get_column_as_vec_str("subject_name");
-            let task_names = table_reading.get_column_as_vec_str("task_name");
-            let session_names = table_reading.get_column_as_vec_str("session_name");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+                .with_record_batches(batches)
+                .unwrap()
+                .build()
+                .unwrap();
+            let subject_names = subject.get_column_as_vec_str("subject_name");
+            let task_names = subject.get_column_as_vec_str("task_name");
+            let session_names = subject.get_column_as_vec_str("session_name");
             let num_rows_deltas =
-                table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
-            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
+                subject.get_column_as_vec_primitive::<i64>("num_rows")?;
+            let supersteps = subject.get_column_as_vec_primitive::<i64>("superstep")?;
             let mut combined = subject_names
                 .into_iter()
                 .zip(task_names)
@@ -2206,15 +2217,21 @@ mod tests {
                 ]
             );
 
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let task_names = table_reading.get_column_as_vec_str("task_name");
-            let session_names = table_reading.get_column_as_vec_str("session_name");
-            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
-            let _timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+                .with_record_batches(batches)
+                .unwrap()
+                .build()
+                .unwrap();
+            let task_names = subject.get_column_as_vec_str("task_name");
+            let session_names = subject.get_column_as_vec_str("session_name");
+            let supersteps = subject.get_column_as_vec_primitive::<i64>("superstep")?;
+            let _timestamps = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
             let mut combined = session_names
                 .into_iter()
                 .zip(task_names)
@@ -2241,7 +2258,6 @@ mod tests {
                     ),
                 ]
             );
-        }
 
         // Step 3
         let result = SessionStreamStep::run_superstep(
@@ -2252,128 +2268,137 @@ mod tests {
         .unwrap();
         assert_eq!(result.len(), 1);
 
-        {
-            // Check the session
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .read();
-            let subject_names = table_reading.get_column_as_vec_str("subject_name");
-            let task_names = table_reading.get_column_as_vec_str("task_name");
-            let session_names = table_reading.get_column_as_vec_str("session_name");
-            let num_rows_deltas =
-                table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
-            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
-            let mut combined = subject_names
-                .into_iter()
-                .zip(task_names)
-                .zip(session_names)
-                .zip(num_rows_deltas)
-                .zip(supersteps)
-                .filter_map(
-                    |((((subject_name, task_name), session_name), _num_rows_delta), superstep)| {
-                        if superstep == 4 {
-                            Some((subject_name, task_name, session_name, superstep))
-                        } else {
-                            None
-                        }
-                    },
-                )
-                .collect::<Vec<_>>();
-            combined.sort_by(|a, b| a.0.cmp(b.0));
-            combined.sort_by(|a, b| a.1.cmp(b.1));
-            assert_eq!(
-                combined,
-                [
-                    (
-                        "apply_sequence_diagram_participants_t",
-                        "apply_sequence_diagram_participants_t",
-                        "diagnostic_session",
-                        4,
-                    ),
-                    (
-                        "metrics_elapsed_compute_select_and_cast_to_gantt_t",
-                        "metrics_elapsed_compute_select_and_cast_to_gantt_t",
-                        "diagnostic_session",
-                        4,
-                    ),
-                    (
-                        "metrics_output_rows_select_and_cast_to_gantt_t",
-                        "metrics_output_rows_select_and_cast_to_gantt_t",
-                        "diagnostic_session",
-                        4,
-                    ),
-                    (
-                        "metrics_processors_traces_select_and_cast_to_gantt_t",
-                        "metrics_processors_traces_select_and_cast_to_gantt_t",
-                        "diagnostic_session",
-                        4,
-                    ),
-                    (
-                        "select_sequence_diagram_messages_t",
-                        "select_sequence_diagram_messages_t",
-                        "diagnostic_session",
-                        4,
-                    ),
-                ]
-            );
-
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .read();
-            let task_names = table_reading.get_column_as_vec_str("task_name");
-            let session_names = table_reading.get_column_as_vec_str("session_name");
-            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
-            let _timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-            let mut combined = session_names
-                .into_iter()
-                .zip(task_names)
-                .zip(supersteps)
-                .filter_map(|((session_name, task_name), superstep)| {
-                    if superstep == 3 {
-                        Some((session_name, task_name, superstep))
+        // Check the session
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+            .with_record_batches(batches)
+            .unwrap()
+            .build()
+            .unwrap();
+        let subject_names = subject.get_column_as_vec_str("subject_name");
+        let task_names = subject.get_column_as_vec_str("task_name");
+        let session_names = subject.get_column_as_vec_str("session_name");
+        let num_rows_deltas =
+            subject.get_column_as_vec_primitive::<i64>("num_rows")?;
+        let supersteps = subject.get_column_as_vec_primitive::<i64>("superstep")?;
+        let mut combined = subject_names
+            .into_iter()
+            .zip(task_names)
+            .zip(session_names)
+            .zip(num_rows_deltas)
+            .zip(supersteps)
+            .filter_map(
+                |((((subject_name, task_name), session_name), _num_rows_delta), superstep)| {
+                    if superstep == 4 {
+                        Some((subject_name, task_name, session_name, superstep))
                     } else {
                         None
                     }
-                })
-                .collect::<Vec<_>>();
-            combined.sort_by(|a, b| a.1.cmp(b.1));
-            assert_eq!(
-                combined,
-                [
-                    (
-                        "diagnostic_session",
-                        "apply_sequence_diagram_participants_t",
-                        3,
-                    ),
-                    ("diagnostic_session", "diagnostic_session", 3,),
-                    (
-                        "diagnostic_session",
-                        "metrics_elapsed_compute_select_and_cast_to_gantt_t",
-                        3,
-                    ),
-                    (
-                        "diagnostic_session",
-                        "metrics_output_rows_select_and_cast_to_gantt_t",
-                        3,
-                    ),
-                    (
-                        "diagnostic_session",
-                        "metrics_processors_traces_select_and_cast_to_gantt_t",
-                        3,
-                    ),
-                    (
-                        "diagnostic_session",
-                        "select_sequence_diagram_messages_t",
-                        3,
-                    ),
-                ]
-            );
-        }
+                },
+            )
+            .collect::<Vec<_>>();
+        combined.sort_by(|a, b| a.0.cmp(b.0));
+        combined.sort_by(|a, b| a.1.cmp(b.1));
+        assert_eq!(
+            combined,
+            [
+                (
+                    "apply_sequence_diagram_participants_t",
+                    "apply_sequence_diagram_participants_t",
+                    "diagnostic_session",
+                    4,
+                ),
+                (
+                    "metrics_elapsed_compute_select_and_cast_to_gantt_t",
+                    "metrics_elapsed_compute_select_and_cast_to_gantt_t",
+                    "diagnostic_session",
+                    4,
+                ),
+                (
+                    "metrics_output_rows_select_and_cast_to_gantt_t",
+                    "metrics_output_rows_select_and_cast_to_gantt_t",
+                    "diagnostic_session",
+                    4,
+                ),
+                (
+                    "metrics_processors_traces_select_and_cast_to_gantt_t",
+                    "metrics_processors_traces_select_and_cast_to_gantt_t",
+                    "diagnostic_session",
+                    4,
+                ),
+                (
+                    "select_sequence_diagram_messages_t",
+                    "select_sequence_diagram_messages_t",
+                    "diagnostic_session",
+                    4,
+                ),
+            ]
+        );
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+            .with_record_batches(batches)
+            .unwrap()
+            .build()
+            .unwrap();
+        let task_names = subject.get_column_as_vec_str("task_name");
+        let session_names = subject.get_column_as_vec_str("session_name");
+        let supersteps = subject.get_column_as_vec_primitive::<i64>("superstep")?;
+        let _timestamps = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+        let mut combined = session_names
+            .into_iter()
+            .zip(task_names)
+            .zip(supersteps)
+            .filter_map(|((session_name, task_name), superstep)| {
+                if superstep == 3 {
+                    Some((session_name, task_name, superstep))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        combined.sort_by(|a, b| a.1.cmp(b.1));
+        assert_eq!(
+            combined,
+            [
+                (
+                    "diagnostic_session",
+                    "apply_sequence_diagram_participants_t",
+                    3,
+                ),
+                ("diagnostic_session", "diagnostic_session", 3,),
+                (
+                    "diagnostic_session",
+                    "metrics_elapsed_compute_select_and_cast_to_gantt_t",
+                    3,
+                ),
+                (
+                    "diagnostic_session",
+                    "metrics_output_rows_select_and_cast_to_gantt_t",
+                    3,
+                ),
+                (
+                    "diagnostic_session",
+                    "metrics_processors_traces_select_and_cast_to_gantt_t",
+                    3,
+                ),
+                (
+                    "diagnostic_session",
+                    "select_sequence_diagram_messages_t",
+                    3,
+                ),
+            ]
+        );
 
         // Step 4
         let result = SessionStreamStep::run_superstep(
@@ -2384,104 +2409,113 @@ mod tests {
         .unwrap();
         assert_eq!(result.len(), 0);
 
-        {
-            // Check the session
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .read();
-            let subject_names = table_reading.get_column_as_vec_str("subject_name");
-            let task_names = table_reading.get_column_as_vec_str("task_name");
-            let session_names = table_reading.get_column_as_vec_str("session_name");
-            let num_rows_deltas =
-                table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
-            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
-            let mut combined = subject_names
-                .into_iter()
-                .zip(task_names)
-                .zip(session_names)
-                .zip(num_rows_deltas)
-                .zip(supersteps)
-                .filter_map(
-                    |((((subject_name, task_name), session_name), _num_rows_delta), superstep)| {
-                        if superstep == 5 {
-                            Some((subject_name, task_name, session_name, superstep))
-                        } else {
-                            None
-                        }
-                    },
-                )
-                .collect::<Vec<_>>();
-            combined.sort_by(|a, b| a.0.cmp(b.0));
-            combined.sort_by(|a, b| a.1.cmp(b.1));
-            assert_eq!(
-                combined,
-                [
-                    (
-                        "MetricElapsedComputeGantt",
-                        "Elapsed_compute_barplot",
-                        "diagnostic_session",
-                        5,
-                    ),
-                    (
-                        "MetricOutputRowsGantt",
-                        "Output_rows_barplot",
-                        "diagnostic_session",
-                        5,
-                    ),
-                    (
-                        "MetricProcessorTracesGantt",
-                        "Processor_traces_gantt",
-                        "diagnostic_session",
-                        5,
-                    ),
-                    (
-                        "select_sequence_diagram_participants_t",
-                        "select_sequence_diagram_participants_t",
-                        "diagnostic_session",
-                        5,
-                    ),
-                ]
-            );
-
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .read();
-            let task_names = table_reading.get_column_as_vec_str("task_name");
-            let session_names = table_reading.get_column_as_vec_str("session_name");
-            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
-            let _timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-            let mut combined = session_names
-                .into_iter()
-                .zip(task_names)
-                .zip(supersteps)
-                .filter_map(|((session_name, task_name), superstep)| {
-                    if superstep == 4 {
-                        Some((session_name, task_name, superstep))
+        // Check the session
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+            .with_record_batches(batches)
+            .unwrap()
+            .build()
+            .unwrap();
+        let subject_names = subject.get_column_as_vec_str("subject_name");
+        let task_names = subject.get_column_as_vec_str("task_name");
+        let session_names = subject.get_column_as_vec_str("session_name");
+        let num_rows_deltas =
+            subject.get_column_as_vec_primitive::<i64>("num_rows")?;
+        let supersteps = subject.get_column_as_vec_primitive::<i64>("superstep")?;
+        let mut combined = subject_names
+            .into_iter()
+            .zip(task_names)
+            .zip(session_names)
+            .zip(num_rows_deltas)
+            .zip(supersteps)
+            .filter_map(
+                |((((subject_name, task_name), session_name), _num_rows_delta), superstep)| {
+                    if superstep == 5 {
+                        Some((subject_name, task_name, session_name, superstep))
                     } else {
                         None
                     }
-                })
-                .collect::<Vec<_>>();
-            combined.sort_by(|a, b| a.1.cmp(b.1));
-            assert_eq!(
-                combined,
-                [
-                    ("diagnostic_session", "Elapsed_compute_barplot", 4,),
-                    ("diagnostic_session", "Output_rows_barplot", 4,),
-                    ("diagnostic_session", "Processor_traces_gantt", 4,),
-                    (
-                        "diagnostic_session",
-                        "select_sequence_diagram_participants_t",
-                        4,
-                    ),
-                ]
-            );
-        }
+                },
+            )
+            .collect::<Vec<_>>();
+        combined.sort_by(|a, b| a.0.cmp(b.0));
+        combined.sort_by(|a, b| a.1.cmp(b.1));
+        assert_eq!(
+            combined,
+            [
+                (
+                    "MetricElapsedComputeGantt",
+                    "Elapsed_compute_barplot",
+                    "diagnostic_session",
+                    5,
+                ),
+                (
+                    "MetricOutputRowsGantt",
+                    "Output_rows_barplot",
+                    "diagnostic_session",
+                    5,
+                ),
+                (
+                    "MetricProcessorTracesGantt",
+                    "Processor_traces_gantt",
+                    "diagnostic_session",
+                    5,
+                ),
+                (
+                    "select_sequence_diagram_participants_t",
+                    "select_sequence_diagram_participants_t",
+                    "diagnostic_session",
+                    5,
+                ),
+            ]
+        );
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+            .with_record_batches(batches)
+            .unwrap()
+            .build()
+            .unwrap();
+        let task_names = subject.get_column_as_vec_str("task_name");
+        let session_names = subject.get_column_as_vec_str("session_name");
+        let supersteps = subject.get_column_as_vec_primitive::<i64>("superstep")?;
+        let _timestamps = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+        let mut combined = session_names
+            .into_iter()
+            .zip(task_names)
+            .zip(supersteps)
+            .filter_map(|((session_name, task_name), superstep)| {
+                if superstep == 4 {
+                    Some((session_name, task_name, superstep))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        combined.sort_by(|a, b| a.1.cmp(b.1));
+        assert_eq!(
+            combined,
+            [
+                ("diagnostic_session", "Elapsed_compute_barplot", 4,),
+                ("diagnostic_session", "Output_rows_barplot", 4,),
+                ("diagnostic_session", "Processor_traces_gantt", 4,),
+                (
+                    "diagnostic_session",
+                    "select_sequence_diagram_participants_t",
+                    4,
+                ),
+            ]
+        );
 
         // Step 5
         let result = SessionStreamStep::run_superstep(
@@ -2492,82 +2526,91 @@ mod tests {
         .unwrap();
         assert_eq!(result.len(), 3);
 
-        {
-            // Check the session
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .read();
-            let subject_names = table_reading.get_column_as_vec_str("subject_name");
-            let task_names = table_reading.get_column_as_vec_str("task_name");
-            let session_names = table_reading.get_column_as_vec_str("session_name");
-            let num_rows_deltas =
-                table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
-            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
-            let mut combined = subject_names
-                .into_iter()
-                .zip(task_names)
-                .zip(session_names)
-                .zip(num_rows_deltas)
-                .zip(supersteps)
-                .filter_map(
-                    |((((subject_name, task_name), session_name), _num_rows_delta), superstep)| {
-                        if superstep == 6 {
-                            Some((subject_name, task_name, session_name, superstep))
-                        } else {
-                            None
-                        }
-                    },
-                )
-                .collect::<Vec<_>>();
-            combined.sort_by(|a, b| a.0.cmp(b.0));
-            combined.sort_by(|a, b| a.1.cmp(b.1));
-            assert_eq!(
-                combined,
-                [(
-                    "traces_aggregate_sequence_diagram_content_t",
-                    "traces_aggregate_sequence_diagram_content_t",
-                    "diagnostic_session",
-                    6,
-                ),]
-            );
-
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .read();
-            let task_names = table_reading.get_column_as_vec_str("task_name");
-            let session_names = table_reading.get_column_as_vec_str("session_name");
-            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
-            let _timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-            let mut combined = session_names
-                .into_iter()
-                .zip(task_names)
-                .zip(supersteps)
-                .filter_map(|((session_name, task_name), superstep)| {
-                    if superstep == 5 {
-                        Some((session_name, task_name, superstep))
+        // Check the session
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+            .with_record_batches(batches)
+            .unwrap()
+            .build()
+            .unwrap();
+        let subject_names = subject.get_column_as_vec_str("subject_name");
+        let task_names = subject.get_column_as_vec_str("task_name");
+        let session_names = subject.get_column_as_vec_str("session_name");
+        let num_rows_deltas =
+            subject.get_column_as_vec_primitive::<i64>("num_rows")?;
+        let supersteps = subject.get_column_as_vec_primitive::<i64>("superstep")?;
+        let mut combined = subject_names
+            .into_iter()
+            .zip(task_names)
+            .zip(session_names)
+            .zip(num_rows_deltas)
+            .zip(supersteps)
+            .filter_map(
+                |((((subject_name, task_name), session_name), _num_rows_delta), superstep)| {
+                    if superstep == 6 {
+                        Some((subject_name, task_name, session_name, superstep))
                     } else {
                         None
                     }
-                })
-                .collect::<Vec<_>>();
-            combined.sort_by(|a, b| a.1.cmp(b.1));
-            assert_eq!(
-                combined,
-                [
-                    ("diagnostic_session", "diagnostic_session", 5,),
-                    (
-                        "diagnostic_session",
-                        "traces_aggregate_sequence_diagram_content_t",
-                        5,
-                    ),
-                ]
-            );
-        }
+                },
+            )
+            .collect::<Vec<_>>();
+        combined.sort_by(|a, b| a.0.cmp(b.0));
+        combined.sort_by(|a, b| a.1.cmp(b.1));
+        assert_eq!(
+            combined,
+            [(
+                "traces_aggregate_sequence_diagram_content_t",
+                "traces_aggregate_sequence_diagram_content_t",
+                "diagnostic_session",
+                6,
+            ),]
+        );
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+            .with_record_batches(batches)
+            .unwrap()
+            .build()
+            .unwrap();
+        let task_names = subject.get_column_as_vec_str("task_name");
+        let session_names = subject.get_column_as_vec_str("session_name");
+        let supersteps = subject.get_column_as_vec_primitive::<i64>("superstep")?;
+        let _timestamps = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+        let mut combined = session_names
+            .into_iter()
+            .zip(task_names)
+            .zip(supersteps)
+            .filter_map(|((session_name, task_name), superstep)| {
+                if superstep == 5 {
+                    Some((session_name, task_name, superstep))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        combined.sort_by(|a, b| a.1.cmp(b.1));
+        assert_eq!(
+            combined,
+            [
+                ("diagnostic_session", "diagnostic_session", 5,),
+                (
+                    "diagnostic_session",
+                    "traces_aggregate_sequence_diagram_content_t",
+                    5,
+                ),
+            ]
+        );
 
         // Step 6
         let result = SessionStreamStep::run_superstep(
@@ -2578,75 +2621,84 @@ mod tests {
         .unwrap();
         assert_eq!(result.len(), 0);
 
-        {
-            // Check the session
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .read();
-            let subject_names = table_reading.get_column_as_vec_str("subject_name");
-            let task_names = table_reading.get_column_as_vec_str("task_name");
-            let session_names = table_reading.get_column_as_vec_str("session_name");
-            let num_rows_deltas =
-                table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
-            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
-            let mut combined = subject_names
-                .into_iter()
-                .zip(task_names)
-                .zip(session_names)
-                .zip(num_rows_deltas)
-                .zip(supersteps)
-                .filter_map(
-                    |((((subject_name, task_name), session_name), _num_rows_delta), superstep)| {
-                        if superstep == 7 {
-                            Some((subject_name, task_name, session_name, superstep))
-                        } else {
-                            None
-                        }
-                    },
-                )
-                .collect::<Vec<_>>();
-            combined.sort_by(|a, b| a.0.cmp(b.0));
-            combined.sort_by(|a, b| a.1.cmp(b.1));
-            assert_eq!(
-                combined,
-                [(
-                    "TraceSequenceDiagram",
-                    "apply_sequence_diagram_t",
-                    "diagnostic_session",
-                    7,
-                ),]
-            );
-
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .read();
-            let task_names = table_reading.get_column_as_vec_str("task_name");
-            let session_names = table_reading.get_column_as_vec_str("session_name");
-            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
-            let _timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-            let mut combined = session_names
-                .into_iter()
-                .zip(task_names)
-                .zip(supersteps)
-                .filter_map(|((session_name, task_name), superstep)| {
-                    if superstep == 6 {
-                        Some((session_name, task_name, superstep))
+        // Check the session
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+            .with_record_batches(batches)
+            .unwrap()
+            .build()
+            .unwrap();
+        let subject_names = subject.get_column_as_vec_str("subject_name");
+        let task_names = subject.get_column_as_vec_str("task_name");
+        let session_names = subject.get_column_as_vec_str("session_name");
+        let num_rows_deltas =
+            subject.get_column_as_vec_primitive::<i64>("num_rows")?;
+        let supersteps = subject.get_column_as_vec_primitive::<i64>("superstep")?;
+        let mut combined = subject_names
+            .into_iter()
+            .zip(task_names)
+            .zip(session_names)
+            .zip(num_rows_deltas)
+            .zip(supersteps)
+            .filter_map(
+                |((((subject_name, task_name), session_name), _num_rows_delta), superstep)| {
+                    if superstep == 7 {
+                        Some((subject_name, task_name, session_name, superstep))
                     } else {
                         None
                     }
-                })
-                .collect::<Vec<_>>();
-            combined.sort_by(|a, b| a.1.cmp(b.1));
-            assert_eq!(
-                combined,
-                [("diagnostic_session", "apply_sequence_diagram_t", 6,),]
-            );
-        }
+                },
+            )
+            .collect::<Vec<_>>();
+        combined.sort_by(|a, b| a.0.cmp(b.0));
+        combined.sort_by(|a, b| a.1.cmp(b.1));
+        assert_eq!(
+            combined,
+            [(
+                "TraceSequenceDiagram",
+                "apply_sequence_diagram_t",
+                "diagnostic_session",
+                7,
+            ),]
+        );
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+            .with_record_batches(batches)
+            .unwrap()
+            .build()
+            .unwrap();
+        let task_names = subject.get_column_as_vec_str("task_name");
+        let session_names = subject.get_column_as_vec_str("session_name");
+        let supersteps = subject.get_column_as_vec_primitive::<i64>("superstep")?;
+        let _timestamps = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+        let mut combined = session_names
+            .into_iter()
+            .zip(task_names)
+            .zip(supersteps)
+            .filter_map(|((session_name, task_name), superstep)| {
+                if superstep == 6 {
+                    Some((session_name, task_name, superstep))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        combined.sort_by(|a, b| a.1.cmp(b.1));
+        assert_eq!(
+            combined,
+            [("diagnostic_session", "apply_sequence_diagram_t", 6,),]
+        );
 
         // Step 7
         let result = SessionStreamStep::run_superstep(
@@ -2657,68 +2709,76 @@ mod tests {
         .unwrap();
         assert_eq!(result.len(), 1);
 
-        {
-            // Check the session
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .read();
-            let subject_names = table_reading.get_column_as_vec_str("subject_name");
-            let task_names = table_reading.get_column_as_vec_str("task_name");
-            let session_names = table_reading.get_column_as_vec_str("session_name");
-            let num_rows_deltas =
-                table_reading.get_column_as_vec_primitive::<i64>("num_rows")?;
-            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
-            let mut combined = subject_names
-                .into_iter()
-                .zip(task_names)
-                .zip(session_names)
-                .zip(num_rows_deltas)
-                .zip(supersteps)
-                .filter_map(
-                    |((((subject_name, task_name), session_name), _num_rows_delta), superstep)| {
-                        if superstep == 8 {
-                            Some((subject_name, task_name, session_name, superstep))
-                        } else {
-                            None
-                        }
-                    },
-                )
-                .collect::<Vec<_>>();
-            combined.sort_by(|a, b| a.0.cmp(b.0));
-            combined.sort_by(|a, b| a.1.cmp(b.1));
-            assert_eq!(combined, []);
-
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .read();
-            let task_names = table_reading.get_column_as_vec_str("task_name");
-            let session_names = table_reading.get_column_as_vec_str("session_name");
-            let supersteps = table_reading.get_column_as_vec_primitive::<i64>("superstep")?;
-            let _timestamps = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-            let mut combined = session_names
-                .into_iter()
-                .zip(task_names)
-                .zip(supersteps)
-                .filter_map(|((session_name, task_name), superstep)| {
-                    if superstep == 7 {
-                        Some((session_name, task_name, superstep))
+        // Check the session
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+            .with_record_batches(batches)
+            .unwrap()
+            .build()
+            .unwrap();
+        let subject_names = subject.get_column_as_vec_str("subject_name");
+        let task_names = subject.get_column_as_vec_str("task_name");
+        let session_names = subject.get_column_as_vec_str("session_name");
+        let num_rows_deltas =
+            subject.get_column_as_vec_primitive::<i64>("num_rows")?;
+        let supersteps = subject.get_column_as_vec_primitive::<i64>("superstep")?;
+        let mut combined = subject_names
+            .into_iter()
+            .zip(task_names)
+            .zip(session_names)
+            .zip(num_rows_deltas)
+            .zip(supersteps)
+            .filter_map(
+                |((((subject_name, task_name), session_name), _num_rows_delta), superstep)| {
+                    if superstep == 8 {
+                        Some((subject_name, task_name, session_name, superstep))
                     } else {
                         None
                     }
-                })
-                .collect::<Vec<_>>();
-            combined.sort_by(|a, b| a.1.cmp(b.1));
-            assert_eq!(
-                combined,
-                [("diagnostic_session", "diagnostic_session", 7,),]
-            );
-        }
+                },
+            )
+            .collect::<Vec<_>>();
+        combined.sort_by(|a, b| a.0.cmp(b.0));
+        combined.sort_by(|a, b| a.1.cmp(b.1));
+        assert_eq!(combined, []);
 
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+            .with_record_batches(batches)
+            .unwrap()
+            .build()
+            .unwrap();
+        let task_names = subject.get_column_as_vec_str("task_name");
+        let session_names = subject.get_column_as_vec_str("session_name");
+        let supersteps = subject.get_column_as_vec_primitive::<i64>("superstep")?;
+        let _timestamps = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+        let mut combined = session_names
+            .into_iter()
+            .zip(task_names)
+            .zip(supersteps)
+            .filter_map(|((session_name, task_name), superstep)| {
+                if superstep == 7 {
+                    Some((session_name, task_name, superstep))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        combined.sort_by(|a, b| a.1.cmp(b.1));
+        assert_eq!(
+            combined,
+            [("diagnostic_session", "diagnostic_session", 7,),]
+        );
         Ok(())
     }
 
@@ -2729,7 +2789,6 @@ mod tests {
         let session_ctx = diagnostic_session
             .build()
             .with_name(diagnostic_session.session_context_name)
-            .with_max_iter(25)
             .with_diagnostics(true) // Debugging
             .add_session_interface(Some(&[
                 DiagnosticsVisualizations::MetricProcessorTracesGantt
@@ -2758,16 +2817,6 @@ mod tests {
         // Run
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
-        // {
-        //     // Debug any errors
-        //     let subjects_reading = session_ctx_arc.read();
-        //     let table_reading = subjects_reading
-        //         .get_states()
-        //         .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-        //         .unwrap()
-        //         .read();
-        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        // }
 
         // Check the response
         let keys = response
@@ -2812,7 +2861,7 @@ mod tests {
                     .collect::<HashMap<_, _>>()
             })
             .collect::<HashMap<_, _>>();
-        let table_reading = tables
+        let subject = tables
             .get(
                 format!(
                     "from_{}_on_{}",
@@ -2822,20 +2871,20 @@ mod tests {
                 .as_str(),
             )
             .unwrap();
-        let columns = table_reading.get_column_as_vec_str("filename");
+        let columns = subject.get_column_as_vec_str("filename");
         assert_eq!(columns, ["MetricProcessorTracesGantt"]);
-        let columns = table_reading.get_column_as_vec_str("extension");
+        let columns = subject.get_column_as_vec_str("extension");
         assert_eq!(columns, ["txt"]);
-        let columns = table_reading.get_column_as_vec_str("metadata");
+        let columns = subject.get_column_as_vec_str("metadata");
         assert_eq!(columns, ["assistant"]);
-        let bytes = table_reading
+        let bytes = subject
             .get_column_as_vec_nested_primitive::<u8>("bytes")?
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
         let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
         assert_eq!(&column[..15], "\n        gantt\n");
-        let table_reading = tables
+        let subject = tables
             .get(
                 format!(
                     "from_{}_on_{}",
@@ -2845,20 +2894,20 @@ mod tests {
                 .as_str(),
             )
             .unwrap();
-        let columns = table_reading.get_column_as_vec_str("filename");
+        let columns = subject.get_column_as_vec_str("filename");
         assert_eq!(columns, ["MetricElapsedComputeGantt"]);
-        let columns = table_reading.get_column_as_vec_str("extension");
+        let columns = subject.get_column_as_vec_str("extension");
         assert_eq!(columns, ["txt"]);
-        let columns = table_reading.get_column_as_vec_str("metadata");
+        let columns = subject.get_column_as_vec_str("metadata");
         assert_eq!(columns, ["assistant"]);
-        let bytes = table_reading
+        let bytes = subject
             .get_column_as_vec_nested_primitive::<u8>("bytes")?
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
         let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
         assert_eq!(&column[..15], "\n        gantt\n");
-        let table_reading = tables
+        let subject = tables
             .get(
                 format!(
                     "from_{}_on_{}",
@@ -2868,20 +2917,20 @@ mod tests {
                 .as_str(),
             )
             .unwrap();
-        let columns = table_reading.get_column_as_vec_str("filename");
+        let columns = subject.get_column_as_vec_str("filename");
         assert_eq!(columns, ["MetricOutputRowsGantt"]);
-        let columns = table_reading.get_column_as_vec_str("extension");
+        let columns = subject.get_column_as_vec_str("extension");
         assert_eq!(columns, ["txt"]);
-        let columns = table_reading.get_column_as_vec_str("metadata");
+        let columns = subject.get_column_as_vec_str("metadata");
         assert_eq!(columns, ["assistant"]);
-        let bytes = table_reading
+        let bytes = subject
             .get_column_as_vec_nested_primitive::<u8>("bytes")?
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
         let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
         assert_eq!(&column[..15], "\n        gantt\n");
-        let table_reading = tables
+        let subject = tables
             .get(
                 format!(
                     "from_{}_on_{}",
@@ -2891,20 +2940,20 @@ mod tests {
                 .as_str(),
             )
             .unwrap();
-        let columns = table_reading.get_column_as_vec_str("filename");
+        let columns = subject.get_column_as_vec_str("filename");
         assert_eq!(columns, ["TraceSequenceDiagram"]);
-        let columns = table_reading.get_column_as_vec_str("extension");
+        let columns = subject.get_column_as_vec_str("extension");
         assert_eq!(columns, ["txt"]);
-        let columns = table_reading.get_column_as_vec_str("metadata");
+        let columns = subject.get_column_as_vec_str("metadata");
         assert_eq!(columns, ["assistant"]);
-        let bytes = table_reading
+        let bytes = subject
             .get_column_as_vec_nested_primitive::<u8>("bytes")?
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
         let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
         assert_eq!(&column[..25], "\n        sequenceDiagram\n");
-        let table_reading = tables
+        let subject = tables
             .get(
                 format!(
                     "from_{}_on_{}",
@@ -2914,13 +2963,13 @@ mod tests {
                 .as_str(),
             )
             .unwrap();
-        let columns = table_reading.get_column_as_vec_str("filename");
+        let columns = subject.get_column_as_vec_str("filename");
         assert_eq!(columns, ["EventKanban"]);
-        let columns = table_reading.get_column_as_vec_str("extension");
+        let columns = subject.get_column_as_vec_str("extension");
         assert_eq!(columns, ["txt"]);
-        let columns = table_reading.get_column_as_vec_str("metadata");
+        let columns = subject.get_column_as_vec_str("metadata");
         assert_eq!(columns, ["assistant"]);
-        let bytes = table_reading
+        let bytes = subject
             .get_column_as_vec_nested_primitive::<u8>("bytes")?
             .into_iter()
             .flatten()
@@ -2928,116 +2977,117 @@ mod tests {
         let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
         assert_eq!(&column[..16], "\n        kanban\n");
 
-        {
             // Check the session
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get(
-                    DiagnosticsVisualizations::MetricProcessorTracesGantt
-                        .to_string()
-                        .as_str(),
-                )
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let columns = table_reading.get_column_as_vec_str("filename");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            let columns = subject.get_column_as_vec_str("filename");
             assert_eq!(columns, ["MetricProcessorTracesGantt"]);
-            let columns = table_reading.get_column_as_vec_str("extension");
+            let columns = subject.get_column_as_vec_str("extension");
             assert_eq!(columns, ["txt"]);
-            let columns = table_reading.get_column_as_vec_str("metadata");
+            let columns = subject.get_column_as_vec_str("metadata");
             assert_eq!(columns, ["assistant"]);
-            let bytes = table_reading
+            let bytes = subject
                 .get_column_as_vec_nested_primitive::<u8>("bytes")?
                 .into_iter()
                 .flatten()
                 .collect::<Vec<_>>();
             let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
             assert_eq!(&column[..15], "\n        gantt\n");
-            let table_reading = session_reading
-                .subjects()
-                .get(
-                    DiagnosticsVisualizations::MetricElapsedComputeGantt
-                        .to_string()
-                        .as_str(),
-                )
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let columns = table_reading.get_column_as_vec_str("filename");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            let columns = subject.get_column_as_vec_str("filename");
             assert_eq!(columns, ["MetricElapsedComputeGantt"]);
-            let columns = table_reading.get_column_as_vec_str("extension");
+            let columns = subject.get_column_as_vec_str("extension");
             assert_eq!(columns, ["txt"]);
-            let columns = table_reading.get_column_as_vec_str("metadata");
+            let columns = subject.get_column_as_vec_str("metadata");
             assert_eq!(columns, ["assistant"]);
-            let bytes = table_reading
+            let bytes = subject
                 .get_column_as_vec_nested_primitive::<u8>("bytes")?
                 .into_iter()
                 .flatten()
                 .collect::<Vec<_>>();
             let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
             assert_eq!(&column[..15], "\n        gantt\n");
-            let table_reading = session_reading
-                .subjects()
-                .get(
-                    DiagnosticsVisualizations::MetricOutputRowsGantt
-                        .to_string()
-                        .as_str(),
-                )
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::MetricOutputRowsGantt.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let columns = table_reading.get_column_as_vec_str("filename");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(DiagnosticsVisualizations::MetricOutputRowsGantt.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            let columns = subject.get_column_as_vec_str("filename");
             assert_eq!(columns, ["MetricOutputRowsGantt"]);
-            let columns = table_reading.get_column_as_vec_str("extension");
+            let columns = subject.get_column_as_vec_str("extension");
             assert_eq!(columns, ["txt"]);
-            let columns = table_reading.get_column_as_vec_str("metadata");
+            let columns = subject.get_column_as_vec_str("metadata");
             assert_eq!(columns, ["assistant"]);
-            let bytes = table_reading
+            let bytes = subject
                 .get_column_as_vec_nested_primitive::<u8>("bytes")?
                 .into_iter()
                 .flatten()
                 .collect::<Vec<_>>();
             let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
             assert_eq!(&column[..15], "\n        gantt\n");
-            let table_reading = session_reading
-                .subjects()
-                .get(
-                    DiagnosticsVisualizations::TraceSequenceDiagram
-                        .to_string()
-                        .as_str(),
-                )
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::TraceSequenceDiagram.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let columns = table_reading.get_column_as_vec_str("filename");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(DiagnosticsVisualizations::TraceSequenceDiagram.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            let columns = subject.get_column_as_vec_str("filename");
             assert_eq!(columns, ["TraceSequenceDiagram"]);
-            let columns = table_reading.get_column_as_vec_str("extension");
+            let columns = subject.get_column_as_vec_str("extension");
             assert_eq!(columns, ["txt"]);
-            let columns = table_reading.get_column_as_vec_str("metadata");
+            let columns = subject.get_column_as_vec_str("metadata");
             assert_eq!(columns, ["assistant"]);
-            let bytes = table_reading
+            let bytes = subject
                 .get_column_as_vec_nested_primitive::<u8>("bytes")?
                 .into_iter()
                 .flatten()
                 .collect::<Vec<_>>();
             let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
             assert_eq!(&column[..25], "\n        sequenceDiagram\n");
-            let table_reading = session_reading
-                .subjects()
-                .get(DiagnosticsVisualizations::EventKanban.to_string().as_str())
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::EventKanban.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let columns = table_reading.get_column_as_vec_str("filename");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(DiagnosticsVisualizations::EventKanban.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            let columns = subject.get_column_as_vec_str("filename");
             assert_eq!(columns, ["EventKanban"]);
-            let columns = table_reading.get_column_as_vec_str("extension");
+            let columns = subject.get_column_as_vec_str("extension");
             assert_eq!(columns, ["txt"]);
-            let columns = table_reading.get_column_as_vec_str("metadata");
+            let columns = subject.get_column_as_vec_str("metadata");
             assert_eq!(columns, ["assistant"]);
-            let bytes = table_reading
+            let bytes = subject
                 .get_column_as_vec_nested_primitive::<u8>("bytes")?
                 .into_iter()
                 .flatten()
                 .collect::<Vec<_>>();
             let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
             assert_eq!(&column[..16], "\n        kanban\n");
-        }
 
         Ok(())
     }

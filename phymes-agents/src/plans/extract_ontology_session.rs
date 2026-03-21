@@ -1857,17 +1857,14 @@ mod tests {
     use std::sync::Arc;
 
     use anyhow::Result;
-    use parking_lot::RwLock;
+    use futures::TryStreamExt;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Subject,
-        SubjectBuilderTrait, Publication, SubjectTrait, create_attachments_batch,
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription, create_attachments_batch
     };
     use phymes_diagnostics::{HashMap, create_timestamp_micros};
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep,
-        SessionStreamStepTrait, create_message_map,
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep, SessionStreamStepTrait, SubscriptionTrait, create_message_map
     };
 
     use super::*;
@@ -2002,29 +1999,21 @@ mod tests {
             .await?
             .unwrap();
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .subjects()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
-
         assert_eq!(response.len(), 0);
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::ParseOwl.to_string().as_str())
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::ParseOwl.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 30);
-            let column = table_reading.get_column_as_vec_str("entity");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::ParseOwl.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 30);
+            let column = subject.get_column_as_vec_str("entity");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://www.w3.org/2002/07/owl#AnnotationProperty"
@@ -2033,7 +2022,7 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2002/07/owl#Ontology"
             );
-            let column = table_reading.get_column_as_vec_str("subject");
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115"
@@ -2042,19 +2031,19 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/ro.owl"
             );
-            let column = table_reading.get_column_as_vec_str("predicate");
+            let column = subject.get_column_as_vec_str("predicate");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115"
             );
             assert_eq!(column.last().unwrap(), &"http://purl.org/dc/terms/title");
-            let column = table_reading.get_column_as_vec_str("object");
+            let column = subject.get_column_as_vec_str("object");
             assert_eq!(
                 column.first().unwrap(),
                 &"The official definition, explaining the meaning of a class or property. Shall be Aristotelian, formalized and normalized. Can be augmented with colloquial definitions."
             );
             assert_eq!(column.last().unwrap(), &"OBO Relations Ontology");
-            let column = table_reading.get_column_as_vec_str("graph");
+            let column = subject.get_column_as_vec_str("graph");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115-http://purl.obolibrary.org/obo/IAO_0000115-The official definition, explaining the meaning of a class or property. Shall be Aristotelian, formalized and normalized. Can be augmented with colloquial definitions."
@@ -2063,7 +2052,7 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/ro.owl-http://purl.org/dc/terms/title-OBO Relations Ontology"
             );
-            let column = table_reading.get_column_as_vec_str("dataset");
+            let column = subject.get_column_as_vec_str("dataset");
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
         }
@@ -2076,30 +2065,21 @@ mod tests {
         .await?
         .unwrap();
 
-        // {
-        //     // Debug any errors
-        //     let subjects_reading = session_ctx_arc.read();
-        //     let table_reading = subjects_reading
-        //         .get_states()
-        //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
-        //         .unwrap()
-        //         .read();
-        //     println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        // }
-
         assert_eq!(response.len(), 0);
-        println!("Starting second superstep...");
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get("select_ontology_entity_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_ontology_entity_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 2);
-            let column = table_reading.get_column_as_vec_str("entity");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_ontology_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 2);
+            let column = subject.get_column_as_vec_str("entity");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://www.w3.org/2002/07/owl#Ontology"
@@ -2108,7 +2088,7 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2002/07/owl#Ontology"
             );
-            let column = table_reading.get_column_as_vec_str("subject");
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/ro.owl"
@@ -2117,19 +2097,19 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/ro.owl"
             );
-            let column = table_reading.get_column_as_vec_str("predicate");
+            let column = subject.get_column_as_vec_str("predicate");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.org/dc/terms/description"
             );
             assert_eq!(column.last().unwrap(), &"http://purl.org/dc/terms/title");
-            let column = table_reading.get_column_as_vec_str("object");
+            let column = subject.get_column_as_vec_str("object");
             assert_eq!(
                 column.first().unwrap(),
                 &"The OBO Relations Ontology (RO) is a collection of OWL relations (ObjectProperties) intended for use across a wide variety of biological ontologies."
             );
             assert_eq!(column.last().unwrap(), &"OBO Relations Ontology");
-            let column = table_reading.get_column_as_vec_str("graph");
+            let column = subject.get_column_as_vec_str("graph");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/ro.owl-http://purl.org/dc/terms/description-The OBO Relations Ontology (RO) is a collection of OWL relations (ObjectProperties) intended for use across a wide variety of biological ontologies."
@@ -2138,16 +2118,20 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/ro.owl-http://purl.org/dc/terms/title-OBO Relations Ontology"
             );
-            let column = table_reading.get_column_as_vec_str("dataset");
+            let column = subject.get_column_as_vec_str("dataset");
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
-            let table_reading = session_reading
-                .subjects()
-                .get("select_annotation_property_entity_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_annotation_property_entity_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 17);
-            let column = table_reading.get_column_as_vec_str("entity");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_annotation_property_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 17);
+            let column = subject.get_column_as_vec_str("entity");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://www.w3.org/2002/07/owl#AnnotationProperty"
@@ -2156,7 +2140,7 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2002/07/owl#AnnotationProperty"
             );
-            let column = table_reading.get_column_as_vec_str("subject");
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115"
@@ -2165,7 +2149,7 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2000/01/rdf-schema#subPropertyOf"
             );
-            let column = table_reading.get_column_as_vec_str("predicate");
+            let column = subject.get_column_as_vec_str("predicate");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115"
@@ -2174,13 +2158,13 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2000/01/rdf-schema#label"
             );
-            let column = table_reading.get_column_as_vec_str("object");
+            let column = subject.get_column_as_vec_str("object");
             assert_eq!(
                 column.first().unwrap(),
                 &"The official definition, explaining the meaning of a class or property. Shall be Aristotelian, formalized and normalized. Can be augmented with colloquial definitions."
             );
             assert_eq!(column.last().unwrap(), &"subPropertyOf");
-            let column = table_reading.get_column_as_vec_str("graph");
+            let column = subject.get_column_as_vec_str("graph");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115-http://purl.obolibrary.org/obo/IAO_0000115-The official definition, explaining the meaning of a class or property. Shall be Aristotelian, formalized and normalized. Can be augmented with colloquial definitions."
@@ -2189,22 +2173,30 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2000/01/rdf-schema#subPropertyOf-http://www.w3.org/2000/01/rdf-schema#label-subPropertyOf"
             );
-            let column = table_reading.get_column_as_vec_str("dataset");
+            let column = subject.get_column_as_vec_str("dataset");
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
-            let table_reading = session_reading
-                .subjects()
-                .get("select_datatype_property_entity_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_datatype_property_entity_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 0);
-            let table_reading = session_reading
-                .subjects()
-                .get("select_class_entity_s")
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_datatype_property_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 0);
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_class_entity_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 5);
-            let column = table_reading.get_column_as_vec_str("entity");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_class_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 5);
+            let column = subject.get_column_as_vec_str("entity");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://www.w3.org/2002/07/owl#Class"
@@ -2213,7 +2205,7 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2002/07/owl#Class"
             );
-            let column = table_reading.get_column_as_vec_str("subject");
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/BFO_0000003"
@@ -2222,7 +2214,7 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/BFO_0000003"
             );
-            let column = table_reading.get_column_as_vec_str("predicate");
+            let column = subject.get_column_as_vec_str("predicate");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115"
@@ -2231,13 +2223,13 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2000/01/rdf-schema#label"
             );
-            let column = table_reading.get_column_as_vec_str("object");
+            let column = subject.get_column_as_vec_str("object");
             assert_eq!(
                 column.first().unwrap(),
                 &"An entity that has temporal parts and that happens, unfolds or develops through time."
             );
             assert_eq!(column.last().unwrap(), &"occurrent");
-            let column = table_reading.get_column_as_vec_str("graph");
+            let column = subject.get_column_as_vec_str("graph");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/BFO_0000003-http://purl.obolibrary.org/obo/IAO_0000115-An entity that has temporal parts and that happens, unfolds or develops through time."
@@ -2246,16 +2238,20 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/BFO_0000003-http://www.w3.org/2000/01/rdf-schema#label-occurrent"
             );
-            let column = table_reading.get_column_as_vec_str("dataset");
+            let column = subject.get_column_as_vec_str("dataset");
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
-            let table_reading = session_reading
-                .subjects()
-                .get("select_object_property_entity_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_object_property_entity_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 5);
-            let column = table_reading.get_column_as_vec_str("entity");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_object_property_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 5);
+            let column = subject.get_column_as_vec_str("entity");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://www.w3.org/2002/07/owl#ObjectProperty"
@@ -2264,7 +2260,7 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2002/07/owl#ObjectProperty"
             );
-            let column = table_reading.get_column_as_vec_str("subject");
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/BFO_0000050"
@@ -2273,7 +2269,7 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/RO_0002131"
             );
-            let column = table_reading.get_column_as_vec_str("predicate");
+            let column = subject.get_column_as_vec_str("predicate");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115"
@@ -2282,13 +2278,13 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2000/01/rdf-schema#label"
             );
-            let column = table_reading.get_column_as_vec_str("object");
+            let column = subject.get_column_as_vec_str("object");
             assert_eq!(
                 column.first().unwrap(),
                 &"a core relation that holds between a part and its whole"
             );
             assert_eq!(column.last().unwrap(), &"overlaps");
-            let column = table_reading.get_column_as_vec_str("graph");
+            let column = subject.get_column_as_vec_str("graph");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/BFO_0000050-http://purl.obolibrary.org/obo/IAO_0000115-a core relation that holds between a part and its whole"
@@ -2297,48 +2293,56 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/RO_0002131-http://www.w3.org/2000/01/rdf-schema#label-overlaps"
             );
-            let column = table_reading.get_column_as_vec_str("dataset");
+            let column = subject.get_column_as_vec_str("dataset");
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
-            let table_reading = session_reading
-                .subjects()
-                .get("select_named_individual_entity_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_named_individual_entity_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 1);
-            let column = table_reading.get_column_as_vec_str("entity");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_named_individual_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 1);
+            let column = subject.get_column_as_vec_str("entity");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://www.w3.org/2002/07/owl#NamedIndividual"
             );
-            let column = table_reading.get_column_as_vec_str("subject");
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/ENVO_01001569"
             );
-            let column = table_reading.get_column_as_vec_str("predicate");
+            let column = subject.get_column_as_vec_str("predicate");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://www.w3.org/2000/01/rdf-schema#label"
             );
-            let column = table_reading.get_column_as_vec_str("object");
+            let column = subject.get_column_as_vec_str("object");
             assert_eq!(
                 column.first().unwrap(),
                 &"Western Australian Mulga Shrublands Ecoregion"
             );
-            let column = table_reading.get_column_as_vec_str("graph");
+            let column = subject.get_column_as_vec_str("graph");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/ENVO_01001569-http://www.w3.org/2000/01/rdf-schema#label-Western Australian Mulga Shrublands Ecoregion"
             );
-            let column = table_reading.get_column_as_vec_str("dataset");
+            let column = subject.get_column_as_vec_str("dataset");
             assert_eq!(column.first().unwrap(), &"UserScript");
-            let table_reading = session_reading
-                .subjects()
-                .get("select_axiom_entity_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_axiom_entity_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 0);
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_axiom_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 0);
         }
 
         // Run the third superstep
@@ -2349,29 +2353,21 @@ mod tests {
         .await?
         .unwrap();
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .subjects()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
-
         assert_eq!(response.len(), 0);
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get("pivot_annotation_property_entity_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "pivot_annotation_property_entity_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 7);
-            let column = table_reading.get_column_as_vec_str("subject");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("pivot_annotation_property_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 7);
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115"
@@ -2380,44 +2376,52 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2000/01/rdf-schema#subPropertyOf"
             );
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
             assert_eq!(column.first().unwrap(), &"definition");
             assert_eq!(column.last().unwrap(), &"subPropertyOf");
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_str("http://purl.obolibrary.org/obo/IAO_0000115-object-First");
             assert_eq!(
                 column.first().unwrap(),
                 &"The official definition, explaining the meaning of a class or property. Shall be Aristotelian, formalized and normalized. Can be augmented with colloquial definitions."
             );
             assert_eq!(column.last().unwrap(), &"");
-            let table_reading = session_reading
-                .subjects()
-                .get("pivot_class_entity_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "pivot_class_entity_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 1);
-            let column = table_reading.get_column_as_vec_str("subject");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("pivot_class_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 1);
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/BFO_0000003"
             );
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
             assert_eq!(column.first().unwrap(), &"occurrent");
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_str("http://purl.obolibrary.org/obo/IAO_0000115-object-First");
             assert_eq!(
                 column.first().unwrap(),
                 &"An entity that has temporal parts and that happens, unfolds or develops through time."
             );
-            let table_reading = session_reading
-                .subjects()
-                .get("pivot_object_property_entity_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "pivot_object_property_entity_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 2);
-            let column = table_reading.get_column_as_vec_str("subject");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("pivot_object_property_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 2);
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/BFO_0000050"
@@ -2426,11 +2430,11 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/RO_0002131"
             );
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
             assert_eq!(column.first().unwrap(), &"part of");
             assert_eq!(column.last().unwrap(), &"overlaps");
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_str("http://purl.obolibrary.org/obo/IAO_0000115-object-First");
             assert_eq!(
                 column.first().unwrap(),
@@ -2440,19 +2444,22 @@ mod tests {
                 column.last().unwrap(),
                 &"x overlaps y if and only if there exists some z such that x has part z and z part of y"
             );
-            let table_reading = session_reading
-                .subjects()
-                .get("pivot_named_individual_entity_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "pivot_named_individual_entity_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            assert_eq!(table_reading.count_rows(), 1);
-            let column = table_reading.get_column_as_vec_str("subject");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("pivot_named_individual_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 1);
+            let column = subject.get_column_as_vec_str("subject");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/ENVO_01001569"
             );
-            let column = table_reading
+            let column = subject
                 .get_column_as_vec_str("http://www.w3.org/2000/01/rdf-schema#label-object-First");
             assert_eq!(
                 column.first().unwrap(),
@@ -2468,29 +2475,21 @@ mod tests {
         .await?
         .unwrap();
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .subjects()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
-
         assert_eq!(response.len(), 0);
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get("select_annotation_property_pivot_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_annotation_property_pivot_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 7);
-            let column = table_reading.get_column_as_vec_str("uri");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_annotation_property_pivot_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 7);
+            let column = subject.get_column_as_vec_str("uri");
             assert_eq!(
                 column.first().unwrap(),
                 &"http://purl.obolibrary.org/obo/IAO_0000115"
@@ -2499,29 +2498,33 @@ mod tests {
                 column.last().unwrap(),
                 &"http://www.w3.org/2000/01/rdf-schema#subPropertyOf"
             );
-            let column = table_reading.get_column_as_vec_str("rdfs_label");
+            let column = subject.get_column_as_vec_str("rdfs_label");
             assert_eq!(column.first().unwrap(), &"definition");
             assert_eq!(column.last().unwrap(), &"subPropertyOf");
-            let column = table_reading.get_column_as_vec_str("obo_IAO_0000115");
+            let column = subject.get_column_as_vec_str("obo_IAO_0000115");
             assert_eq!(
                 column.first().unwrap(),
                 &"The official definition, explaining the meaning of a class or property. Shall be Aristotelian, formalized and normalized. Can be augmented with colloquial definitions."
             );
             assert_eq!(column.last().unwrap(), &"");
-            let table_reading = session_reading
-                .subjects()
-                .get("merge_object_property_class_named_individual_pivot_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "merge_object_property_class_named_individual_pivot_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 4);
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("merge_object_property_class_named_individual_pivot_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 4);
             // DM: the ordering of results is variable
-            // let column = table_reading.get_column_as_vec_str("uri");
+            // let column = subject.get_column_as_vec_str("uri");
             // assert_eq!(column.first().unwrap(), &"http://purl.obolibrary.org/obo/BFO_0000003");
             // assert_eq!(column.last().unwrap(), &"http://purl.obolibrary.org/obo/ENVO_01001569");
-            // let column = table_reading.get_column_as_vec_str("rdfs_label");
+            // let column = subject.get_column_as_vec_str("rdfs_label");
             // assert_eq!(column.first().unwrap(), &"part of");
             // assert_eq!(column.last().unwrap(), &"Western Australian Mulga Shrublands Ecoregion");
-            // let column = table_reading.get_column_as_vec_str("obo_IAO_0000115");
+            // let column = subject.get_column_as_vec_str("obo_IAO_0000115");
             // assert_eq!(column.first().unwrap(), &"a core relation that holds between a part and its whole");
             // assert_eq!(column.last().unwrap(), &"");
         }
@@ -2534,80 +2537,76 @@ mod tests {
         .await?
         .unwrap();
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .subjects()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
-
         assert_eq!(response.len(), 0);
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get("select_predicates_object_property_entity_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_predicates_object_property_entity_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 5);
-            // let column = table_reading.get_column_as_vec_str("entity");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_predicates_object_property_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 5);
+            // let column = subject.get_column_as_vec_str("entity");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("subject");
+            // let column = subject.get_column_as_vec_str("subject");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate");
+            // let column = subject.get_column_as_vec_str("predicate");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("object");
+            // let column = subject.get_column_as_vec_str("object");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("graph");
+            // let column = subject.get_column_as_vec_str("graph");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("dataset");
+            // let column = subject.get_column_as_vec_str("dataset");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_rdfs_label");
+            // let column = subject.get_column_as_vec_str("predicate_rdfs_label");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_obo_IAO_0000115");
+            // let column = subject.get_column_as_vec_str("predicate_obo_IAO_0000115");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            let table_reading = session_reading
-                .subjects()
-                .get("select_predicates_class_entity_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_predicates_class_entity_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 5);
-            // let column = table_reading.get_column_as_vec_str("entity");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_predicates_class_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 5);
+            // let column = subject.get_column_as_vec_str("entity");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("subject");
+            // let column = subject.get_column_as_vec_str("subject");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate");
+            // let column = subject.get_column_as_vec_str("predicate");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("object");
+            // let column = subject.get_column_as_vec_str("object");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("graph");
+            // let column = subject.get_column_as_vec_str("graph");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("dataset");
+            // let column = subject.get_column_as_vec_str("dataset");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_rdfs_label");
+            // let column = subject.get_column_as_vec_str("predicate_rdfs_label");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_obo_IAO_0000115");
+            // let column = subject.get_column_as_vec_str("predicate_obo_IAO_0000115");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
         }
@@ -2620,56 +2619,52 @@ mod tests {
         .await?
         .unwrap();
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .subjects()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
-
         assert_eq!(response.len(), 0);
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get("select_resource_class_entity_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_resource_class_entity_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 0);
-            let table_reading = session_reading
-                .subjects()
-                .get("select_resource_object_property_entity_s")
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_resource_class_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 0);
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_resource_object_property_entity_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 1);
-            // let column = table_reading.get_column_as_vec_str("entity");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_resource_object_property_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 1);
+            // let column = subject.get_column_as_vec_str("entity");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("subject");
+            // let column = subject.get_column_as_vec_str("subject");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate");
+            // let column = subject.get_column_as_vec_str("predicate");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("object");
+            // let column = subject.get_column_as_vec_str("object");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("graph");
+            // let column = subject.get_column_as_vec_str("graph");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("dataset");
+            // let column = subject.get_column_as_vec_str("dataset");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_rdfs_label");
+            // let column = subject.get_column_as_vec_str("predicate_rdfs_label");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_obo_IAO_0000115");
+            // let column = subject.get_column_as_vec_str("predicate_obo_IAO_0000115");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
         }
@@ -2682,80 +2677,76 @@ mod tests {
         .await?
         .unwrap();
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .subjects()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
-
         assert_eq!(response.len(), 0);
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get("select_objects_class_entity_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_objects_class_entity_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 5);
-            // let column = table_reading.get_column_as_vec_str("entity");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_objects_class_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 5);
+            // let column = subject.get_column_as_vec_str("entity");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("subject");
+            // let column = subject.get_column_as_vec_str("subject");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("graph");
+            // let column = subject.get_column_as_vec_str("graph");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("dataset");
+            // let column = subject.get_column_as_vec_str("dataset");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_rdfs_label");
+            // let column = subject.get_column_as_vec_str("predicate_rdfs_label");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_obo_IAO_0000115");
+            // let column = subject.get_column_as_vec_str("predicate_obo_IAO_0000115");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("object_rdfs_label");
+            // let column = subject.get_column_as_vec_str("object_rdfs_label");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("object_obo_IAO_0000115");
+            // let column = subject.get_column_as_vec_str("object_obo_IAO_0000115");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            let table_reading = session_reading
-                .subjects()
-                .get("select_objects_object_property_entity_s")
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_objects_object_property_entity_s".to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 5);
-            // let column = table_reading.get_column_as_vec_str("entity");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name("select_objects_object_property_entity_s")
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 5);
+            // let column = subject.get_column_as_vec_str("entity");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("subject");
+            // let column = subject.get_column_as_vec_str("subject");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("graph");
+            // let column = subject.get_column_as_vec_str("graph");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("dataset");
+            // let column = subject.get_column_as_vec_str("dataset");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_rdfs_label");
+            // let column = subject.get_column_as_vec_str("predicate_rdfs_label");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("predicate_obo_IAO_0000115");
+            // let column = subject.get_column_as_vec_str("predicate_obo_IAO_0000115");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("object_rdfs_label");
+            // let column = subject.get_column_as_vec_str("object_rdfs_label");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
-            // let column = table_reading.get_column_as_vec_str("object_obo_IAO_0000115");
+            // let column = subject.get_column_as_vec_str("object_obo_IAO_0000115");
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
         }
@@ -2768,29 +2759,21 @@ mod tests {
         .await?
         .unwrap();
 
-        {
-            // Debug any errors
-            let subjects_reading = session_ctx_arc.read();
-            let table_reading = subjects_reading
-                .subjects()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .read();
-            println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-        }
-
         assert_eq!(response.len(), 0);
 
         {
             // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::Documents.to_string().as_str())
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::Documents.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 3);
-            let mut column = table_reading.get_column_as_vec_str("chunk_id");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::Documents.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            assert_eq!(subject.count_rows(), 3);
+            let mut column = subject.get_column_as_vec_str("chunk_id");
             column.sort();
             assert_eq!(
                 column.first().unwrap(),
@@ -2800,11 +2783,11 @@ mod tests {
                 column.last().unwrap(),
                 &"http://purl.obolibrary.org/obo/RO_0002131"
             );
-            let mut column = table_reading.get_column_as_vec_str("document_id");
+            let mut column = subject.get_column_as_vec_str("document_id");
             column.sort();
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
-            let mut column = table_reading.get_column_as_vec_str("text");
+            let mut column = subject.get_column_as_vec_str("text");
             column.sort();
             assert_eq!(
                 column.first().unwrap(),

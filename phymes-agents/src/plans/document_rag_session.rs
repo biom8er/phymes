@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription, create_schema_from_fields
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription, create_schema_from_fields
 };
 use phymes_data::{
     AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
@@ -1047,7 +1047,6 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
         AttachmentBuilderTraitExt, BuildableTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait,
         MessageBuilderTrait, MessageTrait, SubjectTrait,
