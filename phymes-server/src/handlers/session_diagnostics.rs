@@ -10,17 +10,12 @@ use axum::{
 // Streaming imports
 use bytes::Bytes;
 use futures::prelude::*;
-use parking_lot::RwLock;
 use phymes_agents::{
-    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DiagnosticSession,
-    SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream,
-    create_message_map,
+    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DiagnosticSession, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map
 };
 use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, DiagnosticsVisualizations,
-    IPCMessage, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait,
-    MessageTrait, SubjectBuilder, SubjectBuilderTrait, Publication, SubjectTrait,
+    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, DiagnosticsVisualizations, IPCMessage, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait, Publication, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription
 };
 
 // General imports
@@ -69,18 +64,6 @@ pub async fn session_diagnostics(
                             .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 };
-
-                // Read in any updates to the session context
-                match state.read_session_contexts(
-                    &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                    &current_user,
-                ) {
-                    Ok(()) => tracing::info!("Read state for {}", current_user),
-                    Err(e) => tracing::info!(
-                        "Failed to read the session stream state {e:?} for {}",
-                        current_user
-                    ),
-                }
             }
 
             // Initialize the diagnostics session
@@ -107,13 +90,21 @@ pub async fn session_diagnostics(
                         .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 };
-                let table = session_ctx_arc
-                    .subjects()
-                    .get(AvailableSubjects::SessionMetrics.to_string().as_str())
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())
                     .unwrap()
-                    .read();
+                    .unwrap()
+                    .try_collect()
+                    .await
+                    .unwrap();
+                let subject = Subject::get_builder()
+                    .with_name(&AvailableSubjects::SessionMetrics.to_string())
+                    .with_record_batches(batches)
+                    .unwrap()
+                    .build()
+                    .unwrap();
                 let metrics_message = IPCMessage::get_builder()
-                    .with_message(table.to_ipc_stream().unwrap())
+                    .with_message(subject.to_ipc_stream().unwrap())
                     .with_subject(AvailableSubjects::AnalyticsMetrics.to_string().as_str())
                     .with_update(&Publication::Replace {
                         subject_name: AvailableSubjects::AnalyticsMetrics.to_string(),
@@ -123,13 +114,21 @@ pub async fn session_diagnostics(
                     .unwrap()
                     .build()
                     .unwrap();
-                let table = session_ctx_arc
-                    .subjects()
-                    .get(AvailableSubjects::SessionTraces.to_string().as_str())
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTraces.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())
                     .unwrap()
-                    .read();
+                    .unwrap()
+                    .try_collect()
+                    .await
+                    .unwrap();
+                let subject = Subject::get_builder()
+                    .with_name(&AvailableSubjects::SessionTraces.to_string())
+                    .with_record_batches(batches)
+                    .unwrap()
+                    .build()
+                    .unwrap();
                 let traces_message = IPCMessage::get_builder()
-                    .with_message(table.to_ipc_stream().unwrap())
+                    .with_message(subject.to_ipc_stream().unwrap())
                     .with_subject(AvailableSubjects::AnalyticsTraces.to_string().as_str())
                     .with_update(&Publication::Replace {
                         subject_name: AvailableSubjects::AnalyticsTraces.to_string(),
@@ -139,13 +138,21 @@ pub async fn session_diagnostics(
                     .unwrap()
                     .build()
                     .unwrap();
-                let table = session_ctx_arc
-                    .subjects()
-                    .get(AvailableSubjects::SessionEvents.to_string().as_str())
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionEvents.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())
                     .unwrap()
-                    .read();
+                    .unwrap()
+                    .try_collect()
+                    .await
+                    .unwrap();
+                let subject = Subject::get_builder()
+                    .with_name(&AvailableSubjects::SessionEvents.to_string())
+                    .with_record_batches(batches)
+                    .unwrap()
+                    .build()
+                    .unwrap();
                 let events_message = IPCMessage::get_builder()
-                    .with_message(table.to_ipc_stream().unwrap())
+                    .with_message(subject.to_ipc_stream().unwrap())
                     .with_subject(AvailableSubjects::AnalyticsEvents.to_string().as_str())
                     .with_update(&Publication::Replace {
                         subject_name: AvailableSubjects::AnalyticsEvents.to_string(),
@@ -155,13 +162,21 @@ pub async fn session_diagnostics(
                     .unwrap()
                     .build()
                     .unwrap();
-                let table = session_ctx_arc
-                    .subjects()
-                    .get(AvailableSubjects::SessionTasks.to_string().as_str())
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasks.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())
                     .unwrap()
-                    .read();
+                    .unwrap()
+                    .try_collect()
+                    .await
+                    .unwrap();
+                let subject = Subject::get_builder()
+                    .with_name(&AvailableSubjects::SessionTasks.to_string())
+                    .with_record_batches(batches)
+                    .unwrap()
+                    .build()
+                    .unwrap();
                 let tasks_message = IPCMessage::get_builder()
-                    .with_message(table.to_ipc_stream().unwrap())
+                    .with_message(subject.to_ipc_stream().unwrap())
                     .with_subject(AvailableSubjects::AnalyticsTasks.to_string().as_str())
                     .with_update(&Publication::Replace {
                         subject_name: AvailableSubjects::AnalyticsTasks.to_string(),
@@ -171,14 +186,22 @@ pub async fn session_diagnostics(
                     .unwrap()
                     .build()
                     .unwrap();
-                let table = session_ctx_arc
-                    .subjects()
-                    .get(AvailableSubjects::SessionErrors.to_string().as_str())
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())
                     .unwrap()
-                    .read();
-                if table.count_rows() > 0 {
+                    .unwrap()
+                    .try_collect()
+                    .await
+                    .unwrap();
+                if batches.len() > 0 {
+                    let subject = Subject::get_builder()
+                        .with_name(&AvailableSubjects::SessionErrors.to_string())
+                        .with_record_batches(batches)
+                        .unwrap()
+                        .build()
+                        .unwrap();
                     let errors_message = IPCMessage::get_builder()
-                        .with_message(table.to_ipc_stream().unwrap())
+                        .with_message(subject.to_ipc_stream().unwrap())
                         .with_subject(AvailableSubjects::AnalyticsErrors.to_string().as_str())
                         .with_update(&Publication::Replace {
                             subject_name: AvailableSubjects::AnalyticsErrors.to_string(),
@@ -210,7 +233,6 @@ pub async fn session_diagnostics(
             let session_ctx = diagnostic_session
                 .build()
                 .with_name(diagnostic_session.session_context_name)
-                .with_max_iter(25)
                 .with_diagnostics(true) // Debugging
                 .add_session_interface(Some(&[
                     DiagnosticsVisualizations::MetricProcessorTracesGantt

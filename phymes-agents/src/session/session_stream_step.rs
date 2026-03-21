@@ -112,17 +112,17 @@ pub trait SessionStreamStepTrait {
     }
 
     /// Exit the span
-    async fn exit_span(
+    fn exit_span(
         session_context: &Arc<SessionContext>,
         messages: &IPCMessageMap,
         diagnostics_vec: Vec<Diagnostics>,
         trace: TraceRecord,
-    ) -> Result<()> {
+    ) -> impl std::future::Future<Output = Result<()>> + Send {async {
         trace.exit(&messages.values().collect::<Vec<_>>());
         let _ = session_context.update_metrics_subjects(&diagnostics_vec).await?;
 
         Ok(())
-    }
+    }}
 
     /// Update the session context subjects from messages including updating the subjects change log
     fn update_subjects_and_changelog_from_messages(

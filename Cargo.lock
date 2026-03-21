@@ -5725,7 +5725,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_path_to_error",
- "tempfile",
  "tokio",
  "tower-http",
  "tower-service",

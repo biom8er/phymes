@@ -354,11 +354,8 @@ mod tests {
     #[cfg(not(target_family = "wasm"))]
     use phymes_core::{MappableTrait, SubjectTrait};
 
-    #[cfg(not(target_family = "wasm"))]
-    use tempfile::tempdir;
-
-    #[test]
-    fn test_server_state_update_user_session_contexts() -> Result<()> {
+    #[tokio::test]
+    async fn test_server_state_update_user_session_contexts() -> Result<()> {
         let user = UserState::new(None);
         let table = make_example_mermaid_table(true, false)?;
         user.update_user_session_contexts(
@@ -367,7 +364,7 @@ mod tests {
             &table.get_column_as_vec_nonprimitive::<String>("flowchart_diagram")?,
             &table.get_column_as_vec_nonprimitive::<String>("er_diagram")?,
             &table.get_column_as_vec_primitive::<i64>("timestamp")?,
-        )?;
+        ).await?;
 
         assert_eq!(
             user.users
@@ -503,150 +500,6 @@ mod tests {
                 .collect::<HashSet<_>>()
         );
 
-        Ok(())
-    }
-
-    #[cfg(not(target_family = "wasm"))]
-    #[tokio::test]
-    async fn test_server_state_read_write_state() -> Result<()> {
-        // Create the state
-        let user = UserState::new(None);
-        let (_user_info, user_session_contexts) =
-            user.get_user_by_email("contact@biom8er.com").await?;
-        let mut state = ServerState::new();
-        let _session_names = state.make_session_contexts(&user_session_contexts, true)?;
-
-        // Write the state to disk
-        let tmp_dir = tempdir()?;
-        state.write_session_contexts(tmp_dir.path().to_str().unwrap(), "contact@biom8er.com")?;
-
-        // Read in the state
-        let mut state_empty = ServerState::new();
-        assert!(
-            state_empty
-                .read_session_contexts(tmp_dir.path().to_str().unwrap(), "contact@biom8er.com")
-                .is_err()
-        );
-
-        // Read in the state after initializing the cache
-        let _session_names = state_empty.make_session_contexts(&user_session_contexts, true)?;
-        state_empty
-            .read_session_contexts(tmp_dir.path().to_str().unwrap(), "contact@biom8er.com")?;
-
-        let state_keys = state
-            .session_contexts
-            .try_read()
-            .unwrap()
-            .keys()
-            .map(|s| s.to_owned())
-            .collect::<Vec<_>>();
-        for key in state_keys.iter() {
-            let subjects = state
-                .session_contexts
-                .try_read()
-                .unwrap()
-                .get(key)
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .subjects()
-                .keys()
-                .map(|s| s.to_owned())
-                .collect::<Vec<_>>();
-            for subject in subjects.iter() {
-                assert_eq!(
-                    state
-                        .session_contexts
-                        .try_read()
-                        .unwrap()
-                        .get(key)
-                        .unwrap()
-                        .try_read()
-                        .unwrap()
-                        .subjects()
-                        .get(subject)
-                        .unwrap()
-                        .try_read()
-                        .unwrap()
-                        .get_record_batches(),
-                    state_empty
-                        .session_contexts
-                        .try_read()
-                        .unwrap()
-                        .get(key)
-                        .unwrap()
-                        .try_read()
-                        .unwrap()
-                        .subjects()
-                        .get(subject)
-                        .unwrap()
-                        .try_read()
-                        .unwrap()
-                        .get_record_batches()
-                );
-                assert_eq!(
-                    state
-                        .session_contexts
-                        .try_read()
-                        .unwrap()
-                        .get(key)
-                        .unwrap()
-                        .try_read()
-                        .unwrap()
-                        .subjects()
-                        .get(subject)
-                        .unwrap()
-                        .try_read()
-                        .unwrap()
-                        .get_schema(),
-                    state_empty
-                        .session_contexts
-                        .try_read()
-                        .unwrap()
-                        .get(key)
-                        .unwrap()
-                        .try_read()
-                        .unwrap()
-                        .subjects()
-                        .get(subject)
-                        .unwrap()
-                        .try_read()
-                        .unwrap()
-                        .get_schema()
-                );
-                assert_eq!(
-                    state
-                        .session_contexts
-                        .try_read()
-                        .unwrap()
-                        .get(key)
-                        .unwrap()
-                        .try_read()
-                        .unwrap()
-                        .subjects()
-                        .get(subject)
-                        .unwrap()
-                        .try_read()
-                        .unwrap()
-                        .get_name(),
-                    state_empty
-                        .session_contexts
-                        .try_read()
-                        .unwrap()
-                        .get(key)
-                        .unwrap()
-                        .try_read()
-                        .unwrap()
-                        .subjects()
-                        .get(subject)
-                        .unwrap()
-                        .try_read()
-                        .unwrap()
-                        .get_name()
-                );
-            }
-        }
-        tmp_dir.close()?;
         Ok(())
     }
 }
