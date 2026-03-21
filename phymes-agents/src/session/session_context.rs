@@ -900,12 +900,12 @@ mod tests {
 
         // table should be found
         let schema = test_subject::make_test_subject_schema(8)?;
-        let name = session_context.get_table_name_by_schema(&schema).unwrap();
+        let name = session_context.get_subject_name_by_schema(&schema).unwrap();
         assert_eq!(name, "state_1");
 
         // table should not be found
         let schema = test_subject::make_test_subject_schema(2)?;
-        let name = session_context.get_table_name_by_schema(&schema);
+        let name = session_context.get_subject_name_by_schema(&schema);
         assert!(name.is_none());
         Ok(())
     }

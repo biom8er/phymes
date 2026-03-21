@@ -921,7 +921,7 @@ mod tests {
                 .add_next_tasks()? // DM required for 'SessionTasksSubscribePublish' table
                 .add_next_supersteps()?
                 .build_with_tables()?;
-            let session_context_arc = Arc::new(RwLock::new(session_context));
+            let session_context_arc = Arc::new(session_context)
 
             // Mimic a superstep update without running the superstep
             let messages = test_task::make_test_input_message(

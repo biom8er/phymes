@@ -117,7 +117,7 @@ pub trait SessionStreamStepTrait {
         messages: &IPCMessageMap,
         diagnostics_vec: Vec<Diagnostics>,
         trace: TraceRecord,
-    ) -> impl std::future::Future<Output = Result<()>> + Send {async {
+    ) -> impl std::future::Future<Output = Result<()>> + Send {async move {
         trace.exit(&messages.values().collect::<Vec<_>>());
         let _ = session_context.update_metrics_subjects(&diagnostics_vec).await?;
 
@@ -351,7 +351,7 @@ pub trait SessionStreamStepTrait {
         async move {
             // Check if there are tasks subscribe and publish available, and determine them if not
             let rt = session_context.runtime_env.clone();
-            let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string() }
+            let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string() }
                 .subscribe_to_subject(&rt).unwrap()
                 .ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` while getting the next task.", 
                     AvailableSubjects::SessionTasksSubscribePublish,
@@ -486,7 +486,7 @@ pub trait SessionStreamStepTrait {
 
                 // Spawn the future
                 join_set.spawn(async move {
-                    let result: Result<Vec<RecordBatch>> =
+                    let result: Result<Vec<_>> =
                         resp.get_message_own().try_collect().await;
                     (resp_name, result)
                 });
@@ -660,7 +660,7 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
 
             // Spawn the future
             join_set.spawn(async move {
-                let result: Result<Vec<RecordBatch>> = resp.get_message_own().try_collect().await;
+                let result: Result<Vec<_>> = resp.get_message_own().try_collect().await;
                 (resp_name, result)
             });
         });
@@ -740,9 +740,7 @@ mod tests {
         test_session_context_builder, TaskPlan, test_task
     };
     use phymes_core::{
-        AvailableSubjects, AvailableSubscribeEvents, ProcessorBuilder, ProcessorPlanBuilder,
-        Publication, Subscription,
-        test_processor::{ProcessorError, ProcessorMock},
+        AvailableSubjects, AvailableSubscribeEvents, BuildableTrait, ObjectStorageBackend, ProcessorBuilder, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectPlan, SubjectPlanBuilderTrait, Subscription, make_store, test_processor::{ProcessorError, ProcessorMock}
     };
 
     #[tokio::test]
@@ -772,68 +770,68 @@ mod tests {
         assert!(response.is_none());
 
         // check the session and session_context
-        let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 3);
         assert_eq!(subscriptions.last().unwrap().num_rows(), 4);
-        let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: "state_2".to_string() }
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_2".to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 3);
-        let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: "state_3".to_string() }
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_3".to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 3);
-        let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 0);
-        let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 1);
-        let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 1);
-        let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 1);
-        let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 0);
-        let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionEvents.to_string() }
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionEvents.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 1);
-        let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTraces.to_string() }
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTraces.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 1);
-        let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSupersteps.to_string() }
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSupersteps.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
@@ -873,164 +871,73 @@ mod tests {
         assert!(response.is_empty());
 
         // check the session and session_context
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            12
-        ); // Originally 3
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_2")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_3")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionEvents.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            0
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            2
-        );
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 12); // Originally 3
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 5);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_2".to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 3);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_3".to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 3);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 3);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 5);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionEvents.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTraces.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 0);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSupersteps.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 2);
 
         Ok(())
     }
@@ -1065,164 +972,73 @@ mod tests {
         assert!(response.is_empty());
 
         // check the session and session_context
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            6
-        ); // Originally 3
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_2")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_3")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionEvents.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            0
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            2
-        );
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 6); // Originally 3
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 5);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_2".to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 3);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_3".to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 32);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 3);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 5);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionEvents.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTraces.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 0);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSupersteps.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 2);
 
         Ok(())
     }
@@ -1400,194 +1216,75 @@ mod tests {
         assert_eq!(n_rows, 4);
 
         // check the session and session_context
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            6
-        ); // Originally 3
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_2")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            6
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_2")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_3")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            6
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_3")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionEvents.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            0
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            2
-        );
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 6); // Originally 3
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 5);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_2".to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 6);
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 5);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_3".to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 6);
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 5);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 3);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 5);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionEvents.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTraces.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 0);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSupersteps.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 2);
 
         // Superstep 2
         let mut response = SessionStreamStep::run_superstep(
@@ -1723,194 +1420,75 @@ mod tests {
         assert_eq!(n_rows, 5);
 
         // check the session and session_context
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            12
-        ); // The same as superstep 1
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            6
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_2")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            12
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_2")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            6
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_3")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            12
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_3")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            6
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            8
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            2
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionEvents.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            2
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            2
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            0
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 12); // The same as superstep 1
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 6);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_2".to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 12);
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 6);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_3".to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 12);
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 6);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 5);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 8);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 2);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionEvents.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 2);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTraces.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 2);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 0);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSupersteps.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 3);
 
         Ok(())
     }
@@ -1988,138 +1566,61 @@ mod tests {
         assert_eq!(n_rows, 4);
 
         // check the session and session_context
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            6
-        ); // Originally 3
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            7
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionEvents.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            0
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            2
-        );
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 6); // Originally 3
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 7);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 3);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 5);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionEvents.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTraces.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 0);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSupersteps.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 2);
 
         // Supersteps 2
         let mut response = SessionStreamStep::run_superstep(
@@ -2173,112 +1674,49 @@ mod tests {
         assert_eq!(n_rows, 7);
 
         // check the session and session_context
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            12
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("state_1")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .last()
-                .unwrap()
-                .num_rows(),
-            10
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            8
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            2
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            0
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 12);
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 10);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 5);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 8);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 2);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 0);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSupersteps.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 3);
 
         Ok(())
     }
@@ -2309,19 +1747,12 @@ mod tests {
             SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input).await?;
         assert!(response.is_none());
 
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
 
         Ok(())
     }
@@ -2332,12 +1763,10 @@ mod tests {
         let task_plans = vec![
             TaskPlan {
                 task_name: "task_1".to_string(),
-                runtime_env_name: "rt_1".to_string(),
                 processor_names: vec!["processor_1".to_string()],
             },
             TaskPlan {
                 task_name: "task_2".to_string(),
-                runtime_env_name: "rt_1".to_string(),
                 processor_names: vec!["error_1".to_string()],
             },
         ];
@@ -2389,15 +1818,20 @@ mod tests {
                 .build()
                 .unwrap(),
         ];
-        let mut state = test_task::make_subject_tables("state_1", "processor_1")?;
-        state.push(test_task::make_config_tables("error_1")?);
+        let mut subjects = test_task::make_subject_tables("state_1", "processor_1")?;
+        subjects.push(test_task::make_config_tables("error_1")?);
+        let subjects_plan = subjects.into_iter().map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap()).collect::<Vec<_>>();
+        let rt = RuntimeEnv::get_builder()
+            .with_name("rt_1")
+            .with_max_steps(1)
+            .with_object_store(make_store(&ObjectStorageBackend::InMemory, None, None)?)
+            .build_arc()?;
         let session_context = SessionContextBuilder::new()
             .with_name("session_1")
             .with_tasks(task_plans)
             .with_processors(processors)
-            .with_runtime_env(vec![test_task::make_runtime_env("rt_1")?])
-            .with_subjects(state)
-            .with_max_iter(1)
+            .with_runtime_env(rt)
+            .with_subjects(subjects_plan)
             .with_diagnostics(true)
             .add_next_tasks()?
             .add_next_supersteps()?
@@ -2420,125 +1854,69 @@ mod tests {
             .unwrap();
 
         assert!(response.is_empty());
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            3
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            5
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionMetrics.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionEvents.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            1
-        );
-        let session_reading = session_context_arc;
-        let table_reading = session_reading
-            .subjects()
-            .get(AvailableSubjects::SessionErrors.to_string().as_str())
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
-            ;
-        let errors = table_reading.get_column_as_vec_str("content");
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 3);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 5);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionEvents.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTraces.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 1);
+		let subject = Subject::get_builder()
+			.with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+			.with_record_batches(subscriptions)
+			.unwrap()
+			.build()
+			.unwrap();
+        let errors = subject.get_column_as_vec_str("content");
         assert!(errors.first().unwrap().contains("This is an error!"));
-        assert_eq!(
-            session_context_arc
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_record_batches()
-                .len(),
-            2
-        );
-        let session_reading = session_context_arc;
-        let table_reading = session_reading
-            .subjects()
-            .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSupersteps.to_string() }
+            .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
-            ;
-        let columns = table_reading.get_column_as_vec_primitive::<u32>("superstep")?;
+            .try_collect()
+            .await?;
+        assert_eq!(subscriptions.len(), 2);
+		let subject = Subject::get_builder()
+			.with_name(AvailableSubjects::SessionSupersteps.to_string().as_str())
+			.with_record_batches(subscriptions)
+			.unwrap()
+			.build()
+			.unwrap();
+        let columns = subject.get_column_as_vec_primitive::<u32>("superstep")?;
         assert_eq!(columns, [1, 2]);
 
         Ok(())

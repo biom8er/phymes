@@ -1873,7 +1873,7 @@ mod tests {
             },
             true,
         )?;
-        let session_context_arc = Arc::new(RwLock::new(session_context));
+        let session_context_arc = Arc::new(session_context)
         let session_stream = SessionStream::new(messages, Arc::clone(&session_context_arc));
         let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
