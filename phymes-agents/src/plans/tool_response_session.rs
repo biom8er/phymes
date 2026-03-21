@@ -136,7 +136,7 @@ mod tests {
             &tool_response_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             &tool_response_session.as_mermaid_erdiagram(),
             false,
             true,

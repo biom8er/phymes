@@ -1,6 +1,8 @@
+use std::sync::Arc;
+
 use arrow::datatypes::DataType;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, DiagnosticsVisualizations, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, DiagnosticsVisualizations, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator,
@@ -163,19 +165,16 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         let tasks = vec![
             TaskPlan {
                 task_name: self.metrics_pivot_task_name.to_string(),
-                runtime_env_name: self.metrics_runtime_env_name.to_string(),
                 processor_names: vec![self.metrics_pivot_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.metrics_normalize_time_task_name.to_string(),
-                runtime_env_name: self.metrics_runtime_env_name.to_string(),
                 processor_names: vec![self.metrics_normalize_time_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self
                     .metrics_processors_traces_select_and_cast_to_gantt_task_name
                     .to_string(),
-                runtime_env_name: self.metrics_processors_traces_runtime_env_name.to_string(),
                 processor_names: vec![
                     self.metrics_processors_traces_select_and_cast_to_gantt_processor_name
                         .to_string(),
@@ -185,7 +184,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 task_name: self
                     .metrics_elapsed_compute_select_and_cast_to_gantt_task_name
                     .to_string(),
-                runtime_env_name: self.metrics_elapsed_compute_runtime_env_name.to_string(),
                 processor_names: vec![
                     self.metrics_elapsed_compute_select_and_cast_to_gantt_processor_name
                         .to_string(),
@@ -195,7 +193,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 task_name: self
                     .metrics_output_rows_select_and_cast_to_gantt_task_name
                     .to_string(),
-                runtime_env_name: self.metrics_output_rows_runtime_env_name.to_string(),
                 processor_names: vec![
                     self.metrics_output_rows_select_and_cast_to_gantt_processor_name
                         .to_string(),
@@ -205,7 +202,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 task_name: self
                     .metrics_processors_traces_apply_gantt_task_name
                     .to_string(),
-                runtime_env_name: self.metrics_processors_traces_runtime_env_name.to_string(),
                 processor_names: vec![
                     self.metrics_processors_traces_apply_gantt_processor_name
                         .to_string(),
@@ -215,7 +211,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 task_name: self
                     .metrics_elapsed_compute_apply_gantt_task_name
                     .to_string(),
-                runtime_env_name: self.metrics_elapsed_compute_runtime_env_name.to_string(),
                 processor_names: vec![
                     self.metrics_elapsed_compute_apply_gantt_processor_name
                         .to_string(),
@@ -223,7 +218,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             },
             TaskPlan {
                 task_name: self.metrics_output_rows_apply_gantt_task_name.to_string(),
-                runtime_env_name: self.metrics_output_rows_runtime_env_name.to_string(),
                 processor_names: vec![
                     self.metrics_output_rows_apply_gantt_processor_name
                         .to_string(),
@@ -233,7 +227,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 task_name: self
                     .traces_to_sequence_diagram_messages_task_name
                     .to_string(),
-                runtime_env_name: self.traces_runtime_env_name.to_string(),
                 processor_names: vec![
                     self.traces_to_sequence_diagram_messages_processor_name
                         .to_string(),
@@ -241,7 +234,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             },
             TaskPlan {
                 task_name: self.apply_sequence_diagram_messages_task_name.to_string(),
-                runtime_env_name: self.traces_runtime_env_name.to_string(),
                 processor_names: vec![
                     self.apply_sequence_diagram_messages_processor_name
                         .to_string(),
@@ -249,7 +241,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             },
             TaskPlan {
                 task_name: self.select_sequence_diagram_messages_task_name.to_string(),
-                runtime_env_name: self.traces_runtime_env_name.to_string(),
                 processor_names: vec![
                     self.select_sequence_diagram_messages_processor_name
                         .to_string(),
@@ -259,7 +250,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 task_name: self
                     .session_tasks_to_sequence_diagram_participants_task_name
                     .to_string(),
-                runtime_env_name: self.traces_runtime_env_name.to_string(),
                 processor_names: vec![
                     self.session_tasks_to_sequence_diagram_participants_processor_name
                         .to_string(),
@@ -269,7 +259,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 task_name: self
                     .apply_sequence_diagram_participants_task_name
                     .to_string(),
-                runtime_env_name: self.traces_runtime_env_name.to_string(),
                 processor_names: vec![
                     self.apply_sequence_diagram_participants_processor_name
                         .to_string(),
@@ -279,7 +268,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 task_name: self
                     .select_sequence_diagram_participants_task_name
                     .to_string(),
-                runtime_env_name: self.traces_runtime_env_name.to_string(),
                 processor_names: vec![
                     self.select_sequence_diagram_participants_processor_name
                         .to_string(),
@@ -289,7 +277,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 task_name: self
                     .traces_aggregate_sequence_diagram_content_task_name
                     .to_string(),
-                runtime_env_name: self.traces_runtime_env_name.to_string(),
                 processor_names: vec![
                     self.traces_aggregate_sequence_diagram_content_processor_name
                         .to_string(),
@@ -297,12 +284,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             },
             TaskPlan {
                 task_name: self.apply_sequence_diagram_task_name.to_string(),
-                runtime_env_name: self.traces_runtime_env_name.to_string(),
                 processor_names: vec![self.apply_sequence_diagram_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.errors_select_and_cast_to_kanban_task_name.to_string(),
-                runtime_env_name: self.errors_runtime_env_name.to_string(),
                 processor_names: vec![
                     self.errors_select_and_cast_to_kanban_processor_name
                         .to_string(),
@@ -310,12 +295,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             },
             TaskPlan {
                 task_name: self.errors_apply_kanban_task_name.to_string(),
-                runtime_env_name: self.errors_runtime_env_name.to_string(),
                 processor_names: vec![self.errors_apply_kanban_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.events_select_and_cast_to_kanban_task_name.to_string(),
-                runtime_env_name: self.events_runtime_env_name.to_string(),
                 processor_names: vec![
                     self.events_select_and_cast_to_kanban_processor_1_name
                         .to_string(),
@@ -325,7 +308,6 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             },
             TaskPlan {
                 task_name: self.events_apply_kanban_task_name.to_string(),
-                runtime_env_name: self.events_runtime_env_name.to_string(),
                 processor_names: vec![self.events_apply_kanban_processor_name.to_string()],
             },
         ];
@@ -856,8 +838,8 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         Some(processors)
     }
 
-    fn make_runtime_env(&self) -> Option<RuntimeEnv> {
-        Some(RuntimeEnv::get_builder().with_name(self.session_context_name).build().unwrap())
+    fn make_runtime_env(&self) -> Option<Arc<RuntimeEnv>> {
+        Some(RuntimeEnv::get_builder().with_name(self.session_context_name).build_arc().unwrap())
     }
 
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
@@ -1679,7 +1661,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             .build()
             .unwrap();
 
-        Some(vec![
+        let subjects = vec![
             // Processor configs
             metrics_pivot_config_1_state,
             metrics_normalize_time_config_1_state,
@@ -1840,7 +1822,9 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                     None,
                 )
                 .unwrap(),
-        ])
+        ];
+        let subject_plans = subjects.into_iter().map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap()).collect::<Vec<_>>();
+        Some(subject_plans)
     }
 }
 

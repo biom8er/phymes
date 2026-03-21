@@ -387,7 +387,7 @@ mod tests {
             melt_study_data_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             melt_study_data_session.as_mermaid_erdiagram()?.as_str(),
             false,
             true,

@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use arrow::{array::RecordBatch, datatypes::SchemaRef};
-use futures::TryStreamExt;
+use arrow::datatypes::SchemaRef;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, ProcessorPlan, Publication, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectPlan, SubjectPlanTrait, SubjectTrait, Subscription
+    BuildableTrait, BuilderTrait, IPCMessage, IPCMessageMap, MappableTrait, MessageBuilderTrait, ProcessorPlan, Publication, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectPlan, SubjectPlanTrait, SubjectTrait, Subscription
 };
 use phymes_diagnostics::{HashMap, HashSet};
 
-use crate::{PublicationTrait, SessionContext, Task, TaskBuilderTrait, TaskMap, TaskPlan};
+use crate::{SessionContext, Task, TaskBuilderTrait, TaskMap, TaskPlan};
+
 pub trait SessionContextBuilderTrait: BuilderTrait {
     /// The [ProcessorPlan]s to include in the session
     fn with_processors(self, processors: Vec<ProcessorPlan>) -> Self;
@@ -166,7 +166,6 @@ impl SessionContextBuilder {
         let mut subjects_vec = Vec::new();
         if let Some(subjects) = self.subjects.take() {
             for subject in subjects {
-                let subject_name = subject.subject().get_name().to_string();
                 let _ = schemas_map.insert(subject.subject().get_name().to_string(), subject.subject().get_schema().clone());
                 if subject.subject().count_rows() > 0 {
                     subjects_vec.push(subject.subject_own());
@@ -311,17 +310,30 @@ impl BuilderTrait for SessionContextBuilder {
         self.check_subjects()?;
 
         // build the tasks, state, metrics, and runtime objects
-        let (name, tasks, schemas, subjects, runtime_env, diagnostics) = self.build_inner();
+        let (name, tasks, schemas, subjects, runtime_env, diagnostics) = self.build_inner()?;
+        let messages: Result<IPCMessageMap> = subjects.into_iter()
+            .map(|s| {
+                let subject_name = s.get_name().to_string();
+                let message = IPCMessage::get_builder()
+                    .with_publisher(&name)
+                    .with_subject(s.get_name())
+                    .with_update(&Publication::Extend { subject_name:s.get_name().to_string() })
+                    .with_message(s.to_ipc_stream()?)
+                    .make_random_name()?
+                    .build()?;
+                Ok((subject_name, message))
+            })
+            .collect();            
 
         // ready to build the session
-        Ok(Self::T {
+        Ok(Self::T::new(
             name,
             tasks,
             schemas,
-            subjects,
             runtime_env,
             diagnostics,
-        })
+            Some(messages?)
+        ))
     }
 }
 
@@ -428,7 +440,7 @@ impl SessionContextBuilderTrait for SessionContextBuilder {
 /// Mock objects and functions for session context builer testing
 pub mod test_session_context_builder {
     use phymes_core::{
-        AvailableSubscribeEvents, ProcessorPlanBuilder, SubjectPlanBuilderTrait
+        AvailableSubscribeEvents, ObjectStorageBackend, ProcessorPlanBuilder, SubjectPlanBuilderTrait, make_store
     };
 
     use crate::{AvailableProcessors, test_task};
@@ -597,8 +609,8 @@ pub mod test_session_context_builder {
 
     pub fn make_test_session_context_builder_parallel(
         name: &str,
+        max_iter: usize
     ) -> Result<SessionContextBuilder> {
-        // Init state
         let mut tables = test_task::make_subject_tables("state_1", "processor_1")?;
         tables.extend(test_task::make_subject_tables("state_2", "processor_2")?);
         tables.extend(test_task::make_subject_tables("state_3", "processor_3")?);
@@ -609,10 +621,14 @@ pub mod test_session_context_builder {
                 .build()?;
             subject_plans.push(plan);
         }
-
+        let store = make_store(&ObjectStorageBackend::InMemory, None, None)?;
+        let rt = RuntimeEnv::get_builder()
+            .with_max_steps(max_iter)
+            .with_object_store(store)
+            .build_arc()?;
         let builder = make_test_session_context_builder_parallel_processors()
             .with_name(name)
-            .with_runtime_env(test_task::make_runtime_env("rt_1")?)
+            .with_runtime_env(rt)
             .with_subjects(subject_plans);
 
         Ok(builder)
@@ -622,22 +638,24 @@ pub mod test_session_context_builder {
         name: &str,
         max_iter: usize,
     ) -> Result<SessionContextBuilder> {
-
-        // Init state
-        let mut tables = test_task::make_subject_tables_empty("state_1", "processor_1")?;
-        tables.extend(test_task::make_subject_tables_empty("state_2", "processor_2")?);
-        tables.extend(test_task::make_subject_tables_empty("state_3", "processor_3")?);
+        let mut subjects = test_task::make_subject_tables_empty("state_1", "processor_1")?;
+        subjects.extend(test_task::make_subject_tables_empty("state_2", "processor_2")?);
+        subjects.extend(test_task::make_subject_tables_empty("state_3", "processor_3")?);
         let mut subject_plans = Vec::new();
-        for table in tables.into_iter() {
+        for table in subjects.into_iter() {
             let plan = SubjectPlan::get_builder()
                 .with_subject(table)
                 .build()?;
             subject_plans.push(plan);
         }
-
+        let store = make_store(&ObjectStorageBackend::InMemory, None, None)?;
+        let rt = RuntimeEnv::get_builder()
+            .with_max_steps(max_iter)
+            .with_object_store(store)
+            .build_arc()?;
         let builder = make_test_session_context_builder_parallel_processors()
             .with_name(name)
-            .with_runtime_env(test_task::make_runtime_env("rt_1")?)
+            .with_runtime_env(rt)
             .with_subjects(subject_plans);
 
         Ok(builder)
@@ -647,21 +665,24 @@ pub mod test_session_context_builder {
         name: &str,
         max_iter: usize,
     ) -> Result<SessionContextBuilder> {
-        // Init subjects
-        let mut tables = test_task::make_subject_tables("state_1", "processor_1")?;
-        tables.push(test_task::make_config_tables("processor_2")?);
-        tables.push(test_task::make_config_tables("processor_3")?);
+        let mut subjects = test_task::make_subject_tables("state_1", "processor_1")?;
+        subjects.push(test_task::make_config_tables("processor_2")?);
+        subjects.push(test_task::make_config_tables("processor_3")?);
         let mut subject_plans = Vec::new();
-        for table in tables.into_iter() {
+        for table in subjects.into_iter() {
             let plan = SubjectPlan::get_builder()
                 .with_subject(table)
                 .build()?;
             subject_plans.push(plan);
         }
-
+        let store = make_store(&ObjectStorageBackend::InMemory, None, None)?;
+        let rt = RuntimeEnv::get_builder()
+            .with_max_steps(max_iter)
+            .with_object_store(store)
+            .build_arc()?;
         let builder = make_test_session_context_builder_sequential_processors()
             .with_name(name)
-            .with_runtime_env(test_task::make_runtime_env("rt_1")?)
+            .with_runtime_env(rt)
             .with_subjects(subject_plans);
 
         Ok(builder)
@@ -730,13 +751,13 @@ mod tests {
 
     #[test]
     fn test_session_context_builder_extend_duplicate() -> Result<()> {
-        let plan = test_session_context_builder::make_test_session_context_builder_parallel("session_1")?;
+        let plan = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?;
         let plan = plan.extend(
-            test_session_context_builder::make_test_session_context_builder_parallel("session_1")?,
+            test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?,
         )?;
         assert_eq!(
             plan,
-            test_session_context_builder::make_test_session_context_builder_parallel("session_1")?
+            test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?
         );
 
         Ok(())
@@ -780,7 +801,7 @@ mod tests {
             .with_runtime_env(test_task::make_runtime_env("rt_4")?)
             .with_subjects(subject_plans)
             .with_diagnostics(false);
-        let plan = test_session_context_builder::make_test_session_context_builder_parallel("session_1")?
+        let plan = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?
         .with_diagnostics(true);
         let plan = plan.extend(other_plan)?;
         assert_eq!(plan.name.unwrap(), "session_1");
@@ -831,7 +852,7 @@ mod tests {
 
     #[test]
     fn test_session_context_builder_build_success() -> Result<()> {
-        let session = test_session_context_builder::make_test_session_context_builder_parallel("session_1")?
+        let session = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?
         .with_diagnostics(true)
         .build()?;
         assert_eq!(session.runtime_env.name, "rt_1");

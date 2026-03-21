@@ -406,7 +406,7 @@ mod tests {
             &tool_call_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(&tool_call_session.as_mermaid_erdiagram()?, false, true)?
+        .with_subjects_from_mermaid_erdiagram(&tool_call_session.as_mermaid_erdiagram()?, false, true)?
         .with_name(tool_call_session.session_context_name)
         .with_diagnostics(true)
         .add_processor_subjects()?

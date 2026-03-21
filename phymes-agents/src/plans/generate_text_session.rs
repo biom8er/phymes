@@ -357,7 +357,7 @@ mod tests {
             &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             &generate_text_session.as_mermaid_erdiagram(),
             false,
             true,
@@ -516,7 +516,7 @@ mod tests {
             &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             &generate_text_session.as_mermaid_erdiagram(),
             false,
             true,
@@ -734,7 +734,7 @@ mod tests {
             &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             &generate_text_session.as_mermaid_erdiagram(),
             false,
             true,
@@ -975,7 +975,7 @@ mod tests {
             &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             &generate_text_session.as_mermaid_erdiagram(),
             false,
             true,

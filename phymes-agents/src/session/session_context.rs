@@ -9,7 +9,7 @@ use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
 use std::sync::Arc;
 use tracing::{Level, event};
 
-use crate::{PublicationTrait, TaskMap, SessionContextBuilder, create_message_map};
+use crate::{TaskMap, SessionContextBuilder, create_message_map};
 
 /// The [SessionContext] creates a (dynamic) execution graph based on a [TaskPlan]
 ///   and manages the running of individual [Task]s and the [Message]s passed between them.
@@ -29,6 +29,8 @@ pub struct SessionContext {
     pub(crate) runtime_env: Arc<RuntimeEnv>,
     /// Whether to gather diagnostic information or not
     pub(crate) diagnostics: bool,
+    /// Optional messages to initialize the session with
+    pub(crate) messages: Option<IPCMessageMap>,
 }
 
 impl Default for SessionContext {
@@ -39,6 +41,7 @@ impl Default for SessionContext {
             subjects: Default::default(), 
             runtime_env: Default::default(), 
             diagnostics: Default::default(), 
+            messages: Default::default(),
         }
     }
 }
@@ -50,6 +53,7 @@ impl SessionContext {
         subjects: HashMap<String, SchemaRef>,
         runtime_env: Arc<RuntimeEnv>,
         diagnostics: bool,
+        messages: Option<IPCMessageMap>,
     ) -> SessionContext {
         Self {
             name,
@@ -57,6 +61,7 @@ impl SessionContext {
             subjects,
             runtime_env,
             diagnostics,
+            messages
         }
     }
 
@@ -66,6 +71,10 @@ impl SessionContext {
 
     pub fn subjects(&self) -> &HashMap<String, SchemaRef> {
         &self.subjects
+    }
+
+    pub fn runtime_env(&self) -> &Arc<RuntimeEnv> {
+        &self.runtime_env
     }
 
     /// Compute the next tasks to subscribe
@@ -940,7 +949,7 @@ mod tests {
     #[test]
     fn test_session_get_table_name_by_schema() -> Result<()> {
         let session_context =
-            test_session_context_builder::make_test_session_context_builder_parallel("session_1")?.build()?;
+            test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?.build()?;
 
         // table should be found
         let schema = test_subject::make_test_subject_schema(8)?;
@@ -957,7 +966,7 @@ mod tests {
     #[test]
     fn test_session_update_subject_num_rows_table() -> Result<()> {
         let mut session_context =
-            test_session_context_builder::make_test_session_context_builder_parallel("session_1")?.build()?;
+            test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?.build()?;
         session_context.update_subject_num_rows_table();
         let info = session_context
             .subjects()
@@ -1001,7 +1010,7 @@ mod tests {
     fn test_session_read_write_state() -> Result<()> {
         // Create the session
         let session_context =
-            test_session_context_builder::make_test_session_context_builder_parallel("session_1")?.build()?;
+            test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?.build()?;
 
         // Write the session to disk
         let tmp_dir = tempdir()?;
@@ -1070,7 +1079,7 @@ mod tests {
     fn test_session_update_subjects_from_messages() -> Result<()> {
         // Case 1: no state update
         let session_context =
-            test_session_context_builder::make_test_session_context_builder_parallel("session_1")?.build()?;
+            test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?.build()?;
         let input = test_task::make_test_input_message(
             "task_1",
             "session_1",

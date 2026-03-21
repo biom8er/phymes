@@ -165,7 +165,7 @@ mod tests {
             next_superstep_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             next_superstep_session.as_mermaid_erdiagram(),
             false,
             true,

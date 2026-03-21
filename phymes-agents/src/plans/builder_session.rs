@@ -1,10 +1,12 @@
+use std::sync::Arc;
+
 use crate::{
     AvailableProcessors, AvailableSessionPlans, CustomAgentsBuilderTrait,
     SessionContextBuilderMermaidTrait, TaskPlan,
 };
 use anyhow::Result;
 use phymes_core::{
-    AvailableSubjects, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription, create_session_mermaid_batch
+    AvailableSubjects, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription, create_session_mermaid_batch
 };
 use phymes_diagnostics::create_timestamp_micros;
 
@@ -106,8 +108,8 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
         Some(processors)
     }
 
-    fn make_runtime_env(&self) -> Option<RuntimeEnv> {
-        Some(RuntimeEnv::get_builder().with_name("rt_default").build().unwrap())
+    fn make_runtime_env(&self) -> Option<Arc<RuntimeEnv>> {
+        Some(RuntimeEnv::get_builder().with_name("rt_default").build_arc().unwrap())
     }
 
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {

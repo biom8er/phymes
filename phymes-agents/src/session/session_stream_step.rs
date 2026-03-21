@@ -3,11 +3,7 @@ use arrow::record_batch::RecordBatch;
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessage, IPCMessageBuilder,
-    IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjectsMap,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, SubjectBuilder,
-    SubjectBuilderTrait, Publication, SubjectTrait, create_error_message_map,
-    create_error_message_map_stream, create_session_tasks_run_log_batch,
+    AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjectsMap, Publication, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_error_message_map, create_error_message_map_stream, create_session_tasks_run_log_batch
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap, Span,
@@ -18,8 +14,7 @@ use tokio::task::JoinSet;
 use tracing::{Level, event};
 
 use crate::{
-    TaskTrait, SessionContext, create_message_map,
-    plans::{NextSuperstepSession, NextTaskSession},
+    SessionContext, SubscriptionTrait, TaskTrait, create_message_map, plans::{NextSuperstepSession, NextTaskSession}
 };
 
 /// Traits for running a static or dynamic [SessionStream] step
@@ -332,25 +327,16 @@ pub trait SessionStreamStepTrait {
     {
         async move {
             // Check if there are tasks subscribe and publish available, and determine them if not
-            if session_context
-                .read()
-                .subjects()
-                .get(
-                    AvailableSubjects::SessionTasksSubscribePublish
-                        .to_string()
-                        .as_str(),
-                )
-                .unwrap_or_else(|| {
-                    panic!(
-                        "Missing table for `{}` in session `{}`.",
-                        AvailableSubjects::SessionTasksSubscribePublish,
-                        session_context.read().get_name()
-                    )
-                })
-                .read()
-                .count_rows()
-                == 0
-            {
+            let rt = session_context.read().runtime_env.clone();
+            let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string() }
+                .subscribe_to_subject(&rt).unwrap()
+                .ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` while getting the next task.", 
+                    AvailableSubjects::SessionTasksSubscribePublish,
+                    session_context.read().get_name()
+                )).unwrap()
+                .try_collect()
+                .await.unwrap();
+            if subscriptions.len() == 0 {
                 let next_task_messages = NextTaskSession::default()
                     .as_task_messages()
                     .unwrap_or_else(|_err| {
@@ -436,7 +422,7 @@ pub trait SessionStreamStepTrait {
             match task.run(
                 diagnostic_builder.as_ref(),
                 processor_subjects_map,
-                session_context.read().subjects(),
+                session_context.read().runtime_env(),
             ) {
                 Ok(result) => {
                     for (resp_name, resp) in result.into_iter() {
@@ -733,13 +719,12 @@ mod tests {
     use super::*;
     use crate::{
         SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait,
-        test_session_context_builder,
+        test_session_context_builder, TaskPlan, test_task
     };
     use phymes_core::{
         AvailableSubjects, AvailableSubscribeEvents, ProcessorBuilder, ProcessorPlanBuilder,
-        Publication, Subscription, TaskPlan,
+        Publication, Subscription,
         test_processor::{ProcessorError, ProcessorMock},
-        test_task,
     };
 
     #[tokio::test]

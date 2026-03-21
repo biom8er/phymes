@@ -292,7 +292,7 @@ mod tests {
             &execute_workspace_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             &execute_workspace_session.as_mermaid_erdiagram()?,
             false,
             true,
@@ -429,7 +429,7 @@ mod tests {
             &execute_workspace_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             &execute_workspace_session.as_mermaid_erdiagram()?,
             false,
             true,

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvTrait, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription
 };
@@ -188,8 +190,8 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         Some(processors)
     }
 
-    fn make_runtime_env(&self) -> Option<RuntimeEnv> {
-        Some(RuntimeEnv::get_builder().with_name(self.chat_runtime_env_name).build().unwrap())
+    fn make_runtime_env(&self) -> Option<Arc<RuntimeEnv>> {
+        Some(RuntimeEnv::get_builder().with_name(self.chat_runtime_env_name).build_arc().unwrap())
     }
 
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {

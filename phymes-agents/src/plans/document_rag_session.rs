@@ -1,5 +1,7 @@
+use std::sync::Arc;
+
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, create_schema_from_fields
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription, create_schema_from_fields
 };
 use phymes_data::{
     AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
@@ -139,32 +141,26 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         let tasks = vec![
             TaskPlan {
                 task_name: self.message_aggregator_task_1_name.to_string(),
-                runtime_env_name: self.vector_search_runtime_env_name.to_string(),
                 processor_names: vec![self.message_aggregator_processor_1_name.to_string()],
             },
             TaskPlan {
                 task_name: self.message_aggregator_task_2_name.to_string(),
-                runtime_env_name: self.vector_search_runtime_env_name.to_string(),
                 processor_names: vec![self.message_aggregator_processor_2_name.to_string()],
             },
             TaskPlan {
                 task_name: self.attachment_aggregator_task_name.to_string(),
-                runtime_env_name: self.attachment_aggregator_runtime_env_name.to_string(),
                 processor_names: vec![self.attachment_aggregator_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.message_to_query_task_name.to_string(),
-                runtime_env_name: "rt_default".to_string(),
                 processor_names: vec![self.message_to_query_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.chat_task_name.to_string(),
-                runtime_env_name: self.chat_runtime_env_name.to_string(),
                 processor_names: vec![self.chat_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.extract_pdf_task_name.to_string(),
-                runtime_env_name: "rt_default".to_string(),
                 processor_names: vec![
                     self.extract_pdf_processor_name.to_string(),
                     self.document_chunk_processor_name.to_string(),
@@ -172,17 +168,14 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             },
             TaskPlan {
                 task_name: self.embed_documents_task_name.to_string(),
-                runtime_env_name: self.embed_documents_runtime_env_name.to_string(),
                 processor_names: vec![self.embed_documents_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.embed_query_task_name.to_string(),
-                runtime_env_name: self.embed_query_runtime_env_name.to_string(),
                 processor_names: vec![self.embed_query_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.vector_search_task_name.to_string(),
-                runtime_env_name: self.vector_search_runtime_env_name.to_string(),
                 processor_names: vec![
                     self.relative_similarity_processor_name.to_string(),
                     self.sort_scores_processor_name.to_string(),
@@ -597,8 +590,8 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         Some(processors)
     }
 
-    fn make_runtime_env(&self) -> Option<RuntimeEnv> {
-        Some(RuntimeEnv::get_builder().with_name(self.session_context_name).build().unwrap())
+    fn make_runtime_env(&self) -> Option<Arc<RuntimeEnv>> {
+        Some(RuntimeEnv::get_builder().with_name(self.session_context_name).build_arc().unwrap())
     }
 
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
@@ -968,7 +961,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             .build()
             .unwrap();
 
-        Some(vec![
+        let subjects = vec![
             candle_chat_state,
             candle_doc_embed_state,
             candle_query_embed_state,
@@ -1028,7 +1021,9 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             AvailableInterfaceSubjects::AggregatedAttachments
                 .to_subject(None, None)
                 .unwrap(),
-        ])
+        ];
+        let subject_plans = subjects.into_iter().map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap()).collect::<Vec<_>>();
+        Some(subject_plans)
     }
 }
 

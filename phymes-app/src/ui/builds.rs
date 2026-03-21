@@ -290,7 +290,7 @@ pub fn builds_dropdown_view(
                                     return;
                                 },
                             };
-                            builder = match builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), false, true) {
+                            builder = match builder.with_subjects_from_mermaid_erdiagram(&active_er_diagram(), false, true) {
                                 Ok(builder) => builder,
                                 Err(err) => {
                                     build_errors.write().push_str(format!("{err:?}").as_str());
@@ -483,7 +483,7 @@ pub fn builds_dropdown_view(
                                 Ok(builder) => {
                                     let builder = if active_er_diagram().is_empty() {
                                         builder
-                                    } else if let Ok(builder) = builder.with_state_from_mermaid_erdiagram(&active_er_diagram(), false, true) {
+                                    } else if let Ok(builder) = builder.with_subjects_from_mermaid_erdiagram(&active_er_diagram(), false, true) {
                                         builder
                                     } else {
                                         // Revert

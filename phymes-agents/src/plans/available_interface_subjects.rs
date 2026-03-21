@@ -4,8 +4,7 @@ use anyhow::Result;
 use arrow::array::RecordBatch;
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, MappableTrait, Subject,
-    SubjectBuilder,
+    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectPlan, SubjectPlanBuilderTrait
 };
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
@@ -162,6 +161,7 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
             }
         }
     }
+    
     fn to_subject_builder(&self, name: Option<&str>) -> SubjectBuilder {
         let name = match name {
             Some(name) => name.to_string(),
@@ -190,6 +190,13 @@ impl AvailableSubjectsTrait for AvailableInterfaceSubjects {
                 AvailableSubjects::Attachments.to_subject_builder(Some(name.as_str()))
             }
         }
+    }
+    
+    fn to_subject_plan(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<SubjectPlan> {
+        let subject = self.to_subject(name, batches)?;
+        SubjectPlan::get_builder()
+            .with_subject(subject)
+            .build()
     }
 }
 

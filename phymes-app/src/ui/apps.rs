@@ -302,7 +302,7 @@ pub fn apps_interface_view() -> Element {
                 Err(err) => Some(err.to_string()),
             }
         } else {
-            match SessionContextBuilder::default().with_state_from_mermaid_erdiagram(
+            match SessionContextBuilder::default().with_subjects_from_mermaid_erdiagram(
                 &diagram_code,
                 false,
                 true,

@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, create_user_batch, create_user_session_contexts_batch
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription, create_user_batch, create_user_session_contexts_batch
 };
 use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator};
 use phymes_diagnostics::create_timestamp_micros;
@@ -208,8 +208,8 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
         Some(processors)
     }
 
-    fn make_runtime_env(&self) -> Option<RuntimeEnv> {
-        Some(RuntimeEnv::get_builder().with_name(self.session_context_name).build().unwrap())
+    fn make_runtime_env(&self) -> Option<Arc<RuntimeEnv>> {
+        Some(RuntimeEnv::get_builder().with_name(self.session_context_name).build_arc().unwrap())
     }
 
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
@@ -276,7 +276,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
             .build()
             .unwrap();
 
-        Some(vec![
+        let subjects = vec![
             filter_user_info_data_state,
             filter_user_session_context_data_state,
             join_user_session_context_data_state,
@@ -293,7 +293,9 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 .to_subject(None, None)
                 .unwrap(),
             make_example_mermaid_table(false, true).unwrap(),
-        ])
+        ];
+        let subject_plans = subjects.into_iter().map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap()).collect::<Vec<_>>();
+        Some(subject_plans)
     }
 }
 

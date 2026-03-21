@@ -1880,7 +1880,7 @@ mod tests {
             extract_onto_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             extract_onto_session.as_mermaid_erdiagram(),
             false,
             true,

@@ -255,7 +255,7 @@ mod tests {
             retrieve_text_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(
+        .with_subjects_from_mermaid_erdiagram(
             retrieve_text_session.as_mermaid_erdiagram(),
             false,
             true,

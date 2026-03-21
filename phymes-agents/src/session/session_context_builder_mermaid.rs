@@ -12,7 +12,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubscribeEvents, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectScript, SubjectTrait, Subscription, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type
+    AvailableSubscribeEvents, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorPlanBuilder, Publication, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectScript, SubjectTrait, Subscription, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type
 };
 use phymes_data::{MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE};
 use phymes_diagnostics::{HashMap, HashSet};
@@ -68,7 +68,7 @@ pub trait SessionContextBuilderMermaidTrait {
     /// * `with_values`: whether to add the example values or leave the [RecordBatch]es empty
     ///
     /// [AvailableInterfaceSubjects]: crate::AvailableInterfaceSubjects
-    fn with_state_from_mermaid_erdiagram(
+    fn with_subjects_from_mermaid_erdiagram(
         self,
         erdiagram: &str,
         agent_subjects: bool,
@@ -124,7 +124,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 next_task_session.as_mermaid_flowchart(),
                 false,
             )?
-            .with_state_from_mermaid_erdiagram(
+            .with_subjects_from_mermaid_erdiagram(
                 next_task_session.as_mermaid_erdiagram(),
                 false,
                 false,
@@ -151,7 +151,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 next_superstep_session.as_mermaid_flowchart(),
                 false,
             )?
-            .with_state_from_mermaid_erdiagram(
+            .with_subjects_from_mermaid_erdiagram(
                 next_superstep_session.as_mermaid_erdiagram(),
                 false,
                 false,
@@ -1172,7 +1172,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
         Ok(builder)
     }
 
-    fn with_state_from_mermaid_erdiagram(
+    fn with_subjects_from_mermaid_erdiagram(
         self,
         erdiagram: &str,
         agent_subjects: bool,
@@ -1354,7 +1354,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             check_agent_subjects(&subject_names.into_iter().collect::<Vec<_>>())?;
         }
 
-        let subjects = subject_builders.into_iter().map(|s| s.build()?).collect::<Vec<_>>();
+        let subjects = subject_builders.into_iter().map(|s| s.build().unwrap()).collect::<Vec<_>>();
         Ok(self.with_subjects(subjects))
     }
 }
@@ -1426,7 +1426,7 @@ impl BuilderTrait for SessionContextBuilderMermaid {
         // Use defaults for diagnostics and max iters
         SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
             .with_name(&name)
-            .with_state_from_mermaid_erdiagram(&erdiagram, true, true)?
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, true)?
             .add_processor_subjects()?
             .add_session_interface(None)?
             .with_diagnostics(true)
@@ -1501,7 +1501,7 @@ mod tests {
 
         // Remake the builder
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, false)?
-            .with_state_from_mermaid_erdiagram(&erdiagram, false, false)?;
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, false, false)?;
 
         // Test that the names match
         assert_eq!(builder_test.tasks, builder.tasks);
@@ -1541,14 +1541,14 @@ mod tests {
                 .as_ref()
                 .unwrap()
                 .iter()
-                .map(|p| (p.get_name(), p.get_schema()))
+                .map(|p| (p.get_name(), p.subject().get_schema()))
                 .collect::<HashMap<_, _>>();
             let expected = builder
                 .subjects
                 .as_ref()
                 .unwrap()
                 .iter()
-                .map(|p| (p.get_name(), p.get_schema()))
+                .map(|p| (p.get_name(), p.subject().get_schema()))
                 .collect::<HashMap<_, _>>();
             for key in expected.keys() {
                 assert!(expected.get(key).eq(&test.get(key)));
@@ -1573,7 +1573,7 @@ mod tests {
 
         // Remake the builder
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, false)?
-            .with_state_from_mermaid_erdiagram(&erdiagram, false, true)?;
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, false, true)?;
 
         // Test that the names match
         assert_eq!(builder_test.tasks, builder.tasks);
@@ -1613,14 +1613,14 @@ mod tests {
                 .as_ref()
                 .unwrap()
                 .iter()
-                .map(|p| (p.get_name(), p.get_schema()))
+                .map(|p| (p.get_name(), p.subject().get_schema()))
                 .collect::<HashMap<_, _>>();
             let expected = builder
                 .subjects
                 .as_ref()
                 .unwrap()
                 .iter()
-                .map(|p| (p.get_name(), p.get_schema()))
+                .map(|p| (p.get_name(), p.subject().get_schema()))
                 .collect::<HashMap<_, _>>();
             for key in expected.keys() {
                 assert!(expected.get(key).eq(&test.get(key)));
@@ -1629,7 +1629,7 @@ mod tests {
 
         // Test that the first row was captured
         for table in builder_test.subjects.as_ref().unwrap().iter() {
-            assert_eq!(table.count_rows(), 1)
+            assert_eq!(table.subject().count_rows(), 1)
         }
 
         // Test that we can build the session
@@ -1650,7 +1650,7 @@ mod tests {
 
         // Remake the builder
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, false)?
-            .with_state_from_mermaid_erdiagram(&erdiagram, false, true)?;
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, false, true)?;
 
         // Test that the tasks match
         assert_eq!(builder_test.tasks, builder.tasks);
@@ -1679,14 +1679,14 @@ mod tests {
                 .as_ref()
                 .unwrap()
                 .iter()
-                .map(|p| (p.get_name(), p.get_schema()))
+                .map(|p| (p.get_name(), p.subject().get_schema()))
                 .collect::<HashMap<_, _>>();
             let expected = builder
                 .subjects
                 .as_ref()
                 .unwrap()
                 .iter()
-                .map(|p| (p.get_name(), p.get_schema()))
+                .map(|p| (p.get_name(), p.subject().get_schema()))
                 .collect::<HashMap<_, _>>();
             for key in expected.keys() {
                 assert!(expected.get(key).eq(&test.get(key)));
@@ -1695,7 +1695,7 @@ mod tests {
 
         // Test that the first row was captured
         for table in builder_test.subjects.as_ref().unwrap().iter() {
-            assert_eq!(table.count_rows(), 1)
+            assert_eq!(table.subject().count_rows(), 1)
         }
 
         // Test that the processor configs were added to the subscriptions
@@ -1734,7 +1734,7 @@ mod tests {
 
         // Remake the builder
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_state_from_mermaid_erdiagram(&erdiagram, true, false)?;
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?;
 
         // Test that the names match
         assert_eq!(builder_test.tasks, builder.tasks);
@@ -1787,7 +1787,7 @@ mod tests {
 
         // Remake the builder
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_state_from_mermaid_erdiagram(&erdiagram, true, false)?;
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?;
 
         // Test that the names match
         assert_eq!(builder_test.tasks, builder.tasks);
@@ -1840,7 +1840,7 @@ mod tests {
 
         // Remake the builder
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_state_from_mermaid_erdiagram(&erdiagram, true, false)?;
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?;
 
         // Test that the names match
         assert_eq!(builder_test.tasks, builder.tasks);
@@ -1893,7 +1893,7 @@ mod tests {
 
         // Remake the builder
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_state_from_mermaid_erdiagram(&erdiagram, true, false)?
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?
             .with_name("session_1")
             .add_processor_subjects()?
             .add_session_interface(None)?;
@@ -1949,7 +1949,7 @@ mod tests {
 
         // Remake the builder
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_state_from_mermaid_erdiagram(&erdiagram, true, false)?
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?
             .with_name("session_1")
             .add_processor_subjects()?
             .add_session_interface(None)?;
@@ -2005,7 +2005,7 @@ mod tests {
 
         // Remake the builder
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_state_from_mermaid_erdiagram(&erdiagram, true, false)?
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, false)?
             .with_name("session_1")
             .add_processor_subjects()?
             .add_session_interface(None)?;
@@ -2061,7 +2061,7 @@ mod tests {
 
         // Remake the builder
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_state_from_mermaid_erdiagram(&erdiagram, true, true)?
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, true)?
             .with_name("session_1")
             .add_processor_subjects()?
             .add_session_interface(None)?;
@@ -2104,14 +2104,14 @@ mod tests {
                 .as_ref()
                 .unwrap()
                 .iter()
-                .map(|p| (p.get_name(), p.get_schema()))
+                .map(|p| (p.get_name(), p.subject().get_schema()))
                 .collect::<HashMap<_, _>>();
             let expected = builder
                 .subjects
                 .as_ref()
                 .unwrap()
                 .iter()
-                .map(|p| (p.get_name(), p.get_schema()))
+                .map(|p| (p.get_name(), p.subject().get_schema()))
                 .collect::<HashMap<_, _>>();
             for key in expected.keys() {
                 assert!(expected.get(key).eq(&test.get(key)));
@@ -2132,9 +2132,9 @@ mod tests {
                     .collect::<Vec<_>>()
                     .contains(&table.get_name())
             {
-                assert_eq!(table.count_rows(), 1)
+                assert_eq!(table.subject().count_rows(), 1)
             } else {
-                assert_eq!(table.count_rows(), 0)
+                assert_eq!(table.subject().count_rows(), 0)
             }
         }
 
@@ -2158,7 +2158,7 @@ mod tests {
 
         // Remake the builder
         let builder_test = SessionContextBuilder::from_mermaid_flowchart(&flowchart, true)?
-            .with_state_from_mermaid_erdiagram(&erdiagram, true, true)?
+            .with_subjects_from_mermaid_erdiagram(&erdiagram, true, true)?
             .with_name("session_1")
             .add_processor_subjects()?
             .add_session_interface(None)?;
@@ -2201,14 +2201,14 @@ mod tests {
                 .as_ref()
                 .unwrap()
                 .iter()
-                .map(|p| (p.get_name(), p.get_schema()))
+                .map(|p| (p.get_name(), p.subject().get_schema()))
                 .collect::<HashMap<_, _>>();
             let expected = builder
                 .subjects
                 .as_ref()
                 .unwrap()
                 .iter()
-                .map(|p| (p.get_name(), p.get_schema()))
+                .map(|p| (p.get_name(), p.subject().get_schema()))
                 .collect::<HashMap<_, _>>();
             for key in expected.keys() {
                 assert!(expected.get(key).eq(&test.get(key)));
@@ -2229,9 +2229,9 @@ mod tests {
                     .collect::<Vec<_>>()
                     .contains(&table.get_name())
             {
-                assert_eq!(table.count_rows(), 1)
+                assert_eq!(table.subject().count_rows(), 1)
             } else {
-                assert_eq!(table.count_rows(), 0)
+                assert_eq!(table.subject().count_rows(), 0)
             }
         }
 

@@ -1,8 +1,10 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use serde_json::json;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, Subscription, create_schema_from_fields, create_tools_record_batch
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription, create_schema_from_fields, create_tools_record_batch
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
@@ -139,22 +141,18 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             //  tasks for each processor...
             TaskPlan {
                 task_name: self.message_aggregator_task_1_name.to_string(),
-                runtime_env_name: self.tool_runtime_env_name.to_string(),
                 processor_names: vec![self.message_aggregator_processor_1_name.to_string()],
             },
             TaskPlan {
                 task_name: self.message_aggregator_task_2_name.to_string(),
-                runtime_env_name: self.message_aggregator_runtime_env_name.to_string(),
                 processor_names: vec![self.message_aggregator_processor_2_name.to_string()],
             },
             TaskPlan {
                 task_name: self.attachment_aggregator_task_name.to_string(),
-                runtime_env_name: self.attachment_aggregator_runtime_env_name.to_string(),
                 processor_names: vec![self.attachment_aggregator_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.tool_visualization_task_name.to_string(),
-                runtime_env_name: "rt_default".to_string(),
                 processor_names: vec![
                     self.tool_vis_renamecols_processor_name.to_string(),
                     self.tool_vis_xychart_processor_name.to_string(),
@@ -162,37 +160,30 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             },
             TaskPlan {
                 task_name: self.chat_task_name.to_string(),
-                runtime_env_name: self.chat_runtime_env_name.to_string(),
                 processor_names: vec![self.chat_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.message_parser_task_name.to_string(),
-                runtime_env_name: self.chat_runtime_env_name.to_string(),
                 processor_names: vec![self.message_parser_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.extract_tabular_data_task_name.to_string(),
-                runtime_env_name: "rt_default".to_string(),
                 processor_names: vec![self.extract_tabular_data_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.tool_task_name.to_string(),
-                runtime_env_name: self.tool_runtime_env_name.to_string(),
                 processor_names: vec![self.tool_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.tool_attachment_task_name.to_string(),
-                runtime_env_name: self.tool_runtime_env_name.to_string(),
                 processor_names: vec![self.tool_attachment_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.tool_summary_task_name.to_string(),
-                runtime_env_name: self.tool_runtime_env_name.to_string(),
                 processor_names: vec![self.tool_summary_processor_name.to_string()],
             },
             TaskPlan {
                 task_name: self.hitl_task_name.to_string(),
-                runtime_env_name: self.tool_runtime_env_name.to_string(),
                 processor_names: vec![
                     self.hitl_processor_name.to_string(),
                     self.hitl_summary_processor_name.to_string(),
@@ -532,8 +523,8 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         Some(processors)
     }
 
-    fn make_runtime_env(&self) -> Option<RuntimeEnv> {
-        Some(RuntimeEnv::get_builder().with_name(self.session_context_name).build().unwrap())
+    fn make_runtime_env(&self) -> Option<Arc<RuntimeEnv>> {
+        Some(RuntimeEnv::get_builder().with_name(self.session_context_name).build_arc().unwrap())
     }
 
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
@@ -786,7 +777,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             .build()
             .unwrap();
 
-        Some(vec![
+        let subjects = vec![
             candle_chat_state,
             candle_message_parser_state,
             aggregator_1_state,
@@ -843,7 +834,9 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             AvailableSubjects::SessionErrors
                 .to_subject(None, None)
                 .unwrap(),
-        ])
+        ];        
+        let subject_plans = subjects.into_iter().map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap()).collect::<Vec<_>>();
+        Some(subject_plans)
     }
 }
 

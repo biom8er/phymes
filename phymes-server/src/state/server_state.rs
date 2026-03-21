@@ -292,7 +292,7 @@ impl ServerState {
                         false,
                     )?
                     .with_name(&session_name)
-                    .with_state_from_mermaid_erdiagram(
+                    .with_subjects_from_mermaid_erdiagram(
                         &user_session_context.er_diagram,
                         false,
                         true,

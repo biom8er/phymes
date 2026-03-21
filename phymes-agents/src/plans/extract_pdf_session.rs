@@ -114,7 +114,7 @@ mod tests {
             extract_pdf_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_state_from_mermaid_erdiagram(extract_pdf_session.as_mermaid_erdiagram(), false, true)?
+        .with_subjects_from_mermaid_erdiagram(extract_pdf_session.as_mermaid_erdiagram(), false, true)?
         .with_name(extract_pdf_session.session_context_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
