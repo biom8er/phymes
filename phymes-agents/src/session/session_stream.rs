@@ -7,7 +7,6 @@ use std::{
 
 use anyhow::Result;
 use futures::{FutureExt, Stream};
-use parking_lot::RwLock;
 use phymes_core::{IPCMessage, IPCMessageMap};
 use phymes_diagnostics::HashMap;
 use tracing::{Level, event};
@@ -18,7 +17,7 @@ use crate::{
 
 pub struct SessionStream {
     /// The session context
-    session_context: Arc<RwLock<SessionContext>>,
+    session_context: Arc<SessionContext>,
     /// The next superstep
     #[allow(clippy::type_complexity)]
     next_step: Option<Pin<Box<dyn Future<Output = Result<Option<IPCMessageMap>>> + Send>>>,
@@ -30,8 +29,8 @@ pub struct SessionStream {
 
 impl SessionStream {
     /// New [SessionStream]
-    pub fn new(messages: IPCMessageMap, session_context: Arc<RwLock<SessionContext>>) -> Self {
-        let max_steps = session_context.read().get_max_steps();
+    pub fn new(messages: IPCMessageMap, session_context: Arc<SessionContext>) -> Self {
+        let max_steps = session_context.get_max_steps();
         let step = 0;
         #[allow(clippy::type_complexity)]
         let next_step: Option<
@@ -131,7 +130,7 @@ mod tests {
             },
             true,
         )?;
-        let session_context_arc = Arc::new(RwLock::new(session_context));
+        let session_context_arc = Arc::new(session_context);
         let session_stream = SessionStream::new(input, Arc::clone(&session_context_arc));
         let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 

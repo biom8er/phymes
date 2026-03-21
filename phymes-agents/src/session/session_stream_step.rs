@@ -1,7 +1,6 @@
 use anyhow::{Result, anyhow};
 use arrow::record_batch::RecordBatch;
 use futures::{FutureExt, TryStreamExt};
-use parking_lot::RwLock;
 use phymes_core::{
     AvailableSubjects, AvailableSubjectsTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjectsMap, Publication, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_error_message_map, create_error_message_map_stream, create_session_tasks_run_log_batch
 };
@@ -9,7 +8,7 @@ use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, Diagnostics, EventBuilderTrait, HashMap, Span,
     SpanBuilder, TraceBuilderTrait, TraceRecord, create_timestamp_micros,
 };
-use std::{pin::Pin, sync::Arc};
+use std::sync::Arc;
 use tokio::task::JoinSet;
 use tracing::{Level, event};
 
@@ -75,19 +74,19 @@ pub trait SessionStreamStepTrait {
     ///
     /// [IPCMessageMap] if any of the subscribing session sujects were updated and None otherwise.
     fn run_superstep(
-        session_context: Arc<RwLock<SessionContext>>,
+        session_context: Arc<SessionContext>,
         messages: IPCMessageMap,
     ) -> impl std::future::Future<Output = Result<Option<IPCMessageMap>>> + Send;
 
     /// Enter the superstep span generating the [Span], [TraceRecord], and [Diagnostics]
     fn enter_span(
         subject_messages: &IPCMessageMap,
-        session_context: &Arc<RwLock<SessionContext>>,
+        session_context: &Arc<SessionContext>,
         step: u32,
     ) -> Result<(Vec<Diagnostics>, Span, TraceRecord)> {
         // Create the span for the session
         let span = SpanBuilder::default()
-            .with_span(session_context.read().get_name())
+            .with_span(session_context.get_name())
             .build()?;
 
         // Initialize the channels for collecting the metrics, events, and traces)
@@ -100,13 +99,13 @@ pub trait SessionStreamStepTrait {
         let trace = diagnostic_builder.clone().messages(
             line!(),
             file!(),
-            session_context.read().get_name(),
+            session_context.get_name(),
         );
         trace.enter(&subject_messages.values().collect::<Vec<_>>());
         let event =
             diagnostic_builder
                 .clone()
-                .info(line!(), file!(), session_context.read().get_name());
+                .info(line!(), file!(), session_context.get_name());
         event.insert("superstep", &serde_json::Value::Number(step.into()));
 
         Ok((diagnostics_vec, span, trace))
@@ -114,29 +113,25 @@ pub trait SessionStreamStepTrait {
 
     /// Exit the span
     async fn exit_span(
-        session_context: &Arc<RwLock<SessionContext>>,
+        session_context: &Arc<SessionContext>,
         messages: &IPCMessageMap,
         diagnostics_vec: Vec<Diagnostics>,
         trace: TraceRecord,
     ) -> Result<()> {
         trace.exit(&messages.values().collect::<Vec<_>>());
-        let _ = session_context
-            .write()
-            .update_metrics_subjects(&diagnostics_vec).await?;
+        let _ = session_context.update_metrics_subjects(&diagnostics_vec).await?;
 
         Ok(())
     }
 
     /// Update the session context subjects from messages including updating the subjects change log
-    async fn update_subjects_and_changelog_from_messages(
-        session_context: &Arc<RwLock<SessionContext>>,
+    fn update_subjects_and_changelog_from_messages(
+        session_context: &Arc<SessionContext>,
         messages: IPCMessageMap,
-    ) -> Result<()> {
+    ) -> impl std::future::Future<Output = Result<()>> + Send {async {
         // Update the session_context and handle any errors
-        let session_context_name = session_context.read().get_name().to_string();
-        let (changelog, meta, errors) = session_context
-            .write()
-            .update_subjects_from_messages(messages).await;
+        let session_context_name = session_context.get_name().to_string();
+        let (changelog, meta, errors) = session_context.update_subjects_from_messages(messages).await;
 
         let mut messages = Vec::new();
         if let Some(subject) = changelog {
@@ -177,9 +172,7 @@ pub trait SessionStreamStepTrait {
                 .build()?;
             let mut message_map = HashMap::<String, IPCMessage>::new();
             let _ = message_map.insert(message.get_name().to_string(), message);
-            let (update, meta, _errors) = session_context
-                .write()
-                .update_subjects_from_messages(message_map).await;
+            let (update, meta, _errors) = session_context.update_subjects_from_messages(message_map).await;
 
             if let Some(subject) = update {
                 let message = IPCMessageBuilder::new()
@@ -209,23 +202,20 @@ pub trait SessionStreamStepTrait {
 
         // Update the subjects change log
         let messages = create_message_map(messages);
-        let _ = session_context
-            .write()
-            .update_subjects_from_messages(messages).await;
+        let _ = session_context.update_subjects_from_messages(messages).await;
 
         Ok(())
-    }
+    }}
 
     /// Update the session context subjects from the ran tasks including the subjects change log
     fn update_subjects_and_changelog_from_tasks(
-        session_context: &Arc<RwLock<SessionContext>>,
+        session_context: &Arc<SessionContext>,
         tasks: HashMap<(String, String), ProcessorSubjectsMap>,
-    ) -> Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>> {
-        let session_context = Arc::clone(session_context);
+    ) -> impl std::future::Future<Output = Result<()>> + Send {
         async move {
             // Create the tasks run log message
-            let step = session_context.read().current_superstep().await?;
-            let session_context_name = session_context.read().get_name().to_string();
+            let step = session_context.current_superstep().await?;
+            let session_context_name = session_context.get_name().to_string();
             let (session_names, (task_names, (supersteps, timestamps))): (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))) = tasks
                 .into_iter()
                 .map(|((task_name, session_name), _)| (session_name, (task_name, (step as i64, create_timestamp_micros()))))
@@ -247,9 +237,7 @@ pub trait SessionStreamStepTrait {
             ]);
 
             // Update the tasks run log
-            let (changelog, meta, errors) = session_context
-                .write()
-                .update_subjects_from_messages(messages).await;
+            let (changelog, meta, errors) = session_context.update_subjects_from_messages(messages).await;
             if let Some(table) = errors {
                 let error = table.get_column_as_vec_str("content").join("; ");
                 return Err(anyhow!(error));
@@ -282,9 +270,7 @@ pub trait SessionStreamStepTrait {
                 messages.push(message);
             }
             let messages = create_message_map(messages);
-            let (_update, _meta, errors) = session_context
-                .write()
-                .update_subjects_from_messages(messages).await;
+            let (_update, _meta, errors) = session_context.update_subjects_from_messages(messages).await;
             if let Some(table) = errors {
                 let error = table.get_column_as_vec_str("content").join("; ");
                 return Err(anyhow!(error));
@@ -296,7 +282,7 @@ pub trait SessionStreamStepTrait {
 
     /// Get the next superstep using the [NextSuperstepSession] pre-compiled tasks and [SessionContext] helpers
     fn next_superstep(
-        session_context: &Arc<RwLock<SessionContext>>,
+        session_context: &Arc<SessionContext>,
     ) -> impl std::future::Future<Output = u32> + Send {
         async move {
             // Compute the current superstep
@@ -317,8 +303,7 @@ pub trait SessionStreamStepTrait {
             }
 
             // Return the next superstep
-            session_context
-                .read()
+            session_context                
                 .current_superstep().await
                 .unwrap_or_else(|err| panic!("Error `{err}` reading the `current_superstep`."))
         }
@@ -326,15 +311,14 @@ pub trait SessionStreamStepTrait {
 
     /// Get the current superstep handling any initialization
     fn current_superstep(
-        session_context: &Arc<RwLock<SessionContext>>,
+        session_context: &Arc<SessionContext>,
     ) -> impl std::future::Future<Output = u32> + Send {
         async move {
-            let (step, next) = match session_context.read().current_superstep() {
+            let (step, next) = match session_context.current_superstep().await {
                 Ok(step) => (step, false),
                 Err(_err) => (
-                    session_context
-                        .read()
-                        .increment_superstep()
+                    session_context                        
+                        .increment_superstep().await
                         .unwrap_or_default(),
                     true,
                 ),
@@ -349,12 +333,11 @@ pub trait SessionStreamStepTrait {
 
     /// Increment the superstep
     fn increment_superstep(
-        session_context: &Arc<RwLock<SessionContext>>,
+        session_context: &Arc<SessionContext>,
     ) -> impl std::future::Future<Output = u32> + Send {
         async move {
-            let _step = session_context
-                .read()
-                .increment_superstep()
+            let _step = session_context                
+                .increment_superstep().await
                 .unwrap_or_default();
             Self::next_superstep(session_context).await
         }
@@ -362,17 +345,17 @@ pub trait SessionStreamStepTrait {
 
     /// Get the next tasks to run using the [NextTaskSession] pre-compiled tasks and [SessionContext] helpers
     fn next_tasks(
-        session_context: &Arc<RwLock<SessionContext>>,
+        session_context: &Arc<SessionContext>,
     ) -> impl std::future::Future<Output = HashMap<(String, String), ProcessorSubjectsMap>> + Send
     {
         async move {
             // Check if there are tasks subscribe and publish available, and determine them if not
-            let rt = session_context.read().runtime_env.clone();
+            let rt = session_context.runtime_env.clone();
             let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string() }
                 .subscribe_to_subject(&rt).unwrap()
                 .ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` while getting the next task.", 
                     AvailableSubjects::SessionTasksSubscribePublish,
-                    session_context.read().get_name()
+                    session_context.get_name()
                 )).unwrap()
                 .try_collect()
                 .await.unwrap();
@@ -384,7 +367,7 @@ pub trait SessionStreamStepTrait {
                     });
                 for messages in next_task_messages.into_iter() {
                     if messages.is_empty() {
-                        if let Err(_err) = session_context.read().tasks_subscribe() {
+                        if let Err(_err) = session_context.tasks_subscribe().await {
                             return HashMap::<(String, String), ProcessorSubjectsMap>::new();
                         }
                     } else if let Err(_err) = SessionStreamStepMinimal::run_superstep(
@@ -399,7 +382,7 @@ pub trait SessionStreamStepTrait {
             }
 
             // Return the tasks subscribe and publish if availabe or an empty map
-            match session_context.read().tasks_subscribe_publish() {
+            match session_context.tasks_subscribe_publish().await {
                 Ok(tasks) => tasks,
                 Err(_err) => HashMap::<(String, String), ProcessorSubjectsMap>::new(),
             }
@@ -423,7 +406,7 @@ pub trait SessionStreamStepTrait {
     /// * [SendableRecordBatchStreamMessageMap] - Subject streams from running the task
     /// * [SendableRecordBatchStreamMessageMap] - User streams from the running task
     fn run_tasks(
-        session_context: &Arc<RwLock<SessionContext>>,
+        session_context: &Arc<SessionContext>,
         tasks: &HashMap<(String, String), ProcessorSubjectsMap>,
         diagnostics_vec: &mut Option<Vec<Diagnostics>>,
         span: &Option<Span>,
@@ -434,14 +417,13 @@ pub trait SessionStreamStepTrait {
             event!(Level::INFO, "Superstep for task {}", &task_name);
 
             // Clone the task
-            let task = session_context
-                .read()
+            let task = session_context                
                 .tasks()
                 .get(task_name)
                 .unwrap_or_else(|| {
                     panic!(
                         "Missing task `{task_name}` in session `{}`.",
-                        session_context.read().get_name()
+                        session_context.get_name()
                     )
                 })
                 .clone();
@@ -462,7 +444,7 @@ pub trait SessionStreamStepTrait {
             match task.run(
                 diagnostic_builder.as_ref(),
                 processor_subjects_map,
-                session_context.read().runtime_env(),
+                session_context.runtime_env(),
             ) {
                 Ok(result) => {
                     for (resp_name, resp) in result.into_iter() {
@@ -568,14 +550,14 @@ pub struct SessionStreamStep {}
 
 impl SessionStreamStepTrait for SessionStreamStep {
     async fn run_superstep(
-        session_context: Arc<RwLock<SessionContext>>,
+        session_context: Arc<SessionContext>,
         messages: IPCMessageMap,
     ) -> Result<Option<IPCMessageMap>> {
         // Get the next superstep handling any initialization
         let step = Self::current_superstep(&session_context).await;
 
         // Start the diagnostics
-        let (mut diagnostics_vec, span, trace) = if session_context.read().get_diagnostics() {
+        let (mut diagnostics_vec, span, trace) = if session_context.get_diagnostics() {
             let (diagnostics_vec, span, trace) =
                 Self::enter_span(&messages, &session_context, step)?;
             (Some(diagnostics_vec), Some(span), Some(trace))
@@ -585,7 +567,7 @@ impl SessionStreamStepTrait for SessionStreamStep {
 
         // Update the session context with the incoming messages
         if !messages.is_empty() {
-            Self::update_subjects_and_changelog_from_messages(&session_context, messages)?;
+            Self::update_subjects_and_changelog_from_messages(&session_context, messages).await?;
         }
 
         // Retrieve the task subscriptions and corresponding publications
@@ -600,7 +582,7 @@ impl SessionStreamStepTrait for SessionStreamStep {
                     &HashMap::<String, IPCMessage>::new(),
                     diagnostics_vec,
                     trace,
-                )?;
+                ).await?;
             }
 
             Ok(None)
@@ -621,8 +603,8 @@ impl SessionStreamStepTrait for SessionStreamStep {
             )?;
 
             // Update the tasks run log
-            Self::update_subjects_and_changelog_from_tasks(&session_context, subject_tasks)?;
-            Self::update_subjects_and_changelog_from_tasks(&session_context, session_tasks)?;
+            Self::update_subjects_and_changelog_from_tasks(&session_context, subject_tasks).await?;
+            Self::update_subjects_and_changelog_from_tasks(&session_context, session_tasks).await?;
 
             // Increment the superstep
             let _step = Self::increment_superstep(&session_context).await;
@@ -631,7 +613,7 @@ impl SessionStreamStepTrait for SessionStreamStep {
             let subject_batches = match Self::join_message_streams(subject_streams).await {
                 Ok(subject_batches) => subject_batches,
                 Err(err) => {
-                    create_error_message_map(&err, session_context.read().get_name(), true)?
+                    create_error_message_map(&err, session_context.get_name(), true)?
                 }
             };
 
@@ -640,13 +622,13 @@ impl SessionStreamStepTrait for SessionStreamStep {
                 Self::update_subjects_and_changelog_from_messages(
                     &session_context,
                     subject_batches,
-                )?;
+                ).await?;
             }
 
             // Join each of the response futures
             let user_batches = Self::join_message_streams(user_streams).await?;
             if let (Some(diagnostics_vec), Some(trace)) = (diagnostics_vec, trace) {
-                Self::exit_span(&session_context, &user_batches, diagnostics_vec, trace)?;
+                Self::exit_span(&session_context, &user_batches, diagnostics_vec, trace).await?;
             }
 
             Ok(Some(user_batches))
@@ -713,14 +695,12 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
 
     /// Minimal implementation of `run_superstep` without error handling and diagnostics
     async fn run_superstep(
-        session_context: Arc<RwLock<SessionContext>>,
+        session_context: Arc<SessionContext>,
         messages: IPCMessageMap,
     ) -> Result<Option<IPCMessageMap>> {
         // Update the session context with the incoming messages
         if !messages.is_empty() {
-            let (_update, errors) = session_context
-                .write()
-                .update_subjects_from_messages(messages);
+            let (_update, _meta, errors) = session_context.update_subjects_from_messages(messages).await;
             if let Some(table) = errors {
                 let error = table.get_column_as_vec_str("content").join("; ");
                 return Err(anyhow!(error));
@@ -728,7 +708,7 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
         }
 
         // Retrieve the task subscriptions and corresponding publications
-        let subject_tasks = session_context.read().tasks_subscribe_publish()?;
+        let subject_tasks = session_context.tasks_subscribe_publish().await?;
 
         if !subject_tasks.is_empty() {
             // Iterate through each task and collect the resulting stream responses
@@ -740,9 +720,7 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
 
             // Update the session context with the incoming messages
             if !subject_batches.is_empty() {
-                let (_update, errors) = session_context
-                    .write()
-                    .update_subjects_from_messages(subject_batches);
+                let (_update, _meta, errors) = session_context.update_subjects_from_messages(subject_batches).await;
                 if let Some(table) = errors {
                     let error = table.get_column_as_vec_str("content").join("; ");
                     return Err(anyhow!(error));
@@ -778,7 +756,7 @@ mod tests {
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let session_context_arc = Arc::new(RwLock::new(session_context));
+        let session_context_arc = Arc::new(session_context);
         let response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
             test_task::make_test_input_message(
@@ -795,68 +773,68 @@ mod tests {
 
         // check the session and session_context
         let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
-            .subscribe_to_subject(session_context_arc.read().runtime_env())?
+            .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 3);
         assert_eq!(subscriptions.last().unwrap().num_rows(), 4);
         let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: "state_2".to_string() }
-            .subscribe_to_subject(session_context_arc.read().runtime_env())?
+            .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 3);
         let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: "state_3".to_string() }
-            .subscribe_to_subject(session_context_arc.read().runtime_env())?
+            .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 3);
         let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
-            .subscribe_to_subject(session_context_arc.read().runtime_env())?
+            .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 0);
         let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
-            .subscribe_to_subject(session_context_arc.read().runtime_env())?
+            .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
-            .subscribe_to_subject(session_context_arc.read().runtime_env())?
+            .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
-            .subscribe_to_subject(session_context_arc.read().runtime_env())?
+            .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
-            .subscribe_to_subject(session_context_arc.read().runtime_env())?
+            .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 0);
         let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionEvents.to_string() }
-            .subscribe_to_subject(session_context_arc.read().runtime_env())?
+            .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTraces.to_string() }
-            .subscribe_to_subject(session_context_arc.read().runtime_env())?
+            .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSupersteps.to_string() }
-            .subscribe_to_subject(session_context_arc.read().runtime_env())?
+            .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
@@ -876,7 +854,7 @@ mod tests {
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let session_context_arc = Arc::new(RwLock::new(session_context));
+        let session_context_arc = Arc::new(session_context);
         let response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
             test_task::make_test_input_message(
@@ -1068,7 +1046,7 @@ mod tests {
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let session_context_arc = Arc::new(RwLock::new(session_context));
+        let session_context_arc = Arc::new(session_context);
         let response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
             test_task::make_test_input_message(
@@ -1292,7 +1270,7 @@ mod tests {
             },
             true,
         )?);
-        let session_context_arc = Arc::new(RwLock::new(session_context));
+        let session_context_arc = Arc::new(session_context);
         let mut response =
             SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input)
                 .await?
@@ -1960,7 +1938,7 @@ mod tests {
             },
             true,
         )?;
-        let session_context_arc = Arc::new(RwLock::new(session_context));
+        let session_context_arc = Arc::new(session_context);
         let mut response =
             SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input)
                 .await?
@@ -2326,7 +2304,7 @@ mod tests {
             },
             false,
         )?;
-        let session_context_arc = Arc::new(RwLock::new(session_context));
+        let session_context_arc = Arc::new(session_context);
         let response =
             SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input).await?;
         assert!(response.is_none());
@@ -2436,7 +2414,7 @@ mod tests {
             },
             true,
         )?;
-        let session_context_arc = Arc::new(RwLock::new(session_context));
+        let session_context_arc = Arc::new(session_context);
         let response = SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), input)
             .await?
             .unwrap();
@@ -2533,12 +2511,12 @@ mod tests {
                 .len(),
             1
         );
-        let session_reading = session_context_arc.read();
+        let session_reading = session_context_arc;
         let table_reading = session_reading
             .subjects()
             .get(AvailableSubjects::SessionErrors.to_string().as_str())
             .unwrap()
-            .read();
+            ;
         let errors = table_reading.get_column_as_vec_str("content");
         assert!(errors.first().unwrap().contains("This is an error!"));
         assert_eq!(
@@ -2554,12 +2532,12 @@ mod tests {
                 .len(),
             2
         );
-        let session_reading = session_context_arc.read();
+        let session_reading = session_context_arc;
         let table_reading = session_reading
             .subjects()
             .get(AvailableSubjects::SessionSupersteps.to_string().as_str())
             .unwrap()
-            .read();
+            ;
         let columns = table_reading.get_column_as_vec_primitive::<u32>("superstep")?;
         assert_eq!(columns, [1, 2]);
 

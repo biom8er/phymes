@@ -175,7 +175,7 @@ mod tests {
         .add_processor_subjects()?
         .add_next_tasks()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Make the test session data
         let session_names = ["session_1", "session_1", "session_1", "session_1"]

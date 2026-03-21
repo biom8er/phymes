@@ -2,13 +2,11 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use clap::ValueEnum;
 use futures::{StreamExt, TryStreamExt};
-use parking_lot::RwLock;
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, create_subjects_object_store_meta_batch, from_diagnostics_to_tables, make_store
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, create_subjects_object_store_meta_batch, from_diagnostics_to_tables, make_store
 };
 use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
 use std::sync::Arc;
-use tracing::{Level, event};
 
 use crate::{PublicationTrait, SessionContextBuilder, SubscriptionTrait, TaskMap, clear_subject, create_message_map};
 
@@ -503,7 +501,7 @@ impl SessionContext {
 
     /// Create the metrics table if it does not exist or update with the new metrics
     pub async fn update_metrics_subjects(
-        &mut self,
+        &self,
         diagnostics_vec: &[Diagnostics],
     ) -> Result<()> {
         // create the pivot table and clear the metrics
@@ -515,9 +513,6 @@ impl SessionContext {
 
         // update the state with the metrics
         if let Some(metrics_subject) = metrics_subject {
-            if !self.subjects().contains_key(AvailableSubjects::SessionMetrics.to_string().as_str()) {
-                let _ = self.subjects.insert(AvailableSubjects::SessionMetrics.to_string(), AvailableSubjects::SessionMetrics.to_schema());
-            }
             let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionMetrics.to_string() }
                 .publish_to_subject(self.runtime_env(), metrics_subject.get_record_batches_own(), step)?
                 .ok_or(anyhow!("Unable to put the subject `{}` into object storage for session `{}` while updating the metrics tables.",
@@ -529,9 +524,6 @@ impl SessionContext {
 
         // update the state with the traces
         if let Some(traces_subject) = traces_subject {
-            if !self.subjects().contains_key(AvailableSubjects::SessionTraces.to_string().as_str()) {
-                let _ = self.subjects.insert(AvailableSubjects::SessionTraces.to_string(), AvailableSubjects::SessionTraces.to_schema());
-            }
             let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTraces.to_string() }
                 .publish_to_subject(self.runtime_env(), traces_subject.get_record_batches_own(), step)?
                 .ok_or(anyhow!("Unable to put the subject `{}` into object storage for session `{}` while updating the metrics tables.",
@@ -543,9 +535,6 @@ impl SessionContext {
 
         // update the state with the events
         if let Some(events_subject) = events_subject {
-            if !self.subjects().contains_key(AvailableSubjects::SessionEvents.to_string().as_str()) {
-                let _ = self.subjects.insert(AvailableSubjects::SessionEvents.to_string(), AvailableSubjects::SessionEvents.to_schema());
-            }
             let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionEvents.to_string() }
                 .publish_to_subject(self.runtime_env(), events_subject.get_record_batches_own(), step)?
                 .ok_or(anyhow!("Unable to put the subject `{}` into object storage for session `{}` while updating the metrics tables.",
@@ -631,7 +620,7 @@ impl SessionContext {
     }
 
     /// Update the row counts for the subjects
-    pub async fn update_subject_num_rows(&mut self) -> Result<()> {
+    pub async fn update_subject_num_rows(&self) -> Result<()> {
         let mut subject_names = Vec::new();
         let mut num_rows = Vec::new();
 
@@ -656,9 +645,6 @@ impl SessionContext {
             .build()?;
 
         // Add the subjects num rows table to the state or update
-        if !self.subjects().contains_key(AvailableSubjects::SubjectsNumRows.to_string().as_str()) {
-            let _ = self.subjects.insert(AvailableSubjects::SubjectsNumRows.to_string(), AvailableSubjects::SubjectsNumRows.to_schema());
-        }
         let step = self.current_superstep().await?;
         let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
             .publish_to_subject(self.runtime_env(), subject_num_rows.get_record_batches_own(), step)?

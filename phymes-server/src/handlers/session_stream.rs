@@ -65,18 +65,6 @@ pub async fn session_stream(
                             .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 };
-
-                // Read in any updates to the session context
-                match state.read_session_contexts(
-                    &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                    &current_user,
-                ) {
-                    Ok(()) => tracing::info!("Read state for {}", current_user),
-                    Err(e) => tracing::info!(
-                        "Failed to read the session stream state {e:?} for {}",
-                        current_user
-                    ),
-                }
             }
 
             let session_ctx_arc = match state
@@ -179,21 +167,7 @@ pub async fn session_stream(
                     let response = Bytes::from(serde_json::to_string(&response).unwrap());
 
                     // Update the row counts
-                    session_ctx_arc
-                        .try_write()
-                        .unwrap()
-                        .update_subject_num_rows();
-
-                    // Write the updates to disk
-                    if let Err(e) = state.write_session_contexts(
-                        &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                        &current_user,
-                    ) {
-                        return JsonError::new(format!(
-                            "Failed to write the session stream state {e:?}"
-                        ))
-                        .to_response(StatusCode::INTERNAL_SERVER_ERROR);
-                    }
+                    session_ctx_arc.update_subject_num_rows().await;
 
                     // Send the stream
                     Body::from(response).into_response()
@@ -250,21 +224,7 @@ pub async fn session_stream(
                         .unwrap();
 
                     // Update the row counts
-                    session_ctx_arc
-                        .try_write()
-                        .unwrap()
-                        .update_subject_num_rows();
-
-                    // Write the updates to disk
-                    if let Err(e) = state.write_session_contexts(
-                        &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                        &current_user,
-                    ) {
-                        return JsonError::new(format!(
-                            "Failed to write the session stream state {e:?}"
-                        ))
-                        .to_response(StatusCode::INTERNAL_SERVER_ERROR);
-                    }
+                    session_ctx_arc.update_subject_num_rows().await;
 
                     // Send the stream
                     Body::from(response).into_response()

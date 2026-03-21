@@ -59,18 +59,6 @@ pub async fn session_put_state(
                             .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 };
-
-                // Read in any updates to the session context
-                match state.read_session_contexts(
-                    &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                    &current_user,
-                ) {
-                    Ok(()) => tracing::info!("Read state for {}", current_user),
-                    Err(e) => tracing::info!(
-                        "Failed to read the session stream state {e:?} for {}",
-                        current_user
-                    ),
-                }
             }
 
             let session_ctx_arc = match state
@@ -173,17 +161,8 @@ pub async fn session_put_state(
             if let Err(e) = SessionStreamStep::update_subjects_and_changelog_from_messages(
                 &session_ctx_arc,
                 messages,
-            ) {
+            ).await {
                 return JsonError::new(format!("Failed to update the session stream state {e:?}"))
-                    .to_response(StatusCode::INTERNAL_SERVER_ERROR);
-            }
-
-            // Write the updates to disk
-            if let Err(e) = state.write_session_contexts(
-                &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                &current_user,
-            ) {
-                return JsonError::new(format!("Failed to write the session stream state {e:?}"))
                     .to_response(StatusCode::INTERNAL_SERVER_ERROR);
             }
 
@@ -256,18 +235,6 @@ pub async fn session_get_state(
                             .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 };
-
-                // Read in any updates to the session context
-                match state.read_session_contexts(
-                    &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                    &current_user,
-                ) {
-                    Ok(()) => tracing::info!("Read state for {}", current_user),
-                    Err(e) => tracing::info!(
-                        "Failed to read the session stream state {e:?} for {}",
-                        current_user
-                    ),
-                }
             }
 
             match state
@@ -277,10 +244,7 @@ pub async fn session_get_state(
             {
                 Some(session_ctx_arc) => {
                     // Update the row counts just in case...
-                    session_ctx_arc
-                        .try_write()
-                        .unwrap()
-                        .update_subject_num_rows();
+                    session_ctx_arc.update_subject_num_rows().await;
 
                     match payload.get_format() {
                         DataFormat::Bytes => {

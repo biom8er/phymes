@@ -29,7 +29,7 @@ pub async fn run_main() -> Result<()> {
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-    let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+    let session_ctx_arc = Arc::new(session_ctx);
 
     // Make the tabular data
     let batch = create_user_inbox_batch(vec!["contact@biom8er.com".to_string()])?;

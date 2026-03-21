@@ -107,8 +107,7 @@ pub async fn session_diagnostics(
                         .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 };
-                let sss = session_ctx_arc.read();
-                let table = sss
+                let table = session_ctx_arc
                     .subjects()
                     .get(AvailableSubjects::SessionMetrics.to_string().as_str())
                     .unwrap()
@@ -124,7 +123,7 @@ pub async fn session_diagnostics(
                     .unwrap()
                     .build()
                     .unwrap();
-                let table = sss
+                let table = session_ctx_arc
                     .subjects()
                     .get(AvailableSubjects::SessionTraces.to_string().as_str())
                     .unwrap()
@@ -140,7 +139,7 @@ pub async fn session_diagnostics(
                     .unwrap()
                     .build()
                     .unwrap();
-                let table = sss
+                let table = session_ctx_arc
                     .subjects()
                     .get(AvailableSubjects::SessionEvents.to_string().as_str())
                     .unwrap()
@@ -156,7 +155,7 @@ pub async fn session_diagnostics(
                     .unwrap()
                     .build()
                     .unwrap();
-                let table = sss
+                let table = session_ctx_arc
                     .subjects()
                     .get(AvailableSubjects::SessionTasks.to_string().as_str())
                     .unwrap()
@@ -172,7 +171,7 @@ pub async fn session_diagnostics(
                     .unwrap()
                     .build()
                     .unwrap();
-                let table = sss
+                let table = session_ctx_arc
                     .subjects()
                     .get(AvailableSubjects::SessionErrors.to_string().as_str())
                     .unwrap()
@@ -236,7 +235,7 @@ pub async fn session_diagnostics(
                 .unwrap()
                 .build_with_tables()
                 .unwrap();
-            let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+            let session_ctx_arc = Arc::new(session_ctx);
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
 
             // Run and update the session and convert the output to the user specified format

@@ -266,7 +266,7 @@ mod tests {
         .add_next_tasks()?
         .add_next_supersteps()?;
         let session_ctx = retrieve_text_builder.build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Document text
         let chunk_id = [

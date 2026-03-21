@@ -315,7 +315,7 @@ pub(crate) mod user_session_inner {
 
     use super::*;
 
-    pub fn user_session() -> Result<(Arc<RwLock<SessionContext>>, SessionStream)> {
+    pub fn user_session() -> Result<(Arc<SessionContext>, SessionStream)> {
         // initialize the session
         let user_agent_session = UserSession::default();
         let session_ctx = user_agent_session
@@ -325,7 +325,7 @@ pub(crate) mod user_session_inner {
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Make the user inbox message
         let batch = create_user_inbox_batch(vec!["contact@biom8er.com".to_string()])?;

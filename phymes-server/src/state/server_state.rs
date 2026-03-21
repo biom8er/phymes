@@ -4,15 +4,10 @@ use anyhow::{Result, anyhow};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::{
-    AvailableSessionPlans, SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-    SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
-    create_message_map,
+    AvailableSessionPlans, SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map
 };
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder,
-    JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, Subject,
-    SubjectBuilderTrait, Publication, SubjectTrait, UserSubject, create_session_mermaid_batch,
-    create_user_inbox_batch, create_user_session_contexts_batch,
+    AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription, UserSubject, create_session_mermaid_batch, create_user_inbox_batch, create_user_session_contexts_batch
 };
 use phymes_diagnostics::HashMap;
 
@@ -29,7 +24,7 @@ use crate::handlers::create_session_name;
 #[derive(Clone)]
 pub struct UserState {
     /// Users information
-    pub users: Arc<RwLock<SessionContext>>,
+    pub users: Arc<SessionContext>,
 }
 
 impl Default for UserState {
@@ -56,9 +51,6 @@ impl UserState {
         Vec<UserSubject>,
         Vec<JoinUserInboxSessionContextsMermaidDiagrams>,
     )> {
-        // To prevent locks and other performance issues
-        let session_context_name = self.users.read().get_name().to_string();
-
         // Prepare the input message
         let batch = create_user_inbox_batch(vec![email.to_string()])?;
         let table = Subject::get_builder()
@@ -71,7 +63,7 @@ impl UserState {
             .with_update(&Publication::Replace {
                 subject_name: table.get_name().to_string(),
             })
-            .with_publisher(session_context_name.as_str())
+            .with_publisher(self.users.get_name())
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![message]);
@@ -81,29 +73,39 @@ impl UserState {
         let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         // Parse out the results
-        let session_reading = self.users.read();
-        let table_reading = session_reading
-            .subjects()
-            .get(AvailableSubjects::User.to_string().as_str())
-            .unwrap()
-            .read();
-        let user = table_reading.to_struct::<UserSubject>()?;
-        let table_reading = session_reading
-            .subjects()
-            .get(
-                AvailableSubjects::JoinUserInboxSessionContextsMermaid
-                    .to_string()
-                    .as_str(),
-            )
-            .unwrap()
-            .read();
-        let join = table_reading.to_struct::<JoinUserInboxSessionContextsMermaidDiagrams>()?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::User.to_string() }
+			.subscribe_to_subject(self.users.runtime_env())?
+			.ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` while getting the user by email.", 
+				AvailableSubjects::User,
+				self.users.get_name()
+			))?
+			.try_collect()
+			.await?;
+        let user = Subject::get_builder()
+            .with_name(&AvailableSubjects::User.to_string())
+            .with_record_batches(batches)?
+            .build()?
+            .to_struct::<UserSubject>()?;
+        
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string() }
+			.subscribe_to_subject(self.users.runtime_env())?
+			.ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` while getting the user by email.", 
+				AvailableSubjects::JoinUserInboxSessionContextsMermaid,
+				self.users.get_name()
+			))?
+			.try_collect()
+			.await?;
+        let join = Subject::get_builder()
+            .with_name(&AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string())
+            .with_record_batches(batches)?
+            .build()?
+            .to_struct::<JoinUserInboxSessionContextsMermaidDiagrams>()?;
 
         Ok((user, join))
     }
 
     /// Get the user information by their email
-    pub fn update_user_session_contexts(
+    pub async fn update_user_session_contexts(
         &self,
         email: &str,
         session_context_name: &[String],
@@ -111,9 +113,6 @@ impl UserState {
         er_diagram: &[String],
         timestamp: &[i64],
     ) -> Result<()> {
-        // To prevent locks and other performance issues
-        let session_plan = self.users.try_read().unwrap().get_name().to_string();
-
         // Prepare the update messages
         let email_vec = session_context_name
             .iter()
@@ -141,7 +140,7 @@ impl UserState {
         // Create the update message
         let user_session_contexts_message = IPCMessageBuilder::new()
             .with_subject(AvailableSubjects::UserSessionContexts.to_string().as_str())
-            .with_publisher(&create_session_name(email, session_plan.as_str()))
+            .with_publisher(&create_session_name(email, self.users.get_name()))
             .with_message(user_session_contexts_bytes)
             .with_update(&Publication::Extend {
                 subject_name: AvailableSubjects::UserSessionContexts.to_string(),
@@ -150,7 +149,7 @@ impl UserState {
             .build()?;
         let mermaid_message = IPCMessageBuilder::new()
             .with_subject(AvailableSubjects::BuilderMermaid.to_string().as_str())
-            .with_publisher(&create_session_name(email, session_plan.as_str()))
+            .with_publisher(&create_session_name(email, self.users.get_name()))
             .with_message(mermaid_bytes)
             .with_update(&Publication::Extend {
                 subject_name: AvailableSubjects::BuilderMermaid.to_string(),
@@ -160,32 +159,36 @@ impl UserState {
         let message_map = create_message_map(vec![user_session_contexts_message, mermaid_message]);
 
         // Update the session state with the new message
-        let (update, _errors) = self
-            .users
-            .try_write()
-            .unwrap()
-            .update_subjects_from_messages(message_map);
+        let (changelog, meta, _errors) = self.users.update_subjects_from_messages(message_map).await;
 
-        // Update the subjects change log
-        if let Some(update) = update {
-            let messages = create_message_map(vec![
-                IPCMessageBuilder::new()
-                    .with_name(update.get_name())
-                    .with_subject(update.get_name())
-                    .with_publisher("")
-                    .with_update(&phymes_core::Publication::Extend {
-                        subject_name: update.get_name().to_string(),
-                    })
-                    .with_message(update.to_ipc_stream().unwrap())
-                    .build()
-                    .unwrap(),
-            ]);
-            let (_update, _errors) = self
-                .users
-                .try_write()
-                .unwrap()
-                .update_subjects_from_messages(messages);
+        let mut messages = Vec::new();
+        if let Some(subject) = changelog {
+            let message = IPCMessageBuilder::new()
+                .with_subject(subject.get_name())
+                .with_publisher(&self.users.get_name())
+                .with_update(&Publication::Extend {
+                    subject_name: subject.get_name().to_string(),
+                })
+                .with_message(subject.to_ipc_stream()?)
+                .make_random_name()?
+                .build()?;
+            messages.push(message);
         }
+        if let Some(subject) = meta {
+            let message = IPCMessageBuilder::new()
+                .with_subject(subject.get_name())
+                .with_publisher(&self.users.get_name())
+                .with_update(&Publication::Extend {
+                    subject_name: subject.get_name().to_string(),
+                })
+                .with_message(subject.to_ipc_stream()?)
+                .make_random_name()?
+                .build()?;
+            messages.push(message);
+        }
+
+        let messages = create_message_map(messages);
+        let _ = self.users.update_subjects_from_messages(messages).await;
 
         Ok(())
     }
@@ -205,7 +208,7 @@ pub struct ServerState {
     /// Session context
     /// HashMap of sessions indexed by session name
     ///   where the session name = session_name + user_name
-    pub session_contexts: Arc<RwLock<HashMap<String, Arc<RwLock<SessionContext>>>>>,
+    pub session_contexts: Arc<RwLock<HashMap<String, Arc<SessionContext>>>>,
     /// Cache of user session_names indexed by user_name
     pub user_session_names: Arc<RwLock<HashMap<String, Vec<String>>>>,
 }
@@ -221,7 +224,7 @@ impl ServerState {
     pub fn new() -> Self {
         Self {
             session_contexts: Arc::new(RwLock::new(
-                HashMap::<String, Arc<RwLock<SessionContext>>>::new(),
+                HashMap::<String, Arc<SessionContext>>::new(),
             )),
             user_session_names: Arc::new(RwLock::new(HashMap::<String, Vec<String>>::new())),
         }
@@ -301,7 +304,7 @@ impl ServerState {
                     .add_session_interface(None)?
                     .with_diagnostics(true)
                     .build_with_tables()?;
-                    let session_ctx_arc = Arc::new(RwLock::new(session_context));
+                    let session_ctx_arc = Arc::new(session_context);
 
                     // Add the session stream state to the state
                     let _ = self
@@ -339,58 +342,6 @@ impl ServerState {
             session_names.push(session_name);
         }
         Ok(session_names)
-    }
-
-    /// Read the session state by email
-    ///
-    /// # Arguments
-    ///
-    /// `path` - &str, the path to the files
-    /// `email` - &str, the user email
-    pub fn read_session_contexts(&mut self, path: &str, email: &str) -> Result<()> {
-        if let Some(session_names) = self.user_session_names.try_read().unwrap().get(email) {
-            for session_name in session_names.iter() {
-                self.session_contexts
-                    .try_write()
-                    .unwrap()
-                    .get_mut(session_name)
-                    .unwrap()
-                    .try_write()
-                    .unwrap()
-                    .read_state(path, email)?;
-            }
-        } else {
-            return Err(anyhow!(
-                "{email} was not found in the cache so no state was read from disk."
-            ));
-        }
-        Ok(())
-    }
-
-    /// Write the session state by email
-    ///
-    /// # Arguments
-    ///
-    /// `path` - &str, the path to the files
-    /// `email` - &str, the user email
-    pub fn write_session_contexts(&self, path: &str, email: &str) -> Result<()> {
-        if let Some(session_names) = self.user_session_names.try_read().unwrap().get(email) {
-            for session_name in session_names.iter() {
-                self.session_contexts
-                    .try_read()
-                    .unwrap()
-                    .get(session_name)
-                    .unwrap()
-                    .try_read()
-                    .unwrap()
-                    .write_state(path, email)?;
-            }
-        } else {
-            return Err(anyhow!(
-                "{email} was not found in the cache so no state was written to disk."
-            ));
-        }
-        Ok(())
     }
 }
 

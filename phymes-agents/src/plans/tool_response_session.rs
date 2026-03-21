@@ -147,7 +147,7 @@ mod tests {
         .add_next_supersteps()?
         .add_next_tasks()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Replace the Bytes to trigger the session
         let message_map = {

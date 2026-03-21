@@ -879,14 +879,14 @@ mod tests {
     use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait,
-        Publication, SubjectTrait, test_task,
+        Publication, SubjectTrait,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
         SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
         SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait,
-        create_message_map, test_session_context_builder,
+        create_message_map, test_session_context_builder, test_task,
     };
 
     use super::*;
@@ -906,7 +906,7 @@ mod tests {
         .add_next_supersteps()?
         .with_max_iter(1) // DM: prevent continued execution after the final superstep for testing
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Make the test session data
         let mut message_map = {

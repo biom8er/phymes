@@ -368,7 +368,7 @@ mod tests {
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // User message
         let chat = AvailableInterfaceSubjects::UserMessages.to_subject_builder(None)
@@ -527,7 +527,7 @@ mod tests {
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Add the target tool subjects to the session for testing
         let _ = session_ctx_arc.write().subjects.insert(
@@ -745,7 +745,7 @@ mod tests {
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Add the target tool subjects to the session for testing
         let _ = session_ctx_arc.write().subjects.insert(
@@ -986,7 +986,7 @@ mod tests {
         .add_next_tasks()?
         .add_next_supersteps()?
         .build_with_tables()?;
-        let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Add the target tool subjects to the session for testing
         let _ = session_ctx_arc.write().subjects.insert(

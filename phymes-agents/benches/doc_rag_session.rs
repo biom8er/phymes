@@ -146,7 +146,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                     .unwrap()
                     .build_with_tables()
                     .unwrap();
-                let session_ctx_arc = Arc::new(RwLock::new(session_ctx));
+                let session_ctx_arc = Arc::new(session_ctx);
                 let sample_id = format!("{id}_{iter}");
 
                 // Run the benchmark for the chat agent session with metrics

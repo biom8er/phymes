@@ -55,18 +55,6 @@ pub async fn session_build(
                             .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 };
-
-                // Read in any updates to the session context
-                match state.read_session_contexts(
-                    &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                    &current_user,
-                ) {
-                    Ok(()) => tracing::info!("Read state for {}", current_user),
-                    Err(e) => tracing::info!(
-                        "Failed to read the session stream state {e:?} for {}",
-                        current_user
-                    ),
-                }
             }
 
             // Extract out the Mermaid table
@@ -178,17 +166,7 @@ pub async fn session_build(
                     &table
                         .get_column_as_vec_primitive::<i64>("timestamp")
                         .unwrap(),
-                )
-                .unwrap();
-
-            // Write the updates to disk
-            if let Err(e) = state.write_session_contexts(
-                &format!("{}/.cache", std::env::var("HOME").unwrap_or("".to_string())),
-                &current_user,
-            ) {
-                return JsonError::new(format!("Failed to write the session stream state {e:?}"))
-                    .to_response(StatusCode::INTERNAL_SERVER_ERROR);
-            }
+                ).await.unwrap();
 
             // Send the response
             Body::from(serde_json::to_string("State updated with new sessions.").unwrap())

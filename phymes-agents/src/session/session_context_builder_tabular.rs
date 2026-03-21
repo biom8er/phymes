@@ -80,6 +80,8 @@ pub trait SessionContextBuilderTabularTrait {
     /// Create the `SubjectsNumRows` and `SubjectsChangeLog` tables
     fn get_subjects_change_log_as_subject_plan(&self) -> Result<SubjectPlan>;
 
+    fn get_subjects_object_store_meta_as_subject_plan(&self) -> Result<SubjectPlan>;
+
     /// Create the session from subjects
     ///
     /// # Notes
@@ -149,6 +151,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         if include_subjects_change_log {
             tables.push(self.get_subjects_num_rows_as_subject_plan()?);
             tables.push(self.get_subjects_change_log_as_subject_plan()?);
+            tables.push(self.get_subjects_object_store_meta_as_subject_plan()?);
         }
         if include_tasks_run_log {
             tables.push(self.get_tasks_run_log_as_subject_plan()?);
@@ -1151,6 +1154,10 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
             .chain(processors_subjects)
             .collect::<HashSet<_>>();
         Ok(exclusion_set)
+    }
+    
+    fn get_subjects_object_store_meta_as_subject_plan(&self) -> Result<SubjectPlan> {
+        todo!()
     }
 }
 
