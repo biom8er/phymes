@@ -309,7 +309,6 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
         BuildableTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait,
         MessageTrait, SubjectTrait,
@@ -324,7 +323,7 @@ mod tests {
     async fn test_chat_agent_session() -> Result<()> {
         // initialize the session
         let chat_agent_session = ChatAgentSession::default();
-        let session_ctx = chat_agent_session
+        let (session_ctx, session_messages) = chat_agent_session
             .build()
             .with_name(chat_agent_session.session_context_name)
             .add_session_interface(None)?
@@ -356,7 +355,8 @@ mod tests {
                 .with_publisher(chat_agent_session.session_context_name)
                 .make_name()?
                 .build()?;
-            let incoming_message_map = create_message_map(vec![message]);
+            let mut incoming_message_map = create_message_map(vec![message]);
+            incoming_message_map.extend(session_messages.unwrap_or_default());
             let session_stream =
                 SessionStream::new(incoming_message_map, Arc::clone(&session_ctx_arc));
             let mut response: Vec<HashMap<String, IPCMessage>> =

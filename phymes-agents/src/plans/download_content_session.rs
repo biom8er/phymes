@@ -129,7 +129,7 @@ mod tests {
     async fn test_download_content_session_w_subjects() -> Result<()> {
         // Initialize the session
         let download_content_session = DownloadContentSession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             download_content_session.as_mermaid_flowchart(),
             false,
         )?
@@ -265,6 +265,7 @@ mod tests {
         }
 
         // Run the session
+        message_map.extend(session_messages.unwrap_or_default());
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
@@ -355,7 +356,7 @@ mod tests {
 
         // Initialize the session
         let download_content_session = DownloadContentSession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             download_content_session.as_mermaid_flowchart(),
             false,
         )?
@@ -460,6 +461,7 @@ mod tests {
         }
 
         // Run the session
+        message_map.extend(session_messages.unwrap_or_default());
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 

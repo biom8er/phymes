@@ -4,7 +4,7 @@ use anyhow::Result;
 use serde_json::json;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription, create_schema_from_fields, create_tools_record_batch
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription, create_schema_from_fields, create_tools_record_batch
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
@@ -845,7 +845,6 @@ mod tests {
     use std::sync::Arc;
 
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
         AttachmentBuilderTraitExt, ChatBuilderTraitExt, CsvFormat, IPCMessage, MappableTrait,
         MessageBuilderTrait, MessageTrait, SubjectTrait,
@@ -861,7 +860,7 @@ mod tests {
     async fn test_tool_agent_session() -> Result<()> {
         // initialize the session
         let tool_agent_session = ToolAgentSession::default();
-        let session_ctx = tool_agent_session
+        let (session_ctx, session_messages) = tool_agent_session
             .build()
             .with_name(tool_agent_session.session_context_name)
             .add_session_interface(None)?
@@ -901,7 +900,8 @@ mod tests {
             .with_publisher(tool_agent_session.session_context_name)
             .make_name()?
             .build()?;
-        let message_map = create_message_map(vec![chat_message, blob_message]);
+        let mut message_map = create_message_map(vec![chat_message, blob_message]);
+        message_map.extend(session_messages.unwrap_or_default());
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -912,17 +912,6 @@ mod tests {
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let mut response: Vec<HashMap<String, IPCMessage>> =
                 session_stream.try_collect().await?;
-
-            {
-                // Debug errors
-                let subjects_reading = session_ctx_arc.read();
-                let table_reading = subjects_reading
-                    .subjects()
-                    .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                    .unwrap()
-                    .read();
-                println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            }
 
             // Update the chat history with the response
             let bytes = response

@@ -378,7 +378,7 @@ mod tests {
         let melt_study_data_session =
             MeltStudyDataSession::new(None, "Casenr", None, variable_names, data_types)?;
         // dbg!(&melt_study_data_session.as_mermaid_erdiagram()?);
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             melt_study_data_session.as_mermaid_flowchart(),
             false,
         )?
@@ -455,7 +455,8 @@ mod tests {
             .with_publisher(melt_study_data_session.session_context_name)
             .make_name()?
             .build()?;
-        let message_map = create_message_map(vec![blob_message]);
+        let mut message_map = create_message_map(vec![blob_message]);
+        message_map.extend(session_messages.unwrap_or_default());
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));

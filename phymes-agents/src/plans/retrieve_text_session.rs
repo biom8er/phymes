@@ -231,18 +231,13 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage,
-        MappableTrait, MessageBuilderTrait, Publication, SubjectTrait, create_documents_batch,
-        create_documents_embeddings_batch, create_query_embeddings_batch,
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription, create_documents_batch, create_documents_embeddings_batch, create_query_embeddings_batch
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
-        create_message_map,
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map
     };
 
     use super::*;
@@ -265,7 +260,7 @@ mod tests {
         .with_diagnostics(true)
         .add_next_tasks()?
         .add_next_supersteps()?;
-        let session_ctx = retrieve_text_builder.build_with_tables()?;
+        let (session_ctx, session_messages) = retrieve_text_builder.build_with_tables()?;
         let session_ctx_arc = Arc::new(session_ctx);
 
         // Document text
@@ -3851,11 +3846,12 @@ mod tests {
             .make_name()?
             .build()?;
 
-        let message_map = create_message_map(vec![
+        let mut message_map = create_message_map(vec![
             document_embeddings_message,
             query_embeddings_message,
             document_message,
         ]);
+        message_map.extend(session_messages.unwrap_or_default());
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
@@ -3863,44 +3859,45 @@ mod tests {
 
         assert_eq!(response.len(), 0);
 
-        {
-            // Test supsersteps
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get(
-                    AvailableInterfaceSubjects::ToolMessages
-                        .to_string()
-                        .as_str(),
-                )
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 1);
-            let column = table_reading.get_column_as_vec_str("role");
-            assert_eq!(column.first().unwrap(), &"tool");
-            let column = table_reading.get_column_as_vec_str("content");
-            assert_eq!(
-                column.first().unwrap(),
-                &"[{\"text\":\"Deoxyribonucleic acid (DNA) is a polymer composed of two polynucleotide chains that coil around each other to form a double helix. The polymer carries genetic instructions for the development, functioning, growth and reproduction of all known organisms and many viruses. DNA and ribonucleic acid (RNA) are nucleic acids. Alongside proteins, lipids and complex carbohydrates (polysaccharides), nucleic acids are one of the four major types of macromolecules that are essential for all known forms of life.The two \"}]"
-            );
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-            for t in column {
-                assert!(t > 0);
-            }
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::EmbeddingScores.to_string().as_str())
-                .unwrap()
-                .read();
-            assert_eq!(table_reading.count_rows(), 1);
-            let column = table_reading.get_column_as_vec_str("chunk_id");
-            assert_eq!(column.first().unwrap(), &"WikiBioComponents_2_0");
-            let column = table_reading.get_column_as_vec_str("query_id");
-            assert_eq!(column.first().unwrap(), &"1770146381963577");
-            let column = table_reading.get_column_as_vec_primitive::<f32>("score")?;
-            for t in column {
-                assert!(t > 0.15); // Threshold used for filtering
-            }
+        // Test supsersteps
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::ToolMessages.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableInterfaceSubjects::ToolMessages.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 1);
+        let column = subject.get_column_as_vec_str("role");
+        assert_eq!(column.first().unwrap(), &"tool");
+        let column = subject.get_column_as_vec_str("content");
+        assert_eq!(
+            column.first().unwrap(),
+            &"[{\"text\":\"Deoxyribonucleic acid (DNA) is a polymer composed of two polynucleotide chains that coil around each other to form a double helix. The polymer carries genetic instructions for the development, functioning, growth and reproduction of all known organisms and many viruses. DNA and ribonucleic acid (RNA) are nucleic acids. Alongside proteins, lipids and complex carbohydrates (polysaccharides), nucleic acids are one of the four major types of macromolecules that are essential for all known forms of life.The two \"}]"
+        );
+        let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+        for t in column {
+            assert!(t > 0);
+        }
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::EmbeddingScores.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::EmbeddingScores.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 1);
+        let column = subject.get_column_as_vec_str("chunk_id");
+        assert_eq!(column.first().unwrap(), &"WikiBioComponents_2_0");
+        let column = subject.get_column_as_vec_str("query_id");
+        assert_eq!(column.first().unwrap(), &"1770146381963577");
+        let column = subject.get_column_as_vec_primitive::<f32>("score")?;
+        for t in column {
+            assert!(t > 0.15); // Threshold used for filtering
         }
         Ok(())
     }

@@ -112,13 +112,14 @@ mod tests {
     #[tokio::test]
     async fn test_session_stream_replace_state_update_sequential_tasks() -> Result<()> {
         // Build the session
-        let session_context = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 2)?
+        let (session_context, mut messages) = test_session_context_builder::make_test_session_context_builder_sequential("session_1", 2)?
             .with_diagnostics(true)
             .add_session_interface(Some(&["state_1"]))?
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let input = test_task::make_test_input_message(
+        let mut messages = messages.take().unwrap();
+        messages.extend(test_task::make_test_input_message(
             "task_1",
             "session_1",
             "state_1",
@@ -127,9 +128,9 @@ mod tests {
                 subject_name: "state_1".to_string(),
             },
             true,
-        )?;
+        )?);
         let session_context_arc = Arc::new(session_context);
-        let session_stream = SessionStream::new(input, Arc::clone(&session_context_arc));
+        let session_stream = SessionStream::new(messages, Arc::clone(&session_context_arc));
         let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         // Check the response

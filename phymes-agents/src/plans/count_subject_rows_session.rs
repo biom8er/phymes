@@ -105,7 +105,7 @@ mod tests {
     async fn test_count_subject_rows_session() -> Result<()> {
         // Initialize the session
         let subjects_session = CountSubjectRowsSession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             subjects_session.as_mermaid_flowchart(),
             false,
         )?
@@ -119,9 +119,9 @@ mod tests {
         let session_ctx_arc = Arc::new(session_ctx);
 
         // Make the test session data
-        let message_map = {
+        let mut message_map = {
             // Make the test sequential session
-            let session_context =
+            let (session_context, mut messages) =
                 test_session_context_builder::make_test_session_context_builder_sequential(
                     "session_1",
                     2,
@@ -133,7 +133,8 @@ mod tests {
                 .build_with_tables()?;
 
             // Mimic a session run for 1 steps
-            let messages = test_task::make_test_input_message(
+            let mut messages = messages.take().unwrap();
+            messages.extend(test_task::make_test_input_message(
                 "task_1",
                 "session_1",
                 "state_1",
@@ -142,7 +143,7 @@ mod tests {
                     subject_name: "state_1".to_string(),
                 },
                 true,
-            )?;
+            )?);
             let session_context_arc = Arc::new(session_context);
             let session_stream = SessionStream::new(messages, Arc::clone(&session_context_arc));
             let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
@@ -170,6 +171,7 @@ mod tests {
                 .build()?;
             create_message_map(vec![subjects_change_log_message])
         };
+        message_map.extend(session_messages.unwrap_or_default());
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));

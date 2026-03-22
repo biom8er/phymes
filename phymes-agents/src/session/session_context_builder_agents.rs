@@ -33,7 +33,7 @@ pub trait SessionContextBuilderAgentsTrait {
     fn build_inner_with_tables(self) -> Result<SessionContextInput>;
 
     /// Build the [SessionContext] objects along with the [SessionContext] schema tables
-    fn build_with_tables(self) -> Result<SessionContext>
+    fn build_with_tables(self) -> Result<(SessionContext, Option<IPCMessageMap>)>
     where
         Self: Sized;
 
@@ -107,7 +107,7 @@ pub trait SessionContextBuilderAgentsTrait {
 }
 
 impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
-    fn build_with_tables(self) -> Result<SessionContext> {
+    fn build_with_tables(self) -> Result<(SessionContext, Option<IPCMessageMap>)> {
         // Check that we can build
         self.check_tasks()?;
         self.check_processors()?;
@@ -128,21 +128,21 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     .with_subject(s.get_name())
                     .with_update(&Publication::Extend { subject_name:s.get_name().to_string() })
                     .with_message(s.to_ipc_stream()?)
-                    .make_random_name()?
+                    .make_name()?
                     .build()?;
                 Ok((subject_name, message))
             })
             .collect();
 
         // ready to build the session
-        Ok(SessionContext::new(
+        let session_context = SessionContext::new(
             name,
             tasks,
             schemas,
             runtime_env,
             diagnostics,
-            Some(messages?)
-        ))
+        );
+        Ok((session_context, Some(messages?)))
     }
 
     fn build_inner_with_tables(self) -> Result<SessionContextInput> {
@@ -1355,7 +1355,7 @@ mod tests {
 
     #[test]
     fn test_session_context_builder_agents_build_with_tables_success() -> Result<()> {
-        let session =
+        let (session, messages) =
             test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
                 .build_with_tables()?;
         assert_eq!(session.subjects().len(), 18);
@@ -1363,12 +1363,14 @@ mod tests {
         assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_steps(), 25);
         assert!(session.get_diagnostics());
+        let keys = messages.unwrap().keys().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert_eq!(keys, [""]);
         Ok(())
     }
 
     #[test]
     fn test_session_context_builder_agents_build_with_tables_add_session_interface() -> Result<()> {
-        let session =
+        let (session, messages) =
             test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
                 .add_session_interface(Some(&["state_1"]))?
                 .build_with_tables()?;
@@ -1390,6 +1392,8 @@ mod tests {
         assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_steps(), 25);
         assert!(session.get_diagnostics());
+        let keys = messages.unwrap().keys().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert_eq!(keys, [""]);
         Ok(())
     }
 
@@ -1473,7 +1477,7 @@ mod tests {
                 )
                 .build()?,
         );
-        let session = SessionContextBuilder::new()
+        let (session, messages) = SessionContextBuilder::new()
             .with_name("session_1")
             .with_tasks(task_plans)
             .with_processors(processor_plans)
@@ -1486,6 +1490,8 @@ mod tests {
         assert_eq!(session.tasks().len(), 4);
         assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_steps(), 25);
+        let keys = messages.unwrap().keys().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert_eq!(keys, [""]);
         Ok(())
     }
 

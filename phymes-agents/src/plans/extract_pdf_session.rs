@@ -107,7 +107,7 @@ mod tests {
     async fn test_extract_pdf_session() -> Result<()> {
         // Initialize the session
         let extract_pdf_session = ExtractPDFSession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             extract_pdf_session.as_mermaid_flowchart(),
             false,
         )?
@@ -145,7 +145,8 @@ mod tests {
             .with_publisher(extract_pdf_session.session_context_name)
             .make_name()?
             .build()?;
-        let message_map = create_message_map(vec![blob_message]);
+        let mut message_map = create_message_map(vec![blob_message]);
+        message_map.extend(session_messages.unwrap_or_default());
 
         // Run the first superstep
         let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map)

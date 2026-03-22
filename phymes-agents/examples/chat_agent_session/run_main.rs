@@ -26,7 +26,7 @@ pub async fn run_main() -> Result<()> {
         chat_api_url: Some("http://0.0.0.0:8000/v1"),
         ..Default::default()
     };
-    let session_ctx = chat_agent_session
+    let (session_ctx, session_messages) = chat_agent_session
         .build()
         .with_name(chat_agent_session.session_context_name)
         .add_session_interface(None)?

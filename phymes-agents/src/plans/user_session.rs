@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription, create_user_batch, create_user_session_contexts_batch
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription, create_user_batch, create_user_session_contexts_batch
 };
 use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator};
 use phymes_diagnostics::create_timestamp_micros;
@@ -302,7 +302,6 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
 #[allow(dead_code)]
 pub(crate) mod user_session_inner {
     use anyhow::Result;
-    use parking_lot::RwLock;
     use phymes_core::{
         BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait, SubjectTrait,
         create_user_inbox_batch,
@@ -318,7 +317,7 @@ pub(crate) mod user_session_inner {
     pub fn user_session() -> Result<(Arc<SessionContext>, SessionStream)> {
         // initialize the session
         let user_agent_session = UserSession::default();
-        let session_ctx = user_agent_session
+        let (session_ctx, session_messages) = user_agent_session
             .build()
             .with_name(user_agent_session.session_context_name)
             .with_diagnostics(true)
@@ -342,7 +341,8 @@ pub(crate) mod user_session_inner {
             .with_publisher(user_agent_session.session_context_name)
             .make_name()?
             .build()?;
-        let message_map = create_message_map(vec![message]);
+        let mut message_map = create_message_map(vec![message]);
+        message_map.extend(session_messages.unwrap_or_default());
 
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
 
@@ -357,6 +357,8 @@ mod tests {
     use phymes_core::{IPCMessage, SubjectTrait};
     use phymes_diagnostics::HashMap;
 
+    use crate::SubscriptionTrait;
+
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
@@ -365,66 +367,62 @@ mod tests {
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
         assert!(response.is_empty());
 
-        {
-            // Check the User subject
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get(AvailableSubjects::User.to_string().as_str())
-                .unwrap()
-                .read();
-            // println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            let column = table_reading.get_column_as_vec_str("email");
-            assert_eq!(column, ["contact@biom8er.com"]);
-            let column = table_reading.get_column_as_vec_str("first_name");
-            assert_eq!(column, ["con"]);
-            let column = table_reading.get_column_as_vec_str("last_name");
-            assert_eq!(column, ["tact"]);
-            let column = table_reading.get_column_as_vec_str("password_hash");
-            assert_eq!(column.len(), 1);
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-            for c in column {
-                assert!(c > 0);
-            }
+        // Check the User subject
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::User.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::User.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        let column = subject.get_column_as_vec_str("email");
+        assert_eq!(column, ["contact@biom8er.com"]);
+        let column = subject.get_column_as_vec_str("first_name");
+        assert_eq!(column, ["con"]);
+        let column = subject.get_column_as_vec_str("last_name");
+        assert_eq!(column, ["tact"]);
+        let column = subject.get_column_as_vec_str("password_hash");
+        assert_eq!(column.len(), 1);
+        let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+        for c in column {
+            assert!(c > 0);
         }
-
-        {
-            // Check the Join subject
-            let session_reading = session_ctx_arc.read();
-            let table_reading = session_reading
-                .subjects()
-                .get(
-                    AvailableSubjects::JoinUserInboxSessionContextsMermaid
-                        .to_string()
-                        .as_str(),
-                )
-                .unwrap()
-                .read();
-            // println!("{}", String::from_utf8(table_reading.to_csv(b',', true)?)?);
-            let column = table_reading.get_column_as_vec_str("email");
-            assert_eq!(
-                column,
-                [
-                    "contact@biom8er.com",
-                    "contact@biom8er.com",
-                    "contact@biom8er.com",
-                    "contact@biom8er.com"
-                ]
-            );
-            let column = table_reading.get_column_as_vec_str("session_context_name");
-            assert_eq!(column, ["Builder", "Chat", "DocChat", "ToolChat"]);
-            let column = table_reading.get_column_as_vec_str("er_diagram");
-            for c in column {
-                assert!(!c.is_empty());
-            }
-            let column = table_reading.get_column_as_vec_str("flowchart_diagram");
-            for c in column {
-                assert!(!c.is_empty());
-            }
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
-            for c in column {
-                assert!(c > 0);
-            }
+        
+        // Check the Join subject
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        let column = subject.get_column_as_vec_str("email");
+        assert_eq!(
+            column,
+            [
+                "contact@biom8er.com",
+                "contact@biom8er.com",
+                "contact@biom8er.com",
+                "contact@biom8er.com"
+            ]
+        );
+        let column = subject.get_column_as_vec_str("session_context_name");
+        assert_eq!(column, ["Builder", "Chat", "DocChat", "ToolChat"]);
+        let column = subject.get_column_as_vec_str("er_diagram");
+        for c in column {
+            assert!(!c.is_empty());
+        }
+        let column = subject.get_column_as_vec_str("flowchart_diagram");
+        for c in column {
+            assert!(!c.is_empty());
+        }
+        let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
+        for c in column {
+            assert!(c > 0);
         }
 
         Ok(())

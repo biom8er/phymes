@@ -1066,7 +1066,7 @@ mod tests {
             doc_rag_session.chat_api_url = Some("http://0.0.0.0:8000/v1");
             doc_rag_session.embed_api_url = Some("http://0.0.0.0:8001/v1");
         }
-        let session_ctx = doc_rag_session
+        let (session_ctx, session_messages) = doc_rag_session
             .build()
             .with_name(doc_rag_session.session_context_name)
             .add_session_interface(None)?
@@ -1123,7 +1123,8 @@ mod tests {
         )) {
             // ----- Query #1 -----
             // Embed the documents
-            let message_map = create_message_map(vec![blob_message]);
+            let mut message_map = create_message_map(vec![blob_message]);
+            message_map.extend(session_messages.unwrap_or_default());
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 

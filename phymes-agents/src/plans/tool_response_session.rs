@@ -110,18 +110,13 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage,
-        MappableTrait, MessageBuilderTrait, Publication, SubjectTrait,
-        create_bytes_record_batch,
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription, create_bytes_record_batch
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
-        create_message_map,
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map
     };
 
     use super::*;
@@ -132,7 +127,7 @@ mod tests {
         let tool_response_session = ToolResponseSession::default();
         dbg!(&tool_response_session.as_mermaid_flowchart());
         dbg!(&tool_response_session.as_mermaid_erdiagram());
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             &tool_response_session.as_mermaid_flowchart(),
             false,
         )?
@@ -150,7 +145,7 @@ mod tests {
         let session_ctx_arc = Arc::new(session_ctx);
 
         // Replace the Bytes to trigger the session
-        let message_map = {
+        let mut message_map = {
             let batch = create_bytes_record_batch(vec!["{}".into()])?;
             let table = AvailableSubjects::Bytes.to_subject(None, Some(vec![batch]))?;
             let session_tasks_message = IPCMessage::get_builder()
@@ -164,6 +159,7 @@ mod tests {
                 .build()?;
             create_message_map(vec![session_tasks_message])
         };
+        message_map.extend(session_messages.unwrap_or_default());
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
@@ -173,22 +169,20 @@ mod tests {
 
         {
             // Test
-            let session_reading = session_ctx_arc.read();
-
-            let table_reading = session_reading
-                .subjects()
-                .get(
-                    AvailableInterfaceSubjects::ToolMessages
-                        .to_string()
-                        .as_str(),
-                )
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::ToolMessages.to_string() }
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
-                .read();
-            let column = table_reading.get_column_as_vec_str("role");
+                .try_collect()
+                .await?;
+            let subject = Subject::get_builder()
+                .with_name(AvailableInterfaceSubjects::ToolMessages.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            let column = subject.get_column_as_vec_str("role");
             assert_eq!(column, ["tool"]);
-            let column = table_reading.get_column_as_vec_str("content");
+            let column = subject.get_column_as_vec_str("content");
             assert_eq!(column, ["[{\"bytes\":[123,125]}]"]);
-            let column = table_reading.get_column_as_vec_primitive::<i64>("timestamp")?;
+            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
             for c in column {
                 assert!(c > 0);
             }

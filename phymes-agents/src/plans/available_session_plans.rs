@@ -2,8 +2,7 @@ use std::{fmt::Display, sync::Arc};
 
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
-use parking_lot::RwLock;
-use phymes_core::BuilderTrait;
+use phymes_core::{BuilderTrait, IPCMessageMap};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -93,10 +92,10 @@ impl AvailableSessionPlans {
     }
 
     /// Get the session stream state
-    pub fn get_session_stream_state(&self, session_name: &str) -> Arc<SessionContext> {
+    pub fn get_session_stream_state(&self, session_name: &str) -> (Arc<SessionContext>, Option<IPCMessageMap>) {
         // Initialize the session
         let builder = self.get_session_context_builder(session_name);
-        let session_ctx = builder
+        let (session_ctx, message) = builder
             .with_name(session_name)
             .with_diagnostics(true)
             .add_session_interface(None)
@@ -107,14 +106,14 @@ impl AvailableSessionPlans {
             .unwrap()
             .build_with_tables()
             .unwrap();
-        Arc::new(session_ctx)
+        (Arc::new(session_ctx), message)
     }
 
     /// Get the session stream state by name
     pub fn get_session_stream_state_by_name(
         session_plan_name: &str,
         session_name: &str,
-    ) -> Result<Arc<SessionContext>> {
+    ) -> Result<(Arc<SessionContext>, Option<IPCMessageMap>)> {
         if session_plan_name == Self::Chat.to_string() {
             Ok(Self::Chat.get_session_stream_state(session_name))
         } else if session_plan_name == Self::DocChat.to_string() {

@@ -28,7 +28,7 @@ pub async fn run_main() -> Result<()> {
         doc_rag_session.chat_api_url = Some("http://0.0.0.0:8000/v1");
         doc_rag_session.embed_api_url = Some("http://0.0.0.0:8001/v1");
     }
-    let session_ctx = doc_rag_session
+    let (session_ctx, session_messages) = doc_rag_session
         .build()
         .with_name(doc_rag_session.session_context_name)
         .add_session_interface(None)?

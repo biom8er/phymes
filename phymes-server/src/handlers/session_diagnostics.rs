@@ -230,7 +230,7 @@ pub async fn session_diagnostics(
             };
 
             // Make the diagnostics session stream
-            let session_ctx = diagnostic_session
+            let (session_ctx, session_messages) = diagnostic_session
                 .build()
                 .with_name(diagnostic_session.session_context_name)
                 .with_diagnostics(true) // Debugging

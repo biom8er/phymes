@@ -288,7 +288,7 @@ mod tests {
             subject_name_o,
             &CommandSandboxEnvironments::Rust,
         );
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             &execute_workspace_session.as_mermaid_flowchart(),
             false,
         )?
@@ -425,7 +425,7 @@ mod tests {
             subject_name_o,
             &CommandSandboxEnvironments::Python,
         );
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             &execute_workspace_session.as_mermaid_flowchart(),
             false,
         )?

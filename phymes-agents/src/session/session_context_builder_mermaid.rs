@@ -12,7 +12,7 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubscribeEvents, BuildableTrait, BuilderTrait, MappableTrait, ProcessorBuilder, ProcessorPlanBuilder, Publication, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectScript, SubjectTrait, Subscription, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type
+    AvailableSubscribeEvents, BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, ProcessorBuilder, ProcessorPlanBuilder, Publication, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectScript, SubjectTrait, Subscription, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type
 };
 use phymes_data::{MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE};
 use phymes_diagnostics::{HashMap, HashSet};
@@ -1379,7 +1379,7 @@ impl SessionContextBuilderMermaid {
 }
 
 impl BuilderTrait for SessionContextBuilderMermaid {
-    type T = SessionContext;
+    type T = (SessionContext, Option<IPCMessageMap>);
     fn new() -> Self {
         Self {
             name: None,

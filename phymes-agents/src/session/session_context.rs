@@ -3,7 +3,7 @@ use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use clap::ValueEnum;
 use futures::{StreamExt, TryStreamExt};
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ObjectStorageBackend, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, create_subjects_object_store_meta_batch, from_diagnostics_to_tables, make_store
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, create_subjects_object_store_meta_batch, from_diagnostics_to_tables, make_store
 };
 use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
 use std::sync::Arc;
@@ -28,8 +28,6 @@ pub struct SessionContext {
     pub(crate) runtime_env: Arc<RuntimeEnv>,
     /// Whether to gather diagnostic information or not
     pub(crate) diagnostics: bool,
-    /// Optional messages to initialize the session with
-    pub(crate) messages: Option<IPCMessageMap>,
 }
 
 impl Default for SessionContext {
@@ -40,7 +38,6 @@ impl Default for SessionContext {
             subjects: Default::default(), 
             runtime_env: Default::default(), 
             diagnostics: Default::default(), 
-            messages: Default::default(),
         }
     }
 }
@@ -52,7 +49,6 @@ impl SessionContext {
         subjects: HashMap<String, SchemaRef>,
         runtime_env: Arc<RuntimeEnv>,
         diagnostics: bool,
-        messages: Option<IPCMessageMap>,
     ) -> SessionContext {
         Self {
             name,
@@ -60,7 +56,6 @@ impl SessionContext {
             subjects,
             runtime_env,
             diagnostics,
-            messages
         }
     }
 
@@ -891,7 +886,7 @@ mod tests {
 
     #[test]
     fn test_session_get_subject_name_by_schema() -> Result<()> {
-        let session_context =
+        let (session_context, _messages) =
             test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?.build()?;
 
         // table should be found
@@ -908,7 +903,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_update_subject_num_rows_subject() -> Result<()> {
-        let mut session_context =
+        let (mut session_context, _messages) =
             test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?.build()?;
         session_context.update_subject_num_rows();
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
@@ -957,7 +952,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_update_subjects_from_messages() -> Result<()> {
         // Case 1: no state update
-        let session_context =
+        let (session_context, messages) =
             test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?.build()?;
         let input = test_task::make_test_input_message(
             "task_1",
@@ -1255,7 +1250,6 @@ mod tests {
             schemas,
             runtime_env,
             true,
-            None
         );
 
         // Run and check the updated state
@@ -1465,7 +1459,6 @@ mod tests {
             schemas,
             runtime_env,
             true,
-            None
         );
 
         // Run and check the updated state
@@ -1596,7 +1589,6 @@ mod tests {
             schemas,
             runtime_env,
             true,
-            None
         );
 
         // Run and check the updated state
@@ -1754,7 +1746,6 @@ mod tests {
             schemas,
             runtime_env,
             true,
-            None
         );
 
         // Run and check the updated state

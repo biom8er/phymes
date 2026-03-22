@@ -332,9 +332,8 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_tools_record_batch
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait, Subscription, create_tools_record_batch
     };
     use phymes_data::{AvailableCandleOperators, ToolTrait};
     use phymes_diagnostics::HashMap;
@@ -349,7 +348,7 @@ mod tests {
     async fn test_generate_text_session_no_tools() -> Result<()> {
         // Initialize the session
         let generate_text_session = GenerateTextSession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
@@ -380,7 +379,8 @@ mod tests {
             .make_name()?
             .build()?;
 
-        let message_map = create_message_map(vec![chat_message]);
+        let mut message_map = create_message_map(vec![chat_message]);
+        message_map.extend(session_messages.unwrap_or_default());
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -515,7 +515,7 @@ mod tests {
             )),
             None,
         );
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let mut session_ctx_builder = SessionContextBuilder::from_mermaid_flowchart(
             &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
@@ -528,31 +528,28 @@ mod tests {
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
-        .add_next_supersteps()?
-        .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        .add_next_supersteps()?;
 
         // Add the target tool subjects to the session for testing
-        let _ = session_ctx_arc.write().subjects.insert(
-            AvailableCandleOperators::Sort.to_string(),
-            Arc::new(RwLock::new(AvailableSubjects::Bytes.to_subject(
+        let mut subjects = session_ctx_builder.subjects.take().unwrap();
+        let tool = AvailableSubjects::Bytes.to_subject(
                 Some(AvailableCandleOperators::Sort.to_string().as_str()),
                 None,
-            )?)),
-        );
-        let _ = session_ctx_arc.write().subjects.insert(
-            AvailableCandleOperators::HumanInTheLoop.to_string(),
-            Arc::new(RwLock::new(
-                AvailableSubjects::Bytes.to_subject(
-                    Some(
-                        AvailableCandleOperators::HumanInTheLoop
-                            .to_string()
-                            .as_str(),
-                    ),
-                    None,
-                )?,
-            )),
-        );
+            )?;
+        subjects.push(SubjectPlan::get_builder()
+            .with_subject(tool)
+            .build()?);
+        let tool = AvailableSubjects::Bytes.to_subject(
+                Some(AvailableCandleOperators::HumanInTheLoop.to_string().as_str()),
+                None,
+            )?;
+        subjects.push(SubjectPlan::get_builder()
+            .with_subject(tool)
+            .build()?);
+        let (session_ctx, session_messages) = session_ctx_builder
+            .with_subjects(subjects)
+            .build_with_tables()?;
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Tools data
         let tool_ids = vec![
@@ -592,7 +589,8 @@ mod tests {
             .make_name()?
             .build()?;
 
-        let message_map = create_message_map(vec![tool_message, chat_message]);
+        let mut message_map = create_message_map(vec![tool_message, chat_message]);
+        message_map.extend(session_messages.unwrap_or_default());
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -604,59 +602,39 @@ mod tests {
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-            {
-                // Debug any errors
-                let subjects_reading = session_ctx_arc.read();
-                let subject = subjects_reading
-                    .subjects()
-                    .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                    .unwrap()
-                    .read();
-                println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
-                let subjects_reading = session_ctx_arc.read();
-                let subject = subjects_reading
-                    .subjects()
-                    .get(AvailableSubjects::SessionTraces.to_string().as_str())
-                    .unwrap()
-                    .read();
-                println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
-            }
-
             assert_eq!(response.len(), 0);
 
             {
                 // Test supsersteps
-                let session_reading = session_ctx_arc.read();
-                let subject = session_reading
-                    .subjects()
-                    .get(
-                        AvailableInterfaceSubjects::AssistantMessages
-                            .to_string()
-                            .as_str(),
-                    )
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
-                println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableInterfaceSubjects::AssistantMessages.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
                 assert_eq!(subject.count_rows(), 0);
-                let subject = session_reading
-                    .subjects()
-                    .get(
-                        AvailableInterfaceSubjects::ToolMessages
-                            .to_string()
-                            .as_str(),
-                    )
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::ToolMessages.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableInterfaceSubjects::ToolMessages.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
                 assert_eq!(subject.count_rows(), 0);
-                let subject = session_reading
-                    .subjects()
-                    .get(
-                        AvailableInterfaceSubjects::AggregatedMessages
-                            .to_string()
-                            .as_str(),
-                    )
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableInterfaceSubjects::AggregatedMessages.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
                 assert_eq!(subject.count_rows(), 1);
                 let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
@@ -669,11 +647,15 @@ mod tests {
                 for t in column {
                     assert!(t > 0);
                 }
-                let subject = session_reading
-                    .subjects()
-                    .get("aggregate_messages_generate_text_s")
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "aggregate_messages_generate_text_s".to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name("aggregate_messages_generate_text_s")
+                    .with_record_batches(batches)?
+                    .build()?;
                 assert_eq!(subject.count_rows(), 1);
                 let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
@@ -686,11 +668,15 @@ mod tests {
                 for t in column {
                     assert!(t > 0);
                 }
-                let subject = session_reading
-                    .subjects()
-                    .get("generate_text_inference_s")
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "generate_text_inference_s".to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name("generate_text_inference_s")
+                    .with_record_batches(batches)?
+                    .build()?;
                 assert!(subject.count_rows() > 1);
                 let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"assistant");
@@ -699,21 +685,25 @@ mod tests {
                 for t in column {
                     assert!(t > 0);
                 }
-                let subject = session_reading
-                    .subjects()
-                    .get(
-                        AvailableCandleOperators::HumanInTheLoop
-                            .to_string()
-                            .as_str(),
-                    )
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableCandleOperators::HumanInTheLoop.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableCandleOperators::HumanInTheLoop.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
                 assert_eq!(subject.count_rows(), 0);
-                let subject = session_reading
-                    .subjects()
-                    .get(AvailableCandleOperators::Sort.to_string().as_str())
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableCandleOperators::HumanInTheLoop.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableCandleOperators::Sort.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
                 assert_eq!(subject.count_rows(), 1);
                 let column = subject
                     .get_column_as_vec_nested_primitive::<u8>("bytes")?
@@ -733,7 +723,7 @@ mod tests {
     async fn test_generate_text_session_tool_response() -> Result<()> {
         // Initialize the session
         let generate_text_session = GenerateTextSession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let mut session_ctx_builder = SessionContextBuilder::from_mermaid_flowchart(
             &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
@@ -746,31 +736,28 @@ mod tests {
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
-        .add_next_supersteps()?
-        .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        .add_next_supersteps()?;
 
         // Add the target tool subjects to the session for testing
-        let _ = session_ctx_arc.write().subjects.insert(
-            AvailableCandleOperators::Sort.to_string(),
-            Arc::new(RwLock::new(AvailableSubjects::Bytes.to_subject(
+        let mut subjects = session_ctx_builder.subjects.take().unwrap();
+        let tool = AvailableSubjects::Bytes.to_subject(
                 Some(AvailableCandleOperators::Sort.to_string().as_str()),
                 None,
-            )?)),
-        );
-        let _ = session_ctx_arc.write().subjects.insert(
-            AvailableCandleOperators::HumanInTheLoop.to_string(),
-            Arc::new(RwLock::new(
-                AvailableSubjects::Bytes.to_subject(
-                    Some(
-                        AvailableCandleOperators::HumanInTheLoop
-                            .to_string()
-                            .as_str(),
-                    ),
-                    None,
-                )?,
-            )),
-        );
+            )?;
+        subjects.push(SubjectPlan::get_builder()
+            .with_subject(tool)
+            .build()?);
+        let tool = AvailableSubjects::Bytes.to_subject(
+                Some(AvailableCandleOperators::HumanInTheLoop.to_string().as_str()),
+                None,
+            )?;
+        subjects.push(SubjectPlan::get_builder()
+            .with_subject(tool)
+            .build()?);
+        let (session_ctx, session_messages) = session_ctx_builder
+            .with_subjects(subjects)
+            .build_with_tables()?;
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Tools data
         let tool_ids = vec![
@@ -824,7 +811,8 @@ mod tests {
             .make_name()?
             .build()?;
 
-        let message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
+        let mut message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
+        message_map.extend(session_messages.unwrap_or_default());
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -836,31 +824,19 @@ mod tests {
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-            // {
-            //     // Debug any errors
-            //     let subjects_reading = session_ctx_arc.read();
-            //     let subject = subjects_reading
-            //         .get_states()
-            //         .get(AvailableSubjects::SessionErrors.to_string().as_str())
-            //         .unwrap()
-            //         .read();
-            //     println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
-            // }
-
             assert_eq!(response.len(), 0);
 
             {
                 // Test supsersteps
-                let session_reading = session_ctx_arc.read();
-                let subject = session_reading
-                    .subjects()
-                    .get(
-                        AvailableInterfaceSubjects::AssistantMessages
-                            .to_string()
-                            .as_str(),
-                    )
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableInterfaceSubjects::AssistantMessages.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
                 assert_eq!(subject.count_rows(), 1);
                 let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"assistant");
@@ -870,15 +846,15 @@ mod tests {
                 for t in column {
                     assert!(t > 0);
                 }
-                let subject = session_reading
-                    .subjects()
-                    .get(
-                        AvailableInterfaceSubjects::AggregatedMessages
-                            .to_string()
-                            .as_str(),
-                    )
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableInterfaceSubjects::AggregatedMessages.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
                 assert_eq!(subject.count_rows(), 2);
                 let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
@@ -893,11 +869,15 @@ mod tests {
                 for t in column {
                     assert!(t > 0);
                 }
-                let subject = session_reading
-                    .subjects()
-                    .get("aggregate_messages_generate_text_s")
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "aggregate_messages_generate_text_s".to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name("aggregate_messages_generate_text_s")
+                    .with_record_batches(batches)?
+                    .build()?;
                 assert_eq!(subject.count_rows(), 2);
                 let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
@@ -915,11 +895,15 @@ mod tests {
                 for t in column {
                     assert!(t > 0);
                 }
-                let subject = session_reading
-                    .subjects()
-                    .get("generate_text_inference_s")
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "aggregate_messages_gengenerate_text_inference_serate_text_s".to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name("generate_text_inference_s")
+                    .with_record_batches(batches)?
+                    .build()?;
                 assert!(subject.count_rows() > 1);
                 let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"assistant");
@@ -928,21 +912,25 @@ mod tests {
                 for t in column {
                     assert!(t > 0);
                 }
-                let subject = session_reading
-                    .subjects()
-                    .get(AvailableCandleOperators::Sort.to_string().as_str())
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableCandleOperators::Sort.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableCandleOperators::Sort.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
                 assert_eq!(subject.count_rows(), 0);
-                let subject = session_reading
-                    .subjects()
-                    .get(
-                        AvailableCandleOperators::HumanInTheLoop
-                            .to_string()
-                            .as_str(),
-                    )
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableCandleOperators::HumanInTheLoop.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableCandleOperators::HumanInTheLoop.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
                 assert_eq!(subject.count_rows(), 0);
             }
         }
@@ -974,7 +962,7 @@ mod tests {
             )),
             None,
         );
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let mut session_ctx_builder = SessionContextBuilder::from_mermaid_flowchart(
             &generate_text_session.as_mermaid_flowchart(),
             false,
         )?
@@ -987,31 +975,28 @@ mod tests {
         .add_processor_subjects()?
         .with_diagnostics(true)
         .add_next_tasks()?
-        .add_next_supersteps()?
-        .build_with_tables()?;
-        let session_ctx_arc = Arc::new(session_ctx);
+        .add_next_supersteps()?;
 
         // Add the target tool subjects to the session for testing
-        let _ = session_ctx_arc.write().subjects.insert(
-            AvailableCandleOperators::Sort.to_string(),
-            Arc::new(RwLock::new(AvailableSubjects::Bytes.to_subject(
+        let mut subjects = session_ctx_builder.subjects.take().unwrap();
+        let tool = AvailableSubjects::Bytes.to_subject(
                 Some(AvailableCandleOperators::Sort.to_string().as_str()),
                 None,
-            )?)),
-        );
-        let _ = session_ctx_arc.write().subjects.insert(
-            AvailableCandleOperators::HumanInTheLoop.to_string(),
-            Arc::new(RwLock::new(
-                AvailableSubjects::Bytes.to_subject(
-                    Some(
-                        AvailableCandleOperators::HumanInTheLoop
-                            .to_string()
-                            .as_str(),
-                    ),
-                    None,
-                )?,
-            )),
-        );
+            )?;
+        subjects.push(SubjectPlan::get_builder()
+            .with_subject(tool)
+            .build()?);
+        let tool = AvailableSubjects::Bytes.to_subject(
+                Some(AvailableCandleOperators::HumanInTheLoop.to_string().as_str()),
+                None,
+            )?;
+        subjects.push(SubjectPlan::get_builder()
+            .with_subject(tool)
+            .build()?);
+        let (session_ctx, session_messages) = session_ctx_builder
+            .with_subjects(subjects)
+            .build_with_tables()?;
+        let session_ctx_arc = Arc::new(session_ctx);
 
         // Tools data
         let tool_ids = vec![
@@ -1065,7 +1050,8 @@ mod tests {
             .make_name()?
             .build()?;
 
-        let message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
+        let mut message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
+        message_map.extend(session_messages.unwrap_or_default());
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -1077,31 +1063,19 @@ mod tests {
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-            {
-                // Debug any errors
-                let subjects_reading = session_ctx_arc.read();
-                let subject = subjects_reading
-                    .subjects()
-                    .get(AvailableSubjects::SessionErrors.to_string().as_str())
-                    .unwrap()
-                    .read();
-                println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
-            }
-
             assert_eq!(response.len(), 0);
 
             {
                 // Test supsersteps
-                let session_reading = session_ctx_arc.read();
-                let subject = session_reading
-                    .subjects()
-                    .get(
-                        AvailableInterfaceSubjects::AssistantMessages
-                            .to_string()
-                            .as_str(),
-                    )
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableInterfaceSubjects::AssistantMessages.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
                 println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
                 assert_eq!(subject.count_rows(), 1);
                 let column = subject.get_column_as_vec_str("role");
@@ -1116,15 +1090,15 @@ mod tests {
                 for t in column {
                     assert!(t > 0);
                 }
-                let subject = session_reading
-                    .subjects()
-                    .get(
-                        AvailableInterfaceSubjects::AggregatedMessages
-                            .to_string()
-                            .as_str(),
-                    )
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableInterfaceSubjects::AggregatedMessages.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
                 assert_eq!(subject.count_rows(), 2);
                 let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
@@ -1139,11 +1113,15 @@ mod tests {
                 for t in column {
                     assert!(t > 0);
                 }
-                let subject = session_reading
-                    .subjects()
-                    .get("aggregate_messages_generate_text_s")
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "aggregate_messages_generate_text_s".to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name("aggregate_messages_generate_text_s")
+                    .with_record_batches(batches)?
+                    .build()?;
                 assert_eq!(subject.count_rows(), 2);
                 let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"user");
@@ -1161,11 +1139,15 @@ mod tests {
                 for t in column {
                     assert!(t > 0);
                 }
-                let subject = session_reading
-                    .subjects()
-                    .get("generate_text_inference_s")
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "generate_text_inference_s".to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name("generate_text_inference_s")
+                    .with_record_batches(batches)?
+                    .build()?;
                 assert!(subject.count_rows() > 1);
                 let column = subject.get_column_as_vec_str("role");
                 assert_eq!(column.first().unwrap(), &"assistant");
@@ -1174,21 +1156,25 @@ mod tests {
                 for t in column {
                     assert!(t > 0);
                 }
-                let subject = session_reading
-                    .subjects()
-                    .get(AvailableCandleOperators::Sort.to_string().as_str())
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableCandleOperators::Sort.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableCandleOperators::Sort.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
                 assert_eq!(subject.count_rows(), 0);
-                let subject = session_reading
-                    .subjects()
-                    .get(
-                        AvailableCandleOperators::HumanInTheLoop
-                            .to_string()
-                            .as_str(),
-                    )
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableCandleOperators::HumanInTheLoop.to_string() }
+                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
-                    .read();
+                    .try_collect()
+                    .await?;
+                let subject = Subject::get_builder()
+                    .with_name(AvailableCandleOperators::HumanInTheLoop.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
                 assert_eq!(subject.count_rows(), 0);
                 // assert_eq!(subject.count_rows(), 1);
                 // let column = subject.get_column_as_vec_str("values");

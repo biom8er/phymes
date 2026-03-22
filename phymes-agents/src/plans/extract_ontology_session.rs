@@ -1873,7 +1873,7 @@ mod tests {
     async fn test_extract_ontology_session() -> Result<()> {
         // Initialize the session
         let extract_onto_session = ExtractOntologySession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             extract_onto_session.as_mermaid_flowchart(),
             false,
         )?
@@ -1992,7 +1992,8 @@ mod tests {
             .with_publisher(extract_onto_session.session_context_name)
             .make_name()?
             .build()?;
-        let message_map = create_message_map(vec![owl_message]);
+        let mut message_map = create_message_map(vec![owl_message]);
+        message_map.extend(session_messages.unwrap_or_default());
 
         // Run the first superstep
         let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map)

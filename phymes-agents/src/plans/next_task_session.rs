@@ -877,8 +877,7 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait,
-        Publication, SubjectTrait, Subscription,
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Publication, RuntimeEnv, RuntimeEnvBuilderTrait, SubjectTrait, Subscription
     };
     use phymes_diagnostics::HashMap;
 
@@ -890,25 +889,30 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_next_task_session() -> Result<()> {
+        // Initialize the testing runtime
+        let runtime_env = RuntimeEnv::get_builder()
+            .with_max_steps(1) // DM: prevent continued execution after the final superstep for testing
+            .build_arc()?;
+
         // Initialize the session
         let next_task_session = NextTaskSession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             next_task_session.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(next_task_session.as_mermaid_erdiagram(), false, true)?
         .with_name(next_task_session.session_context_name)
         .with_diagnostics(true)
+        .with_runtime_env(runtime_env)
         .add_processor_subjects()?
         .add_next_supersteps()?
-        .with_max_iter(1) // DM: prevent continued execution after the final superstep for testing
         .build_with_tables()?;
         let session_ctx_arc = Arc::new(session_ctx);
 
         // Make the test session data
         let mut message_map = {
             // Make the test sequential session
-            let session_context =
+            let (session_context, mut messages) =
                 test_session_context_builder::make_test_session_context_builder_sequential(
                     "session_1",
                     4,
@@ -921,7 +925,8 @@ mod tests {
             let session_context_arc = Arc::new(session_context);
 
             // Mimic a superstep update without running the superstep
-            let messages = test_task::make_test_input_message(
+            let mut messages = messages.take().unwrap();
+            messages.extend(test_task::make_test_input_message(
                 "task_1",
                 "session_1",
                 "state_1",
@@ -930,7 +935,7 @@ mod tests {
                     subject_name: "state_1".to_string(),
                 },
                 true,
-            )?;
+            )?);
             let _step = SessionStreamStep::current_superstep(&session_context_arc).await;
             let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(
                 &session_context_arc,
@@ -1026,6 +1031,7 @@ mod tests {
 
         // Run the session
         message_map.extend(tasks_publish_subscribe_messages.pop().unwrap());
+        message_map.extend(session_messages.unwrap_or_default());
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
@@ -1286,7 +1292,7 @@ mod tests {
 
         // 3. Calculate the tasks subscribe
         let _ = tasks_publish_subscribe_messages.pop().unwrap();
-        session_ctx_arc.read().tasks_subscribe()?;
+        let _ = session_ctx_arc.tasks_subscribe().await?;
 
         {
             // Test the tasks subscribe

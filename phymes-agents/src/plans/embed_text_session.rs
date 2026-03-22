@@ -275,7 +275,7 @@ mod tests {
     async fn test_embed_text_session() -> Result<()> {
         // Initialize the session
         let embed_text_session = EmbedTextSession::default();
-        let session_ctx = SessionContextBuilder::from_mermaid_flowchart(
+        let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             &embed_text_session.as_mermaid_flowchart(),
             false,
         )?
@@ -353,7 +353,8 @@ mod tests {
             .with_publisher(embed_text_session.session_context_name)
             .make_name()?
             .build()?;
-        let message_map = create_message_map(vec![chat_message, document_message]);
+        let mut message_map = create_message_map(vec![chat_message, document_message]);
+        message_map.extend(session_messages.unwrap_or_default());
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(

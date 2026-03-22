@@ -23,7 +23,7 @@ use std::sync::Arc;
 pub async fn run_main() -> Result<()> {
     // initialize the session
     let tool_agent_session = ToolAgentSession::default();
-    let session_ctx = tool_agent_session
+    let (session_ctx, session_messages) = tool_agent_session
         .build()
         .with_name(tool_agent_session.session_context_name)
         .add_session_interface(None)?

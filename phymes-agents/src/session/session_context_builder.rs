@@ -285,7 +285,7 @@ impl SessionContextBuilder {
 }
 
 impl BuilderTrait for SessionContextBuilder {
-    type T = SessionContext;
+    type T = (SessionContext, Option<IPCMessageMap>);
     fn new() -> Self {
         Self {
             name: None,
@@ -319,21 +319,21 @@ impl BuilderTrait for SessionContextBuilder {
                     .with_subject(s.get_name())
                     .with_update(&Publication::Extend { subject_name:s.get_name().to_string() })
                     .with_message(s.to_ipc_stream()?)
-                    .make_random_name()?
+                    .make_name()?
                     .build()?;
                 Ok((subject_name, message))
             })
             .collect();            
 
         // ready to build the session
-        Ok(Self::T::new(
+        let session_context = SessionContext::new(
             name,
             tasks,
             schemas,
             runtime_env,
             diagnostics,
-            Some(messages?)
-        ))
+        );
+        Ok((session_context, Some(messages?)))
     }
 }
 
@@ -852,13 +852,15 @@ mod tests {
 
     #[test]
     fn test_session_context_builder_build_success() -> Result<()> {
-        let session = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?
+        let (session, messages) = test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?
         .with_diagnostics(true)
         .build()?;
         assert_eq!(session.runtime_env.name, "rt_1");
         assert_eq!(session.tasks().len(), 3);
         assert_eq!(session.get_name(), "session_1");
         assert!(session.get_diagnostics());
+        let keys = messages.unwrap().keys().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert_eq!(keys, [""]);
         Ok(())
     }
 

@@ -80,7 +80,7 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 };
 
                 // Create the session stream state
-                let session_ctx = config
+                let (session_ctx, session_messages) = config
                     .build()
                     .with_name(session_context_name.as_str())
                     .add_session_interface(None)
