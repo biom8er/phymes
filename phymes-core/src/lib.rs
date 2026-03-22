@@ -1,5 +1,5 @@
 mod data;
-mod Index; // DM: change back to lower case after restart...
+mod Index;
 mod message;
 mod patch;
 mod processor;

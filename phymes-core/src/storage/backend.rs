@@ -8,8 +8,9 @@ use object_store::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use std::{fmt::Display, sync::Arc, str::FromStr};
-
+use std::{fmt::Display, sync::Arc};
+#[cfg(feature = "api")]
+use std::str::FromStr;
 
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default, PartialEq)]
 pub enum ObjectStorageBackend {

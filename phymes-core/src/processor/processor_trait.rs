@@ -100,7 +100,6 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     /// # use anyhow::Result;
     /// # use phymes_core::SendableRecordBatchStream;
     /// # use phymes_core::RecordBatchStreamAdapter;
-    /// # use phymes_core::StateMap;
     ///
     /// struct MyProcessor {
     ///     batch: RecordBatch,
@@ -128,7 +127,6 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     /// # use anyhow::Result;
     /// # use phymes_core::SendableRecordBatchStream;
     /// # use phymes_core::RecordBatchStreamAdapter;
-    /// # use phymes_core::StateMap;
     ///
     /// struct MyProcessor {
     ///     schema: SchemaRef,
@@ -162,7 +160,6 @@ pub trait ProcessorTrait: MappableTrait + Send + Sync + Debug {
     /// # use anyhow::Result;
     /// # use phymes_core::SendableRecordBatchStream;
     /// # use phymes_core::RecordBatchStreamAdapter;
-    /// # use phymes_core::StateMap;
     ///
     /// struct MyProcessor {
     ///     schema: SchemaRef,

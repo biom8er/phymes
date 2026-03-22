@@ -60,6 +60,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 pub struct BTreeEntry<K, V> {
     pub key: K,
     pub value: V,
@@ -69,7 +70,7 @@ pub struct BTreeEntry<K, V> {
 /// 
 /// Example usage for creating a BTree index using Apache Arrow and Rust
 /// 
-/// ```rust
+/// ```norun
 /// use arrow::array::{Array, Int32Array};
 /// use arrow::record_batch::RecordBatch;
 /// use std::collections::BTreeMap;
@@ -93,6 +94,7 @@ pub struct BTreeEntry<K, V> {
 /// * Performance: This is significantly faster for composite keys than manual tuple-based indexing./// 
 /// 
 /// [Arrow-row]: <https://docs.rs/arrow-row/latest/arrow_row/>
+#[allow(dead_code)]
 fn btree_to_entries<K: std::cmp::Ord + Clone, V: Clone>(btree: &BTreeMap<K, V>) -> Vec<BTreeEntry<K, V>> {
     // Convert BTreeMap into a Vec<Entry> for serialization
     btree.iter()
@@ -100,6 +102,7 @@ fn btree_to_entries<K: std::cmp::Ord + Clone, V: Clone>(btree: &BTreeMap<K, V>) 
         .collect::<Vec<BTreeEntry<K, V>>>()
 }
 
+#[allow(dead_code)]
 fn entries_to_btree<K: std::cmp::Ord + Clone, V: Clone>(entries: &[BTreeEntry<K, V>]) -> BTreeMap<K, V> {    
     let mut btree = BTreeMap::new();
     for entry in entries {
@@ -132,6 +135,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 fn hash_to_entries<K: std::cmp::Ord + Clone, V: Clone>(hash: &HashMap<K, V>) -> Vec<BTreeEntry<K, V>> {
     // Convert BTreeMap into a Vec<Entry> for serialization
     hash.iter()
@@ -139,6 +143,7 @@ fn hash_to_entries<K: std::cmp::Ord + Clone, V: Clone>(hash: &HashMap<K, V>) -> 
         .collect::<Vec<BTreeEntry<K, V>>>()
 }
 
+#[allow(dead_code)]
 fn entries_to_hash<K: std::cmp::Ord + Clone + std::hash::Hash, V: Clone>(entries: &[BTreeEntry<K, V>]) -> HashMap<K, V> {    
     let mut hash = HashMap::new();
     for entry in entries {

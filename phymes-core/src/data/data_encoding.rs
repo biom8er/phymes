@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use anyhow::{Result, anyhow};
-use clap::{Parser, ValueEnum};
+use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
 use crate::DataFormat;

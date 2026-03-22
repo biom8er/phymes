@@ -6,7 +6,7 @@ use arrow::{
     datatypes::{DataType, Field, Fields},
 };
 
-use crate::schemas::storage::{create_object_store_meta_fields, create_object_store_meta_fields_vec};
+use crate::schemas::storage::create_object_store_meta_fields_vec;
 
 pub(crate) fn create_subjects_num_rows_fields() -> Fields {
     let field_names = ["subject_name"];

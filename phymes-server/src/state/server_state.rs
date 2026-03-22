@@ -355,7 +355,7 @@ mod tests {
     use phymes_diagnostics::HashSet;
 
     #[cfg(not(target_family = "wasm"))]
-    use phymes_core::{MappableTrait, SubjectTrait};
+    use phymes_core::SubjectTrait;
 
     #[tokio::test]
     async fn test_server_state_update_user_session_contexts() -> Result<()> {

@@ -274,7 +274,7 @@ mod tests {
         let mut stream = result.into_stream();
         let mut read_batches = Vec::new();
         while let Some(bytes) = stream.try_next().await? {
-            let mut reader = IpcReader::new_with_bytes(&bytes, None)?;
+            let mut reader = JsonReader::new_with_bytes(&bytes, 10, Some(schema.clone()))?;
             while let Some(batch) = reader.poll_next_batch()? {
                 read_batches.push(batch);
             }
@@ -316,7 +316,6 @@ mod tests {
             writer.write_batch(batch)?;
         }
         writer.finish_batch()?;
-
         writer.put(&store, &path).await?;
 
         // --- Read ---
@@ -324,7 +323,7 @@ mod tests {
         let mut stream = result.into_stream();
         let mut read_batches = Vec::new();
         while let Some(bytes) = stream.try_next().await? {
-            let mut reader = IpcReader::new_with_bytes(&bytes, None)?;
+            let mut reader = CsvReader::new_with_bytes(&bytes, false, b';', 10, Some(schema.clone()))?;
             while let Some(batch) = reader.poll_next_batch()? {
                 read_batches.push(batch);
             }

@@ -1,18 +1,9 @@
-use std::{fmt::Display, sync::Arc};
+use std::fmt::Display;
 
 use anyhow::{Result, anyhow};
-use arrow::{
-    array::{
-        ArrayRef, Float32Array, Float64Array, Int8Array, Int16Array, Int32Array, Int64Array,
-        RecordBatch, StringArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array,
-    },
-    datatypes::{DataType, Field, Schema},
-};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    BuilderTrait, DataFormat, SubjectBuilder, SubjectBuilderTrait, MappableTrait, Subject, SubjectTrait
-};
+use crate::{DataFormat, MappableTrait};
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Hash, Eq, Default)]
 pub enum Publication {
@@ -192,10 +183,6 @@ impl MappableTrait for Publication {
 
 #[cfg(test)]
 mod tests {
-    use arrow::datatypes::Schema;
-
-    use crate::{create_bytes_record_batch, test_subject::{make_test_subject, make_test_subject_chat}};
-
     use super::*;
 
     #[test]

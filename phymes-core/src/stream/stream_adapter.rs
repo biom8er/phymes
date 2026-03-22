@@ -469,7 +469,7 @@ mod test {
     use crate::stream::{MockExec, PanicExecWrapper};
 
     #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
-    use crate::task::assert_strong_count_converges_to_zero;
+    use crate::stream::assert_strong_count_converges_to_zero;
 
     fn schema() -> SchemaRef {
         Arc::new(Schema::new(vec![Field::new("a", DataType::Float32, true)]))

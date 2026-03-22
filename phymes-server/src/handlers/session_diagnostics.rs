@@ -70,7 +70,7 @@ pub async fn session_diagnostics(
             let diagnostic_session = DiagnosticSession::default();
 
             // Get the diagnostic information from the session stream state
-            let message_map = {
+            let mut message_map = {
                 let session_ctx_arc = match state
                     .session_contexts
                     .try_write()
@@ -258,6 +258,7 @@ pub async fn session_diagnostics(
                 .build_with_tables()
                 .unwrap();
             let session_ctx_arc = Arc::new(session_ctx);
+            message_map.extend(session_messages.unwrap_or_default());
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
 
             // Run and update the session and convert the output to the user specified format

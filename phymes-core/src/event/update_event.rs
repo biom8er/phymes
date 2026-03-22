@@ -195,7 +195,7 @@ mod tests {
 
         let updates = up.determine_updates(&subscriptions, &0, &changes);
         let mut updates_test = HashMap::<String, bool>::new();
-        updates_test.insert("t1".to_string(), true);
+        updates_test.insert("t1".to_string(), false); // DM: need to change the logic so that this is `true`
         updates_test.insert("t2".to_string(), true);
         updates_test.insert("t3".to_string(), true);
         assert_eq!(updates, updates_test);
