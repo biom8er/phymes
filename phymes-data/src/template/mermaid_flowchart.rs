@@ -32,13 +32,13 @@ pub static MERMAID_FLOWCHART_LINKS_TEMPLATE: &str = r#"
 /// # Example
 ///
 /// ```rust
-/// use phymes_core::TableScript;
+/// use phymes_core::SubjectScript;
 /// use phymes_data::MERMAID_GANTT_INPUT;
 /// let inputs = serde_json::json!({
 ///     "direction": "TD",
 /// });
 ///
-/// let input_string = TableScript::new_from_template(MERMAID_GANTT_INPUT.to_string()).apply_template(&inputs).unwrap()
+/// let input_string = SubjectScript::new_from_template(MERMAID_GANTT_INPUT.to_string()).apply_template(&inputs).unwrap()
 ///     .lines()
 ///     .map(|line| line.trim())
 ///     .collect::<Vec<&str>>()

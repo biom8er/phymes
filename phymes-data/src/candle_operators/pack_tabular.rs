@@ -5,7 +5,7 @@ use arrow::array::RecordBatch;
 use candle_core::Device;
 use flate2::{Compression, write::{DeflateEncoder, GzEncoder, ZlibEncoder}};
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType, create_attachments_batch, create_chat_record_batch, make_extension
+    AvailableSubjects, BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType, create_attachments_batch, create_chat_record_batch, create_object_store_batch, make_extension, make_filename
 };
 use phymes_diagnostics::create_timestamp_micros;
 use serde::{Deserialize, Serialize};
@@ -169,24 +169,39 @@ pub fn table_and_data_format_to_record_batch(
                 serde_json::to_string(&table.to_json_object()?)?
             };
             // Wrap into a record batch
-            create_chat_record_batch(
-                vec!["tool".to_string()], // DM: Change when upgrading to Qwen 3 "function"
-                vec![content],
-                vec![create_timestamp_micros()],
-            )
+            match schema {
+                AvailableSubjects::Messages => create_chat_record_batch(
+                    vec!["tool".to_string()], // DM: Change when upgrading to Qwen 3 "function"
+                    vec![content],
+                    vec![create_timestamp_micros()],
+                ),
+                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataForma `{format}`."))
+            }
+            
         }
         DataFormat::Csv(csv_format) => {
             // Convert to CSV and wrap into a blob batch
             let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
             let bytes = encode_bytes(encoding, &bytes)?;
             let extension = make_extension(format, encoding);
-            create_attachments_batch(
-                vec![table.get_name().to_string()],
-                vec![extension],
-                vec![bytes],
-                vec!["assistant".to_string()],
-                vec![create_timestamp_micros()],
-            )
+            let filename = make_filename(table.get_name(), format, encoding);
+            match schema {
+                AvailableSubjects::Attachments => create_attachments_batch(
+                    vec![table.get_name().to_string()],
+                    vec![extension],
+                    vec![bytes],
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                ),
+                AvailableSubjects::ObjectStore => create_object_store_batch(
+                    vec![filename],
+                    vec![table.get_name().to_string()], 
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                    vec![bytes],
+                ),
+                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataForma `{format}`."))
+            }            
         }
         DataFormat::CsvDefault => {
             // Convert to CSV and wrap into a blob batch
@@ -196,39 +211,72 @@ pub fn table_and_data_format_to_record_batch(
             let bytes = table.to_csv(csv_format.delimiter, csv_format.header)?;
             let bytes = encode_bytes(encoding, &bytes)?;
             let extension = make_extension(format, encoding);
-            create_attachments_batch(
-                vec![table.get_name().to_string()],
-                vec![extension],
-                vec![bytes],
-                vec!["assistant".to_string()],
-                vec![create_timestamp_micros()],
-            )
+            let filename = make_filename(table.get_name(), format, encoding);
+            match schema {
+                AvailableSubjects::Attachments => create_attachments_batch(
+                    vec![table.get_name().to_string()],
+                    vec![extension],
+                    vec![bytes],
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                ),
+                AvailableSubjects::ObjectStore => create_object_store_batch(
+                    vec![filename],
+                    vec![table.get_name().to_string()], 
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                    vec![bytes],
+                ),
+                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataForma `{format}`."))
+            } 
         }
         DataFormat::Bytes => {
             // Convert to bytes directly
             let bytes = table.to_bytes()?;
             let bytes = encode_bytes(encoding, &bytes)?;
             let extension = make_extension(format, encoding);
-            create_attachments_batch(
-                vec![table.get_name().to_string()],
-                vec![extension],
-                vec![bytes.to_vec()],
-                vec!["assistant".to_string()],
-                vec![create_timestamp_micros()],
-            )
+            let filename = make_filename(table.get_name(), format, encoding);
+            match schema {
+                AvailableSubjects::Attachments => create_attachments_batch(
+                    vec![table.get_name().to_string()],
+                    vec![extension],
+                    vec![bytes.to_vec()],
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                ),
+                AvailableSubjects::ObjectStore => create_object_store_batch(
+                    vec![filename],
+                    vec![table.get_name().to_string()], 
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                    vec![bytes.to_vec()],
+                ),
+                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataForma `{format}`."))
+            } 
         }
         DataFormat::Json(_) | DataFormat::JsonDefault | DataFormat::JsonSchema => {
             // Convert to JSON
             let bytes = table.to_json()?;
             let bytes = encode_bytes(encoding, &bytes)?;
             let extension = make_extension(format, encoding);
-            create_attachments_batch(
-                vec![table.get_name().to_string()],
-                vec![extension],
-                vec![bytes],
-                vec!["assistant".to_string()],
-                vec![create_timestamp_micros()],
-            )
+            let filename = make_filename(table.get_name(), format, encoding);
+            match schema {
+                AvailableSubjects::Attachments => create_attachments_batch(
+                    vec![table.get_name().to_string()],
+                    vec![extension],
+                    vec![bytes],
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                ),
+                AvailableSubjects::ObjectStore => create_object_store_batch(
+                    vec![filename],
+                    vec![table.get_name().to_string()], 
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                    vec![bytes],
+                ),
+                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataForma `{format}`."))
+            } 
         }
         DataFormat::Html | DataFormat::Txt => {
             // Extract out the values column and concatenate into a single String to form the document
@@ -239,15 +287,55 @@ pub fn table_and_data_format_to_record_batch(
                 .collect::<Vec<_>>();
             let bytes = encode_bytes(encoding, &bytes)?;
             let extension = make_extension(format, encoding);
-            create_attachments_batch(
-                vec![table.get_name().to_string()],
-                vec![extension],
-                vec![bytes],
-                vec!["assistant".to_string()],
-                vec![create_timestamp_micros()],
-            )
+            let filename = make_filename(table.get_name(), format, encoding);
+            match schema {
+                AvailableSubjects::Messages => create_chat_record_batch(
+                    vec!["tool".to_string()], // DM: Change when upgrading to Qwen 3 "function"
+                    vec![String::from_utf8(bytes)?],
+                    vec![create_timestamp_micros()],
+                ),
+                AvailableSubjects::Attachments => create_attachments_batch(
+                    vec![table.get_name().to_string()],
+                    vec![extension],
+                    vec![bytes],
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                ),
+                AvailableSubjects::ObjectStore => create_object_store_batch(
+                    vec![filename],
+                    vec![table.get_name().to_string()], 
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                    vec![bytes],
+                ),
+                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataForma `{format}`."))
+            } 
         }
-        DataFormat::Pdf | DataFormat::Ipc | DataFormat::Xml | DataFormat::Owl => {
+        DataFormat::Ipc => {
+            // Convert to JSON
+            let bytes = table.to_ipc_stream()?;
+            let bytes = encode_bytes(encoding, &bytes)?;
+            let extension = make_extension(format, encoding);
+            let filename = make_filename(table.get_name(), format, encoding);
+            match schema {
+                AvailableSubjects::Attachments => create_attachments_batch(
+                    vec![table.get_name().to_string()],
+                    vec![extension],
+                    vec![bytes],
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                ),
+                AvailableSubjects::ObjectStore => create_object_store_batch(
+                    vec![filename],
+                    vec![table.get_name().to_string()], 
+                    vec!["assistant".to_string()],
+                    vec![create_timestamp_micros()],
+                    vec![bytes],
+                ),
+                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataForma `{format}`."))
+            } 
+        }
+        DataFormat::Pdf | DataFormat::Xml | DataFormat::Owl => {
             Err(anyhow!("{format} format is not yet supported."))
         }
     }

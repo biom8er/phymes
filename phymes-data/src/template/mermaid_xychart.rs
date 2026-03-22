@@ -13,7 +13,7 @@ pub static MERMAID_XYCHART_TEMPLATE: &str = r#"
 /// # Example
 ///
 /// ```rust
-/// use phymes_core::TableScript;
+/// use phymes_core::SubjectScript;
 /// use phymes_data::MERMAID_XYCHART_INPUT;
 /// let inputs = serde_json::json!({
 ///     "title": "chart title",
@@ -21,7 +21,7 @@ pub static MERMAID_XYCHART_TEMPLATE: &str = r#"
 ///     "y_title": "y title"
 /// });
 ///
-/// let input_string = TableScript::new_from_template(MERMAID_XYCHART_INPUT.to_string()).apply_template(&inputs).unwrap()
+/// let input_string = SubjectScript::new_from_template(MERMAID_XYCHART_INPUT.to_string()).apply_template(&inputs).unwrap()
 ///     .lines()
 ///     .map(|line| line.trim())
 ///     .collect::<Vec<&str>>()
