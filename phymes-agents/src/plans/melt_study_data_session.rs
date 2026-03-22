@@ -177,8 +177,7 @@ impl<'a> MeltStudyDataSession<'a> {
 	    study_samples_select-processor-->study_samples_select-publish
 	    study_samples_select-publish-->|Extend|StudySamplesMelt-subject
 	end
-	study_samples_extraction-rt@{shape: subproc, label: study_samples_extraction}
-	study_samples_extraction-rt-->study_samples_extraction
+	study_data_extraction-rt-->study_samples_extraction
 	study_samples_select-processor@{shape: rect, label: Select}
 	study_samples_select-publish@{shape: fork}
 	study_samples_select-subscribe@{shape: diamond, label: All}
@@ -192,8 +191,7 @@ impl<'a> MeltStudyDataSession<'a> {
 	    samples_variables_select-processor-->samples_variables_select-publish
 	    samples_variables_select-publish-->|Replace|SamplesVariablesMelt-subject
 	end
-	samples_variables_extraction-rt@{shape: subproc, label: samples_variables_extraction}
-	samples_variables_extraction-rt-->samples_variables_extraction
+	study_data_extraction-rt-->samples_variables_extraction
 	samples_variables_select-processor@{shape: rect, label: Select}
 	samples_variables_select-publish@{shape: fork}
 	samples_variables_select-subscribe@{shape: diamond, label: All}
@@ -212,8 +210,7 @@ impl<'a> MeltStudyDataSession<'a> {
 	    study_variables_select-processor-->study_variables_select-publish
 	    study_variables_select-publish-->|Replace|StudyVariablesMelt-subject
 	end
-	study_variables_extraction-rt@{shape: subproc, label: study_variables_extraction}
-	study_variables_extraction-rt-->study_variables_extraction
+	study_data_extraction-rt-->study_variables_extraction
 	study_variables_group_by-processor@{shape: rect, label: GroupBy}
 	study_variables_group_by-publish@{shape: fork}
 	study_variables_group_by-subscribe@{shape: diamond, label: All}

@@ -948,6 +948,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
             doc_name: Some(self.state_top_k_limit_docs_table_name.to_string()),
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::None),
+            schema: Some(AvailableSubjects::Messages),
             cpu: false,
             operator: AvailableCandleOperators::PackTabular,
             lhs_stream: DataStreamManager::Accumulate,

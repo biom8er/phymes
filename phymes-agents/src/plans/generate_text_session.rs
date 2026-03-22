@@ -213,8 +213,7 @@ impl<'a> GenerateTextSession<'a> {
 		generate_text_inference_p-processor-->generate_text_inference_p-publish
 		generate_text_inference_p-publish-->|Replace|generate_text_inference_s-subject
 	end
-	generate_text_inference_r-rt@{{shape: subproc, label: generate_text_inference_r}}
-	generate_text_inference_r-rt-->generate_text_inference_t
+	generate_text_r-rt-->generate_text_inference_t
 	Tools-subject@{{shape: doc, label: Tools}}
 	generate_text_inference_p-processor@{{shape: rect, label: {}}}
 	generate_text_inference_p-publish@{{shape: fork}}

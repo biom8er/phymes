@@ -216,6 +216,7 @@ impl<'a> RetrieveTextSession<'a> {
 	    Utf8 lhs_stream "Accumulate"
 	    Utf8 encoding "None"
 	    Utf8 format "None"
+	    Utf8 schema "Messages"
 	}
 	ToolMessages["ToolMessages"] {
 	    Utf8 role

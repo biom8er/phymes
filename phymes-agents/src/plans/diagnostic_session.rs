@@ -1084,6 +1084,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             ),
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Txt),
+            schema: Some(AvailableSubjects::Attachments),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
         };
@@ -1113,6 +1114,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             ),
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Txt),
+            schema: Some(AvailableSubjects::Attachments),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
         };
@@ -1142,6 +1144,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             ),
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Txt),
+            schema: Some(AvailableSubjects::Attachments),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
         };
@@ -1181,6 +1184,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::None),
+            schema: Some(AvailableSubjects::Attachments),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
         };
@@ -1273,6 +1277,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::None),
+            schema: Some(AvailableSubjects::Attachments),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
         };
@@ -1341,6 +1346,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Txt),
+            schema: Some(AvailableSubjects::Attachments),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
         };
@@ -1439,6 +1445,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Txt),
+            schema: Some(AvailableSubjects::Attachments),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
         };
@@ -1634,6 +1641,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             doc_input: Some(serde_json::to_string(&json!({})).unwrap()),
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Txt),
+            schema: Some(AvailableSubjects::Attachments),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
         };

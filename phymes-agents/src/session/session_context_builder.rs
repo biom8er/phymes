@@ -278,7 +278,18 @@ impl SessionContextBuilder {
             self.tasks.replace(other_tasks);
         }
 
-        // No need to extend the runtime_env
+        // No need to extend the runtime_env, but they need to be compatible
+        if self.runtime_env != other.runtime_env {
+            if let (Some(rt), Some(other_rt)) = (self.runtime_env.as_ref(), other.runtime_env.as_ref()) {
+                if rt.object_store_backend != other_rt.object_store_backend {
+                    return Err(anyhow!("Unable to extend runtime environment `{}` with backend `{}` with from other runtime environment `{}` with backend `{}`. The runtime environment object stores must be the same.",
+                        rt.name, rt.object_store_backend, other_rt.name, other_rt.object_store_backend));
+                } else if rt.object_store_bucket != other_rt.object_store_bucket {
+                    return Err(anyhow!("Unable to extend runtime environment `{}` with bucket `{}` with from other runtime environment `{}` with bucket `{}`. The runtime environment object stores must be the same.",
+                        rt.name, rt.object_store_bucket, other_rt.name, other_rt.object_store_bucket));
+                }
+            }
+        }
 
         Ok(self)
     }
@@ -623,6 +634,7 @@ pub mod test_session_context_builder {
         }
         let store = make_store(&ObjectStorageBackend::InMemory, None, None)?;
         let rt = RuntimeEnv::get_builder()
+            .with_name("rt_1")
             .with_max_steps(max_iter)
             .with_object_store(store)
             .build_arc()?;
@@ -650,6 +662,7 @@ pub mod test_session_context_builder {
         }
         let store = make_store(&ObjectStorageBackend::InMemory, None, None)?;
         let rt = RuntimeEnv::get_builder()
+            .with_name("rt_1")
             .with_max_steps(max_iter)
             .with_object_store(store)
             .build_arc()?;
@@ -677,6 +690,7 @@ pub mod test_session_context_builder {
         }
         let store = make_store(&ObjectStorageBackend::InMemory, None, None)?;
         let rt = RuntimeEnv::get_builder()
+            .with_name("rt_1")
             .with_max_steps(max_iter)
             .with_object_store(store)
             .build_arc()?;
@@ -859,8 +873,9 @@ mod tests {
         assert_eq!(session.tasks().len(), 3);
         assert_eq!(session.get_name(), "session_1");
         assert!(session.get_diagnostics());
-        let keys = messages.unwrap().keys().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        assert_eq!(keys, [""]);
+        let mut keys = messages.unwrap().keys().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        keys.sort();
+        assert_eq!(keys, ["processor_1", "processor_2", "processor_3", "state_1", "state_2", "state_3"]);
         Ok(())
     }
 
@@ -1005,7 +1020,7 @@ mod tests {
             Ok(_) => panic!("Should have failed"),
             Err(e) => assert_eq!(
                 e.to_string(),
-                "Mismatch between provided runtime environments [\"rt_1\"] and plan runtime environment names []."
+                "Please add runtime environments before attempting to build the session."
             ),
         }
 

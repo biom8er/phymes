@@ -119,7 +119,7 @@ impl TaskTrait for Task {
                 subscribe_to_subject(
                     &processor_subject.subscriptions,
                     &processor_subject.publications,
-                    runtime_env.object_store(),
+                    &runtime_env,
                     &mut messages,
                 )?;
 

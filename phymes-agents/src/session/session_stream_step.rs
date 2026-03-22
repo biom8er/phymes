@@ -48,13 +48,13 @@ pub trait SessionStreamStepTrait {
     ///   perform computations on the subjects messages, and publish the resulting messages
     ///   to the session_context.
     ///
-    /// - Subjects: The tables (data) that compose the session_context of the application.
+    /// - Subjects: The data that compose the session_context of the application.
     ///
     /// - Computation: Each task performs a user-defined computation during each
     ///   super-step as defined by the processor network and based on its subscriptions
     ///   that have changed in the previous super-step.
     ///
-    /// - Messages: Subset of the session_context tables that are passed to tasks at each super-step.
+    /// - Messages: Subset of the session_context subjects that are passed to tasks at each super-step.
     ///   Messages are used for communication and coordination between tasks.
     ///
     /// # Usage

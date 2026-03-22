@@ -44,13 +44,13 @@ impl Display for ObjectStorageBackend {
     }
 }
 
-pub fn make_store(cfg: &ObjectStorageBackend, bucket: Option<&String>, config: Option<&Map<String, Value>>) -> Result<Arc<dyn ObjectStore>> {
+pub fn make_store(cfg: &ObjectStorageBackend, bucket: Option<&String>, _config: Option<&Map<String, Value>>) -> Result<Arc<dyn ObjectStore>> {
     let store: Arc<dyn ObjectStore> = match cfg {
         #[cfg(feature = "api")]
         ObjectStorageBackend::Aws => {
             let mut builder = AmazonS3Builder::from_env()
                 .with_bucket_name(bucket.ok_or(anyhow!("Missing `bucket` name for {cfg}"))?);
-            if let Some(config) = config {
+            if let Some(config) = _config {
                 for (k, v) in config {
                     let key = AmazonS3ConfigKey::from_str(k)?;
                     builder = builder.with_config(key, v.as_str().unwrap_or_default());

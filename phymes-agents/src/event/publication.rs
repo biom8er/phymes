@@ -669,11 +669,9 @@ mod tests {
             .try_collect()
             .await?;
         let new = test_subject::make_test_subject(subject_name, 1, 0, 1)?;
-        let _publication: Vec<RecordBatch> = Publication::None
-            .publish_to_subject(&runtime_env, new.get_record_batches_own(), 1)?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let publication = Publication::None
+            .publish_to_subject(&runtime_env, new.get_record_batches_own(), 1)?;
+        assert!(publication.is_none());
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: subject_name.to_string() }
             .subscribe_to_subject(&runtime_env)?
             .unwrap()

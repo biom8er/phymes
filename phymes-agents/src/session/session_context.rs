@@ -3,7 +3,7 @@ use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use clap::ValueEnum;
 use futures::{StreamExt, TryStreamExt};
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, create_subjects_object_store_meta_batch, from_diagnostics_to_tables
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_object_store_meta_batch, from_diagnostics_to_tables
 };
 use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
 use std::sync::Arc;
@@ -13,8 +13,8 @@ use crate::{PublicationTrait, SessionContextBuilder, SubscriptionTrait, TaskMap,
 /// The [SessionContext] creates a (dynamic) execution graph based on a [TaskPlan]
 ///   and manages the running of individual [Task]s and the [Message]s passed between them.
 ///
-/// [TaskPlan]: phymes_core::TaskPlan
-/// [Task]: phymes_core::TaskTrait
+/// [TaskPlan]: crate::TaskPlan
+/// [Task]: crate::TaskTrait
 /// [Message]: phymes_core::MessageTrait
 #[derive(Debug, Clone)]
 pub struct SessionContext {
@@ -616,38 +616,38 @@ impl SessionContext {
 
     /// Update the row counts for the subjects
     pub async fn update_subject_num_rows(&self) -> Result<()> {
-        let mut subject_names = Vec::new();
-        let mut num_rows = Vec::new();
+        // let mut subject_names = Vec::new();
+        // let mut num_rows = Vec::new();
 
-        // DM: migrate to using `CountSubjectRowsSession` 
-        // // Sort the hashmap
-        // let mut sorted_map = self.subjects.iter().collect::<Vec<_>>();
-        // sorted_map.sort_by(|a, b| a.0.cmp(b.0));
-        // for (_name, state) in sorted_map.iter() {
-        //     let name = state.read().get_name().to_string();
-        //     let num_row = state.read().count_rows() as i64;
-        //     subject_names.push(name.clone());
-        //     num_rows.push(num_row);
-        // }
+        // // DM: migrate to using `CountSubjectRowsSession` 
+        // // // Sort the hashmap
+        // // let mut sorted_map = self.subjects.iter().collect::<Vec<_>>();
+        // // sorted_map.sort_by(|a, b| a.0.cmp(b.0));
+        // // for (_name, state) in sorted_map.iter() {
+        // //     let name = state.read().get_name().to_string();
+        // //     let num_row = state.read().count_rows() as i64;
+        // //     subject_names.push(name.clone());
+        // //     num_rows.push(num_row);
+        // // }
 
-        // create the record batch
-        let batch = create_subjects_num_rows_batch(subject_names, num_rows)?;
+        // // create the record batch
+        // let batch = create_subjects_num_rows_batch(subject_names, num_rows)?;
 
-        // create the table
-        let subject_num_rows = Subject::get_builder()
-            .with_name(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-            .with_record_batches(vec![batch])?
-            .build()?;
+        // // create the table
+        // let subject_num_rows = Subject::get_builder()
+        //     .with_name(AvailableSubjects::SubjectsNumRows.to_string().as_str())
+        //     .with_record_batches(vec![batch])?
+        //     .build()?;
 
-        // Add the subjects num rows table to the state or update
-        let step = self.current_superstep().await?;
-        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
-            .publish_to_subject(self.runtime_env(), subject_num_rows.get_record_batches_own(), step)?
-            .ok_or(anyhow!("Unable to put the subject `{}` into object storage for session `{}` while updating the subject number rows.",
-                AvailableSubjects::SessionMetrics,
-                self.get_name()))?
-            .try_collect()
-            .await?;
+        // // Add the subjects num rows table to the state or update
+        // let step = self.current_superstep().await?;
+        // let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
+        //     .publish_to_subject(self.runtime_env(), subject_num_rows.get_record_batches_own(), step)?
+        //     .ok_or(anyhow!("Unable to put the subject `{}` into object storage for session `{}` while updating the subject number rows.",
+        //         AvailableSubjects::SessionMetrics,
+        //         self.get_name()))?
+        //     .try_collect()
+        //     .await?;
         Ok(())
     }
 
@@ -905,7 +905,7 @@ mod tests {
     async fn test_session_update_subject_num_rows_subject() -> Result<()> {
         let (session_context, _messages) =
             test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?.build()?;
-        session_context.update_subject_num_rows();
+        let _ = session_context.update_subject_num_rows();
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
             .subscribe_to_subject(session_context.runtime_env())?
             .unwrap()

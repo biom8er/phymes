@@ -643,7 +643,7 @@ pub fn process_prompt_chat(
 pub mod bench_chat_processor {
     #[cfg(feature = "api")]
     use crate::openai_chat::OpenAIChatProcessor;
-    use phymes_core::{ChatBuilderTraitExt, RuntimeEnvTrait};
+    use phymes_core::ChatBuilderTraitExt;
 
     use super::*;
 
@@ -714,7 +714,7 @@ pub mod bench_chat_processor {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{ChatBuilderTraitExt, RuntimeEnvTrait};
+    use phymes_core::ChatBuilderTraitExt;
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use crate::{

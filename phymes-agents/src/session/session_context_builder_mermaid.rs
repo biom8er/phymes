@@ -1114,6 +1114,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             ));
         }
         for name in runtime_env_names_vec {
+            // DM, todo!(): Need to update so that the backend and bucket can be included...
             let runtime_env = RuntimeEnv::get_builder().with_name(&name).build()?;
             runtime_envs.push(runtime_env);
         }
@@ -1146,7 +1147,6 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             let processor_plan = processor_plan_builder.with_processor(processor).build()?;
             processors.push(processor_plan);
         }
-        // dbg!(&processors);
 
         // Check the subjects
         let subject_names_set = subject_names_vec

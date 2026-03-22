@@ -324,7 +324,7 @@ impl Stream for ObjectStoreStream {
                         let path = self.path.as_ref().unwrap().clone();
 
                         // Add in any addition `GetOptions`
-                        if let Some(options) = self.config.as_ref().unwrap().get_options.as_ref() {
+                        if let Some(_options) = self.config.as_ref().unwrap().get_options.as_ref() {
                             // let options = serde_json::from_str::<GetOptions>(options)?;
                             let fut = Box::pin(async move { store.get_opts(&path, GetOptions::default()).await });
                             self.state = ObjectStoreState::StorageReaderGetResult(fut);
@@ -395,7 +395,7 @@ impl Stream for ObjectStoreStream {
                         let path = self.path.as_ref().unwrap().clone();
 
                         // Add in additional `PutOptions`
-                        if let Some(options) = self.config.as_ref().unwrap().put_options.as_ref() {
+                        if let Some(_options) = self.config.as_ref().unwrap().put_options.as_ref() {
                             // let options = serde_json::from_str::<PutOptions>(options)?;
                             let fut = Box::pin(async move { store.put_opts(&path, payload, PutOptions::default()).await });
                             self.state = ObjectStoreState::StorageWriterPutResult(fut);

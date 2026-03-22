@@ -2,7 +2,7 @@ use anyhow::Result;
 use arrow::datatypes::Schema;
 use phymes_data::{AvailableCandleOperators, CandleDataStream, DataConfig, DataStreamManager, LimitConfig, LimitStream, ObjectStoreConfig, ObjectStoreOptsType, ObjectStoreStream};
 use phymes_diagnostics::HashMap;
-use phymes_core::{BuildableTrait, BuilderTrait, DataEncoding, DataFormat, MessageBuilderTrait, ObjectStorageBackend, Publication, RecordBatchStreamAdapter, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription};
+use phymes_core::{AvailableSubjects, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, MessageBuilderTrait, ObjectStorageBackend, Publication, RecordBatchStreamAdapter, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription};
 use std::sync::Arc;
 
 /// List all partitions of a subject (with optional restriction to the last one)
@@ -124,10 +124,10 @@ pub fn get_subject(runtime_env: &Arc<RuntimeEnv>, sn: &str, list: SendableRecord
         lhs_values: Some(vec!["bytes".to_string()]),
         encoding: Some(DataEncoding::default()),
         format: Some(DataFormat::Ipc),
-        schema: None,
+        schema: Some(AvailableSubjects::default()),
         cpu: false,
         operator: AvailableCandleOperators::ExtractTabular,
-        lhs_stream: DataStreamManager::Accumulate,
+        lhs_stream: DataStreamManager::Stream,
         ..Default::default()
     };
     let config_json = serde_json::to_vec(&config)?;
@@ -210,17 +210,15 @@ impl SubscriptionTrait for Subscription {
 
 #[cfg(test)]
 mod tests {
-    use arrow::array::RecordBatch;
     use futures::TryStreamExt;
-    use object_store::path::Path;
-    use phymes_core::{IpcWriter, RuntimeEnvTrait, StorageStreamWriterTrait, StorageWriterTrait, Subject, test_subject};
+    use phymes_core::{Subject, test_subject};
 
-    use crate::{PublicationTrait, make_object_store_path};
+    use crate::PublicationTrait;
 
     use super::*;
 
     #[tokio::test]
-    async fn test_subscribe_publish_list_subject() -> Result<()> {
+    async fn test_subscribe_list_subject() -> Result<()> {
         let rt_env = Arc::new(RuntimeEnv::get_builder().with_name("rt").build()?);
 
         // Create some dummy batches
@@ -228,17 +226,22 @@ mod tests {
         let subjects = test_subject::make_test_subject(messages, 4, 8, 3)?;
 
         // Write them to object storage
-        for (i, batch) in subjects.get_record_batches().iter().enumerate() {
-            let mut writer = IpcWriter::new_with_config(subjects.get_schema())?;
-            writer.write_batch(batch)?;
-            writer.finish_batch()?;
-            let location = make_object_store_path(messages, 0, i as u32);
-            let path = Path::from(location);
-            writer.put(rt_env.object_store(), &path).await?;
-        }
+        let _publication: Vec<_> = Publication::Extend { subject_name: messages.to_string() }
+            .publish_to_subject(&rt_env, subjects.get_record_batches_own(), 0)?
+            .unwrap()
+            .try_collect()
+            .await?;
+        // for (i, batch) in subjects.get_record_batches().iter().enumerate() {
+        //     let mut writer = IpcWriter::new_with_config(subjects.get_schema())?;
+        //     writer.write_batch(batch)?;
+        //     writer.finish_batch()?;
+        //     let location = make_object_store_path(messages, 0, i as u32);
+        //     let path = Path::from(location);
+        //     writer.put(rt_env.object_store(), &path).await?;
+        // }
 
         // List all locations
-        let results: Vec<RecordBatch> = list_subject(&rt_env, messages, false)?.try_collect().await?;
+        let results: Vec<_> = list_subject(&rt_env, messages, false)?.try_collect().await?;
         assert_eq!(results.len(), 3);
         let subject = Subject::get_builder()
             .with_name(messages)
@@ -249,7 +252,7 @@ mod tests {
         assert_eq!(result, ["messages/superstep=0/partition=0/messages.ipc", "messages/superstep=0/partition=1/messages.ipc", "messages/superstep=0/partition=2/messages.ipc"]);
 
         // List last locations
-        let results: Vec<RecordBatch> = list_subject(&rt_env, messages, false)?.try_collect().await?;
+        let results: Vec<_> = list_subject(&rt_env, messages, true)?.try_collect().await?;
         assert_eq!(results.len(), 1);
         let subject = Subject::get_builder()
             .with_name(messages)
@@ -267,13 +270,13 @@ mod tests {
         let subject_name = "test_table";
         let old = test_subject::make_test_subject(subject_name, 4, 0, 3)?;
         let runtime_env = Arc::new(RuntimeEnv::default());
-        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: subject_name.to_string() }
+        let _publication: Vec<_> = Publication::Extend { subject_name: subject_name.to_string() }
             .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0)?
             .unwrap()
             .try_collect()
             .await?;
         let new = test_subject::make_test_subject(subject_name, 1, 0, 1)?;
-        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: subject_name.to_string() }
+        let _publication: Vec<_> = Publication::Extend { subject_name: subject_name.to_string() }
             .publish_to_subject(&runtime_env, new.get_record_batches_own(), 1)?
             .unwrap()
             .try_collect()

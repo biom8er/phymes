@@ -81,6 +81,7 @@ impl<'a> ToolResponseSession<'a> {
         Utf8 operator "PackTabular"
         Utf8 encoding "None"
         Utf8 format "None"
+        Utf8 schema "Messages"
         Boolean cpu "false"
         Utf8 lhs_name "{subject_name}"
         Utf8 doc_name "{subject_name}"

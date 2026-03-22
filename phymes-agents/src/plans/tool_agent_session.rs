@@ -688,6 +688,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             ),
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::Html),
+            schema: Some(AvailableSubjects::Attachments),
             operator: AvailableCandleOperators::ApplyTemplate,
             ..Default::default()
         };

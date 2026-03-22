@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use object_store::ObjectStore;
 use phymes_diagnostics::HashMap;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap,
-    Publication, Subscription, SendableRecordBatchStreamMessageBuilderMap, remove_message_by_subject,
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, Publication, RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Subscription, remove_message_by_subject
 };
+
+use crate::SubscriptionTrait;
 
 /// Subscribe to the subject
 ///
@@ -29,7 +28,7 @@ use phymes_core::{
 pub fn subscribe_to_subject(
     subscriptions: &[Subscription],
     publications: &[Publication],
-    object_store: &Arc<dyn ObjectStore>,
+    runtime_env: &Arc<RuntimeEnv>,
     messages: &mut SendableRecordBatchStreamMessageMap,
 ) -> Result<SendableRecordBatchStreamMessageMap> {
     let mut map = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -40,28 +39,30 @@ pub fn subscribe_to_subject(
         // 2. Check for subscriptions in the subjects
         // DM: First, get the partitions from the subject metadata
         //     Second, read the last or all of the partitions depending upon the subscription
-        // } else if let Some(table) = subjects.get(subscription.get_table_name())
-        //     && let Some(stream) = table.read().subscribe_to_table(subscription)
-        // {
-        //     // A. check for a matching subject in the publications
-        //     let update = publications
-        //         .iter()
-        //         .filter(|p| p.get_table_name() == subscription.get_table_name())
-        //         .collect::<Vec<_>>();
-        //     let update = if let Some(update) = update.first() {
-        //         update
-        //     // B. default to None
-        //     } else {
-        //         &Publication::None
-        //     };
-        //     let message = SendableRecordBatchStreamMessage::get_builder()
-        //         .with_publisher("State")
-        //         .with_subject(subscription.get_table_name())
-        //         .with_update(update)
-        //         .with_message(stream)
-        //         .make_random_name()?
-        //         .build()?;
-        //     let _ = map.insert(message.get_name().to_string(), message);
+        } else {
+            // A. check for a matching subject in the publications
+            let update = publications
+                .iter()
+                .filter(|p| p.subject_name() == subscription.subject_name())
+                .collect::<Vec<_>>();
+            let update = if let Some(update) = update.first() {
+                update
+            // B. default to None
+            } else {
+                &Publication::None
+            };
+
+            let stream = Subscription::AlwaysAllRecordBatches { subject_name: subscription.subject_name().to_string() }
+                .subscribe_to_subject(runtime_env)?
+                .unwrap();
+            let message = SendableRecordBatchStreamMessage::get_builder()
+                .with_publisher("Subjects")
+                .with_subject(subscription.subject_name())
+                .with_update(update)
+                .with_message(stream)
+                .make_random_name()?
+                .build()?;
+            let _ = map.insert(message.get_name().to_string(), message);
         }
     }
     Ok(map)
@@ -130,8 +131,9 @@ pub fn update_publisher(
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{ObjectStorageBackend, SendableRecordBatchStreamMessageBuilder, SubjectPlanTrait, SubjectTrait, make_store, test_subject};
-    use crate::test_task;
+    use futures::TryStreamExt;
+    use phymes_core::{SendableRecordBatchStreamMessageBuilder, SubjectPlanTrait, SubjectTrait, test_subject};
+    use crate::{PublicationTrait, test_task};
 
     use super::*;
 
@@ -153,19 +155,25 @@ mod tests {
             subject_name: subject_name.to_string(),
         }];
 
+        // Create the runtime environment
+        let runtime_env = Arc::new(RuntimeEnv::default());
+
         // Create the Tables
         let subjects = test_task::make_subjects(subject_name, config_name)?;
-        let store = make_store(&ObjectStorageBackend::default(), None, None)?;
-        for subject in subjects {            
-            subject.subject_own().to_ipc_object_store(&store, None).await?;
-        }
+        for subject in subjects {
+            let _publication: Vec<_> = Publication::Extend { subject_name: subject.get_name().to_string() }
+                .publish_to_subject(&runtime_env, subject.subject_own().get_record_batches_own(), 0)?
+                .unwrap()
+                .try_collect()
+                .await?;
+        }        
 
         // Create the stream
         let mut stream = HashMap::<String, SendableRecordBatchStreamMessage>::new();
 
         // Test        
         let mut messages =
-            subscribe_to_subject(&subscriptions, &publications, &store, &mut stream)?;
+            subscribe_to_subject(&subscriptions, &publications, &runtime_env, &mut stream)?;
         assert_eq!(messages.len(), 2);
         assert_eq!(
             remove_message_by_subject(subject_name, &mut messages)
@@ -210,7 +218,7 @@ mod tests {
 
         // Test
         let mut messages =
-            subscribe_to_subject(&subscriptions, &publications, &store, &mut stream)?;
+            subscribe_to_subject(&subscriptions, &publications, &runtime_env, &mut stream)?;
         assert_eq!(messages.len(), 3);
         assert_eq!(
             remove_message_by_subject(subject_name, &mut messages)
@@ -257,7 +265,7 @@ mod tests {
 
         // Test
         let mut messages =
-            subscribe_to_subject(&subscriptions, &publications, &store, &mut stream)?;
+            subscribe_to_subject(&subscriptions, &publications, &runtime_env, &mut stream)?;
         assert_eq!(messages.len(), 2);
         assert_eq!(
             remove_message_by_subject(subject_name, &mut messages)

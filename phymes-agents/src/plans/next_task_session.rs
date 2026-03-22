@@ -891,6 +891,7 @@ mod tests {
     async fn test_next_task_session() -> Result<()> {
         // Initialize the testing runtime
         let runtime_env = RuntimeEnv::get_builder()
+            .with_name("rt")
             .with_max_steps(1) // DM: prevent continued execution after the final superstep for testing
             .build_arc()?;
 

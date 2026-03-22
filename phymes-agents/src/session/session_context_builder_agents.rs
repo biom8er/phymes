@@ -1358,13 +1358,13 @@ mod tests {
         let (session, messages) =
             test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
                 .build_with_tables()?;
-        assert_eq!(session.subjects().len(), 18);
+        assert_eq!(session.subjects().len(), 19);
         assert_eq!(session.tasks().len(), 3);
         assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_steps(), 25);
         assert!(session.get_diagnostics());
         let keys = messages.unwrap().keys().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        assert_eq!(keys, [""]);
+        assert_eq!(keys, ["SessionProcessors", "SessionTasks", "state_2", "SessionTasksRunLog", "state_1", "SubjectsObjectStoreMeta", "SessionMermaid", "SessionRuntimeEnvs", "SessionSubjectSchemas", "SubjectsChangeLog", "processor_1", "processor_2", "state_3", "SubjectsNumRows", "processor_3"]);
         Ok(())
     }
 
@@ -1374,7 +1374,7 @@ mod tests {
             test_session_context_builder_agents::make_test_session_builder_agents("session_1")?
                 .add_session_interface(Some(&["state_1"]))?
                 .build_with_tables()?;
-        assert_eq!(session.subjects().len(), 18);
+        assert_eq!(session.subjects().len(), 19);
         assert_eq!(session.tasks().len(), 4);
         assert_eq!(
             session.tasks().get("session_1").unwrap().get_name(),
@@ -1393,7 +1393,7 @@ mod tests {
         assert_eq!(session.get_max_steps(), 25);
         assert!(session.get_diagnostics());
         let keys = messages.unwrap().keys().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        assert_eq!(keys, [""]);
+        assert_eq!(keys, ["processor_3", "state_1", "SessionSubjectSchemas", "SubjectsObjectStoreMeta", "SubjectsChangeLog", "state_3", "processor_2", "SessionTasksRunLog", "SessionProcessors", "processor_1", "SubjectsNumRows", "SessionRuntimeEnvs", "state_2", "SessionTasks", "SessionMermaid"]);
         Ok(())
     }
 
@@ -1486,12 +1486,12 @@ mod tests {
             .with_subjects(subjects_plan.clone())
             .add_processor_subjects()?
             .build_with_tables()?;
-        assert_eq!(session.subjects().len(), 19);
+        assert_eq!(session.subjects().len(), 20);
         assert_eq!(session.tasks().len(), 4);
         assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_steps(), 25);
         let keys = messages.unwrap().keys().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        assert_eq!(keys, [""]);
+        assert_eq!(keys, ["SessionRuntimeEnvs", "SessionProcessors", "state_3", "SubjectsNumRows", "SessionSubjectSchemas", "processor_4", "state_1", "SessionMermaid", "SessionTasks", "state_2", "processor_1", "processor_2", "SubjectsObjectStoreMeta", "processor_3", "SessionTasksRunLog", "SubjectsChangeLog"]);
         Ok(())
     }
 

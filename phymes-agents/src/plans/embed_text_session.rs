@@ -150,8 +150,7 @@ impl<'a> EmbedTextSession<'a> {
 	    embed_query_p-processor-->embed_query_p-publish
 	    embed_query_p-publish-->|Replace|QueryEmbeddings-subject
 	end
-	embed_query_r-rt@{{shape: subproc, label: embed_query_r}}
-	embed_query_r-rt-->embed_query_t
+	embed_text_r-rt-->embed_query_t
 	embed_query_p-processor@{{shape: rect, label: {}}}
 	embed_query_p-publish@{{shape: fork}}
 	embed_query_p-subscribe@{{shape: diamond, label: All}}
@@ -169,8 +168,7 @@ impl<'a> EmbedTextSession<'a> {
 	    embed_documents_p-processor-->embed_documents_p-publish
 	    embed_documents_p-publish-->|Extend|DocumentEmbeddings-subject
 	end
-	embed_documents_r-rt@{{shape: subproc, label: embed_documents_r}}
-	embed_documents_r-rt-->embed_documents_t
+	embed_text_r-rt-->embed_documents_t
 	Documents-subject@{{shape: doc, label: Documents}}
 	coalesce_documents_p-processor@{{shape: rect, label: CoalesceProcessor}}
 	coalesce_documents_p-publish@{{shape: fork}}
