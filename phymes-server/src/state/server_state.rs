@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::{
-    AvailableSessionPlans, SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map
+    AvailableSessionPlans, SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, SubscriptionTrait, create_message_map
 };
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription, UserSubject, create_session_mermaid_batch, create_user_inbox_batch, create_user_session_contexts_batch
@@ -27,21 +27,18 @@ pub struct UserState {
     pub users: Arc<SessionContext>,
 }
 
-impl Default for UserState {
-    fn default() -> Self {
-        Self::new(None)
-    }
-}
-
 impl UserState {
     /// Make a new [UserState] with an optional name for the user state
     ///   and initialize with the default user
-    pub fn new(user_session_context_name: Option<&str>) -> Self {
+    pub fn new(user_session_context_name: Option<&str>) -> impl std::future::Future<Output = Result<Self>> + Send { async move {
         let session_name = user_session_context_name.unwrap_or("Users");
-        let users =
-            AvailableSessionPlans::get_session_stream_state_by_name("Users", session_name).unwrap();
-        Self { users }
-    }
+        let (session_ctx_arc, session_messages) =
+            AvailableSessionPlans::get_session_stream_state_by_name("Users", session_name)?;
+
+        // Write the session messages to the store
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
+        Ok(Self { users: session_ctx_arc })
+    }}
 
     /// Get the user information by their email
     pub async fn get_user_by_email(
@@ -244,7 +241,7 @@ impl ServerState {
         &mut self,
         user_session_contexts: &[JoinUserInboxSessionContextsMermaidDiagrams],
         make_session_contexts: bool,
-    ) -> Result<Vec<String>> {
+    ) -> impl std::future::Future<Output = Result<Vec<String>>> + Send { async move {
         let mut session_names = Vec::new();
         for user_session_context in user_session_contexts {
             // Create the session name
@@ -270,10 +267,13 @@ impl ServerState {
                     .contains(&user_session_context.session_context_name)
                 {
                     // Prioritize the available session plans with initialized configs and other state
-                    let session_ctx_arc = AvailableSessionPlans::get_session_stream_state_by_name(
+                    let (session_ctx_arc, session_messages) = AvailableSessionPlans::get_session_stream_state_by_name(
                         &user_session_context.session_context_name,
                         &session_name,
                     )?;
+
+                    // Write the session messages to the store
+                    let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
 
                     // Add the session stream state to the state
                     let _ = self
@@ -290,7 +290,7 @@ impl ServerState {
                     // Build the session stream state with tables from Mermaid
                     // and leave the upload of configs and other initial session state to another step
                     // DM: turn agent subject tests back on after refactoring BuilderSession
-                    let session_context = SessionContextBuilder::from_mermaid_flowchart(
+                    let (session_context, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
                         &user_session_context.flowchart_diagram,
                         false,
                     )?
@@ -305,6 +305,9 @@ impl ServerState {
                     .with_diagnostics(true)
                     .build_with_tables()?;
                     let session_ctx_arc = Arc::new(session_context);
+
+                    // Write the session messages to the store
+                    let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
 
                     // Add the session stream state to the state
                     let _ = self
@@ -342,7 +345,7 @@ impl ServerState {
             session_names.push(session_name);
         }
         Ok(session_names)
-    }
+    }}
 }
 
 #[cfg(test)]
@@ -356,7 +359,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_server_state_update_user_session_contexts() -> Result<()> {
-        let user = UserState::new(None);
+        let user = UserState::new(None).await?;
         let table = make_example_mermaid_table(true, false)?;
         user.update_user_session_contexts(
             "user@biom8er.com",
@@ -366,16 +369,16 @@ mod tests {
             &table.get_column_as_vec_primitive::<i64>("timestamp")?,
         ).await?;
 
-        assert_eq!(
-            user.users
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("UserSessionContexts")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_column_as_vec_str("email"),
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "UserSessionContexts".to_string() }
+            .subscribe_to_subject(user.users.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name("UserSessionContexts")
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.get_column_as_vec_str("email"),
             [
                 "contact@biom8er.com",
                 "contact@biom8er.com",
@@ -386,30 +389,12 @@ mod tests {
                 "user@biom8er.com"
             ]
         );
-        assert_eq!(
-            user.users
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("UserSessionContexts")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_column_as_vec_str("session_context_name"),
+        assert_eq!(subject.get_column_as_vec_str("session_context_name"),
             [
                 "Chat", "DocChat", "ToolChat", "Builder", "Chat", "DocChat", "ToolChat"
             ]
         );
-        assert_eq!(
-            user.users
-                .try_read()
-                .unwrap()
-                .subjects()
-                .get("BuilderMermaid")
-                .unwrap()
-                .try_read()
-                .unwrap()
-                .get_column_as_vec_str("session_context_name"),
+        assert_eq!(subject.get_column_as_vec_str("session_context_name"),
             [
                 "Chat", "DocChat", "ToolChat", "Builder", "Chat", "DocChat", "ToolChat"
             ]
@@ -420,7 +405,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_server_state_get_user_by_email() -> Result<()> {
-        let user = UserState::new(None);
+        let user = UserState::new(None).await?;
         let (user_info, user_session_contexts) =
             user.get_user_by_email("contact@biom8er.com").await?;
         assert_eq!(user_info.len(), 1);
@@ -466,11 +451,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_server_state_make_session_contexts_from_mermaid_diagrams() -> Result<()> {
-        let user = UserState::new(None);
+        let user = UserState::new(None).await?;
         let (_user_info, user_session_contexts) =
             user.get_user_by_email("contact@biom8er.com").await?;
         let mut state = ServerState::new();
-        let session_names = state.make_session_contexts(&user_session_contexts, true)?;
+        let session_names = state.make_session_contexts(&user_session_contexts, true).await?;
         assert_eq!(
             session_names
                 .iter()

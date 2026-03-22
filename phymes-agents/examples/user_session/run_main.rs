@@ -6,7 +6,6 @@
 
 use anyhow::Result;
 use futures::TryStreamExt;
-use parking_lot::RwLock;
 use phymes_diagnostics::HashMap;
 use std::sync::Arc;
 
@@ -53,7 +52,8 @@ pub async fn run_main() -> Result<()> {
         .with_publisher(user_agent_session.session_context_name)
         .make_name()?
         .build()?;
-    let message_map = create_message_map(vec![blob_message]);
+    let mut message_map = create_message_map(vec![blob_message]);
+    message_map.extend(session_messages.unwrap_or_default());
 
     let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
     let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;

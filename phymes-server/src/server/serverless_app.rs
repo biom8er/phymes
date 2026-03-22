@@ -16,11 +16,10 @@ pub struct Serverless {
 }
 
 impl Serverless {
-    pub fn new(user_session_context_name: Option<&str>) -> Self {
-        Self {
-            router: AppBuilder::new(user_session_context_name).build(),
-        }
-    }
+    pub fn new(user_session_context_name: Option<&str>) -> impl std::future::Future<Output = Result<Self>> + Send { async move {
+        let router = AppBuilder::new(user_session_context_name).await?.build();
+        Ok(Self { router })
+    }}
 
     pub async fn call(&mut self, request: Request<String>) -> Response {
         self.router.call(request).await.unwrap()
@@ -121,7 +120,7 @@ mod tests {
     #[tokio::test]
     async fn test_serverless_call() {
         // Check sign_in
-        let mut server = Serverless::new(None);
+        let mut server = Serverless::new(None).await.unwrap();
 
         // Make the credentials with basic authorization
         let credentials = basic_auth("contact@biom8er.com", Some("contact@biom8er.com"));
@@ -147,7 +146,7 @@ mod tests {
         let values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test subjects_schema
-        let mut server = Serverless::new(None);
+        let mut server = Serverless::new(None).await.unwrap();
 
         // Extract out the JWT token
         let token = values.get("jwt").unwrap().as_str().unwrap();
@@ -192,7 +191,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_serverless_app() {
-        let mut serverless = Serverless::new(None);
+        let mut serverless = Serverless::new(None).await.unwrap();
 
         // Sign in using serverless_app
         let config = ServerlessConfig {

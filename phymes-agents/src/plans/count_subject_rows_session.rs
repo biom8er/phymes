@@ -89,7 +89,6 @@ mod tests {
 
     use anyhow::Result;
     use futures::TryStreamExt;
-    use parking_lot::RwLock;
     use phymes_core::{
         AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription
     };

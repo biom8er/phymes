@@ -6,7 +6,6 @@
 
 use anyhow::Result;
 use futures::TryStreamExt;
-use parking_lot::RwLock;
 use phymes_agents::{
     AvailableInterfaceSubjects, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait,
     SessionStream, ToolAgentSession, create_message_map,
@@ -63,7 +62,8 @@ pub async fn run_main() -> Result<()> {
         .with_publisher(tool_agent_session.session_context_name)
         .make_name()?
         .build()?;
-    let message_map = create_message_map(vec![chat_message, blob_message]);
+    let mut message_map = create_message_map(vec![chat_message, blob_message]);
+    message_map.extend(session_messages.unwrap_or_default());
     let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
     let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 

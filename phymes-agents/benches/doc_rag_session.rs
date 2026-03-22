@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
-use parking_lot::RwLock;
 use phymes_agents::{
     AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DocumentRAGSession,
     SessionContextBuilderAgentsTrait, SessionStream, create_message_map,
@@ -168,7 +167,8 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                         .with_publisher(session_context_name.as_str())
                         .make_name()?
                         .build()?;
-                    let message_map = create_message_map(vec![blob_message]);
+                    let mut message_map = create_message_map(vec![blob_message]);
+                    message_map.extend(session_messages.unwrap_or_default());
                     let session_stream =
                         SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
                     session_stream

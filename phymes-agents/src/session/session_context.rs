@@ -3,7 +3,7 @@ use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use clap::ValueEnum;
 use futures::{StreamExt, TryStreamExt};
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, create_subjects_object_store_meta_batch, from_diagnostics_to_tables, make_store
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_num_rows_batch, create_subjects_object_store_meta_batch, from_diagnostics_to_tables
 };
 use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
 use std::sync::Arc;
@@ -903,7 +903,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_update_subject_num_rows_subject() -> Result<()> {
-        let (mut session_context, _messages) =
+        let (session_context, _messages) =
             test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?.build()?;
         session_context.update_subject_num_rows();
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
@@ -952,7 +952,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_update_subjects_from_messages() -> Result<()> {
         // Case 1: no state update
-        let (session_context, messages) =
+        let (session_context, _messages) =
             test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?.build()?;
         let input = test_task::make_test_input_message(
             "task_1",

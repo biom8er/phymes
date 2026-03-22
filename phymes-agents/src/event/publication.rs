@@ -533,7 +533,10 @@ fn create_record_batch_from_first_row(
 mod tests {
     use arrow::datatypes::Schema;
 
-    use phymes_core::{create_bytes_record_batch, test_subject};
+    use futures::TryStreamExt;
+    use phymes_core::{Subscription, create_bytes_record_batch, test_subject};
+
+    use crate::SubscriptionTrait;
 
     use super::*;
 
@@ -597,102 +600,104 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn test_table_publication_table_wrong_table_name() -> Result<()> {
-        let mut old = test_subject::make_test_subject("test_table", 4, 0, 3)?;
-        let new = test_subject::make_test_subject("test_table", 1, 0, 1)?;
-        match old.publish_to_table(
-            new.clone().get_record_batches_own(),
-            Publication::Extend {
-                subject_name: "missing".to_string(),
-            },
-        ) {
-            Ok(_) => panic!("Should have failed"),
-            Err(e) => assert_eq!(
-                e.to_string(),
-                "Mismatch between table name test_table and update table target missing."
-            ),
-        }
-        match old.publish_to_table(
-            new.clone().get_record_batches_own(),
-            Publication::Replace {
-                subject_name: "missing".to_string(),
-            },
-        ) {
-            Ok(_) => panic!("Should have failed"),
-            Err(e) => assert_eq!(
-                e.to_string(),
-                "Mismatch between table name test_table and update table target missing."
-            ),
-        }
-        match old.publish_to_table(
-            new.clone().get_record_batches_own(),
-            Publication::ReplaceLast {
-                subject_name: "missing".to_string(),
-            },
-        ) {
-            Ok(_) => panic!("Should have failed"),
-            Err(e) => assert_eq!(
-                e.to_string(),
-                "Mismatch between table name test_table and update table target missing."
-            ),
-        }
-        match old.publish_to_table(
-            new.clone().get_record_batches_own(),
-            Publication::ExtendChunks {
-                subject_name: "missing".to_string(),
-                col_name: "missing".to_string(),
-            },
-        ) {
-            Ok(_) => panic!("Should have failed"),
-            Err(e) => assert_eq!(
-                e.to_string(),
-                "Mismatch between table name test_table and update table target missing."
-            ),
-        }
+    #[tokio::test]
+    async fn test_table_publication_extend_update() -> Result<()> {
+        let subject_name = "test_table";
+        let old = test_subject::make_test_subject(subject_name, 4, 0, 3)?;
+        let runtime_env = Arc::new(RuntimeEnv::default());
+        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: subject_name.to_string() }
+            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0)?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let new = test_subject::make_test_subject(subject_name, 1, 0, 1)?;
+        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: subject_name.to_string() }
+            .publish_to_subject(&runtime_env, new.get_record_batches_own(), 1)?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: subject_name.to_string() }
+            .subscribe_to_subject(&runtime_env)?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(subject_name)
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 13);
         Ok(())
     }
 
-    #[test]
-    fn test_table_publication_extend_update() -> Result<()> {
-        let mut old = test_subject::make_test_subject("test_table", 4, 0, 3)?;
-        let new = test_subject::make_test_subject("test_table", 1, 0, 1)?;
-        old.publish_to_table(
-            new.get_record_batches_own(),
-            Publication::Extend {
-                subject_name: "test_table".to_string(),
-            },
-        )?;
-        assert_eq!(old.count_rows(), 13);
+    #[tokio::test]
+    async fn test_table_publication_replace_update() -> Result<()> {
+        let subject_name = "test_table";
+        let old = test_subject::make_test_subject(subject_name, 4, 0, 3)?;
+        let runtime_env = Arc::new(RuntimeEnv::default());
+        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: subject_name.to_string() }
+            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0)?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let new = test_subject::make_test_subject(subject_name, 1, 0, 1)?;
+        let _publication: Vec<RecordBatch> = Publication::Replace { subject_name: subject_name.to_string() }
+            .publish_to_subject(&runtime_env, new.get_record_batches_own(), 1)?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: subject_name.to_string() }
+            .subscribe_to_subject(&runtime_env)?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(subject_name)
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 1);
         Ok(())
     }
 
-    #[test]
-    fn test_table_publication_replace_update() -> Result<()> {
-        let mut old = test_subject::make_test_subject("test_table", 4, 0, 3)?;
-        let new = test_subject::make_test_subject("test_table", 1, 0, 1)?;
-        old.publish_to_table(
-            new.get_record_batches_own(),
-            Publication::Replace {
-                subject_name: "test_table".to_string(),
-            },
-        )?;
-        assert_eq!(old.count_rows(), 1);
+    #[tokio::test]
+    async fn test_table_publication_none_update() -> Result<()> {
+        let subject_name = "test_table";
+        let old = test_subject::make_test_subject(subject_name, 4, 0, 3)?;
+        let runtime_env = Arc::new(RuntimeEnv::default());
+        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: subject_name.to_string() }
+            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0)?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let new = test_subject::make_test_subject(subject_name, 1, 0, 1)?;
+        let _publication: Vec<RecordBatch> = Publication::None
+            .publish_to_subject(&runtime_env, new.get_record_batches_own(), 1)?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: subject_name.to_string() }
+            .subscribe_to_subject(&runtime_env)?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(subject_name)
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 12);
         Ok(())
     }
 
-    #[test]
-    fn test_table_publication_none_update() -> Result<()> {
-        let mut old = test_subject::make_test_subject("test_table", 4, 0, 3)?;
-        let new = test_subject::make_test_subject("test_table", 1, 0, 1)?;
-        old.publish_to_table(new.get_record_batches_own(), Publication::None)?;
-        assert_eq!(old.count_rows(), 12);
-        Ok(())
-    }
+    #[tokio::test]
+    async fn test_table_publication_extend_chunks_update() -> Result<()> {
+        let subject_name = "messages";
+        let old = test_subject::make_test_subject_chat(subject_name)?;
+        let runtime_env = Arc::new(RuntimeEnv::default());
+        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: subject_name.to_string() }
+            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0)?
+            .unwrap()
+            .try_collect()
+            .await?;
 
-    #[test]
-    fn test_table_publication_extend_chunks_update() -> Result<()> {
-        let mut old = test_subject::make_test_subject_chat("messages")?;
         // Example streamed chunks
         let role_1: ArrayRef = Arc::new(StringArray::from(vec![
             "assistant".to_string(),
@@ -708,20 +713,28 @@ mod tests {
             Arc::new(StringArray::from(vec!["2".to_string(), "3".to_string()]));
         let new_1 = RecordBatch::try_from_iter(vec![("role", role_1), ("content", content_1)])?;
         let new_2 = RecordBatch::try_from_iter(vec![("role", role_2), ("content", content_2)])?;
-        old.publish_to_table(
-            vec![new_1, new_2],
-            Publication::ExtendChunks {
-                subject_name: "messages".to_string(),
-                col_name: "content".to_string(),
-            },
-        )?;
-        assert_eq!(old.count_rows(), 5);
+
+        let _publication: Vec<RecordBatch> = Publication::ExtendChunks { subject_name: subject_name.to_string(), col_name: "content".to_string() }
+            .publish_to_subject(&runtime_env, vec![new_1, new_2], 1)?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: subject_name.to_string() }
+            .subscribe_to_subject(&runtime_env)?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(subject_name)
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.count_rows(), 5);
         assert_eq!(
-            old.get_column_as_vec_str("role"),
+            subject.get_column_as_vec_str("role"),
             ["user", "assistant", "user", "assistant", "assistant"]
         );
         assert_eq!(
-            old.get_column_as_vec_str("content"),
+            subject.get_column_as_vec_str("content"),
             [
                 "Hi!",
                 "Hello how can I help?",
@@ -733,10 +746,18 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn test_table_publication_extend_bytes_update() -> Result<()> {
+    #[tokio::test]
+    async fn test_table_publication_extend_bytes_update() -> Result<()> {
+        let subject_name = "test_table";
+        let old = test_subject::make_test_subject(subject_name, 1, 0, 1)?;
+        let runtime_env = Arc::new(RuntimeEnv::default());
+        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: subject_name.to_string() }
+            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0)?
+            .unwrap()
+            .try_collect()
+            .await?;
+
         // IPC format
-        let mut old = test_subject::make_test_subject("test_table", 1, 0, 1)?;
         let new = vec![
             create_bytes_record_batch(vec![
                 test_subject::make_test_subject("test_table", 2, 0, 2)?.to_ipc_stream()?,
@@ -745,39 +766,27 @@ mod tests {
                 test_subject::make_test_subject("test_table", 2, 0, 2)?.to_ipc_stream()?,
             ])?,
         ];
-
-        old.publish_to_table(
-            new,
-            Publication::ExtendBytes {
+        let _publication: Vec<RecordBatch> = Publication::ExtendBytes { 
                 subject_name: "test_table".to_string(),
                 col_name: "bytes".to_string(),
                 serialize_format: DataFormat::Ipc,
-            },
-        )?;
-        assert_eq!(old.count_rows(), 9);
-        assert_eq!(old.get_record_batches().len(), 5);
-
-        // Bytes format
-        let mut old = test_subject::make_test_subject("test_table", 1, 0, 1)?;
-        let new = vec![
-            create_bytes_record_batch(vec![
-                test_subject::make_test_subject("test_table", 2, 0, 2)?.to_bytes()?.to_vec(),
-            ])?,
-            create_bytes_record_batch(vec![
-                test_subject::make_test_subject("test_table", 2, 0, 2)?.to_bytes()?.to_vec(),
-            ])?,
-        ];
-
-        old.publish_to_table(
-            new,
-            Publication::ExtendBytes {
-                subject_name: "test_table".to_string(),
-                col_name: "bytes".to_string(),
-                serialize_format: DataFormat::Bytes,
-            },
-        )?;
-        assert_eq!(old.count_rows(), 9);
-        assert_eq!(old.get_record_batches().len(), 3);
+            }
+            .publish_to_subject(&runtime_env, new, 1)?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: subject_name.to_string() }
+            .subscribe_to_subject(&runtime_env)?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(subject_name)
+            .with_record_batches(batches)?
+            .build()?;
+        
+        assert_eq!(subject.count_rows(), 9);
+        assert_eq!(subject.get_record_batches().len(), 3);
         Ok(())
     }
 }

@@ -50,7 +50,7 @@ pub async fn session_put_state(
                 .contains_key(&current_user)
             {
                 // Initialize the user session contexts
-                let _session_names = match state.make_session_contexts(&user_session_contexts, true)
+                let _session_names = match state.make_session_contexts(&user_session_contexts, true).await
                 {
                     Ok(session_names) => session_names,
                     Err(err) => {
@@ -222,7 +222,7 @@ pub async fn session_get_state(
                 .contains_key(&current_user)
             {
                 // Initialize the user session contexts
-                let _session_names = match state.make_session_contexts(&user_session_contexts, true)
+                let _session_names = match state.make_session_contexts(&user_session_contexts, true).await
                 {
                     Ok(session_names) => session_names,
                     Err(err) => {

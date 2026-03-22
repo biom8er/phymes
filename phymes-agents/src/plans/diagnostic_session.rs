@@ -2814,7 +2814,8 @@ mod tests {
         let session_ctx_arc = Arc::new(session_ctx);
 
         // Make diagnostic data and session tasks data
-        let message_map = make_test_data(diagnostic_session.session_context_name).await?;
+        let mut message_map = make_test_data(diagnostic_session.session_context_name).await?;
+        message_map.extend(session_messages.unwrap_or_default());
 
         // Run
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));

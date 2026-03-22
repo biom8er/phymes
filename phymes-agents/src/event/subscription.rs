@@ -215,7 +215,7 @@ mod tests {
     use object_store::path::Path;
     use phymes_core::{IpcWriter, RuntimeEnvTrait, StorageStreamWriterTrait, StorageWriterTrait, Subject, test_subject};
 
-    use crate::make_object_store_path;
+    use crate::{PublicationTrait, make_object_store_path};
 
     use super::*;
 
@@ -262,9 +262,55 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn test_subscribe_to_subject() -> Result<()> {
-
+    #[tokio::test]
+    async fn test_subscribe_last_record_batches() -> Result<()> {
+        let subject_name = "test_table";
+        let old = test_subject::make_test_subject(subject_name, 4, 0, 3)?;
+        let runtime_env = Arc::new(RuntimeEnv::default());
+        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: subject_name.to_string() }
+            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0)?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let new = test_subject::make_test_subject(subject_name, 1, 0, 1)?;
+        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: subject_name.to_string() }
+            .publish_to_subject(&runtime_env, new.get_record_batches_own(), 1)?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let batches: Vec<_> = Subscription::AlwaysLastRecordBatch { subject_name: subject_name.to_string() }
+            .subscribe_to_subject(&runtime_env)?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(subject_name)
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.get_record_batches().len(), 1);
+        assert_eq!(subject.count_rows(), 1);
+        let batches: Vec<_> = Subscription::OnUpdateLastRecordBatch { subject_name: subject_name.to_string() }
+            .subscribe_to_subject(&runtime_env)?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(subject_name)
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.get_record_batches().len(), 1);
+        assert_eq!(subject.count_rows(), 1);
+        let batches: Vec<_> = Subscription::OnUpdateAllRecordBatches { subject_name: subject_name.to_string() }
+            .subscribe_to_subject(&runtime_env)?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(subject_name)
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.get_record_batches().len(), 4);
+        assert_eq!(subject.count_rows(), 13);
         Ok(())
     }
 }

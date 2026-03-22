@@ -42,9 +42,9 @@ pub struct AppBuilder {
 }
 
 impl AppBuilder {
-    pub fn new(user_session_context_name: Option<&str>) -> Self {
+    pub fn new(user_session_context_name: Option<&str>) -> impl std::future::Future<Output = Result<Self>> + Send { async move {
         // Application state
-        let user_state = UserState::new(user_session_context_name);
+        let user_state = UserState::new(user_session_context_name).await?;
         let server_state = ServerState::new();
 
         // Router
@@ -86,8 +86,8 @@ impl AppBuilder {
                 )),
             )
             .with_state((user_state.clone(), server_state));
-        Self { app }
-    }
+        Ok(Self { app })
+    }}
 
     #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
     fn with_fallback(self, dir: &str) -> Self {
@@ -153,7 +153,7 @@ impl Server {
     pub async fn run(&self) -> Result<()> {
         // initialize the front-end
         let frontend = async {
-            let app: Router = AppBuilder::new(None)
+            let app: Router = AppBuilder::new(None).await?
                 .with_fallback(self.config.try_read().unwrap().assets_dir.as_str())
                 .with_trace_layer()
                 .with_cors_layer()
