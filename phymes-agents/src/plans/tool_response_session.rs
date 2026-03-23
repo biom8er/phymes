@@ -160,7 +160,7 @@ mod tests {
                 .build()?;
             create_message_map(vec![session_tasks_message])
         };
-        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));

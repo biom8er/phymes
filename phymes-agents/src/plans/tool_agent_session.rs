@@ -743,6 +743,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             encoding: Some(DataEncoding::None),
             operator: AvailableCandleOperators::PackTabular,
             format: Some(DataFormat::None),
+            schema: Some(AvailableSubjects::Messages),
             cpu: false,
             lhs_stream: DataStreamManager::Accumulate,
             lhs_name: Some(AvailableInterfaceSubjects::AssistantMessages.to_string()),
@@ -904,7 +905,7 @@ mod tests {
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![chat_message, blob_message]);
-        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(

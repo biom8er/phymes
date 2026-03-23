@@ -558,27 +558,15 @@ impl SessionContext {
             .build()?;
 
         // If this is the first increment then replace the empty batch
-        let superstep_message = if next_superstep <= 1 {
-            IPCMessageBuilder::default()
-                .with_message(table.to_ipc_stream()?)
-                .with_subject(AvailableSubjects::SessionSupersteps.to_string().as_str())
-                .with_update(&Publication::Replace {
-                    subject_name: AvailableSubjects::SessionSupersteps.to_string(),
-                })
-                .with_publisher(self.get_name())
-                .make_name()?
-                .build()?
-        } else {
-            IPCMessageBuilder::default()
-                .with_message(table.to_ipc_stream()?)
-                .with_subject(AvailableSubjects::SessionSupersteps.to_string().as_str())
-                .with_update(&Publication::Extend {
-                    subject_name: AvailableSubjects::SessionSupersteps.to_string(),
-                })
-                .with_publisher(self.get_name())
-                .make_name()?
-                .build()?
-        };
+        let superstep_message = IPCMessageBuilder::default()
+            .with_message(table.to_ipc_stream()?)
+            .with_subject(AvailableSubjects::SessionSupersteps.to_string().as_str())
+            .with_update(&Publication::Extend {
+                subject_name: AvailableSubjects::SessionSupersteps.to_string(),
+            })
+            .with_publisher(self.get_name())
+            .make_name()?
+            .build()?;
         let messages = create_message_map(vec![superstep_message]);
         let (_update, _meta, errors) = self.update_subjects_from_messages(messages).await;
         if let Some(table) = errors {
@@ -689,7 +677,6 @@ impl SessionContext {
 
         // Update the subjects with each of the messages
         let step = self.current_superstep().await.unwrap_or_default();
-        dbg!(&step);
         for (_name, message) in messages.into_iter() {
             // Should the subject be updated?
             let update = message.get_update().clone();

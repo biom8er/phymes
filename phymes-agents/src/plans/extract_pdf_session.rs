@@ -146,7 +146,7 @@ mod tests {
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![blob_message]);
-        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
 
         // Run the first superstep
         let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map)

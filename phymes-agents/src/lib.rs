@@ -24,7 +24,7 @@ pub use session::{
     CustomAgentsBuilderTrait, SessionContext, SessionContextBuilder,
     SessionContextBuilderAgentsTrait, SessionContextBuilderMermaid,
     SessionContextBuilderMermaidTrait, SessionContextBuilderTabularTrait,
-    SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait,
+    SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepMinimal, SessionStreamStepTrait,
     test_session_context_builder, test_session_context_builder_agents,
 };
 pub use event::{PublicationTrait, SubscriptionTrait, build_and_publish_to_stream, subscribe_to_subject, update_publisher, list_subject, get_subject, make_object_store_path, make_object_store_paths_record_batch, extend_subject, clear_subject};

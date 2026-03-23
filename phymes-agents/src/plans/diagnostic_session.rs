@@ -1869,7 +1869,7 @@ mod tests {
 
         // Mimic a session run for 1 steps
         let session_ctx_arc = Arc::new(session_context);
-        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
         let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -1969,14 +1969,14 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-        let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
-            .with_record_batches(batches)
-            .unwrap()
-            .build()
-            .unwrap();
 
-        let messages = if subject.count_rows() > 0 {
+        let messages = if batches.len() > 0 {
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+                .with_record_batches(batches)
+                .unwrap()
+                .build()
+                .unwrap();
             let errors_message = IPCMessage::get_builder()
                 .with_message(subject.to_ipc_stream()?)
                 .with_subject(AvailableSubjects::AnalyticsErrors.to_string().as_str())
@@ -2823,7 +2823,7 @@ mod tests {
 
         // Make diagnostic data and session tasks data
         let message_map = make_test_data(diagnostic_session.session_context_name).await?;
-        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
 
         // Run
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));

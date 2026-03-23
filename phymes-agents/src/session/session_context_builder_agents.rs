@@ -592,7 +592,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     if processor.config_type() != "HTTPClientConfig" {
                         return Err(anyhow!(
                             "Schema for `HTTPClientConfig` from subject `{}` for processor type `{}` does not match the expected processor type HTTPClientRequestProcessor.",
-                            table.get_name(),
+                            subject_plan.get_name(),
                             r#type
                         ));
                     } else {
@@ -602,7 +602,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     return Err(anyhow!(
                         "Processor type `{}` for `HTTPClientConfig` from subject `{}` does not match any of the supported processor types {:?}.",
                         r#type,
-                        table.get_name(),
+                        subject_plan.get_name(),
                         AvailableProcessors::all_varient_names()
                     ));
                 }
@@ -611,7 +611,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     if processor.config_type() != "CommandSandboxConfig" {
                         return Err(anyhow!(
                             "Schema for `CommandSandboxConfig` from subject `{}` for processor type `{}` does not match the expected processor type CommandSandboxProcessor.",
-                            table.get_name(),
+                            subject_plan.get_name(),
                             r#type
                         ));
                     } else {
@@ -621,7 +621,7 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     return Err(anyhow!(
                         "Processor type `{}` for `CommandSandboxConfig` from subject `{}` does not match any of the supported processor types {:?}.",
                         r#type,
-                        table.get_name(),
+                        subject_plan.get_name(),
                         AvailableProcessors::all_varient_names()
                     ));
                 }

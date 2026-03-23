@@ -8,13 +8,7 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, ChatCompletionRequest,
-    ChatCompletionResponse, ChatTraitExt, FinishReason, MappableTrait, MessageBuilderTrait,
-    MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
-    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
-    SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Table,
-    TableBuilder, TableBuilderTrait, TableTrait, Tool, ToolChoiceType, create_chat_record_batch,
-    remove_message_by_subject,
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, ChatCompletionRequest, ChatCompletionResponse, ChatTraitExt, FinishReason, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolChoiceType, create_chat_record_batch, remove_message_by_subject
 };
 use phymes_data::{DataConfigTrait, HTTPClientRequestState};
 use phymes_diagnostics::{
@@ -134,7 +128,7 @@ impl OpenAIChatStream {
     }
 
     /// Initialize the config for text generation inference
-    fn init_config(&mut self, config_table: Table) -> Result<()> {
+    fn init_config(&mut self, config_table: Subject) -> Result<()> {
         if self.config.is_none() {
             let config = CandleChatConfig::from_table(&config_table)?;
             self.config.replace(config);
@@ -143,7 +137,7 @@ impl OpenAIChatStream {
     }
 
     /// Create the request
-    fn make_request(&self, messages: Table, tools: Option<Vec<Tool>>) -> ChatCompletionRequest {
+    fn make_request(&self, messages: Subject, tools: Option<Vec<Tool>>) -> ChatCompletionRequest {
         // Convert messages to openAI schema
         let messages_openai = messages.to_openai_messages();
 
@@ -186,7 +180,7 @@ impl Stream for OpenAIChatStream {
                 while let Some(Ok(batch)) = ready!(self.config_stream.poll_next_unpin(cx)) {
                     batches.push(batch);
                 }
-                let config_table = Table::get_builder()
+                let config_table = Subject::get_builder()
                     .with_name("config")
                     .with_record_batches(batches)?
                     .build()?;
@@ -208,7 +202,7 @@ impl Stream for OpenAIChatStream {
                 while let Some(Ok(batch)) = ready!(message_stream.poll_next_unpin(cx)) {
                     batches.push(batch);
                 }
-                let messages = Table::get_builder()
+                let messages = Subject::get_builder()
                     .with_name("messages")
                     .with_record_batches(batches)?
                     .build()?;
@@ -230,7 +224,7 @@ impl Stream for OpenAIChatStream {
                         while let Some(Ok(batch)) = ready!(tools_stream.poll_next_unpin(cx)) {
                             batches.push(batch);
                         }
-                        let tool_table = TableBuilder::new()
+                        let tool_table = Subject::get_builder()
                             .with_name("messages")
                             .with_record_batches(batches)?
                             .build()?;
@@ -374,14 +368,12 @@ impl RecordBatchStream for OpenAIChatStream {
 mod tests {
     #[allow(unused_imports)]
     use super::*;
-    use phymes_core::Publication;
     #[allow(unused_imports)]
-    use phymes_core::{ChatBuilderTraitExt, TableBuilder};
+    use phymes_core::{ChatBuilderTraitExt, SubjectBuilder, Publication};
     #[allow(unused_imports)]
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
 
     use crate::AvailableOpenAIAssets;
-    use phymes_core::RuntimeEnvTrait;
 
     #[cfg(not(feature = "candle"))]
     #[tokio::test]
@@ -407,13 +399,13 @@ mod tests {
             ..Default::default()
         };
         let candle_chat_config_json = serde_json::to_vec(&candle_chat_config)?;
-        let candle_chat_config_table = TableBuilder::new()
+        let candle_chat_config_table = SubjectBuilder::new()
             .with_name(name)
             .with_json(&candle_chat_config_json, 1)?
             .build()?;
 
         // Make the system prompt and add the user query
-        let message_builder = TableBuilder::new()
+        let message_builder = SubjectBuilder::new()
             .with_name(messages)
             .insert_system_template_str("You are a helpful assistant.")?
             .append_new_user_query_str(

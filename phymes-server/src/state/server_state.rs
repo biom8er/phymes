@@ -36,7 +36,7 @@ impl UserState {
             AvailableSessionPlans::get_session_stream_state_by_name("Users", session_name)?;
 
         // Write the session messages to the store
-        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
         Ok(Self { users: session_ctx_arc })
     }}
 
@@ -273,7 +273,7 @@ impl ServerState {
                     )?;
 
                     // Write the session messages to the store
-                    let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
+                    let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
 
                     // Add the session stream state to the state
                     let _ = self
@@ -307,7 +307,7 @@ impl ServerState {
                     let session_ctx_arc = Arc::new(session_context);
 
                     // Write the session messages to the store
-                    let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
+                    let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
 
                     // Add the session stream state to the state
                     let _ = self

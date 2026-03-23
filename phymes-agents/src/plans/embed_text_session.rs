@@ -352,7 +352,7 @@ mod tests {
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![chat_message, document_message]);
-        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
