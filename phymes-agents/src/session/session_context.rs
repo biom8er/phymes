@@ -689,6 +689,7 @@ impl SessionContext {
 
         // Update the subjects with each of the messages
         let step = self.current_superstep().await.unwrap_or_default();
+        dbg!(&step);
         for (_name, message) in messages.into_iter() {
             // Should the subject be updated?
             let update = message.get_update().clone();

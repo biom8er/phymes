@@ -338,7 +338,7 @@ mod tests {
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, SubscriptionTrait, create_message_map
     };
 
     use super::*;
@@ -378,8 +378,8 @@ mod tests {
             .make_name()?
             .build()?;
 
-        let mut message_map = create_message_map(vec![chat_message]);
-        message_map.extend(session_messages.unwrap_or_default());
+        let message_map = create_message_map(vec![chat_message]);
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -588,8 +588,8 @@ mod tests {
             .make_name()?
             .build()?;
 
-        let mut message_map = create_message_map(vec![tool_message, chat_message]);
-        message_map.extend(session_messages.unwrap_or_default());
+        let message_map = create_message_map(vec![tool_message, chat_message]);
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -810,8 +810,8 @@ mod tests {
             .make_name()?
             .build()?;
 
-        let mut message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
-        message_map.extend(session_messages.unwrap_or_default());
+        let message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -1049,8 +1049,8 @@ mod tests {
             .make_name()?
             .build()?;
 
-        let mut message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
-        message_map.extend(session_messages.unwrap_or_default());
+        let message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(

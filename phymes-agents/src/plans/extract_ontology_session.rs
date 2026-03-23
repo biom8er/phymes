@@ -1992,8 +1992,8 @@ mod tests {
             .with_publisher(extract_onto_session.session_context_name)
             .make_name()?
             .build()?;
-        let mut message_map = create_message_map(vec![owl_message]);
-        message_map.extend(session_messages.unwrap_or_default());
+        let message_map = create_message_map(vec![owl_message]);
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
 
         // Run the first superstep
         let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map)

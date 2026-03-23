@@ -11,7 +11,7 @@ use axum::{
 use bytes::Bytes;
 use futures::prelude::*;
 use phymes_agents::{
-    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DiagnosticSession, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map
+    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DiagnosticSession, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, SubscriptionTrait, create_message_map
 };
 use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
 use phymes_core::{
@@ -258,7 +258,7 @@ pub async fn session_diagnostics(
                 .build_with_tables()
                 .unwrap();
             let session_ctx_arc = Arc::new(session_ctx);
-            message_map.extend(session_messages.unwrap_or_default());
+            let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await.unwrap();
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
 
             // Run and update the session and convert the output to the user specified format

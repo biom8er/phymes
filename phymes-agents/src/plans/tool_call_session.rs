@@ -389,7 +389,7 @@ mod tests {
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, SubscriptionTrait, create_message_map
     };
 
     use super::*;
@@ -412,7 +412,7 @@ mod tests {
         let session_ctx_arc = Arc::new(session_ctx);
 
         // Replace the Bytes to trigger the session
-        let mut message_map = {
+        let message_map = {
             let batch = create_bytes_record_batch(vec!["{}".into()])?;
             let table = AvailableSubjects::Bytes.to_subject(None, Some(vec![batch]))?;
             let session_tasks_message = IPCMessage::get_builder()
@@ -426,7 +426,7 @@ mod tests {
                 .build()?;
             create_message_map(vec![session_tasks_message])
         };
-        message_map.extend(session_messages.unwrap_or_default());
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));

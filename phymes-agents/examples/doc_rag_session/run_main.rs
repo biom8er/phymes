@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use phymes_agents::{
     AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DocumentRAGSession,
-    SessionContextBuilderAgentsTrait, SessionStream, create_message_map,
+    SessionContextBuilderAgentsTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, create_message_map,
 };
 use phymes_core::{
     AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
@@ -77,8 +77,8 @@ pub async fn run_main() -> Result<()> {
 
     // ----- Query #1 -----
     // Embed the documents
-    let mut message_map = create_message_map(vec![blob_message]);
-    message_map.extend(session_messages.unwrap_or_default());
+    let message_map = create_message_map(vec![blob_message]);
+    let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
     let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
     let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 

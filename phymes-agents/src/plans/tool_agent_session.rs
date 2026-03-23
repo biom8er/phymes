@@ -725,6 +725,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             encoding: Some(DataEncoding::None),
             operator: AvailableCandleOperators::PackTabular,
             format: Some(DataFormat::None),
+            schema: Some(AvailableSubjects::Messages),
             cpu: false,
             lhs_stream: DataStreamManager::Accumulate,
             lhs_name: Some(self.tool_summary_task_name.to_string()),
@@ -854,7 +855,7 @@ mod tests {
     use phymes_data::test_extract_tabular_data::make_scores_table;
     use phymes_diagnostics::HashMap;
 
-    use crate::{SessionContextBuilderAgentsTrait, SessionStream, create_message_map};
+    use crate::{SessionContextBuilderAgentsTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, create_message_map};
 
     use super::*;
 
@@ -902,8 +903,8 @@ mod tests {
             .with_publisher(tool_agent_session.session_context_name)
             .make_name()?
             .build()?;
-        let mut message_map = create_message_map(vec![chat_message, blob_message]);
-        message_map.extend(session_messages.unwrap_or_default());
+        let message_map = create_message_map(vec![chat_message, blob_message]);
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(

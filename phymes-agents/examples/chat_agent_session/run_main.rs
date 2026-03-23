@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use phymes_agents::{
     AvailableInterfaceSubjects, ChatAgentSession, CustomAgentsBuilderTrait,
-    SessionContextBuilderAgentsTrait, SessionStream, create_message_map,
+    SessionContextBuilderAgentsTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, create_message_map,
 };
 use phymes_core::{
     AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage,
@@ -48,8 +48,8 @@ pub async fn run_main() -> Result<()> {
         .with_publisher(chat_agent_session.session_context_name)
         .make_name()?
         .build()?;
-    let mut incoming_message_map = create_message_map(vec![message]);
-    incoming_message_map.extend(session_messages.unwrap_or_default());
+    let incoming_message_map = create_message_map(vec![message]);
+    let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_ctx_arc));
     let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 

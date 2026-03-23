@@ -118,7 +118,7 @@ mod tests {
         let session_ctx_arc = Arc::new(session_ctx);
 
         // Make the test session data
-        let mut message_map = {
+        let message_map = {
             // Make the test sequential session
             let (session_context, session_messages) =
                 test_session_context_builder::make_test_session_context_builder_sequential(
@@ -132,8 +132,8 @@ mod tests {
                 .build_with_tables()?;
 
             // Mimic a session run for 1 steps
-            let session_context_arc = Arc::new(session_context);
-            let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_context_arc, session_messages.unwrap_or_default()).await?;
+            let session_ctx_arc = Arc::new(session_context);
+            let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
             let messages = test_task::make_test_input_message(
                 "task_1",
                 "session_1",
@@ -144,12 +144,12 @@ mod tests {
                 },
                 true,
             )?;
-            let session_stream = SessionStream::new(messages, Arc::clone(&session_context_arc));
+            let session_stream = SessionStream::new(messages, Arc::clone(&session_ctx_arc));
             let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
             // Extract out the subjects for the test
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
-                .subscribe_to_subject(session_context_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -170,7 +170,7 @@ mod tests {
                 .build()?;
             create_message_map(vec![subjects_change_log_message])
         };
-        message_map.extend(session_messages.unwrap_or_default());
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));

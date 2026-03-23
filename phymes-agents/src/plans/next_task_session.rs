@@ -925,8 +925,8 @@ mod tests {
                 .build_with_tables()?;
 
             // Mimic a superstep update without running the superstep
-            let session_context_arc = Arc::new(session_context);
-            let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_context_arc, session_messages.unwrap_or_default()).await?;
+            let session_ctx_arc = Arc::new(session_context);
+            let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
             let messages = test_task::make_test_input_message(
                 "task_1",
                 "session_1",
@@ -937,9 +937,9 @@ mod tests {
                 },
                 true,
             )?;
-            let _step = SessionStreamStep::current_superstep(&session_context_arc).await;
+            let _step = SessionStreamStep::current_superstep(&session_ctx_arc).await;
             let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(
-                &session_context_arc,
+                &session_ctx_arc,
                 messages,
             ).await?;
 
@@ -1032,7 +1032,8 @@ mod tests {
 
         // Run the session
         message_map.extend(tasks_publish_subscribe_messages.pop().unwrap());
-        message_map.extend(session_messages.unwrap_or_default());
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await; // DM: Alternative that does not log the changes
+        // let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 

@@ -309,12 +309,12 @@ pub(crate) mod user_session_inner {
 
     use crate::{
         SessionContext, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait,
-        SessionStream, create_message_map,
+        SessionStream, SessionStreamStep, SessionStreamStepTrait, create_message_map,
     };
 
     use super::*;
 
-    pub fn user_session() -> Result<(Arc<SessionContext>, SessionStream)> {
+    pub async fn user_session() -> Result<(Arc<SessionContext>, SessionStream)> {
         // initialize the session
         let user_agent_session = UserSession::default();
         let (session_ctx, session_messages) = user_agent_session
@@ -341,8 +341,8 @@ pub(crate) mod user_session_inner {
             .with_publisher(user_agent_session.session_context_name)
             .make_name()?
             .build()?;
-        let mut message_map = create_message_map(vec![message]);
-        message_map.extend(session_messages.unwrap_or_default());
+        let message_map = create_message_map(vec![message]);
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
 
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
 
@@ -363,7 +363,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_user_session() -> Result<()> {
-        let (session_ctx_arc, session_stream) = user_session_inner::user_session()?;
+        let (session_ctx_arc, session_stream) = user_session_inner::user_session().await?;
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
         assert!(response.is_empty());
 

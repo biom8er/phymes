@@ -167,8 +167,8 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                         .with_publisher(session_context_name.as_str())
                         .make_name()?
                         .build()?;
-                    let mut message_map = create_message_map(vec![blob_message]);
-                    message_map.extend(session_messages.unwrap_or_default());
+                    let message_map = create_message_map(vec![blob_message]);
+                    let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
                     let session_stream =
                         SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
                     session_stream

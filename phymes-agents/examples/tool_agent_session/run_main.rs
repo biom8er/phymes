@@ -8,7 +8,7 @@ use anyhow::Result;
 use futures::TryStreamExt;
 use phymes_agents::{
     AvailableInterfaceSubjects, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait,
-    SessionStream, ToolAgentSession, create_message_map,
+    SessionStream, SessionStreamStep, SessionStreamStepTrait, ToolAgentSession, create_message_map,
 };
 use phymes_core::{
     AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
@@ -62,8 +62,8 @@ pub async fn run_main() -> Result<()> {
         .with_publisher(tool_agent_session.session_context_name)
         .make_name()?
         .build()?;
-    let mut message_map = create_message_map(vec![chat_message, blob_message]);
-    message_map.extend(session_messages.unwrap_or_default());
+    let message_map = create_message_map(vec![chat_message, blob_message]);
+    let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
     let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
     let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 

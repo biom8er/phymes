@@ -118,8 +118,8 @@ mod tests {
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let session_context_arc = Arc::new(session_context);
-        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_context_arc, session_messages.unwrap_or_default()).await?;
+        let session_ctx_arc = Arc::new(session_context);
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
         let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -130,7 +130,7 @@ mod tests {
             },
             true,
         )?;
-        let session_stream = SessionStream::new(messages, Arc::clone(&session_context_arc));
+        let session_stream = SessionStream::new(messages, Arc::clone(&session_ctx_arc));
         let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         // Check the response
@@ -199,7 +199,7 @@ mod tests {
 
         // check the session and session_context
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
-            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
@@ -208,37 +208,37 @@ mod tests {
 
         // Check the traces, events, and metrics tables
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
-            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 3); // DM, Check!(): changed from 5
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
-            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 4); // DM, Check!(): changed from 8
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
-            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
-            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 2);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
-            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 0);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSupersteps.to_string() }
-            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;

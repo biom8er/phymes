@@ -1868,8 +1868,8 @@ mod tests {
             .build_with_tables()?;
 
         // Mimic a session run for 1 steps
-        let session_context_arc = Arc::new(session_context);
-        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_context_arc, session_messages.unwrap_or_default()).await?;
+        let session_ctx_arc = Arc::new(session_context);
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
         let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -1880,12 +1880,12 @@ mod tests {
             },
             true,
         )?;
-        let session_stream = SessionStream::new(messages, Arc::clone(&session_context_arc));
+        let session_stream = SessionStream::new(messages, Arc::clone(&session_ctx_arc));
         let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         // Extract the subjects
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
-            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
@@ -1905,7 +1905,7 @@ mod tests {
             .make_name()?
             .build()?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTraces.to_string() }
-            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
@@ -1925,7 +1925,7 @@ mod tests {
             .make_name()?
             .build()?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionEvents.to_string() }
-            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
@@ -1945,7 +1945,7 @@ mod tests {
             .make_name()?
             .build()?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasks.to_string() }
-            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
@@ -1965,7 +1965,7 @@ mod tests {
             .make_name()?
             .build()?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
-            .subscribe_to_subject(session_context_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2822,8 +2822,8 @@ mod tests {
         let session_ctx_arc = Arc::new(session_ctx);
 
         // Make diagnostic data and session tasks data
-        let mut message_map = make_test_data(diagnostic_session.session_context_name).await?;
-        message_map.extend(session_messages.unwrap_or_default());
+        let message_map = make_test_data(diagnostic_session.session_context_name).await?;
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await?;
 
         // Run
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
