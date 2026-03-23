@@ -1363,8 +1363,9 @@ mod tests {
         assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_steps(), 25);
         assert!(session.get_diagnostics());
-        let keys = messages.unwrap().keys().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        assert_eq!(keys, ["SessionProcessors", "SessionTasks", "state_2", "SessionTasksRunLog", "state_1", "SubjectsObjectStoreMeta", "SessionMermaid", "SessionRuntimeEnvs", "SessionSubjectSchemas", "SubjectsChangeLog", "processor_1", "processor_2", "state_3", "SubjectsNumRows", "processor_3"]);
+        let mut keys = messages.unwrap().keys().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        keys.sort();
+        assert_eq!(keys, ["SessionMermaid", "SessionProcessors", "SessionRuntimeEnvs", "SessionSubjectSchemas", "SessionTasks", "SessionTasksRunLog", "SubjectsChangeLog", "SubjectsNumRows", "SubjectsObjectStoreMeta", "processor_1", "processor_2", "processor_3", "state_1", "state_2", "state_3"]);
         Ok(())
     }
 
@@ -1392,8 +1393,9 @@ mod tests {
         assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_steps(), 25);
         assert!(session.get_diagnostics());
-        let keys = messages.unwrap().keys().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        assert_eq!(keys, ["processor_3", "state_1", "SessionSubjectSchemas", "SubjectsObjectStoreMeta", "SubjectsChangeLog", "state_3", "processor_2", "SessionTasksRunLog", "SessionProcessors", "processor_1", "SubjectsNumRows", "SessionRuntimeEnvs", "state_2", "SessionTasks", "SessionMermaid"]);
+        let mut keys = messages.unwrap().keys().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        keys.sort();
+        assert_eq!(keys, ["SessionMermaid", "SessionProcessors", "SessionRuntimeEnvs", "SessionSubjectSchemas", "SessionTasks", "SessionTasksRunLog", "SubjectsChangeLog", "SubjectsNumRows", "SubjectsObjectStoreMeta", "processor_1", "processor_2", "processor_3", "state_1", "state_2", "state_3"]);
         Ok(())
     }
 
@@ -1490,8 +1492,9 @@ mod tests {
         assert_eq!(session.tasks().len(), 4);
         assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_steps(), 25);
-        let keys = messages.unwrap().keys().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        assert_eq!(keys, ["SessionRuntimeEnvs", "SessionProcessors", "state_3", "SubjectsNumRows", "SessionSubjectSchemas", "processor_4", "state_1", "SessionMermaid", "SessionTasks", "state_2", "processor_1", "processor_2", "SubjectsObjectStoreMeta", "processor_3", "SessionTasksRunLog", "SubjectsChangeLog"]);
+        let mut keys = messages.unwrap().keys().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        keys.sort();
+        assert_eq!(keys, ["SessionMermaid", "SessionProcessors", "SessionRuntimeEnvs", "SessionSubjectSchemas", "SessionTasks", "SessionTasksRunLog", "SubjectsChangeLog", "SubjectsNumRows", "SubjectsObjectStoreMeta", "processor_1", "processor_2", "processor_3", "processor_4", "state_1", "state_2", "state_3"]);
         Ok(())
     }
 

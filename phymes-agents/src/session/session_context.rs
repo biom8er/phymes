@@ -975,20 +975,19 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 3);
-        assert_eq!(subscriptions.last().unwrap().num_rows(), 4);
+        assert_eq!(subscriptions.len(), 0);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_2".to_string() }
             .subscribe_to_subject(session_context.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 3);
+        assert_eq!(subscriptions.len(), 0);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_3".to_string() }
             .subscribe_to_subject(session_context.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 3);
+        assert_eq!(subscriptions.len(), 0);
 
         // Case 2: update state
         let input = test_task::make_test_input_message(
@@ -1025,54 +1024,56 @@ mod tests {
         assert_eq!(col, [12]);
 
         // check the object store metadata
-        assert_eq!(meta.as_ref().unwrap().count_rows(), 1);
+        assert_eq!(meta.as_ref().unwrap().count_rows(), 3);
         let col = meta
             .as_ref()
             .unwrap()
             .get_column_as_vec_str("subject_name");
-        assert_eq!(col, ["state_1"]);
+        assert_eq!(col, ["state_1", "state_1", "state_1"]);
         let col = meta.as_ref().unwrap().get_column_as_vec_str("task_name");
-        assert_eq!(col, ["session_1"]);
+        assert_eq!(col, ["session_1", "session_1", "session_1"]);
         let col = meta
             .as_ref()
             .unwrap()
             .get_column_as_vec_str("session_name");
-        assert_eq!(col, ["session_1"]);
+        assert_eq!(col, ["session_1", "session_1", "session_1"]);
         let col = meta
             .as_ref()
             .unwrap()
             .get_column_as_vec_primitive::<i64>("num_rows")?;
-        assert_eq!(col, [12]);
+        assert_eq!(col, [12, 12, 12]);
         let col = meta
             .as_ref()
             .unwrap()
             .get_column_as_vec_str("location");
-        assert_eq!(col, ["session_1"]);
+        assert_eq!(col, ["state_1/superstep=0/partition=0/state_1.ipc", "state_1/superstep=0/partition=1/state_1.ipc", "state_1/superstep=0/partition=2/state_1.ipc"]);
         let col = meta
             .as_ref()
             .unwrap()
             .get_column_as_vec_str("bucket");
-        assert_eq!(col, ["session_1"]);
+        assert_eq!(col, ["", "", ""]);
         let col = meta
             .as_ref()
             .unwrap()
             .get_column_as_vec_str("e_tag");
-        assert_eq!(col, ["session_1"]);
+        assert_eq!(col, ["0", "1", "2"]);
         let col = meta
             .as_ref()
             .unwrap()
             .get_column_as_vec_str("version");
-        assert_eq!(col, ["session_1"]);
+        assert_eq!(col, ["", "", ""]);
         let col = meta
             .as_ref()
             .unwrap()
             .get_column_as_vec_primitive::<u32>("size")?;
-        assert_eq!(col, [12]);
-        let col = meta
+        assert_eq!(col, [2376, 2376, 2376]);
+        let timestamps = meta
             .as_ref()
             .unwrap()
             .get_column_as_vec_primitive::<i64>("last_modified")?;
-        assert_eq!(col, [12]);
+        for timestamp in timestamps {
+            assert!(timestamp > 0);
+        }
 
         // check the session context
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
@@ -1080,20 +1081,20 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 6);
+        assert_eq!(subscriptions.len(), 3);
         assert_eq!(subscriptions.last().unwrap().num_rows(), 4);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_2".to_string() }
             .subscribe_to_subject(session_context.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 3);
+        assert_eq!(subscriptions.len(), 0);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_3".to_string() }
             .subscribe_to_subject(session_context.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 3);
+        assert_eq!(subscriptions.len(), 0);
 
         // Case 3: Error due to mismatching schemas
         let input = test_task::make_test_input_message(

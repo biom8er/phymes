@@ -25,7 +25,7 @@ use serde_json::Value;
 use tracing::{Level, event};
 
 pub trait SubjectBuilderTrait: BuilderTrait + Debug + Send + Sync {
-    /// The schema for all record batches in the table
+    /// The schema for all record batches in the subject
     fn with_schema(self, schema: SchemaRef) -> Self;
 
     /// Add record batches
@@ -39,20 +39,20 @@ pub trait SubjectBuilderTrait: BuilderTrait + Debug + Send + Sync {
     /// Delete the partitions in the object storage (with the option to specify which partitions)
     fn delete_partitions_object_store<'a>(&'a self, store: &'a Arc<dyn ObjectStore>, paths: Option<Vec<Path>>) -> Pin<Box<dyn Stream<Item = Result<Path, object_store::Error>> + Send>>;
 
-    /// Create a new stream table with the provided object storage
+    /// Create a new stream subject with the provided object storage
     /// from IPC format    
     fn new_from_ipc_object_store<'a>(store: &'a Arc<dyn ObjectStore>, path: &'a Path) -> Pin<Box<dyn Future<Output = Result<Self>> + Send + 'a>>
     where
         Self: Sized;
 
-    /// Create a new stream table with the provided batches
+    /// Create a new stream subject with the provided batches
     /// from a IPC file
     fn new_from_ipc_file<F>(file: F) -> Result<Self>
     where
         F: Read + Seek,
         Self: Sized;
 
-    /// Create a new stream table with the provided batches
+    /// Create a new stream subject with the provided batches
     /// from a CSV file
     fn with_csv_file(
         self,
@@ -64,31 +64,31 @@ pub trait SubjectBuilderTrait: BuilderTrait + Debug + Send + Sync {
     where
         Self: Sized;
 
-    /// Create a new stream table with the provided batches
+    /// Create a new stream subject with the provided batches
     /// from a IPC stream
     fn new_from_ipc_stream(bytes: &[u8]) -> Result<Self>
     where
         Self: Sized;
 
-    /// Create a new stream table with the provided batches
+    /// Create a new stream subject with the provided batches
     /// from a JSON
     fn with_json(self, bytes: &[u8], batch_size: usize) -> Result<Self>
     where
         Self: Sized;
 
-    /// Create a new stream table with the provided batches
+    /// Create a new stream subject with the provided batches
     /// from a CSV file
     fn with_csv(self, bytes: &[u8], delimiter: u8, header: bool, batch_size: usize) -> Result<Self>
     where
         Self: Sized;
 
-    /// Create a new stream table with the provided batches
+    /// Create a new stream subject with the provided batches
     /// from a JSON array of values
     fn with_json_values(self, json_values: &[Value]) -> Result<Self>
     where
         Self: Sized;
 
-    /// Create a new stream table with the provided batches
+    /// Create a new stream subject with the provided batches
     /// from a SendableRecordBatchStream
     #[allow(async_fn_in_trait)]
     async fn new_from_sendable_record_batch_stream(
@@ -97,7 +97,7 @@ pub trait SubjectBuilderTrait: BuilderTrait + Debug + Send + Sync {
     where
         Self: Sized;
 
-    /// Create a new stream table with the provided batches
+    /// Create a new stream subject with the provided batches
     /// from a SendableIPCRecordBatchStream
     #[allow(async_fn_in_trait)]
     async fn new_from_sendable_ipc_record_batch_stream(
@@ -106,14 +106,14 @@ pub trait SubjectBuilderTrait: BuilderTrait + Debug + Send + Sync {
     where
         Self: Sized;
 
-    /// Create a new stream table with the provided batches
+    /// Create a new stream subject with the provided batches
     /// from a vector of structs
     fn with_struct<T>(self, s: &[T]) -> Result<Self>
     where
         Self: Sized,
         T: Sized + Serialize;
 
-    /// Create a new stream table with the provided batches
+    /// Create a new stream subject with the provided batches
     /// from a JSON object in byte format
     fn with_bytes(self, bytes: &[u8]) -> Result<Self>
     where
@@ -182,7 +182,7 @@ impl SubjectBuilderTrait for SubjectBuilder {
                 self.schema = Some(batch.schema());
             } else {
                 return Err(anyhow!(
-                    "Missing schema and batches for table {}!",
+                    "Missing schema and batches for subject {}!",
                     self.name.unwrap_or_default()
                 ));
             }
@@ -193,7 +193,7 @@ impl SubjectBuilderTrait for SubjectBuilder {
         for batch in batches.iter() {
             if !schema.eq(&batch.schema()) {
                 return Err(anyhow!(
-                    "Mismatch between schema and batches for table {}!",
+                    "Mismatch between schema and batches for subject {}!",
                     self.name.unwrap_or_default()
                 ));
             }
@@ -207,7 +207,7 @@ impl SubjectBuilderTrait for SubjectBuilder {
             let path = Some(Path::from(name.to_owned()));
             store.list(path.as_ref())
         } else {
-            let err = object_store::Error::Generic { store: "", source: anyhow!("Provide a name for the table before trying to list all of the tables partitions in object storage.").into_boxed_dyn_error() };
+            let err = object_store::Error::Generic { store: "", source: anyhow!("Provide a name for the subject before trying to list all of the tables partitions in object storage.").into_boxed_dyn_error() };
             futures::stream::iter(vec![Err(err)]).boxed()
         }
     }
