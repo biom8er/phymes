@@ -704,6 +704,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
         let attachment_config = DataConfig {
             encoding: Some(DataEncoding::None),
             format: Some(DataFormat::CsvDefault),
+            schema: Some(AvailableSubjects::Attachments),
             cpu: false,
             lhs_stream: DataStreamManager::Accumulate,
             operator: AvailableCandleOperators::PackTabular,

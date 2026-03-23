@@ -913,7 +913,7 @@ mod tests {
         // Make the test session data
         let mut message_map = {
             // Make the test sequential session
-            let (session_context, mut messages) =
+            let (session_context, session_messages) =
                 test_session_context_builder::make_test_session_context_builder_sequential(
                     "session_1",
                     4,
@@ -923,11 +923,11 @@ mod tests {
                 .add_next_tasks()? // DM required for 'SessionTasksSubscribePublish' table
                 .add_next_supersteps()?
                 .build_with_tables()?;
-            let session_context_arc = Arc::new(session_context);
 
             // Mimic a superstep update without running the superstep
-            let mut messages = messages.take().unwrap();
-            messages.extend(test_task::make_test_input_message(
+            let session_context_arc = Arc::new(session_context);
+            let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_context_arc, session_messages.unwrap_or_default()).await?;
+            let messages = test_task::make_test_input_message(
                 "task_1",
                 "session_1",
                 "state_1",
@@ -936,7 +936,7 @@ mod tests {
                     subject_name: "state_1".to_string(),
                 },
                 true,
-            )?);
+            )?;
             let _step = SessionStreamStep::current_superstep(&session_context_arc).await;
             let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(
                 &session_context_arc,

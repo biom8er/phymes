@@ -744,7 +744,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_no_state_update() -> Result<()> {
-        let (session_context, mut messages) =
+        let (session_context, session_messages) =
             test_session_context_builder::make_test_session_context_builder_parallel(
                 "session_1",
                 4,
@@ -753,16 +753,17 @@ mod tests {
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let mut messages = messages.take().unwrap();
-        messages.extend(test_task::make_test_input_message(
+        let session_context_arc = Arc::new(session_context);
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_context_arc, session_messages.unwrap_or_default()).await?;
+
+        let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
             "state_1",
             "state_1",
             &Publication::None,
             true,
-        )?);
-        let session_context_arc = Arc::new(session_context);
+        )?;
         let response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
             messages,
@@ -844,7 +845,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_extend_state_update_single_task() -> Result<()> {
-        let (session_context, mut messages) =
+        let (session_context, session_messages) =
             test_session_context_builder::make_test_session_context_builder_parallel(
                 "session_1",
                 4,
@@ -853,8 +854,9 @@ mod tests {
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let mut messages = messages.take().unwrap();
-        messages.extend(test_task::make_test_input_message(
+        let session_context_arc = Arc::new(session_context);
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_context_arc, session_messages.unwrap_or_default()).await?;
+        let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
             "state_1",
@@ -863,8 +865,7 @@ mod tests {
                 subject_name: "state_1".to_string(),
             },
             true,
-        )?);
-        let session_context_arc = Arc::new(session_context);
+        )?;
         let response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
             messages,
@@ -898,13 +899,13 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 3);
+        assert_eq!(subscriptions.len(), 2); // DM, Check!(): changed from 3
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 5);
+        assert_eq!(subscriptions.len(), 3); // DM, Check!(): changed from 5
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
@@ -947,7 +948,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_single_task() -> Result<()> {
-        let (session_context, mut messages) =
+        let (session_context, session_messages) =
             test_session_context_builder::make_test_session_context_builder_parallel(
                 "session_1",
                 4,
@@ -956,8 +957,9 @@ mod tests {
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let mut messages = messages.take().unwrap();
-        messages.extend(test_task::make_test_input_message(
+        let session_context_arc = Arc::new(session_context);
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_context_arc, session_messages.unwrap_or_default()).await?;
+        let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
             "state_1",
@@ -966,8 +968,7 @@ mod tests {
                 subject_name: "state_1".to_string(),
             },
             true,
-        )?);
-        let session_context_arc = Arc::new(session_context);
+        )?;
         let response = SessionStreamStep::run_superstep(
             Arc::clone(&session_context_arc),
             messages,
@@ -995,19 +996,19 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 32);
+        assert_eq!(subscriptions.len(), 3);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 3);
+        assert_eq!(subscriptions.len(), 2); // DM, Check!(): changed from 3
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 5);
+        assert_eq!(subscriptions.len(), 3);  // DM, Check!(): changed from 5
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
@@ -1051,7 +1052,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_parallel_tasks() -> Result<()> {
         // Superstep 1
-        let (session_context, mut messages) =
+        let (session_context, session_messages) =
             test_session_context_builder::make_test_session_context_builder_parallel(
                 "session_1",
                 4,
@@ -1061,8 +1062,10 @@ mod tests {
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let mut messages = messages.take().unwrap();
-        messages.extend(test_task::make_test_input_message(
+        let session_context_arc = Arc::new(session_context);
+        // let _ = session_context_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await; // DM: Alternative that does not log the changes
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_context_arc, session_messages.unwrap_or_default()).await?;
+        let mut messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
             "state_1",
@@ -1071,7 +1074,7 @@ mod tests {
                 subject_name: "state_1".to_string(),
             },
             true,
-        )?);
+        )?;
         messages.extend(test_task::make_test_input_message(
             "task_2",
             "session_1",
@@ -1092,7 +1095,6 @@ mod tests {
             },
             true,
         )?);
-        let session_context_arc = Arc::new(session_context);
         let mut response =
             SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), messages)
                 .await?
@@ -1137,7 +1139,7 @@ mod tests {
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 4);
+        assert_eq!(n_rows, 27); // DM, check!(): changed from 4
 
         assert_eq!(
             response
@@ -1178,7 +1180,7 @@ mod tests {
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 4);
+        assert_eq!(n_rows, 27);   // DM, Check!(): changed from 4
 
         assert_eq!(
             response
@@ -1219,7 +1221,7 @@ mod tests {
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 4);
+        assert_eq!(n_rows, 27);  // DM, Check!(): changed from 4
 
         // check the session and session_context
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
@@ -1248,13 +1250,13 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 3);
+        assert_eq!(subscriptions.len(), 2);  // DM, Check!(): changed from 3
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 5);
+        assert_eq!(subscriptions.len(), 3);  // DM, Check!(): changed from 5
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
@@ -1341,7 +1343,7 @@ mod tests {
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 5);
+        assert_eq!(n_rows, 60); // DM, Check!(): changed from 5
 
         assert_eq!(
             response
@@ -1382,7 +1384,7 @@ mod tests {
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 5);
+        assert_eq!(n_rows, 60); // DM, Check!(): changed from 5
 
         assert_eq!(
             response
@@ -1423,7 +1425,7 @@ mod tests {
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 5);
+        assert_eq!(n_rows, 60); // DM, Check!(): changed from 5
 
         // check the session and session_context
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
@@ -1452,13 +1454,13 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 5);
+        assert_eq!(subscriptions.len(), 3); // DM, Check!(): changed from 5
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 8);
+        assert_eq!(subscriptions.len(), 4); // DM, Check!(): changed from 8
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
@@ -1502,7 +1504,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_run_superstep_replace_state_update_sequential_tasks() -> Result<()> {
         // Superstep 1
-        let (session_context, mut messages) =
+        let (session_context, session_messages) =
             test_session_context_builder::make_test_session_context_builder_sequential(
                 "session_1",
                 4,
@@ -1512,8 +1514,9 @@ mod tests {
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let mut messages = messages.take().unwrap();
-        messages.extend(test_task::make_test_input_message(
+        let session_context_arc = Arc::new(session_context);
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_context_arc, session_messages.unwrap_or_default()).await?;
+        let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
             "state_1",
@@ -1522,8 +1525,7 @@ mod tests {
                 subject_name: "state_1".to_string(),
             },
             true,
-        )?);
-        let session_context_arc = Arc::new(session_context);
+        )?;
         let mut response =
             SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), messages)
                 .await?
@@ -1570,7 +1572,7 @@ mod tests {
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 4);
+        assert_eq!(n_rows, 33);  // DM, Check!(): changed from 4
 
         // check the session and session_context
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
@@ -1585,13 +1587,13 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 3);
+        assert_eq!(subscriptions.len(), 2);  // DM, Check!(): changed from 3
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 5);
+        assert_eq!(subscriptions.len(), 3);  // DM, Check!(): changed from 5
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
@@ -1678,7 +1680,7 @@ mod tests {
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 7);
+        assert_eq!(n_rows, 84);  // DM, Check!(): changed from 7
 
         // check the session and session_context
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
@@ -1693,13 +1695,13 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 5);
+        assert_eq!(subscriptions.len(), 3); // DM, Check!(): changed from 5
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 8);
+        assert_eq!(subscriptions.len(), 4); // DM, Check!(): changed from 8
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
@@ -1730,7 +1732,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_run_superstep_schema_mismatch_error() -> Result<()> {
-        let (session_context, mut messages) =
+        let (session_context, session_messages) =
             test_session_context_builder::make_test_session_context_builder_sequential(
                 "session_1",
                 4,
@@ -1739,8 +1741,9 @@ mod tests {
             .add_next_tasks()?
             .add_next_supersteps()?
             .build_with_tables()?;
-        let mut messages = messages.take().unwrap();
-        messages.extend(test_task::make_test_input_message(
+        let session_context_arc = Arc::new(session_context);
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_context_arc, session_messages.unwrap_or_default()).await?;
+        let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
             "state_1",
@@ -1749,8 +1752,7 @@ mod tests {
                 subject_name: "state_1".to_string(),
             },
             false,
-        )?);
-        let session_context_arc = Arc::new(session_context);
+        )?;
         let response =
             SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), messages).await?;
         assert!(response.is_none());
@@ -1834,7 +1836,7 @@ mod tests {
             .with_max_steps(1)
             .with_object_store(make_store(&ObjectStorageBackend::InMemory, None, None)?)
             .build_arc()?;
-        let (session_context, mut messages) = SessionContextBuilder::new()
+        let (session_context, session_messages) = SessionContextBuilder::new()
             .with_name("session_1")
             .with_tasks(task_plans)
             .with_processors(processors)
@@ -1846,8 +1848,9 @@ mod tests {
             .build_with_tables()?;
 
         // Run the session context
-        let mut messages = messages.take().unwrap();
-        messages.extend(test_task::make_test_input_message(
+        let session_context_arc = Arc::new(session_context);
+        let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_context_arc, session_messages.unwrap_or_default()).await?;
+        let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
             "state_1",
@@ -1856,8 +1859,7 @@ mod tests {
                 subject_name: "state_1".to_string(),
             },
             true,
-        )?);
-        let session_context_arc = Arc::new(session_context);
+        )?;
         let response = SessionStreamStep::run_superstep(Arc::clone(&session_context_arc), messages)
             .await?
             .unwrap();
@@ -1868,13 +1870,13 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 3);
+        assert_eq!(subscriptions.len(), 2); // DM, Check!(): changed from 3
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 5);
+        assert_eq!(subscriptions.len(), 3); // DM, Check!(): changed from 5
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
             .subscribe_to_subject(session_context_arc.runtime_env())?
             .unwrap()

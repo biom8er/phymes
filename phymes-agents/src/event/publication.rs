@@ -709,8 +709,10 @@ mod tests {
             Arc::new(StringArray::from(vec!["0".to_string(), "1".to_string()]));
         let content_2: ArrayRef =
             Arc::new(StringArray::from(vec!["2".to_string(), "3".to_string()]));
-        let new_1 = RecordBatch::try_from_iter(vec![("role", role_1), ("content", content_1)])?;
-        let new_2 = RecordBatch::try_from_iter(vec![("role", role_2), ("content", content_2)])?;
+        let timestamap_1: ArrayRef = Arc::new(Int64Array::from(vec![0, 0]));
+        let timestamap_2: ArrayRef = Arc::new(Int64Array::from(vec![0, 0]));
+        let new_1 = RecordBatch::try_from_iter(vec![("role", role_1), ("content", content_1), ("timestamp", timestamap_1)])?;
+        let new_2 = RecordBatch::try_from_iter(vec![("role", role_2), ("content", content_2), ("timestamp", timestamap_2)])?;
 
         let _publication: Vec<RecordBatch> = Publication::ExtendChunks { subject_name: subject_name.to_string(), col_name: "content".to_string() }
             .publish_to_subject(&runtime_env, vec![new_1, new_2], 1)?
@@ -784,7 +786,7 @@ mod tests {
             .build()?;
         
         assert_eq!(subject.count_rows(), 9);
-        assert_eq!(subject.get_record_batches().len(), 3);
+        assert_eq!(subject.get_record_batches().len(), 5);
         Ok(())
     }
 }

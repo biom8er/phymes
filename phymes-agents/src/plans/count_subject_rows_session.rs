@@ -95,7 +95,7 @@ mod tests {
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map, test_session_context_builder, test_task
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, SubscriptionTrait, create_message_map, test_session_context_builder, test_task
     };
 
     use super::*;
@@ -120,7 +120,7 @@ mod tests {
         // Make the test session data
         let mut message_map = {
             // Make the test sequential session
-            let (session_context, mut messages) =
+            let (session_context, session_messages) =
                 test_session_context_builder::make_test_session_context_builder_sequential(
                     "session_1",
                     2,
@@ -132,8 +132,9 @@ mod tests {
                 .build_with_tables()?;
 
             // Mimic a session run for 1 steps
-            let mut messages = messages.take().unwrap();
-            messages.extend(test_task::make_test_input_message(
+            let session_context_arc = Arc::new(session_context);
+            let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_context_arc, session_messages.unwrap_or_default()).await?;
+            let messages = test_task::make_test_input_message(
                 "task_1",
                 "session_1",
                 "state_1",
@@ -142,8 +143,7 @@ mod tests {
                     subject_name: "state_1".to_string(),
                 },
                 true,
-            )?);
-            let session_context_arc = Arc::new(session_context);
+            )?;
             let session_stream = SessionStream::new(messages, Arc::clone(&session_context_arc));
             let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 

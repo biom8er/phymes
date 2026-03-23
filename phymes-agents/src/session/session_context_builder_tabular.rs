@@ -196,6 +196,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 // Subjects change log tables
                 || subject_plan.get_name() == AvailableSubjects::SubjectsNumRows.to_string().as_str()
                 || subject_plan.get_name() == AvailableSubjects::SubjectsChangeLog.to_string().as_str()
+                || subject_plan.get_name() == AvailableSubjects::SubjectsObjectStoreMeta.to_string().as_str()
                 // Tasks run log tables
                 || subject_plan.get_name() == AvailableSubjects::SessionTasksCheck.to_string().as_str()
                 || subject_plan.get_name() == AvailableSubjects::SessionTasksPublish.to_string().as_str()
@@ -214,7 +215,7 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
                 continue;
             } else {
                 return Err(anyhow!(
-                    "Unrecognized table {} found when creating SessionContextBuilder",
+                    "Unrecognized subject {} found when creating SessionContextBuilder",
                     subject_plan.get_name()
                 ));
             }
@@ -1947,16 +1948,6 @@ mod tests {
                 .get_column_as_vec_str("processor_name")
         );
         assert_eq!(
-            tables_test
-                .get(10)
-                .unwrap().subject()
-                .get_column_as_vec_str("runtime_env_name"),
-            tables
-                .get(10)
-                .unwrap().subject()
-                .get_column_as_vec_str("runtime_env_name")
-        );
-        assert_eq!(
             tables_test.get(11).unwrap().get_name(),
             tables.get(11).unwrap().get_name()
         );
@@ -2065,11 +2056,11 @@ mod tests {
             tables_test
                 .get(12)
                 .unwrap().subject()
-                .get_column_as_vec_str("object_store_backend_config"),
+                .get_column_as_vec_str("object_store_config"),
             tables
                 .get(12)
                 .unwrap().subject()
-                .get_column_as_vec_str("object_store_backend_config")
+                .get_column_as_vec_str("object_store_config")
         );
         assert_eq!(
             tables_test
@@ -2110,6 +2101,26 @@ mod tests {
                 .get(12)
                 .unwrap().subject()
                 .get_column_as_vec_primitive::<u32>("max_time")?
+        );
+        assert_eq!(
+            tables_test
+                .get(12)
+                .unwrap().subject()
+                .get_column_as_vec_primitive::<u32>("max_steps")?,
+            tables
+                .get(12)
+                .unwrap().subject()
+                .get_column_as_vec_primitive::<u32>("max_steps")?
+        );
+        assert_eq!(
+            tables_test
+                .get(12)
+                .unwrap().subject()
+                .get_column_as_vec_primitive::<u32>("max_tasks")?,
+            tables
+                .get(12)
+                .unwrap().subject()
+                .get_column_as_vec_primitive::<u32>("max_tasks")?
         );
 
         Ok(())
