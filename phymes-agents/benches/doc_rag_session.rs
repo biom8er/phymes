@@ -3,8 +3,7 @@ use std::sync::Arc;
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use phymes_agents::{
-    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DocumentRAGSession,
-    SessionContextBuilderAgentsTrait, SessionStream, create_message_map,
+    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DocumentRAGSession, SessionContextBuilderAgentsTrait, SessionStream, SubscriptionTrait, create_message_map
 };
 use phymes_core::{
     AttachmentBuilderTraitExt, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription
