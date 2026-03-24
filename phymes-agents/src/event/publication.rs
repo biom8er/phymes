@@ -10,7 +10,7 @@ use arrow::{
 };
 use futures::StreamExt;
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, MappableTrait, MessageBuilderTrait, ObjectStorageBackend, Publication, RecordBatchStreamAdapter, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait
+    AvailableSubjects, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, MappableTrait, MessageBuilderTrait, ObjectStorageBackend, Publication, RecordBatchStreamAdapter, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, make_random_id
 };
 use phymes_data::{AvailableCandleOperators, CandleDataStream, DataColumnOperator, DataConfig, DataJoinOperator, DataStreamManager, ObjectStoreConfig, ObjectStoreOptsType, ObjectStoreStream};
 use phymes_diagnostics::HashMap;
@@ -21,14 +21,15 @@ use crate::list_subject;
 /// 
 /// # Todo
 /// * Handle more complex partitioning schemes
-pub fn make_object_store_path(subject_name: &str, step: u32, partition: u32) -> String {
-    format!("{subject_name}/superstep={step}/partition={partition}/{subject_name}.ipc")
+pub fn make_object_store_path(subject_name: &str, step: u32, publisher: &str, partition: u32) -> String {
+    let hash = make_random_id().unwrap();
+    format!("{subject_name}/superstep={step}/publisher={publisher}/partition={partition}/{subject_name}-{hash}.ipc")
 }
 
 /// Generate the a vector of record batches of locations to put the subject
-pub fn make_object_store_paths_record_batch(subject_name: &str, step: u32, n_batches: u32) -> Vec<RecordBatch> {
+pub fn make_object_store_paths_record_batch(subject_name: &str, step: u32, publisher: &str, n_batches: u32) -> Vec<RecordBatch> {
     (0..n_batches).map(|i| {
-        let location = make_object_store_path(subject_name, step, i as u32);
+        let location = make_object_store_path(subject_name, step, publisher, i as u32);
         let pk: Vec<u32> = vec![0];
         let location: ArrayRef = Arc::new(StringArray::from(vec![location]));
         let pk: ArrayRef = Arc::new(UInt32Array::from(pk));
@@ -38,12 +39,12 @@ pub fn make_object_store_paths_record_batch(subject_name: &str, step: u32, n_bat
 }
 
 /// Pipeline stream to `extend` the subject in object storage
-pub fn extend_subject(runtime_env: &Arc<RuntimeEnv>, sn: &str, new: Vec<RecordBatch>, step: u32) -> Result<SendableRecordBatchStream> {
+pub fn extend_subject(runtime_env: &Arc<RuntimeEnv>, sn: &str, new: Vec<RecordBatch>, step: u32, publisher: &str) -> Result<SendableRecordBatchStream> {
     // 1. Create the locations RecordBatches
     let ln = "locations";
     let locations = Subject::get_builder()
         .with_name(ln)
-        .with_record_batches(make_object_store_paths_record_batch(sn, step, new.len() as u32))?
+        .with_record_batches(make_object_store_paths_record_batch(sn, step, publisher, new.len() as u32))?
         .build()?
         .to_record_batch_stream();
 
@@ -280,14 +281,14 @@ pub fn clear_subject(runtime_env: &Arc<RuntimeEnv>, sn: &str, last: bool) -> Res
 
 /// Update an subject with record batches coming from a new table
 pub trait PublicationTrait {
-    fn publish_to_subject(&self, runtime_env: &Arc<RuntimeEnv>, new: Vec<RecordBatch>, step: u32) -> Result<Option<SendableRecordBatchStream>>;
+    fn publish_to_subject(&self, runtime_env: &Arc<RuntimeEnv>, new: Vec<RecordBatch>, step: u32, publisher: &str) -> Result<Option<SendableRecordBatchStream>>;
 }
 
 impl PublicationTrait for Publication {
-    fn publish_to_subject(&self, runtime_env: &Arc<RuntimeEnv>, new: Vec<RecordBatch>, step: u32) -> Result<Option<SendableRecordBatchStream>> {
+    fn publish_to_subject(&self, runtime_env: &Arc<RuntimeEnv>, new: Vec<RecordBatch>, step: u32, publisher: &str) -> Result<Option<SendableRecordBatchStream>> {
         match self {
             Self::Extend { subject_name: sn } => {
-                let stream = extend_subject(runtime_env, sn, new, step)?;
+                let stream = extend_subject(runtime_env, sn, new, step, publisher)?;
                 Ok(Some(stream))
             }
             Publication::ExtendChunks {
@@ -314,7 +315,7 @@ impl PublicationTrait for Publication {
                     cn.as_str(),
                     chunks.as_str(),
                 )?;
-                let stream = extend_subject(runtime_env, sn, vec![new_first_row], step)?;
+                let stream = extend_subject(runtime_env, sn, vec![new_first_row], step, publisher)?;
                 Ok(Some(stream))
             }
             Publication::ExtendBytes {
@@ -362,7 +363,7 @@ impl PublicationTrait for Publication {
                     })
                     .collect();
                 let new_batches = new_batches_res?.into_iter().flatten().collect::<Vec<_>>();
-                let stream = extend_subject(runtime_env, sn, new_batches, step)?;
+                let stream = extend_subject(runtime_env, sn, new_batches, step, publisher)?;
                 Ok(Some(stream))
             }
             Publication::Replace { subject_name: sn } => {
@@ -370,7 +371,7 @@ impl PublicationTrait for Publication {
                 let clear = clear_subject(runtime_env, sn, false)?;
 
                 // Extend the subject with the new record batches
-                let stream = extend_subject(runtime_env, sn, new, step)?;
+                let stream = extend_subject(runtime_env, sn, new, step, publisher)?;
                 let stream = Box::pin(RecordBatchStreamAdapter::new(
                     Arc::clone(&stream.schema()),
                     clear.chain(stream),
@@ -382,7 +383,7 @@ impl PublicationTrait for Publication {
                 let clear = clear_subject(runtime_env, sn, true)?;
 
                 // Extend the subject with the new record batches
-                let stream = extend_subject(runtime_env, sn, new, step)?;
+                let stream = extend_subject(runtime_env, sn, new, step, publisher)?;
                 let stream = Box::pin(RecordBatchStreamAdapter::new(
                     Arc::clone(&stream.schema()),
                     clear.chain(stream),
@@ -606,13 +607,13 @@ mod tests {
         let old = test_subject::make_test_subject(subject_name, 4, 0, 3)?;
         let runtime_env = Arc::new(RuntimeEnv::default());
         let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: subject_name.to_string() }
-            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0)?
+            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0, "")?
             .unwrap()
             .try_collect()
             .await?;
         let new = test_subject::make_test_subject(subject_name, 1, 0, 1)?;
         let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: subject_name.to_string() }
-            .publish_to_subject(&runtime_env, new.get_record_batches_own(), 1)?
+            .publish_to_subject(&runtime_env, new.get_record_batches_own(), 1, "")?
             .unwrap()
             .try_collect()
             .await?;
@@ -635,13 +636,13 @@ mod tests {
         let old = test_subject::make_test_subject(subject_name, 4, 0, 3)?;
         let runtime_env = Arc::new(RuntimeEnv::default());
         let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: subject_name.to_string() }
-            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0)?
+            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0, "")?
             .unwrap()
             .try_collect()
             .await?;
         let new = test_subject::make_test_subject(subject_name, 1, 0, 1)?;
         let _publication: Vec<RecordBatch> = Publication::Replace { subject_name: subject_name.to_string() }
-            .publish_to_subject(&runtime_env, new.get_record_batches_own(), 1)?
+            .publish_to_subject(&runtime_env, new.get_record_batches_own(), 1, "")?
             .unwrap()
             .try_collect()
             .await?;
@@ -664,13 +665,13 @@ mod tests {
         let old = test_subject::make_test_subject(subject_name, 4, 0, 3)?;
         let runtime_env = Arc::new(RuntimeEnv::default());
         let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: subject_name.to_string() }
-            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0)?
+            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0, "")?
             .unwrap()
             .try_collect()
             .await?;
         let new = test_subject::make_test_subject(subject_name, 1, 0, 1)?;
         let publication = Publication::None
-            .publish_to_subject(&runtime_env, new.get_record_batches_own(), 1)?;
+            .publish_to_subject(&runtime_env, new.get_record_batches_own(), 1, "")?;
         assert!(publication.is_none());
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: subject_name.to_string() }
             .subscribe_to_subject(&runtime_env)?
@@ -691,7 +692,7 @@ mod tests {
         let old = test_subject::make_test_subject_chat(subject_name)?;
         let runtime_env = Arc::new(RuntimeEnv::default());
         let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: subject_name.to_string() }
-            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0)?
+            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0, "")?
             .unwrap()
             .try_collect()
             .await?;
@@ -715,7 +716,7 @@ mod tests {
         let new_2 = RecordBatch::try_from_iter(vec![("role", role_2), ("content", content_2), ("timestamp", timestamap_2)])?;
 
         let _publication: Vec<RecordBatch> = Publication::ExtendChunks { subject_name: subject_name.to_string(), col_name: "content".to_string() }
-            .publish_to_subject(&runtime_env, vec![new_1, new_2], 1)?
+            .publish_to_subject(&runtime_env, vec![new_1, new_2], 1, "")?
             .unwrap()
             .try_collect()
             .await?;
@@ -752,7 +753,7 @@ mod tests {
         let old = test_subject::make_test_subject(subject_name, 1, 0, 1)?;
         let runtime_env = Arc::new(RuntimeEnv::default());
         let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: subject_name.to_string() }
-            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0)?
+            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0, "")?
             .unwrap()
             .try_collect()
             .await?;
@@ -771,7 +772,7 @@ mod tests {
                 col_name: "bytes".to_string(),
                 serialize_format: DataFormat::Ipc,
             }
-            .publish_to_subject(&runtime_env, new, 1)?
+            .publish_to_subject(&runtime_env, new, 1, "")?
             .unwrap()
             .try_collect()
             .await?;

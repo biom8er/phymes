@@ -258,7 +258,7 @@ pub async fn session_diagnostics(
                 .build_with_tables()
                 .unwrap();
             let session_ctx_arc = Arc::new(session_ctx);
-            let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default()).await.unwrap();
+            let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default(), 0).await.unwrap();
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
 
             // Run and update the session and convert the output to the user specified format

@@ -379,7 +379,7 @@ mod tests {
             .build()?;
 
         let message_map = create_message_map(vec![chat_message]);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -589,7 +589,7 @@ mod tests {
             .build()?;
 
         let message_map = create_message_map(vec![tool_message, chat_message]);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -811,7 +811,7 @@ mod tests {
             .build()?;
 
         let message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -1050,7 +1050,7 @@ mod tests {
             .build()?;
 
         let message_map = create_message_map(vec![tool_message, chat_message, tool_response]);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(

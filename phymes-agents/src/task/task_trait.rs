@@ -487,7 +487,7 @@ mod tests {
         let runtime_env = test_task::make_runtime_env("rt")?;
         for subject in subjects {
             let _publication: Vec<_> = Publication::Extend { subject_name: subject.subject().get_name().to_string() }
-                .publish_to_subject(&runtime_env, subject.subject_own().get_record_batches_own(), 0)?
+                .publish_to_subject(&runtime_env, subject.subject_own().get_record_batches_own(), 0, "")?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -549,7 +549,7 @@ mod tests {
         let runtime_env = test_task::make_runtime_env("rt")?;
         for subject in subjects {
             let _publication: Vec<_> = Publication::Extend { subject_name: subject.subject().get_name().to_string() }
-                .publish_to_subject(&runtime_env, subject.subject_own().get_record_batches_own(), 0)?
+                .publish_to_subject(&runtime_env, subject.subject_own().get_record_batches_own(), 0, "")?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -611,7 +611,7 @@ mod tests {
         let runtime_env = test_task::make_runtime_env("rt")?;
         for subject in subjects {
             let _publication: Vec<_> = Publication::Extend { subject_name: subject.subject().get_name().to_string() }
-                .publish_to_subject(&runtime_env, subject.subject_own().get_record_batches_own(), 0)?
+                .publish_to_subject(&runtime_env, subject.subject_own().get_record_batches_own(), 0, "")?
                 .unwrap()
                 .try_collect()
                 .await?;

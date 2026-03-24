@@ -3852,7 +3852,7 @@ mod tests {
             query_embeddings_message,
             document_message,
         ]);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));

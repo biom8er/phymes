@@ -1869,7 +1869,7 @@ mod tests {
 
         // Mimic a session run for 1 steps
         let session_ctx_arc = Arc::new(session_context);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
         let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -2823,7 +2823,7 @@ mod tests {
 
         // Make diagnostic data and session tasks data
         let message_map = make_test_data(diagnostic_session.session_context_name).await?;
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
 
         // Run
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
@@ -2988,117 +2988,117 @@ mod tests {
         let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
         assert_eq!(&column[..16], "\n        kanban\n");
 
-            // Check the session
-            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
-                .unwrap()
-                .try_collect()
-                .await?;
-            let subject = Subject::get_builder()
-                .with_name(DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string().as_str())
-                .with_record_batches(batches)?
-                .build()?;
-            let columns = subject.get_column_as_vec_str("filename");
-            assert_eq!(columns, ["MetricProcessorTracesGantt"]);
-            let columns = subject.get_column_as_vec_str("extension");
-            assert_eq!(columns, ["txt"]);
-            let columns = subject.get_column_as_vec_str("metadata");
-            assert_eq!(columns, ["assistant"]);
-            let bytes = subject
-                .get_column_as_vec_nested_primitive::<u8>("bytes")?
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-            let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-            assert_eq!(&column[..15], "\n        gantt\n");
-            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
-                .unwrap()
-                .try_collect()
-                .await?;
-            let subject = Subject::get_builder()
-                .with_name(DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string().as_str())
-                .with_record_batches(batches)?
-                .build()?;
-            let columns = subject.get_column_as_vec_str("filename");
-            assert_eq!(columns, ["MetricElapsedComputeGantt"]);
-            let columns = subject.get_column_as_vec_str("extension");
-            assert_eq!(columns, ["txt"]);
-            let columns = subject.get_column_as_vec_str("metadata");
-            assert_eq!(columns, ["assistant"]);
-            let bytes = subject
-                .get_column_as_vec_nested_primitive::<u8>("bytes")?
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-            let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-            assert_eq!(&column[..15], "\n        gantt\n");
-            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::MetricOutputRowsGantt.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
-                .unwrap()
-                .try_collect()
-                .await?;
-            let subject = Subject::get_builder()
-                .with_name(DiagnosticsVisualizations::MetricOutputRowsGantt.to_string().as_str())
-                .with_record_batches(batches)?
-                .build()?;
-            let columns = subject.get_column_as_vec_str("filename");
-            assert_eq!(columns, ["MetricOutputRowsGantt"]);
-            let columns = subject.get_column_as_vec_str("extension");
-            assert_eq!(columns, ["txt"]);
-            let columns = subject.get_column_as_vec_str("metadata");
-            assert_eq!(columns, ["assistant"]);
-            let bytes = subject
-                .get_column_as_vec_nested_primitive::<u8>("bytes")?
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-            let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-            assert_eq!(&column[..15], "\n        gantt\n");
-            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::TraceSequenceDiagram.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
-                .unwrap()
-                .try_collect()
-                .await?;
-            let subject = Subject::get_builder()
-                .with_name(DiagnosticsVisualizations::TraceSequenceDiagram.to_string().as_str())
-                .with_record_batches(batches)?
-                .build()?;
-            let columns = subject.get_column_as_vec_str("filename");
-            assert_eq!(columns, ["TraceSequenceDiagram"]);
-            let columns = subject.get_column_as_vec_str("extension");
-            assert_eq!(columns, ["txt"]);
-            let columns = subject.get_column_as_vec_str("metadata");
-            assert_eq!(columns, ["assistant"]);
-            let bytes = subject
-                .get_column_as_vec_nested_primitive::<u8>("bytes")?
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-            let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-            assert_eq!(&column[..25], "\n        sequenceDiagram\n");
-            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::EventKanban.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
-                .unwrap()
-                .try_collect()
-                .await?;
-            let subject = Subject::get_builder()
-                .with_name(DiagnosticsVisualizations::EventKanban.to_string().as_str())
-                .with_record_batches(batches)?
-                .build()?;
-            let columns = subject.get_column_as_vec_str("filename");
-            assert_eq!(columns, ["EventKanban"]);
-            let columns = subject.get_column_as_vec_str("extension");
-            assert_eq!(columns, ["txt"]);
-            let columns = subject.get_column_as_vec_str("metadata");
-            assert_eq!(columns, ["assistant"]);
-            let bytes = subject
-                .get_column_as_vec_nested_primitive::<u8>("bytes")?
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-            let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
-            assert_eq!(&column[..16], "\n        kanban\n");
+        // Check the session
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        let columns = subject.get_column_as_vec_str("filename");
+        assert_eq!(columns, ["MetricProcessorTracesGantt"]);
+        let columns = subject.get_column_as_vec_str("extension");
+        assert_eq!(columns, ["txt"]);
+        let columns = subject.get_column_as_vec_str("metadata");
+        assert_eq!(columns, ["assistant"]);
+        let bytes = subject
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+        assert_eq!(&column[..15], "\n        gantt\n");
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        let columns = subject.get_column_as_vec_str("filename");
+        assert_eq!(columns, ["MetricElapsedComputeGantt"]);
+        let columns = subject.get_column_as_vec_str("extension");
+        assert_eq!(columns, ["txt"]);
+        let columns = subject.get_column_as_vec_str("metadata");
+        assert_eq!(columns, ["assistant"]);
+        let bytes = subject
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+        assert_eq!(&column[..15], "\n        gantt\n");
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::MetricOutputRowsGantt.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(DiagnosticsVisualizations::MetricOutputRowsGantt.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        let columns = subject.get_column_as_vec_str("filename");
+        assert_eq!(columns, ["MetricOutputRowsGantt"]);
+        let columns = subject.get_column_as_vec_str("extension");
+        assert_eq!(columns, ["txt"]);
+        let columns = subject.get_column_as_vec_str("metadata");
+        assert_eq!(columns, ["assistant"]);
+        let bytes = subject
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+        assert_eq!(&column[..15], "\n        gantt\n");
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::TraceSequenceDiagram.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(DiagnosticsVisualizations::TraceSequenceDiagram.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        let columns = subject.get_column_as_vec_str("filename");
+        assert_eq!(columns, ["TraceSequenceDiagram"]);
+        let columns = subject.get_column_as_vec_str("extension");
+        assert_eq!(columns, ["txt"]);
+        let columns = subject.get_column_as_vec_str("metadata");
+        assert_eq!(columns, ["assistant"]);
+        let bytes = subject
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+        assert_eq!(&column[..25], "\n        sequenceDiagram\n");
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::EventKanban.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(DiagnosticsVisualizations::EventKanban.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        let columns = subject.get_column_as_vec_str("filename");
+        assert_eq!(columns, ["EventKanban"]);
+        let columns = subject.get_column_as_vec_str("extension");
+        assert_eq!(columns, ["txt"]);
+        let columns = subject.get_column_as_vec_str("metadata");
+        assert_eq!(columns, ["assistant"]);
+        let bytes = subject
+            .get_column_as_vec_nested_primitive::<u8>("bytes")?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
+        assert_eq!(&column[..16], "\n        kanban\n");
 
         Ok(())
     }

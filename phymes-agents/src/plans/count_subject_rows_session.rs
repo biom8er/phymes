@@ -133,7 +133,7 @@ mod tests {
 
             // Mimic a session run for 1 steps
             let session_ctx_arc = Arc::new(session_context);
-            let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+            let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
             let messages = test_task::make_test_input_message(
                 "task_1",
                 "session_1",
@@ -170,7 +170,7 @@ mod tests {
                 .build()?;
             create_message_map(vec![subjects_change_log_message])
         };
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
@@ -194,11 +194,11 @@ mod tests {
         assert_eq!(
             column,
             [
-                "SessionTasksRunLog", "SubjectsChangeLog", "SubjectsNumRows", "group_by_subject_change_log_delta_p", "group_by_subject_change_log_delta_t", "select_subject_change_log_delta_p", "state_1"
+                "SessionTasksRunLog", "SubjectsChangeLog", "SubjectsNumRows", "group_by_subject_change_log_delta_p", "group_by_subject_change_log_delta_t", "processor_1", "processor_2", "processor_3", "select_subject_change_log_delta_p", "state_1"
             ]
         );
         let column = subject.get_column_as_vec_primitive::<i64>("num_rows")?;
-        assert_eq!(column, [3, 0, 0, 0, 0, 0, 51]);
+        assert_eq!(column, [3, 9, 0, 0, 0, 0, 0, 0, 0, 33]);
 
         Ok(())
     }

@@ -156,6 +156,7 @@ pub async fn session_put_state(
             if let Err(e) = SessionStreamStep::update_subjects_and_changelog_from_messages(
                 &session_ctx_arc,
                 messages,
+                0
             ).await {
                 return JsonError::new(format!("Failed to update the session stream state {e:?}"))
                     .to_response(StatusCode::INTERNAL_SERVER_ERROR);

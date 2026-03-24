@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use futures::TryStreamExt;
 use parking_lot::RwLock;
 use phymes_agents::{
-    AvailableSessionPlans, SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, SubscriptionTrait, create_message_map
+    AvailableSessionPlans, SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map
 };
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription, UserSubject, create_session_mermaid_batch, create_user_inbox_batch, create_user_session_contexts_batch
@@ -36,7 +36,7 @@ impl UserState {
             AvailableSessionPlans::get_session_stream_state_by_name("Users", session_name)?;
 
         // Write the session messages to the store
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
         Ok(Self { users: session_ctx_arc })
     }}
 
@@ -156,7 +156,7 @@ impl UserState {
         let message_map = create_message_map(vec![user_session_contexts_message, mermaid_message]);
 
         // Update the session state with the new message
-        let (changelog, meta, _errors) = self.users.update_subjects_from_messages(message_map).await;
+        let (changelog, meta, _errors) = self.users.update_subjects_from_messages(message_map, 0).await;
 
         let mut messages = Vec::new();
         if let Some(subject) = changelog {
@@ -185,7 +185,7 @@ impl UserState {
         }
 
         let messages = create_message_map(messages);
-        let _ = self.users.update_subjects_from_messages(messages).await;
+        let _ = self.users.update_subjects_from_messages(messages, 0).await;
 
         Ok(())
     }
@@ -273,7 +273,7 @@ impl ServerState {
                     )?;
 
                     // Write the session messages to the store
-                    let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+                    let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
 
                     // Add the session stream state to the state
                     let _ = self
@@ -307,7 +307,7 @@ impl ServerState {
                     let session_ctx_arc = Arc::new(session_context);
 
                     // Write the session messages to the store
-                    let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+                    let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
 
                     // Add the session stream state to the state
                     let _ = self

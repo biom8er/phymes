@@ -162,7 +162,7 @@ mod tests {
         let subjects = test_task::make_subjects(subject_name, config_name)?;
         for subject in subjects {
             let _publication: Vec<_> = Publication::Extend { subject_name: subject.get_name().to_string() }
-                .publish_to_subject(&runtime_env, subject.subject_own().get_record_batches_own(), 0)?
+                .publish_to_subject(&runtime_env, subject.subject_own().get_record_batches_own(), 0, "")?
                 .unwrap()
                 .try_collect()
                 .await?;

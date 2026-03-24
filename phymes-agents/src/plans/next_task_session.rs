@@ -926,7 +926,7 @@ mod tests {
 
             // Mimic a superstep update without running the superstep
             let session_ctx_arc = Arc::new(session_context);
-            let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+            let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
             let messages = test_task::make_test_input_message(
                 "task_1",
                 "session_1",
@@ -941,6 +941,7 @@ mod tests {
             let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(
                 &session_ctx_arc,
                 messages,
+                0
             ).await?;
 
             // Extract out the subjects for the test
@@ -1032,9 +1033,30 @@ mod tests {
 
         // Run the session
         message_map.extend(tasks_publish_subscribe_messages.pop().unwrap());
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+        
+        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
+        //     .subscribe_to_subject(session_ctx_arc.runtime_env())?
+        //     .unwrap()
+        //     .try_collect()
+        //     .await?;
+        // let subject = Subject::get_builder()
+        //     .with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+        //     .with_record_batches(batches)?
+        //     .build()?;
+        // println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
+        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
+        //     .subscribe_to_subject(session_ctx_arc.runtime_env())?
+        //     .unwrap()
+        //     .try_collect()
+        //     .await?;
+        // let subject = Subject::get_builder()
+        //     .with_name(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
+        //     .with_record_batches(batches)?
+        //     .build()?;
+        // println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
 
         assert_eq!(response.len(), 0);
 

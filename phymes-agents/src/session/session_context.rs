@@ -347,7 +347,7 @@ impl SessionContext {
             .make_name()?
             .build()?;
         let messages = create_message_map(vec![message]);
-        let (_update, _meta, errors) = self.update_subjects_from_messages(messages).await;
+        let (_update, _meta, errors) = self.update_subjects_from_messages(messages, 0).await;
         if let Some(table) = errors {
             let error = table.get_column_as_vec_str("content").join("; ");
             return Err(anyhow!(error));
@@ -498,18 +498,16 @@ impl SessionContext {
     pub async fn update_metrics_subjects(
         &self,
         diagnostics_vec: &[Diagnostics],
+        step: u32,
     ) -> Result<()> {
         // create the pivot table and clear the metrics
         let (metrics_subject, traces_subject, events_subject) =
             from_diagnostics_to_tables(diagnostics_vec)?;
-        
-        // DM: does it make sense to cache the current step?
-        let step = self.current_superstep().await?;
 
         // update the state with the metrics
         if let Some(metrics_subject) = metrics_subject {
             let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionMetrics.to_string() }
-                .publish_to_subject(self.runtime_env(), metrics_subject.get_record_batches_own(), step)?
+                .publish_to_subject(self.runtime_env(), metrics_subject.get_record_batches_own(), step, &self.name)?
                 .ok_or(anyhow!("Unable to put the subject `{}` into object storage for session `{}` while updating the metrics tables.",
                     AvailableSubjects::SessionMetrics,
                     self.get_name()))?
@@ -520,7 +518,7 @@ impl SessionContext {
         // update the state with the traces
         if let Some(traces_subject) = traces_subject {
             let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTraces.to_string() }
-                .publish_to_subject(self.runtime_env(), traces_subject.get_record_batches_own(), step)?
+                .publish_to_subject(self.runtime_env(), traces_subject.get_record_batches_own(), step, &self.name)?
                 .ok_or(anyhow!("Unable to put the subject `{}` into object storage for session `{}` while updating the metrics tables.",
                     AvailableSubjects::SessionTraces,
                     self.get_name()))?
@@ -531,7 +529,7 @@ impl SessionContext {
         // update the state with the events
         if let Some(events_subject) = events_subject {
             let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionEvents.to_string() }
-                .publish_to_subject(self.runtime_env(), events_subject.get_record_batches_own(), step)?
+                .publish_to_subject(self.runtime_env(), events_subject.get_record_batches_own(), step, &self.name)?
                 .ok_or(anyhow!("Unable to put the subject `{}` into object storage for session `{}` while updating the metrics tables.",
                     AvailableSubjects::SessionEvents,
                     self.get_name()))?
@@ -568,7 +566,8 @@ impl SessionContext {
             .make_name()?
             .build()?;
         let messages = create_message_map(vec![superstep_message]);
-        let (_update, _meta, errors) = self.update_subjects_from_messages(messages).await;
+        // DM: setting the step to 0 results in continuous overwriting of the last superstep
+        let (_update, _meta, errors) = self.update_subjects_from_messages(messages, next_superstep - 1).await;
         if let Some(table) = errors {
             let error = table.get_column_as_vec_str("content").join("; ");
             return Err(anyhow!(error));
@@ -656,6 +655,7 @@ impl SessionContext {
     pub async fn update_subjects_from_messages(
         &self,
         messages: IPCMessageMap,
+        step: u32,
     ) -> (Option<Subject>, Option<Subject>, Option<Subject>) {
         let mut change_log_subject_names = Vec::new();
         let mut change_log_task_names = Vec::new();
@@ -676,7 +676,6 @@ impl SessionContext {
         let mut errors = Vec::new();
 
         // Update the subjects with each of the messages
-        let step = self.current_superstep().await.unwrap_or_default();
         for (_name, message) in messages.into_iter() {
             // Should the subject be updated?
             let update = message.get_update().clone();
@@ -709,7 +708,7 @@ impl SessionContext {
                         // Publish to the object store
                         let mut object_store_metadata = Vec::new();
                         if let Ok(Some(mut stream)) = update
-                            .publish_to_subject(self.runtime_env(), subject.get_record_batches_own(), step) {
+                            .publish_to_subject(self.runtime_env(), subject.get_record_batches_own(), step, &publisher) {
                             while let Some(batch) = stream.next().await {
                                 match batch {
                                     Ok(metadata) => {
@@ -950,7 +949,7 @@ mod tests {
             &Publication::None,
             true,
         )?;
-        let (changelog, meta, errors) = session_context.update_subjects_from_messages(input).await;
+        let (changelog, meta, errors) = session_context.update_subjects_from_messages(input, 0).await;
 
         // check the updates
         assert!(changelog.is_none());
@@ -988,7 +987,7 @@ mod tests {
             },
             true,
         )?;
-        let (changelog, meta, errors) = session_context.update_subjects_from_messages(input).await;
+        let (changelog, meta, errors) = session_context.update_subjects_from_messages(input, 0).await;
         assert!(errors.is_none());
 
         // check the updates
@@ -1034,7 +1033,13 @@ mod tests {
             .as_ref()
             .unwrap()
             .get_column_as_vec_str("location");
-        assert_eq!(col, ["state_1/superstep=0/partition=0/state_1.ipc", "state_1/superstep=0/partition=1/state_1.ipc", "state_1/superstep=0/partition=2/state_1.ipc"]);
+        let col = col.into_iter().map(|s| {
+            let mut parts = s.split("-").collect::<Vec<_>>();
+            let _ = parts.pop();
+            parts.push(".ipc");
+            parts.join("")
+        }).collect::<Vec<_>>();
+        assert_eq!(col, ["state_1/superstep=0/publisher=session_1/partition=0/state_1.ipc", "state_1/superstep=0/publisher=session_1/partition=1/state_1.ipc", "state_1/superstep=0/publisher=session_1/partition=2/state_1.ipc"]);
         let col = meta
             .as_ref()
             .unwrap()
@@ -1095,7 +1100,7 @@ mod tests {
             },
             false,
         )?;
-        let (changelog, meta, errors) = session_context.update_subjects_from_messages(input).await;
+        let (changelog, meta, errors) = session_context.update_subjects_from_messages(input, 0).await;
         assert!(changelog.is_none());
         assert!(meta.is_none());
         assert!(errors.is_some());
@@ -1113,7 +1118,7 @@ mod tests {
         );
         let mut input = HashMap::<String, IPCMessage>::new();
         input.insert(message.get_name().to_string(), message);
-        let (changelog, meta, errors) = session_context.update_subjects_from_messages(input).await;
+        let (changelog, meta, errors) = session_context.update_subjects_from_messages(input, 0).await;
         assert!(changelog.is_none());
         assert!(meta.is_none());
         assert!(errors.is_some());
@@ -1227,7 +1232,7 @@ mod tests {
         // Write the data to the object store
         let runtime_env = test_task::make_runtime_env("rt")?;
         let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string() }
-            .publish_to_subject(&runtime_env, vec![batch], 0)?
+            .publish_to_subject(&runtime_env, vec![batch], 0, "")?
             .unwrap()
             .try_collect()
             .await?;
@@ -1436,7 +1441,7 @@ mod tests {
         // Write the data to the object store
         let runtime_env = test_task::make_runtime_env("rt")?;
         let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string() }
-            .publish_to_subject(&runtime_env, vec![batch], 0)?
+            .publish_to_subject(&runtime_env, vec![batch], 0, "")?
             .unwrap()
             .try_collect()
             .await?;
@@ -1566,7 +1571,7 @@ mod tests {
         // Write the data to the object store
         let runtime_env = test_task::make_runtime_env("rt")?;
         let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string() }
-            .publish_to_subject(&runtime_env, vec![batch], 0)?
+            .publish_to_subject(&runtime_env, vec![batch], 0, "")?
             .unwrap()
             .try_collect()
             .await?;
@@ -1723,7 +1728,7 @@ mod tests {
         // Write the data to the object store
         let runtime_env = test_task::make_runtime_env("rt")?;
         let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string() }
-            .publish_to_subject(&runtime_env, vec![batch], 0)?
+            .publish_to_subject(&runtime_env, vec![batch], 0, "")?
             .unwrap()
             .try_collect()
             .await?;

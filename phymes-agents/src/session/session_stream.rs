@@ -119,7 +119,7 @@ mod tests {
             .add_next_supersteps()?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(session_context);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
         let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",

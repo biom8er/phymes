@@ -49,7 +49,7 @@ pub async fn run_main() -> Result<()> {
         .make_name()?
         .build()?;
     let incoming_message_map = create_message_map(vec![message]);
-    let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+    let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
     let session_stream = SessionStream::new(incoming_message_map, Arc::clone(&session_ctx_arc));
     let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 

@@ -227,18 +227,10 @@ mod tests {
 
         // Write them to object storage
         let _publication: Vec<_> = Publication::Extend { subject_name: messages.to_string() }
-            .publish_to_subject(&rt_env, subjects.get_record_batches_own(), 0)?
+            .publish_to_subject(&rt_env, subjects.get_record_batches_own(), 0, "")?
             .unwrap()
             .try_collect()
             .await?;
-        // for (i, batch) in subjects.get_record_batches().iter().enumerate() {
-        //     let mut writer = IpcWriter::new_with_config(subjects.get_schema())?;
-        //     writer.write_batch(batch)?;
-        //     writer.finish_batch()?;
-        //     let location = make_object_store_path(messages, 0, i as u32);
-        //     let path = Path::from(location);
-        //     writer.put(rt_env.object_store(), &path).await?;
-        // }
 
         // List all locations
         let results: Vec<_> = list_subject(&rt_env, messages, false)?.try_collect().await?;
@@ -249,7 +241,13 @@ mod tests {
             .build()?;
         assert_eq!(subject.count_rows(), 3);
         let result = subject.get_column_as_vec_str("location");
-        assert_eq!(result, ["messages/superstep=0/partition=0/messages.ipc", "messages/superstep=0/partition=1/messages.ipc", "messages/superstep=0/partition=2/messages.ipc"]);
+        let result = result.into_iter().map(|s| {
+            let mut parts = s.split("-").collect::<Vec<_>>();
+            let _ = parts.pop();
+            parts.push(".ipc");
+            parts.join("")
+        }).collect::<Vec<_>>();
+        assert_eq!(result, ["messages/superstep=0/publisher=/partition=0/messages.ipc", "messages/superstep=0/publisher=/partition=1/messages.ipc", "messages/superstep=0/publisher=/partition=2/messages.ipc"]);
 
         // List last locations
         let results: Vec<_> = list_subject(&rt_env, messages, true)?.try_collect().await?;
@@ -260,7 +258,13 @@ mod tests {
             .build()?;
         assert_eq!(subject.count_rows(), 1);
         let result = subject.get_column_as_vec_str("location");
-        assert_eq!(result, ["messages/superstep=0/partition=2/messages.ipc"]);
+        let result = result.into_iter().map(|s| {
+            let mut parts = s.split("-").collect::<Vec<_>>();
+            let _ = parts.pop();
+            parts.push(".ipc");
+            parts.join("")
+        }).collect::<Vec<_>>();
+        assert_eq!(result, ["messages/superstep=0/publisher=/partition=2/messages.ipc"]);
 
         Ok(())
     }
@@ -271,13 +275,13 @@ mod tests {
         let old = test_subject::make_test_subject(subject_name, 4, 0, 3)?;
         let runtime_env = Arc::new(RuntimeEnv::default());
         let _publication: Vec<_> = Publication::Extend { subject_name: subject_name.to_string() }
-            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0)?
+            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0, "")?
             .unwrap()
             .try_collect()
             .await?;
         let new = test_subject::make_test_subject(subject_name, 1, 0, 1)?;
         let _publication: Vec<_> = Publication::Extend { subject_name: subject_name.to_string() }
-            .publish_to_subject(&runtime_env, new.get_record_batches_own(), 1)?
+            .publish_to_subject(&runtime_env, new.get_record_batches_own(), 1, "")?
             .unwrap()
             .try_collect()
             .await?;

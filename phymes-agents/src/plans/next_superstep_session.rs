@@ -149,7 +149,7 @@ mod tests {
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepMinimal, SessionStreamStepTrait, SubscriptionTrait, create_message_map
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStepMinimal, SessionStreamStepTrait, SubscriptionTrait, create_message_map
     };
 
     use super::*;
@@ -182,7 +182,7 @@ mod tests {
             .collect::<Vec<_>>();
 
         // Run the session
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
         let session_stream = SessionStream::new(next_superstep_messages.pop().unwrap(), Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 

@@ -116,9 +116,10 @@ pub trait SessionStreamStepTrait {
         messages: &IPCMessageMap,
         diagnostics_vec: Vec<Diagnostics>,
         trace: TraceRecord,
+        step: u32
     ) -> impl std::future::Future<Output = Result<()>> + Send {async move {
         trace.exit(&messages.values().collect::<Vec<_>>());
-        let _ = session_context.update_metrics_subjects(&diagnostics_vec).await?;
+        let _ = session_context.update_metrics_subjects(&diagnostics_vec, step).await?;
 
         Ok(())
     }}
@@ -127,10 +128,11 @@ pub trait SessionStreamStepTrait {
     fn update_subjects_and_changelog_from_messages(
         session_context: &Arc<SessionContext>,
         messages: IPCMessageMap,
-    ) -> impl std::future::Future<Output = Result<()>> + Send {async {
+        step: u32,
+    ) -> impl std::future::Future<Output = Result<()>> + Send {async move {
         // Update the session_context and handle any errors
         let session_context_name = session_context.get_name().to_string();
-        let (changelog, meta, errors) = session_context.update_subjects_from_messages(messages).await;
+        let (changelog, meta, errors) = session_context.update_subjects_from_messages(messages, step).await;
 
         let mut messages = Vec::new();
         if let Some(subject) = changelog {
@@ -171,7 +173,7 @@ pub trait SessionStreamStepTrait {
                 .build()?;
             let mut message_map = HashMap::<String, IPCMessage>::new();
             let _ = message_map.insert(message.get_name().to_string(), message);
-            let (update, meta, _errors) = session_context.update_subjects_from_messages(message_map).await;
+            let (update, meta, _errors) = session_context.update_subjects_from_messages(message_map, step).await;
 
             if let Some(subject) = update {
                 let message = IPCMessageBuilder::new()
@@ -201,7 +203,7 @@ pub trait SessionStreamStepTrait {
 
         // Update the subjects change log
         let messages = create_message_map(messages);
-        let _ = session_context.update_subjects_from_messages(messages).await;
+        let _ = session_context.update_subjects_from_messages(messages, step).await;
 
         Ok(())
     }}
@@ -210,10 +212,10 @@ pub trait SessionStreamStepTrait {
     fn update_subjects_and_changelog_from_tasks(
         session_context: &Arc<SessionContext>,
         tasks: HashMap<(String, String), ProcessorSubjectsMap>,
+        step: u32,
     ) -> impl std::future::Future<Output = Result<()>> + Send {
         async move {
             // Create the tasks run log message
-            let step = session_context.current_superstep().await?;
             let session_context_name = session_context.get_name().to_string();
             let (session_names, (task_names, (supersteps, timestamps))): (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))) = tasks
                 .into_iter()
@@ -236,7 +238,7 @@ pub trait SessionStreamStepTrait {
             ]);
 
             // Update the tasks run log
-            let (changelog, meta, errors) = session_context.update_subjects_from_messages(messages).await;
+            let (changelog, meta, errors) = session_context.update_subjects_from_messages(messages, step).await;
             if let Some(table) = errors {
                 let error = table.get_column_as_vec_str("content").join("; ");
                 return Err(anyhow!(error));
@@ -269,7 +271,7 @@ pub trait SessionStreamStepTrait {
                 messages.push(message);
             }
             let messages = create_message_map(messages);
-            let (_update, _meta, errors) = session_context.update_subjects_from_messages(messages).await;
+            let (_update, _meta, errors) = session_context.update_subjects_from_messages(messages, step).await;
             if let Some(table) = errors {
                 let error = table.get_column_as_vec_str("content").join("; ");
                 return Err(anyhow!(error));
@@ -293,7 +295,7 @@ pub trait SessionStreamStepTrait {
             for messages in next_superstep_messages.into_iter() {
                 let _ = SessionStreamStepMinimal::run_superstep(
                     Arc::clone(session_context),
-                    messages,
+                    messages
                 )
                 .await
                 .unwrap_or_else(|err| {
@@ -566,7 +568,7 @@ impl SessionStreamStepTrait for SessionStreamStep {
 
         // Update the session context with the incoming messages
         if !messages.is_empty() {
-            Self::update_subjects_and_changelog_from_messages(&session_context, messages).await?;
+            Self::update_subjects_and_changelog_from_messages(&session_context, messages, step).await?;
         }
 
         // Retrieve the task subscriptions and corresponding publications
@@ -581,6 +583,7 @@ impl SessionStreamStepTrait for SessionStreamStep {
                     &HashMap::<String, IPCMessage>::new(),
                     diagnostics_vec,
                     trace,
+                    step
                 ).await?;
             }
 
@@ -602,8 +605,8 @@ impl SessionStreamStepTrait for SessionStreamStep {
             )?;
 
             // Update the tasks run log
-            Self::update_subjects_and_changelog_from_tasks(&session_context, subject_tasks).await?;
-            Self::update_subjects_and_changelog_from_tasks(&session_context, session_tasks).await?;
+            Self::update_subjects_and_changelog_from_tasks(&session_context, subject_tasks, step).await?;
+            Self::update_subjects_and_changelog_from_tasks(&session_context, session_tasks, step).await?;
 
             // Increment the superstep
             let _step = Self::increment_superstep(&session_context).await;
@@ -621,13 +624,14 @@ impl SessionStreamStepTrait for SessionStreamStep {
                 Self::update_subjects_and_changelog_from_messages(
                     &session_context,
                     subject_batches,
+                    step
                 ).await?;
             }
 
             // Join each of the response futures
             let user_batches = Self::join_message_streams(user_streams).await?;
             if let (Some(diagnostics_vec), Some(trace)) = (diagnostics_vec, trace) {
-                Self::exit_span(&session_context, &user_batches, diagnostics_vec, trace).await?;
+                Self::exit_span(&session_context, &user_batches, diagnostics_vec, trace, step).await?;
             }
 
             Ok(Some(user_batches))
@@ -699,7 +703,7 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
     ) -> Result<Option<IPCMessageMap>> {
         // Update the session context with the incoming messages
         if !messages.is_empty() {
-            let (_update, _meta, errors) = session_context.update_subjects_from_messages(messages).await;
+            let (_update, _meta, errors) = session_context.update_subjects_from_messages(messages, 0).await;
             if let Some(table) = errors {
                 let error = table.get_column_as_vec_str("content").join("; ");
                 return Err(anyhow!(error));
@@ -719,7 +723,7 @@ impl SessionStreamStepTrait for SessionStreamStepMinimal {
 
             // Update the session context with the incoming messages
             if !subject_batches.is_empty() {
-                let (_update, _meta, errors) = session_context.update_subjects_from_messages(subject_batches).await;
+                let (_update, _meta, errors) = session_context.update_subjects_from_messages(subject_batches, 0).await;
                 if let Some(table) = errors {
                     let error = table.get_column_as_vec_str("content").join("; ");
                     return Err(anyhow!(error));
@@ -754,7 +758,7 @@ mod tests {
             .add_next_supersteps()?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(session_context);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
 
         let messages = test_task::make_test_input_message(
             "task_1",
@@ -855,7 +859,7 @@ mod tests {
             .add_next_supersteps()?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(session_context);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
         let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -905,7 +909,7 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 3); // DM, Check!(): changed from 5
+        assert_eq!(subscriptions.len(), 4); // DM, Check!(): changed from 5
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
             .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
@@ -958,7 +962,7 @@ mod tests {
             .add_next_supersteps()?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(session_context);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
         let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -1008,7 +1012,7 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 3);  // DM, Check!(): changed from 5
+        assert_eq!(subscriptions.len(), 4);  // DM, Check!(): changed from 5
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
             .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
@@ -1063,8 +1067,7 @@ mod tests {
             .add_next_supersteps()?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(session_context);
-        // let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await; // DM: Alternative that does not log the changes
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
         let mut messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -1250,13 +1253,13 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 2);  // DM, Check!(): changed from 3
+        assert_eq!(subscriptions.len(), 3);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
             .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 3);  // DM, Check!(): changed from 5
+        assert_eq!(subscriptions.len(), 5);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
             .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
@@ -1515,7 +1518,7 @@ mod tests {
             .add_next_supersteps()?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(session_context);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
         let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -1587,13 +1590,13 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 2);  // DM, Check!(): changed from 3
+        assert_eq!(subscriptions.len(), 3);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
             .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 3);  // DM, Check!(): changed from 5
+        assert_eq!(subscriptions.len(), 5);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
             .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
@@ -1742,7 +1745,7 @@ mod tests {
             .add_next_supersteps()?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(session_context);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
         let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -1849,7 +1852,7 @@ mod tests {
 
         // Run the session context
         let session_ctx_arc = Arc::new(session_context);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
         let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -1876,7 +1879,7 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 3); // DM, Check!(): changed from 5
+        assert_eq!(subscriptions.len(), 4); // DM, Check!(): changed from 5
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
             .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()

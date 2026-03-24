@@ -363,7 +363,7 @@ mod tests {
             .with_subjects(subjects)
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(session_ctx);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
@@ -482,7 +482,7 @@ mod tests {
             .with_subjects(subjects)
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(session_ctx);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default()).await;
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
