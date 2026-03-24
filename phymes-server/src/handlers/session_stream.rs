@@ -37,7 +37,7 @@ pub async fn session_stream(
         String,
         Vec<JoinUserInboxSessionContextsMermaidDiagrams>,
     )>,
-    State((_, mut state)): State<(UserState, ServerState)>,
+    State((users, mut state)): State<(UserState, ServerState)>,
     payload: Result<Json<SessionInterfaceMessage>, JsonRejection>,
 ) -> impl IntoResponse {
     // Extract and process the payload
@@ -49,23 +49,23 @@ pub async fn session_stream(
                 payload.get_session_name()
             );
 
-            // // Add user state if it does not exist already
-            // if !state
-            //     .user_session_names
-            //     .try_read()
-            //     .unwrap()
-            //     .contains_key(&current_user)
-            // {
-            //     // Initialize the user session contexts
-            //     let _session_names = match state.make_session_contexts(&user_session_contexts, true).await
-            //     {
-            //         Ok(session_names) => session_names,
-            //         Err(err) => {
-            //             return JsonError::new(err.to_string())
-            //                 .to_response(StatusCode::INTERNAL_SERVER_ERROR);
-            //         }
-            //     };
-            // }
+            // Add user state if it does not exist already
+            if !state
+                .user_session_names
+                .try_read()
+                .unwrap()
+                .contains_key(&current_user)
+            {
+                // Initialize the user session contexts
+                let _session_names = match state.make_session_contexts(&user_session_contexts, true, users.users.runtime_env()).await
+                {
+                    Ok(session_names) => session_names,
+                    Err(err) => {
+                        return JsonError::new(err.to_string())
+                            .to_response(StatusCode::INTERNAL_SERVER_ERROR);
+                    }
+                };
+            }
 
             let session_ctx_arc = match state
                 .session_contexts
