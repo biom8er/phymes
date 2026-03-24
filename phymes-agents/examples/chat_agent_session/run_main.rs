@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use phymes_agents::{
     AvailableInterfaceSubjects, ChatAgentSession, CustomAgentsBuilderTrait,
-    SessionContextBuilderAgentsTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, create_message_map,
+    SessionContextBuilderAgentsTrait, SessionStream, create_message_map,
 };
 use phymes_core::{
     AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage,

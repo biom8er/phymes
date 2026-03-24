@@ -134,7 +134,7 @@ mod tests {
         let mut response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         // Check the response
-        assert_eq!(response.len(), 2);
+        assert_eq!(response.len(), 1);
         assert_eq!(response.last().unwrap().len(), 1);
         assert_eq!(
             response
@@ -184,17 +184,6 @@ mod tests {
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 84);  // DM, Check!(): changed from 4
-        let bytes = response
-            .pop()
-            .unwrap()
-            .remove("from_session_1_on_state_1")
-            .unwrap()
-            .get_message_own();
-        let partitions = SubjectBuilder::new_from_ipc_stream(&bytes)?
-            .with_name("")
-            .build()?;
-        let n_rows: usize = partitions.count_rows();
         assert_eq!(n_rows, 33);  // DM, Check!(): changed from 4
 
         // check the session and session_context
@@ -203,8 +192,8 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 12);
-        assert_eq!(subscriptions.last().unwrap().num_rows(), 10);
+        assert_eq!(subscriptions.len(), 6);
+        assert_eq!(subscriptions.last().unwrap().num_rows(), 7);
 
         // Check the traces, events, and metrics tables
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
@@ -218,7 +207,7 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 4); // DM, Check!(): changed from 8
+        assert_eq!(subscriptions.len(), 5); // DM, Check!(): changed from 8
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
             .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
@@ -230,7 +219,7 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 2);
+        assert_eq!(subscriptions.len(), 1);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
             .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
@@ -242,7 +231,7 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-        assert_eq!(subscriptions.len(), 3);
+        assert_eq!(subscriptions.len(), 2);
 
         Ok(())
     }

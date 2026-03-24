@@ -42,7 +42,6 @@ pub(crate) fn create_session_tasks_fields() -> Fields {
         "session_name",
         "task_name",
         "processor_name",
-        "runtime_env_name",
     ];
     let fields_vec = field_names
         .iter()

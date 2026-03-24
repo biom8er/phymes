@@ -70,7 +70,7 @@ pub async fn session_diagnostics(
             let diagnostic_session = DiagnosticSession::default();
 
             // Get the diagnostic information from the session stream state
-            let mut message_map = {
+            let message_map = {
                 let session_ctx_arc = match state
                     .session_contexts
                     .try_write()

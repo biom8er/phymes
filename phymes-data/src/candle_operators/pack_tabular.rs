@@ -175,7 +175,7 @@ pub fn table_and_data_format_to_record_batch(
                     vec![content],
                     vec![create_timestamp_micros()],
                 ),
-                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataForma `{format}`."))
+                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataFormat `{format}`."))
             }
             
         }
@@ -200,7 +200,7 @@ pub fn table_and_data_format_to_record_batch(
                     vec![create_timestamp_micros()],
                     vec![bytes],
                 ),
-                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataForma `{format}`."))
+                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataFormat `{format}`."))
             }            
         }
         DataFormat::CsvDefault => {
@@ -227,7 +227,7 @@ pub fn table_and_data_format_to_record_batch(
                     vec![create_timestamp_micros()],
                     vec![bytes],
                 ),
-                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataForma `{format}`."))
+                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataFormat `{format}`."))
             } 
         }
         DataFormat::Bytes => {
@@ -251,7 +251,7 @@ pub fn table_and_data_format_to_record_batch(
                     vec![create_timestamp_micros()],
                     vec![bytes.to_vec()],
                 ),
-                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataForma `{format}`."))
+                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataFormat `{format}`."))
             } 
         }
         DataFormat::Json(_) | DataFormat::JsonDefault | DataFormat::JsonSchema => {
@@ -275,7 +275,7 @@ pub fn table_and_data_format_to_record_batch(
                     vec![create_timestamp_micros()],
                     vec![bytes],
                 ),
-                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataForma `{format}`."))
+                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataFormat `{format}`."))
             } 
         }
         DataFormat::Html | DataFormat::Txt => {
@@ -308,7 +308,7 @@ pub fn table_and_data_format_to_record_batch(
                     vec![create_timestamp_micros()],
                     vec![bytes],
                 ),
-                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataForma `{format}`."))
+                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataFormat `{format}`."))
             } 
         }
         DataFormat::Ipc => {
@@ -332,7 +332,7 @@ pub fn table_and_data_format_to_record_batch(
                     vec![create_timestamp_micros()],
                     vec![bytes],
                 ),
-                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataForma `{format}`."))
+                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataFormat `{format}`."))
             } 
         }
         DataFormat::Pdf | DataFormat::Xml | DataFormat::Owl => {
