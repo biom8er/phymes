@@ -144,7 +144,7 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Publication, SubjectTrait, Subscription, create_session_supersteps_batch
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, SubjectTrait, Subscription, create_session_supersteps_batch
     };
     use phymes_diagnostics::HashMap;
 
@@ -190,7 +190,7 @@ mod tests {
 
         // Test supserstep 1
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSuperstepMax.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -236,7 +236,7 @@ mod tests {
 
         // Test supserstep 1
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSuperstepMax.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;

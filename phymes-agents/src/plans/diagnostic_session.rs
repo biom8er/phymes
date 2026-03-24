@@ -1843,7 +1843,7 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{
-        BuildableTrait, IPCMessage, MessageBuilderTrait, MessageTrait, Subject, SubjectTrait
+        BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait, Subject, SubjectTrait
     };
     use phymes_diagnostics::{HashMap, HashSet};
 
@@ -1885,7 +1885,7 @@ mod tests {
 
         // Extract the subjects
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -1905,7 +1905,7 @@ mod tests {
             .make_name()?
             .build()?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTraces.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -1925,7 +1925,7 @@ mod tests {
             .make_name()?
             .build()?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionEvents.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -1945,7 +1945,7 @@ mod tests {
             .make_name()?
             .build()?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasks.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -1965,7 +1965,7 @@ mod tests {
             .make_name()?
             .build()?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2204,7 +2204,7 @@ mod tests {
 
         // Check the session
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2226,7 +2226,7 @@ mod tests {
         let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
         assert_eq!(&column[..15], "\n        gantt\n");
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2248,7 +2248,7 @@ mod tests {
         let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
         assert_eq!(&column[..15], "\n        gantt\n");
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::MetricOutputRowsGantt.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2270,7 +2270,7 @@ mod tests {
         let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
         assert_eq!(&column[..15], "\n        gantt\n");
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::TraceSequenceDiagram.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -2292,7 +2292,7 @@ mod tests {
         let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
         assert_eq!(&column[..25], "\n        sequenceDiagram\n");
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::EventKanban.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;

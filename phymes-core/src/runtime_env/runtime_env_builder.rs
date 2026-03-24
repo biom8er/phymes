@@ -138,13 +138,13 @@ impl RuntimeEnvBuilderTrait for RuntimeEnvBuilder {
         self
     }
     
-    fn with_object_store(mut self, store: Arc<dyn ObjectStore>) -> Self {
-        self.object_store = Some(store);
+    fn with_max_tasks(mut self, max: usize) -> Self {
+        self.max_tasks = Some(max);
         self
     }
     
-    fn with_max_tasks(mut self, max: usize) -> Self {
-        self.max_tasks = Some(max);
+    fn with_object_store(mut self, store: Arc<dyn ObjectStore>) -> Self {
+        self.object_store = Some(store);
         self
     }
     

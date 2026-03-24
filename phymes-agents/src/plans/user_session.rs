@@ -354,7 +354,7 @@ pub(crate) mod user_session_inner {
 mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
-    use phymes_core::{IPCMessage, SubjectTrait};
+    use phymes_core::{IPCMessage, MappableTrait, SubjectTrait};
     use phymes_diagnostics::HashMap;
 
     use crate::SubscriptionTrait;
@@ -369,7 +369,7 @@ mod tests {
 
         // Check the User subject
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::User.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -392,7 +392,7 @@ mod tests {
         
         // Check the Join subject
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;

@@ -7,7 +7,7 @@ use phymes_agents::{
     AvailableSessionPlans, SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map
 };
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, Publication, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectTrait, Subscription, UserSubject, create_session_mermaid_batch, create_user_inbox_batch, create_user_session_contexts_batch
+    AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, Publication, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectTrait, Subscription, UserSubject, create_session_mermaid_batch, create_user_inbox_batch, create_user_session_contexts_batch, make_store
 };
 use phymes_diagnostics::HashMap;
 
@@ -33,7 +33,7 @@ impl UserState {
     pub fn new(user_session_context_name: Option<&str>, runtime_env: &Arc<RuntimeEnv>) -> impl std::future::Future<Output = Result<Self>> + Send { async move {
         let session_name = user_session_context_name.unwrap_or("Users");
         let (session_ctx_arc, session_messages) =
-            AvailableSessionPlans::get_session_stream_state_by_name("Users", session_name, runtime_env)?;
+            AvailableSessionPlans::get_session_stream_state_by_name("Users", session_name, &runtime_env)?;
 
         // Write the session messages to the store
         let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
@@ -71,7 +71,7 @@ impl UserState {
 
         // Parse out the results
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::User.to_string() }
-			.subscribe_to_subject(self.users.runtime_env())?
+			.subscribe_to_subject(self.users.runtime_env(), self.users.get_name())?
 			.ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` while getting the user by email.", 
 				AvailableSubjects::User,
 				self.users.get_name()
@@ -85,7 +85,7 @@ impl UserState {
             .to_struct::<UserSubject>()?;
         
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string() }
-			.subscribe_to_subject(self.users.runtime_env())?
+			.subscribe_to_subject(self.users.runtime_env(), self.users.get_name())?
 			.ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` while getting the user by email.", 
 				AvailableSubjects::JoinUserInboxSessionContextsMermaid,
 				self.users.get_name()
@@ -305,6 +305,7 @@ impl ServerState {
                     .add_processor_subjects()?
                     .add_session_interface(None)?
                     .with_diagnostics(true)
+                    .with_runtime_env(runtime_env.clone())
                     .build_with_tables()?;
                     let session_ctx_arc = Arc::new(session_context);
 
@@ -373,7 +374,7 @@ mod tests {
         ).await?;
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "UserSessionContexts".to_string() }
-            .subscribe_to_subject(user.users.runtime_env())?
+            .subscribe_to_subject(user.users.runtime_env(), user.users.get_name())?
             .unwrap()
             .try_collect()
             .await?;

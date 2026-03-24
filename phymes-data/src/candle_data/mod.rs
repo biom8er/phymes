@@ -1,4 +1,4 @@
-mod attachment_aggregator_processor;
+mod aggregator_processor;
 mod coalesce_processor;
 mod data_config;
 mod data_processor;
@@ -6,7 +6,7 @@ mod limit_config;
 mod limit_processor;
 mod tensor_service;
 
-pub use attachment_aggregator_processor::{
+pub use aggregator_processor::{
     AggregatorStream, AggregatorProcessor, collect_messages_by_schema,
 };
 pub use coalesce_processor::CoalesceProcessor;

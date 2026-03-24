@@ -42,6 +42,7 @@ impl AvailableSessionPlans {
     /// Get all available session plans
     pub fn get_all_session_plan_names() -> Vec<String> {
         let session_plans = ["Chat", "DocChat", "ToolChat", "Builder"];
+        // let session_plans = ["Chat", "Builder"];
         session_plans
             .iter()
             .map(|s| s.to_string())

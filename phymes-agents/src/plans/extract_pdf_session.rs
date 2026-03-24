@@ -158,7 +158,7 @@ mod tests {
         {
             // Test supsersteps
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::Documents.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;

@@ -90,7 +90,7 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription
     };
     use phymes_diagnostics::HashMap;
 
@@ -149,7 +149,7 @@ mod tests {
 
             // Extract out the subjects for the test
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -180,7 +180,7 @@ mod tests {
 
         // Test session stream
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;

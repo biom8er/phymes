@@ -437,7 +437,7 @@ mod tests {
         {
             // Test supserstep 1
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_processors_subscriptions_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -637,7 +637,7 @@ mod tests {
             );
 
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_processors_publications_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -739,7 +739,7 @@ mod tests {
             assert_eq!(column, [0, 0, 0, 0, 0, 0, 0, 0, 0]);
             
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_processors_subscriptions_aggregated_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -856,7 +856,7 @@ mod tests {
             );
 
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_processors_publications_aggregated_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -938,7 +938,7 @@ mod tests {
             );
 
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_tasks_processors_subscriptions_publications_aggregated_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -1097,13 +1097,13 @@ mod tests {
             );
 
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
             assert_eq!(batches.len(), 0);
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;

@@ -396,7 +396,7 @@ mod tests {
             {
                 // Test supsersteps
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
@@ -414,13 +414,13 @@ mod tests {
                     assert!(t > 0);
                 }
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::ToolMessages.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
                 assert_eq!(batches.len(), 0);
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
@@ -443,7 +443,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "aggregate_messages_generate_text_s".to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
@@ -464,7 +464,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "generate_text_inference_s".to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
@@ -605,19 +605,19 @@ mod tests {
             {
                 // Test supsersteps
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
                 assert_eq!(batches.len(), 0);
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::ToolMessages.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
                 assert_eq!(batches.len(), 0);
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
@@ -638,7 +638,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "aggregate_messages_generate_text_s".to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
@@ -659,7 +659,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "generate_text_inference_s".to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
@@ -676,13 +676,13 @@ mod tests {
                     assert!(t > 0);
                 }
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableCandleOperators::HumanInTheLoop.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
                 assert_eq!(batches.len(), 0);
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableCandleOperators::Sort.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
@@ -817,7 +817,7 @@ mod tests {
             {
                 // Test supsersteps
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
@@ -835,7 +835,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
@@ -858,7 +858,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "aggregate_messages_generate_text_s".to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
@@ -884,7 +884,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "generate_text_inference_s".to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
@@ -901,13 +901,13 @@ mod tests {
                     assert!(t > 0);
                 }
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableCandleOperators::Sort.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
                 assert_eq!(batches.len(), 0);
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableCandleOperators::HumanInTheLoop.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
@@ -1050,7 +1050,7 @@ mod tests {
             {
                 // Test supsersteps
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
@@ -1073,7 +1073,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
@@ -1096,7 +1096,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "aggregate_messages_generate_text_s".to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
@@ -1122,7 +1122,7 @@ mod tests {
                     assert!(t > 0);
                 }
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "generate_text_inference_s".to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
@@ -1139,13 +1139,13 @@ mod tests {
                     assert!(t > 0);
                 }
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableCandleOperators::Sort.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
                 assert_eq!(batches.len(), 0);
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableCandleOperators::HumanInTheLoop.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;

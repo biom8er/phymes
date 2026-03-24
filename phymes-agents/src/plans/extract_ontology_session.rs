@@ -1859,7 +1859,7 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription, create_attachments_batch
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription, create_attachments_batch
     };
     use phymes_diagnostics::{HashMap, create_timestamp_micros};
 
@@ -2005,7 +2005,7 @@ mod tests {
         {
             // Test supsersteps
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::ParseOwl.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -2071,7 +2071,7 @@ mod tests {
         {
             // Test supsersteps
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_ontology_entity_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -2123,7 +2123,7 @@ mod tests {
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_annotation_property_entity_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -2178,13 +2178,13 @@ mod tests {
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_datatype_property_entity_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
             assert_eq!(batches.len(), 0);
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_class_entity_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -2239,7 +2239,7 @@ mod tests {
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_object_property_entity_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -2294,7 +2294,7 @@ mod tests {
             assert_eq!(column.first().unwrap(), &"UserScript");
             assert_eq!(column.last().unwrap(), &"UserScript");
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_named_individual_entity_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -2331,7 +2331,7 @@ mod tests {
             let column = subject.get_column_as_vec_str("dataset");
             assert_eq!(column.first().unwrap(), &"UserScript");
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_axiom_entity_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -2351,7 +2351,7 @@ mod tests {
         {
             // Test supsersteps
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "pivot_annotation_property_entity_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -2381,7 +2381,7 @@ mod tests {
             );
             assert_eq!(column.last().unwrap(), &"");
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "pivot_class_entity_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -2405,7 +2405,7 @@ mod tests {
                 &"An entity that has temporal parts and that happens, unfolds or develops through time."
             );
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "pivot_object_property_entity_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -2438,7 +2438,7 @@ mod tests {
                 &"x overlaps y if and only if there exists some z such that x has part z and z part of y"
             );
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "pivot_named_individual_entity_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -2473,7 +2473,7 @@ mod tests {
         {
             // Test supsersteps
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_annotation_property_pivot_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -2501,7 +2501,7 @@ mod tests {
             );
             assert_eq!(column.last().unwrap(), &"");
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "merge_object_property_class_named_individual_pivot_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -2535,7 +2535,7 @@ mod tests {
         {
             // Test supsersteps
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_predicates_object_property_entity_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -2569,7 +2569,7 @@ mod tests {
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_predicates_class_entity_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -2617,13 +2617,13 @@ mod tests {
         {
             // Test supsersteps
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_resource_class_entity_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
             assert_eq!(batches.len(), 0);
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_resource_object_property_entity_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -2671,7 +2671,7 @@ mod tests {
         {
             // Test supsersteps
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_objects_class_entity_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -2705,7 +2705,7 @@ mod tests {
             // assert_eq!(column.first().unwrap(), &"");
             // assert_eq!(column.last().unwrap(), &"");
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_objects_object_property_entity_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -2753,7 +2753,7 @@ mod tests {
         {
             // Test supsersteps
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::Documents.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;

@@ -44,8 +44,8 @@ impl Display for ObjectStorageBackend {
     }
 }
 
-pub fn make_store(cfg: &ObjectStorageBackend, bucket: Option<&String>, _config: Option<&Map<String, Value>>) -> Result<Arc<dyn ObjectStore>> {
-    let store: Arc<dyn ObjectStore> = match cfg {
+pub fn make_store(backend: &ObjectStorageBackend, bucket: Option<&String>, _config: Option<&Map<String, Value>>) -> Result<Arc<dyn ObjectStore>> {
+    let store: Arc<dyn ObjectStore> = match backend {
         #[cfg(feature = "api")]
         ObjectStorageBackend::Aws => {
             let mut builder = AmazonS3Builder::from_env()
@@ -70,7 +70,7 @@ pub fn make_store(cfg: &ObjectStorageBackend, bucket: Option<&String>, _config: 
                 .with_container_name(bucket.ok_or(anyhow!("Missing `bucket` name for {cfg}"))?)
                 .build()?,
         ),
-        ObjectStorageBackend::LocalFs => Arc::new(LocalFileSystem::new_with_prefix(bucket.ok_or(anyhow!("Missing `bucket` name for {cfg}"))?)?),
+        ObjectStorageBackend::LocalFs => Arc::new(LocalFileSystem::new_with_prefix(bucket.ok_or(anyhow!("Missing `bucket` name for {backend}"))?)?),
         ObjectStorageBackend::InMemory => Arc::new(InMemory::new()),
     };
 

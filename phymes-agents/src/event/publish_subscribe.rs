@@ -29,6 +29,7 @@ pub fn subscribe_to_subject(
     subscriptions: &[Subscription],
     publications: &[Publication],
     runtime_env: &Arc<RuntimeEnv>,
+    session_name: &str,
     messages: &mut SendableRecordBatchStreamMessageMap,
 ) -> Result<SendableRecordBatchStreamMessageMap> {
     let mut map = HashMap::<String, SendableRecordBatchStreamMessage>::new();
@@ -52,7 +53,7 @@ pub fn subscribe_to_subject(
 
             // C. Get the subject
             let stream = Subscription::AlwaysAllRecordBatches { subject_name: subscription.subject_name().to_string() }
-                .subscribe_to_subject(runtime_env)?
+                .subscribe_to_subject(runtime_env, session_name)?
                 .unwrap();
             let message = SendableRecordBatchStreamMessage::get_builder()
                 .with_publisher("Subjects")
@@ -161,7 +162,7 @@ mod tests {
         let subjects = test_task::make_subjects(subject_name, config_name)?;
         for subject in subjects {
             let _publication: Vec<_> = Publication::Extend { subject_name: subject.get_name().to_string() }
-                .publish_to_subject(&runtime_env, subject.subject_own().get_record_batches_own(), 0, "")?
+                .publish_to_subject(&runtime_env, subject.subject_own().get_record_batches_own(), 0, "", "test_session")?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -172,7 +173,7 @@ mod tests {
 
         // Test        
         let mut messages =
-            subscribe_to_subject(&subscriptions, &publications, &runtime_env, &mut stream)?;
+            subscribe_to_subject(&subscriptions, &publications, &runtime_env, "test_session", &mut stream)?;
         assert_eq!(messages.len(), 2);
         assert_eq!(
             remove_message_by_subject(subject_name, &mut messages)
@@ -217,7 +218,7 @@ mod tests {
 
         // Test
         let mut messages =
-            subscribe_to_subject(&subscriptions, &publications, &runtime_env, &mut stream)?;
+            subscribe_to_subject(&subscriptions, &publications, &runtime_env, "test_session", &mut stream)?;
         assert_eq!(messages.len(), 3);
         assert_eq!(
             remove_message_by_subject(subject_name, &mut messages)
@@ -264,7 +265,7 @@ mod tests {
 
         // Test
         let mut messages =
-            subscribe_to_subject(&subscriptions, &publications, &runtime_env, &mut stream)?;
+            subscribe_to_subject(&subscriptions, &publications, &runtime_env, "test_session", &mut stream)?;
         assert_eq!(messages.len(), 2);
         assert_eq!(
             remove_message_by_subject(subject_name, &mut messages)

@@ -91,7 +91,7 @@ pub async fn session_diagnostics(
                     }
                 };
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
                     .unwrap()
                     .unwrap()
                     .try_collect()
@@ -115,7 +115,7 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTraces.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
                     .unwrap()
                     .unwrap()
                     .try_collect()
@@ -139,7 +139,7 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionEvents.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
                     .unwrap()
                     .unwrap()
                     .try_collect()
@@ -163,7 +163,7 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasks.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
                     .unwrap()
                     .unwrap()
                     .try_collect()
@@ -187,7 +187,7 @@ pub async fn session_diagnostics(
                     .build()
                     .unwrap();
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
                     .unwrap()
                     .unwrap()
                     .try_collect()

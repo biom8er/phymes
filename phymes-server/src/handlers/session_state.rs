@@ -16,7 +16,7 @@ use futures::TryStreamExt;
 use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait, SubscriptionTrait};
 use phymes_agents::{SessionStreamStep, SessionStreamStepTrait, create_message_map};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, CsvFormat, DataFormat, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams, MessageBuilderTrait, MessageTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription
+    BuildableTrait, BuilderTrait, CsvFormat, DataFormat, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription
 };
 
 // Library imports
@@ -250,7 +250,7 @@ pub async fn session_get_state(
 
             // Read the subject
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: payload.get_subject().to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
                 .unwrap()
                 .unwrap()
                 .try_collect()

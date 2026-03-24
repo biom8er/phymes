@@ -464,7 +464,7 @@ mod tests {
         {
             // Test session context
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "StudySamplesMelt".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -483,7 +483,7 @@ mod tests {
             assert!(!column.is_empty());
 
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "SamplesVariablesMelt".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -631,7 +631,7 @@ mod tests {
             assert!(!column.is_empty());
 
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "StudyVariablesMelt".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;

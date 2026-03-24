@@ -16,7 +16,7 @@ async fn main() -> Result<()> {
     let config = ServerlessConfig::parse();
 
     // create the runtime
-    let runtime_env = if let Some(bucket) = config.bucket.as_ref() {
+    let runtime_env = if let Some(bucket) = config.object_store_bucket.as_ref() {
         let store = make_store(&ObjectStorageBackend::LocalFs, Some(bucket), None)?;
         RuntimeEnv::get_builder()
             .with_name("Serverless App Runtime Environment")

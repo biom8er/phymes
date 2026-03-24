@@ -371,7 +371,7 @@ mod tests {
             {
                 // Test supsersteps
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::UserQueries.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
@@ -402,7 +402,7 @@ mod tests {
             {
                 // Test supsersteps
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::QueryEmbeddings.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;
@@ -421,7 +421,7 @@ mod tests {
                 #[cfg(not(feature = "hf_hub"))]
                 assert_eq!(column.first().unwrap().len(), 384);
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::DocumentEmbeddings.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                     .unwrap()
                     .try_collect()
                     .await?;

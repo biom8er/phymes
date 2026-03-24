@@ -6,13 +6,14 @@ use phymes_core::{AvailableSubjects, BuildableTrait, BuilderTrait, DataEncoding,
 use std::sync::Arc;
 
 /// List all partitions of a subject (with optional restriction to the last one)
-pub fn list_subject(runtime_env: &Arc<RuntimeEnv>, sn: &str, last: bool) -> Result<SendableRecordBatchStream> {
+pub fn list_subject(runtime_env: &Arc<RuntimeEnv>, session_name: &str, sn: &str, last: bool) -> Result<SendableRecordBatchStream> {
     // 1. List the partitions (RecordBatches)
+    let location = format!("session={session_name}/subject={sn}");
     let config = ObjectStoreConfig {
         timeout: 5,
         ops_type: ObjectStoreOptsType::List,
         backend: ObjectStorageBackend::InMemory, // Force use of the runtime_env
-        locations: Some(vec![sn.to_string()]),
+        locations: Some(vec![location.to_string()]),
         subject_name: None,
         ..Default::default()
     };
@@ -198,19 +199,20 @@ pub trait SubscriptionTrait {
     /// # Arguments
     ///
     /// * `runtime_env` - [RuntimeEnv] the object store
-    fn subscribe_to_subject(&self, runtime_env: &Arc<RuntimeEnv>) -> Result<Option<SendableRecordBatchStream>>;
+    fn subscribe_to_subject(&self, runtime_env: &Arc<RuntimeEnv>, session_name: &str) -> Result<Option<SendableRecordBatchStream>>;
 }
 
 impl SubscriptionTrait for Subscription {
     fn subscribe_to_subject(
         &self,
         runtime_env: &Arc<RuntimeEnv>,
+        session_name: &str,
     ) -> Result<Option<SendableRecordBatchStream>> {
         match self {
             Self::AlwaysAllRecordBatches { subject_name: sn } 
             | Self::OnUpdateAllRecordBatches { subject_name: sn } => {
                 // List the partitions (RecordBatches)
-                let stream = list_subject(runtime_env, sn, false)?;
+                let stream = list_subject(runtime_env, session_name, sn, false)?;
 
                 // Get all partitions (RecordBatches)
                 let stream = get_subject(runtime_env, sn, stream)?;
@@ -219,7 +221,7 @@ impl SubscriptionTrait for Subscription {
             Self::AlwaysLastRecordBatch { subject_name: sn }
             | Self::OnUpdateLastRecordBatch { subject_name: sn } => {
                 // List the last partition (RecordBatch)
-                let stream = list_subject(runtime_env, sn, true)?;
+                let stream = list_subject(runtime_env, session_name, sn, true)?;
 
                 // Get all partitions (RecordBatches)
                 let stream = get_subject(runtime_env, sn, stream)?;
@@ -259,13 +261,13 @@ mod tests {
 
         // Write them to object storage
         let _publication: Vec<_> = Publication::Extend { subject_name: messages.to_string() }
-            .publish_to_subject(&rt_env, subjects.get_record_batches_own(), 0, "")?
+            .publish_to_subject(&rt_env, subjects.get_record_batches_own(), 0, "", "")?
             .unwrap()
             .try_collect()
             .await?;
 
         // List all locations
-        let results: Vec<_> = list_subject(&rt_env, messages, false)?.try_collect().await?;
+        let results: Vec<_> = list_subject(&rt_env, "", messages, false)?.try_collect().await?;
         assert_eq!(results.len(), 1);
         let subject = Subject::get_builder()
             .with_name(messages)
@@ -282,7 +284,7 @@ mod tests {
         assert_eq!(result, ["messages/superstep=0/publisher=/partition=0/messages.ipc", "messages/superstep=0/publisher=/partition=1/messages.ipc", "messages/superstep=0/publisher=/partition=2/messages.ipc"]);
 
         // List last locations
-        let results: Vec<_> = list_subject(&rt_env, messages, true)?.try_collect().await?;
+        let results: Vec<_> = list_subject(&rt_env, "", messages, true)?.try_collect().await?;
         assert_eq!(results.len(), 1);
         let subject = Subject::get_builder()
             .with_name(messages)
@@ -307,18 +309,18 @@ mod tests {
         let old = test_subject::make_test_subject(subject_name, 4, 0, 3)?;
         let runtime_env = Arc::new(RuntimeEnv::default());
         let _publication: Vec<_> = Publication::Extend { subject_name: subject_name.to_string() }
-            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0, "")?
+            .publish_to_subject(&runtime_env, old.get_record_batches_own(), 0, "", "")?
             .unwrap()
             .try_collect()
             .await?;
         let new = test_subject::make_test_subject(subject_name, 1, 0, 1)?;
         let _publication: Vec<_> = Publication::Extend { subject_name: subject_name.to_string() }
-            .publish_to_subject(&runtime_env, new.get_record_batches_own(), 1, "")?
+            .publish_to_subject(&runtime_env, new.get_record_batches_own(), 1, "", "")?
             .unwrap()
             .try_collect()
             .await?;
         let batches: Vec<_> = Subscription::AlwaysLastRecordBatch { subject_name: subject_name.to_string() }
-            .subscribe_to_subject(&runtime_env)?
+            .subscribe_to_subject(&runtime_env, "")?
             .unwrap()
             .try_collect()
             .await?;
@@ -329,7 +331,7 @@ mod tests {
         assert_eq!(subject.get_record_batches().len(), 1);
         assert_eq!(subject.count_rows(), 1);
         let batches: Vec<_> = Subscription::OnUpdateLastRecordBatch { subject_name: subject_name.to_string() }
-            .subscribe_to_subject(&runtime_env)?
+            .subscribe_to_subject(&runtime_env, "")?
             .unwrap()
             .try_collect()
             .await?;
@@ -340,7 +342,7 @@ mod tests {
         assert_eq!(subject.get_record_batches().len(), 1);
         assert_eq!(subject.count_rows(), 1);
         let batches: Vec<_> = Subscription::OnUpdateAllRecordBatches { subject_name: subject_name.to_string() }
-            .subscribe_to_subject(&runtime_env)?
+            .subscribe_to_subject(&runtime_env, "")?
             .unwrap()
             .try_collect()
             .await?;

@@ -202,7 +202,9 @@ mod tests {
             basic_auth: Some("contact@biom8er.com:contact@biom8er.com".to_string()),
             bearer_auth: None,
             data: None,
-            bucket: None,
+            object_store_bucket: None,
+            object_store_backend: None,
+            object_store_config: None,
         };
         let response = serverless_app(config, &mut serverless).await.unwrap();
         assert_eq!(200, response.status());
@@ -239,7 +241,9 @@ mod tests {
             basic_auth: None,
             bearer_auth: Some(bearer.clone()),
             data: Some(data),
-            bucket: None,
+            object_store_bucket: None,
+            object_store_backend: None,
+            object_store_config: None,
         };
         let response = serverless_app(config, &mut serverless).await.unwrap();
         assert_eq!(200, response.status());
@@ -271,7 +275,9 @@ mod tests {
             basic_auth: None,
             bearer_auth: Some(bearer.clone()),
             data: Some(data),
-            bucket: None,
+            object_store_bucket: None,
+            object_store_backend: None,
+            object_store_config: None,
         };
         let response = serverless_app(config, &mut serverless).await.unwrap();
         assert_eq!(200, response.status());
@@ -303,7 +309,9 @@ mod tests {
             basic_auth: None,
             bearer_auth: Some(bearer.clone()),
             data: Some(data),
-            bucket: None,
+            object_store_bucket: None,
+            object_store_backend: None,
+            object_store_config: None,
         };
         let response = serverless_app(config, &mut serverless).await.unwrap();
         assert_eq!(200, response.status());
@@ -344,7 +352,9 @@ mod tests {
             basic_auth: None,
             bearer_auth: Some(bearer.clone()),
             data: Some(data),
-            bucket: None,
+            object_store_bucket: None,
+            object_store_backend: None,
+            object_store_config: None,
         };
         let response = serverless_app(config, &mut serverless).await.unwrap();
         assert_eq!(200, response.status());
@@ -378,7 +388,9 @@ mod tests {
             basic_auth: None,
             bearer_auth: Some(bearer.clone()),
             data: Some(data),
-            bucket: None,
+            object_store_bucket: None,
+            object_store_backend: None,
+            object_store_config: None,
         };
         let response = serverless_app(config, &mut serverless).await.unwrap();
         assert_eq!(200, response.status());

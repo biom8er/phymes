@@ -877,7 +877,7 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MessageBuilderTrait, Publication, RuntimeEnv, RuntimeEnvBuilderTrait, SubjectTrait, Subscription
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, RuntimeEnv, RuntimeEnvBuilderTrait, SubjectTrait, Subscription
     };
     use phymes_diagnostics::HashMap;
 
@@ -947,7 +947,7 @@ mod tests {
 
             // Extract out the subjects for the test
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionProcessors.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -965,7 +965,7 @@ mod tests {
                 .make_name()?
                 .build()?;
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasks.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -983,7 +983,7 @@ mod tests {
                 .make_name()?
                 .build()?;
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -1001,7 +1001,7 @@ mod tests {
                 .make_name()?
                 .build()?;
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -1043,7 +1043,7 @@ mod tests {
         {
             // Test supserstep 1
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_tasks_run_log_superstep_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -1057,7 +1057,7 @@ mod tests {
             assert_eq!(column, [1, 1, 1, 0, 0]);
 
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_processors_subscriptions_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -1149,7 +1149,7 @@ mod tests {
             assert_eq!(column, [1, 1, 1, 1, 1, 1, 1]);
 
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_processors_publications_s".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -1206,7 +1206,7 @@ mod tests {
         {
             // Test supserstep 2
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "SessionTasksSubscribeAggregate".to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -1298,7 +1298,7 @@ mod tests {
         {
             // Test the tasks subscribe
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksSubscribe.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;
@@ -1398,7 +1398,7 @@ mod tests {
         {
             // Test supserstep 3
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
                 .unwrap()
                 .try_collect()
                 .await?;

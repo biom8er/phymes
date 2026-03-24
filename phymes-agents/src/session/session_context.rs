@@ -83,7 +83,7 @@ impl SessionContext {
     pub async fn tasks_subscribe(&self) -> Result<()> {
         // Get the subject
         let batches: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string() }
-            .subscribe_to_subject(self.runtime_env())?
+            .subscribe_to_subject(self.runtime_env(), self.get_name())?
             .ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` during tasks_subscribe.", 
                 AvailableSubjects::SessionTasksSubscribeAggregate,
                 self.get_name()
@@ -100,7 +100,7 @@ impl SessionContext {
             .build()?;
 
         // Clear the subject
-        let _locations: Vec<RecordBatch> = clear_subject(self.runtime_env(), &AvailableSubjects::SessionTasksSubscribeAggregate.to_string(), false)?
+        let _locations: Vec<RecordBatch> = clear_subject(self.runtime_env(), self.get_name(), &AvailableSubjects::SessionTasksSubscribeAggregate.to_string(), false)?
             .try_collect()
             .await?;
 
@@ -369,7 +369,7 @@ impl SessionContext {
     ) -> Result<HashMap<(String, String), ProcessorSubjectsMap>> {
         // Get the subject
         let batches: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string() }
-            .subscribe_to_subject(self.runtime_env())?
+            .subscribe_to_subject(self.runtime_env(), self.get_name())?
             .ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` during tasks_subscribe.", 
                 AvailableSubjects::SessionTasksSubscribePublish,
                 self.get_name()
@@ -392,7 +392,7 @@ impl SessionContext {
             .build()?;
 
         // Clear the subject
-        let _locations: Vec<RecordBatch> = clear_subject(self.runtime_env(), &AvailableSubjects::SessionTasksSubscribePublish.to_string(), false)?
+        let _locations: Vec<RecordBatch> = clear_subject(self.runtime_env(), self.get_name(), &AvailableSubjects::SessionTasksSubscribePublish.to_string(), false)?
             .try_collect()
             .await?;
 
@@ -507,7 +507,7 @@ impl SessionContext {
         // update the state with the metrics
         if let Some(metrics_subject) = metrics_subject {
             let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionMetrics.to_string() }
-                .publish_to_subject(self.runtime_env(), metrics_subject.get_record_batches_own(), step, &self.name)?
+                .publish_to_subject(self.runtime_env(), metrics_subject.get_record_batches_own(), step, self.get_name(), self.get_name())?
                 .ok_or(anyhow!("Unable to put the subject `{}` into object storage for session `{}` while updating the metrics tables.",
                     AvailableSubjects::SessionMetrics,
                     self.get_name()))?
@@ -518,7 +518,7 @@ impl SessionContext {
         // update the state with the traces
         if let Some(traces_subject) = traces_subject {
             let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTraces.to_string() }
-                .publish_to_subject(self.runtime_env(), traces_subject.get_record_batches_own(), step, &self.name)?
+                .publish_to_subject(self.runtime_env(), traces_subject.get_record_batches_own(), step, self.get_name(), self.get_name())?
                 .ok_or(anyhow!("Unable to put the subject `{}` into object storage for session `{}` while updating the metrics tables.",
                     AvailableSubjects::SessionTraces,
                     self.get_name()))?
@@ -529,7 +529,7 @@ impl SessionContext {
         // update the state with the events
         if let Some(events_subject) = events_subject {
             let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionEvents.to_string() }
-                .publish_to_subject(self.runtime_env(), events_subject.get_record_batches_own(), step, &self.name)?
+                .publish_to_subject(self.runtime_env(), events_subject.get_record_batches_own(), step, self.get_name(), self.get_name())?
                 .ok_or(anyhow!("Unable to put the subject `{}` into object storage for session `{}` while updating the metrics tables.",
                     AvailableSubjects::SessionEvents,
                     self.get_name()))?
@@ -578,7 +578,7 @@ impl SessionContext {
     /// Get the current session superstep
     pub async fn current_superstep(&self) -> Result<u32> {
         let batches: Vec<RecordBatch> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSuperstepMax.to_string() }
-            .subscribe_to_subject(self.runtime_env())?
+            .subscribe_to_subject(self.runtime_env(), self.get_name())?
             .ok_or(anyhow!("Unable to get the subject `{}` from object storage for session `{}` while getting the current superstep.", 
                 AvailableSubjects::SessionSuperstepMax,
                 self.get_name()
@@ -707,7 +707,7 @@ impl SessionContext {
 
                         // Publish to the object store
                         let mut object_store_metadata = Vec::new();
-                        match update.publish_to_subject(self.runtime_env(), subject.get_record_batches_own(), step, &publisher) {
+                        match update.publish_to_subject(self.runtime_env(), subject.get_record_batches_own(), step, &publisher, self.get_name()) {
                             Ok(Some(mut stream)) => {
                                 while let Some(batch) = stream.next().await {
                                     match batch {
@@ -904,7 +904,7 @@ mod tests {
             test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?.build()?;
         let _ = session_context.update_subject_num_rows();
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
-            .subscribe_to_subject(session_context.runtime_env())?
+            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
             .unwrap()
             .try_collect()
             .await?;
@@ -968,19 +968,19 @@ mod tests {
 
         // check the session
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
-            .subscribe_to_subject(session_context.runtime_env())?
+            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 0);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_2".to_string() }
-            .subscribe_to_subject(session_context.runtime_env())?
+            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 0);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_3".to_string() }
-            .subscribe_to_subject(session_context.runtime_env())?
+            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
             .unwrap()
             .try_collect()
             .await?;
@@ -1080,20 +1080,20 @@ mod tests {
 
         // check the session context
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
-            .subscribe_to_subject(session_context.runtime_env())?
+            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 3);
         assert_eq!(subscriptions.last().unwrap().num_rows(), 4);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_2".to_string() }
-            .subscribe_to_subject(session_context.runtime_env())?
+            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
             .unwrap()
             .try_collect()
             .await?;
         assert_eq!(subscriptions.len(), 0);
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_3".to_string() }
-            .subscribe_to_subject(session_context.runtime_env())?
+            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
             .unwrap()
             .try_collect()
             .await?;
@@ -1242,7 +1242,7 @@ mod tests {
         // Write the data to the object store
         let runtime_env = test_task::make_runtime_env("rt")?;
         let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string() }
-            .publish_to_subject(&runtime_env, vec![batch], 0, "")?
+            .publish_to_subject(&runtime_env, vec![batch], 0, "", "session_1")?
             .unwrap()
             .try_collect()
             .await?;
@@ -1259,7 +1259,7 @@ mod tests {
         // Run and check the updated state
         let _ = session_context.tasks_subscribe().await?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "SessionTasksSubscribe".to_string() }
-            .subscribe_to_subject(session_context.runtime_env())?
+            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
             .unwrap()
             .try_collect()
             .await?;
@@ -1451,7 +1451,7 @@ mod tests {
         // Write the data to the object store
         let runtime_env = test_task::make_runtime_env("rt")?;
         let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string() }
-            .publish_to_subject(&runtime_env, vec![batch], 0, "")?
+            .publish_to_subject(&runtime_env, vec![batch], 0, "", "session_1")?
             .unwrap()
             .try_collect()
             .await?;
@@ -1468,7 +1468,7 @@ mod tests {
         // Run and check the updated state
         let _ = session_context.tasks_subscribe().await?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "SessionTasksSubscribe".to_string() }
-            .subscribe_to_subject(session_context.runtime_env())?
+            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
             .unwrap()
             .try_collect()
             .await?;        
@@ -1581,7 +1581,7 @@ mod tests {
         // Write the data to the object store
         let runtime_env = test_task::make_runtime_env("rt")?;
         let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string() }
-            .publish_to_subject(&runtime_env, vec![batch], 0, "")?
+            .publish_to_subject(&runtime_env, vec![batch], 0, "", "session_1")?
             .unwrap()
             .try_collect()
             .await?;
@@ -1598,7 +1598,7 @@ mod tests {
         // Run and check the updated state
         let _ = session_context.tasks_subscribe().await?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "SessionTasksSubscribe".to_string() }
-            .subscribe_to_subject(session_context.runtime_env())?
+            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
             .unwrap()
             .try_collect()
             .await?;
@@ -1738,7 +1738,7 @@ mod tests {
         // Write the data to the object store
         let runtime_env = test_task::make_runtime_env("rt")?;
         let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string() }
-            .publish_to_subject(&runtime_env, vec![batch], 0, "")?
+            .publish_to_subject(&runtime_env, vec![batch], 0, "", "session_1")?
             .unwrap()
             .try_collect()
             .await?;
