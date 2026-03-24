@@ -83,7 +83,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         processors.push(
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::MessageAggregatorProcessor
+                    AvailableProcessors::AggregatorProcessor
                         .build_arc(self.message_aggregator_processor_1_name),
                 )
                 .with_publications(&[Publication::Replace {
@@ -110,7 +110,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
         processors.push(
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::MessageAggregatorProcessor
+                    AvailableProcessors::AggregatorProcessor
                         .build_arc(self.message_aggregator_processor_2_name),
                 )
                 .with_publications(&[Publication::Extend {

@@ -195,7 +195,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
         let processors = vec![
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::MessageAggregatorProcessor
+                    AvailableProcessors::AggregatorProcessor
                         .build_arc(self.message_aggregator_processor_1_name),
                 )
                 .with_publications(&[Publication::Replace {
@@ -222,7 +222,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::MessageAggregatorProcessor
+                    AvailableProcessors::AggregatorProcessor
                         .build_arc(self.message_aggregator_processor_2_name),
                 )
                 .with_publications(&[Publication::Extend {
@@ -246,7 +246,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::AttachmentAggregatorProcessor
+                    AvailableProcessors::AggregatorProcessor
                         .build_arc(self.attachment_aggregator_processor_name),
                 )
                 .with_publications(&[Publication::Extend {

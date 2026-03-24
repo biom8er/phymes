@@ -184,7 +184,7 @@ impl<'a> GenerateTextSession<'a> {
 	ToolMessages-subject@{{shape: doc, label: ToolMessages}}
 	SessionErrors-subject@{{shape: doc, label: SessionErrors}}
 	AssistantMessages-subject@{{shape: doc, label: AssistantMessages}}
-	aggregate_messages_generate_text_p-processor@{{shape: rect, label: MessageAggregatorProcessor}}
+	aggregate_messages_generate_text_p-processor@{{shape: rect, label: AggregatorProcessor}}
 	aggregate_messages_generate_text_p-publish@{{shape: fork}}
 	aggregate_messages_generate_text_p-subscribe@{{shape: diamond, label: ChatContentSubscribe}}
 	aggregate_messages_generate_text_s-subject@{{shape: doc, label: aggregate_messages_generate_text_s}}
@@ -199,7 +199,7 @@ impl<'a> GenerateTextSession<'a> {
 		aggregate_messages_user_interface_p-publish-->|Extend|AggregatedMessages-subject
 	end
 	generate_text_r-rt-->aggregate_messages_user_interface_t
-	aggregate_messages_user_interface_p-processor@{{shape: rect, label: MessageAggregatorProcessor}}
+	aggregate_messages_user_interface_p-processor@{{shape: rect, label: AggregatorProcessor}}
 	aggregate_messages_user_interface_p-publish@{{shape: fork}}
 	aggregate_messages_user_interface_p-subscribe@{{shape: diamond, label: Any}}
 	AggregatedMessages-subject@{{shape: doc, label: AggregatedMessages}}
@@ -390,48 +390,6 @@ mod tests {
             // Run the session
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
-            
-            
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
-            .unwrap()
-            .try_collect()
-            .await?;
-        let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
-            .with_record_batches(batches)?
-            .build()?;
-        println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
-            .unwrap()
-            .try_collect()
-            .await?;
-        let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionMetrics.to_string().as_str())
-            .with_record_batches(batches)?
-            .build()?;
-        println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSupersteps.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
-            .unwrap()
-            .try_collect()
-            .await?;
-        let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::SessionSupersteps.to_string().as_str())
-            .with_record_batches(batches)?
-            .build()?;
-        println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
-            .unwrap()
-            .try_collect()
-            .await?;
-        let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-            .with_record_batches(batches)?
-            .build()?;
-        println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
 
             assert_eq!(response.len(), 0);
 

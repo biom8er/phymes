@@ -7,7 +7,7 @@ mod limit_processor;
 mod tensor_service;
 
 pub use attachment_aggregator_processor::{
-    AggregatorStream, AttachmentAggregatorProcessor, collect_messages_by_schema,
+    AggregatorStream, AggregatorProcessor, collect_messages_by_schema,
 };
 pub use coalesce_processor::CoalesceProcessor;
 pub use data_config::{

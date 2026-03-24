@@ -9,8 +9,7 @@ use phymes_core::{
     MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
     SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilder, SubjectBuilderTrait,
-    create_attachments_fields, remove_message_by_subject,
+    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilder, SubjectBuilderTrait, remove_message_by_subject,
 };
 
 use crate::{
@@ -54,18 +53,18 @@ pub fn collect_messages_by_schema(
 ///   messages is preserved
 /// - All incoming meessages MUST have the same schema
 #[derive(Debug)]
-pub struct AttachmentAggregatorProcessor {
+pub struct AggregatorProcessor {
     name: String,
     r#type: String,
 }
 
-impl MappableTrait for AttachmentAggregatorProcessor {
+impl MappableTrait for AggregatorProcessor {
     fn get_name(&self) -> &str {
         &self.name
     }
 }
 
-impl ProcessorTrait for AttachmentAggregatorProcessor {
+impl ProcessorTrait for AggregatorProcessor {
     fn new(name: &str, r#type: &str) -> Self {
         Self {
             name: name.to_string(),
@@ -90,9 +89,6 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
     ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
 
-        // Collect the messages with the messages schema
-        let input = collect_messages_by_schema(&mut message, &create_attachments_fields());
-
         // Extract out the config
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
@@ -102,7 +98,7 @@ impl ProcessorTrait for AttachmentAggregatorProcessor {
         // Run the aggregator stream
         let out = Box::pin(AggregatorStream::new(
             AvailableSubjects::Attachments.to_schema(),
-            input,
+            message,
             config,
             Arc::clone(&runtime_env),
             diagnostic_builder.cloned(),
@@ -123,7 +119,7 @@ pub struct AggregatorStream {
     /// Output schema (role and content)
     schema: SchemaRef,
     /// The input message to process
-    input: Vec<SendableRecordBatchStream>,
+    input: SendableRecordBatchStreamMessageMap,
     /// Parameters for chat inference
     config_stream: SendableRecordBatchStream,
     /// Parameters for tensor operations
@@ -141,7 +137,7 @@ pub struct AggregatorStream {
 impl AggregatorStream {
     pub fn new(
         schema: SchemaRef,
-        input: Vec<SendableRecordBatchStream>,
+        input: SendableRecordBatchStreamMessageMap,
         config_stream: SendableRecordBatchStream,
         runtime_env: Arc<RuntimeEnv>,
         diagnostic_builder: Option<DiagnosticBuilder>,
@@ -231,9 +227,8 @@ impl Stream for AggregatorStream {
             // Collect the input
             let mut batches = Vec::new();
             println!("Collecting input...");
-            for i in self.input.as_mut_slice().iter_mut() {
-                while let Some(Ok(batch)) = ready!(i.poll_next_unpin(cx)) {
-                    dbg!(&batch);
+            for (_k, mut v) in self.input.drain() {
+                while let Some(Ok(batch)) = ready!(v.get_message_mut().poll_next_unpin(cx)) {
                     // Skip empty batches
                     if batch.num_rows() > 0 {
                         batches.push(batch);
@@ -286,11 +281,137 @@ impl RecordBatchStream for AggregatorStream {
 
 #[cfg(test)]
 mod tests {
+    use phymes_core::{
+        SubjectBuilder, SubjectBuilderTrait, Publication, SubjectTrait,
+        test_subject::{make_test_subject, make_test_subject_chat},
+    };
+    use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
+    use crate::{AvailableCandleOperators, DataConfig};
+
     use super::*;
 
     #[tokio::test]
-    async fn test_attachment_aggregator_processor() -> Result<()> {
-        // DM: see `phymes_ml::candle_chat::message_aggregator_processor.rs` for more comprehensive tests
+    async fn test_aggregator_processor() -> Result<()> {
+        // Create the input
+        let mut message_1 = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message_1.insert(
+            "m1".to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name("m1")
+                .with_publisher("s1")
+                .with_subject("messages")
+                .with_update(&Publication::None)
+                .with_message(make_test_subject_chat("messages")?.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message_1.insert(
+            "m2".to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name("m2")
+                .with_publisher("s1")
+                .with_subject("messages")
+                .with_update(&Publication::None)
+                .with_message(make_test_subject_chat("messages")?.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message_1.insert(
+            "m3".to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name("m3")
+                .with_publisher("s3")
+                .with_subject("messages")
+                .with_update(&Publication::None)
+                .with_message(make_test_subject("t1", 4, 8, 3)?.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Make the config
+        let config = DataConfig {
+            lhs_values: Some(vec!["timestamp".to_string()]),
+            op_kwargs: Some("{\"asc\": true}".to_string()),
+            operator: AvailableCandleOperators::Sort,
+            ..Default::default()
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = SubjectBuilder::new()
+            .with_name("aggregator_processor")
+            .with_json(&config_json, 1)?
+            .build()?;
+        let _ = message_1.insert(
+            "aggregator_processor".to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name("aggregator_processor")
+                .with_publisher("")
+                .with_subject("aggregator_processor")
+                .with_update(&Publication::None)
+                .with_message(config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
+        // Make the runtime environment
+        let runtime_env = RuntimeEnv::get_builder().with_name("rt").build()?;
+        let runtime_env = Arc::new(runtime_env);
+
+        // Create the aggregator and run
+        let agg_arc_1 = AggregatorProcessor::new("aggregator_processor", "");
+        let mut agg_stream =
+            agg_arc_1.process(message_1, Some(&diagnostic_builder), runtime_env)?;
+        assert_eq!(agg_stream.len(), 1);
+        assert!(agg_stream.get("aggregator_processor").is_some());
+
+        // Wrap the results in a table
+        let partitions = SubjectBuilder::new_from_sendable_record_batch_stream(
+            agg_stream
+                .remove("aggregator_processor")
+                .unwrap()
+                .message
+                .take()
+                .unwrap(),
+        )
+        .await?
+        .with_name("")
+        .build()?;
+        assert_eq!(partitions.count_rows(), 8);
+        assert_eq!(
+            partitions.get_column_as_vec_str("role"),
+            &[
+                "user",
+                "user",
+                "assistant",
+                "assistant",
+                "user",
+                "user",
+                "assistant",
+                "assistant"
+            ]
+        );
+        assert_eq!(
+            partitions.get_column_as_vec_str("content"),
+            &[
+                "Hi!",
+                "Hi!",
+                "magic!",
+                "magic!",
+                "What is Deep Learning?",
+                "What is Deep Learning?",
+                "Hello how can I help?",
+                "Hello how can I help?"
+            ]
+        );
+        assert_eq!(
+            partitions
+                .get_column_as_vec_primitive::<i64>("timestamp")
+                .unwrap(),
+            &[
+                1754224496, 1754224496, 1754311256, 1754311256, 1754398256, 1754398256, 1754484956,
+                1754484956
+            ]
+        );
+
         Ok(())
     }
 }

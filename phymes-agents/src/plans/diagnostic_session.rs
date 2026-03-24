@@ -671,7 +671,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 .unwrap(),
             ProcessorPlanBuilder::default()
                 .with_processor(
-                    AvailableProcessors::MessageAggregatorProcessor
+                    AvailableProcessors::AggregatorProcessor
                         .build_arc(self.traces_aggregate_sequence_diagram_content_processor_name),
                 )
                 .with_publications(&[Publication::Replace {

@@ -122,8 +122,8 @@ flowchart TD
 	embed_query_rt_1-rt-->embed_query_task_1
 	vs_rt_1-rt-->vs_task_1
 	rt_default-rt-->session_context_1
-	message_aggregator_1-processor@{shape: rect, label: MessageAggregatorProcessor}
-	message_aggregator_2-processor@{shape: rect, label: MessageAggregatorProcessor}
+	message_aggregator_1-processor@{shape: rect, label: AggregatorProcessor}
+	message_aggregator_2-processor@{shape: rect, label: AggregatorProcessor}
 	chat_processor_1-processor@{shape: rect, label: CandleChatProcessor}
 	chunk_documents_processor_1-processor@{shape: rect, label: CandleDataProcessor}
 	embed_documents_processor_1-processor@{shape: rect, label: CandleEmbedProcessor}

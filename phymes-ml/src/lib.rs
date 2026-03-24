@@ -13,7 +13,7 @@ pub use candle_assets::{
     TokenProcessorTraitExt, TokenWrapper, TokenizerConfig, load_model_asset_path, load_tokenizer,
 };
 pub use candle_chat::{
-    CandleChatConfig, CandleChatProcessor, MessageAggregatorProcessor, MessageParserProcessor,
+    CandleChatConfig, CandleChatProcessor, MessageParserProcessor,
     ToolCallConfig, ToolCallProcessor, bench_chat_processor, extract_tool_calls_str,
     process_logits_sampler, process_prompt_chat,
 };

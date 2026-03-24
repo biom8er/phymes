@@ -4,7 +4,7 @@ mod external_operators;
 mod template;
 
 pub use candle_data::{
-    AggregatorStream, AttachmentAggregatorProcessor, CandleDataProcessor, CandleDataStream, CandleTensorService,
+    AggregatorStream, AggregatorProcessor, CandleDataProcessor, CandleDataStream, CandleTensorService,
     CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator,
     DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait,
     DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig, LimitProcessor, LimitStream,

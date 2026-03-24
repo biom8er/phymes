@@ -80,12 +80,6 @@ impl ProcessorTrait for CandleChatProcessor {
             }
         };
 
-        // Re-index the messages by the subject name which needs to be unique at this stage
-        let message = message
-            .into_iter()
-            .map(|(_k, v)| (v.get_subject().to_string(), v))
-            .collect::<HashMap<_, _>>();
-
         // Run the chat stream
         let out = Box::pin(CandleChatStream::new(
             message,
@@ -342,10 +336,12 @@ impl Stream for CandleChatStream {
             };
             let mut batches = Vec::new();
             while let Some(Ok(batch)) = ready!(message_stream.poll_next_unpin(cx)) {
-                batches.push(batch);
+                if batch.num_rows() > 0 {
+                    batches.push(batch);
+                }
             }
             let messages = SubjectBuilder::new()
-                .with_name("messages")
+                .with_name("Message History for CandleChatStream")
                 .with_record_batches(batches)?
                 .build()?;
 
@@ -362,21 +358,26 @@ impl Stream for CandleChatStream {
                     let mut tools_stream = s.get_message_own();
                     let mut batches = Vec::new();
                     while let Some(Ok(batch)) = ready!(tools_stream.poll_next_unpin(cx)) {
-                        batches.push(batch);
+                        if batch.num_rows() > 0 {
+                            batches.push(batch);
+                        }                        
                     }
-                    let tool_table = SubjectBuilder::new()
-                        .with_name("messages")
-                        .with_record_batches(batches)?
-                        .build()?;
-                    let tool_vec: Vec<Tool> = tool_table
-                        .get_column_as_vec_str("tool")
-                        .iter()
-                        .map(|s| {
-                            let tool: Tool = serde_json::from_str(s).unwrap();
-                            tool
-                        })
-                        .collect::<Vec<_>>();
-                    Some(tool_vec)
+                    if let Ok(subject_builder) = SubjectBuilder::new()
+                        .with_name("Tools for CandleChatStream")
+                        .with_record_batches(batches) {
+                        let tool_table = subject_builder.build()?;
+                        let tool_vec: Vec<Tool> = tool_table
+                            .get_column_as_vec_str("tool")
+                            .iter()
+                            .map(|s| {
+                                let tool: Tool = serde_json::from_str(s).unwrap();
+                                tool
+                            })
+                            .collect::<Vec<_>>();
+                        Some(tool_vec)
+                    } else {
+                        None
+                    }                    
                 } else {
                     None
                 }

@@ -93,8 +93,8 @@ flowchart TD
 	tool_rt_1-rt-->Sort
 	tool_rt_1-rt-->HumanInTheLoop
 	rt_default-rt-->session_context_1
-	message_aggregator_processor_1-processor@{shape: rect, label: MessageAggregatorProcessor}
-	message_aggregator_processor_2-processor@{shape: rect, label: MessageAggregatorProcessor}
+	message_aggregator_processor_1-processor@{shape: rect, label: AggregatorProcessor}
+	message_aggregator_processor_2-processor@{shape: rect, label: AggregatorProcessor}
 	chat_processor_1-processor@{shape: rect, label: CandleChatProcessor}
 	message_parser_processor_1-processor@{shape: rect, label: MessageParserProcessor}
 	Sort-processor@{shape: rect, label: CandleDataProcessor}

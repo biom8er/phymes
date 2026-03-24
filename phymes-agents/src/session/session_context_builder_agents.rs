@@ -711,11 +711,11 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                             && r#type != AvailableProcessors::ProcessorMock.to_string().as_str()
                             && r#type != AvailableProcessors::ProcessorError.to_string().as_str()
                             && r#type
-                                != AvailableProcessors::AttachmentAggregatorProcessor
+                                != AvailableProcessors::AggregatorProcessor
                                     .to_string()
                                     .as_str()
                             && r#type
-                                != AvailableProcessors::MessageAggregatorProcessor
+                                != AvailableProcessors::AggregatorProcessor
                                     .to_string()
                                     .as_str()
                             && r#type
@@ -732,11 +732,11 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         } else if config.operator.to_string().as_str()
                             != AvailableProcessors::Sort.to_string().as_str()
                             && (r#type
-                                == AvailableProcessors::AttachmentAggregatorProcessor
+                                == AvailableProcessors::AggregatorProcessor
                                     .to_string()
                                     .as_str()
                                 || r#type
-                                    == AvailableProcessors::MessageAggregatorProcessor
+                                    == AvailableProcessors::AggregatorProcessor
                                         .to_string()
                                         .as_str())
                         {
@@ -746,8 +746,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                                 subject_plan.get_name(),
                                 r#type,
                                 AvailableProcessors::Sort,
-                                AvailableProcessors::AttachmentAggregatorProcessor,
-                                AvailableProcessors::MessageAggregatorProcessor
+                                AvailableProcessors::AggregatorProcessor,
+                                AvailableProcessors::AggregatorProcessor
                             ));
                         } else {
                             passed_config_checks = true;

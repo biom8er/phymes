@@ -7,7 +7,7 @@ use phymes_core::{
     AvailableSubjects, DataEncoding, DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Subject, WorkspacePatchSubject, test_processor::{ProcessorError, ProcessorMock}
 };
 use phymes_data::{
-    AttachmentAggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,
+    AggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,
     CandleDataProcessor, CoalesceProcessor, DataAggregatorOperator, DataCastOperator,
     DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig,
     DataConfigTrait, DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig,
@@ -21,7 +21,7 @@ use phymes_data::{
 };
 use phymes_ml::{
     AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, CandleEmbedConfig,
-    CandleEmbedProcessor, MessageAggregatorProcessor, MessageParserProcessor, ToolCallConfig,
+    CandleEmbedProcessor, MessageParserProcessor, ToolCallConfig,
     ToolCallProcessor,
 };
 #[cfg(feature = "api")]
@@ -78,12 +78,10 @@ pub enum AvailableProcessors {
     CoalesceProcessor,
     #[value(name = "LimitProcessor")]
     LimitProcessor,
-    #[value(name = "AttachmentAggregatorProcessor")]
-    AttachmentAggregatorProcessor,
+    #[value(name = "AggregatorProcessor")]
+    AggregatorProcessor,
     #[value(name = "CandleChatProcessor")]
     CandleChatProcessor,
-    #[value(name = "MessageAggregatorProcessor")]
-    MessageAggregatorProcessor,
     #[value(name = "MessageParserProcessor")]
     MessageParserProcessor,
     #[value(name = "ToolCallProcessor")]
@@ -138,13 +136,10 @@ impl Display for AvailableProcessors {
             Self::CandleDataProcessor => write!(f, "{}", CandleDataProcessor::get_static_name()),
             Self::CoalesceProcessor => write!(f, "{}", CoalesceProcessor::get_static_name()),
             Self::LimitProcessor => write!(f, "{}", LimitProcessor::get_static_name()),
-            Self::AttachmentAggregatorProcessor => {
-                write!(f, "{}", AttachmentAggregatorProcessor::get_static_name())
+            Self::AggregatorProcessor => {
+                write!(f, "{}", AggregatorProcessor::get_static_name())
             }
             Self::CandleChatProcessor => write!(f, "{}", CandleChatProcessor::get_static_name()),
-            Self::MessageAggregatorProcessor => {
-                write!(f, "{}", MessageAggregatorProcessor::get_static_name())
-            }
             Self::MessageParserProcessor => {
                 write!(f, "{}", MessageParserProcessor::get_static_name())
             }
@@ -376,7 +371,7 @@ impl DataConfigTrait for AvailableProcessors {
                 fetch: 100,
                 ..Default::default()
             }),
-            Self::AttachmentAggregatorProcessor => serde_json::to_vec(&DataConfig {
+            Self::AggregatorProcessor => serde_json::to_vec(&DataConfig {
                 lhs_values: Some(vec!["timestamp".to_string()]),
                 asc: Some(true),
                 cpu: false,
@@ -409,14 +404,6 @@ impl DataConfigTrait for AvailableProcessors {
                     std::env::var("HOME").unwrap_or("".to_string())
                 )),
                 candle_asset: Some(AvailableCandleAssets::SmolLM2_135MChat),
-                ..Default::default()
-            }),
-            Self::MessageAggregatorProcessor => serde_json::to_vec(&DataConfig {
-                lhs_values: Some(vec!["timestamp".to_string()]),
-                asc: Some(true),
-                cpu: false,
-                operator: AvailableCandleOperators::Sort,
-                lhs_stream: DataStreamManager::Accumulate,
                 ..Default::default()
             }),
             Self::MessageParserProcessor => serde_json::to_vec(&CandleChatConfig {
@@ -562,8 +549,7 @@ impl ToolTrait for AvailableProcessors {
             Self::ApplyTemplate => AvailableCandleOperators::ApplyTemplate.get_description(),
             Self::PackTabular => AvailableCandleOperators::PackTabular.get_description(),
             Self::ApplyPatch => AvailableCandleOperators::ApplyPatch.get_description(),
-            Self::AttachmentAggregatorProcessor => todo!(),
-            Self::MessageAggregatorProcessor => todo!(),
+            Self::AggregatorProcessor => todo!(),
             Self::CoalesceProcessor => todo!(),
             Self::LimitProcessor => todo!(),
             Self::CandleChatProcessor => todo!(),
@@ -603,8 +589,7 @@ impl ToolTrait for AvailableProcessors {
             Self::ApplyTemplate => AvailableCandleOperators::ApplyTemplate.to_json_tool_schema(),
             Self::PackTabular => AvailableCandleOperators::PackTabular.to_json_tool_schema(),
             Self::ApplyPatch => AvailableCandleOperators::ApplyPatch.to_json_tool_schema(),
-            Self::AttachmentAggregatorProcessor => todo!(),
-            Self::MessageAggregatorProcessor => todo!(),
+            Self::AggregatorProcessor => todo!(),
             Self::CoalesceProcessor => todo!(),
             Self::LimitProcessor => todo!(),
             Self::CandleChatProcessor => todo!(),
@@ -650,9 +635,8 @@ impl AvailableProcessors {
             AvailableProcessors::ApplyPatch.to_string(),
             AvailableProcessors::CoalesceProcessor.to_string(),
             AvailableProcessors::LimitProcessor.to_string(),
-            AvailableProcessors::AttachmentAggregatorProcessor.to_string(),
+            AvailableProcessors::AggregatorProcessor.to_string(),
             AvailableProcessors::CandleChatProcessor.to_string(),
-            AvailableProcessors::MessageAggregatorProcessor.to_string(),
             AvailableProcessors::MessageParserProcessor.to_string(),
             AvailableProcessors::ToolCallProcessor.to_string(),
             AvailableProcessors::CandleEmbedProcessor.to_string(),
@@ -721,12 +705,10 @@ impl AvailableProcessors {
             Ok(AvailableProcessors::CoalesceProcessor)
         } else if line.contains(&AvailableProcessors::LimitProcessor.to_string()) {
             Ok(AvailableProcessors::LimitProcessor)
-        } else if line.contains(&AvailableProcessors::AttachmentAggregatorProcessor.to_string()) {
-            Ok(AvailableProcessors::AttachmentAggregatorProcessor)
+        } else if line.contains(&AvailableProcessors::AggregatorProcessor.to_string()) {
+            Ok(AvailableProcessors::AggregatorProcessor)
         } else if line.contains(&AvailableProcessors::CandleChatProcessor.to_string()) {
             Ok(AvailableProcessors::CandleChatProcessor)
-        } else if line.contains(&AvailableProcessors::MessageAggregatorProcessor.to_string()) {
-            Ok(AvailableProcessors::MessageAggregatorProcessor)
         } else if line.contains(&AvailableProcessors::MessageParserProcessor.to_string()) {
             Ok(AvailableProcessors::MessageParserProcessor)
         } else if line.contains(&AvailableProcessors::ToolCallProcessor.to_string()) {
@@ -787,17 +769,13 @@ impl AvailableProcessors {
                 Arc::new(CoalesceProcessor::new(name, self.to_string().as_str()))
             }
             Self::LimitProcessor => Arc::new(LimitProcessor::new(name, self.to_string().as_str())),
-            Self::AttachmentAggregatorProcessor => Arc::new(AttachmentAggregatorProcessor::new(
+            Self::AggregatorProcessor => Arc::new(AggregatorProcessor::new(
                 name,
                 self.to_string().as_str(),
             )),
             Self::CandleChatProcessor => {
                 Arc::new(CandleChatProcessor::new(name, self.to_string().as_str()))
             }
-            Self::MessageAggregatorProcessor => Arc::new(MessageAggregatorProcessor::new(
-                name,
-                self.to_string().as_str(),
-            )),
             Self::MessageParserProcessor => {
                 Arc::new(MessageParserProcessor::new(name, self.to_string().as_str()))
             }
@@ -854,11 +832,10 @@ impl AvailableProcessors {
             | Self::ApplyPatch => builder.build_arc::<CandleDataProcessor>(),
             Self::CoalesceProcessor => builder.build_arc::<CoalesceProcessor>(),
             Self::LimitProcessor => builder.build_arc::<LimitProcessor>(),
-            Self::AttachmentAggregatorProcessor => {
-                builder.build_arc::<AttachmentAggregatorProcessor>()
+            Self::AggregatorProcessor => {
+                builder.build_arc::<AggregatorProcessor>()
             }
             Self::CandleChatProcessor => builder.build_arc::<CandleChatProcessor>(),
-            Self::MessageAggregatorProcessor => builder.build_arc::<MessageAggregatorProcessor>(),
             Self::MessageParserProcessor => builder.build_arc::<MessageParserProcessor>(),
             Self::ToolCallProcessor => builder.build_arc::<ToolCallProcessor>(),
             Self::CandleEmbedProcessor => builder.build_arc::<CandleEmbedProcessor>(),
@@ -895,8 +872,7 @@ impl AvailableProcessors {
             | Self::Sort
             | Self::VectorDistance
             | Self::ApplyTemplate
-            | Self::AttachmentAggregatorProcessor
-            | Self::MessageAggregatorProcessor
+            | Self::AggregatorProcessor
             | Self::PackTabular
             | Self::ApplyPatch => "DataConfig",
             Self::CoalesceProcessor | Self::LimitProcessor => "LimitConfig",
