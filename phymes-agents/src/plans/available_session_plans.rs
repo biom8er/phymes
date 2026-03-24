@@ -2,7 +2,7 @@ use std::{fmt::Display, sync::Arc};
 
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
-use phymes_core::{BuilderTrait, IPCMessageMap};
+use phymes_core::{BuilderTrait, IPCMessageMap, RuntimeEnv};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -92,11 +92,12 @@ impl AvailableSessionPlans {
     }
 
     /// Get the session stream state
-    pub fn get_session_stream_state(&self, session_name: &str) -> (Arc<SessionContext>, Option<IPCMessageMap>) {
+    pub fn get_session_stream_state(&self, session_name: &str, runtime_env: &Arc<RuntimeEnv>) -> (Arc<SessionContext>, Option<IPCMessageMap>) {
         // Initialize the session
         let builder = self.get_session_context_builder(session_name);
         let (session_ctx, message) = builder
             .with_name(session_name)
+            .with_runtime_env(Arc::clone(runtime_env))
             .with_diagnostics(true)
             .add_session_interface(None)
             .unwrap()
@@ -113,17 +114,18 @@ impl AvailableSessionPlans {
     pub fn get_session_stream_state_by_name(
         session_plan_name: &str,
         session_name: &str,
+        runtime_env: &Arc<RuntimeEnv>,
     ) -> Result<(Arc<SessionContext>, Option<IPCMessageMap>)> {
         if session_plan_name == Self::Chat.to_string() {
-            Ok(Self::Chat.get_session_stream_state(session_name))
+            Ok(Self::Chat.get_session_stream_state(session_name, runtime_env))
         } else if session_plan_name == Self::DocChat.to_string() {
-            Ok(Self::DocChat.get_session_stream_state(session_name))
+            Ok(Self::DocChat.get_session_stream_state(session_name, runtime_env))
         } else if session_plan_name == Self::ToolChat.to_string() {
-            Ok(Self::ToolChat.get_session_stream_state(session_name))
+            Ok(Self::ToolChat.get_session_stream_state(session_name, runtime_env))
         } else if session_plan_name == Self::Builder.to_string() {
-            Ok(Self::Builder.get_session_stream_state(session_name))
+            Ok(Self::Builder.get_session_stream_state(session_name, runtime_env))
         } else if session_plan_name == Self::Users.to_string() {
-            Ok(Self::Users.get_session_stream_state(session_name))
+            Ok(Self::Users.get_session_stream_state(session_name, runtime_env))
         } else {
             Err(anyhow!(
                 "Plan name {session_plan_name} was not found in the available session plans."

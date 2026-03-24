@@ -1,7 +1,10 @@
+use std::sync::Arc;
+
 // Server related imports
 use anyhow::{Result, anyhow};
 use axum::{Router, response::Response};
 use http::Request;
+use phymes_core::RuntimeEnv;
 use tower_service::Service;
 
 // From lib
@@ -16,8 +19,8 @@ pub struct Serverless {
 }
 
 impl Serverless {
-    pub fn new(user_session_context_name: Option<&str>) -> impl std::future::Future<Output = Result<Self>> + Send { async move {
-        let router = AppBuilder::new(user_session_context_name).await?.build();
+    pub fn new(user_session_context_name: Option<&str>, runtime_env: &Arc<RuntimeEnv>) -> impl std::future::Future<Output = Result<Self>> + Send { async move {
+        let router = AppBuilder::new(user_session_context_name, runtime_env).await?.build();
         Ok(Self { router })
     }}
 
@@ -84,9 +87,7 @@ mod tests {
         AvailableInterfaceSubjects, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait,
     };
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
-        ChatBuilderTraitExt, DataFormat, MappableTrait, MessageBuilderTrait, Publication,
-        SubjectTrait,
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, DataFormat, MappableTrait, MessageBuilderTrait, Publication, RuntimeEnv, SubjectTrait
     };
     use serde_json::{Map, Value};
 
@@ -120,7 +121,8 @@ mod tests {
     #[tokio::test]
     async fn test_serverless_call() {
         // Check sign_in
-        let mut server = Serverless::new(None).await.unwrap();
+        let runtime_env = Arc::new(RuntimeEnv::default());
+        let mut server = Serverless::new(None, &runtime_env).await.unwrap();
 
         // Make the credentials with basic authorization
         let credentials = basic_auth("contact@biom8er.com", Some("contact@biom8er.com"));
@@ -146,7 +148,7 @@ mod tests {
         let values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test subjects_schema
-        let mut server = Serverless::new(None).await.unwrap();
+        let mut server = Serverless::new(None, &runtime_env).await.unwrap();
 
         // Extract out the JWT token
         let token = values.get("jwt").unwrap().as_str().unwrap();
@@ -191,7 +193,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_serverless_app() {
-        let mut serverless = Serverless::new(None).await.unwrap();
+        let runtime_env = Arc::new(RuntimeEnv::default());
+        let mut serverless = Serverless::new(None, &runtime_env).await.unwrap();
 
         // Sign in using serverless_app
         let config = ServerlessConfig {

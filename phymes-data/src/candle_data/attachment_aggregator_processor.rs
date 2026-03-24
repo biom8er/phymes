@@ -290,7 +290,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_aggregator_processor() -> Result<()> {
+    async fn test_aggregator_processor_schema_match() -> Result<()> {
         // Create the input
         let mut message_1 = HashMap::<String, SendableRecordBatchStreamMessage>::new();
         let _ = message_1.insert(
@@ -311,16 +311,6 @@ mod tests {
                 .with_subject("messages")
                 .with_update(&Publication::None)
                 .with_message(make_test_subject_chat("messages")?.to_record_batch_stream())
-                .build()?,
-        );
-        let _ = message_1.insert(
-            "m3".to_string(),
-            SendableRecordBatchStreamMessage::get_builder()
-                .with_name("m3")
-                .with_publisher("s3")
-                .with_subject("messages")
-                .with_update(&Publication::None)
-                .with_message(make_test_subject("t1", 4, 8, 3)?.to_record_batch_stream())
                 .build()?,
         );
 
@@ -410,6 +400,94 @@ mod tests {
                 1754484956
             ]
         );
+
+        Ok(())
+    }    
+
+    #[tokio::test]
+    async fn test_aggregator_processor_schema_mismatch_error() -> Result<()> {
+        // Create the input
+        let mut message_1 = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message_1.insert(
+            "m1".to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name("m1")
+                .with_publisher("s1")
+                .with_subject("messages")
+                .with_update(&Publication::None)
+                .with_message(make_test_subject_chat("messages")?.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message_1.insert(
+            "m2".to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name("m2")
+                .with_publisher("s1")
+                .with_subject("messages")
+                .with_update(&Publication::None)
+                .with_message(make_test_subject_chat("messages")?.to_record_batch_stream())
+                .build()?,
+        );
+        let _ = message_1.insert(
+            "m3".to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name("m3")
+                .with_publisher("s3")
+                .with_subject("messages")
+                .with_update(&Publication::None)
+                .with_message(make_test_subject("t1", 4, 8, 3)?.to_record_batch_stream())
+                .build()?,
+        );
+
+        // Make the config
+        let config = DataConfig {
+            lhs_values: Some(vec!["timestamp".to_string()]),
+            op_kwargs: Some("{\"asc\": true}".to_string()),
+            operator: AvailableCandleOperators::Sort,
+            ..Default::default()
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = SubjectBuilder::new()
+            .with_name("aggregator_processor")
+            .with_json(&config_json, 1)?
+            .build()?;
+        let _ = message_1.insert(
+            "aggregator_processor".to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name("aggregator_processor")
+                .with_publisher("")
+                .with_subject("aggregator_processor")
+                .with_update(&Publication::None)
+                .with_message(config_table.to_record_batch_stream())
+                .build()?,
+        );
+
+        let span = SpanBuilder::default().with_span("test").build()?;
+        let diagnostics = Diagnostics::new();
+        let diagnostic_builder = DiagnosticBuilder::new(&diagnostics).with_span(&span);
+
+        // Make the runtime environment
+        let runtime_env = RuntimeEnv::get_builder().with_name("rt").build()?;
+        let runtime_env = Arc::new(runtime_env);
+
+        // Create the aggregator and run
+        let agg_arc_1 = AggregatorProcessor::new("aggregator_processor", "");
+        let mut agg_stream =
+            agg_arc_1.process(message_1, Some(&diagnostic_builder), runtime_env)?;
+        assert_eq!(agg_stream.len(), 1);
+        assert!(agg_stream.get("aggregator_processor").is_some());
+
+        // Wrap the results in a table
+        let subject_builder = SubjectBuilder::new_from_sendable_record_batch_stream(
+            agg_stream
+                .remove("aggregator_processor")
+                .unwrap()
+                .message
+                .take()
+                .unwrap(),
+        )
+        .await;
+        assert!(subject_builder.is_err());
 
         Ok(())
     }

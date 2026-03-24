@@ -7,6 +7,7 @@ use axum::{
     middleware,
     routing::{get_service, post},
 };
+use phymes_core::RuntimeEnv;
 #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
@@ -42,9 +43,9 @@ pub struct AppBuilder {
 }
 
 impl AppBuilder {
-    pub fn new(user_session_context_name: Option<&str>) -> impl std::future::Future<Output = Result<Self>> + Send { async move {
+    pub fn new(user_session_context_name: Option<&str>, runtime_env: &Arc<RuntimeEnv>) -> impl std::future::Future<Output = Result<Self>> + Send { async move {
         // Application state
-        let user_state = UserState::new(user_session_context_name).await?;
+        let user_state = UserState::new(user_session_context_name, runtime_env).await?;
         let server_state = ServerState::new();
 
         // Router
@@ -153,7 +154,7 @@ impl Server {
     pub async fn run(&self) -> Result<()> {
         // initialize the front-end
         let frontend = async {
-            let app: Router = AppBuilder::new(None).await?
+            let app: Router = AppBuilder::new(None).await.unwrap()
                 .with_fallback(self.config.try_read().unwrap().assets_dir.as_str())
                 .with_trace_layer()
                 .with_cors_layer()

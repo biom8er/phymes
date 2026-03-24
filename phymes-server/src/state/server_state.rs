@@ -7,7 +7,7 @@ use phymes_agents::{
     AvailableSessionPlans, SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map
 };
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription, UserSubject, create_session_mermaid_batch, create_user_inbox_batch, create_user_session_contexts_batch
+    AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, Publication, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectTrait, Subscription, UserSubject, create_session_mermaid_batch, create_user_inbox_batch, create_user_session_contexts_batch
 };
 use phymes_diagnostics::HashMap;
 
@@ -30,10 +30,10 @@ pub struct UserState {
 impl UserState {
     /// Make a new [UserState] with an optional name for the user state
     ///   and initialize with the default user
-    pub fn new(user_session_context_name: Option<&str>) -> impl std::future::Future<Output = Result<Self>> + Send { async move {
+    pub fn new(user_session_context_name: Option<&str>, runtime_env: &Arc<RuntimeEnv>) -> impl std::future::Future<Output = Result<Self>> + Send { async move {
         let session_name = user_session_context_name.unwrap_or("Users");
         let (session_ctx_arc, session_messages) =
-            AvailableSessionPlans::get_session_stream_state_by_name("Users", session_name)?;
+            AvailableSessionPlans::get_session_stream_state_by_name("Users", session_name, runtime_env)?;
 
         // Write the session messages to the store
         let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
@@ -241,6 +241,7 @@ impl ServerState {
         &mut self,
         user_session_contexts: &[JoinUserInboxSessionContextsMermaidDiagrams],
         make_session_contexts: bool,
+        runtime_env: &Arc<RuntimeEnv>
     ) -> impl std::future::Future<Output = Result<Vec<String>>> + Send { async move {
         let mut session_names = Vec::new();
         for user_session_context in user_session_contexts {
@@ -270,6 +271,7 @@ impl ServerState {
                     let (session_ctx_arc, session_messages) = AvailableSessionPlans::get_session_stream_state_by_name(
                         &user_session_context.session_context_name,
                         &session_name,
+                        runtime_env
                     )?;
 
                     // Write the session messages to the store
@@ -359,7 +361,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_server_state_update_user_session_contexts() -> Result<()> {
-        let user = UserState::new(None).await?;
+        let runtime_env = Arc::new(RuntimeEnv::default());
+        let user = UserState::new(None, &runtime_env).await?;
         let table = make_example_mermaid_table(true, false)?;
         user.update_user_session_contexts(
             "user@biom8er.com",
@@ -405,7 +408,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_server_state_get_user_by_email() -> Result<()> {
-        let user = UserState::new(None).await?;
+        let runtime_env = Arc::new(RuntimeEnv::default());
+        let user = UserState::new(None, &runtime_env).await?;
         let (user_info, user_session_contexts) =
             user.get_user_by_email("contact@biom8er.com").await?;
         assert_eq!(user_info.len(), 1);
@@ -451,11 +455,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_server_state_make_session_contexts_from_mermaid_diagrams() -> Result<()> {
-        let user = UserState::new(None).await?;
+        let runtime_env = Arc::new(RuntimeEnv::default());
+        let user = UserState::new(None, &runtime_env).await?;
         let (_user_info, user_session_contexts) =
             user.get_user_by_email("contact@biom8er.com").await?;
         let mut state = ServerState::new();
-        let session_names = state.make_session_contexts(&user_session_contexts, true).await?;
+        let session_names = state.make_session_contexts(&user_session_contexts, true, &runtime_env).await?;
         assert_eq!(
             session_names
                 .iter()

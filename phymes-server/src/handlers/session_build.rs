@@ -47,7 +47,7 @@ pub async fn session_build(
                 .contains_key(&current_user)
             {
                 // Initialize the user session contexts
-                let _session_names = match state.make_session_contexts(&user_session_contexts, true).await
+                let _session_names = match state.make_session_contexts(&user_session_contexts, true, users.users.runtime_env()).await
                 {
                     Ok(session_names) => session_names,
                     Err(err) => {
@@ -142,7 +142,7 @@ pub async fn session_build(
                 .collect::<Vec<JoinUserInboxSessionContextsMermaidDiagrams>>();
 
             // Add the new mermaid diagrams to the user session contexts
-            let _session_names = match state.make_session_contexts(&combined, true).await {
+            let _session_names = match state.make_session_contexts(&combined, true, users.users.runtime_env()).await {
                 Ok(session_names) => session_names,
                 Err(err) => {
                     return JsonError::new(err.to_string())

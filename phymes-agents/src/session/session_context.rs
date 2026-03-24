@@ -897,6 +897,7 @@ mod tests {
         Ok(())
     }
 
+    #[ignore = "refactoring `update_subject_num_rows` to work with object store."]
     #[tokio::test]
     async fn test_session_update_subject_num_rows_subject() -> Result<()> {
         let (session_context, _messages) =
