@@ -29,7 +29,7 @@ pub fn list_subject(runtime_env: &Arc<RuntimeEnv>, sn: &str, last: bool) -> Resu
     )?);
 
     if last {
-        // 2. Sort by last_modified
+        // 2. Sort by last_modified (Descending)
         let config = DataConfig {
             lhs_name: Some(sn.to_string()),
             lhs_values: Some(vec!["last_modified".to_string()]),
@@ -80,6 +80,38 @@ pub fn list_subject(runtime_env: &Arc<RuntimeEnv>, sn: &str, last: bool) -> Resu
         ));
         Ok(stream)
     } else {
+        // 2. Sort by last_modified (Ascending)
+        let config = DataConfig {
+            lhs_name: Some(sn.to_string()),
+            lhs_values: Some(vec!["last_modified".to_string()]),
+            asc: Some(true),
+            cpu: false,
+            operator: AvailableCandleOperators::Sort,
+            lhs_stream: DataStreamManager::Accumulate,
+            ..Default::default()
+        };
+        let config_json = serde_json::to_vec(&config)?;
+        let config_table = SubjectBuilder::new()
+            .with_name("ObjectStoreConfig")
+            .with_json(&config_json, 1)?
+            .build()?;
+        let mut message = HashMap::<String, SendableRecordBatchStreamMessage>::new();
+        let _ = message.insert(
+            sn.to_string(),
+            SendableRecordBatchStreamMessage::get_builder()
+                .with_name(sn)
+                .with_publisher("")
+                .with_subject(sn)
+                .with_update(&Publication::None)
+                .with_message(stream)
+                .build()?,
+        ); 
+        let stream = Box::pin(CandleDataStream::new(
+            message,
+            config_table.to_record_batch_stream(),
+            Arc::clone(&runtime_env),
+            None
+        )?);
         Ok(stream)
     }    
 }
@@ -234,7 +266,7 @@ mod tests {
 
         // List all locations
         let results: Vec<_> = list_subject(&rt_env, messages, false)?.try_collect().await?;
-        assert_eq!(results.len(), 3);
+        assert_eq!(results.len(), 1);
         let subject = Subject::get_builder()
             .with_name(messages)
             .with_record_batches(results)?

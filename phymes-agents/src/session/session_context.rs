@@ -707,29 +707,38 @@ impl SessionContext {
 
                         // Publish to the object store
                         let mut object_store_metadata = Vec::new();
-                        if let Ok(Some(mut stream)) = update
-                            .publish_to_subject(self.runtime_env(), subject.get_record_batches_own(), step, &publisher) {
-                            while let Some(batch) = stream.next().await {
-                                match batch {
-                                    Ok(metadata) => {
-                                        // Record the subject object store metadata
-                                        object_store_metadata.push(metadata);
-                                    },
-                                    Err(err) => {
-                                        // Record the error
-                                        let error = format!(
-                                            "Subject `{subject_name}` from publisher `{publisher}` failed to update the target subject with error `{err:?}`"
-                                        );
-                                        errors.push(error);
-                                    },
+                        match update.publish_to_subject(self.runtime_env(), subject.get_record_batches_own(), step, &publisher) {
+                            Ok(Some(mut stream)) => {
+                                while let Some(batch) = stream.next().await {
+                                    match batch {
+                                        Ok(metadata) => {
+                                            // Record the subject object store metadata
+                                            object_store_metadata.push(metadata);
+                                        },
+                                        Err(err) => {
+                                            // Record the error
+                                            let error = format!(
+                                                "Subject `{subject_name}` from publisher `{publisher}` failed to update the target subject with error `{err:?}`"
+                                            );
+                                            errors.push(error);
+                                        },
+                                    }
                                 }
                             }
-                        } else {
-                            // Record the error
-                            let error = format!(
-                                "Subject `{subject_name}` from publisher `{publisher}` failed to put to the object store"
-                            );
-                            errors.push(error);
+                            Ok(None) => {
+                                // Record the error
+                                let error = format!(
+                                    "Subject `{subject_name}` from publisher `{publisher}` resulted in a None when putting to the object store."
+                                );
+                                errors.push(error);
+                            }
+                            Err(err) => {
+                                // Record the error
+                                let error = format!(
+                                    "Subject `{subject_name}` from publisher `{publisher}` failed to put to the object store with error `{err:?}`"
+                                );
+                                errors.push(error);
+                            }
                         }
 
                         if !object_store_metadata.is_empty() {

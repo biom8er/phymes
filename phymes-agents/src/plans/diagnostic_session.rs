@@ -1848,7 +1848,7 @@ mod tests {
     use phymes_diagnostics::{HashMap, HashSet};
 
     use crate::{
-        SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, SubscriptionTrait, create_message_map, test_session_context_builder, test_task
+        SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map, test_session_context_builder, test_task
     };
 
     use super::*;

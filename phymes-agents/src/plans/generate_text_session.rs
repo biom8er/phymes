@@ -541,8 +541,11 @@ mod tests {
         subjects.push(SubjectPlan::get_builder()
             .with_subject(tool)
             .build()?);
+
         let (session_ctx, session_messages) = session_ctx_builder
             .with_subjects(subjects)
+            // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
+            .add_session_interface(Some(&[AvailableCandleOperators::Sort.to_string().as_str(), AvailableCandleOperators::HumanInTheLoop.to_string().as_str()]))?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(session_ctx);
 
@@ -597,7 +600,7 @@ mod tests {
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-            assert_eq!(response.len(), 0);
+            assert_eq!(response.len(), 1); // Due to session interface
 
             {
                 // Test supsersteps
@@ -678,7 +681,7 @@ mod tests {
                     .try_collect()
                     .await?;
                 assert_eq!(batches.len(), 0);
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableCandleOperators::HumanInTheLoop.to_string() }
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableCandleOperators::Sort.to_string() }
                     .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
                     .try_collect()
@@ -739,6 +742,8 @@ mod tests {
             .build()?);
         let (session_ctx, session_messages) = session_ctx_builder
             .with_subjects(subjects)
+            // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
+            .add_session_interface(Some(&[AvailableCandleOperators::Sort.to_string().as_str(), AvailableCandleOperators::HumanInTheLoop.to_string().as_str()]))?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(session_ctx);
 
@@ -807,7 +812,7 @@ mod tests {
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-            assert_eq!(response.len(), 0);
+            assert_eq!(response.len(), 2);
 
             {
                 // Test supsersteps
@@ -878,7 +883,7 @@ mod tests {
                 for t in column {
                     assert!(t > 0);
                 }
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "aggregate_messages_gengenerate_text_inference_serate_text_s".to_string() }
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "generate_text_inference_s".to_string() }
                     .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
                     .try_collect()
@@ -970,6 +975,8 @@ mod tests {
             .build()?);
         let (session_ctx, session_messages) = session_ctx_builder
             .with_subjects(subjects)
+            // DM: needed for the session to build, the target tool subjects need to be called by at least 1 task
+            .add_session_interface(Some(&[AvailableCandleOperators::Sort.to_string().as_str(), AvailableCandleOperators::HumanInTheLoop.to_string().as_str()]))?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(session_ctx);
 
@@ -1038,7 +1045,7 @@ mod tests {
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
-            assert_eq!(response.len(), 0);
+            assert_eq!(response.len(), 1);
 
             {
                 // Test supsersteps
@@ -1143,9 +1150,6 @@ mod tests {
                     .try_collect()
                     .await?;
                 assert_eq!(batches.len(), 0);
-                // assert_eq!(subject.count_rows(), 1);
-                // let column = subject.get_column_as_vec_str("values");
-                // assert_eq!(column.first().unwrap(), &"");
             }
         }
         Ok(())

@@ -10,7 +10,7 @@ use arrow::{
 };
 use futures::StreamExt;
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, MappableTrait, MessageBuilderTrait, ObjectStorageBackend, Publication, RecordBatchStreamAdapter, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, make_random_id
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, MappableTrait, MessageBuilderTrait, ObjectStorageBackend, Publication, RecordBatchStreamAdapter, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, make_random_id
 };
 use phymes_data::{AvailableCandleOperators, CandleDataStream, DataColumnOperator, DataConfig, DataJoinOperator, DataStreamManager, ObjectStoreConfig, ObjectStoreOptsType, ObjectStoreStream};
 use phymes_diagnostics::HashMap;
@@ -341,20 +341,20 @@ impl PublicationTrait for Publication {
                                     .get_record_batches_own();
                                 Ok(batches)
                             }
-                            // DM: Bytes requires additional schema information...
-                            // DataFormat::Bytes => {
-                            //     let bytes = new_table.get_column_as_vec_nested_primitive::<u8>(&cn)?
-                            //         .into_iter()
-                            //         .flatten()
-                            //         .collect::<Vec<_>>();
-                            //     let batches = SubjectBuilder::new()
-                            //         .with_schema(self.get_schema())
-                            //         .with_name("ExtendBytesBytes")
-                            //         .with_bytes(&bytes)?
-                            //         .build()?
-                            //         .get_record_batches_own();
-                            //     Ok(batches)
-                            // }
+                            DataFormat::Bytes => {
+                                let bytes = new_table.get_column_as_vec_nested_primitive::<u8>(&cn)?
+                                    .into_iter()
+                                    .flatten()
+                                    .collect::<Vec<_>>();
+                                let schema = AvailableSubjects::Bytes.to_schema();
+                                let batches = SubjectBuilder::new()
+                                    .with_schema(schema)
+                                    .with_name("ExtendBytesBytes")
+                                    .with_bytes(&bytes)?
+                                    .build()?
+                                    .get_record_batches_own();
+                                Ok(batches)
+                            }
                             _ => Err(anyhow!(
                                 "Serialization format {sf} for table name {} and update table target {sn} is not supported.",
                                 self.get_name(),
