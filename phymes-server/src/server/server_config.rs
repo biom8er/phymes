@@ -13,6 +13,10 @@ pub struct ServerConfig {
     /// Assets directory
     #[arg(long, default_value = ".")]
     pub assets_dir: String,
+
+    /// Local FS object store bucket
+    #[arg(long)]
+    pub bucket: Option<String>,
 }
 
 impl From<&HashMap<String, String>> for ServerConfig {
@@ -20,6 +24,7 @@ impl From<&HashMap<String, String>> for ServerConfig {
         ServerConfig {
             address: values.get("address").unwrap().to_string(),
             assets_dir: values.get("assets_dir").unwrap().to_string(),
+            bucket: values.get("bucket").cloned(),
         }
     }
 }

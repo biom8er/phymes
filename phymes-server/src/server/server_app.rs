@@ -9,6 +9,8 @@ use axum::{
 };
 use phymes_core::RuntimeEnv;
 #[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+use phymes_core::{BuildableTrait, BuilderTrait, ObjectStorageBackend, RuntimeEnvBuilderTrait, make_store};
+#[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
     limit::RequestBodyLimitLayer,
@@ -154,7 +156,18 @@ impl Server {
     pub async fn run(&self) -> Result<()> {
         // initialize the front-end
         let frontend = async {
-            let app: Router = AppBuilder::new(None).await.unwrap()
+            let runtime_env = if let Some(bucket) = self.config.try_read().unwrap().bucket.as_ref() {
+                let store = make_store(&ObjectStorageBackend::LocalFs, Some(bucket), None).unwrap();
+                RuntimeEnv::get_builder()
+                    .with_name("Serverless App Runtime Environment")
+                    .with_object_store(store)
+                    .with_object_store_backend(&ObjectStorageBackend::LocalFs)
+                    .with_object_store_bucket(bucket)
+                    .build_arc().unwrap()
+            } else {
+                Arc::new(RuntimeEnv::default())
+            };
+            let app: Router = AppBuilder::new(None, &runtime_env).await.unwrap()
                 .with_fallback(self.config.try_read().unwrap().assets_dir.as_str())
                 .with_trace_layer()
                 .with_cors_layer()

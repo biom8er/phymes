@@ -48,23 +48,23 @@ pub async fn session_diagnostics(
                 payload.get_session_name()
             );
 
-            // Add user state if it does not exist already
-            if !state
-                .user_session_names
-                .try_read()
-                .unwrap()
-                .contains_key(&current_user)
-            {
-                // Initialize the user session contexts
-                let _session_names = match state.make_session_contexts(&user_session_contexts, true, users.users.runtime_env()).await
-                {
-                    Ok(session_names) => session_names,
-                    Err(err) => {
-                        return JsonError::new(err.to_string())
-                            .to_response(StatusCode::INTERNAL_SERVER_ERROR);
-                    }
-                };
-            }
+            // // Add user state if it does not exist already
+            // if !state
+            //     .user_session_names
+            //     .try_read()
+            //     .unwrap()
+            //     .contains_key(&current_user)
+            // {
+            //     // Initialize the user session contexts
+            //     let _session_names = match state.make_session_contexts(&user_session_contexts, true, users.users.runtime_env()).await
+            //     {
+            //         Ok(session_names) => session_names,
+            //         Err(err) => {
+            //             return JsonError::new(err.to_string())
+            //                 .to_response(StatusCode::INTERNAL_SERVER_ERROR);
+            //         }
+            //     };
+            // }
 
             // Initialize the diagnostics session
             let diagnostic_session = DiagnosticSession::default();

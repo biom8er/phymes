@@ -5,16 +5,31 @@ use clap::Parser;
 #[cfg(feature = "wasip2")]
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
+    use std::sync::Arc;
     use bytes::Bytes;
     use futures::TryStreamExt;
     use futures_executor::block_on;
+    use phymes_core::{RuntimeEnv, BuildableTrait, BuilderTrait, ObjectStorageBackend, RuntimeEnvBuilderTrait, make_store};
     use phymes_server::{Serverless, ServerlessConfig, serverless_app};
 
     // parse the config
     let config = ServerlessConfig::parse();
 
+    // create the runtime
+    let runtime_env = if let Some(bucket) = config.bucket.as_ref() {
+        let store = make_store(&ObjectStorageBackend::LocalFs, Some(bucket), None)?;
+        RuntimeEnv::get_builder()
+            .with_name("Serverless App Runtime Environment")
+            .with_object_store(store)
+            .with_object_store_backend(&ObjectStorageBackend::LocalFs)
+            .with_object_store_bucket(bucket)
+            .build_arc()?
+    } else {
+        Arc::new(RuntimeEnv::default())
+    };
+
     // call the serverless application
-    let mut serverless = Serverless::new(None).await.unwrap();
+    let mut serverless = Serverless::new(None, &runtime_env).await.unwrap();
     // DM: blocking on serverless_app hangs indefinitely...
     // let response = block_on(serverless_app(config, &mut serverless)).unwrap();
     let response = serverless_app(config, &mut serverless).await.unwrap();

@@ -20,4 +20,8 @@ pub struct ServerlessConfig {
     /// The data to send in JSON format e.g., '{"content": "Write a python function to count prime numbers", "session_name": "EMAILChat", "subject_name": "messages"}'
     #[arg(long)]
     pub data: Option<String>,
+
+    /// Local FS object store bucket
+    #[arg(long)]
+    pub bucket: Option<String>,
 }
