@@ -937,11 +937,12 @@ mod tests {
                 },
                 true,
             )?;
-            let _step = SessionStreamStep::current_superstep(&session_ctx_arc).await;
+            let step = SessionStreamStep::current_superstep(&session_ctx_arc).await;
+            dbg!(step);
             let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(
                 &session_ctx_arc,
                 messages,
-                0
+                step
             ).await?;
 
             // Extract out the subjects for the test
@@ -1036,27 +1037,6 @@ mod tests {
         let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
-        
-        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
-        //     .subscribe_to_subject(session_ctx_arc.runtime_env())?
-        //     .unwrap()
-        //     .try_collect()
-        //     .await?;
-        // let subject = Subject::get_builder()
-        //     .with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
-        //     .with_record_batches(batches)?
-        //     .build()?;
-        // println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
-        // let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasksRunLog.to_string() }
-        //     .subscribe_to_subject(session_ctx_arc.runtime_env())?
-        //     .unwrap()
-        //     .try_collect()
-        //     .await?;
-        // let subject = Subject::get_builder()
-        //     .with_name(AvailableSubjects::SessionTasksRunLog.to_string().as_str())
-        //     .with_record_batches(batches)?
-        //     .build()?;
-        // println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
 
         assert_eq!(response.len(), 0);
 
@@ -1072,11 +1052,9 @@ mod tests {
                 .with_record_batches(batches)?
                 .build()?;
             let column = subject.get_column_as_vec_str("task_name");
-            assert_eq!(column, ["session_1", "task_1"]);
+            assert_eq!(column, ["filter_processors_publications_t", "filter_processors_subscriptions_t", "group_by_tasks_run_log_superstep_t", "session_1", "task_1"]);
             let column = subject.get_column_as_vec_primitive::<i64>("superstep")?;
-            for superstep in column {
-                assert_eq!(superstep, 0);
-            }
+            assert_eq!(column, [1, 1, 1, 0, 0]);
 
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_processors_subscriptions_s".to_string() }
                 .subscribe_to_subject(session_ctx_arc.runtime_env())?

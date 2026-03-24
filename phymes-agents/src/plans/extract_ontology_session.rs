@@ -2182,11 +2182,7 @@ mod tests {
                 .unwrap()
                 .try_collect()
                 .await?;
-            let subject = Subject::get_builder()
-                .with_name("select_datatype_property_entity_s")
-                .with_record_batches(batches)?
-                .build()?;
-            assert_eq!(subject.count_rows(), 0);
+            assert_eq!(batches.len(), 0);
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_class_entity_s".to_string() }
                 .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()
@@ -2339,11 +2335,7 @@ mod tests {
                 .unwrap()
                 .try_collect()
                 .await?;
-            let subject = Subject::get_builder()
-                .with_name("select_axiom_entity_s")
-                .with_record_batches(batches)?
-                .build()?;
-            assert_eq!(subject.count_rows(), 0);
+            assert_eq!(batches.len(), 0);
         }
 
         // Run the third superstep
@@ -2629,11 +2621,7 @@ mod tests {
                 .unwrap()
                 .try_collect()
                 .await?;
-            let subject = Subject::get_builder()
-                .with_name("select_resource_class_entity_s")
-                .with_record_batches(batches)?
-                .build()?;
-            assert_eq!(subject.count_rows(), 0);
+            assert_eq!(batches.len(), 0);
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "select_resource_object_property_entity_s".to_string() }
                 .subscribe_to_subject(session_ctx_arc.runtime_env())?
                 .unwrap()

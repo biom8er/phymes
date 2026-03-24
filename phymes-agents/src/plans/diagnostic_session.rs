@@ -2033,10 +2033,10 @@ mod tests {
             .add_next_supersteps()?
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(session_ctx);
+        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
 
         // Make diagnostic data and session tasks data
-        let mut messages = make_test_data(diagnostic_session.session_context_name).await?;
-        messages.extend(session_messages.unwrap_or_default());
+        let messages = make_test_data(diagnostic_session.session_context_name).await?;
 
         // Step 1
         let result = SessionStreamStep::run_superstep(session_ctx_arc.clone(), messages)

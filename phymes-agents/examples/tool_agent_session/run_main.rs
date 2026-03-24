@@ -8,7 +8,7 @@ use anyhow::Result;
 use futures::TryStreamExt;
 use phymes_agents::{
     AvailableInterfaceSubjects, CustomAgentsBuilderTrait, SessionContextBuilderAgentsTrait,
-    SessionStream, SessionStreamStep, SessionStreamStepTrait, ToolAgentSession, create_message_map,
+    SessionStream, ToolAgentSession, create_message_map,
 };
 use phymes_core::{
     AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,

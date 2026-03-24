@@ -55,9 +55,13 @@ impl ProcessorTrait for MessageAggregatorProcessor {
         runtime_env: Arc<RuntimeEnv>,
     ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
         event!(Level::INFO, "Starting processor {}", self.get_name());
+        println!("Starting processor {}", self.get_name());
 
         // Extract the messages with the messages schema
+        println!("message keys {:?}, and schemas {:?}", message.keys(), message.iter().map(|(k, v)| v.get_message().schema()).collect::<Vec<_>>());
         let input = collect_messages_by_schema(&mut message, &create_chat_fields());
+        println!("input {}", input.len());
+        println!("message keys {:?}", message.keys());
 
         // Extract out the config
         let config = match remove_message_by_subject(self.get_name(), &mut message) {

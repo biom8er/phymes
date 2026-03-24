@@ -37,21 +37,20 @@ pub fn subscribe_to_subject(
         if let Some(message) = remove_message_by_subject(subscription.subject_name(), messages) {
             let _ = map.insert(message.get_name().to_string(), message);
         // 2. Check for subscriptions in the subjects
-        // DM: First, get the partitions from the subject metadata
-        //     Second, read the last or all of the partitions depending upon the subscription
         } else {
-            // A. check for a matching subject in the publications
+            // A. Check for a matching subject in the publications
             let update = publications
                 .iter()
                 .filter(|p| p.subject_name() == subscription.subject_name())
                 .collect::<Vec<_>>();
             let update = if let Some(update) = update.first() {
                 update
-            // B. default to None
+            // B. Default to None
             } else {
                 &Publication::None
             };
 
+            // C. Get the subject
             let stream = Subscription::AlwaysAllRecordBatches { subject_name: subscription.subject_name().to_string() }
                 .subscribe_to_subject(runtime_env)?
                 .unwrap();

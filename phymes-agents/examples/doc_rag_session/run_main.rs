@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use phymes_agents::{
     AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DocumentRAGSession,
-    SessionContextBuilderAgentsTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, create_message_map,
+    SessionContextBuilderAgentsTrait, SessionStream, create_message_map,
 };
 use phymes_core::{
     AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,

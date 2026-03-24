@@ -309,7 +309,7 @@ pub(crate) mod user_session_inner {
 
     use crate::{
         SessionContext, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait,
-        SessionStream, SessionStreamStep, SessionStreamStepTrait, create_message_map,
+        SessionStream, create_message_map,
     };
 
     use super::*;

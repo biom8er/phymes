@@ -230,9 +230,14 @@ impl Stream for AggregatorStream {
 
             // Collect the input
             let mut batches = Vec::new();
+            println!("Collecting input...");
             for i in self.input.as_mut_slice().iter_mut() {
                 while let Some(Ok(batch)) = ready!(i.poll_next_unpin(cx)) {
-                    batches.push(batch);
+                    dbg!(&batch);
+                    // Skip empty batches
+                    if batch.num_rows() > 0 {
+                        batches.push(batch);
+                    }
                 }
             }
 

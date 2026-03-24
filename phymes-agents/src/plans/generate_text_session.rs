@@ -338,7 +338,7 @@ mod tests {
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, SubscriptionTrait, create_message_map
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map
     };
 
     use super::*;
@@ -390,6 +390,48 @@ mod tests {
             // Run the session
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+            
+            
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SessionMetrics.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSupersteps.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SessionSupersteps.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        println!("{}", String::from_utf8(subject.to_csv(b',', true)?)?);
 
             assert_eq!(response.len(), 0);
 
@@ -418,11 +460,7 @@ mod tests {
                     .unwrap()
                     .try_collect()
                     .await?;
-                let subject = Subject::get_builder()
-                    .with_name(AvailableInterfaceSubjects::ToolMessages.to_string().as_str())
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert_eq!(subject.count_rows(), 0);
+                assert_eq!(batches.len(), 0);
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string() }
                     .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
@@ -610,21 +648,13 @@ mod tests {
                     .unwrap()
                     .try_collect()
                     .await?;
-                let subject = Subject::get_builder()
-                    .with_name(AvailableInterfaceSubjects::AssistantMessages.to_string().as_str())
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert_eq!(subject.count_rows(), 0);
+                assert_eq!(batches.len(), 0);
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::ToolMessages.to_string() }
                     .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
                     .try_collect()
                     .await?;
-                let subject = Subject::get_builder()
-                    .with_name(AvailableInterfaceSubjects::ToolMessages.to_string().as_str())
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert_eq!(subject.count_rows(), 0);
+                assert_eq!(batches.len(), 0);
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::AggregatedMessages.to_string() }
                     .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
@@ -689,11 +719,7 @@ mod tests {
                     .unwrap()
                     .try_collect()
                     .await?;
-                let subject = Subject::get_builder()
-                    .with_name(AvailableCandleOperators::HumanInTheLoop.to_string().as_str())
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert_eq!(subject.count_rows(), 0);
+                assert_eq!(batches.len(), 0);
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableCandleOperators::HumanInTheLoop.to_string() }
                     .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
@@ -916,21 +942,13 @@ mod tests {
                     .unwrap()
                     .try_collect()
                     .await?;
-                let subject = Subject::get_builder()
-                    .with_name(AvailableCandleOperators::Sort.to_string().as_str())
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert_eq!(subject.count_rows(), 0);
+                assert_eq!(batches.len(), 0);
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableCandleOperators::HumanInTheLoop.to_string() }
                     .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
                     .try_collect()
                     .await?;
-                let subject = Subject::get_builder()
-                    .with_name(AvailableCandleOperators::HumanInTheLoop.to_string().as_str())
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert_eq!(subject.count_rows(), 0);
+                assert_eq!(batches.len(), 0);
             }
         }
         Ok(())
@@ -1160,21 +1178,13 @@ mod tests {
                     .unwrap()
                     .try_collect()
                     .await?;
-                let subject = Subject::get_builder()
-                    .with_name(AvailableCandleOperators::Sort.to_string().as_str())
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert_eq!(subject.count_rows(), 0);
+                assert_eq!(batches.len(), 0);
                 let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableCandleOperators::HumanInTheLoop.to_string() }
                     .subscribe_to_subject(session_ctx_arc.runtime_env())?
                     .unwrap()
                     .try_collect()
                     .await?;
-                let subject = Subject::get_builder()
-                    .with_name(AvailableCandleOperators::HumanInTheLoop.to_string().as_str())
-                    .with_record_batches(batches)?
-                    .build()?;
-                assert_eq!(subject.count_rows(), 0);
+                assert_eq!(batches.len(), 0);
                 // assert_eq!(subject.count_rows(), 1);
                 // let column = subject.get_column_as_vec_str("values");
                 // assert_eq!(column.first().unwrap(), &"");
