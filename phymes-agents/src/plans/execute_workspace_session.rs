@@ -114,32 +114,26 @@ impl<'a> ExecuteWorkspaceSession<'a> {
                 );
                 lines.push(line);
             } else {
-                let line = format!(
-                    r#"
-        Utf8 data_i "None""#
-                );
+                let line = r#"
+        Utf8 data_i "None""#.to_string();
                 lines.push(line);
             }
             match self.command_sandbox_environment {
                 CommandSandboxEnvironments::Python => {
-                    let line = format!(
-                        r#"
+                    let line = r#"
         Utf8 environment "Python"
         Utf8 run_file "main.py"
         Utf8 runner "DockerUnsafe"
-        Utf8 container_image "python:3.12-slim-trixie""#
-                    );
+        Utf8 container_image "python:3.12-slim-trixie""#.to_string();
                     lines.push(line);
                 }
                 CommandSandboxEnvironments::Rust => {
-                    let line = format!(
-                        r#"
+                    let line = r#"
         Utf8 environment "Rust"
         Utf8 run_file "main.rs"
         Utf8 runner "DockerUnsafe"
         Utf8 container_image "amd64/rust"
-        List-Utf8 cli_args "['--release', '--']""#
-                    );
+        List-Utf8 cli_args "['--release', '--']""#.to_string();
                     lines.push(line);
                 }
                 _ => {
@@ -152,12 +146,10 @@ impl<'a> ExecuteWorkspaceSession<'a> {
         }
 
         // Same for every configuration
-        let line = format!(
-            r#"
+        let line = r#"
         Utf8 container_project_dir "/home/sandbox"
         UInt32 timeout "5"
-        Utf8 workspace_name "apply_patch_s""#
-        );
+        Utf8 workspace_name "apply_patch_s""#.to_string();
         lines.push(line);
         Ok(lines.join(""))
     }
