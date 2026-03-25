@@ -887,7 +887,6 @@ mod tests {
         let mut keys = messages
             .unwrap()
             .keys()
-            .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
         keys.sort();

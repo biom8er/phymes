@@ -1956,7 +1956,7 @@ mod tests {
         .try_collect()
         .await?;
 
-        let messages = if batches.len() > 0 {
+        let messages = if !batches.is_empty() {
             let subject = Subject::get_builder()
                 .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
                 .with_record_batches(batches)

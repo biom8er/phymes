@@ -953,7 +953,7 @@ mod tests {
                 25,
             )?
             .build()?;
-        let _ = session_context.update_subject_num_rows();
+        session_context.update_subject_num_rows().await?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
         }
@@ -1337,7 +1337,7 @@ mod tests {
         );
 
         // Run and check the updated state
-        let _ = session_context.tasks_subscribe().await?;
+        session_context.tasks_subscribe().await?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "SessionTasksSubscribe".to_string(),
         }
@@ -1556,7 +1556,7 @@ mod tests {
         );
 
         // Run and check the updated state
-        let _ = session_context.tasks_subscribe().await?;
+        session_context.tasks_subscribe().await?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "SessionTasksSubscribe".to_string(),
         }
@@ -1696,7 +1696,7 @@ mod tests {
         );
 
         // Run and check the updated state
-        let _ = session_context.tasks_subscribe().await?;
+        session_context.tasks_subscribe().await?;
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: "SessionTasksSubscribe".to_string(),
         }

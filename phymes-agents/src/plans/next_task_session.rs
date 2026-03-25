@@ -965,7 +965,7 @@ mod tests {
             )?;
             let step = SessionStreamStep::current_superstep(&session_ctx_arc).await;
             dbg!(step);
-            let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(
+            SessionStreamStep::update_subjects_and_changelog_from_messages(
                 &session_ctx_arc,
                 messages,
                 step,
@@ -1345,7 +1345,7 @@ mod tests {
 
         // 3. Calculate the tasks subscribe
         let _ = tasks_publish_subscribe_messages.pop().unwrap();
-        let _ = session_ctx_arc.tasks_subscribe().await?;
+        session_ctx_arc.tasks_subscribe().await?;
 
         {
             // Test the tasks subscribe
