@@ -55,7 +55,7 @@ pub fn make_store(
         #[cfg(feature = "api")]
         ObjectStorageBackend::Aws => {
             let mut builder = AmazonS3Builder::from_env()
-                .with_bucket_name(bucket.ok_or(anyhow!("Missing `bucket` name for {cfg}"))?);
+                .with_bucket_name(bucket.ok_or(anyhow!("Missing `bucket` name for {backend}"))?);
             if let Some(config) = _config {
                 for (k, v) in config {
                     let key = AmazonS3ConfigKey::from_str(k)?;
@@ -67,13 +67,13 @@ pub fn make_store(
         #[cfg(feature = "api")]
         ObjectStorageBackend::Gcp => Arc::new(
             GoogleCloudStorageBuilder::from_env()
-                .with_bucket_name(bucket.ok_or(anyhow!("Missing `bucket` name for {cfg}"))?)
+                .with_bucket_name(bucket.ok_or(anyhow!("Missing `bucket` name for {backend}"))?)
                 .build()?,
         ),
         #[cfg(feature = "api")]
         ObjectStorageBackend::Azure => Arc::new(
             MicrosoftAzureBuilder::from_env()
-                .with_container_name(bucket.ok_or(anyhow!("Missing `bucket` name for {cfg}"))?)
+                .with_container_name(bucket.ok_or(anyhow!("Missing `bucket` name for {backend}"))?)
                 .build()?,
         ),
         ObjectStorageBackend::LocalFs => Arc::new(LocalFileSystem::new_with_prefix(

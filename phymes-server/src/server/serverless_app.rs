@@ -19,16 +19,14 @@ pub struct Serverless {
 }
 
 impl Serverless {
-    pub fn new(
+    pub async fn new(
         user_session_context_name: Option<&str>,
         runtime_env: &Arc<RuntimeEnv>,
-    ) -> impl std::future::Future<Output = Result<Self>> + Send {
-        async move {
-            let router = AppBuilder::new(user_session_context_name, runtime_env)
-                .await?
-                .build();
-            Ok(Self { router })
-        }
+    ) -> Result<Self> {
+        let router = AppBuilder::new(user_session_context_name, runtime_env)
+            .await?
+            .build();
+        Ok(Self { router })
     }
 
     pub async fn call(&mut self, request: Request<String>) -> Response {

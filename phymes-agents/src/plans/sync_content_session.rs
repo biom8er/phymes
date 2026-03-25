@@ -1,28 +1,25 @@
-/// A session for downloading PDF documents from a HTTP Request
-pub struct DownloadContentSession<'a> {
+/// A session for syncing local object storeage with remote object storage
+pub struct SyncContentSession<'a> {
     /// Session
     pub session_context_name: &'a str,
 }
 
-impl<'a> Default for DownloadContentSession<'a> {
+impl<'a> Default for SyncContentSession<'a> {
     fn default() -> Self {
         Self {
-            session_context_name: "download_content_session",
+            session_context_name: "sync_content_session",
         }
     }
 }
 
-impl<'a> DownloadContentSession<'a> {
+impl<'a> SyncContentSession<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> &str {
         r#"flowchart TD
-	download_content_r-rt@{shape: subproc, label: download_content_r}
+	sync_content_r-rt@{shape: subproc, label: sync_content_r}
 	%% ------------------------------------------------------------------------------
-	%% PDF document downloading
-    %% - We listen for updates both on the config `download_pdf_p` subject
-    %%   AND a data `http_client_request_pdf_s` subject which is in the form of a UserMessage
-    %%   which can both specify the URL to download the PDF from
-    %% - The `tool_call_session` is used to trigger the download when only the config is updated
+	%% Object store reading
+    %% - We listen for updates to the remote object store reading metadata
 	%% ------------------------------------------------------------------------------
 	subgraph download_pdf_t
 		http_client_request_pdf_s-subject-.->|AllRecordBatches|download_pdf_p-subscribe
@@ -31,7 +28,7 @@ impl<'a> DownloadContentSession<'a> {
 		download_pdf_p-processor-->download_pdf_p-publish
 		download_pdf_p-publish-->|Extend|UserPdf-subject
 	end
-	download_content_r-rt-->download_pdf_t
+	sync_content_r-rt-->download_pdf_t
 	http_client_request_pdf_s-subject@{shape: doc, label: http_client_request_pdf_s}
 	download_pdf_p-subject@{shape: doc, label: download_pdf_p}
 	download_pdf_p-processor@{shape: rect, label: HTTPClientRequestProcessor}
@@ -39,7 +36,7 @@ impl<'a> DownloadContentSession<'a> {
 	download_pdf_p-subscribe@{shape: diamond, label: All}
 	UserPdf-subject@{shape: doc, label: UserPdf}
 	%% ------------------------------------------------------------------------------
-	%% JSON document downloading
+	%% Object store writing
     %% - We listen for updates both on the config `download_json_p` subject
     %%   AND a data `http_client_request_json_s` subject which is in the form of a UserMessage
     %%   which can both specify the URL to download the JSON from
@@ -52,7 +49,7 @@ impl<'a> DownloadContentSession<'a> {
 		download_json_p-processor-->download_json_p-publish
 		download_json_p-publish-->|Extend|UserJson-subject
 	end
-	download_content_r-rt-->download_json_t
+	sync_content_r-rt-->download_json_t
 	http_client_request_json_s-subject@{shape: doc, label: http_client_request_json_s}
 	download_json_p-subject@{shape: doc, label: download_json_p}
 	download_json_p-processor@{shape: rect, label: HTTPClientRequestProcessor}
@@ -125,19 +122,19 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_download_content_session_w_subjects() -> Result<()> {
+    async fn test_sync_content_session_w_subjects() -> Result<()> {
         // Initialize the session
-        let download_content_session = DownloadContentSession::default();
+        let sync_content_session = SyncContentSession::default();
         let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
-            download_content_session.as_mermaid_flowchart(),
+            sync_content_session.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            download_content_session.as_mermaid_erdiagram(),
+            sync_content_session.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(download_content_session.session_context_name)
+        .with_name(sync_content_session.session_context_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
         .add_next_tasks()?
@@ -174,7 +171,7 @@ mod tests {
                 http_client_config_table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(http_client_config_table.get_name())
-                    .with_publisher(download_content_session.session_context_name)
+                    .with_publisher(sync_content_session.session_context_name)
                     .with_subject(http_client_config_table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: http_client_config_table.get_name().to_string(),
@@ -189,7 +186,7 @@ mod tests {
                 messages.to_string(),
                 IPCMessage::get_builder()
                     .with_name(messages)
-                    .with_publisher(download_content_session.session_context_name)
+                    .with_publisher(sync_content_session.session_context_name)
                     .with_subject(messages)
                     .with_update(&Publication::Replace {
                         subject_name: messages.to_string(),
@@ -238,7 +235,7 @@ mod tests {
                 http_client_config_table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(http_client_config_table.get_name())
-                    .with_publisher(download_content_session.session_context_name)
+                    .with_publisher(sync_content_session.session_context_name)
                     .with_subject(http_client_config_table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: http_client_config_table.get_name().to_string(),
@@ -253,7 +250,7 @@ mod tests {
                 messages.to_string(),
                 IPCMessage::get_builder()
                     .with_name(messages)
-                    .with_publisher(download_content_session.session_context_name)
+                    .with_publisher(sync_content_session.session_context_name)
                     .with_subject(messages)
                     .with_update(&Publication::Replace {
                         subject_name: messages.to_string(),
@@ -277,7 +274,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
@@ -304,7 +301,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableInterfaceSubjects::UserJson.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
@@ -338,7 +335,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_download_content_session_wo_subjects() -> Result<()> {
+    async fn test_sync_content_session_wo_subjects() -> Result<()> {
         // View task session
         let tool_call_session =
             ToolCallSession::new("tool_call_session", &["download_pdf_p", "download_json_p"]);
@@ -354,17 +351,17 @@ mod tests {
         .with_name(tool_call_session.session_context_name);
 
         // Initialize the session
-        let download_content_session = DownloadContentSession::default();
+        let sync_content_session = SyncContentSession::default();
         let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
-            download_content_session.as_mermaid_flowchart(),
+            sync_content_session.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            download_content_session.as_mermaid_erdiagram(),
+            sync_content_session.as_mermaid_erdiagram(),
             false,
             true,
         )?
-        .with_name(download_content_session.session_context_name)
+        .with_name(sync_content_session.session_context_name)
         .with_diagnostics(true)
         .extend(tool_call_session_builder)?
         .add_processor_subjects()?
@@ -401,7 +398,7 @@ mod tests {
                 http_client_config_table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(http_client_config_table.get_name())
-                    .with_publisher(download_content_session.session_context_name)
+                    .with_publisher(sync_content_session.session_context_name)
                     .with_subject(http_client_config_table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: http_client_config_table.get_name().to_string(),
@@ -449,7 +446,7 @@ mod tests {
                 http_client_config_table.get_name().to_string(),
                 IPCMessage::get_builder()
                     .with_name(http_client_config_table.get_name())
-                    .with_publisher(download_content_session.session_context_name)
+                    .with_publisher(sync_content_session.session_context_name)
                     .with_subject(http_client_config_table.get_name())
                     .with_update(&Publication::Replace {
                         subject_name: http_client_config_table.get_name().to_string(),
@@ -473,7 +470,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
@@ -500,7 +497,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableInterfaceSubjects::UserJson.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
             .unwrap()
             .try_collect()
             .await?;
