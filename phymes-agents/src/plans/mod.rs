@@ -19,6 +19,7 @@ mod next_superstep_session;
 mod next_task_session;
 mod patch_workspace_session;
 mod retrieve_text_session;
+mod sync_content_session;
 mod tool_agent_session;
 mod tool_call_session;
 mod tool_response_session;

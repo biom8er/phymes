@@ -2,43 +2,61 @@
 pub struct SyncContentSession<'a> {
     /// Session
     pub session_context_name: &'a str,
+    /// Local object store metadata
+    pub local_object_store_meta_name: &'a str,
+    /// Remove object store metadata
+    pub remote_object_store_meta_name: &'a str,
+    /// Local object store
+    pub local_object_store_name: &'a str,
+    /// Remove object store
+    pub remote_object_store_name: &'a str,
 }
 
 impl<'a> Default for SyncContentSession<'a> {
     fn default() -> Self {
         Self {
             session_context_name: "sync_content_session",
+            local_object_store_meta_name: "local_object_store_meta_name",
+            remote_object_store_meta_name: "remote_object_store_meta_name",
+            local_object_store_name: "local_object_store_name",
+            remote_object_store_name: "remote_object_store_name",
         }
     }
 }
 
 impl<'a> SyncContentSession<'a> {
     /// Return the Mermaid.js flowchart representation of the session
-    pub fn as_mermaid_flowchart(&self) -> &str {
-        r#"flowchart TD
-	sync_content_r-rt@{shape: subproc, label: sync_content_r}
+    pub fn as_mermaid_flowchart(&self) -> String {
+        let session_context_name = self.session_context_name;
+        format!(r#"flowchart TD
+	{session_context_name}_r-rt@{{shape: subproc, label: {session_context_name}_r}}
 	%% ------------------------------------------------------------------------------
 	%% Object store local and remote diff
+    %% 1. List remote locations
+    %% 2. Join with local metadata (LeftOuter = Added, RightOuter = Deleted, Inner + filter = Updated
+    %% 3. Filter for 
+    %% - Checks for differences between the local and remote object store metadata
+    %% - Checks for differences between the local and remote object store metadata
     %% - Checks for differences between the local and remote object store metadata
 	%% ------------------------------------------------------------------------------
 	%% ------------------------------------------------------------------------------
 	%% Object store reading
     %% - We listen for updates to the remote object store reading metadata
 	%% ------------------------------------------------------------------------------
-	subgraph download_pdf_t
+	subgraph read_remote_object_store_t
 		http_client_request_pdf_s-subject-.->|AllRecordBatches|download_pdf_p-subscribe
 		download_pdf_p-subject-.->|LastRecordBatch|download_pdf_p-subscribe
 		download_pdf_p-subscribe-->download_pdf_p-processor
 		download_pdf_p-processor-->download_pdf_p-publish
 		download_pdf_p-publish-->|Extend|UserPdf-subject
 	end
-	sync_content_r-rt-->download_pdf_t
-	http_client_request_pdf_s-subject@{shape: doc, label: http_client_request_pdf_s}
-	download_pdf_p-subject@{shape: doc, label: download_pdf_p}
-	download_pdf_p-processor@{shape: rect, label: HTTPClientRequestProcessor}
-	download_pdf_p-publish@{shape: fork}
-	download_pdf_p-subscribe@{shape: diamond, label: All}
-	UserPdf-subject@{shape: doc, label: UserPdf}
+	{session_context_name}_r-rt-->download_pdf_t
+	http_client_request_pdf_s-subject@{{shape: doc, label: http_client_request_pdf_s}}
+	download_pdf_p-subject@{{shape: doc, label: download_pdf_p}}
+	download_pdf_p-processor@{{shape: rect, label: HTTPClientRequestProcessor}}
+	download_pdf_p-publish@{{shape: fork}}
+	download_pdf_p-subscribe@{{shape: diamond, label: All}}
+	UserPdf-subject@{{shape: doc, label: UserPdf}}
 	%% ------------------------------------------------------------------------------
 	%% Object store writing
     %% - We listen for updates both on the config `download_json_p` subject
@@ -46,60 +64,31 @@ impl<'a> SyncContentSession<'a> {
     %%   which can both specify the URL to download the JSON from
     %% - The `tool_call_session` is used to trigger the download when only the config is updated
 	%% ------------------------------------------------------------------------------
-	subgraph download_json_t
-		http_client_request_json_s-subject-.->|AllRecordBatches|download_json_p-subscribe
-		download_json_p-subject-.->|LastRecordBatch|download_json_p-subscribe
-		download_json_p-subscribe-->download_json_p-processor
-		download_json_p-processor-->download_json_p-publish
-		download_json_p-publish-->|Extend|UserJson-subject
-	end
-	sync_content_r-rt-->download_json_t
-	http_client_request_json_s-subject@{shape: doc, label: http_client_request_json_s}
-	download_json_p-subject@{shape: doc, label: download_json_p}
-	download_json_p-processor@{shape: rect, label: HTTPClientRequestProcessor}
-	download_json_p-publish@{shape: fork}
-	download_json_p-subscribe@{shape: diamond, label: All}
-	UserJson-subject@{shape: doc, label: UserJson}
 	%% ------------------------------------------------------------------------------
     %% Next steps
 	%% - Other document downloads can be added as shown above...
 	%% - Other tool calls can be integrated based on the above template...
 	%% - A tool message needs to be generated based on the responses...
-	%% ------------------------------------------------------------------------------"#
+	%% ------------------------------------------------------------------------------"#)
     }
     /// Return the Mermaid.js ER diagram representation of the session
-    pub fn as_mermaid_erdiagram(&self) -> &str {
-        r#"erDiagram
-    http_client_request_pdf_s["http_client_request_pdf_s"] {
+    pub fn as_mermaid_erdiagram(&self) -> String {
+        format!(r#"erDiagram
+    http_client_request_pdf_s["http_client_request_pdf_s"] {{
         Utf8 role
         Utf8 content
         Int64 timestamp
-    }
-    download_pdf_p["download_pdf_p"] {
+    }}
+    download_pdf_p["download_pdf_p"] {{
         List-UInt8 bytes
-    }
-    UserPdf["UserPdf"] {
+    }}
+    UserPdf["UserPdf"] {{
         Utf8 filename
         Utf8 extension
         List-UInt8 bytes
         Utf8 metadata
         Int64 timestamp
-    }
-    http_client_request_json_s["http_client_request_json_s"] {
-        Utf8 role
-        Utf8 content
-        Int64 timestamp
-    }
-    download_json_p["download_json_p"] {
-        List-UInt8 bytes
-    }
-    UserJson["UserJson"] {
-        Utf8 filename
-        Utf8 extension
-        List-UInt8 bytes
-        Utf8 metadata
-        Int64 timestamp
-    }"#
+    }}"#)
     }
 }
 
@@ -130,11 +119,11 @@ mod tests {
         // Initialize the session
         let sync_content_session = SyncContentSession::default();
         let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
-            sync_content_session.as_mermaid_flowchart(),
+            &sync_content_session.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            sync_content_session.as_mermaid_erdiagram(),
+            &sync_content_session.as_mermaid_erdiagram(),
             false,
             true,
         )?
@@ -215,7 +204,7 @@ mod tests {
 
             let esearch_url = format!(
                 "db=pubmed&term={}&retmode=json&retmax=5&mindate={}&maxdate={}",
-                urlencoding::encode(&query),
+                query,
                 year_from,
                 year_to
             );
@@ -278,7 +267,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -305,7 +294,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableInterfaceSubjects::UserJson.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -357,11 +346,11 @@ mod tests {
         // Initialize the session
         let sync_content_session = SyncContentSession::default();
         let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
-            sync_content_session.as_mermaid_flowchart(),
+            &sync_content_session.as_mermaid_flowchart(),
             false,
         )?
         .with_subjects_from_mermaid_erdiagram(
-            sync_content_session.as_mermaid_erdiagram(),
+            &sync_content_session.as_mermaid_erdiagram(),
             false,
             true,
         )?
@@ -426,7 +415,7 @@ mod tests {
 
             let esearch_url = format!(
                 "db=pubmed&term={}&retmode=json&retmax=5&mindate={}&maxdate={}",
-                urlencoding::encode(&query),
+                query,
                 year_from,
                 year_to
             );
@@ -474,7 +463,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
@@ -501,7 +490,7 @@ mod tests {
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
                 subject_name: AvailableInterfaceSubjects::UserJson.to_string(),
             }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
