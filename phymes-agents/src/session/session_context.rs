@@ -27,6 +27,7 @@ use crate::{
 /// [Task]: crate::TaskTrait
 /// [Message]: phymes_core::MessageTrait
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct SessionContext {
     /// A unique UUID that identifies the session
     pub(crate) name: String,
@@ -40,17 +41,6 @@ pub struct SessionContext {
     pub(crate) diagnostics: bool,
 }
 
-impl Default for SessionContext {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            tasks: Default::default(),
-            subjects: Default::default(),
-            runtime_env: Default::default(),
-            diagnostics: Default::default(),
-        }
-    }
-}
 
 impl SessionContext {
     pub fn new(

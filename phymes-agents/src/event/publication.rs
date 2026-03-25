@@ -52,7 +52,7 @@ pub fn make_object_store_paths_record_batch(
     (0..n_batches)
         .map(|i| {
             let location =
-                make_object_store_path(session_name, subject_name, step, publisher, i as u32);
+                make_object_store_path(session_name, subject_name, step, publisher, i);
             let pk: Vec<u32> = vec![0];
             let location: ArrayRef = Arc::new(StringArray::from(vec![location]));
             let pk: ArrayRef = Arc::new(UInt32Array::from(pk));
@@ -121,7 +121,7 @@ pub fn extend_subject(
     let stream = Box::pin(CandleDataStream::new(
         message,
         config_table.to_record_batch_stream(),
-        Arc::clone(&runtime_env),
+        Arc::clone(runtime_env),
         None,
     )?);
 
@@ -175,7 +175,7 @@ pub fn extend_subject(
     let stream = Box::pin(CandleDataStream::new(
         message,
         config_table.to_record_batch_stream(),
-        Arc::clone(&runtime_env),
+        Arc::clone(runtime_env),
         None,
     )?);
 
@@ -223,7 +223,7 @@ pub fn extend_subject(
     let stream = Box::pin(CandleDataStream::new(
         message,
         config_table.to_record_batch_stream(),
-        Arc::clone(&runtime_env),
+        Arc::clone(runtime_env),
         None,
     )?);
 
@@ -256,7 +256,7 @@ pub fn extend_subject(
     let stream = Box::pin(CandleDataStream::new(
         message,
         config_table.to_record_batch_stream(),
-        Arc::clone(&runtime_env),
+        Arc::clone(runtime_env),
         None,
     )?);
 
@@ -288,7 +288,7 @@ pub fn extend_subject(
     let stream = Box::pin(ObjectStoreStream::new(
         message,
         config_table.to_record_batch_stream(),
-        Arc::clone(&runtime_env),
+        Arc::clone(runtime_env),
         None,
     )?);
     Ok(stream)
@@ -332,7 +332,7 @@ pub fn clear_subject(
     let stream = Box::pin(ObjectStoreStream::new(
         message,
         config_table.to_record_batch_stream(),
-        Arc::clone(&runtime_env),
+        Arc::clone(runtime_env),
         None,
     )?);
     Ok(stream)
@@ -411,7 +411,7 @@ impl PublicationTrait for Publication {
                             .build()?;
                         match sf {
                             DataFormat::Ipc => {
-                                let bytes = new_table.get_column_as_vec_nested_primitive::<u8>(&cn)?
+                                let bytes = new_table.get_column_as_vec_nested_primitive::<u8>(cn)?
                                     .into_iter()
                                     .flatten()
                                     .collect::<Vec<_>>();
@@ -422,7 +422,7 @@ impl PublicationTrait for Publication {
                                 Ok(batches)
                             }
                             DataFormat::Bytes => {
-                                let bytes = new_table.get_column_as_vec_nested_primitive::<u8>(&cn)?
+                                let bytes = new_table.get_column_as_vec_nested_primitive::<u8>(cn)?
                                     .into_iter()
                                     .flatten()
                                     .collect::<Vec<_>>();

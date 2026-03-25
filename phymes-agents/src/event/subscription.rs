@@ -38,7 +38,7 @@ pub fn list_subject(
     let stream = Box::pin(ObjectStoreStream::new(
         HashMap::<String, SendableRecordBatchStreamMessage>::new(),
         config_table.to_record_batch_stream(),
-        Arc::clone(&runtime_env),
+        Arc::clone(runtime_env),
         None,
     )?);
 
@@ -72,7 +72,7 @@ pub fn list_subject(
         let stream = Box::pin(CandleDataStream::new(
             message,
             config_table.to_record_batch_stream(),
-            Arc::clone(&runtime_env),
+            Arc::clone(runtime_env),
             None,
         )?);
 
@@ -89,7 +89,7 @@ pub fn list_subject(
         let stream = Box::pin(LimitStream::new(
             stream,
             config_table.to_record_batch_stream(),
-            Arc::clone(&runtime_env),
+            Arc::clone(runtime_env),
             None,
         ));
         Ok(stream)
@@ -123,7 +123,7 @@ pub fn list_subject(
         let stream = Box::pin(CandleDataStream::new(
             message,
             config_table.to_record_batch_stream(),
-            Arc::clone(&runtime_env),
+            Arc::clone(runtime_env),
             None,
         )?);
         Ok(stream)
@@ -164,7 +164,7 @@ pub fn get_subject(
     let stream = Box::pin(ObjectStoreStream::new(
         message,
         config_table.to_record_batch_stream(),
-        Arc::clone(&runtime_env),
+        Arc::clone(runtime_env),
         None,
     )?);
 
@@ -199,7 +199,7 @@ pub fn get_subject(
     let stream = Box::pin(CandleDataStream::new(
         message,
         config_table.to_record_batch_stream(),
-        Arc::clone(&runtime_env),
+        Arc::clone(runtime_env),
         None,
     )?);
     Ok(stream)

@@ -123,7 +123,7 @@ pub trait SessionStreamStepTrait {
     ) -> impl std::future::Future<Output = Result<()>> + Send {
         async move {
             trace.exit(&messages.values().collect::<Vec<_>>());
-            let _ = session_context
+            session_context
                 .update_metrics_subjects(&diagnostics_vec, step)
                 .await?;
 
@@ -395,7 +395,7 @@ pub trait SessionStreamStepTrait {
                 )).unwrap()
                 .try_collect()
                 .await.unwrap();
-            if subscriptions.len() == 0 {
+            if subscriptions.is_empty() {
                 let next_task_messages = NextTaskSession::default()
                     .as_task_messages()
                     .unwrap_or_else(|_err| {

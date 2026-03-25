@@ -950,7 +950,6 @@ impl SessionContextBuilderTabularTrait for SessionContextBuilder {
         let combined = tasks_vec_str
             .iter()
             .zip(processors_vec_str.iter())
-            .map(|(x, y)| (x, y))
             .collect::<Vec<_>>();
 
         // build the task plans

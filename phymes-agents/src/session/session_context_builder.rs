@@ -283,8 +283,8 @@ impl SessionContextBuilder {
         }
 
         // No need to extend the runtime_env, but they need to be compatible
-        if self.runtime_env != other.runtime_env {
-            if let (Some(rt), Some(other_rt)) =
+        if self.runtime_env != other.runtime_env
+            && let (Some(rt), Some(other_rt)) =
                 (self.runtime_env.as_ref(), other.runtime_env.as_ref())
             {
                 if rt.object_store_backend != other_rt.object_store_backend {
@@ -305,7 +305,6 @@ impl SessionContextBuilder {
                     ));
                 }
             }
-        }
 
         Ok(self)
     }
