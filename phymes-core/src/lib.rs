@@ -1,5 +1,5 @@
 mod data;
-mod Index;
+mod index;
 mod message;
 mod patch;
 mod processor;
@@ -11,7 +11,7 @@ mod subject;
 mod event;
 
 pub use data::{CsvFormat, DataEncoding, DataFormat, JsonFormat, from_data_type_to_str, from_str_to_data_type, make_filename, make_extension, parse_str_to_data_type};
-pub use Index::{
+pub use index::{
     SubjectConstraintType, create_arrow_array_sequence, SubjectSequenceType,
     IndexType,
     BTreeIndexReader, HashIndexReader, GiSTIndexReader, SPGiSTIndexReader, GINIndexReader, BRINIndexReader,

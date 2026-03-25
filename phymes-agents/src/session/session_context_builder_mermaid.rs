@@ -111,7 +111,6 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             ));
         }
         let session_name = self.name.as_ref().unwrap().to_string();
-        let runtime_env_name = format!("{session_name}-runtime_env");
 
         // Tasks, Processors, and Runtime_envs to exclude
         let mut tasks_exclude = HashSet::new();

@@ -7,7 +7,7 @@ use phymes_agents::{
     AvailableSessionPlans, SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map
 };
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, Publication, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectTrait, Subscription, UserSubject, create_session_mermaid_batch, create_user_inbox_batch, create_user_session_contexts_batch, make_store
+    AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, Publication, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectTrait, Subscription, UserSubject, create_session_mermaid_batch, create_user_inbox_batch, create_user_session_contexts_batch
 };
 use phymes_diagnostics::HashMap;
 
