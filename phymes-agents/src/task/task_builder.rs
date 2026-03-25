@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::{Result, anyhow};
-use arrow::record_batch::RecordBatch;
+use anyhow::Result;
 use phymes_core::{BuilderTrait, ProcessorTrait};
 
 use crate::Task;

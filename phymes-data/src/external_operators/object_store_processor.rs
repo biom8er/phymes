@@ -34,6 +34,7 @@ use serde_json::{Map, Value, json};
 use crate::{DataConfigTrait, ObjectStoreConfig, ObjectStoreOptsType};
 
 /// The state of the Object Store API request.
+#[allow(clippy::type_complexity)]
 pub enum ObjectStoreState {
     NotStarted,
     StorageReaderGetResult(
@@ -303,7 +304,7 @@ impl Stream for ObjectStoreStream {
                     } else if let Some(locations) = self.locations.take() {
                         locations
                             .into_iter()
-                            .map(|s| Path::from(s))
+                            .map(Path::from)
                             .collect::<Vec<_>>()
                     } else {
                         self.state = ObjectStoreState::Done;
@@ -327,7 +328,7 @@ impl Stream for ObjectStoreStream {
                         location
                     } else if let Some(mut locations) = self.locations.take() {
                         if let Some(location) = locations.pop_front() {
-                            if locations.len() > 0 {
+                            if !locations.is_empty() {
                                 self.locations.replace(locations);
                             }
                             location
@@ -356,7 +357,7 @@ impl Stream for ObjectStoreStream {
                         // Check if there are more batches for the next round
                         if let Some(mut batch) = self.record_batches.take() {
                             let _ = batch.pop_front();
-                            if batch.len() > 0 {
+                            if !batch.is_empty() {
                                 self.record_batches.replace(batch);
                             }
                         }
@@ -384,7 +385,7 @@ impl Stream for ObjectStoreStream {
                         // Check if there are more batches for the next round
                         if let Some(mut batch) = self.record_batches.take() {
                             let _ = batch.pop_front();
-                            if batch.len() > 0 {
+                            if !batch.is_empty() {
                                 self.record_batches.replace(batch);
                             }
                         }
@@ -419,7 +420,7 @@ impl Stream for ObjectStoreStream {
                                 ))?;
                         let bytes = row.get("bytes").ok_or(anyhow!("Missing column `bytes` for RecordBatch for ObjectStoreStream."))?
                             .as_array().ok_or(anyhow!("Value for key `bytes` could not be parsed as an array for ObjectStoreStream."))?
-                            .into_iter()
+                            .iter()
                             .map(|v| v.as_u64().unwrap_or_default() as u8)
                             .collect::<Vec<_>>();
                         let location = row.get("location")
@@ -438,11 +439,10 @@ impl Stream for ObjectStoreStream {
                         let payload = PutPayload::from_bytes(Bytes::from(bytes));
 
                         // Check if there are more batches for the next round
-                        if let Some(batch) = self.record_batches.take() {
-                            if batch.len() > 0 {
+                        if let Some(batch) = self.record_batches.take()
+                            && !batch.is_empty() {
                                 self.record_batches.replace(batch);
                             }
-                        }
 
                         // Put operation
                         let store = self.store.as_ref().unwrap().clone();
@@ -478,7 +478,7 @@ impl Stream for ObjectStoreStream {
                             "Object store operation `{}` is not yet supported.",
                             self.config.as_ref().unwrap().ops_type
                         );
-                        return Poll::Ready(Some(Err(anyhow!(err))));
+                        Poll::Ready(Some(Err(anyhow!(err))))
                     }
                 }
             }
@@ -803,7 +803,7 @@ impl Stream for ObjectStoreStream {
                         let row = self.record_batches.as_mut().unwrap().pop_front().unwrap();
                         let bytes = row.get("bytes").ok_or(anyhow!("Missing column `bytes` for RecordBatch for ObjectStoreStream."))?
                         .as_array().ok_or(anyhow!("Value for key `bytes` could not be parsed as an array for ObjectStoreStream."))?
-                        .into_iter()
+                        .iter()
                         .map(|v| v.as_u64().unwrap_or_default() as u8)
                         .collect::<Vec<_>>();
                         let location = row.get("location")
@@ -828,11 +828,10 @@ impl Stream for ObjectStoreStream {
                         self.meta.replace(meta);
 
                         // Check if there are more batches for the next round
-                        if let Some(batch) = self.record_batches.take() {
-                            if batch.len() > 0 {
+                        if let Some(batch) = self.record_batches.take()
+                            && !batch.is_empty() {
                                 self.record_batches.replace(batch);
                             }
-                        }
 
                         // Put the chunks
                         let mut write = WriteMultipart::new(mp);

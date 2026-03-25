@@ -177,8 +177,10 @@ impl DataOperatorTrait for ApplyTemplate {
     doc_input,
     encoding,
     format,
+    schema,
     _device
 ))]
+#[allow(clippy::too_many_arguments)]
 pub fn apply_template(
     lhs_args: &[RecordBatch],
     rhs_args: Option<&[RecordBatch]>,
