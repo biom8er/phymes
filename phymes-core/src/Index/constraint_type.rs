@@ -47,8 +47,12 @@ impl std::fmt::Display for SubjectConstraintType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             SubjectConstraintType::Unique(constraint) => write!(f, "Unique: {constraint:?}"),
-            SubjectConstraintType::PrimaryKey(constraint) => write!(f, "PrimaryKey: {constraint:?}"),
-            SubjectConstraintType::ForeignKey(constraint) => write!(f, "ForeignKey: {constraint:?}"),
+            SubjectConstraintType::PrimaryKey(constraint) => {
+                write!(f, "PrimaryKey: {constraint:?}")
+            }
+            SubjectConstraintType::ForeignKey(constraint) => {
+                write!(f, "ForeignKey: {constraint:?}")
+            }
             SubjectConstraintType::Check(constraint) => write!(f, "Check: {constraint:?}"),
             SubjectConstraintType::Index(constraint) => write!(f, "Index: {constraint:?}"),
             SubjectConstraintType::Custom(c) => write!(f, "Custom: {c}"),
@@ -163,7 +167,9 @@ impl std::fmt::Display for NullsDistinctOption {
 }
 
 /// Used in UNIQUE and foreign key constraints. The individual settings may occur in any order.
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Default, Eq, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Copy, Clone, PartialEq, PartialOrd, Default, Eq, Ord, Hash, Serialize, Deserialize,
+)]
 pub struct ConstraintCharacteristics {
     /// `[ DEFERRABLE | NOT DEFERRABLE ]`
     pub deferrable: Option<bool>,
@@ -204,11 +210,7 @@ impl ConstraintCharacteristics {
     fn enforced_text(&self) -> Option<&'static str> {
         self.enforced.map(
             |enforced| {
-                if enforced {
-                    "ENFORCED"
-                } else {
-                    "NOT ENFORCED"
-                }
+                if enforced { "ENFORCED" } else { "NOT ENFORCED" }
             },
         )
     }

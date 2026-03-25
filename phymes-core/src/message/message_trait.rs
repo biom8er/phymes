@@ -1,8 +1,8 @@
 use crate::schemas::{create_bytes_record_batch, create_route_bytes_fields};
 use crate::{
     BuildableTrait, BuilderTrait, DataFormat, IPCMessageBuilder, IPCMessageMap, MappableTrait,
-    MessageBuilderTrait, SendableRecordBatchStream, SendableRecordBatchStreamMessageBuilder,
-    SubjectBuilder, SubjectBuilderTrait, Publication, SubjectTrait,
+    MessageBuilderTrait, Publication, SendableRecordBatchStream,
+    SendableRecordBatchStreamMessageBuilder, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 
 use anyhow::Result;

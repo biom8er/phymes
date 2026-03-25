@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    MappableTrait, ProcessorTrait, Publication, SubscribeEventTrait, Subscription,
-    UpdateEventTrait,
+    MappableTrait, ProcessorTrait, Publication, SubscribeEventTrait, Subscription, UpdateEventTrait,
 };
 
 /// The plan for the processors

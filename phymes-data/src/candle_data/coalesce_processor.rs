@@ -446,7 +446,7 @@ mod tests {
     use arrow::datatypes::{DataType, Field, Schema};
     use futures::TryStreamExt;
     use phymes_core::{
-        RecordBatchStreamAdapter, SubjectBuilder, Publication, SubjectTrait, test_subject,
+        Publication, RecordBatchStreamAdapter, SubjectBuilder, SubjectTrait, test_subject,
     };
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 

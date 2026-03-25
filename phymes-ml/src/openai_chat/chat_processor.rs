@@ -8,7 +8,13 @@ use anyhow::{Result, anyhow};
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use futures::{FutureExt, Stream, StreamExt};
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, ChatCompletionRequest, ChatCompletionResponse, ChatTraitExt, FinishReason, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolChoiceType, create_chat_record_batch, remove_message_by_subject
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, ChatCompletionRequest,
+    ChatCompletionResponse, ChatTraitExt, FinishReason, MappableTrait, MessageBuilderTrait,
+    MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
+    SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Subject,
+    SubjectBuilderTrait, SubjectTrait, Tool, ToolChoiceType, create_chat_record_batch,
+    remove_message_by_subject,
 };
 use phymes_data::{DataConfigTrait, HTTPClientRequestState};
 use phymes_diagnostics::{
@@ -369,7 +375,7 @@ mod tests {
     #[allow(unused_imports)]
     use super::*;
     #[allow(unused_imports)]
-    use phymes_core::{ChatBuilderTraitExt, SubjectBuilder, Publication};
+    use phymes_core::{ChatBuilderTraitExt, Publication, SubjectBuilder};
     #[allow(unused_imports)]
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
 

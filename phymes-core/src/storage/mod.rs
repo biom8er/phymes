@@ -10,11 +10,16 @@ mod writers;
 pub use backend::{ObjectStorageBackend, make_store};
 pub use chunked_writer::{BatchWriter, ChunkedWriter, OnChunk, OnChunkTrait};
 pub use reader_trait::{StorageReaderTrait, StorageStreamReaderTrait};
-pub use readers::{IpcReader, JsonReader, CsvReader};
+pub use readers::{CsvReader, IpcReader, JsonReader};
 pub use storage_reader::ObjectStorageReader;
 pub use storage_writer::ObjectStorageWriter;
-pub use writer_trait::{StorageWriterTrait, StorageWriterMultipartTrait, StorageStreamWriterTrait, storage_writer_multipart};
-pub use writers::{IpcWriter, JsonWriter, CsvWriter, IpcWriterMultipart, JsonWriterMultipart, CsvWriterMultipart};
+pub use writer_trait::{
+    StorageStreamWriterTrait, StorageWriterMultipartTrait, StorageWriterTrait,
+    storage_writer_multipart,
+};
+pub use writers::{
+    CsvWriter, CsvWriterMultipart, IpcWriter, IpcWriterMultipart, JsonWriter, JsonWriterMultipart,
+};
 
 #[cfg(test)]
 mod tests {
@@ -24,8 +29,8 @@ mod tests {
         datatypes::{DataType, Field, Schema},
     };
     use futures::TryStreamExt;
-    use object_store::{ObjectStoreExt, memory::InMemory};
     use object_store::path::Path;
+    use object_store::{ObjectStoreExt, memory::InMemory};
     use std::sync::Arc;
 
     #[tokio::test(flavor = "current_thread")]
@@ -129,10 +134,16 @@ mod tests {
         }
 
         assert_ne!(read_batches.len(), batches.len());
-        let n_rows_read = read_batches.iter().map(|batch| batch.num_rows()).sum::<usize>();
+        let n_rows_read = read_batches
+            .iter()
+            .map(|batch| batch.num_rows())
+            .sum::<usize>();
         let n_rows = batches.iter().map(|batch| batch.num_rows()).sum::<usize>();
         assert_eq!(n_rows_read, n_rows);
-        assert_eq!(read_batches.first().unwrap().schema(), batches.first().unwrap().schema());
+        assert_eq!(
+            read_batches.first().unwrap().schema(),
+            batches.first().unwrap().schema()
+        );
 
         Ok(())
     }
@@ -176,17 +187,24 @@ mod tests {
         let mut stream = result.into_stream();
         let mut read_batches = Vec::new();
         while let Some(bytes) = stream.try_next().await? {
-            let mut reader = CsvReader::new_with_bytes(&bytes, false, b';', 512, Some(schema.clone()))?;
+            let mut reader =
+                CsvReader::new_with_bytes(&bytes, false, b';', 512, Some(schema.clone()))?;
             while let Some(batch) = reader.poll_next_batch()? {
                 read_batches.push(batch);
             }
         }
 
         assert_ne!(read_batches.len(), batches.len());
-        let n_rows_read = read_batches.iter().map(|batch| batch.num_rows()).sum::<usize>();
+        let n_rows_read = read_batches
+            .iter()
+            .map(|batch| batch.num_rows())
+            .sum::<usize>();
         let n_rows = batches.iter().map(|batch| batch.num_rows()).sum::<usize>();
         assert_eq!(n_rows_read, n_rows);
-        assert_eq!(read_batches.first().unwrap().schema(), batches.first().unwrap().schema());
+        assert_eq!(
+            read_batches.first().unwrap().schema(),
+            batches.first().unwrap().schema()
+        );
 
         Ok(())
     }
@@ -323,7 +341,8 @@ mod tests {
         let mut stream = result.into_stream();
         let mut read_batches = Vec::new();
         while let Some(bytes) = stream.try_next().await? {
-            let mut reader = CsvReader::new_with_bytes(&bytes, false, b';', 10, Some(schema.clone()))?;
+            let mut reader =
+                CsvReader::new_with_bytes(&bytes, false, b';', 10, Some(schema.clone()))?;
             while let Some(batch) = reader.poll_next_batch()? {
                 read_batches.push(batch);
             }

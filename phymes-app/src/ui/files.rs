@@ -1,8 +1,8 @@
 use dioxus::{html::FileData, prelude::*};
 use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait};
 use phymes_core::{
-    create_attachments_batch, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, Subject,
-    SubjectBuilderTrait, Publication, SubjectTrait,
+    create_attachments_batch, BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait,
+    Publication, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_server::create_session_name;

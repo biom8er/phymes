@@ -3,7 +3,7 @@ use std::{fmt::Display, io::Cursor};
 use crate::{CsvReader, IpcReader, JsonReader};
 
 /// Available object storage readers
-/// 
+///
 /// # Todo
 /// - Add in `fom_bytes`, `fom_struct`, `fom_values`, etc.
 #[derive(Debug)]

@@ -259,12 +259,16 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription, create_documents_batch
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
+        ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject,
+        SubjectBuilderTrait, SubjectTrait, Subscription, create_documents_batch,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep, SessionStreamStepTrait, SubscriptionTrait, create_message_map
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
+        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep,
+        SessionStreamStepTrait, SubscriptionTrait, create_message_map,
     };
 
     use super::*;
@@ -277,7 +281,11 @@ mod tests {
             &embed_text_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_subjects_from_mermaid_erdiagram(&embed_text_session.as_mermaid_erdiagram(), false, true)?
+        .with_subjects_from_mermaid_erdiagram(
+            &embed_text_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
         .with_name(embed_text_session.session_context_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
@@ -352,7 +360,9 @@ mod tests {
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![chat_message, document_message]);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(
@@ -370,11 +380,13 @@ mod tests {
 
             {
                 // Test supsersteps
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::UserQueries.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-                    .unwrap()
-                    .try_collect()
-                    .await?;
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableInterfaceSubjects::UserQueries.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
                 let subject = Subject::get_builder()
                     .with_name(AvailableInterfaceSubjects::UserQueries.to_string().as_str())
                     .with_record_batches(batches)?
@@ -401,11 +413,13 @@ mod tests {
 
             {
                 // Test supsersteps
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::QueryEmbeddings.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-                    .unwrap()
-                    .try_collect()
-                    .await?;
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableSubjects::QueryEmbeddings.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
                 let subject = Subject::get_builder()
                     .with_name(AvailableSubjects::QueryEmbeddings.to_string().as_str())
                     .with_record_batches(batches)?
@@ -413,18 +427,19 @@ mod tests {
                 assert_eq!(subject.count_rows(), 1);
                 let column = subject.get_column_as_vec_str("query_id");
                 assert!(!column.is_empty());
-                let column =
-                    subject.get_column_as_vec_nested_primitive::<f32>("embedding")?;
+                let column = subject.get_column_as_vec_nested_primitive::<f32>("embedding")?;
                 assert_eq!(column.len(), 1);
                 #[cfg(feature = "hf_hub")]
                 assert_eq!(column.first().unwrap().len(), 1536);
                 #[cfg(not(feature = "hf_hub"))]
                 assert_eq!(column.first().unwrap().len(), 384);
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::DocumentEmbeddings.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-                    .unwrap()
-                    .try_collect()
-                    .await?;
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableSubjects::DocumentEmbeddings.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+                .unwrap()
+                .try_collect()
+                .await?;
                 let subject = Subject::get_builder()
                     .with_name(AvailableSubjects::DocumentEmbeddings.to_string().as_str())
                     .with_record_batches(batches)?
@@ -436,8 +451,7 @@ mod tests {
                 let column = subject.get_column_as_vec_str("document_id");
                 assert_eq!(column.first().unwrap(), &"WikiBioComponents");
                 assert_eq!(column.last().unwrap(), &"WikiBioComponents");
-                let column =
-                    subject.get_column_as_vec_nested_primitive::<f32>("embedding")?;
+                let column = subject.get_column_as_vec_nested_primitive::<f32>("embedding")?;
                 assert_eq!(column.len(), 8);
                 #[cfg(feature = "hf_hub")]
                 assert_eq!(column.first().unwrap().len(), 1536);

@@ -1,10 +1,17 @@
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
-use arrow::{array::RecordBatch, datatypes::{Schema, SchemaRef}};
+use arrow::{
+    array::RecordBatch,
+    datatypes::{Schema, SchemaRef},
+};
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageMap, MappableTrait, MessageBuilderTrait, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait, Subscription, create_bytes_fields, create_values_fields
+    AvailableSchemaTrait, AvailableSubjects, AvailableSubscribeEvents, BuildableTrait,
+    BuilderTrait, IPCMessage, IPCMessageMap, MappableTrait, MessageBuilderTrait, ProcessorPlan,
+    ProcessorPlanBuilder, Publication, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectPlan,
+    SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait, Subscription, create_bytes_fields,
+    create_values_fields,
 };
 use phymes_data::{AvailableCandleOperators, DataConfig, DataConfigTrait, LimitConfig, device};
 #[cfg(feature = "api")]
@@ -15,8 +22,8 @@ use phymes_ml::{CandleChatConfig, CandleEmbedConfig, ToolCallConfig};
 use crate::{
     AvailableInterfaceSubjects, AvailableProcessors, SessionContext, SessionContextBuilder,
     SessionContextBuilderMermaidTrait, SessionContextBuilderTabularTrait,
-    SessionContextBuilderTrait,
-    plans::{CountSubjectRowsSession, NextSuperstepSession, NextTaskSession}, TaskMap, TaskPlan,
+    SessionContextBuilderTrait, TaskMap, TaskPlan,
+    plans::{CountSubjectRowsSession, NextSuperstepSession, NextTaskSession},
 };
 
 type SessionContextInput = (
@@ -120,13 +127,16 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         // build the tasks, state, and runtime objects
         let (name, tasks, schemas, subjects, runtime_env, diagnostics) =
             self.build_inner_with_tables()?;
-        let messages: Result<IPCMessageMap> = subjects.into_iter()
+        let messages: Result<IPCMessageMap> = subjects
+            .into_iter()
             .map(|s| {
                 let subject_name = s.get_name().to_string();
                 let message = IPCMessage::get_builder()
                     .with_publisher(&name)
                     .with_subject(s.get_name())
-                    .with_update(&Publication::Extend { subject_name:s.get_name().to_string() })
+                    .with_update(&Publication::Extend {
+                        subject_name: s.get_name().to_string(),
+                    })
                     .with_message(s.to_ipc_stream()?)
                     .make_name()?
                     .build()?;
@@ -135,36 +145,27 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .collect();
 
         // ready to build the session
-        let session_context = SessionContext::new(
-            name,
-            tasks,
-            schemas,
-            runtime_env,
-            diagnostics,
-        );
+        let session_context = SessionContext::new(name, tasks, schemas, runtime_env, diagnostics);
         Ok((session_context, Some(messages?)))
     }
 
     fn build_inner_with_tables(self) -> Result<SessionContextInput> {
         let tables = self.to_subject_plans(true, true, true, true, true)?;
-        let (name, tasks, mut schemas, mut subjects, runtime_envs, diagnostics) = self.build_inner()?;
+        let (name, tasks, mut schemas, mut subjects, runtime_envs, diagnostics) =
+            self.build_inner()?;
 
-        // Update the schemas and subjects        
+        // Update the schemas and subjects
         for subject in tables {
-            let _ = schemas.insert(subject.subject().get_name().to_string(), subject.subject().get_schema().clone());
+            let _ = schemas.insert(
+                subject.subject().get_name().to_string(),
+                subject.subject().get_schema().clone(),
+            );
             if subject.subject().count_rows() > 0 {
                 subjects.push(subject.subject_own());
             }
         }
 
-        Ok((
-            name,
-            tasks,
-            schemas,
-            subjects,
-            runtime_envs,
-            diagnostics,
-        ))
+        Ok((name, tasks, schemas, subjects, runtime_envs, diagnostics))
     }
 
     fn check_data_config_subjects(&self) -> Result<()> {
@@ -194,7 +195,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
         // Iterate through the LHS and RHS entries
         for processor in processors {
             let subject = state_map.get(processor.get_name()).unwrap();
-            let column_names = subject.subject()
+            let column_names = subject
+                .subject()
                 .get_schema()
                 .fields()
                 .iter()
@@ -299,8 +301,9 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
 
             // Check the subject_names entries
             if column_names.contains("subject_names") {
-                let mut vec_str =
-                    subject.subject().get_column_as_vec_nested_nonprimitive::<String>("subject_names")?;
+                let mut vec_str = subject
+                    .subject()
+                    .get_column_as_vec_nested_nonprimitive::<String>("subject_names")?;
                 if let Some(names) = vec_str.pop() {
                     let subscriptions = processor
                         .get_subscriptions()
@@ -345,7 +348,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     ));
                 }
                 let subscription_table = state_map.get(subscriptions.first().unwrap()).unwrap();
-                let subscription_col_names = subscription_table.subject()
+                let subscription_col_names = subscription_table
+                    .subject()
                     .get_schema()
                     .fields()
                     .iter()
@@ -376,13 +380,15 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         }
                     }
                     if column_names.contains("lhs_values") {
-                        let vec_str =
-                            subject.subject().get_column_as_vec_nested_nonprimitive::<String>("lhs_values")?;
+                        let vec_str = subject
+                            .subject()
+                            .get_column_as_vec_nested_nonprimitive::<String>("lhs_values")?;
                         let values = vec_str.last().unwrap();
 
                         // Check for any renamed or initiated columns
-                        let init_col_names = if let Ok(as_columns) =
-                            subject.subject().get_column_as_vec_nested_nonprimitive::<String>("as_columns")
+                        let init_col_names = if let Ok(as_columns) = subject
+                            .subject()
+                            .get_column_as_vec_nested_nonprimitive::<String>("as_columns")
                         {
                             if let Some(as_columns) = as_columns.last() {
                                 as_columns
@@ -444,7 +450,8 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                     ));
                 }
                 let subscription_table = state_map.get(subscriptions.first().unwrap()).unwrap();
-                let subscription_col_names = subscription_table.subject()
+                let subscription_col_names = subscription_table
+                    .subject()
                     .get_schema()
                     .fields()
                     .iter()
@@ -475,13 +482,15 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         }
                     }
                     if column_names.contains("rhs_values") {
-                        let vec_str =
-                            subject.subject().get_column_as_vec_nested_nonprimitive::<String>("rhs_values")?;
+                        let vec_str = subject
+                            .subject()
+                            .get_column_as_vec_nested_nonprimitive::<String>("rhs_values")?;
                         let values = vec_str.last().unwrap();
 
                         // Check for any renamed or initiated columns
-                        let init_col_names = if let Ok(as_columns) =
-                            subject.subject().get_column_as_vec_nested_nonprimitive::<String>("as_columns")
+                        let init_col_names = if let Ok(as_columns) = subject
+                            .subject()
+                            .get_column_as_vec_nested_nonprimitive::<String>("as_columns")
                         {
                             if let Some(as_columns) = as_columns.last() {
                                 as_columns
@@ -1070,7 +1079,9 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             .unwrap_or_default();
         if let Some(subjects) = self.subjects.as_ref() {
             for subject_plan in subjects.iter() {
-                if let Ok(subject) = AvailableInterfaceSubjects::from_str(subject_plan.get_name(), false) {
+                if let Ok(subject) =
+                    AvailableInterfaceSubjects::from_str(subject_plan.get_name(), false)
+                {
                     // DM: Leave the option for AvailableInterfaceSubjects to be both subscriptions and publications
                     // DM: Use publications/subscription policies that retain the information across sessions
                     if subject.is_session_publication() {
@@ -1132,7 +1143,11 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
             next_task_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_subjects_from_mermaid_erdiagram(next_task_session.as_mermaid_erdiagram(), false, true)?
+        .with_subjects_from_mermaid_erdiagram(
+            next_task_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
         .with_name(next_task_session.session_context_name)
         .add_processor_subjects()?;
 
@@ -1209,8 +1224,9 @@ pub mod test_session_context_builder_agents {
 
     use crate::{test_session_context_builder, test_task};
     use phymes_core::{
-        AvailableSubscribeEvents, BuildableTrait, BuilderTrait, SubjectBuilderTrait,
-        Publication, Subscription, test_subject};
+        AvailableSubscribeEvents, BuildableTrait, BuilderTrait, Publication, SubjectBuilderTrait,
+        Subscription, test_subject,
+    };
     use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator};
 
     use super::*;
@@ -1263,9 +1279,7 @@ pub mod test_session_context_builder_agents {
                         subject_name: "processor_1".to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()?,
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::ProcessorMock.build_arc("processor_2"))
@@ -1280,9 +1294,7 @@ pub mod test_session_context_builder_agents {
                         subject_name: "processor_2".to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()?,
             ProcessorPlanBuilder::default()
                 .with_processor(AvailableProcessors::Join.build_arc("processor_3"))
@@ -1300,9 +1312,7 @@ pub mod test_session_context_builder_agents {
                         subject_name: "processor_3".to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()?,
         ];
         Ok(processor_plans)
@@ -1332,11 +1342,16 @@ pub mod test_session_context_builder_agents {
             .build()
             .unwrap();
         subjects.push(join_config_state);
-        let subjects_plan = subjects.into_iter().map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap()).collect::<Vec<_>>();
+        let subjects_plan = subjects
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
 
         let builder = SessionContextBuilder::new()
             .with_name(name)
-            .with_tasks(test_session_context_builder::make_test_session_context_builder_parallel_tasks())
+            .with_tasks(
+                test_session_context_builder::make_test_session_context_builder_parallel_tasks(),
+            )
             .with_processors(processor_plans)
             .with_runtime_env(test_task::make_runtime_env("rt_1")?)
             .with_subjects(subjects_plan)
@@ -1347,7 +1362,7 @@ pub mod test_session_context_builder_agents {
 
 #[cfg(test)]
 mod tests {
-    use crate::{test_session_context_builder, TaskTrait, test_task};
+    use crate::{TaskTrait, test_session_context_builder, test_task};
     use phymes_core::{BuildableTrait, BuilderTrait, SubjectBuilderTrait};
     use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator, DataStreamManager};
 
@@ -1363,9 +1378,33 @@ mod tests {
         assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_steps(), 25);
         assert!(session.get_diagnostics());
-        let mut keys = messages.unwrap().keys().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let mut keys = messages
+            .unwrap()
+            .keys()
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
         keys.sort();
-        assert_eq!(keys, ["SessionMermaid", "SessionProcessors", "SessionRuntimeEnvs", "SessionSubjectSchemas", "SessionTasks", "SessionTasksRunLog", "SubjectsChangeLog", "SubjectsNumRows", "SubjectsObjectStoreMeta", "processor_1", "processor_2", "processor_3", "state_1", "state_2", "state_3"]);
+        assert_eq!(
+            keys,
+            [
+                "SessionMermaid",
+                "SessionProcessors",
+                "SessionRuntimeEnvs",
+                "SessionSubjectSchemas",
+                "SessionTasks",
+                "SessionTasksRunLog",
+                "SubjectsChangeLog",
+                "SubjectsNumRows",
+                "SubjectsObjectStoreMeta",
+                "processor_1",
+                "processor_2",
+                "processor_3",
+                "state_1",
+                "state_2",
+                "state_3"
+            ]
+        );
         Ok(())
     }
 
@@ -1393,9 +1432,33 @@ mod tests {
         assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_steps(), 25);
         assert!(session.get_diagnostics());
-        let mut keys = messages.unwrap().keys().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let mut keys = messages
+            .unwrap()
+            .keys()
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
         keys.sort();
-        assert_eq!(keys, ["SessionMermaid", "SessionProcessors", "SessionRuntimeEnvs", "SessionSubjectSchemas", "SessionTasks", "SessionTasksRunLog", "SubjectsChangeLog", "SubjectsNumRows", "SubjectsObjectStoreMeta", "processor_1", "processor_2", "processor_3", "state_1", "state_2", "state_3"]);
+        assert_eq!(
+            keys,
+            [
+                "SessionMermaid",
+                "SessionProcessors",
+                "SessionRuntimeEnvs",
+                "SessionSubjectSchemas",
+                "SessionTasks",
+                "SessionTasksRunLog",
+                "SubjectsChangeLog",
+                "SubjectsNumRows",
+                "SubjectsObjectStoreMeta",
+                "processor_1",
+                "processor_2",
+                "processor_3",
+                "state_1",
+                "state_2",
+                "state_3"
+            ]
+        );
         Ok(())
     }
 
@@ -1423,7 +1486,10 @@ mod tests {
             .build()
             .unwrap();
         subjects.push(join_config_state);
-        let subjects_plan = subjects.into_iter().map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap()).collect::<Vec<_>>();
+        let subjects_plan = subjects
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
         let mut task_plans =
             test_session_context_builder::make_test_session_context_builder_parallel_tasks();
         task_plans.push(TaskPlan {
@@ -1441,9 +1507,7 @@ mod tests {
                 .with_subscriptions(&[Subscription::OnUpdateAllRecordBatches {
                     subject_name: "state_3".to_string(),
                 }])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()?,
         );
         let result = SessionContextBuilder::new()
@@ -1474,9 +1538,7 @@ mod tests {
                 .with_subscriptions(&[Subscription::OnUpdateAllRecordBatches {
                     subject_name: "state_3".to_string(),
                 }])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()?,
         );
         let (session, messages) = SessionContextBuilder::new()
@@ -1492,9 +1554,34 @@ mod tests {
         assert_eq!(session.tasks().len(), 4);
         assert_eq!(session.get_name(), "session_1");
         assert_eq!(session.get_max_steps(), 25);
-        let mut keys = messages.unwrap().keys().into_iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let mut keys = messages
+            .unwrap()
+            .keys()
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
         keys.sort();
-        assert_eq!(keys, ["SessionMermaid", "SessionProcessors", "SessionRuntimeEnvs", "SessionSubjectSchemas", "SessionTasks", "SessionTasksRunLog", "SubjectsChangeLog", "SubjectsNumRows", "SubjectsObjectStoreMeta", "processor_1", "processor_2", "processor_3", "processor_4", "state_1", "state_2", "state_3"]);
+        assert_eq!(
+            keys,
+            [
+                "SessionMermaid",
+                "SessionProcessors",
+                "SessionRuntimeEnvs",
+                "SessionSubjectSchemas",
+                "SessionTasks",
+                "SessionTasksRunLog",
+                "SubjectsChangeLog",
+                "SubjectsNumRows",
+                "SubjectsObjectStoreMeta",
+                "processor_1",
+                "processor_2",
+                "processor_3",
+                "processor_4",
+                "state_1",
+                "state_2",
+                "state_3"
+            ]
+        );
         Ok(())
     }
 
@@ -1519,8 +1606,11 @@ mod tests {
             .build()
             .unwrap();
         let mut subjects_test = subjects.clone();
-        subjects_test.push(join_config_state);        
-        let subjects_plans = subjects_test.into_iter().map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap()).collect::<Vec<_>>();
+        subjects_test.push(join_config_state);
+        let subjects_plans = subjects_test
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
 
         let result = SessionContextBuilder::new()
             .with_tasks(
@@ -1561,7 +1651,10 @@ mod tests {
             .unwrap();
         let mut subjects_test = subjects.clone();
         subjects_test.push(join_config_state);
-        let subjects_plans = subjects_test.into_iter().map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap()).collect::<Vec<_>>();
+        let subjects_plans = subjects_test
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
 
         let result = SessionContextBuilder::new()
             .with_tasks(
@@ -1603,7 +1696,10 @@ mod tests {
             .unwrap();
         let mut subjects_test = subjects.clone();
         subjects_test.push(join_config_state);
-        let subjects_plans = subjects_test.into_iter().map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap()).collect::<Vec<_>>();
+        let subjects_plans = subjects_test
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
 
         let result = SessionContextBuilder::new()
             .with_tasks(
@@ -1645,7 +1741,10 @@ mod tests {
             .unwrap();
         let mut subjects_test = subjects.clone();
         subjects_test.push(join_config_state);
-        let subjects_plans = subjects_test.into_iter().map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap()).collect::<Vec<_>>();
+        let subjects_plans = subjects_test
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
 
         let result = SessionContextBuilder::new()
             .with_tasks(
@@ -1683,7 +1782,10 @@ mod tests {
             .unwrap();
         let mut subjects_test = subjects.clone();
         subjects_test.push(join_config_state);
-        let subjects_plans = subjects_test.into_iter().map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap()).collect::<Vec<_>>();
+        let subjects_plans = subjects_test
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
 
         let result = SessionContextBuilder::new()
             .with_tasks(
@@ -1721,7 +1823,10 @@ mod tests {
             .unwrap();
         let mut subjects_test = subjects.clone();
         subjects_test.push(join_config_state);
-        let subjects_plans = subjects_test.into_iter().map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap()).collect::<Vec<_>>();
+        let subjects_plans = subjects_test
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
 
         let result = SessionContextBuilder::new()
             .with_tasks(

@@ -606,7 +606,7 @@ mod tests {
     use crate::{DataDistanceOperator, candle_operators::AvailableCandleOperators};
     use arrow::array::{Float32Array, StringArray};
     use futures::TryStreamExt;
-    use phymes_core::{Subject, Publication};
+    use phymes_core::{Publication, Subject};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use super::*;

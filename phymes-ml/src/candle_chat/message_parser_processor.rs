@@ -404,7 +404,7 @@ impl RecordBatchStream for MessageParserStream {
 #[cfg(test)]
 mod tests {
     use arrow::array::{ArrayRef, StringArray};
-    use phymes_core::{SubjectBuilder, Publication};
+    use phymes_core::{Publication, SubjectBuilder};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     use crate::AvailableCandleAssets;

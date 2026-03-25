@@ -2,16 +2,25 @@ use std::sync::Arc;
 
 use arrow::datatypes::{DataType, Field, Schema};
 
-pub fn btree_schema<K: Into<DataType>, V: Into<DataType>>(
-    key_type: K,
-    value_type: V,
-) -> Schema {
+pub fn btree_schema<K: Into<DataType>, V: Into<DataType>>(key_type: K, value_type: V) -> Schema {
     Schema::new(vec![
         Field::new("node_id", DataType::UInt64, false),
         Field::new("is_leaf", DataType::Boolean, false),
-        Field::new("keys", DataType::List(Arc::new(Field::new("item", key_type.into(), false))), false),
-        Field::new("values", DataType::List(Arc::new(Field::new("item", value_type.into(), true))), true),
-        Field::new("children", DataType::List(Arc::new(Field::new("item", DataType::UInt64, false))), true),
+        Field::new(
+            "keys",
+            DataType::List(Arc::new(Field::new("item", key_type.into(), false))),
+            false,
+        ),
+        Field::new(
+            "values",
+            DataType::List(Arc::new(Field::new("item", value_type.into(), true))),
+            true,
+        ),
+        Field::new(
+            "children",
+            DataType::List(Arc::new(Field::new("item", DataType::UInt64, false))),
+            true,
+        ),
         Field::new("next_leaf", DataType::UInt64, true),
     ])
 }

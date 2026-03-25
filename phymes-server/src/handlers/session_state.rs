@@ -16,7 +16,9 @@ use futures::TryStreamExt;
 use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait, SubscriptionTrait};
 use phymes_agents::{SessionStreamStep, SessionStreamStepTrait, create_message_map};
 use phymes_core::{
-    BuildableTrait, BuilderTrait, CsvFormat, DataFormat, IPCMessageBuilder, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription
+    BuildableTrait, BuilderTrait, CsvFormat, DataFormat, IPCMessageBuilder,
+    JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait,
+    Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription,
 };
 
 // Library imports
@@ -50,7 +52,9 @@ pub async fn session_put_state(
                 .contains_key(&current_user)
             {
                 // Initialize the user session contexts
-                let _session_names = match state.make_session_contexts(&user_session_contexts, true, users.users.runtime_env()).await
+                let _session_names = match state
+                    .make_session_contexts(&user_session_contexts, true, users.users.runtime_env())
+                    .await
                 {
                     Ok(session_names) => session_names,
                     Err(err) => {
@@ -156,8 +160,10 @@ pub async fn session_put_state(
             if let Err(e) = SessionStreamStep::update_subjects_and_changelog_from_messages(
                 &session_ctx_arc,
                 messages,
-                0
-            ).await {
+                0,
+            )
+            .await
+            {
                 return JsonError::new(format!("Failed to update the session stream state {e:?}"))
                     .to_response(StatusCode::INTERNAL_SERVER_ERROR);
             }
@@ -223,7 +229,9 @@ pub async fn session_get_state(
                 .contains_key(&current_user)
             {
                 // Initialize the user session contexts
-                let _session_names = match state.make_session_contexts(&user_session_contexts, true, users.users.runtime_env()).await
+                let _session_names = match state
+                    .make_session_contexts(&user_session_contexts, true, users.users.runtime_env())
+                    .await
                 {
                     Ok(session_names) => session_names,
                     Err(err) => {
@@ -242,20 +250,22 @@ pub async fn session_get_state(
                 None => {
                     return JsonError::new("Failed to get the session stream state".to_string())
                         .to_response(StatusCode::INTERNAL_SERVER_ERROR);
-                },
+                }
             };
-            
+
             // Update the row counts just in case...
             let _ = session_ctx_arc.update_subject_num_rows().await;
 
             // Read the subject
-            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: payload.get_subject().to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
-                .unwrap()
-                .unwrap()
-                .try_collect()
-                .await
-                .unwrap();
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: payload.get_subject().to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
+            .unwrap()
+            .unwrap()
+            .try_collect()
+            .await
+            .unwrap();
             let subject = Subject::get_builder()
                 .with_name(payload.get_subject())
                 .with_record_batches(batches)
@@ -271,29 +281,30 @@ pub async fn session_get_state(
                 }
                 DataFormat::Csv(csv_format) => {
                     // Get the subject table as a csv string
-                    let out = subject.to_csv(csv_format.delimiter, csv_format.header).unwrap();
+                    let out = subject
+                        .to_csv(csv_format.delimiter, csv_format.header)
+                        .unwrap();
                     let buf = Bytes::from(out);
                     Body::from(buf).into_response()
                 }
                 DataFormat::CsvDefault => {
                     // Get the subject table as a csv string
                     let csv_format = CsvFormat::default();
-                    let out = subject.to_csv(csv_format.delimiter, csv_format.header)
+                    let out = subject
+                        .to_csv(csv_format.delimiter, csv_format.header)
                         .unwrap();
                     let buf = Bytes::from(out);
                     Body::from(buf).into_response()
                 }
                 DataFormat::Json(_) | DataFormat::JsonDefault => {
                     // Get the subject table as a json string
-                    let out = subject.to_json()
-                        .unwrap();
+                    let out = subject.to_json().unwrap();
                     let buf = Bytes::from(out);
                     Body::from(buf).into_response()
                 }
                 DataFormat::Ipc => {
                     // Get the subject table as a csv string
-                    let out = subject.to_ipc_stream()
-                        .unwrap();
+                    let out = subject.to_ipc_stream().unwrap();
                     let buf = Bytes::from(out);
                     Body::from(buf).into_response()
                 }

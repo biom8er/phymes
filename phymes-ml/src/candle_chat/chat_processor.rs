@@ -15,10 +15,10 @@ use futures::{Stream, StreamExt};
 use parking_lot::Mutex;
 use phymes_core::{
     AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, ChatTraitExt,
-    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream,
-    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
+    MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, Publication,
+    RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilder, SubjectBuilderTrait, Publication,
+    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilder, SubjectBuilderTrait,
     SubjectTrait, Tool, create_chat_record_batch, remove_message_by_subject,
 };
 use phymes_data::{DataConfigTrait, device};
@@ -360,11 +360,12 @@ impl Stream for CandleChatStream {
                     while let Some(Ok(batch)) = ready!(tools_stream.poll_next_unpin(cx)) {
                         if batch.num_rows() > 0 {
                             batches.push(batch);
-                        }                        
+                        }
                     }
                     if let Ok(subject_builder) = SubjectBuilder::new()
                         .with_name("Tools for CandleChatStream")
-                        .with_record_batches(batches) {
+                        .with_record_batches(batches)
+                    {
                         let tool_table = subject_builder.build()?;
                         let tool_vec: Vec<Tool> = tool_table
                             .get_column_as_vec_str("tool")
@@ -377,7 +378,7 @@ impl Stream for CandleChatStream {
                         Some(tool_vec)
                     } else {
                         None
-                    }                    
+                    }
                 } else {
                     None
                 }

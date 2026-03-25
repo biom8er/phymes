@@ -109,13 +109,17 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{
-        BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_bytes_record_batch
+        BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait,
+        MessageBuilderTrait, Publication, Subject, SubjectBuilder, SubjectBuilderTrait,
+        SubjectTrait, Subscription, create_bytes_record_batch,
     };
     use phymes_data::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType};
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, ToolCallSession
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
+        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream,
+        SubscriptionTrait, ToolCallSession,
     };
 
     use super::*;
@@ -260,7 +264,9 @@ mod tests {
         }
 
         // Run the session
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
@@ -268,11 +274,13 @@ mod tests {
 
         {
             // Test supsersteps
-            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::UserPdf.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
-                .unwrap()
-                .try_collect()
-                .await?;
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
             let subject = Subject::get_builder()
                 .with_name(AvailableInterfaceSubjects::UserPdf.to_string().as_str())
                 .with_record_batches(batches)?
@@ -293,11 +301,13 @@ mod tests {
                 .flatten()
                 .collect::<Vec<_>>();
             assert_eq!(column.len(), 505519);
-            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::UserJson.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
-                .unwrap()
-                .try_collect()
-                .await?;
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::UserJson.to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
             let subject = Subject::get_builder()
                 .with_name(AvailableInterfaceSubjects::UserJson.to_string().as_str())
                 .with_record_batches(batches)?
@@ -336,7 +346,11 @@ mod tests {
             &tool_call_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_subjects_from_mermaid_erdiagram(&tool_call_session.as_mermaid_erdiagram()?, false, true)?
+        .with_subjects_from_mermaid_erdiagram(
+            &tool_call_session.as_mermaid_erdiagram()?,
+            false,
+            true,
+        )?
         .with_name(tool_call_session.session_context_name);
 
         // Initialize the session
@@ -446,7 +460,9 @@ mod tests {
         }
 
         // Run the session
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
@@ -454,11 +470,13 @@ mod tests {
 
         {
             // Test supsersteps
-            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::UserPdf.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
-                .unwrap()
-                .try_collect()
-                .await?;
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
             let subject = Subject::get_builder()
                 .with_name(AvailableInterfaceSubjects::UserPdf.to_string().as_str())
                 .with_record_batches(batches)?
@@ -479,11 +497,13 @@ mod tests {
                 .flatten()
                 .collect::<Vec<_>>();
             assert_eq!(column.len(), 505519);
-            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableInterfaceSubjects::UserJson.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env())?
-                .unwrap()
-                .try_collect()
-                .await?;
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableInterfaceSubjects::UserJson.to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env())?
+            .unwrap()
+            .try_collect()
+            .await?;
             let subject = Subject::get_builder()
                 .with_name(AvailableInterfaceSubjects::UserJson.to_string().as_str())
                 .with_record_batches(batches)?

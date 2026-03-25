@@ -1,10 +1,10 @@
 mod subject_partition;
-mod subject_plan_builder;
 mod subject_plan;
+mod subject_plan_builder;
 
 pub use subject_partition::{SubjectFilePartition, SubjectFolderPartition};
-pub use subject_plan_builder::{SubjectPlanBuilder, SubjectPlanBuilderTrait};
 pub use subject_plan::{SubjectPlan, SubjectPlanTrait};
+pub use subject_plan_builder::{SubjectPlanBuilder, SubjectPlanBuilderTrait};
 
 mod subject_builder;
 mod subject_script;

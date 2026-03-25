@@ -1,11 +1,19 @@
 use std::{collections::VecDeque, fmt::Debug, io::Write, sync::Arc};
 
 use anyhow::Result;
-use arrow::{csv::{Writer, WriterBuilder}, {array::RecordBatch, json::LineDelimitedWriter}, datatypes::SchemaRef, ipc::writer::StreamWriter};
+use arrow::{
+    csv::{Writer, WriterBuilder},
+    datatypes::SchemaRef,
+    ipc::writer::StreamWriter,
+    {array::RecordBatch, json::LineDelimitedWriter},
+};
 use object_store::MultipartUpload;
 use parking_lot::Mutex;
 
-use crate::{BatchWriter, StorageStreamWriterTrait, StorageWriterMultipartTrait, StorageWriterTrait, storage::chunked_writer::{ChunkedWriter, OnChunk}};
+use crate::{
+    BatchWriter, StorageStreamWriterTrait, StorageWriterMultipartTrait, StorageWriterTrait,
+    storage::chunked_writer::{ChunkedWriter, OnChunk},
+};
 
 /// Write IPC to storage
 pub struct IpcWriterMultipart<W> {
@@ -16,13 +24,21 @@ pub struct IpcWriterMultipart<W> {
 
 impl<W> Debug for IpcWriterMultipart<W> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("IpcWriter").field("writer", &"arrow::ipc::writer::StreamWriter").field("pending", &self.pending).field("mp", &self.mp).finish()
+        f.debug_struct("IpcWriter")
+            .field("writer", &"arrow::ipc::writer::StreamWriter")
+            .field("pending", &self.pending)
+            .field("mp", &self.mp)
+            .finish()
     }
 }
 
 impl IpcWriterMultipart<ChunkedWriter<OnChunk>> {
     /// New IPC Writer with schema and chunk_size
-    pub fn new_with_config(mp: Box<dyn MultipartUpload>, schema: SchemaRef, chunk_size: usize) -> Result<Self> {
+    pub fn new_with_config(
+        mp: Box<dyn MultipartUpload>,
+        schema: SchemaRef,
+        chunk_size: usize,
+    ) -> Result<Self> {
         let (pending, cw) = Self::chunk_writer(chunk_size);
         let writer = StreamWriter::try_new(cw, &schema)?;
         Ok(Self::new(writer, mp, pending))
@@ -45,14 +61,22 @@ impl<W: Write> StorageStreamWriterTrait<W> for IpcWriterMultipart<W> {
 impl StorageWriterMultipartTrait for IpcWriterMultipart<ChunkedWriter<OnChunk>> {
     type SW = StreamWriter<ChunkedWriter<OnChunk>>;
 
-    fn new(writer: Self::SW, mp: Box<dyn MultipartUpload>, pending: Arc<Mutex<VecDeque<Vec<u8>>>>) -> Self {
-        Self { writer, pending, mp }
+    fn new(
+        writer: Self::SW,
+        mp: Box<dyn MultipartUpload>,
+        pending: Arc<Mutex<VecDeque<Vec<u8>>>>,
+    ) -> Self {
+        Self {
+            writer,
+            pending,
+            mp,
+        }
     }
 
     fn mp_mut(&mut self) -> &mut Box<dyn MultipartUpload> {
         &mut self.mp
     }
-    
+
     fn pending_mut(&mut self) -> &mut Arc<Mutex<VecDeque<Vec<u8>>>> {
         &mut self.pending
     }
@@ -90,10 +114,18 @@ impl JsonWriterMultipart<ChunkedWriter<OnChunk>> {
 
 impl StorageWriterMultipartTrait for JsonWriterMultipart<ChunkedWriter<OnChunk>> {
     type SW = LineDelimitedWriter<ChunkedWriter<OnChunk>>;
-    fn new(writer: Self::SW, mp: Box<dyn MultipartUpload>, pending: Arc<Mutex<VecDeque<Vec<u8>>>>) -> Self {
-        Self { writer, pending, mp }
+    fn new(
+        writer: Self::SW,
+        mp: Box<dyn MultipartUpload>,
+        pending: Arc<Mutex<VecDeque<Vec<u8>>>>,
+    ) -> Self {
+        Self {
+            writer,
+            pending,
+            mp,
+        }
     }
-    
+
     fn pending_mut(&mut self) -> &mut Arc<Mutex<VecDeque<Vec<u8>>>> {
         &mut self.pending
     }
@@ -124,7 +156,12 @@ impl<W: Write> StorageStreamWriterTrait<W> for CsvWriterMultipart<W> {
 
 impl CsvWriterMultipart<ChunkedWriter<OnChunk>> {
     /// New CSV Writer with schema and chunk_size
-    pub fn new_with_config(mp: Box<dyn MultipartUpload>, chunk_size: usize, header: bool, delimiter: u8) -> Result<Self> {
+    pub fn new_with_config(
+        mp: Box<dyn MultipartUpload>,
+        chunk_size: usize,
+        header: bool,
+        delimiter: u8,
+    ) -> Result<Self> {
         let (pending, cw) = Self::chunk_writer(chunk_size);
         let builder = WriterBuilder::new()
             .with_header(header)
@@ -139,10 +176,18 @@ impl CsvWriterMultipart<ChunkedWriter<OnChunk>> {
 
 impl StorageWriterMultipartTrait for CsvWriterMultipart<ChunkedWriter<OnChunk>> {
     type SW = Writer<ChunkedWriter<OnChunk>>;
-    fn new(writer: Self::SW, mp: Box<dyn MultipartUpload>, pending: Arc<Mutex<VecDeque<Vec<u8>>>>) -> Self {
-        Self { writer, pending, mp }
+    fn new(
+        writer: Self::SW,
+        mp: Box<dyn MultipartUpload>,
+        pending: Arc<Mutex<VecDeque<Vec<u8>>>>,
+    ) -> Self {
+        Self {
+            writer,
+            pending,
+            mp,
+        }
     }
-    
+
     fn pending_mut(&mut self) -> &mut Arc<Mutex<VecDeque<Vec<u8>>>> {
         &mut self.pending
     }
@@ -160,7 +205,10 @@ pub struct IpcWriter<W> {
 
 impl<W> Debug for IpcWriter<W> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("IpcWriter").field("writer", &"arrow::ipc::writer::StreamWriter").field("pending", &self.pending).finish()
+        f.debug_struct("IpcWriter")
+            .field("writer", &"arrow::ipc::writer::StreamWriter")
+            .field("pending", &self.pending)
+            .finish()
     }
 }
 
@@ -191,7 +239,7 @@ impl StorageWriterTrait for IpcWriter<BatchWriter<OnChunk>> {
     fn new(writer: Self::SW, pending: Arc<Mutex<VecDeque<Vec<u8>>>>) -> Self {
         Self { writer, pending }
     }
-    
+
     fn pending_mut(&mut self) -> &mut Arc<Mutex<VecDeque<Vec<u8>>>> {
         &mut self.pending
     }
@@ -205,7 +253,10 @@ pub struct JsonWriter<W: Write> {
 
 impl<W: Write> Debug for JsonWriter<W> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("IpcWriter").field("writer", &"arrow::ipc::writer::StreamWriter").field("pending", &self.pending).finish()
+        f.debug_struct("IpcWriter")
+            .field("writer", &"arrow::ipc::writer::StreamWriter")
+            .field("pending", &self.pending)
+            .finish()
     }
 }
 
@@ -236,12 +287,11 @@ impl StorageWriterTrait for JsonWriter<BatchWriter<OnChunk>> {
     fn new(writer: Self::SW, pending: Arc<Mutex<VecDeque<Vec<u8>>>>) -> Self {
         Self { writer, pending }
     }
-    
+
     fn pending_mut(&mut self) -> &mut Arc<Mutex<VecDeque<Vec<u8>>>> {
         &mut self.pending
     }
 }
-
 
 /// Write CSV to storage
 pub struct CsvWriter<W: Write> {
@@ -251,7 +301,10 @@ pub struct CsvWriter<W: Write> {
 
 impl<W: Write> Debug for CsvWriter<W> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("IpcWriter").field("writer", &"arrow::ipc::writer::StreamWriter").field("pending", &self.pending).finish()
+        f.debug_struct("IpcWriter")
+            .field("writer", &"arrow::ipc::writer::StreamWriter")
+            .field("pending", &self.pending)
+            .finish()
     }
 }
 
@@ -286,7 +339,7 @@ impl StorageWriterTrait for CsvWriter<BatchWriter<OnChunk>> {
     fn new(writer: Self::SW, pending: Arc<Mutex<VecDeque<Vec<u8>>>>) -> Self {
         Self { writer, pending }
     }
-    
+
     fn pending_mut(&mut self) -> &mut Arc<Mutex<VecDeque<Vec<u8>>>> {
         &mut self.pending
     }

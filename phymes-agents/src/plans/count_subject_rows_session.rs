@@ -90,12 +90,15 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait,
+        MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map, test_session_context_builder, test_task
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map,
+        test_session_context_builder, test_task,
     };
 
     use super::*;
@@ -133,7 +136,9 @@ mod tests {
 
             // Mimic a session run for 1 steps
             let session_ctx_arc = Arc::new(session_context);
-            let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
+            let _ = session_ctx_arc
+                .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+                .await;
             let messages = test_task::make_test_input_message(
                 "task_1",
                 "session_1",
@@ -148,11 +153,13 @@ mod tests {
             let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
             // Extract out the subjects for the test
-            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsChangeLog.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableSubjects::SubjectsChangeLog.to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
             let subject = Subject::get_builder()
                 .with_name(AvailableSubjects::SubjectsChangeLog.to_string().as_str())
                 .with_record_batches(batches)
@@ -170,7 +177,9 @@ mod tests {
                 .build()?;
             create_message_map(vec![subjects_change_log_message])
         };
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
@@ -179,11 +188,13 @@ mod tests {
         assert_eq!(response.len(), 0);
 
         // Test session stream
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
         let subject = Subject::get_builder()
             .with_name(AvailableSubjects::SubjectsNumRows.to_string().as_str())
             .with_record_batches(batches)
@@ -194,7 +205,16 @@ mod tests {
         assert_eq!(
             column,
             [
-                "SessionTasksRunLog", "SubjectsChangeLog", "SubjectsNumRows", "group_by_subject_change_log_delta_p", "group_by_subject_change_log_delta_t", "processor_1", "processor_2", "processor_3", "select_subject_change_log_delta_p", "state_1"
+                "SessionTasksRunLog",
+                "SubjectsChangeLog",
+                "SubjectsNumRows",
+                "group_by_subject_change_log_delta_p",
+                "group_by_subject_change_log_delta_t",
+                "processor_1",
+                "processor_2",
+                "processor_3",
+                "select_subject_change_log_delta_p",
+                "state_1"
             ]
         );
         let column = subject.get_column_as_vec_primitive::<i64>("num_rows")?;

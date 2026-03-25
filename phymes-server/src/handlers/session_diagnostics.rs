@@ -11,11 +11,16 @@ use axum::{
 use bytes::Bytes;
 use futures::prelude::*;
 use phymes_agents::{
-    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DiagnosticSession, SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep, SessionStreamStepTrait, SubscriptionTrait, create_message_map
+    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DiagnosticSession,
+    SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStep,
+    SessionStreamStepTrait, SubscriptionTrait, create_message_map,
 };
 use phymes_agents::{SessionInterfaceMessage, SessionInterfaceMessageTrait};
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, DiagnosticsVisualizations, IPCMessage, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait, MessageTrait, Publication, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription
+    AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat, DiagnosticsVisualizations,
+    IPCMessage, JoinUserInboxSessionContextsMermaidDiagrams, MappableTrait, MessageBuilderTrait,
+    MessageTrait, Publication, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+    Subscription,
 };
 
 // General imports
@@ -56,7 +61,9 @@ pub async fn session_diagnostics(
                 .contains_key(&current_user)
             {
                 // Initialize the user session contexts
-                let _session_names = match state.make_session_contexts(&user_session_contexts, true, users.users.runtime_env()).await
+                let _session_names = match state
+                    .make_session_contexts(&user_session_contexts, true, users.users.runtime_env())
+                    .await
                 {
                     Ok(session_names) => session_names,
                     Err(err) => {
@@ -90,13 +97,15 @@ pub async fn session_diagnostics(
                         .to_response(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 };
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
-                    .unwrap()
-                    .unwrap()
-                    .try_collect()
-                    .await
-                    .unwrap();
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableSubjects::SessionMetrics.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
+                .unwrap()
+                .unwrap()
+                .try_collect()
+                .await
+                .unwrap();
                 let subject = Subject::get_builder()
                     .with_name(&AvailableSubjects::SessionMetrics.to_string())
                     .with_record_batches(batches)
@@ -114,13 +123,15 @@ pub async fn session_diagnostics(
                     .unwrap()
                     .build()
                     .unwrap();
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTraces.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
-                    .unwrap()
-                    .unwrap()
-                    .try_collect()
-                    .await
-                    .unwrap();
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableSubjects::SessionTraces.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
+                .unwrap()
+                .unwrap()
+                .try_collect()
+                .await
+                .unwrap();
                 let subject = Subject::get_builder()
                     .with_name(&AvailableSubjects::SessionTraces.to_string())
                     .with_record_batches(batches)
@@ -138,13 +149,15 @@ pub async fn session_diagnostics(
                     .unwrap()
                     .build()
                     .unwrap();
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionEvents.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
-                    .unwrap()
-                    .unwrap()
-                    .try_collect()
-                    .await
-                    .unwrap();
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableSubjects::SessionEvents.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
+                .unwrap()
+                .unwrap()
+                .try_collect()
+                .await
+                .unwrap();
                 let subject = Subject::get_builder()
                     .with_name(&AvailableSubjects::SessionEvents.to_string())
                     .with_record_batches(batches)
@@ -162,13 +175,15 @@ pub async fn session_diagnostics(
                     .unwrap()
                     .build()
                     .unwrap();
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasks.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
-                    .unwrap()
-                    .unwrap()
-                    .try_collect()
-                    .await
-                    .unwrap();
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableSubjects::SessionTasks.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
+                .unwrap()
+                .unwrap()
+                .try_collect()
+                .await
+                .unwrap();
                 let subject = Subject::get_builder()
                     .with_name(&AvailableSubjects::SessionTasks.to_string())
                     .with_record_batches(batches)
@@ -186,13 +201,15 @@ pub async fn session_diagnostics(
                     .unwrap()
                     .build()
                     .unwrap();
-                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
-                    .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
-                    .unwrap()
-                    .unwrap()
-                    .try_collect()
-                    .await
-                    .unwrap();
+                let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                    subject_name: AvailableSubjects::SessionErrors.to_string(),
+                }
+                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
+                .unwrap()
+                .unwrap()
+                .try_collect()
+                .await
+                .unwrap();
                 if batches.len() > 0 {
                     let subject = Subject::get_builder()
                         .with_name(&AvailableSubjects::SessionErrors.to_string())
@@ -258,7 +275,13 @@ pub async fn session_diagnostics(
                 .build_with_tables()
                 .unwrap();
             let session_ctx_arc = Arc::new(session_ctx);
-            let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(&session_ctx_arc, session_messages.unwrap_or_default(), 0).await.unwrap();
+            let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(
+                &session_ctx_arc,
+                session_messages.unwrap_or_default(),
+                0,
+            )
+            .await
+            .unwrap();
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
 
             // Run and update the session and convert the output to the user specified format
@@ -344,11 +367,13 @@ pub async fn session_diagnostics(
                                         let subject_name = v.get_subject().to_string();
                                         Some((
                                             k,
-                                            SubjectBuilder::new_from_ipc_stream(&v.get_message_own())
-                                                .unwrap()
-                                                .with_name(subject_name.as_str())
-                                                .build()
-                                                .unwrap(),
+                                            SubjectBuilder::new_from_ipc_stream(
+                                                &v.get_message_own(),
+                                            )
+                                            .unwrap()
+                                            .with_name(subject_name.as_str())
+                                            .build()
+                                            .unwrap(),
                                         ))
                                     } else {
                                         None

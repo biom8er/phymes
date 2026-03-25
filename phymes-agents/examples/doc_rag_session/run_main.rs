@@ -16,8 +16,8 @@ use phymes_agents::{
 };
 use phymes_core::{
     AttachmentBuilderTraitExt, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
-    ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait,
-    SubjectBuilder, SubjectBuilderTrait, Publication, SubjectTrait,
+    ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait, Publication,
+    SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
 };
 
 pub async fn run_main() -> Result<()> {
@@ -78,7 +78,9 @@ pub async fn run_main() -> Result<()> {
     // ----- Query #1 -----
     // Embed the documents
     let message_map = create_message_map(vec![blob_message]);
-    let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
+    let _ = session_ctx_arc
+        .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+        .await;
     let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
     let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 

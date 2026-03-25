@@ -112,8 +112,9 @@ mod tests {
         let mut input_object = Map::new();
         let _ = input_object.insert(TEMPLATE_HEADER_EXPRESSION.to_string(), headers.into());
         let template_inputs = serde_json::to_value(input_object)?;
-        let rendered_template = SubjectScript::new_from_template(MINIMAL_TABLE_TEMPLATE.to_string())
-            .apply_template(&template_inputs)?;
+        let rendered_template =
+            SubjectScript::new_from_template(MINIMAL_TABLE_TEMPLATE.to_string())
+                .apply_template(&template_inputs)?;
 
         assert_eq!(
             rendered_template,

@@ -10,7 +10,7 @@ use serde_json::{Map, Value};
 use crate::DataConfigTrait;
 
 /// The Object Store operation types
-/// 
+///
 /// # Todo
 /// - Support for other operations besides "Get", "GetStream", "GetMeta", "Put", and "PutMultipart"
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default, PartialEq)]
@@ -56,16 +56,16 @@ impl Display for ObjectStoreOptsType {
 }
 
 /// Object store configuration
-/// 
+///
 /// # Todo
 /// - Other throttle configs
 ///   See <https://docs.rs/object_store/latest/object_store/throttle/struct.ThrottleConfig.html>
-/// 
+///
 /// - Other Get/Put/... specific configurations
 ///   See individutal `options` per operation <https://docs.rs/object_store/latest/object_store/trait.ObjectStore.html?
-/// 
+///
 /// - Other options including projections (column subsetting), filtering, etc.
-/// 
+///
 /// # Notes
 /// - Config-driven requests: `locations` must be specified
 /// - Message-driven requests: `subject_name` must be specified
@@ -94,17 +94,17 @@ pub struct ObjectStoreConfig {
     /// See AWS, GCP, and Azure documentation for valid Key/Value pairs
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub backend_config: Option<Map<String,Value>>,
+    pub backend_config: Option<Map<String, Value>>,
 
     /// Additional [GetOptions] Serialized JSON String
-    /// 
+    ///
     /// [GetOptions]: object_store::GetOptions
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub get_options: Option<String>,
 
     /// Additional [PutOptions] Serialized JSON String
-    /// 
+    ///
     /// [PutOptions]: object_store::PutOptions
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -113,7 +113,7 @@ pub struct ObjectStoreConfig {
     /// The (partition) location(s) within the object store that the data are in
     /// DM: in the future this could be a URL that contains the full address similar to AWS Redshift Manifest
     ///     See <https://docs.aws.amazon.com/redshift/latest/dg/loading-data-files-using-manifest.html>
-    /// 
+    ///
     /// # Notes
     /// - Same as `bucket`
     #[arg(long)]
@@ -125,7 +125,7 @@ pub struct ObjectStoreConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chunk_size: Option<usize>,
 
-    /// The name of the streaming subject to write to the object store 
+    /// The name of the streaming subject to write to the object store
     ///   OR the name of the streaming manifest file with subjects to read
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]

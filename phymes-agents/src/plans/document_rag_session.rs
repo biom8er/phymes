@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription, create_schema_from_fields
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait,
+    BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, Publication,
+    RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait,
+    Subscription, create_schema_from_fields,
 };
 use phymes_data::{
     AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
@@ -215,9 +218,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         subject_name: self.message_aggregator_processor_1_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -239,9 +240,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         subject_name: self.message_aggregator_processor_2_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -260,9 +259,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         subject_name: self.attachment_aggregator_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AnySubjectNameSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AnySubjectNameSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -280,9 +277,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         subject_name: self.message_to_query_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             #[cfg(all(feature = "api", not(feature = "candle")))]
@@ -302,9 +297,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         subject_name: self.chat_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             #[cfg(feature = "candle")]
@@ -324,9 +317,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         subject_name: self.chat_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -344,9 +335,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         subject_name: self.extract_pdf_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -365,9 +354,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         subject_name: self.document_chunk_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             #[cfg(all(feature = "api", not(feature = "candle")))]
@@ -387,9 +374,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         subject_name: self.embed_documents_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             #[cfg(all(feature = "api", not(feature = "candle")))]
@@ -409,9 +394,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         subject_name: self.embed_query_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             #[cfg(feature = "candle")]
@@ -431,9 +414,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         subject_name: self.embed_documents_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             #[cfg(feature = "candle")]
@@ -453,9 +434,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         subject_name: self.embed_query_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -477,9 +456,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         subject_name: self.relative_similarity_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -497,9 +474,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         subject_name: self.state_scores_table_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -520,9 +495,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         subject_name: self.join_chunks_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -540,9 +513,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         subject_name: self.state_scores_chunks_join_table_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -560,9 +531,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         subject_name: self.state_top_k_select_docs_table_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -580,9 +549,7 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                         subject_name: self.state_top_k_limit_docs_table_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
         ];
@@ -591,7 +558,12 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
     }
 
     fn make_runtime_env(&self) -> Option<Arc<RuntimeEnv>> {
-        Some(RuntimeEnv::get_builder().with_name(self.session_context_name).build_arc().unwrap())
+        Some(
+            RuntimeEnv::get_builder()
+                .with_name(self.session_context_name)
+                .build_arc()
+                .unwrap(),
+        )
     }
 
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
@@ -1023,7 +995,10 @@ impl CustomAgentsBuilderTrait for DocumentRAGSession<'_> {
                 .to_subject(None, None)
                 .unwrap(),
         ];
-        let subject_plans = subjects.into_iter().map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap()).collect::<Vec<_>>();
+        let subject_plans = subjects
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
         Some(subject_plans)
     }
 }
@@ -1125,7 +1100,9 @@ mod tests {
             // ----- Query #1 -----
             // Embed the documents
             let message_map = create_message_map(vec![blob_message]);
-            let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
+            let _ = session_ctx_arc
+                .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+                .await;
             let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
             let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 

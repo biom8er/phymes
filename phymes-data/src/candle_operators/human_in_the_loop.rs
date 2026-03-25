@@ -8,7 +8,8 @@ use anyhow::Result;
 use candle_core::Device;
 use phymes_core::{
     BuildableTrait, BuilderTrait, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType,
-    MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType, create_chat_record_batch,
+    MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType,
+    create_chat_record_batch,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

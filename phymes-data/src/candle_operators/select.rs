@@ -1397,8 +1397,11 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Subject::get_array_as_vec_nonprimitive::<String>(&s, column_name)
-                                        .unwrap_or_default()
+                                    Subject::get_array_as_vec_nonprimitive::<String>(
+                                        &s,
+                                        column_name,
+                                    )
+                                    .unwrap_or_default()
                                 })
                             })
                             .collect::<Vec<_>>();
@@ -1675,8 +1678,11 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Subject::get_array_as_vec_nonprimitive::<String>(&s, column_name)
-                                        .unwrap_or_default()
+                                    Subject::get_array_as_vec_nonprimitive::<String>(
+                                        &s,
+                                        column_name,
+                                    )
+                                    .unwrap_or_default()
                                 })
                             })
                             .collect::<Vec<_>>();
@@ -1996,8 +2002,11 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Subject::get_array_as_vec_nonprimitive::<String>(&s, column_name)
-                                        .unwrap_or_default()
+                                    Subject::get_array_as_vec_nonprimitive::<String>(
+                                        &s,
+                                        column_name,
+                                    )
+                                    .unwrap_or_default()
                                 })
                             })
                             .collect::<Vec<_>>();
@@ -2196,8 +2205,11 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Subject::get_array_as_vec_nonprimitive::<String>(&s, column_name)
-                                        .unwrap_or_default()
+                                    Subject::get_array_as_vec_nonprimitive::<String>(
+                                        &s,
+                                        column_name,
+                                    )
+                                    .unwrap_or_default()
                                 })
                             })
                             .collect::<Vec<_>>();
@@ -2554,8 +2566,11 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Subject::get_array_as_vec_nonprimitive::<String>(&s, column_name)
-                                        .unwrap_or_default()
+                                    Subject::get_array_as_vec_nonprimitive::<String>(
+                                        &s,
+                                        column_name,
+                                    )
+                                    .unwrap_or_default()
                                 })
                             })
                             .flatten()
@@ -2688,8 +2703,11 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Subject::get_array_as_vec_nonprimitive::<String>(&s, column_name)
-                                        .unwrap_or_default()
+                                    Subject::get_array_as_vec_nonprimitive::<String>(
+                                        &s,
+                                        column_name,
+                                    )
+                                    .unwrap_or_default()
                                 })
                             })
                             .flatten()
@@ -2858,8 +2876,11 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Subject::get_array_as_vec_nonprimitive::<String>(&s, column_name)
-                                        .unwrap_or_default()
+                                    Subject::get_array_as_vec_nonprimitive::<String>(
+                                        &s,
+                                        column_name,
+                                    )
+                                    .unwrap_or_default()
                                 })
                             })
                             .flatten()
@@ -2958,8 +2979,11 @@ pub fn select(
                             .iter()
                             .filter_map(|s| {
                                 s.map(|s| {
-                                    Subject::get_array_as_vec_nonprimitive::<String>(&s, column_name)
-                                        .unwrap_or_default()
+                                    Subject::get_array_as_vec_nonprimitive::<String>(
+                                        &s,
+                                        column_name,
+                                    )
+                                    .unwrap_or_default()
                                 })
                             })
                             .flatten()
@@ -3430,11 +3454,12 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Subject::get_array_as_vec_nonprimitive::<String>(
-                                            &s,
-                                            column_name,
-                                        )
-                                        .unwrap_or_default();
+                                        let s_vec =
+                                            Subject::get_array_as_vec_nonprimitive::<String>(
+                                                &s,
+                                                column_name,
+                                            )
+                                            .unwrap_or_default();
                                         template
                                             .apply_template(
                                                 &json!({column_name.to_string(): s_vec}),
@@ -3581,11 +3606,12 @@ pub fn select(
                                 .iter()
                                 .filter_map(|s| {
                                     s.map(|s| {
-                                        let s_vec = Subject::get_array_as_vec_nonprimitive::<String>(
-                                            &s,
-                                            column_name,
-                                        )
-                                        .unwrap_or_default();
+                                        let s_vec =
+                                            Subject::get_array_as_vec_nonprimitive::<String>(
+                                                &s,
+                                                column_name,
+                                            )
+                                            .unwrap_or_default();
                                         template
                                             .apply_template(
                                                 &json!({column_name.to_string(): s_vec}),

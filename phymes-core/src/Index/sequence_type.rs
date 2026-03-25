@@ -1,6 +1,9 @@
-use std::{sync::Arc, fmt::Debug};
+use std::{fmt::Debug, sync::Arc};
 
-use arrow::{array::{ArrayRef, ArrowPrimitiveType, PrimitiveBuilder}, datatypes::{Int64Type, UInt32Type}};
+use arrow::{
+    array::{ArrayRef, ArrowPrimitiveType, PrimitiveBuilder},
+    datatypes::{Int64Type, UInt32Type},
+};
 use clap::ValueEnum;
 use num_traits::PrimInt;
 use serde::{Deserialize, Serialize};
@@ -20,7 +23,11 @@ where
     /// Create a new range from `start` to `end` with a given `step`
     pub fn new(start: T, end: T, step: T) -> Self {
         assert!(step != T::zero(), "Step cannot be zero");
-        Self { current: start, end, step }
+        Self {
+            current: start,
+            end,
+            step,
+        }
     }
 }
 
@@ -44,7 +51,11 @@ where
 }
 
 /// Build an apache arrow array sequence from `start` to `end` with a given `step`
-pub fn create_arrow_array_sequence<T: PrimInt + Debug, K: ArrowPrimitiveType<Native = T>>(start: T, end: T, step: T) -> ArrayRef {
+pub fn create_arrow_array_sequence<T: PrimInt + Debug, K: ArrowPrimitiveType<Native = T>>(
+    start: T,
+    end: T,
+    step: T,
+) -> ArrayRef {
     let mut builder = PrimitiveBuilder::<K>::new();
     for v in IntRange::new(start, end, step) {
         builder.append_value(v);
@@ -53,7 +64,9 @@ pub fn create_arrow_array_sequence<T: PrimInt + Debug, K: ArrowPrimitiveType<Nat
 }
 
 /// SubjectSequence
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize, Default, ValueEnum)]
+#[derive(
+    Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize, Default, ValueEnum,
+)]
 pub enum SubjectSequenceType {
     #[default]
     #[value(name = "UInt32Sequence")]
@@ -65,8 +78,14 @@ pub enum SubjectSequenceType {
 impl SubjectSequenceType {
     pub fn build(&self, start: usize, end: usize, step: usize) -> ArrayRef {
         match self {
-            Self::UInt32Sequence => create_arrow_array_sequence::<u32, UInt32Type>(start as u32, end as u32, step as u32),
-            Self::Int64Sequence => create_arrow_array_sequence::<i64, Int64Type>(start as i64, end as i64, step as i64),
+            Self::UInt32Sequence => create_arrow_array_sequence::<u32, UInt32Type>(
+                start as u32,
+                end as u32,
+                step as u32,
+            ),
+            Self::Int64Sequence => {
+                create_arrow_array_sequence::<i64, Int64Type>(start as i64, end as i64, step as i64)
+            }
         }
     }
 }

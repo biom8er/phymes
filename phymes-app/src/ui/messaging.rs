@@ -14,7 +14,7 @@ use phymes_agents::{
 };
 use phymes_core::{
     AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, DataFormat,
-    MappableTrait, MessageBuilderTrait, SubjectBuilder, SubjectBuilderTrait, Publication,
+    MappableTrait, MessageBuilderTrait, Publication, SubjectBuilder, SubjectBuilderTrait,
     SubjectTrait,
 };
 use phymes_server::create_session_name;

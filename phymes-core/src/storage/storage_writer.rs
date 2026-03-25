@@ -1,9 +1,13 @@
 use std::fmt::Display;
 
-use crate::{BatchWriter, CsvWriter, CsvWriterMultipart, IpcWriter, IpcWriterMultipart, JsonWriter, JsonWriterMultipart, storage::chunked_writer::{ChunkedWriter, OnChunk}};
+use crate::{
+    BatchWriter, CsvWriter, CsvWriterMultipart, IpcWriter, IpcWriterMultipart, JsonWriter,
+    JsonWriterMultipart,
+    storage::chunked_writer::{ChunkedWriter, OnChunk},
+};
 
 /// Available object storage writers
-/// 
+///
 /// # Todo
 /// - Add in `to_bytes`, `to_struct`, `to_values`, etc.
 #[derive(Debug)]

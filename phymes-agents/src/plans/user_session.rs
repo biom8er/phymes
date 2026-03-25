@@ -2,14 +2,17 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription, create_user_batch, create_user_session_contexts_batch
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait,
+    BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, Subject,
+    SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription,
+    create_user_batch, create_user_session_contexts_batch,
 };
 use phymes_data::{AvailableCandleOperators, DataConfig, DataJoinOperator};
 use phymes_diagnostics::create_timestamp_micros;
 
 use crate::{
-    AvailableProcessors, AvailableSessionPlans, CustomAgentsBuilderTrait,
-    make_example_mermaid_table, TaskPlan,
+    AvailableProcessors, AvailableSessionPlans, CustomAgentsBuilderTrait, TaskPlan,
+    make_example_mermaid_table,
 };
 
 /// A session for all user management tasks
@@ -148,9 +151,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                         subject_name: AvailableSubjects::UserSessionContexts.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -159,7 +160,8 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                         .build_arc(self.join_session_contexts_with_mermaid_diagrams_processor_name),
                 )
                 .with_publications(&[Publication::Replace {
-                    subject_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string(),
+                    subject_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid
+                        .to_string(),
                 }])
                 .with_subscriptions(&[
                     Subscription::AlwaysLastRecordBatch {
@@ -174,9 +176,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                         subject_name: AvailableSubjects::BuilderMermaid.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -198,9 +198,7 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                         subject_name: AvailableSubjects::User.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
         ];
@@ -209,7 +207,12 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
     }
 
     fn make_runtime_env(&self) -> Option<Arc<RuntimeEnv>> {
-        Some(RuntimeEnv::get_builder().with_name(self.session_context_name).build_arc().unwrap())
+        Some(
+            RuntimeEnv::get_builder()
+                .with_name(self.session_context_name)
+                .build_arc()
+                .unwrap(),
+        )
     }
 
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
@@ -294,7 +297,10 @@ impl CustomAgentsBuilderTrait for UserSession<'_> {
                 .unwrap(),
             make_example_mermaid_table(false, true).unwrap(),
         ];
-        let subject_plans = subjects.into_iter().map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap()).collect::<Vec<_>>();
+        let subject_plans = subjects
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
         Some(subject_plans)
     }
 }
@@ -342,7 +348,9 @@ pub(crate) mod user_session_inner {
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![message]);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
 
@@ -368,11 +376,13 @@ mod tests {
         assert!(response.is_empty());
 
         // Check the User subject
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::User.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::User.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
         let subject = Subject::get_builder()
             .with_name(AvailableSubjects::User.to_string().as_str())
             .with_record_batches(batches)?
@@ -389,15 +399,21 @@ mod tests {
         for c in column {
             assert!(c > 0);
         }
-        
+
         // Check the Join subject
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
         let subject = Subject::get_builder()
-            .with_name(AvailableSubjects::JoinUserInboxSessionContextsMermaid.to_string().as_str())
+            .with_name(
+                AvailableSubjects::JoinUserInboxSessionContextsMermaid
+                    .to_string()
+                    .as_str(),
+            )
             .with_record_batches(batches)?
             .build()?;
         let column = subject.get_column_as_vec_str("email");

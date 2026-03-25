@@ -4,7 +4,10 @@ use anyhow::Result;
 use serde_json::json;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription, create_schema_from_fields, create_tools_record_batch
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait,
+    BuilderTrait, DataEncoding, DataFormat, ProcessorPlan, ProcessorPlanBuilder, Publication,
+    RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait,
+    Subscription, create_schema_from_fields, create_tools_record_batch,
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataCastOperator, DataColumnOperator,
@@ -251,9 +254,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                         subject_name: self.message_aggregator_processor_2_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AnySubjectNameSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AnySubjectNameSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -278,9 +279,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                         subject_name: self.attachment_aggregator_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AnySubjectNameSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AnySubjectNameSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -298,9 +297,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                         subject_name: self.tool_vis_renamecols_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -319,9 +316,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                         subject_name: self.tool_vis_xychart_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             #[cfg(all(feature = "api", not(feature = "candle")))]
@@ -343,9 +338,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                         subject_name: self.chat_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             #[cfg(feature = "candle")]
@@ -367,9 +360,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                         subject_name: self.chat_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -398,9 +389,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                         subject_name: self.message_parser_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -419,9 +408,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                         subject_name: self.extract_tabular_data_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -439,9 +426,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                         subject_name: self.state_scores_table_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -454,9 +439,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                 .with_subscriptions(&[Subscription::OnUpdateLastRecordBatch {
                     subject_name: self.hitl_task_name.to_string(),
                 }])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -474,9 +457,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                         subject_name: self.tool_summary_task_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -494,9 +475,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                         subject_name: self.tool_summary_task_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -514,9 +493,7 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
                         subject_name: AvailableInterfaceSubjects::AssistantMessages.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
         ];
@@ -524,7 +501,12 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
     }
 
     fn make_runtime_env(&self) -> Option<Arc<RuntimeEnv>> {
-        Some(RuntimeEnv::get_builder().with_name(self.session_context_name).build_arc().unwrap())
+        Some(
+            RuntimeEnv::get_builder()
+                .with_name(self.session_context_name)
+                .build_arc()
+                .unwrap(),
+        )
     }
 
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
@@ -838,8 +820,11 @@ impl CustomAgentsBuilderTrait for ToolAgentSession<'_> {
             AvailableSubjects::SessionErrors
                 .to_subject(None, None)
                 .unwrap(),
-        ];        
-        let subject_plans = subjects.into_iter().map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap()).collect::<Vec<_>>();
+        ];
+        let subject_plans = subjects
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
         Some(subject_plans)
     }
 }
@@ -905,7 +890,9 @@ mod tests {
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![chat_message, blob_message]);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Avoid running with Candle without GPU acceleration
         if cfg!(any(

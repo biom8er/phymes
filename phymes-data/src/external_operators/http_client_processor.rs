@@ -1,5 +1,10 @@
 use std::{
-    collections::VecDeque, fmt::Write, pin::Pin, sync::Arc, task::{Context, Poll, ready}, time::Duration
+    collections::VecDeque,
+    fmt::Write,
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll, ready},
+    time::Duration,
 };
 
 use anyhow::{Result, anyhow};
@@ -276,14 +281,14 @@ impl Stream for HTTPClientRequestStream {
                             } else {
                                 self.state = HTTPClientRequestState::Done;
                                 return Poll::Ready(None);
-                            }                            
+                            }
                         } else {
                             if let Some(json_str) = self.json_str.take() {
                                 Some(json_str)
                             } else {
                                 self.state = HTTPClientRequestState::Done;
                                 return Poll::Ready(None);
-                            } 
+                            }
                         };
                         let url = self.config.as_ref().unwrap().url(query_url.as_deref());
 
@@ -568,8 +573,7 @@ mod tests {
     use super::*;
     use futures::TryStreamExt;
     use phymes_core::{
-        ChatBuilderTraitExt, SubjectBuilder, Publication, open_alex,
-        semantic_scholar,
+        ChatBuilderTraitExt, Publication, SubjectBuilder, open_alex, semantic_scholar,
     };
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
 

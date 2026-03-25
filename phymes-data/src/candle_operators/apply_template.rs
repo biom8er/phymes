@@ -4,7 +4,10 @@ use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Subject, SubjectBuilderTrait, SubjectScript, SubjectTrait, Tool, ToolType, create_bytes_record_batch, create_mermaid_content_template_batch
+    AvailableSubjects, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, Function,
+    FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Subject,
+    SubjectBuilderTrait, SubjectScript, SubjectTrait, Tool, ToolType, create_bytes_record_batch,
+    create_mermaid_content_template_batch,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -166,7 +169,16 @@ impl DataOperatorTrait for ApplyTemplate {
 /// * `format` - The document format
 /// * `schema` - The document schema
 /// * `device` - The compute device
-#[instrument(skip(lhs_args, rhs_args, doc_template, doc_name, doc_input, encoding, format, _device))]
+#[instrument(skip(
+    lhs_args,
+    rhs_args,
+    doc_template,
+    doc_name,
+    doc_input,
+    encoding,
+    format,
+    _device
+))]
 pub fn apply_template(
     lhs_args: &[RecordBatch],
     rhs_args: Option<&[RecordBatch]>,

@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait,
+    BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, SubjectBuilder,
+    SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription,
 };
 use phymes_data::{AvailableCandleOperators, DataConfig};
 #[cfg(feature = "api")]
@@ -100,9 +102,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                         subject_name: self.message_aggregator_processor_1_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
         );
@@ -127,9 +127,7 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                         subject_name: self.message_aggregator_processor_2_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
         );
@@ -191,7 +189,12 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
     }
 
     fn make_runtime_env(&self) -> Option<Arc<RuntimeEnv>> {
-        Some(RuntimeEnv::get_builder().with_name(self.chat_runtime_env_name).build_arc().unwrap())
+        Some(
+            RuntimeEnv::get_builder()
+                .with_name(self.chat_runtime_env_name)
+                .build_arc()
+                .unwrap(),
+        )
     }
 
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
@@ -294,11 +297,10 @@ impl CustomAgentsBuilderTrait for ChatAgentSession<'_> {
                 .to_subject(None, None)
                 .unwrap(),
         ];
-        let subject_plans = subjects.into_iter()
-            .map(|s| SubjectPlan::get_builder()
-            .with_subject(s)
-            .build().unwrap())
-        .collect::<Vec<_>>();
+        let subject_plans = subjects
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
         Some(subject_plans)
     }
 }
@@ -356,7 +358,9 @@ mod tests {
                 .make_name()?
                 .build()?;
             let incoming_message_map = create_message_map(vec![message]);
-            let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
+            let _ = session_ctx_arc
+                .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+                .await;
             let session_stream =
                 SessionStream::new(incoming_message_map, Arc::clone(&session_ctx_arc));
             let mut response: Vec<HashMap<String, IPCMessage>> =

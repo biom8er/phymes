@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    AvailableUpdateEvents, ProcessorPlan, ProcessorSubjects, ProcessorTrait,
-    Publication, SubscribeEventTrait, Subscription, UpdateEventTrait,
+    AvailableUpdateEvents, ProcessorPlan, ProcessorSubjects, ProcessorTrait, Publication,
+    SubscribeEventTrait, Subscription, UpdateEventTrait,
 };
 use anyhow::{Result, anyhow};
 
@@ -25,10 +25,7 @@ impl ProcessorPlanBuilder {
         self.subscriptions = Some(subscriptions.to_vec());
         self
     }
-    pub fn with_subscribe_policy(
-        mut self,
-        subscribe_policy: Box<dyn SubscribeEventTrait>,
-    ) -> Self {
+    pub fn with_subscribe_policy(mut self, subscribe_policy: Box<dyn SubscribeEventTrait>) -> Self {
         self.subscribe_policy = Some(subscribe_policy);
         self
     }

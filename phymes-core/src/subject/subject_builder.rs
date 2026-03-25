@@ -1,5 +1,9 @@
 use std::{
-    fmt::Debug, fs::File, io::{Cursor, Read, Seek}, pin::Pin, sync::Arc
+    fmt::Debug,
+    fs::File,
+    io::{Cursor, Read, Seek},
+    pin::Pin,
+    sync::Arc,
 };
 
 use crate::{BuilderTrait, SendableIPCRecordBatchStream, SendableRecordBatchStream, Subject};
@@ -34,14 +38,24 @@ pub trait SubjectBuilderTrait: BuilderTrait + Debug + Send + Sync {
         Self: Sized;
 
     /// List the partitions in the object storage
-    fn list_partitions_object_store<'a>(&'a self, store: &'a Arc<dyn ObjectStore>) -> Pin<Box<dyn Stream<Item = Result<ObjectMeta, object_store::Error>> + Send>>;
+    fn list_partitions_object_store<'a>(
+        &'a self,
+        store: &'a Arc<dyn ObjectStore>,
+    ) -> Pin<Box<dyn Stream<Item = Result<ObjectMeta, object_store::Error>> + Send>>;
 
     /// Delete the partitions in the object storage (with the option to specify which partitions)
-    fn delete_partitions_object_store<'a>(&'a self, store: &'a Arc<dyn ObjectStore>, paths: Option<Vec<Path>>) -> Pin<Box<dyn Stream<Item = Result<Path, object_store::Error>> + Send>>;
+    fn delete_partitions_object_store<'a>(
+        &'a self,
+        store: &'a Arc<dyn ObjectStore>,
+        paths: Option<Vec<Path>>,
+    ) -> Pin<Box<dyn Stream<Item = Result<Path, object_store::Error>> + Send>>;
 
     /// Create a new stream subject with the provided object storage
     /// from IPC format    
-    fn new_from_ipc_object_store<'a>(store: &'a Arc<dyn ObjectStore>, path: &'a Path) -> Pin<Box<dyn Future<Output = Result<Self>> + Send + 'a>>
+    fn new_from_ipc_object_store<'a>(
+        store: &'a Arc<dyn ObjectStore>,
+        path: &'a Path,
+    ) -> Pin<Box<dyn Future<Output = Result<Self>> + Send + 'a>>
     where
         Self: Sized;
 
@@ -202,7 +216,10 @@ impl SubjectBuilderTrait for SubjectBuilder {
         Ok(self)
     }
 
-    fn list_partitions_object_store<'a>(&'a self, store: &'a Arc<dyn ObjectStore>) -> Pin<Box<dyn Stream<Item = Result<ObjectMeta, object_store::Error>> + Send>> {
+    fn list_partitions_object_store<'a>(
+        &'a self,
+        store: &'a Arc<dyn ObjectStore>,
+    ) -> Pin<Box<dyn Stream<Item = Result<ObjectMeta, object_store::Error>> + Send>> {
         if let Some(name) = self.name.as_ref() {
             let path = Some(Path::from(name.to_owned()));
             store.list(path.as_ref())
@@ -212,17 +229,26 @@ impl SubjectBuilderTrait for SubjectBuilder {
         }
     }
 
-    fn delete_partitions_object_store<'a>(&'a self, store: &'a Arc<dyn ObjectStore>, paths: Option<Vec<Path>>) -> Pin<Box<dyn Stream<Item = Result<Path, object_store::Error>> + Send>> {
+    fn delete_partitions_object_store<'a>(
+        &'a self,
+        store: &'a Arc<dyn ObjectStore>,
+        paths: Option<Vec<Path>>,
+    ) -> Pin<Box<dyn Stream<Item = Result<Path, object_store::Error>> + Send>> {
         let locations = if let Some(paths) = paths {
             futures::stream::iter(paths.into_iter().map(Ok)).boxed()
         } else {
-            self.list_partitions_object_store(store).map_ok(|m| m.location).boxed()
+            self.list_partitions_object_store(store)
+                .map_ok(|m| m.location)
+                .boxed()
         };
         store.delete_stream(locations)
     }
 
-    fn new_from_ipc_object_store<'a>(store: &'a Arc<dyn ObjectStore>, path: &'a Path) -> Pin<Box<dyn Future<Output = Result<Self>> + Send + 'a>> {
-        Box::pin(async move { 
+    fn new_from_ipc_object_store<'a>(
+        store: &'a Arc<dyn ObjectStore>,
+        path: &'a Path,
+    ) -> Pin<Box<dyn Future<Output = Result<Self>> + Send + 'a>> {
+        Box::pin(async move {
             let result = store.get(path).await?;
             let mut stream = result.into_stream();
             let mut bytes = Vec::new();

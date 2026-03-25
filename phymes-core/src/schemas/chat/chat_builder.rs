@@ -1,6 +1,6 @@
 use crate::{
-    RecordBatchReceiverStream, SendableRecordBatchStream, Subject, SubjectBuilder, SubjectBuilderTrait,
-    SubjectScript, SubjectTrait, create_chat_record_batch,
+    RecordBatchReceiverStream, SendableRecordBatchStream, Subject, SubjectBuilder,
+    SubjectBuilderTrait, SubjectScript, SubjectTrait, create_chat_record_batch,
 };
 
 use anyhow::Result;
@@ -471,8 +471,8 @@ mod tests {
 
     use super::openai_chat_completion::Tool;
     use crate::{
-        BuildableTrait, BuilderTrait, MessageBuilderTrait, ProcessorTrait, RuntimeEnv,
-        SendableRecordBatchStreamMessage, Publication,
+        BuildableTrait, BuilderTrait, MessageBuilderTrait, ProcessorTrait, Publication, RuntimeEnv,
+        SendableRecordBatchStreamMessage,
         test_subject::{make_test_subject_chat, make_test_subject_tool},
     };
     use futures::TryStreamExt;

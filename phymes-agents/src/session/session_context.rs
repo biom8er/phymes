@@ -3,12 +3,22 @@ use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use clap::ValueEnum;
 use futures::{StreamExt, TryStreamExt};
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents, BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_chat_record_batch, create_session_supersteps_batch, create_session_tasks_subscribe_batch, create_subjects_change_log_batch, create_subjects_object_store_meta_batch, from_diagnostics_to_tables
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, AvailableUpdateEvents,
+    BuildableTrait, BuilderTrait, IPCMessageBuilder, IPCMessageMap, MappableTrait,
+    MessageBuilderTrait, MessageTrait, ProcessorSubjects, ProcessorSubjectsBuilder,
+    ProcessorSubjectsMap, Publication, RuntimeEnv, RuntimeEnvTrait, Subject, SubjectBuilder,
+    SubjectBuilderTrait, SubjectTrait, Subscription, create_chat_record_batch,
+    create_session_supersteps_batch, create_session_tasks_subscribe_batch,
+    create_subjects_change_log_batch, create_subjects_object_store_meta_batch,
+    from_diagnostics_to_tables,
 };
 use phymes_diagnostics::{Diagnostics, HashMap, create_timestamp_micros};
 use std::sync::Arc;
 
-use crate::{PublicationTrait, SessionContextBuilder, SubscriptionTrait, TaskMap, clear_subject, create_message_map};
+use crate::{
+    PublicationTrait, SessionContextBuilder, SubscriptionTrait, TaskMap, clear_subject,
+    create_message_map,
+};
 
 /// The [SessionContext] creates a (dynamic) execution graph based on a [TaskPlan]
 ///   and manages the running of individual [Task]s and the [Message]s passed between them.
@@ -32,12 +42,12 @@ pub struct SessionContext {
 
 impl Default for SessionContext {
     fn default() -> Self {
-        Self { 
-            name: Default::default(), 
-            tasks: Default::default(), 
-            subjects: Default::default(), 
-            runtime_env: Default::default(), 
-            diagnostics: Default::default(), 
+        Self {
+            name: Default::default(),
+            tasks: Default::default(),
+            subjects: Default::default(),
+            runtime_env: Default::default(),
+            diagnostics: Default::default(),
         }
     }
 }
@@ -100,9 +110,14 @@ impl SessionContext {
             .build()?;
 
         // Clear the subject
-        let _locations: Vec<RecordBatch> = clear_subject(self.runtime_env(), self.get_name(), &AvailableSubjects::SessionTasksSubscribeAggregate.to_string(), false)?
-            .try_collect()
-            .await?;
+        let _locations: Vec<RecordBatch> = clear_subject(
+            self.runtime_env(),
+            self.get_name(),
+            &AvailableSubjects::SessionTasksSubscribeAggregate.to_string(),
+            false,
+        )?
+        .try_collect()
+        .await?;
 
         // Extract out the columns
         let session_names = subject.get_column_as_vec_str("session_name");
@@ -157,9 +172,7 @@ impl SessionContext {
                     let subscriptions = subscription_names
                         .iter()
                         .zip(subscription_table_names.iter())
-                        .map(|(name, subject)| {
-                            Subscription::from_str_fuzzy(name, subject).unwrap()
-                        })
+                        .map(|(name, subject)| Subscription::from_str_fuzzy(name, subject).unwrap())
                         .collect::<Vec<_>>();
                     let update_policy = AvailableUpdateEvents::from_str(update_type, false)
                         .unwrap()
@@ -176,10 +189,9 @@ impl SessionContext {
                         supersteps.last().unwrap(),
                         &subjects_change_log,
                     );
-                    let subscribe_policy =
-                        AvailableSubscribeEvents::from_str_fuzzy(subscribe_type)
-                            .unwrap()
-                            .build();
+                    let subscribe_policy = AvailableSubscribeEvents::from_str_fuzzy(subscribe_type)
+                        .unwrap()
+                        .build();
                     let subscribe = subscribe_policy.check_subscriptions(
                         &subscriptions,
                         &updates,
@@ -263,9 +275,8 @@ impl SessionContext {
                             .zip(supersteps)
                             .zip(supersteps_lasts)
                             .filter_map(|(((name, subject), superstep), superstep_last)| {
-                                let subscriptions = vec![
-                                    Subscription::from_str_fuzzy(&name, &subject).unwrap(),
-                                ];
+                                let subscriptions =
+                                    vec![Subscription::from_str_fuzzy(&name, &subject).unwrap()];
                                 let update_policy =
                                     AvailableUpdateEvents::from_str(update_type, false)
                                         .unwrap()
@@ -361,7 +372,7 @@ impl SessionContext {
     /// # Notes
     /// * See schema at [AvailableSubjects::SessionTasksSubscribePublish]
     /// * The columns are taken to prevent infinite loops of the same tasks
-    /// 
+    ///
     /// # Todo
     /// * Update the schema to include the backend, bucket, and additional storage config information
     pub async fn tasks_subscribe_publish(
@@ -392,9 +403,14 @@ impl SessionContext {
             .build()?;
 
         // Clear the subject
-        let _locations: Vec<RecordBatch> = clear_subject(self.runtime_env(), self.get_name(), &AvailableSubjects::SessionTasksSubscribePublish.to_string(), false)?
-            .try_collect()
-            .await?;
+        let _locations: Vec<RecordBatch> = clear_subject(
+            self.runtime_env(),
+            self.get_name(),
+            &AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+            false,
+        )?
+        .try_collect()
+        .await?;
 
         // Extract the columns
         let task_names = subject.get_column_as_vec_nonprimitive::<String>("task_name")?;
@@ -441,22 +457,16 @@ impl SessionContext {
                         .iter()
                         .zip(subscription_table_names.iter())
                         .map(|(subscription_name, subscription_table_name)| {
-                            Subscription::from_str_fuzzy(
-                                subscription_name,
-                                subscription_table_name,
-                            )
-                            .unwrap()
+                            Subscription::from_str_fuzzy(subscription_name, subscription_table_name)
+                                .unwrap()
                         })
                         .collect::<Vec<_>>();
                     let publications = publication_names
                         .iter()
                         .zip(publication_table_names.iter())
                         .map(|(publication_name, publication_table_name)| {
-                            Publication::from_str_fuzzy(
-                                publication_name,
-                                publication_table_name,
-                            )
-                            .unwrap()
+                            Publication::from_str_fuzzy(publication_name, publication_table_name)
+                                .unwrap()
                         })
                         .collect::<Vec<_>>();
                     let processor_subjects = ProcessorSubjectsBuilder::default()
@@ -567,7 +577,9 @@ impl SessionContext {
             .build()?;
         let messages = create_message_map(vec![superstep_message]);
         // DM: setting the step to 0 results in continuous overwriting of the last superstep
-        let (_update, _meta, errors) = self.update_subjects_from_messages(messages, next_superstep - 1).await;
+        let (_update, _meta, errors) = self
+            .update_subjects_from_messages(messages, next_superstep - 1)
+            .await;
         if let Some(table) = errors {
             let error = table.get_column_as_vec_str("content").join("; ");
             return Err(anyhow!(error));
@@ -606,7 +618,7 @@ impl SessionContext {
         // let mut subject_names = Vec::new();
         // let mut num_rows = Vec::new();
 
-        // // DM: migrate to using `CountSubjectRowsSession` 
+        // // DM: migrate to using `CountSubjectRowsSession`
         // // // Sort the hashmap
         // // let mut sorted_map = self.subjects.iter().collect::<Vec<_>>();
         // // sorted_map.sort_by(|a, b| a.0.cmp(b.0));
@@ -696,10 +708,11 @@ impl SessionContext {
                         let num_rows = subject.count_rows(); // DM: not used currently...
 
                         // Check for a mismatch in the schema and intercept any errors
-                        if schema.ne(&subject.get_schema()) {                            
+                        if schema.ne(&subject.get_schema()) {
                             let error = format!(
                                 "Schema `{}` for Subject `{subject_name}` from publisher `{publisher}` does match the cached Subject Schema `{}`",
-                                    subject.get_schema(), schema
+                                subject.get_schema(),
+                                schema
                             );
                             errors.push(error);
                             continue;
@@ -707,21 +720,27 @@ impl SessionContext {
 
                         // Publish to the object store
                         let mut object_store_metadata = Vec::new();
-                        match update.publish_to_subject(self.runtime_env(), subject.get_record_batches_own(), step, &publisher, self.get_name()) {
+                        match update.publish_to_subject(
+                            self.runtime_env(),
+                            subject.get_record_batches_own(),
+                            step,
+                            &publisher,
+                            self.get_name(),
+                        ) {
                             Ok(Some(mut stream)) => {
                                 while let Some(batch) = stream.next().await {
                                     match batch {
                                         Ok(metadata) => {
                                             // Record the subject object store metadata
                                             object_store_metadata.push(metadata);
-                                        },
+                                        }
                                         Err(err) => {
                                             // Record the error
                                             let error = format!(
                                                 "Subject `{subject_name}` from publisher `{publisher}` failed to update the target subject with error `{err:?}`"
                                             );
                                             errors.push(error);
-                                        },
+                                        }
                                     }
                                 }
                             }
@@ -745,20 +764,57 @@ impl SessionContext {
                             // Record the subject object store metadata
                             let metadata_subject = Subject::get_builder()
                                 .with_name("object_store_metadata")
-                                .with_record_batches(object_store_metadata).unwrap()
-                                .build().unwrap();
+                                .with_record_batches(object_store_metadata)
+                                .unwrap()
+                                .build()
+                                .unwrap();
                             let n_rows = metadata_subject.count_rows();
-                            store_meta_subject_names.extend((0..n_rows).map(|_| subject_name.clone()).collect::<Vec<_>>());
-                            store_meta_task_names.extend((0..n_rows).map(|_| publisher.clone()).collect::<Vec<_>>());
-                            store_meta_session_names.extend((0..n_rows).map(|_| self.get_name().to_string()).collect::<Vec<_>>());
-                            store_meta_num_rows.extend((0..n_rows).map(|_| num_rows as i64).collect::<Vec<_>>());
-                            store_meta_supersteps.extend((0..n_rows).map(|_| step as i64).collect::<Vec<_>>());
-                            store_meta_location.extend(metadata_subject.get_column_as_vec_nonprimitive::<String>("location").unwrap());
-                            store_meta_bucket.extend(metadata_subject.get_column_as_vec_nonprimitive::<String>("bucket").unwrap());
-                            store_meta_e_tag.extend(metadata_subject.get_column_as_vec_nonprimitive::<String>("e_tag").unwrap());
-                            store_meta_version.extend(metadata_subject.get_column_as_vec_nonprimitive::<String>("version").unwrap());
-                            store_meta_size.extend(metadata_subject.get_column_as_vec_primitive::<u32>("size").unwrap());
-                            store_meta_last_modified.extend(metadata_subject.get_column_as_vec_primitive::<i64>("last_modified").unwrap());
+                            store_meta_subject_names.extend(
+                                (0..n_rows)
+                                    .map(|_| subject_name.clone())
+                                    .collect::<Vec<_>>(),
+                            );
+                            store_meta_task_names
+                                .extend((0..n_rows).map(|_| publisher.clone()).collect::<Vec<_>>());
+                            store_meta_session_names.extend(
+                                (0..n_rows)
+                                    .map(|_| self.get_name().to_string())
+                                    .collect::<Vec<_>>(),
+                            );
+                            store_meta_num_rows
+                                .extend((0..n_rows).map(|_| num_rows as i64).collect::<Vec<_>>());
+                            store_meta_supersteps
+                                .extend((0..n_rows).map(|_| step as i64).collect::<Vec<_>>());
+                            store_meta_location.extend(
+                                metadata_subject
+                                    .get_column_as_vec_nonprimitive::<String>("location")
+                                    .unwrap(),
+                            );
+                            store_meta_bucket.extend(
+                                metadata_subject
+                                    .get_column_as_vec_nonprimitive::<String>("bucket")
+                                    .unwrap(),
+                            );
+                            store_meta_e_tag.extend(
+                                metadata_subject
+                                    .get_column_as_vec_nonprimitive::<String>("e_tag")
+                                    .unwrap(),
+                            );
+                            store_meta_version.extend(
+                                metadata_subject
+                                    .get_column_as_vec_nonprimitive::<String>("version")
+                                    .unwrap(),
+                            );
+                            store_meta_size.extend(
+                                metadata_subject
+                                    .get_column_as_vec_primitive::<u32>("size")
+                                    .unwrap(),
+                            );
+                            store_meta_last_modified.extend(
+                                metadata_subject
+                                    .get_column_as_vec_primitive::<i64>("last_modified")
+                                    .unwrap(),
+                            );
 
                             // Record the subject change log information
                             change_log_subject_names.push(subject_name);
@@ -767,7 +823,6 @@ impl SessionContext {
                             change_log_num_rows.push(num_rows as i64);
                             change_log_supersteps.push(step as i64);
                         }
-                        
                     }
                     Err(err) => {
                         let error = format!(
@@ -873,17 +928,21 @@ impl BuildableTrait for SessionContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{test_session_context_builder, Task, test_task
-    };
+    use crate::{Task, test_session_context_builder, test_task};
     use arrow::array::Int64Array;
     use phymes_core::{
-        AvailableSchemaTrait, IPCMessage, create_session_tasks_subscribe_aggregate_batch, create_session_tasks_subscribe_publish_batch, test_subject
+        AvailableSchemaTrait, IPCMessage, create_session_tasks_subscribe_aggregate_batch,
+        create_session_tasks_subscribe_publish_batch, test_subject,
     };
 
     #[test]
     fn test_session_get_subject_name_by_schema() -> Result<()> {
         let (session_context, _messages) =
-            test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?.build()?;
+            test_session_context_builder::make_test_session_context_builder_parallel(
+                "session_1",
+                25,
+            )?
+            .build()?;
 
         // table should be found
         let schema = test_subject::make_test_subject_schema(8)?;
@@ -901,19 +960,25 @@ mod tests {
     #[tokio::test]
     async fn test_session_update_subject_num_rows_subject() -> Result<()> {
         let (session_context, _messages) =
-            test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?.build()?;
+            test_session_context_builder::make_test_session_context_builder_parallel(
+                "session_1",
+                25,
+            )?
+            .build()?;
         let _ = session_context.update_subject_num_rows();
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SubjectsNumRows.to_string() }
-            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SubjectsNumRows.to_string(),
+        }
+        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(AvailableSubjects::SubjectsNumRows.to_string().as_str())
+            .with_record_batches(batches)
             .unwrap()
-            .try_collect()
-            .await?;
-		let subject = Subject::get_builder()
-			.with_name(AvailableSubjects::SubjectsNumRows.to_string().as_str())
-			.with_record_batches(batches)
-			.unwrap()
-			.build()
-			.unwrap();
+            .build()
+            .unwrap();
 
         assert_eq!(
             subject.get_column_as_vec_str("subject_name"),
@@ -950,7 +1015,11 @@ mod tests {
     async fn test_session_update_subjects_from_messages() -> Result<()> {
         // Case 1: no state update
         let (session_context, _messages) =
-            test_session_context_builder::make_test_session_context_builder_parallel("session_1", 25)?.build()?;
+            test_session_context_builder::make_test_session_context_builder_parallel(
+                "session_1",
+                25,
+            )?
+            .build()?;
         let input = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -959,7 +1028,9 @@ mod tests {
             &Publication::None,
             true,
         )?;
-        let (changelog, meta, errors) = session_context.update_subjects_from_messages(input, 0).await;
+        let (changelog, meta, errors) = session_context
+            .update_subjects_from_messages(input, 0)
+            .await;
 
         // check the updates
         assert!(changelog.is_none());
@@ -967,23 +1038,29 @@ mod tests {
         assert!(errors.is_none());
 
         // check the session
-        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
-            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "state_1".to_string(),
+        }
+        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
         assert_eq!(subscriptions.len(), 0);
-        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_2".to_string() }
-            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "state_2".to_string(),
+        }
+        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
         assert_eq!(subscriptions.len(), 0);
-        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_3".to_string() }
-            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "state_3".to_string(),
+        }
+        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
         assert_eq!(subscriptions.len(), 0);
 
         // Case 2: update state
@@ -997,7 +1074,9 @@ mod tests {
             },
             true,
         )?;
-        let (changelog, meta, errors) = session_context.update_subjects_from_messages(input, 0).await;
+        let (changelog, meta, errors) = session_context
+            .update_subjects_from_messages(input, 0)
+            .await;
         assert!(errors.is_none());
 
         // check the updates
@@ -1007,7 +1086,10 @@ mod tests {
             .unwrap()
             .get_column_as_vec_str("subject_name");
         assert_eq!(col, ["state_1"]);
-        let col = changelog.as_ref().unwrap().get_column_as_vec_str("task_name");
+        let col = changelog
+            .as_ref()
+            .unwrap()
+            .get_column_as_vec_str("task_name");
         assert_eq!(col, ["session_1"]);
         let col = changelog
             .as_ref()
@@ -1022,48 +1104,40 @@ mod tests {
 
         // check the object store metadata
         assert_eq!(meta.as_ref().unwrap().count_rows(), 3);
-        let col = meta
-            .as_ref()
-            .unwrap()
-            .get_column_as_vec_str("subject_name");
+        let col = meta.as_ref().unwrap().get_column_as_vec_str("subject_name");
         assert_eq!(col, ["state_1", "state_1", "state_1"]);
         let col = meta.as_ref().unwrap().get_column_as_vec_str("task_name");
         assert_eq!(col, ["session_1", "session_1", "session_1"]);
-        let col = meta
-            .as_ref()
-            .unwrap()
-            .get_column_as_vec_str("session_name");
+        let col = meta.as_ref().unwrap().get_column_as_vec_str("session_name");
         assert_eq!(col, ["session_1", "session_1", "session_1"]);
         let col = meta
             .as_ref()
             .unwrap()
             .get_column_as_vec_primitive::<i64>("num_rows")?;
         assert_eq!(col, [12, 12, 12]);
-        let col = meta
-            .as_ref()
-            .unwrap()
-            .get_column_as_vec_str("location");
-        let col = col.into_iter().map(|s| {
-            let mut parts = s.split("-").collect::<Vec<_>>();
-            let _ = parts.pop();
-            parts.push(".ipc");
-            parts.join("")
-        }).collect::<Vec<_>>();
-        assert_eq!(col, ["state_1/superstep=0/publisher=session_1/partition=0/state_1.ipc", "state_1/superstep=0/publisher=session_1/partition=1/state_1.ipc", "state_1/superstep=0/publisher=session_1/partition=2/state_1.ipc"]);
-        let col = meta
-            .as_ref()
-            .unwrap()
-            .get_column_as_vec_str("bucket");
+        let col = meta.as_ref().unwrap().get_column_as_vec_str("location");
+        let col = col
+            .into_iter()
+            .map(|s| {
+                let mut parts = s.split("-").collect::<Vec<_>>();
+                let _ = parts.pop();
+                parts.push(".ipc");
+                parts.join("")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            col,
+            [
+                "state_1/superstep=0/publisher=session_1/partition=0/state_1.ipc",
+                "state_1/superstep=0/publisher=session_1/partition=1/state_1.ipc",
+                "state_1/superstep=0/publisher=session_1/partition=2/state_1.ipc"
+            ]
+        );
+        let col = meta.as_ref().unwrap().get_column_as_vec_str("bucket");
         assert_eq!(col, ["", "", ""]);
-        let col = meta
-            .as_ref()
-            .unwrap()
-            .get_column_as_vec_str("e_tag");
+        let col = meta.as_ref().unwrap().get_column_as_vec_str("e_tag");
         assert_eq!(col, ["0", "1", "2"]);
-        let col = meta
-            .as_ref()
-            .unwrap()
-            .get_column_as_vec_str("version");
+        let col = meta.as_ref().unwrap().get_column_as_vec_str("version");
         assert_eq!(col, ["", "", ""]);
         let col = meta
             .as_ref()
@@ -1079,24 +1153,30 @@ mod tests {
         }
 
         // check the session context
-        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_1".to_string() }
-            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "state_1".to_string(),
+        }
+        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
         assert_eq!(subscriptions.len(), 3);
         assert_eq!(subscriptions.last().unwrap().num_rows(), 4);
-        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_2".to_string() }
-            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "state_2".to_string(),
+        }
+        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
         assert_eq!(subscriptions.len(), 0);
-        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "state_3".to_string() }
-            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "state_3".to_string(),
+        }
+        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
         assert_eq!(subscriptions.len(), 0);
 
         // Case 3: Error due to mismatching schemas
@@ -1110,7 +1190,9 @@ mod tests {
             },
             false,
         )?;
-        let (changelog, meta, errors) = session_context.update_subjects_from_messages(input, 0).await;
+        let (changelog, meta, errors) = session_context
+            .update_subjects_from_messages(input, 0)
+            .await;
         assert!(changelog.is_none());
         assert!(meta.is_none());
         assert!(errors.is_some());
@@ -1128,7 +1210,9 @@ mod tests {
         );
         let mut input = HashMap::<String, IPCMessage>::new();
         input.insert(message.get_name().to_string(), message);
-        let (changelog, meta, errors) = session_context.update_subjects_from_messages(input, 0).await;
+        let (changelog, meta, errors) = session_context
+            .update_subjects_from_messages(input, 0)
+            .await;
         assert!(changelog.is_none());
         assert!(meta.is_none());
         assert!(errors.is_some());
@@ -1236,16 +1320,24 @@ mod tests {
 
         // Make the schemas
         let mut schemas = HashMap::<String, SchemaRef>::new();
-        let _ = schemas.insert(AvailableSubjects::SessionTasksSubscribeAggregate.to_string(), AvailableSubjects::SessionTasksSubscribeAggregate.to_schema());
-        let _ = schemas.insert(AvailableSubjects::SessionTasksSubscribe.to_string(), AvailableSubjects::SessionTasksSubscribe.to_schema());
+        let _ = schemas.insert(
+            AvailableSubjects::SessionTasksSubscribeAggregate.to_string(),
+            AvailableSubjects::SessionTasksSubscribeAggregate.to_schema(),
+        );
+        let _ = schemas.insert(
+            AvailableSubjects::SessionTasksSubscribe.to_string(),
+            AvailableSubjects::SessionTasksSubscribe.to_schema(),
+        );
 
         // Write the data to the object store
         let runtime_env = test_task::make_runtime_env("rt")?;
-        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string() }
-            .publish_to_subject(&runtime_env, vec![batch], 0, "", "session_1")?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let _publication: Vec<RecordBatch> = Publication::Extend {
+            subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string(),
+        }
+        .publish_to_subject(&runtime_env, vec![batch], 0, "", "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
 
         // Make the session context
         let session_context = SessionContext::new(
@@ -1258,17 +1350,19 @@ mod tests {
 
         // Run and check the updated state
         let _ = session_context.tasks_subscribe().await?;
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "SessionTasksSubscribe".to_string() }
-            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "SessionTasksSubscribe".to_string(),
+        }
+        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name("SessionTasksSubscribe")
+            .with_record_batches(batches)
             .unwrap()
-            .try_collect()
-            .await?;
-		let subject = Subject::get_builder()
-			.with_name("SessionTasksSubscribe")
-			.with_record_batches(batches)
-			.unwrap()
-			.build()
-			.unwrap();
+            .build()
+            .unwrap();
         let column = subject.get_column_as_vec_str("session_name");
         assert_eq!(
             column,
@@ -1445,16 +1539,24 @@ mod tests {
 
         // Make the schemas
         let mut schemas = HashMap::<String, SchemaRef>::new();
-        let _ = schemas.insert(AvailableSubjects::SessionTasksSubscribeAggregate.to_string(), AvailableSubjects::SessionTasksSubscribeAggregate.to_schema());
-        let _ = schemas.insert(AvailableSubjects::SessionTasksSubscribe.to_string(), AvailableSubjects::SessionTasksSubscribe.to_schema());
+        let _ = schemas.insert(
+            AvailableSubjects::SessionTasksSubscribeAggregate.to_string(),
+            AvailableSubjects::SessionTasksSubscribeAggregate.to_schema(),
+        );
+        let _ = schemas.insert(
+            AvailableSubjects::SessionTasksSubscribe.to_string(),
+            AvailableSubjects::SessionTasksSubscribe.to_schema(),
+        );
 
         // Write the data to the object store
         let runtime_env = test_task::make_runtime_env("rt")?;
-        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string() }
-            .publish_to_subject(&runtime_env, vec![batch], 0, "", "session_1")?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let _publication: Vec<RecordBatch> = Publication::Extend {
+            subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string(),
+        }
+        .publish_to_subject(&runtime_env, vec![batch], 0, "", "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
 
         // Make the session context
         let session_context = SessionContext::new(
@@ -1467,11 +1569,13 @@ mod tests {
 
         // Run and check the updated state
         let _ = session_context.tasks_subscribe().await?;
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "SessionTasksSubscribe".to_string() }
-            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
-            .unwrap()
-            .try_collect()
-            .await?;        
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "SessionTasksSubscribe".to_string(),
+        }
+        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
         assert_eq!(batches.len(), 0);
         Ok(())
     }
@@ -1575,16 +1679,24 @@ mod tests {
 
         // Make the schemas
         let mut schemas = HashMap::<String, SchemaRef>::new();
-        let _ = schemas.insert(AvailableSubjects::SessionTasksSubscribeAggregate.to_string(), AvailableSubjects::SessionTasksSubscribeAggregate.to_schema());
-        let _ = schemas.insert(AvailableSubjects::SessionTasksSubscribe.to_string(), AvailableSubjects::SessionTasksSubscribe.to_schema());
+        let _ = schemas.insert(
+            AvailableSubjects::SessionTasksSubscribeAggregate.to_string(),
+            AvailableSubjects::SessionTasksSubscribeAggregate.to_schema(),
+        );
+        let _ = schemas.insert(
+            AvailableSubjects::SessionTasksSubscribe.to_string(),
+            AvailableSubjects::SessionTasksSubscribe.to_schema(),
+        );
 
         // Write the data to the object store
         let runtime_env = test_task::make_runtime_env("rt")?;
-        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string() }
-            .publish_to_subject(&runtime_env, vec![batch], 0, "", "session_1")?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let _publication: Vec<RecordBatch> = Publication::Extend {
+            subject_name: AvailableSubjects::SessionTasksSubscribeAggregate.to_string(),
+        }
+        .publish_to_subject(&runtime_env, vec![batch], 0, "", "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
 
         // Make the session context
         let session_context = SessionContext::new(
@@ -1597,17 +1709,19 @@ mod tests {
 
         // Run and check the updated state
         let _ = session_context.tasks_subscribe().await?;
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "SessionTasksSubscribe".to_string() }
-            .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "SessionTasksSubscribe".to_string(),
+        }
+        .subscribe_to_subject(session_context.runtime_env(), "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name("SessionTasksSubscribe")
+            .with_record_batches(batches)
             .unwrap()
-            .try_collect()
-            .await?;
-		let subject = Subject::get_builder()
-			.with_name("SessionTasksSubscribe")
-			.with_record_batches(batches)
-			.unwrap()
-			.build()
-			.unwrap();
+            .build()
+            .unwrap();
         let column = subject.get_column_as_vec_str("session_name");
         assert_eq!(column, ["session_1"]);
         let column = subject.get_column_as_vec_str("task_name");
@@ -1733,15 +1847,20 @@ mod tests {
 
         // Make the schemas
         let mut schemas = HashMap::<String, SchemaRef>::new();
-        let _ = schemas.insert(AvailableSubjects::SessionTasksSubscribePublish.to_string(), AvailableSubjects::SessionTasksSubscribePublish.to_schema());
+        let _ = schemas.insert(
+            AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+            AvailableSubjects::SessionTasksSubscribePublish.to_schema(),
+        );
 
         // Write the data to the object store
         let runtime_env = test_task::make_runtime_env("rt")?;
-        let _publication: Vec<RecordBatch> = Publication::Extend { subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string() }
-            .publish_to_subject(&runtime_env, vec![batch], 0, "", "session_1")?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let _publication: Vec<RecordBatch> = Publication::Extend {
+            subject_name: AvailableSubjects::SessionTasksSubscribePublish.to_string(),
+        }
+        .publish_to_subject(&runtime_env, vec![batch], 0, "", "session_1")?
+        .unwrap()
+        .try_collect()
+        .await?;
 
         // Make the session context
         let session_context = SessionContext::new(

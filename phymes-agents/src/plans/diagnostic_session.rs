@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use arrow::datatypes::DataType;
 use phymes_core::{
-    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, DiagnosticsVisualizations, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription
+    AvailableSubjects, AvailableSubjectsTrait, AvailableSubscribeEvents, BuildableTrait,
+    BuilderTrait, DataEncoding, DataFormat, DiagnosticsVisualizations, ProcessorPlan,
+    ProcessorPlanBuilder, Publication, RuntimeEnv, SubjectBuilder, SubjectBuilderTrait,
+    SubjectPlan, SubjectPlanBuilderTrait, Subscription,
 };
 use phymes_data::{
     AvailableCandleOperators, AvailableJinja2Templates, DataAggregatorOperator, DataCastOperator,
@@ -10,7 +13,7 @@ use phymes_data::{
 };
 use serde_json::json;
 
-use crate::{AvailableProcessors, TaskPlan, CustomAgentsBuilderTrait};
+use crate::{AvailableProcessors, CustomAgentsBuilderTrait, TaskPlan};
 
 /// A session for gathering analytics based on the session metrics
 ///
@@ -333,9 +336,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                         subject_name: self.metrics_pivot_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -354,9 +355,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                         subject_name: self.metrics_normalize_time_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -378,9 +377,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                             .to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -402,9 +399,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                             .to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -428,9 +423,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                             .to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -453,9 +446,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                             .to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -478,9 +469,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                             .to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -503,9 +492,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                             .to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -531,9 +518,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                             .to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -556,9 +541,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                             .to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -579,9 +562,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                             .to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -610,9 +591,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                             .to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -637,9 +616,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                             .to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -664,9 +641,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                             .to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -694,9 +669,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                             .to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -717,9 +690,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                         subject_name: self.apply_sequence_diagram_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -740,9 +711,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                             .to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -761,9 +730,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                         subject_name: self.errors_apply_kanban_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -784,9 +751,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                             .to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -807,9 +772,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                             .to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
             ProcessorPlanBuilder::default()
@@ -828,9 +791,7 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                         subject_name: self.events_apply_kanban_processor_name.to_string(),
                     },
                 ])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
         ];
@@ -839,7 +800,12 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
     }
 
     fn make_runtime_env(&self) -> Option<Arc<RuntimeEnv>> {
-        Some(RuntimeEnv::get_builder().with_name(self.session_context_name).build_arc().unwrap())
+        Some(
+            RuntimeEnv::get_builder()
+                .with_name(self.session_context_name)
+                .build_arc()
+                .unwrap(),
+        )
     }
 
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
@@ -937,15 +903,16 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
         };
         let metrics_processors_traces_select_and_cast_to_gantt_config_json =
             serde_json::to_vec(&metrics_processors_traces_select_and_cast_to_gantt_config).unwrap();
-        let metrics_processors_traces_select_and_cast_to_gantt_config_1_state = SubjectBuilder::new()
-            .with_name(self.metrics_processors_traces_select_and_cast_to_gantt_processor_name)
-            .with_json(
-                &metrics_processors_traces_select_and_cast_to_gantt_config_json.clone(),
-                1,
-            )
-            .unwrap()
-            .build()
-            .unwrap();
+        let metrics_processors_traces_select_and_cast_to_gantt_config_1_state =
+            SubjectBuilder::new()
+                .with_name(self.metrics_processors_traces_select_and_cast_to_gantt_processor_name)
+                .with_json(
+                    &metrics_processors_traces_select_and_cast_to_gantt_config_json.clone(),
+                    1,
+                )
+                .unwrap()
+                .build()
+                .unwrap();
 
         // Metrics processor traces select and cast
         let metrics_elapsed_compute_select_and_cast_to_gantt_config = DataConfig {
@@ -1696,7 +1663,9 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
             AvailableSubjects::AnalyticsMetrics
                 .to_subject(None, None)
                 .unwrap(),
-            AvailableSubjects::MetricPivot.to_subject(None, None).unwrap(),
+            AvailableSubjects::MetricPivot
+                .to_subject(None, None)
+                .unwrap(),
             AvailableSubjects::MetricPivotNormTime
                 .to_subject(None, None)
                 .unwrap(),
@@ -1831,7 +1800,10 @@ impl CustomAgentsBuilderTrait for DiagnosticSession<'_> {
                 )
                 .unwrap(),
         ];
-        let subject_plans = subjects.into_iter().map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap()).collect::<Vec<_>>();
+        let subject_plans = subjects
+            .into_iter()
+            .map(|s| SubjectPlan::get_builder().with_subject(s).build().unwrap())
+            .collect::<Vec<_>>();
         Some(subject_plans)
     }
 }
@@ -1843,12 +1815,14 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{
-        BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait, Subject, SubjectTrait
+        BuildableTrait, IPCMessage, MappableTrait, MessageBuilderTrait, MessageTrait, Subject,
+        SubjectTrait,
     };
     use phymes_diagnostics::{HashMap, HashSet};
 
     use crate::{
-        SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, create_message_map, test_session_context_builder, test_task
+        SessionContextBuilderAgentsTrait, SessionContextBuilderTrait, SessionStream,
+        SubscriptionTrait, create_message_map, test_session_context_builder, test_task,
     };
 
     use super::*;
@@ -1869,7 +1843,9 @@ mod tests {
 
         // Mimic a session run for 1 steps
         let session_ctx_arc = Arc::new(session_context);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
         let messages = test_task::make_test_input_message(
             "task_1",
             "session_1",
@@ -1884,11 +1860,13 @@ mod tests {
         let _response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         // Extract the subjects
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionMetrics.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionMetrics.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
         let subject = Subject::get_builder()
             .with_name(AvailableSubjects::SessionMetrics.to_string().as_str())
             .with_record_batches(batches)
@@ -1904,11 +1882,13 @@ mod tests {
             .with_publisher(name)
             .make_name()?
             .build()?;
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTraces.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionTraces.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
         let subject = Subject::get_builder()
             .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
             .with_record_batches(batches)
@@ -1924,11 +1904,13 @@ mod tests {
             .with_publisher(name)
             .make_name()?
             .build()?;
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionEvents.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionEvents.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
         let subject = Subject::get_builder()
             .with_name(AvailableSubjects::SessionEvents.to_string().as_str())
             .with_record_batches(batches)
@@ -1944,11 +1926,13 @@ mod tests {
             .with_publisher(name)
             .make_name()?
             .build()?;
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionTasks.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionTasks.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
         let subject = Subject::get_builder()
             .with_name(AvailableSubjects::SessionTasks.to_string().as_str())
             .with_record_batches(batches)
@@ -1964,11 +1948,13 @@ mod tests {
             .with_publisher(name)
             .make_name()?
             .build()?;
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionErrors.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionErrors.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
 
         let messages = if batches.len() > 0 {
             let subject = Subject::get_builder()
@@ -2036,7 +2022,9 @@ mod tests {
 
         // Make diagnostic data and session tasks data
         let message_map = make_test_data(diagnostic_session.session_context_name).await?;
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Run
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
@@ -2203,13 +2191,19 @@ mod tests {
         assert_eq!(&column[..16], "\n        kanban\n");
 
         // Check the session
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
         let subject = Subject::get_builder()
-            .with_name(DiagnosticsVisualizations::MetricProcessorTracesGantt.to_string().as_str())
+            .with_name(
+                DiagnosticsVisualizations::MetricProcessorTracesGantt
+                    .to_string()
+                    .as_str(),
+            )
             .with_record_batches(batches)?
             .build()?;
         let columns = subject.get_column_as_vec_str("filename");
@@ -2225,13 +2219,19 @@ mod tests {
             .collect::<Vec<_>>();
         let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
         assert_eq!(&column[..15], "\n        gantt\n");
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
         let subject = Subject::get_builder()
-            .with_name(DiagnosticsVisualizations::MetricElapsedComputeGantt.to_string().as_str())
+            .with_name(
+                DiagnosticsVisualizations::MetricElapsedComputeGantt
+                    .to_string()
+                    .as_str(),
+            )
             .with_record_batches(batches)?
             .build()?;
         let columns = subject.get_column_as_vec_str("filename");
@@ -2247,13 +2247,19 @@ mod tests {
             .collect::<Vec<_>>();
         let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
         assert_eq!(&column[..15], "\n        gantt\n");
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::MetricOutputRowsGantt.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: DiagnosticsVisualizations::MetricOutputRowsGantt.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
         let subject = Subject::get_builder()
-            .with_name(DiagnosticsVisualizations::MetricOutputRowsGantt.to_string().as_str())
+            .with_name(
+                DiagnosticsVisualizations::MetricOutputRowsGantt
+                    .to_string()
+                    .as_str(),
+            )
             .with_record_batches(batches)?
             .build()?;
         let columns = subject.get_column_as_vec_str("filename");
@@ -2269,13 +2275,19 @@ mod tests {
             .collect::<Vec<_>>();
         let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
         assert_eq!(&column[..15], "\n        gantt\n");
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::TraceSequenceDiagram.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: DiagnosticsVisualizations::TraceSequenceDiagram.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
         let subject = Subject::get_builder()
-            .with_name(DiagnosticsVisualizations::TraceSequenceDiagram.to_string().as_str())
+            .with_name(
+                DiagnosticsVisualizations::TraceSequenceDiagram
+                    .to_string()
+                    .as_str(),
+            )
             .with_record_batches(batches)?
             .build()?;
         let columns = subject.get_column_as_vec_str("filename");
@@ -2291,11 +2303,13 @@ mod tests {
             .collect::<Vec<_>>();
         let column = String::from_utf8_lossy(bytes.as_ref()).into_owned();
         assert_eq!(&column[..25], "\n        sequenceDiagram\n");
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: DiagnosticsVisualizations::EventKanban.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: DiagnosticsVisualizations::EventKanban.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
         let subject = Subject::get_builder()
             .with_name(DiagnosticsVisualizations::EventKanban.to_string().as_str())
             .with_record_batches(batches)?

@@ -389,9 +389,9 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{
-        BuildableTrait, BuilderTrait, MessageBuilderTrait, RuntimeEnv,
-        SendableRecordBatchStreamMessage, SubjectBuilder, SubjectBuilderTrait, Publication,
-        SubjectTrait, test_subject::make_test_subject,
+        BuildableTrait, BuilderTrait, MessageBuilderTrait, Publication, RuntimeEnv,
+        SendableRecordBatchStreamMessage, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
+        test_subject::make_test_subject,
     };
     use anyhow::Result;
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, HashMap, SpanBuilder};

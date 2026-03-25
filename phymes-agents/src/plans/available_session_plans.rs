@@ -93,7 +93,11 @@ impl AvailableSessionPlans {
     }
 
     /// Get the session stream state
-    pub fn get_session_stream_state(&self, session_name: &str, runtime_env: &Arc<RuntimeEnv>) -> (Arc<SessionContext>, Option<IPCMessageMap>) {
+    pub fn get_session_stream_state(
+        &self,
+        session_name: &str,
+        runtime_env: &Arc<RuntimeEnv>,
+    ) -> (Arc<SessionContext>, Option<IPCMessageMap>) {
         // Initialize the session
         let builder = self.get_session_context_builder(session_name);
         let (session_ctx, message) = builder

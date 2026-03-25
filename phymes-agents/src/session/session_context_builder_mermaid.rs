@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use crate::{
     SessionContext, SessionContextBuilder, SessionContextBuilderAgentsTrait,
-    SessionContextBuilderTrait,
-    plans::{AvailableProcessors, NextSuperstepSession, NextTaskSession, check_agent_subjects}, TaskPlanBuilder,
+    SessionContextBuilderTrait, TaskPlanBuilder,
+    plans::{AvailableProcessors, NextSuperstepSession, NextTaskSession, check_agent_subjects},
 };
 use anyhow::{Result, anyhow};
 use arrow::{
@@ -12,7 +12,10 @@ use arrow::{
 };
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubscribeEvents, BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait, ProcessorBuilder, ProcessorPlanBuilder, Publication, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectScript, SubjectTrait, Subscription, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type
+    AvailableSubscribeEvents, BuildableTrait, BuilderTrait, IPCMessageMap, MappableTrait,
+    ProcessorBuilder, ProcessorPlanBuilder, Publication, RuntimeEnv, Subject, SubjectBuilderTrait,
+    SubjectPlanBuilder, SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectScript, SubjectTrait,
+    Subscription, from_data_type_to_str, from_str_to_data_type, parse_str_to_data_type,
 };
 use phymes_data::{MERMAID_ER_DIAGRAM_ENTITIES_TEMPLATE, MERMAID_ER_DIAGRAM_TEMPLATE};
 use phymes_diagnostics::{HashMap, HashSet};
@@ -239,7 +242,8 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             tasks_vec.push(format!("\tsubgraph {}", task.task_name));
             runtime_envs_to_tasks_vec.push(format!(
                 "\t{}-rt-->{}",
-                self.runtime_env.as_ref().unwrap().get_name(), task.task_name
+                self.runtime_env.as_ref().unwrap().get_name(),
+                task.task_name
             ));
 
             // Iterate through each processor
@@ -352,7 +356,9 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
                 let value = if config_data && processor_names.contains(subject.get_name())
                     || example_data
                 {
-                    if let Ok(mut example_data) = subject.subject().get_column_as_vec_string(field.name()) {
+                    if let Ok(mut example_data) =
+                        subject.subject().get_column_as_vec_string(field.name())
+                    {
                         example_data.pop().unwrap_or_default()
                     } else {
                         String::new()
@@ -378,8 +384,9 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             "direction": "TB",
             "rows": [{"content": entities_string}]
         });
-        let script_string = SubjectScript::new_from_template(MERMAID_ER_DIAGRAM_TEMPLATE.to_string())
-            .apply_template(&inputs)?;
+        let script_string =
+            SubjectScript::new_from_template(MERMAID_ER_DIAGRAM_TEMPLATE.to_string())
+                .apply_template(&inputs)?;
 
         Ok(script_string.trim().to_owned())
     }
@@ -1103,9 +1110,7 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             ));
         }
         if runtime_env_names_vec.is_empty() {
-            return Err(anyhow!(
-                "No runtime environment was found."
-            ));
+            return Err(anyhow!("No runtime environment was found."));
         }
         if runtime_env_names_vec.len() > 1 {
             return Err(anyhow!(
@@ -1353,7 +1358,10 @@ impl SessionContextBuilderMermaidTrait for SessionContextBuilder {
             check_agent_subjects(&subject_names.into_iter().collect::<Vec<_>>())?;
         }
 
-        let subjects = subject_builders.into_iter().map(|s| s.build().unwrap()).collect::<Vec<_>>();
+        let subjects = subject_builders
+            .into_iter()
+            .map(|s| s.build().unwrap())
+            .collect::<Vec<_>>();
         Ok(self.with_subjects(subjects))
     }
 }

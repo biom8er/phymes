@@ -9,7 +9,8 @@ use phymes_core::{
     MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
     SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilder, SubjectBuilderTrait, remove_message_by_subject,
+    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilder, SubjectBuilderTrait,
+    remove_message_by_subject,
 };
 
 use crate::{
@@ -280,12 +281,12 @@ impl RecordBatchStream for AggregatorStream {
 
 #[cfg(test)]
 mod tests {
+    use crate::{AvailableCandleOperators, DataConfig};
     use phymes_core::{
-        SubjectBuilder, SubjectBuilderTrait, Publication, SubjectTrait,
+        Publication, SubjectBuilder, SubjectBuilderTrait, SubjectTrait,
         test_subject::{make_test_subject, make_test_subject_chat},
     };
     use phymes_diagnostics::{DiagnosticBuilderTrait, Diagnostics, SpanBuilder};
-    use crate::{AvailableCandleOperators, DataConfig};
 
     use super::*;
 
@@ -402,7 +403,7 @@ mod tests {
         );
 
         Ok(())
-    }    
+    }
 
     #[tokio::test]
     async fn test_aggregator_processor_schema_mismatch_error() -> Result<()> {

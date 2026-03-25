@@ -2,11 +2,14 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use arrow::record_batch::RecordBatch;
+use phymes_core::{
+    BuildableTrait, MappableTrait, ProcessorSubjectsMap, ProcessorTrait, RuntimeEnv,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, Subscription,
+};
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, TraceBuilderTrait};
-use phymes_core::{BuildableTrait, MappableTrait, ProcessorSubjectsMap, ProcessorTrait, RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageMap, Subscription};
 use tracing::{Level, event};
 
-use crate::{TaskBuilder, subscribe_to_subject, build_and_publish_to_stream, update_publisher};
+use crate::{TaskBuilder, build_and_publish_to_stream, subscribe_to_subject, update_publisher};
 
 /// Trait to implement the actual task which could involve one or
 ///   more operators over [`RecordBatch`]s often originating from
@@ -140,11 +143,8 @@ impl TaskTrait for Task {
             };
 
             // Run the processor
-            let message_builder = processor.process(
-                message_sub,
-                trace_builder.as_ref(),
-                runtime_env.clone(),
-            )?;
+            let message_builder =
+                processor.process(message_sub, trace_builder.as_ref(), runtime_env.clone())?;
 
             // Build and trace the processor published messages
             let message_pub = build_and_publish_to_stream(
@@ -179,7 +179,10 @@ pub mod test_task {
     use super::*;
     use crate::TaskBuilderTrait;
     use phymes_core::{
-        BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait, MessageBuilderTrait, ProcessorBuilder, ProcessorSubjects, ProcessorSubjectsBuilder, RuntimeEnv, SubjectPlan, SubjectPlanBuilderTrait, Subject, SubjectBuilder, SubjectBuilderTrait, Publication, SubjectTrait, test_processor, test_subject
+        BuildableTrait, BuilderTrait, IPCMessage, IPCMessageBuilder, IPCMessageMap, MappableTrait,
+        MessageBuilderTrait, ProcessorBuilder, ProcessorSubjects, ProcessorSubjectsBuilder,
+        Publication, RuntimeEnv, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan,
+        SubjectPlanBuilderTrait, SubjectTrait, test_processor, test_subject,
     };
 
     use arrow::array::{ArrayRef, BooleanArray, StringArray};
@@ -209,7 +212,10 @@ pub mod test_task {
         Ok(vec![config, table])
     }
 
-    pub fn make_subject_tables_empty(subject_name: &str, config_name: &str) -> Result<Vec<Subject>> {
+    pub fn make_subject_tables_empty(
+        subject_name: &str,
+        config_name: &str,
+    ) -> Result<Vec<Subject>> {
         // mock config for the task
         let a: ArrayRef = Arc::new(StringArray::from(vec!["".to_string()]));
         let b: ArrayRef = Arc::new(BooleanArray::from(vec![true]));
@@ -230,9 +236,7 @@ pub mod test_task {
         let tables = make_subject_tables(subject_name, config_name)?;
         let mut subject_plans = Vec::new();
         for table in tables.into_iter() {
-            let plan = SubjectPlan::get_builder()
-                .with_subject(table)
-                .build()?;
+            let plan = SubjectPlan::get_builder().with_subject(table).build()?;
             subject_plans.push(plan);
         }
         Ok(subject_plans)
@@ -464,7 +468,10 @@ mod tests {
 
     use super::*;
     use futures::TryStreamExt;
-    use phymes_core::{BuilderTrait, MessageTrait, Publication, SubjectBuilder, SubjectBuilderTrait, SubjectPlanTrait, SubjectTrait};
+    use phymes_core::{
+        BuilderTrait, MessageTrait, Publication, SubjectBuilder, SubjectBuilderTrait,
+        SubjectPlanTrait, SubjectTrait,
+    };
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     /// A compilation test to ensure that the `Task::get_name()` method can
@@ -489,16 +496,25 @@ mod tests {
         let subjects = test_task::make_subjects("test_table", "test_processor")?;
         let runtime_env = test_task::make_runtime_env("rt")?;
         for subject in subjects {
-            let _publication: Vec<_> = Publication::Extend { subject_name: subject.subject().get_name().to_string() }
-                .publish_to_subject(&runtime_env, subject.subject_own().get_record_batches_own(), 0, "", "test_session")?
-                .unwrap()
-                .try_collect()
-                .await?;
+            let _publication: Vec<_> = Publication::Extend {
+                subject_name: subject.subject().get_name().to_string(),
+            }
+            .publish_to_subject(
+                &runtime_env,
+                subject.subject_own().get_record_batches_own(),
+                0,
+                "",
+                "test_session",
+            )?
+            .unwrap()
+            .try_collect()
+            .await?;
         }
         let mut response = test_task.run(
             Some(&diagnostic_builder),
             &test_procesor_subjects,
-            &runtime_env, "test_session",
+            &runtime_env,
+            "test_session",
         )?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table").is_some());
@@ -547,20 +563,35 @@ mod tests {
             "test_table",
         )?;
         let mut subjects = test_task::make_subjects("test_table_1", "test_processor_1")?;
-        subjects.extend(test_task::make_subjects("test_table_2", "test_processor_2")?);
-        subjects.extend(test_task::make_subjects("test_table_3", "test_processor_3")?);
+        subjects.extend(test_task::make_subjects(
+            "test_table_2",
+            "test_processor_2",
+        )?);
+        subjects.extend(test_task::make_subjects(
+            "test_table_3",
+            "test_processor_3",
+        )?);
         let runtime_env = test_task::make_runtime_env("rt")?;
         for subject in subjects {
-            let _publication: Vec<_> = Publication::Extend { subject_name: subject.subject().get_name().to_string() }
-                .publish_to_subject(&runtime_env, subject.subject_own().get_record_batches_own(), 0, "", "test_session")?
-                .unwrap()
-                .try_collect()
-                .await?;
+            let _publication: Vec<_> = Publication::Extend {
+                subject_name: subject.subject().get_name().to_string(),
+            }
+            .publish_to_subject(
+                &runtime_env,
+                subject.subject_own().get_record_batches_own(),
+                0,
+                "",
+                "test_session",
+            )?
+            .unwrap()
+            .try_collect()
+            .await?;
         }
         let mut response = test_task.run(
             Some(&diagnostic_builder),
             &test_procesor_subjects,
-            &runtime_env, "test_session"
+            &runtime_env,
+            "test_session",
         )?;
         assert_eq!(response.len(), 1);
         assert!(response.get("from_test_task_on_test_table_1").is_some());
@@ -609,20 +640,35 @@ mod tests {
             "test_table",
         )?;
         let mut subjects = test_task::make_subjects("test_table_1", "test_processor_1")?;
-        subjects.extend(test_task::make_subjects("test_table_2", "test_processor_2")?);
-        subjects.extend(test_task::make_subjects("test_table_3", "test_processor_3")?);
+        subjects.extend(test_task::make_subjects(
+            "test_table_2",
+            "test_processor_2",
+        )?);
+        subjects.extend(test_task::make_subjects(
+            "test_table_3",
+            "test_processor_3",
+        )?);
         let runtime_env = test_task::make_runtime_env("rt")?;
         for subject in subjects {
-            let _publication: Vec<_> = Publication::Extend { subject_name: subject.subject().get_name().to_string() }
-                .publish_to_subject(&runtime_env, subject.subject_own().get_record_batches_own(), 0, "", "test_session")?
-                .unwrap()
-                .try_collect()
-                .await?;
+            let _publication: Vec<_> = Publication::Extend {
+                subject_name: subject.subject().get_name().to_string(),
+            }
+            .publish_to_subject(
+                &runtime_env,
+                subject.subject_own().get_record_batches_own(),
+                0,
+                "",
+                "test_session",
+            )?
+            .unwrap()
+            .try_collect()
+            .await?;
         }
         let mut response = test_task.run(
             Some(&diagnostic_builder),
             &test_procesor_subjects,
-            &runtime_env, "test_session",
+            &runtime_env,
+            "test_session",
         )?;
         assert_eq!(response.len(), 2);
         assert!(response.get("from_test_task_on_test_table_2").is_some());

@@ -1,11 +1,17 @@
-use std::{collections::HashMap, io::{Cursor, Read}};
+use std::{
+    collections::HashMap,
+    io::{Cursor, Read},
+};
 
 use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
 use flate2::read::{DeflateDecoder, GzDecoder, ZlibDecoder};
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, JsonFormat, JsonSchemaTrait, MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Tool, ToolType, open_alex
+    AvailableSubjects, BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, Function,
+    FunctionParameters, JSONSchemaDefine, JSONSchemaType, JsonFormat, JsonSchemaTrait,
+    MappableTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Tool, ToolType,
+    open_alex,
 };
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -124,7 +130,13 @@ impl DataOperatorTrait for ExtractTabular {
         _rhs_args: Option<&[RecordBatch]>,
         _device: &Device,
     ) -> Result<RecordBatch> {
-        extract_tabular(&self.lhs_values, lhs_args, &self.encoding, &self.format, &self.schema)
+        extract_tabular(
+            &self.lhs_values,
+            lhs_args,
+            &self.encoding,
+            &self.format,
+            &self.schema,
+        )
     }
 }
 
@@ -156,24 +168,22 @@ pub fn extract_tabular(
             let mut out = Vec::new();
             decoder.read_to_end(&mut out)?;
             out
-        },
+        }
         DataEncoding::Zlib => {
             let cursor = Cursor::new(values_vec);
             let mut decoder = ZlibDecoder::new(cursor);
             let mut out = Vec::new();
             decoder.read_to_end(&mut out)?;
             out
-        },
+        }
         DataEncoding::Gz => {
             let cursor = Cursor::new(values_vec);
             let mut decoder = GzDecoder::new(cursor);
             let mut out = Vec::new();
             decoder.read_to_end(&mut out)?;
             out
-        },
-        DataEncoding::None => {
-            values_vec
-        },
+        }
+        DataEncoding::None => values_vec,
     };
 
     // Parse the values depending upon the specified format
@@ -383,10 +393,13 @@ mod tests {
     use std::io::Write;
 
     use bytes::Bytes;
-    use flate2::{Compression, write::{DeflateEncoder, GzEncoder, ZlibEncoder}};
+    use flate2::{
+        Compression,
+        write::{DeflateEncoder, GzEncoder, ZlibEncoder},
+    };
     use phymes_core::{
-        BuildableTrait, BuilderTrait, CsvFormat, DataFormat, JsonFormat, Subject, SubjectBuilderTrait,
-        SubjectTrait, create_attachments_batch,
+        BuildableTrait, BuilderTrait, CsvFormat, DataFormat, JsonFormat, Subject,
+        SubjectBuilderTrait, SubjectTrait, create_attachments_batch,
     };
     use phymes_diagnostics::create_timestamp_micros;
 

@@ -3,9 +3,15 @@ use std::{collections::HashMap, io::Write};
 use anyhow::{Result, anyhow};
 use arrow::array::RecordBatch;
 use candle_core::Device;
-use flate2::{Compression, write::{DeflateEncoder, GzEncoder, ZlibEncoder}};
+use flate2::{
+    Compression,
+    write::{DeflateEncoder, GzEncoder, ZlibEncoder},
+};
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType, create_attachments_batch, create_chat_record_batch, create_object_store_batch, make_extension, make_filename
+    AvailableSubjects, BuildableTrait, BuilderTrait, CsvFormat, DataEncoding, DataFormat, Function,
+    FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, Subject,
+    SubjectBuilderTrait, SubjectTrait, Tool, ToolType, create_attachments_batch,
+    create_chat_record_batch, create_object_store_batch, make_extension, make_filename,
 };
 use phymes_diagnostics::create_timestamp_micros;
 use serde::{Deserialize, Serialize};
@@ -102,7 +108,12 @@ impl DataOperatorTrait for PackTabular {
             "Missing `doc_name` for `{}`.",
             Self::get_static_name()
         ))?;
-        Ok(PackTabular { encoding, format, schema, doc_name })
+        Ok(PackTabular {
+            encoding,
+            format,
+            schema,
+            doc_name,
+        })
     }
     fn forward(
         &self,
@@ -110,7 +121,13 @@ impl DataOperatorTrait for PackTabular {
         _rhs_args: Option<&[RecordBatch]>,
         _device: &Device,
     ) -> Result<RecordBatch> {
-        pack_tabular(lhs_args, &self.encoding, &self.format, &self.schema, &self.doc_name)
+        pack_tabular(
+            lhs_args,
+            &self.encoding,
+            &self.format,
+            &self.schema,
+            &self.doc_name,
+        )
     }
 }
 
@@ -132,9 +149,7 @@ fn encode_bytes(encoding: &DataEncoding, bytes: &[u8]) -> Result<Vec<u8>> {
             encoder.write_all(bytes)?;
             encoder.finish()?
         }
-        DataEncoding::None => {
-            bytes.to_vec()
-        }
+        DataEncoding::None => bytes.to_vec(),
     };
     Ok(bytes_encoded)
 }
@@ -155,7 +170,6 @@ pub fn table_and_data_format_to_record_batch(
     schema: &AvailableSubjects,
     content: Option<&str>,
 ) -> Result<RecordBatch> {
-
     // Pack in the specified data format with the specified encoding
     match format {
         DataFormat::None => {
@@ -175,9 +189,10 @@ pub fn table_and_data_format_to_record_batch(
                     vec![content],
                     vec![create_timestamp_micros()],
                 ),
-                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataFormat `{format}`."))
+                _ => Err(anyhow!(
+                    "Schema `{schema}` is not yet support for DataFormat `{format}`."
+                )),
             }
-            
         }
         DataFormat::Csv(csv_format) => {
             // Convert to CSV and wrap into a blob batch
@@ -195,13 +210,15 @@ pub fn table_and_data_format_to_record_batch(
                 ),
                 AvailableSubjects::ObjectStore => create_object_store_batch(
                     vec![filename],
-                    vec![table.get_name().to_string()], 
+                    vec![table.get_name().to_string()],
                     vec!["assistant".to_string()],
                     vec![create_timestamp_micros()],
                     vec![bytes],
                 ),
-                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataFormat `{format}`."))
-            }            
+                _ => Err(anyhow!(
+                    "Schema `{schema}` is not yet support for DataFormat `{format}`."
+                )),
+            }
         }
         DataFormat::CsvDefault => {
             // Convert to CSV and wrap into a blob batch
@@ -222,13 +239,15 @@ pub fn table_and_data_format_to_record_batch(
                 ),
                 AvailableSubjects::ObjectStore => create_object_store_batch(
                     vec![filename],
-                    vec![table.get_name().to_string()], 
+                    vec![table.get_name().to_string()],
                     vec!["assistant".to_string()],
                     vec![create_timestamp_micros()],
                     vec![bytes],
                 ),
-                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataFormat `{format}`."))
-            } 
+                _ => Err(anyhow!(
+                    "Schema `{schema}` is not yet support for DataFormat `{format}`."
+                )),
+            }
         }
         DataFormat::Bytes => {
             // Convert to bytes directly
@@ -246,13 +265,15 @@ pub fn table_and_data_format_to_record_batch(
                 ),
                 AvailableSubjects::ObjectStore => create_object_store_batch(
                     vec![filename],
-                    vec![table.get_name().to_string()], 
+                    vec![table.get_name().to_string()],
                     vec!["assistant".to_string()],
                     vec![create_timestamp_micros()],
                     vec![bytes.to_vec()],
                 ),
-                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataFormat `{format}`."))
-            } 
+                _ => Err(anyhow!(
+                    "Schema `{schema}` is not yet support for DataFormat `{format}`."
+                )),
+            }
         }
         DataFormat::Json(_) | DataFormat::JsonDefault | DataFormat::JsonSchema => {
             // Convert to JSON
@@ -270,13 +291,15 @@ pub fn table_and_data_format_to_record_batch(
                 ),
                 AvailableSubjects::ObjectStore => create_object_store_batch(
                     vec![filename],
-                    vec![table.get_name().to_string()], 
+                    vec![table.get_name().to_string()],
                     vec!["assistant".to_string()],
                     vec![create_timestamp_micros()],
                     vec![bytes],
                 ),
-                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataFormat `{format}`."))
-            } 
+                _ => Err(anyhow!(
+                    "Schema `{schema}` is not yet support for DataFormat `{format}`."
+                )),
+            }
         }
         DataFormat::Html | DataFormat::Txt => {
             // Extract out the values column and concatenate into a single String to form the document
@@ -303,13 +326,15 @@ pub fn table_and_data_format_to_record_batch(
                 ),
                 AvailableSubjects::ObjectStore => create_object_store_batch(
                     vec![filename],
-                    vec![table.get_name().to_string()], 
+                    vec![table.get_name().to_string()],
                     vec!["assistant".to_string()],
                     vec![create_timestamp_micros()],
                     vec![bytes],
                 ),
-                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataFormat `{format}`."))
-            } 
+                _ => Err(anyhow!(
+                    "Schema `{schema}` is not yet support for DataFormat `{format}`."
+                )),
+            }
         }
         DataFormat::Ipc => {
             // Convert to JSON
@@ -327,13 +352,15 @@ pub fn table_and_data_format_to_record_batch(
                 ),
                 AvailableSubjects::ObjectStore => create_object_store_batch(
                     vec![filename],
-                    vec![table.get_name().to_string()], 
+                    vec![table.get_name().to_string()],
                     vec!["assistant".to_string()],
                     vec![create_timestamp_micros()],
                     vec![bytes],
                 ),
-                _ => Err(anyhow!("Schema `{schema}` is not yet support for DataFormat `{format}`."))
-            } 
+                _ => Err(anyhow!(
+                    "Schema `{schema}` is not yet support for DataFormat `{format}`."
+                )),
+            }
         }
         DataFormat::Pdf | DataFormat::Xml | DataFormat::Owl => {
             Err(anyhow!("{format} format is not yet supported."))
@@ -364,7 +391,10 @@ pub fn pack_tabular(
 
 #[cfg(test)]
 mod tests {
-    use std::{io::{Cursor, Read}, sync::Arc};
+    use std::{
+        io::{Cursor, Read},
+        sync::Arc,
+    };
 
     use crate::candle_data::test_candle_ops_processor::make_embeddings_record_batch_str_f32;
     use arrow::array::{ArrayRef, StringArray};

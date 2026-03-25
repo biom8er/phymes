@@ -3,21 +3,27 @@ use std::{collections::VecDeque, pin::Pin, sync::Arc};
 use anyhow::Result;
 use arrow::array::RecordBatch;
 use bytes::Bytes;
-use object_store::{MultipartUpload, ObjectStore, ObjectStoreExt, PutPayload, PutResult, path::Path};
+use object_store::{
+    MultipartUpload, ObjectStore, ObjectStoreExt, PutPayload, PutResult, path::Path,
+};
 use parking_lot::Mutex;
 
-use crate::{BatchWriter, storage::chunked_writer::{ChunkedWriter, OnChunk}};
+use crate::{
+    BatchWriter,
+    storage::chunked_writer::{ChunkedWriter, OnChunk},
+};
 
 /// Mutipart storage writing
-pub fn storage_writer_multipart<'a>(store: &'a Arc<dyn ObjectStore>, path: &'a Path,
-) -> Pin<
-    Box<dyn Future<Output = Result<Box<dyn MultipartUpload>, object_store::Error>> + Send + 'a>,
-> {
+pub fn storage_writer_multipart<'a>(
+    store: &'a Arc<dyn ObjectStore>,
+    path: &'a Path,
+) -> Pin<Box<dyn Future<Output = Result<Box<dyn MultipartUpload>, object_store::Error>> + Send + 'a>>
+{
     Box::pin(store.put_multipart(path))
 }
 
 /// Trait for writing to object storage in multiple parts
-/// 
+///
 /// Most optimal for large files using > 5 Mb chunk sizes
 pub trait StorageWriterMultipartTrait {
     type SW;
@@ -34,7 +40,11 @@ pub trait StorageWriterMultipartTrait {
     }
 
     /// New Writer
-    fn new(writer: Self::SW, mp: Box<dyn MultipartUpload>, pending: Arc<Mutex<VecDeque<Vec<u8>>>>) -> Self
+    fn new(
+        writer: Self::SW,
+        mp: Box<dyn MultipartUpload>,
+        pending: Arc<Mutex<VecDeque<Vec<u8>>>>,
+    ) -> Self
     where
         Self: Sized;
 
@@ -63,7 +73,7 @@ pub trait StorageWriterMultipartTrait {
 }
 
 /// Trait for writing to object storage
-/// 
+///
 /// Most optimal for small files
 pub trait StorageWriterTrait {
     type SW;
@@ -84,15 +94,23 @@ pub trait StorageWriterTrait {
         Self: Sized;
 
     /// Put the payload
-    fn put<'a>(&mut self, store: &'a Arc<dyn ObjectStore>, path: &'a Path) -> Pin<Box<dyn Future<Output = Result<PutResult, object_store::Error>> + Send + 'a>> {
-        let bytes = self.pending_mut().lock().drain(..).flatten().collect::<Vec<_>>();
+    fn put<'a>(
+        &mut self,
+        store: &'a Arc<dyn ObjectStore>,
+        path: &'a Path,
+    ) -> Pin<Box<dyn Future<Output = Result<PutResult, object_store::Error>> + Send + 'a>> {
+        let bytes = self
+            .pending_mut()
+            .lock()
+            .drain(..)
+            .flatten()
+            .collect::<Vec<_>>();
         let payload = PutPayload::from_bytes(Bytes::from(bytes));
         Box::pin(store.put(&path, payload))
     }
 }
 
 pub trait StorageStreamWriterTrait<W> {
-
     /// Add the batch to the writer
     fn write_batch(&mut self, batch: &RecordBatch) -> Result<()>;
 

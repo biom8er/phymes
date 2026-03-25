@@ -26,13 +26,17 @@ pub struct ServerConfig {
 
     /// Additional object store configuration options not in the environmental variables
     #[arg(long)]
-    pub object_store_config: Option<Map<String,Value>>,
+    pub object_store_config: Option<Map<String, Value>>,
 }
 
 impl From<&HashMap<String, String>> for ServerConfig {
     fn from(values: &HashMap<String, String>) -> ServerConfig {
-        let object_store_backend = values.get("object_store_backend").map(|v| ObjectStorageBackend::from_str(v, false).unwrap());
-        let object_store_config = values.get("object_store_config").map(|v| serde_json::from_str::<Map<String, Value>>(v).unwrap());
+        let object_store_backend = values
+            .get("object_store_backend")
+            .map(|v| ObjectStorageBackend::from_str(v, false).unwrap());
+        let object_store_config = values
+            .get("object_store_config")
+            .map(|v| serde_json::from_str::<Map<String, Value>>(v).unwrap());
         ServerConfig {
             address: values.get("address").unwrap().to_string(),
             assets_dir: values.get("assets_dir").unwrap().to_string(),

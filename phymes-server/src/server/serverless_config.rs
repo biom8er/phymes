@@ -33,5 +33,5 @@ pub struct ServerlessConfig {
 
     /// Additional object store configuration options not in the environmental variables
     #[arg(long)]
-    pub object_store_config: Option<Map<String,Value>>,
+    pub object_store_config: Option<Map<String, Value>>,
 }

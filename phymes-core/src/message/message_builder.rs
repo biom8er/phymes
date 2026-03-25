@@ -1,4 +1,7 @@
-use crate::{IPCMessage, SendableRecordBatchStreamMessage, SendableRecordBatchStream, Publication, BuilderTrait};
+use crate::{
+    BuilderTrait, IPCMessage, Publication, SendableRecordBatchStream,
+    SendableRecordBatchStreamMessage,
+};
 
 use anyhow::{Result, anyhow};
 

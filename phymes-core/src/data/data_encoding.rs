@@ -64,7 +64,7 @@ impl Display for DataEncoding {
 }
 
 /// Make the filename based on the [DataFormat] and the [DataEncoding]
-/// 
+///
 /// # Notes
 /// - filename: "foo" of "/bar/foo.rs.gz"
 /// - prefix: "rs" of "/bar/foo.rs.gz"
@@ -81,7 +81,7 @@ pub fn make_filename(filename: &str, format: &DataFormat, encoding: &DataEncodin
 }
 
 /// Make the extension based on the [DataFormat] and the [DataEncoding]
-/// 
+///
 /// # Notes
 /// - we treat everything after the "." as a part of the extension including the prefix and extension
 /// - prefix: "rs" of "/bar/foo.rs.gz"

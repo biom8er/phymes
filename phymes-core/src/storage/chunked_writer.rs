@@ -1,5 +1,10 @@
-use std::{collections::VecDeque, fmt::Debug, io::{Result as IoResult, Write}, sync::Arc};
 use parking_lot::Mutex;
+use std::{
+    collections::VecDeque,
+    fmt::Debug,
+    io::{Result as IoResult, Write},
+    sync::Arc,
+};
 
 pub trait OnChunkTrait {
     fn on_chunk(&self, chunk: Vec<u8>);
@@ -12,7 +17,9 @@ pub struct OnChunk {
 
 impl OnChunk {
     pub fn new(pending: &Arc<Mutex<VecDeque<Vec<u8>>>>) -> Self {
-        OnChunk { pending: Arc::clone(pending) }
+        OnChunk {
+            pending: Arc::clone(pending),
+        }
     }
 }
 
@@ -23,7 +30,8 @@ impl OnChunkTrait for OnChunk {
 }
 
 pub struct ChunkedWriter<F>
-    where F: OnChunkTrait
+where
+    F: OnChunkTrait,
 {
     buf: Vec<u8>,
     chunk_size: usize,
@@ -53,7 +61,11 @@ where
     F: OnChunkTrait,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ChunkedWriter").field("buf", &self.buf).field("chunk_size", &self.chunk_size).field("on_chunk", &"FnMut(Vec<u8>)").finish()
+        f.debug_struct("ChunkedWriter")
+            .field("buf", &self.buf)
+            .field("chunk_size", &self.chunk_size)
+            .field("on_chunk", &"FnMut(Vec<u8>)")
+            .finish()
     }
 }
 
@@ -83,16 +95,15 @@ where
 }
 
 pub struct BatchWriter<F>
-    where F: OnChunkTrait
+where
+    F: OnChunkTrait,
 {
     on_chunk: F,
 }
 
 impl<F: OnChunkTrait> BatchWriter<F> {
     pub fn new(on_chunk: F) -> Self {
-        Self {
-            on_chunk,
-        }
+        Self { on_chunk }
     }
 }
 
@@ -101,7 +112,9 @@ where
     F: OnChunkTrait,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CBatchWriter").field("on_chunk", &"FnMut(Vec<u8>)").finish()
+        f.debug_struct("CBatchWriter")
+            .field("on_chunk", &"FnMut(Vec<u8>)")
+            .finish()
     }
 }
 

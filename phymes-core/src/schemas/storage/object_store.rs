@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use arrow::{
-    array::{ArrayRef, Int64Array, ListBuilder, RecordBatch, StringArray, UInt8Builder, UInt32Array},
+    array::{
+        ArrayRef, Int64Array, ListBuilder, RecordBatch, StringArray, UInt8Builder, UInt32Array,
+    },
     datatypes::{DataType, Field, Fields},
 };
 use serde::{Deserialize, Serialize};
@@ -15,22 +17,18 @@ use serde::{Deserialize, Serialize};
 /// - endpoint: "s3.amazonaws.com" of "https://<bucket-name>.s3.amazonaws.com/<key>" or "https://s3.amazonaws.com/<bucket-name>/<key>"
 /// - bucket: root folder on the filesystem
 /// - key: filesystem path
-/// 
+///
 /// ## Location components (filesystem)
 /// - path: "/bar/foo.rs.gz"
 /// - stem: "/bar/" of "/bar/foo.rs.gz"
 /// - filename: "foo" of "/bar/foo.rs.gz"
 /// - prefix: "rs" of "/bar/foo.rs.gz"
 /// - extension: "gz" of "/bar/foo.rs.gz"
-/// 
+///
 /// ## Environmental variables
 /// - access keys, regions, etc. are considered private and only accessible from the environment
 pub fn create_object_store_fields() -> Fields {
-    let field_names = [
-        "location",
-        "bucket",
-        "metadata",
-    ];
+    let field_names = ["location", "bucket", "metadata"];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -94,12 +92,7 @@ pub fn create_object_store_batch(
 }
 
 pub fn create_object_store_meta_fields_vec() -> Vec<Field> {
-    let field_names = [
-        "location",
-        "bucket",
-        "e_tag",
-        "version",
-    ];
+    let field_names = ["location", "bucket", "e_tag", "version"];
     let mut fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))

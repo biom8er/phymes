@@ -1,8 +1,12 @@
 use std::sync::Arc;
 
-use arrow::{array::{
-    ArrayRef, ArrowPrimitiveType, BooleanBuilder, ListBuilder, PrimitiveBuilder, RecordBatch, UInt64Builder
-}, datatypes::SchemaRef};
+use arrow::{
+    array::{
+        ArrayRef, ArrowPrimitiveType, BooleanBuilder, ListBuilder, PrimitiveBuilder, RecordBatch,
+        UInt64Builder,
+    },
+    datatypes::SchemaRef,
+};
 
 pub struct BTreeIndexBuilder<K: ArrowPrimitiveType, V: ArrowPrimitiveType> {
     node_id: UInt64Builder,

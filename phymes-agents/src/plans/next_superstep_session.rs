@@ -1,7 +1,7 @@
 use anyhow::Result;
 use phymes_core::{
     AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, IPCMessageMap,
-    MessageBuilderTrait, Subject, SubjectBuilderTrait, Publication, SubjectTrait,
+    MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait,
     create_session_tasks_subscribe_publish_batch,
 };
 
@@ -144,12 +144,16 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{
-        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, SubjectTrait, Subscription, create_session_supersteps_batch
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait,
+        MessageBuilderTrait, Publication, SubjectTrait, Subscription,
+        create_session_supersteps_batch,
     };
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SessionStreamStepMinimal, SessionStreamStepTrait, SubscriptionTrait, create_message_map
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream, SessionStreamStepMinimal,
+        SessionStreamStepTrait, SubscriptionTrait, create_message_map,
     };
 
     use super::*;
@@ -182,18 +186,25 @@ mod tests {
             .collect::<Vec<_>>();
 
         // Run the session
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
-        let session_stream = SessionStream::new(next_superstep_messages.pop().unwrap(), Arc::clone(&session_ctx_arc));
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
+        let session_stream = SessionStream::new(
+            next_superstep_messages.pop().unwrap(),
+            Arc::clone(&session_ctx_arc),
+        );
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
 
         // Test supserstep 1
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSuperstepMax.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionSuperstepMax.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
         let subject = Subject::get_builder()
             .with_name(AvailableSubjects::SessionSuperstepMax.to_string().as_str())
             .with_record_batches(batches)?
@@ -232,14 +243,18 @@ mod tests {
             .rev()
             .collect::<Vec<_>>();
         message_map.extend(next_superstep_messages.pop().unwrap());
-        let _response = SessionStreamStepMinimal::run_superstep(Arc::clone(&session_ctx_arc), message_map).await?;
+        let _response =
+            SessionStreamStepMinimal::run_superstep(Arc::clone(&session_ctx_arc), message_map)
+                .await?;
 
         // Test supserstep 1
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::SessionSuperstepMax.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionSuperstepMax.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
         let subject = Subject::get_builder()
             .with_name(AvailableSubjects::SessionSuperstepMax.to_string().as_str())
             .with_record_batches(batches)?

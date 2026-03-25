@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use phymes_diagnostics::HashMap;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, Publication, RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Subscription, remove_message_by_subject
+    BuildableTrait, BuilderTrait, MappableTrait, MessageBuilderTrait, MessageTrait, Publication,
+    RuntimeEnv, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilderMap,
+    SendableRecordBatchStreamMessageMap, Subscription, remove_message_by_subject,
 };
+use phymes_diagnostics::HashMap;
 
 use crate::SubscriptionTrait;
 
@@ -52,9 +54,11 @@ pub fn subscribe_to_subject(
             };
 
             // C. Get the subject
-            let stream = Subscription::AlwaysAllRecordBatches { subject_name: subscription.subject_name().to_string() }
-                .subscribe_to_subject(runtime_env, session_name)?
-                .unwrap();
+            let stream = Subscription::AlwaysAllRecordBatches {
+                subject_name: subscription.subject_name().to_string(),
+            }
+            .subscribe_to_subject(runtime_env, session_name)?
+            .unwrap();
             let message = SendableRecordBatchStreamMessage::get_builder()
                 .with_publisher("Subjects")
                 .with_subject(subscription.subject_name())
@@ -131,9 +135,11 @@ pub fn update_publisher(
 
 #[cfg(test)]
 mod tests {
-    use futures::TryStreamExt;
-    use phymes_core::{SendableRecordBatchStreamMessageBuilder, SubjectPlanTrait, SubjectTrait, test_subject};
     use crate::{PublicationTrait, test_task};
+    use futures::TryStreamExt;
+    use phymes_core::{
+        SendableRecordBatchStreamMessageBuilder, SubjectPlanTrait, SubjectTrait, test_subject,
+    };
 
     use super::*;
 
@@ -161,19 +167,32 @@ mod tests {
         // Create the Tables
         let subjects = test_task::make_subjects(subject_name, config_name)?;
         for subject in subjects {
-            let _publication: Vec<_> = Publication::Extend { subject_name: subject.get_name().to_string() }
-                .publish_to_subject(&runtime_env, subject.subject_own().get_record_batches_own(), 0, "", "test_session")?
-                .unwrap()
-                .try_collect()
-                .await?;
-        }        
+            let _publication: Vec<_> = Publication::Extend {
+                subject_name: subject.get_name().to_string(),
+            }
+            .publish_to_subject(
+                &runtime_env,
+                subject.subject_own().get_record_batches_own(),
+                0,
+                "",
+                "test_session",
+            )?
+            .unwrap()
+            .try_collect()
+            .await?;
+        }
 
         // Create the stream
         let mut stream = HashMap::<String, SendableRecordBatchStreamMessage>::new();
 
-        // Test        
-        let mut messages =
-            subscribe_to_subject(&subscriptions, &publications, &runtime_env, "test_session", &mut stream)?;
+        // Test
+        let mut messages = subscribe_to_subject(
+            &subscriptions,
+            &publications,
+            &runtime_env,
+            "test_session",
+            &mut stream,
+        )?;
         assert_eq!(messages.len(), 2);
         assert_eq!(
             remove_message_by_subject(subject_name, &mut messages)
@@ -217,8 +236,13 @@ mod tests {
         let _ = stream.insert(m.get_name().to_string(), m);
 
         // Test
-        let mut messages =
-            subscribe_to_subject(&subscriptions, &publications, &runtime_env, "test_session", &mut stream)?;
+        let mut messages = subscribe_to_subject(
+            &subscriptions,
+            &publications,
+            &runtime_env,
+            "test_session",
+            &mut stream,
+        )?;
         assert_eq!(messages.len(), 3);
         assert_eq!(
             remove_message_by_subject(subject_name, &mut messages)
@@ -264,8 +288,13 @@ mod tests {
         let _ = stream.insert(m.get_name().to_string(), m);
 
         // Test
-        let mut messages =
-            subscribe_to_subject(&subscriptions, &publications, &runtime_env, "test_session", &mut stream)?;
+        let mut messages = subscribe_to_subject(
+            &subscriptions,
+            &publications,
+            &runtime_env,
+            "test_session",
+            &mut stream,
+        )?;
         assert_eq!(messages.len(), 2);
         assert_eq!(
             remove_message_by_subject(subject_name, &mut messages)

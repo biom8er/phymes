@@ -1,8 +1,11 @@
-use std::{fmt::Debug, sync::Arc};
-use anyhow::{anyhow, Result};
+use crate::{
+    BuilderTrait, ObjectStorageBackend, RuntimeEnv, SubjectFilePartition, SubjectFolderPartition,
+    make_store,
+};
+use anyhow::{Result, anyhow};
 use object_store::ObjectStore;
 use serde_json::{Map, Value};
-use crate::{BuilderTrait, ObjectStorageBackend, RuntimeEnv, SubjectFilePartition, SubjectFolderPartition, make_store};
+use std::{fmt::Debug, sync::Arc};
 
 pub trait RuntimeEnvBuilderTrait: BuilderTrait + Debug + Send + Sync {
     fn with_max_memory(self, max: usize) -> Self;
@@ -37,7 +40,7 @@ pub struct RuntimeEnvBuilder {
     /// copy of the bucket for the object store
     pub object_store_bucket: Option<String>,
     /// Additional object store configuration options not in the environmental variables
-    pub object_store_config: Option<Map<String,Value>>,
+    pub object_store_config: Option<Map<String, Value>>,
     /// The subject folder partitioning
     pub subject_folder_partitioning: Option<SubjectFolderPartition>,
     /// The subject folder partitioning
@@ -46,7 +49,16 @@ pub struct RuntimeEnvBuilder {
 
 impl PartialEq for RuntimeEnvBuilder {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name && self.max_memory == other.max_memory && self.max_time == other.max_time && self.max_steps == other.max_steps && self.max_tasks == other.max_tasks && self.object_store_backend == other.object_store_backend && self.object_store_bucket == other.object_store_bucket && self.object_store_config == other.object_store_config && self.subject_folder_partitioning == other.subject_folder_partitioning && self.subject_file_partitioning == other.subject_file_partitioning
+        self.name == other.name
+            && self.max_memory == other.max_memory
+            && self.max_time == other.max_time
+            && self.max_steps == other.max_steps
+            && self.max_tasks == other.max_tasks
+            && self.object_store_backend == other.object_store_backend
+            && self.object_store_bucket == other.object_store_bucket
+            && self.object_store_config == other.object_store_config
+            && self.subject_folder_partitioning == other.subject_folder_partitioning
+            && self.subject_file_partitioning == other.subject_file_partitioning
     }
 }
 
@@ -79,12 +91,18 @@ impl BuilderTrait for RuntimeEnvBuilder {
         Self: Sized,
     {
         let t = Self::T {
-            name: self.name.ok_or(anyhow!("Please define the name before trying to build the runtime Env!"))?,
+            name: self.name.ok_or(anyhow!(
+                "Please define the name before trying to build the runtime Env!"
+            ))?,
             max_memory: self.max_memory.unwrap_or_default(),
             max_time: self.max_time.unwrap_or_default(),
             max_steps: self.max_steps.unwrap_or(25),
             max_tasks: self.max_tasks.unwrap_or(8),
-            object_store: self.object_store.unwrap_or(make_store(&ObjectStorageBackend::default(), None, None)?),
+            object_store: self.object_store.unwrap_or(make_store(
+                &ObjectStorageBackend::default(),
+                None,
+                None,
+            )?),
             object_store_backend: self.object_store_backend.unwrap_or_default(),
             object_store_bucket: self.object_store_bucket.unwrap_or_default(),
             object_store_config: self.object_store_config.unwrap_or_default(),
@@ -96,7 +114,6 @@ impl BuilderTrait for RuntimeEnvBuilder {
 }
 
 impl RuntimeEnvBuilderTrait for RuntimeEnvBuilder {
-
     fn with_object_store_config(mut self, config: &Map<String, Value>) -> Self {
         self.object_store_config = Some(config.to_owned());
         self
@@ -112,47 +129,47 @@ impl RuntimeEnvBuilderTrait for RuntimeEnvBuilder {
         self.object_store_config = Some(config);
         self
     }
-    
+
     fn with_max_memory(mut self, max: usize) -> Self {
         self.max_memory = Some(max);
         self
     }
-    
+
     fn with_max_time(mut self, max: usize) -> Self {
         self.max_time = Some(max);
         self
     }
-    
+
     fn with_subject_folder_partitioning(mut self, partitioning: &SubjectFolderPartition) -> Self {
         self.subject_folder_partitioning = Some(partitioning.to_owned());
         self
     }
-    
+
     fn with_subject_file_partitioning(mut self, partitioning: &SubjectFilePartition) -> Self {
         self.subject_file_partitioning = Some(partitioning.to_owned());
         self
     }
-    
+
     fn with_max_steps(mut self, max: usize) -> Self {
         self.max_steps = Some(max);
         self
     }
-    
+
     fn with_max_tasks(mut self, max: usize) -> Self {
         self.max_tasks = Some(max);
         self
     }
-    
+
     fn with_object_store(mut self, store: Arc<dyn ObjectStore>) -> Self {
         self.object_store = Some(store);
         self
     }
-    
+
     fn with_object_store_backend(mut self, backend: &ObjectStorageBackend) -> Self {
         self.object_store_backend = Some(backend.to_owned());
         self
     }
-    
+
     fn with_object_store_bucket(mut self, bucket: &str) -> Self {
         self.object_store_bucket = Some(bucket.to_string());
         self

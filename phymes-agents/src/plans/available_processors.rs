@@ -4,14 +4,16 @@ use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, DataEncoding, DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Subject, WorkspacePatchSubject, test_processor::{ProcessorError, ProcessorMock}
+    AvailableSubjects, DataEncoding, DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho,
+    ProcessorTrait, Subject, WorkspacePatchSubject,
+    test_processor::{ProcessorError, ProcessorMock},
 };
 use phymes_data::{
-    AggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates,
-    CandleDataProcessor, CoalesceProcessor, DataAggregatorOperator, DataCastOperator,
-    DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig,
-    DataConfigTrait, DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig,
-    LimitProcessor, ToolTrait,
+    AggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor,
+    CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator,
+    DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait,
+    DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig, LimitProcessor,
+    ToolTrait,
 };
 #[cfg(feature = "api")]
 use phymes_data::{
@@ -21,8 +23,7 @@ use phymes_data::{
 };
 use phymes_ml::{
     AvailableCandleAssets, CandleChatConfig, CandleChatProcessor, CandleEmbedConfig,
-    CandleEmbedProcessor, MessageParserProcessor, ToolCallConfig,
-    ToolCallProcessor,
+    CandleEmbedProcessor, MessageParserProcessor, ToolCallConfig, ToolCallProcessor,
 };
 #[cfg(feature = "api")]
 use phymes_ml::{AvailableOpenAIAssets, OpenAIChatProcessor, OpenAIEmbedProcessor};
@@ -769,10 +770,9 @@ impl AvailableProcessors {
                 Arc::new(CoalesceProcessor::new(name, self.to_string().as_str()))
             }
             Self::LimitProcessor => Arc::new(LimitProcessor::new(name, self.to_string().as_str())),
-            Self::AggregatorProcessor => Arc::new(AggregatorProcessor::new(
-                name,
-                self.to_string().as_str(),
-            )),
+            Self::AggregatorProcessor => {
+                Arc::new(AggregatorProcessor::new(name, self.to_string().as_str()))
+            }
             Self::CandleChatProcessor => {
                 Arc::new(CandleChatProcessor::new(name, self.to_string().as_str()))
             }
@@ -832,9 +832,7 @@ impl AvailableProcessors {
             | Self::ApplyPatch => builder.build_arc::<CandleDataProcessor>(),
             Self::CoalesceProcessor => builder.build_arc::<CoalesceProcessor>(),
             Self::LimitProcessor => builder.build_arc::<LimitProcessor>(),
-            Self::AggregatorProcessor => {
-                builder.build_arc::<AggregatorProcessor>()
-            }
+            Self::AggregatorProcessor => builder.build_arc::<AggregatorProcessor>(),
             Self::CandleChatProcessor => builder.build_arc::<CandleChatProcessor>(),
             Self::MessageParserProcessor => builder.build_arc::<MessageParserProcessor>(),
             Self::ToolCallProcessor => builder.build_arc::<ToolCallProcessor>(),

@@ -3,8 +3,9 @@ use phymes_diagnostics::{HashMap, create_timestamp_micros};
 
 use crate::{
     AvailableSubjects, BuilderTrait, IPCMessage, IPCMessageBuilder, MappableTrait,
-    MessageBuilderTrait, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
-    Subject, SubjectBuilder, SubjectBuilderTrait, Publication, SubjectTrait, create_chat_record_batch,
+    MessageBuilderTrait, Publication, SendableRecordBatchStreamMessage,
+    SendableRecordBatchStreamMessageBuilder, Subject, SubjectBuilder, SubjectBuilderTrait,
+    SubjectTrait, create_chat_record_batch,
 };
 
 /// Create the error table

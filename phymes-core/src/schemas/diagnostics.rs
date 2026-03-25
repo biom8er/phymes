@@ -8,7 +8,10 @@ use arrow::{
 use phymes_diagnostics::{Diagnostics, DiagnosticsType, JSONObjectTrait};
 use serde::{Deserialize, Serialize};
 
-use crate::{BuildableTrait, BuilderTrait, AvailableSchemaTrait, AvailableSubjects, Subject, SubjectBuilderTrait};
+use crate::{
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, Subject,
+    SubjectBuilderTrait,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub enum DiagnosticsVisualizations {

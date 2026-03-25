@@ -74,13 +74,17 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, PatchOperator, Publication, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, WorkspacePatchSubject, create_bytes_record_batch, create_workspace_batch, create_workspace_patch_batch
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage,
+        MappableTrait, MessageBuilderTrait, PatchOperator, Publication, Subject, SubjectBuilder,
+        SubjectBuilderTrait, SubjectTrait, Subscription, WorkspacePatchSubject,
+        create_bytes_record_batch, create_workspace_batch, create_workspace_patch_batch,
     };
     use phymes_data::{AvailableCandleOperators, DataConfig, DataStreamManager};
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, ToolCallSession
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream, SubscriptionTrait, ToolCallSession,
     };
 
     use super::*;
@@ -229,18 +233,22 @@ pub use todo::Todo"#,
         }
 
         // Run the session
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
 
         // Test supsersteps
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "apply_patch_s".to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "apply_patch_s".to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
         let subject = Subject::get_builder()
             .with_name("apply_patch_s")
             .with_record_batches(batches)?
@@ -278,7 +286,11 @@ pub use todo::Todo"#,
             &tool_call_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_subjects_from_mermaid_erdiagram(&tool_call_session.as_mermaid_erdiagram()?, false, true)?
+        .with_subjects_from_mermaid_erdiagram(
+            &tool_call_session.as_mermaid_erdiagram()?,
+            false,
+            true,
+        )?
         .with_name(tool_call_session.session_context_name);
 
         // Initialize the session
@@ -424,18 +436,22 @@ pub use todo::Todo"#,
         }
 
         // Run the session
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
         assert_eq!(response.len(), 0);
 
         // Test supsersteps
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: "apply_patch_s".to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: "apply_patch_s".to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
         let subject = Subject::get_builder()
             .with_name("apply_patch_s")
             .with_record_batches(batches)?

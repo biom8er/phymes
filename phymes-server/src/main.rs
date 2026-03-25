@@ -2,15 +2,18 @@ use anyhow::Result;
 use clap::Parser;
 
 // DM: need to add CLI support
-#[cfg(feature = "wasip2")]
+#[cfg(all(feature = "wasip2", not(feature = "wsl")))]
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
-    use std::sync::Arc;
     use bytes::Bytes;
     use futures::TryStreamExt;
     use futures_executor::block_on;
-    use phymes_core::{RuntimeEnv, BuildableTrait, BuilderTrait, ObjectStorageBackend, RuntimeEnvBuilderTrait, make_store};
+    use phymes_core::{
+        BuildableTrait, BuilderTrait, ObjectStorageBackend, RuntimeEnv, RuntimeEnvBuilderTrait,
+        make_store,
+    };
     use phymes_server::{Serverless, ServerlessConfig, serverless_app};
+    use std::sync::Arc;
 
     // parse the config
     let config = ServerlessConfig::parse();
@@ -42,7 +45,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-#[cfg(all(not(target_family = "wasm"), not(feature = "wasip2")))]
+#[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
 #[tokio::main]
 async fn main() -> Result<()> {
     use phymes_server::{Server, ServerConfig};

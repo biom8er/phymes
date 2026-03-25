@@ -16,8 +16,9 @@ use phymes_core::{
     MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
     SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, WorkspaceEditor,
-    create_bytes_fields, create_chat_record_batch, create_values_fields, remove_message_by_subject,
+    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilder, SubjectBuilderTrait,
+    SubjectTrait, WorkspaceEditor, create_bytes_fields, create_chat_record_batch,
+    create_values_fields, remove_message_by_subject,
 };
 use phymes_diagnostics::{
     DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait, create_timestamp_micros,
@@ -1728,7 +1729,7 @@ pub mod test_command_sandbox_processor {
 mod tests {
     use arrow::array::{ArrayRef, StringArray, UInt32Array};
     use futures::TryStreamExt;
-    use phymes_core::{ChatBuilderTraitExt, SubjectBuilder, Publication};
+    use phymes_core::{ChatBuilderTraitExt, Publication, SubjectBuilder};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
     use std::{fs::File, io::Write};
 

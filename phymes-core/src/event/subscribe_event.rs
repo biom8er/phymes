@@ -108,8 +108,7 @@ impl SubscribeEventTrait for AllSubjectNamesSubscribe {
         _schemas: &HashMap<String, SchemaRef>,
     ) -> bool {
         for subscription in subscriptions.iter() {
-            if subscription.is_update()
-                & !updates.get(subscription.subject_name()).unwrap_or(&true)
+            if subscription.is_update() & !updates.get(subscription.subject_name()).unwrap_or(&true)
             {
                 return false;
             }
@@ -151,9 +150,8 @@ impl SubscribeEventTrait for AnySubjectSchemaSubscribe {
                 for (subject_name, update) in updates {
                     if schemas
                         .get(subscription.subject_name())
-                        .unwrap().eq(&schemas
-                            .get(subject_name)
-                            .unwrap())
+                        .unwrap()
+                        .eq(&schemas.get(subject_name).unwrap())
                         & *update
                     {
                         return true;
@@ -196,9 +194,8 @@ impl SubscribeEventTrait for AllSubjectSchemasSubscribe {
                 for (subject_name, update) in updates {
                     if schemas
                         .get(subscription.subject_name())
-                        .unwrap().eq(&schemas
-                            .get(subject_name)
-                            .unwrap())
+                        .unwrap()
+                        .eq(&schemas.get(subject_name).unwrap())
                         & !*update
                     {
                         return false;

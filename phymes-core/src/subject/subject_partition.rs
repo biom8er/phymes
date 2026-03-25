@@ -4,7 +4,9 @@ use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
 /// Subject partitioning into folders
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize, Default, ValueEnum)]
+#[derive(
+    Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize, Default, ValueEnum,
+)]
 pub enum SubjectFolderPartition {
     /// `RecordBatch`es are written to a folder with the last changed superstep
     #[default]
@@ -32,7 +34,9 @@ impl Display for SubjectFolderPartition {
 }
 
 /// Subject partitioning into files
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize, Default, ValueEnum)]
+#[derive(
+    Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize, Default, ValueEnum,
+)]
 pub enum SubjectFilePartition {
     /// `RecordBatch`es partitioned according to the number of rows
     #[value(name = "NumRows")]

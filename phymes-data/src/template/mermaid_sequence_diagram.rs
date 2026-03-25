@@ -159,9 +159,10 @@ mod tests {
         let sequence_diagram_template_inputs = serde_json::to_value(input_object)?;
 
         // Create and render the template with the inputs
-        let messages_string =
-            SubjectScript::new_from_template(MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE.to_string())
-                .apply_template(&sequence_diagram_template_inputs)?;
+        let messages_string = SubjectScript::new_from_template(
+            MERMAID_SEQUENCE_DIAGRAM_MESSAGES_TEMPLATE.to_string(),
+        )
+        .apply_template(&sequence_diagram_template_inputs)?;
 
         assert_eq!(
             messages_string,

@@ -57,7 +57,9 @@ pub async fn session_stream(
                 .contains_key(&current_user)
             {
                 // Initialize the user session contexts
-                let _session_names = match state.make_session_contexts(&user_session_contexts, true, users.users.runtime_env()).await
+                let _session_names = match state
+                    .make_session_contexts(&user_session_contexts, true, users.users.runtime_env())
+                    .await
                 {
                     Ok(session_names) => session_names,
                     Err(err) => {
@@ -196,13 +198,14 @@ pub async fn session_stream(
                             map.into_iter()
                                 .filter_map(|(_k, v)| {
                                     if v.get_name().contains(payload.get_session_name()) {
-                                        let batches =
-                                            SubjectBuilder::new_from_ipc_stream(&v.get_message_own())
-                                                .unwrap()
-                                                .with_name("")
-                                                .build()
-                                                .unwrap()
-                                                .get_record_batches_own();
+                                        let batches = SubjectBuilder::new_from_ipc_stream(
+                                            &v.get_message_own(),
+                                        )
+                                        .unwrap()
+                                        .with_name("")
+                                        .build()
+                                        .unwrap()
+                                        .get_record_batches_own();
                                         Some(batches)
                                     } else {
                                         None

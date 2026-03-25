@@ -3,7 +3,7 @@ use phymes_diagnostics::{TraceableTrait, Tracer};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-use crate::{MappableTrait};
+use crate::MappableTrait;
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Hash, Eq, Default)]
 pub enum Subscription {
@@ -43,13 +43,19 @@ impl Subscription {
     /// Full name for the [Subscription] that includes the `subject_name` and other information
     fn full_name(&self) -> String {
         match self {
-            Self::OnUpdateAllRecordBatches { subject_name: tn } => format!("OnUpdateAllRecordBatches-{tn}"),
+            Self::OnUpdateAllRecordBatches { subject_name: tn } => {
+                format!("OnUpdateAllRecordBatches-{tn}")
+            }
             Self::OnUpdateLastRecordBatch { subject_name: tn } => {
                 format!("OnUpdateLastRecordBatch-{tn}")
             }
             Self::OnUpdateEmpty { subject_name: tn } => format!("OnUpdateEmpty-{tn}"),
-            Self::AlwaysAllRecordBatches { subject_name: tn } => format!("AlwaysAllRecordBatches-{tn}"),
-            Self::AlwaysLastRecordBatch { subject_name: tn } => format!("AlwaysLastRecordBatch-{tn}"),
+            Self::AlwaysAllRecordBatches { subject_name: tn } => {
+                format!("AlwaysAllRecordBatches-{tn}")
+            }
+            Self::AlwaysLastRecordBatch { subject_name: tn } => {
+                format!("AlwaysLastRecordBatch-{tn}")
+            }
             Self::None => "None".to_string(),
             Self::Custom(name) => name.to_string(),
         }

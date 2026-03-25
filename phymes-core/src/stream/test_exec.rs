@@ -30,7 +30,10 @@ use std::{
 };
 use tokio::task::JoinSet;
 
-use crate::{EmptyRecordBatchStream, RecordBatchReceiverStream, RecordBatchStream, RecordBatchStreamAdapter, SendableRecordBatchStream};
+use crate::{
+    EmptyRecordBatchStream, RecordBatchReceiverStream, RecordBatchStream, RecordBatchStreamAdapter,
+    SendableRecordBatchStream,
+};
 
 use arrow::{
     array::{ArrayRef, Int32Array},

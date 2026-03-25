@@ -4,13 +4,15 @@ use clap::ValueEnum;
 use object_store::{ObjectStore, local::LocalFileSystem, memory::InMemory};
 #[cfg(feature = "api")]
 use object_store::{
-    aws::{AmazonS3Builder, AmazonS3ConfigKey}, azure::MicrosoftAzureBuilder, gcp::GoogleCloudStorageBuilder,
+    aws::{AmazonS3Builder, AmazonS3ConfigKey},
+    azure::MicrosoftAzureBuilder,
+    gcp::GoogleCloudStorageBuilder,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use std::{fmt::Display, sync::Arc};
 #[cfg(feature = "api")]
 use std::str::FromStr;
+use std::{fmt::Display, sync::Arc};
 
 #[derive(Debug, Serialize, Deserialize, Clone, ValueEnum, Default, PartialEq)]
 pub enum ObjectStorageBackend {
@@ -44,7 +46,11 @@ impl Display for ObjectStorageBackend {
     }
 }
 
-pub fn make_store(backend: &ObjectStorageBackend, bucket: Option<&String>, _config: Option<&Map<String, Value>>) -> Result<Arc<dyn ObjectStore>> {
+pub fn make_store(
+    backend: &ObjectStorageBackend,
+    bucket: Option<&String>,
+    _config: Option<&Map<String, Value>>,
+) -> Result<Arc<dyn ObjectStore>> {
     let store: Arc<dyn ObjectStore> = match backend {
         #[cfg(feature = "api")]
         ObjectStorageBackend::Aws => {
@@ -57,7 +63,7 @@ pub fn make_store(backend: &ObjectStorageBackend, bucket: Option<&String>, _conf
                 }
             }
             Arc::new(builder.build()?)
-        },
+        }
         #[cfg(feature = "api")]
         ObjectStorageBackend::Gcp => Arc::new(
             GoogleCloudStorageBuilder::from_env()
@@ -70,7 +76,9 @@ pub fn make_store(backend: &ObjectStorageBackend, bucket: Option<&String>, _conf
                 .with_container_name(bucket.ok_or(anyhow!("Missing `bucket` name for {cfg}"))?)
                 .build()?,
         ),
-        ObjectStorageBackend::LocalFs => Arc::new(LocalFileSystem::new_with_prefix(bucket.ok_or(anyhow!("Missing `bucket` name for {backend}"))?)?),
+        ObjectStorageBackend::LocalFs => Arc::new(LocalFileSystem::new_with_prefix(
+            bucket.ok_or(anyhow!("Missing `bucket` name for {backend}"))?,
+        )?),
         ObjectStorageBackend::InMemory => Arc::new(InMemory::new()),
     };
 

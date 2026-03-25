@@ -93,12 +93,16 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{
-        AttachmentBuilderTraitExt, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription
+        AttachmentBuilderTraitExt, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
+        BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject,
+        SubjectBuilderTrait, SubjectTrait, Subscription,
     };
     use phymes_data::make_pdf_document;
 
     use crate::{
-        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep, SessionStreamStepTrait, SubscriptionTrait, create_message_map
+        AvailableInterfaceSubjects, SessionContextBuilder, SessionContextBuilderAgentsTrait,
+        SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStreamStep,
+        SessionStreamStepTrait, SubscriptionTrait, create_message_map,
     };
 
     use super::*;
@@ -111,7 +115,11 @@ mod tests {
             extract_pdf_session.as_mermaid_flowchart(),
             false,
         )?
-        .with_subjects_from_mermaid_erdiagram(extract_pdf_session.as_mermaid_erdiagram(), false, true)?
+        .with_subjects_from_mermaid_erdiagram(
+            extract_pdf_session.as_mermaid_erdiagram(),
+            false,
+            true,
+        )?
         .with_name(extract_pdf_session.session_context_name)
         .with_diagnostics(true)
         .add_processor_subjects()?
@@ -146,7 +154,9 @@ mod tests {
             .make_name()?
             .build()?;
         let message_map = create_message_map(vec![blob_message]);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Run the first superstep
         let response = SessionStreamStep::run_superstep(Arc::clone(&session_ctx_arc), message_map)
@@ -157,11 +167,13 @@ mod tests {
 
         {
             // Test supsersteps
-            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::Documents.to_string() }
-                .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-                .unwrap()
-                .try_collect()
-                .await?;
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableSubjects::Documents.to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
             let subject = Subject::get_builder()
                 .with_name(AvailableSubjects::Documents.to_string().as_str())
                 .with_record_batches(batches)?

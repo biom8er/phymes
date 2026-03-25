@@ -3,10 +3,13 @@ use std::sync::Arc;
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use phymes_agents::{
-    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DocumentRAGSession, SessionContextBuilderAgentsTrait, SessionStream, SubscriptionTrait, create_message_map
+    AvailableInterfaceSubjects, CustomAgentsBuilderTrait, DocumentRAGSession,
+    SessionContextBuilderAgentsTrait, SessionStream, SubscriptionTrait, create_message_map,
 };
 use phymes_core::{
-    AttachmentBuilderTraitExt, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait, Subscription
+    AttachmentBuilderTraitExt, AvailableSubjects, AvailableSubjectsTrait, BuildableTrait,
+    BuilderTrait, ChatBuilderTraitExt, IPCMessage, MappableTrait, MessageBuilderTrait, Publication,
+    Subject, SubjectBuilderTrait, SubjectTrait, Subscription,
 };
 use phymes_data::make_pdf_document;
 use phymes_diagnostics::HashMap;
@@ -165,7 +168,9 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                         .make_name()?
                         .build()?;
                     let message_map = create_message_map(vec![blob_message]);
-                    let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
+                    let _ = session_ctx_arc
+                        .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+                        .await;
                     let session_stream =
                         SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
                     session_stream
@@ -195,13 +200,16 @@ fn benchmark_chat_agent_session(c: &mut Criterion) {
                 });
 
                 // Extract out the metrics from the session
-                let batches: Vec<_> = rt.block_on(async { Subscription::AlwaysAllRecordBatches { subject_name: AvailableSubjects::MetricPivot.to_string() }
+                let batches: Vec<_> = rt.block_on(async {
+                    Subscription::AlwaysAllRecordBatches {
+                        subject_name: AvailableSubjects::MetricPivot.to_string(),
+                    }
                     .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())
                     .unwrap()
                     .unwrap()
                     .try_collect()
                     .await
-                    .unwrap() 
+                    .unwrap()
                 });
                 let subject = Subject::get_builder()
                     .with_name(sample_id.as_str())

@@ -6,7 +6,7 @@ use phymes_agents::{
 };
 use phymes_core::{
     create_session_mermaid_batch, AvailableSubjects, BuildableTrait, BuilderTrait, DataFormat,
-    MessageBuilderTrait, Subject, SubjectBuilderTrait, Publication, SubjectTrait,
+    MessageBuilderTrait, Publication, Subject, SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_diagnostics::create_timestamp_micros;
 use phymes_server::create_session_name;

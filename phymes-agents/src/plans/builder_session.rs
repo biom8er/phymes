@@ -6,7 +6,9 @@ use crate::{
 };
 use anyhow::Result;
 use phymes_core::{
-    AvailableSubjects, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, ProcessorPlan, ProcessorPlanBuilder, Publication, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription, create_session_mermaid_batch
+    AvailableSubjects, AvailableSubscribeEvents, BuildableTrait, BuilderTrait, ProcessorPlan,
+    ProcessorPlanBuilder, Publication, RuntimeEnv, Subject, SubjectBuilderTrait, SubjectPlan,
+    SubjectPlanBuilderTrait, Subscription, create_session_mermaid_batch,
 };
 use phymes_diagnostics::create_timestamp_micros;
 
@@ -98,9 +100,7 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
                 .with_subscriptions(&[Subscription::OnUpdateLastRecordBatch {
                     subject_name: AvailableSubjects::BuilderMermaid.to_string(),
                 }])
-                .with_subscribe_policy(
-                    AvailableSubscribeEvents::AllSubjectNamesSubscribe.build(),
-                )
+                .with_subscribe_policy(AvailableSubscribeEvents::AllSubjectNamesSubscribe.build())
                 .build()
                 .unwrap(),
         ];
@@ -109,13 +109,19 @@ impl CustomAgentsBuilderTrait for BuilderSession<'_> {
     }
 
     fn make_runtime_env(&self) -> Option<Arc<RuntimeEnv>> {
-        Some(RuntimeEnv::get_builder().with_name("rt_default").build_arc().unwrap())
+        Some(
+            RuntimeEnv::get_builder()
+                .with_name("rt_default")
+                .build_arc()
+                .unwrap(),
+        )
     }
 
     fn make_subjects(&self) -> Option<Vec<SubjectPlan>> {
         let subject_plan = SubjectPlan::get_builder()
             .with_subject(make_example_mermaid_table(true, true).unwrap())
-            .build().unwrap();
+            .build()
+            .unwrap();
         Some(vec![subject_plan])
     }
 }

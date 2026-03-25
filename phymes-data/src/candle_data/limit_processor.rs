@@ -283,7 +283,7 @@ mod tests {
     use arrow::datatypes::{DataType, Field, Schema};
     use arrow::record_batch::RecordBatchOptions;
     use futures::{Stream, TryStreamExt};
-    use phymes_core::{SubjectBuilder, Publication, SubjectTrait, test_subject};
+    use phymes_core::{Publication, SubjectBuilder, SubjectTrait, test_subject};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 
     #[tokio::test]

@@ -1,5 +1,8 @@
+use crate::{
+    BuildableTrait, IndexType, MappableTrait, Subject, SubjectConstraintType, SubjectPlanBuilder,
+    SubjectSequenceType,
+};
 use std::fmt::Debug;
-use crate::{BuildableTrait, IndexType, MappableTrait, SubjectConstraintType, SubjectPlanBuilder, SubjectSequenceType, Subject};
 
 pub trait SubjectPlanTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     fn subject(&self) -> &Subject;
@@ -39,7 +42,8 @@ impl BuildableTrait for SubjectPlan {
 
     fn get_builder() -> Self::T
     where
-        Self: Sized {
+        Self: Sized,
+    {
         Self::T::default()
     }
 }
@@ -48,7 +52,7 @@ impl SubjectPlanTrait for SubjectPlan {
     fn subject(&self) -> &Subject {
         &self.subject
     }
-    
+
     fn subject_own(self) -> Subject {
         self.subject
     }
@@ -56,23 +60,23 @@ impl SubjectPlanTrait for SubjectPlan {
     fn constraints(&self) -> &Vec<SubjectConstraintType> {
         &self.constraints
     }
-    
+
     fn indices(&self) -> &Vec<IndexType> {
         &self.indices
     }
-    
+
     fn sequences(&self) -> &Vec<SubjectSequenceType> {
         &self.sequences
     }
-    
+
     fn constraints_subjects(&self) -> Vec<Subject> {
         todo!()
     }
-    
+
     fn indices_subjects(&self) -> Vec<Subject> {
         todo!()
     }
-    
+
     fn sequences_subjects(&self) -> Vec<Subject> {
         todo!()
     }

@@ -4,8 +4,8 @@ use phymes_agents::{
     SessionInterfaceMessageBuilderTrait,
 };
 use phymes_core::{
-    BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, SubjectBuilder, SubjectBuilderTrait,
-    Publication, SubjectTrait,
+    BuildableTrait, BuilderTrait, DataFormat, MessageBuilderTrait, Publication, SubjectBuilder,
+    SubjectBuilderTrait, SubjectTrait,
 };
 use phymes_server::create_session_name;
 

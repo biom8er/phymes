@@ -38,11 +38,7 @@ pub fn create_session_subject_schemas_batch(
 }
 
 pub(crate) fn create_session_tasks_fields() -> Fields {
-    let field_names = [
-        "session_name",
-        "task_name",
-        "processor_name",
-    ];
+    let field_names = ["session_name", "task_name", "processor_name"];
     let fields_vec = field_names
         .iter()
         .map(|f| Field::new(*f, DataType::Utf8, false))
@@ -123,12 +119,14 @@ pub fn create_session_processors_batch(
 }
 
 pub(crate) fn create_session_runtime_envs_fields() -> Fields {
-    let field_names = ["session_name", "runtime_env_name", 
-        "object_store_backend", 
-        "object_store_bucket", 
-        "object_store_config", 
-        "subject_folder_partitioning", 
-        "subject_file_partitioning"
+    let field_names = [
+        "session_name",
+        "runtime_env_name",
+        "object_store_backend",
+        "object_store_bucket",
+        "object_store_config",
+        "subject_folder_partitioning",
+        "subject_file_partitioning",
     ];
     let mut fields_vec = field_names
         .iter()
@@ -162,8 +160,10 @@ pub fn create_session_runtime_envs_batch(
     let object_store_backend: ArrayRef = Arc::new(StringArray::from(object_store_backend));
     let object_store_bucket: ArrayRef = Arc::new(StringArray::from(object_store_bucket));
     let object_store_config: ArrayRef = Arc::new(StringArray::from(object_store_config));
-    let subject_folder_partitioning: ArrayRef = Arc::new(StringArray::from(subject_folder_partitioning));
-    let subject_file_partitioning: ArrayRef = Arc::new(StringArray::from(subject_file_partitioning));
+    let subject_folder_partitioning: ArrayRef =
+        Arc::new(StringArray::from(subject_folder_partitioning));
+    let subject_file_partitioning: ArrayRef =
+        Arc::new(StringArray::from(subject_file_partitioning));
     let max_memory: ArrayRef = Arc::new(UInt32Array::from(max_memory));
     let max_time: ArrayRef = Arc::new(UInt32Array::from(max_time));
     let max_steps: ArrayRef = Arc::new(UInt32Array::from(max_steps));

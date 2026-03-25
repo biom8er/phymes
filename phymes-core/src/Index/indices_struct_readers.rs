@@ -1,5 +1,5 @@
 use arrow::array::{
-    Array, ArrowPrimitiveType, BooleanArray, ListArray, PrimitiveArray, RecordBatch, UInt64Array
+    Array, ArrowPrimitiveType, BooleanArray, ListArray, PrimitiveArray, RecordBatch, UInt64Array,
 };
 
 use crate::{BRINRange, BTreeNode, GINPosting, GiSTEntry, HashEntry, SPGiSTNode};
@@ -22,12 +22,36 @@ where
 {
     pub fn new(batch: &'a RecordBatch) -> Self {
         Self {
-            node_id: batch.column(0).as_any().downcast_ref::<UInt64Array>().unwrap(),
-            is_leaf: batch.column(1).as_any().downcast_ref::<BooleanArray>().unwrap(),
-            keys: batch.column(2).as_any().downcast_ref::<ListArray>().unwrap(),
-            values: batch.column(3).as_any().downcast_ref::<ListArray>().unwrap(),
-            children: batch.column(4).as_any().downcast_ref::<ListArray>().unwrap(),
-            next_leaf: batch.column(5).as_any().downcast_ref::<UInt64Array>().unwrap(),
+            node_id: batch
+                .column(0)
+                .as_any()
+                .downcast_ref::<UInt64Array>()
+                .unwrap(),
+            is_leaf: batch
+                .column(1)
+                .as_any()
+                .downcast_ref::<BooleanArray>()
+                .unwrap(),
+            keys: batch
+                .column(2)
+                .as_any()
+                .downcast_ref::<ListArray>()
+                .unwrap(),
+            values: batch
+                .column(3)
+                .as_any()
+                .downcast_ref::<ListArray>()
+                .unwrap(),
+            children: batch
+                .column(4)
+                .as_any()
+                .downcast_ref::<ListArray>()
+                .unwrap(),
+            next_leaf: batch
+                .column(5)
+                .as_any()
+                .downcast_ref::<UInt64Array>()
+                .unwrap(),
             phantom_k: std::marker::PhantomData,
             phantom_v: std::marker::PhantomData,
         }
@@ -60,7 +84,12 @@ where
                 Some(self.next_leaf.value(row))
             };
 
-            BTreeNode::Leaf { id, keys, values, next_leaf }
+            BTreeNode::Leaf {
+                id,
+                keys,
+                values,
+                next_leaf,
+            }
         } else {
             let children_arr = self.children.value(row);
             let children = children_arr
@@ -89,10 +118,26 @@ where
 {
     pub fn new(batch: &'a RecordBatch) -> Self {
         Self {
-            bucket_id: batch.column(0).as_any().downcast_ref::<UInt64Array>().unwrap(),
-            hash: batch.column(1).as_any().downcast_ref::<UInt64Array>().unwrap(),
-            key: batch.column(2).as_any().downcast_ref::<PrimitiveArray<K>>().unwrap(),
-            value: batch.column(3).as_any().downcast_ref::<PrimitiveArray<V>>().unwrap(),
+            bucket_id: batch
+                .column(0)
+                .as_any()
+                .downcast_ref::<UInt64Array>()
+                .unwrap(),
+            hash: batch
+                .column(1)
+                .as_any()
+                .downcast_ref::<UInt64Array>()
+                .unwrap(),
+            key: batch
+                .column(2)
+                .as_any()
+                .downcast_ref::<PrimitiveArray<K>>()
+                .unwrap(),
+            value: batch
+                .column(3)
+                .as_any()
+                .downcast_ref::<PrimitiveArray<V>>()
+                .unwrap(),
         }
     }
 
@@ -121,11 +166,31 @@ where
 {
     pub fn new(batch: &'a RecordBatch) -> Self {
         Self {
-            node_id: batch.column(0).as_any().downcast_ref::<UInt64Array>().unwrap(),
-            is_leaf: batch.column(1).as_any().downcast_ref::<BooleanArray>().unwrap(),
-            predicate: batch.column(2).as_any().downcast_ref::<PrimitiveArray<P>>().unwrap(),
-            child_id: batch.column(3).as_any().downcast_ref::<UInt64Array>().unwrap(),
-            tuple: batch.column(4).as_any().downcast_ref::<PrimitiveArray<T>>().unwrap(),
+            node_id: batch
+                .column(0)
+                .as_any()
+                .downcast_ref::<UInt64Array>()
+                .unwrap(),
+            is_leaf: batch
+                .column(1)
+                .as_any()
+                .downcast_ref::<BooleanArray>()
+                .unwrap(),
+            predicate: batch
+                .column(2)
+                .as_any()
+                .downcast_ref::<PrimitiveArray<P>>()
+                .unwrap(),
+            child_id: batch
+                .column(3)
+                .as_any()
+                .downcast_ref::<UInt64Array>()
+                .unwrap(),
+            tuple: batch
+                .column(4)
+                .as_any()
+                .downcast_ref::<PrimitiveArray<T>>()
+                .unwrap(),
         }
     }
 
@@ -165,12 +230,36 @@ where
 {
     pub fn new(batch: &'a RecordBatch) -> Self {
         Self {
-            node_id: batch.column(0).as_any().downcast_ref::<UInt64Array>().unwrap(),
-            is_leaf: batch.column(1).as_any().downcast_ref::<BooleanArray>().unwrap(),
-            label: batch.column(2).as_any().downcast_ref::<PrimitiveArray<K>>().unwrap(),
-            child_ids: batch.column(3).as_any().downcast_ref::<ListArray>().unwrap(),
-            key: batch.column(4).as_any().downcast_ref::<PrimitiveArray<K>>().unwrap(),
-            value: batch.column(5).as_any().downcast_ref::<PrimitiveArray<V>>().unwrap(),
+            node_id: batch
+                .column(0)
+                .as_any()
+                .downcast_ref::<UInt64Array>()
+                .unwrap(),
+            is_leaf: batch
+                .column(1)
+                .as_any()
+                .downcast_ref::<BooleanArray>()
+                .unwrap(),
+            label: batch
+                .column(2)
+                .as_any()
+                .downcast_ref::<PrimitiveArray<K>>()
+                .unwrap(),
+            child_ids: batch
+                .column(3)
+                .as_any()
+                .downcast_ref::<ListArray>()
+                .unwrap(),
+            key: batch
+                .column(4)
+                .as_any()
+                .downcast_ref::<PrimitiveArray<K>>()
+                .unwrap(),
+            value: batch
+                .column(5)
+                .as_any()
+                .downcast_ref::<PrimitiveArray<V>>()
+                .unwrap(),
         }
     }
 
@@ -212,8 +301,16 @@ where
 {
     pub fn new(batch: &'a RecordBatch) -> Self {
         Self {
-            key: batch.column(0).as_any().downcast_ref::<PrimitiveArray<K>>().unwrap(),
-            posting_list: batch.column(1).as_any().downcast_ref::<ListArray>().unwrap(),
+            key: batch
+                .column(0)
+                .as_any()
+                .downcast_ref::<PrimitiveArray<K>>()
+                .unwrap(),
+            posting_list: batch
+                .column(1)
+                .as_any()
+                .downcast_ref::<ListArray>()
+                .unwrap(),
         }
     }
 
@@ -245,9 +342,21 @@ where
 {
     pub fn new(batch: &'a RecordBatch) -> Self {
         Self {
-            block_start: batch.column(0).as_any().downcast_ref::<UInt64Array>().unwrap(),
-            block_end: batch.column(1).as_any().downcast_ref::<UInt64Array>().unwrap(),
-            summary: batch.column(2).as_any().downcast_ref::<PrimitiveArray<S>>().unwrap(),
+            block_start: batch
+                .column(0)
+                .as_any()
+                .downcast_ref::<UInt64Array>()
+                .unwrap(),
+            block_end: batch
+                .column(1)
+                .as_any()
+                .downcast_ref::<UInt64Array>()
+                .unwrap(),
+            summary: batch
+                .column(2)
+                .as_any()
+                .downcast_ref::<PrimitiveArray<S>>()
+                .unwrap(),
         }
     }
 

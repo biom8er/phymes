@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     MappableTrait, SubscribeEventTrait,
     event::{
-        AllSubjectNamesSubscribe, AllSubjectSchemasSubscribe, AlwaysSubscribe, AnySubscribeNameSubscribe,
-        AnySubjectSchemaSubscribe, ChatContentSubscribe,
+        AllSubjectNamesSubscribe, AllSubjectSchemasSubscribe, AlwaysSubscribe,
+        AnySubjectSchemaSubscribe, AnySubscribeNameSubscribe, ChatContentSubscribe,
     },
 };
 

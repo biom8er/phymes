@@ -3,10 +3,13 @@ use std::collections::BTreeMap;
 use arrow::array::ArrowPrimitiveType;
 use phymes_diagnostics::HashMap;
 
-use crate::{BRINIndexBuilder, BTreeIndexBuilder, GINIndexBuilder, GiSTIndexBuilder, HashIndexBuilder, SPGiSTIndexBuilder};
+use crate::{
+    BRINIndexBuilder, BTreeIndexBuilder, GINIndexBuilder, GiSTIndexBuilder, HashIndexBuilder,
+    SPGiSTIndexBuilder,
+};
 
 /// B‑Tree Index
-/// 
+///
 /// B-Trees store sorted keys in a balanced tree with internal nodes and leaf nodes. Ideal for equality and range queries.
 pub struct BTreeIndex<K, V> {
     pub root: BTreeNode<K, V>,
@@ -31,30 +34,18 @@ where
     K: ArrowPrimitiveType<Native = K>,
     V: ArrowPrimitiveType<Native = V>,
 {
-    pub fn push_into(
-        &self,
-        builder: &mut BTreeIndexBuilder<K, V>,
-    ) {
+    pub fn push_into(&self, builder: &mut BTreeIndexBuilder<K, V>) {
         match self {
             Self::Internal { id, keys, children } => {
-                builder.append_node(
-                    *id,
-                    false,
-                    keys,
-                    None,
-                    Some(children),
-                    None,
-                );
+                builder.append_node(*id, false, keys, None, Some(children), None);
             }
-            Self::Leaf { id, keys, values, next_leaf } => {
-                builder.append_node(
-                    *id,
-                    true,
-                    keys,
-                    Some(values.as_slice()),
-                    None,
-                    *next_leaf,
-                );
+            Self::Leaf {
+                id,
+                keys,
+                values,
+                next_leaf,
+            } => {
+                builder.append_node(*id, true, keys, Some(values.as_slice()), None, *next_leaf);
             }
         }
     }
@@ -67,17 +58,17 @@ pub struct BTreeEntry<K, V> {
 }
 
 /// # Single column indexing
-/// 
+///
 /// Example usage for creating a BTree index using Apache Arrow and Rust
-/// 
+///
 /// ```norun
 /// use arrow::array::{Array, Int32Array};
 /// use arrow::record_batch::RecordBatch;
 /// use std::collections::BTreeMap;
-/// 
+///
 /// // 1. Get the column you want to index (e.g., "id" at index 0)
 /// let column = batch.column(0).as_any().downcast_ref::<Int32Array>().unwrap();
-/// 
+///
 /// // 2. Build the BTreeMap (Key: Column Value, Value: Row Index)
 /// let mut btree_index = BTreeMap::new();
 /// for i in 0..batch.num_rows() {
@@ -86,24 +77,32 @@ pub struct BTreeEntry<K, V> {
 ///     }
 /// }
 /// ```
-/// 
+///
 /// # Multicolumn indexing
-/// 
-/// [Arrow-row] crate converts Arrow columns into a comparable "row" format that can be used directly as keys in a BTreeMap. 
+///
+/// [Arrow-row] crate converts Arrow columns into a comparable "row" format that can be used directly as keys in a BTreeMap.
 /// * RowConverter: Creates a binary representation of rows that preserves lexical order.
-/// * Performance: This is significantly faster for composite keys than manual tuple-based indexing./// 
-/// 
+/// * Performance: This is significantly faster for composite keys than manual tuple-based indexing.///
+///
 /// [Arrow-row]: <https://docs.rs/arrow-row/latest/arrow_row/>
 #[allow(dead_code)]
-fn btree_to_entries<K: std::cmp::Ord + Clone, V: Clone>(btree: &BTreeMap<K, V>) -> Vec<BTreeEntry<K, V>> {
+fn btree_to_entries<K: std::cmp::Ord + Clone, V: Clone>(
+    btree: &BTreeMap<K, V>,
+) -> Vec<BTreeEntry<K, V>> {
     // Convert BTreeMap into a Vec<Entry> for serialization
-    btree.iter()
-        .map(|(k, v)| BTreeEntry { key: k.clone(), value: v.clone() })
+    btree
+        .iter()
+        .map(|(k, v)| BTreeEntry {
+            key: k.clone(),
+            value: v.clone(),
+        })
         .collect::<Vec<BTreeEntry<K, V>>>()
 }
 
 #[allow(dead_code)]
-fn entries_to_btree<K: std::cmp::Ord + Clone, V: Clone>(entries: &[BTreeEntry<K, V>]) -> BTreeMap<K, V> {    
+fn entries_to_btree<K: std::cmp::Ord + Clone, V: Clone>(
+    entries: &[BTreeEntry<K, V>],
+) -> BTreeMap<K, V> {
     let mut btree = BTreeMap::new();
     for entry in entries {
         btree.insert(entry.key.clone(), entry.value.clone());
@@ -112,7 +111,7 @@ fn entries_to_btree<K: std::cmp::Ord + Clone, V: Clone>(entries: &[BTreeEntry<K,
 }
 
 /// Hash Index
-/// 
+///
 /// Stores hash buckets mapping hash values to tuples. Good for equality comparisons.
 pub struct HashIndex<K, V> {
     pub buckets: Vec<HashEntry<K, V>>,
@@ -136,15 +135,22 @@ where
 }
 
 #[allow(dead_code)]
-fn hash_to_entries<K: std::cmp::Ord + Clone, V: Clone>(hash: &HashMap<K, V>) -> Vec<BTreeEntry<K, V>> {
+fn hash_to_entries<K: std::cmp::Ord + Clone, V: Clone>(
+    hash: &HashMap<K, V>,
+) -> Vec<BTreeEntry<K, V>> {
     // Convert BTreeMap into a Vec<Entry> for serialization
     hash.iter()
-        .map(|(k, v)| BTreeEntry { key: k.clone(), value: v.clone() })
+        .map(|(k, v)| BTreeEntry {
+            key: k.clone(),
+            value: v.clone(),
+        })
         .collect::<Vec<BTreeEntry<K, V>>>()
 }
 
 #[allow(dead_code)]
-fn entries_to_hash<K: std::cmp::Ord + Clone + std::hash::Hash, V: Clone>(entries: &[BTreeEntry<K, V>]) -> HashMap<K, V> {    
+fn entries_to_hash<K: std::cmp::Ord + Clone + std::hash::Hash, V: Clone>(
+    entries: &[BTreeEntry<K, V>],
+) -> HashMap<K, V> {
     let mut hash = HashMap::new();
     for entry in entries {
         hash.insert(entry.key.clone(), entry.value.clone());
@@ -153,7 +159,7 @@ fn entries_to_hash<K: std::cmp::Ord + Clone + std::hash::Hash, V: Clone>(entries
 }
 
 /// GiST (Generalized Search Tree)
-/// 
+///
 /// A balanced tree for extensible indexing (e.g., geometric, full‑text). Nodes store “bounding” predicates.
 pub struct GiSTIndex<P, T> {
     pub root: GiSTEntry<P, T>,
@@ -178,10 +184,18 @@ where
 {
     pub fn push_into(&self, builder: &mut GiSTIndexBuilder<P, T>) {
         match self {
-            Self::Internal { id, predicate, child_id } => {
+            Self::Internal {
+                id,
+                predicate,
+                child_id,
+            } => {
                 builder.append_internal(*id, predicate.clone(), *child_id);
             }
-            Self::Leaf { id, predicate, tuple } => {
+            Self::Leaf {
+                id,
+                predicate,
+                tuple,
+            } => {
                 builder.append_leaf(*id, predicate.clone(), tuple.clone());
             }
         }
@@ -189,7 +203,7 @@ where
 }
 
 /// SP‑GiST (Space‑Partitioned GiST)
-/// 
+///
 /// Stores data in partitioned tries, quadtrees, or kd‑trees. Nodes route based on partitioning rules.
 pub struct SPGiSTIndex<K, V> {
     pub root: SPGiSTNode<K, V>,
@@ -214,7 +228,11 @@ where
 {
     pub fn push_into(&self, builder: &mut SPGiSTIndexBuilder<K, V>) {
         match self {
-            Self::Inner { id, label, children } => {
+            Self::Inner {
+                id,
+                label,
+                children,
+            } => {
                 builder.append_inner(*id, label.clone(), children);
             }
             Self::Leaf { id, key, value } => {
@@ -225,7 +243,7 @@ where
 }
 
 /// GIN (Generalized Inverted Index)
-/// 
+///
 /// Ideal for arrays, JSONB, full‑text. Maps keys → posting lists of TIDs.
 pub struct GINIndex<K> {
     pub entries: Vec<GINPosting<K>>,

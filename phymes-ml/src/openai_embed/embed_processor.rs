@@ -4,7 +4,12 @@ use phymes_data::{DataConfigTrait, HTTPClientRequestState};
 use reqwest::{Client, header::CONTENT_TYPE};
 
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, EmbeddingRequest, EmbeddingResponse, EncodingFormat, MappableTrait, MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, remove_message_by_subject
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, EmbeddingRequest,
+    EmbeddingResponse, EncodingFormat, MappableTrait, MessageBuilderTrait, MessageTrait,
+    ProcessorTrait, RecordBatchStream, RuntimeEnv, SendableRecordBatchStream,
+    SendableRecordBatchStreamMessage, SendableRecordBatchStreamMessageBuilder,
+    SendableRecordBatchStreamMessageBuilderMap, SendableRecordBatchStreamMessageMap, Subject,
+    SubjectBuilder, SubjectBuilderTrait, SubjectTrait, remove_message_by_subject,
 };
 use phymes_diagnostics::{DiagnosticBuilder, DiagnosticBuilderTrait, HashMap, MetricBuilderTrait};
 

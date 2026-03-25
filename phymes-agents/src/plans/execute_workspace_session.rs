@@ -259,13 +259,16 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{
-        BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, SubjectTrait, Subscription
+        BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, Publication,
+        Subject, SubjectBuilder, SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait,
+        SubjectTrait, Subscription,
     };
     use phymes_data::test_command_sandbox_processor;
     use phymes_diagnostics::HashMap;
 
     use crate::{
-        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait
+        SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait,
+        SessionContextBuilderTrait, SessionStream, SubscriptionTrait,
     };
 
     use super::*;
@@ -336,7 +339,8 @@ mod tests {
         );
 
         // Update place holder subjects
-        let mut subjects = session_ctx_builder.subjects
+        let mut subjects = session_ctx_builder
+            .subjects
             .take()
             .unwrap()
             .into_iter()
@@ -347,23 +351,21 @@ mod tests {
             .with_schema(message_table.get_schema())
             .with_record_batches(Vec::new())?
             .build()?;
-        subjects.push(SubjectPlan::get_builder()
-            .with_subject(subject)
-            .build()?);
+        subjects.push(SubjectPlan::get_builder().with_subject(subject).build()?);
         let subject = SubjectBuilder::default()
             .with_name(subject_name_o)
             .with_schema(message_table.get_schema())
             .with_record_batches(Vec::new())?
             .build()?;
-        subjects.push(SubjectPlan::get_builder()
-            .with_subject(subject)
-            .build()?);
+        subjects.push(SubjectPlan::get_builder().with_subject(subject).build()?);
 
         let (session_ctx, session_messages) = session_ctx_builder
             .with_subjects(subjects)
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(session_ctx);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
@@ -372,11 +374,13 @@ mod tests {
         assert_eq!(response.len(), 0);
 
         // Test supsersteps
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name:subject_name_o.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: subject_name_o.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env())?
+        .unwrap()
+        .try_collect()
+        .await?;
         let subject = Subject::get_builder()
             .with_name(subject_name_o)
             .with_record_batches(batches)?
@@ -385,7 +389,7 @@ mod tests {
         assert_eq!(column, ["Alice", "Bob"]);
         let column = subject.get_column_as_vec_primitive::<u32>("age")?;
         assert_eq!(column, [40, 35]);
-            
+
         Ok(())
     }
 
@@ -455,7 +459,8 @@ mod tests {
         );
 
         // Update place holder subjects
-        let mut subjects = session_ctx_builder.subjects
+        let mut subjects = session_ctx_builder
+            .subjects
             .take()
             .unwrap()
             .into_iter()
@@ -466,23 +471,21 @@ mod tests {
             .with_schema(message_table.get_schema())
             .with_record_batches(Vec::new())?
             .build()?;
-        subjects.push(SubjectPlan::get_builder()
-            .with_subject(subject)
-            .build()?);
+        subjects.push(SubjectPlan::get_builder().with_subject(subject).build()?);
         let subject = SubjectBuilder::default()
             .with_name(subject_name_o)
             .with_schema(message_table.get_schema())
             .with_record_batches(Vec::new())?
             .build()?;
-        subjects.push(SubjectPlan::get_builder()
-            .with_subject(subject)
-            .build()?);
+        subjects.push(SubjectPlan::get_builder().with_subject(subject).build()?);
 
         let (session_ctx, session_messages) = session_ctx_builder
             .with_subjects(subjects)
             .build_with_tables()?;
         let session_ctx_arc = Arc::new(session_ctx);
-        let _ = session_ctx_arc.update_subjects_from_messages(session_messages.unwrap_or_default(), 0).await;
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
 
         // Run the session
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
@@ -491,11 +494,13 @@ mod tests {
         assert_eq!(response.len(), 0);
 
         // Test supsersteps
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches { subject_name:subject_name_o.to_string() }
-            .subscribe_to_subject(session_ctx_arc.runtime_env())?
-            .unwrap()
-            .try_collect()
-            .await?;
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: subject_name_o.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env())?
+        .unwrap()
+        .try_collect()
+        .await?;
         let subject = Subject::get_builder()
             .with_name(subject_name_o)
             .with_record_batches(batches)?

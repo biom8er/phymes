@@ -19,10 +19,17 @@ pub struct Serverless {
 }
 
 impl Serverless {
-    pub fn new(user_session_context_name: Option<&str>, runtime_env: &Arc<RuntimeEnv>) -> impl std::future::Future<Output = Result<Self>> + Send { async move {
-        let router = AppBuilder::new(user_session_context_name, runtime_env).await?.build();
-        Ok(Self { router })
-    }}
+    pub fn new(
+        user_session_context_name: Option<&str>,
+        runtime_env: &Arc<RuntimeEnv>,
+    ) -> impl std::future::Future<Output = Result<Self>> + Send {
+        async move {
+            let router = AppBuilder::new(user_session_context_name, runtime_env)
+                .await?
+                .build();
+            Ok(Self { router })
+        }
+    }
 
     pub async fn call(&mut self, request: Request<String>) -> Response {
         self.router.call(request).await.unwrap()
@@ -87,7 +94,9 @@ mod tests {
         AvailableInterfaceSubjects, SessionInterfaceMessage, SessionInterfaceMessageBuilderTrait,
     };
     use phymes_core::{
-        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait, ChatBuilderTraitExt, DataFormat, MappableTrait, MessageBuilderTrait, Publication, RuntimeEnv, SubjectTrait
+        AvailableSubjects, AvailableSubjectsTrait, BuildableTrait, BuilderTrait,
+        ChatBuilderTraitExt, DataFormat, MappableTrait, MessageBuilderTrait, Publication,
+        RuntimeEnv, SubjectTrait,
     };
     use serde_json::{Map, Value};
 
@@ -163,7 +172,11 @@ mod tests {
             .with_publisher(session_name.as_str())
             .with_update(&Publication::None)
             .with_stream(false)
-            .with_subject(AvailableSubjects::SessionSubjectSchemas.to_string().as_str())
+            .with_subject(
+                AvailableSubjects::SessionSubjectSchemas
+                    .to_string()
+                    .as_str(),
+            )
             .make_name()
             .unwrap()
             .build()
@@ -229,7 +242,11 @@ mod tests {
             .with_publisher(session_name.as_str())
             .with_update(&Publication::None)
             .with_stream(false)
-            .with_subject(AvailableSubjects::SessionSubjectSchemas.to_string().as_str())
+            .with_subject(
+                AvailableSubjects::SessionSubjectSchemas
+                    .to_string()
+                    .as_str(),
+            )
             .make_name()
             .unwrap()
             .build()

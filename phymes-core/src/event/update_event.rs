@@ -1,5 +1,5 @@
-use std::fmt::Debug;
 use phymes_diagnostics::HashMap;
+use std::fmt::Debug;
 
 use crate::{MappableTrait, Subscription};
 

@@ -1,8 +1,5 @@
 use anyhow::Result;
-use arrow::{
-    datatypes::SchemaRef,
-    record_batch::RecordBatch,
-};
+use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 
 use crate::{Subject, SubjectBuilder, SubjectPlan};
 
@@ -25,6 +22,9 @@ pub trait AvailableSchemaTrait {
 pub trait AvailableSubjectsTrait: AvailableSchemaTrait {
     fn to_subject(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Subject>;
     fn to_subject_builder(&self, name: Option<&str>) -> SubjectBuilder;
-    fn to_subject_plan(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<SubjectPlan>;
+    fn to_subject_plan(
+        &self,
+        name: Option<&str>,
+        batches: Option<Vec<RecordBatch>>,
+    ) -> Result<SubjectPlan>;
 }
-

@@ -14,19 +14,20 @@ pub use chat::{
     create_values_record_batch,
 };
 pub use embed::{
-    EmbeddingRequest, EmbeddingResponse,
-    EncodingFormat, create_document_embeddings_fields, create_documents_batch, create_documents_embeddings_batch,
-    create_documents_fields, create_embeddings_scores_fields, create_join_chunks_scores_fields,
-    create_queries_batch, create_queries_fields, create_query_embeddings_batch,
-    create_query_embeddings_fields,
+    EmbeddingRequest, EmbeddingResponse, EncodingFormat, create_document_embeddings_fields,
+    create_documents_batch, create_documents_embeddings_batch, create_documents_fields,
+    create_embeddings_scores_fields, create_join_chunks_scores_fields, create_queries_batch,
+    create_queries_fields, create_query_embeddings_batch, create_query_embeddings_fields,
 };
 pub use http::{e_utils, open_alex, semantic_scholar};
 pub use schema_traits::{AvailableSchemaTrait, AvailableSubjectsTrait, JsonSchemaTrait};
 pub use storage::{
-    AttachmentBuilderTraitExt, AttachmentsSubject, WorkspacePatchSubject, WorkspaceSubject, create_attachments_batch,
-    create_attachments_fields, create_object_store_batch, create_object_store_fields, create_object_store_meta_batch, create_repository_batch, create_repository_fields,
-    create_repository_patch_batch, create_repository_patch_fields, create_workspace_batch,
-    create_workspace_fields, create_workspace_patch_batch, create_workspace_patch_fields,
+    AttachmentBuilderTraitExt, AttachmentsSubject, WorkspacePatchSubject, WorkspaceSubject,
+    create_attachments_batch, create_attachments_fields, create_object_store_batch,
+    create_object_store_fields, create_object_store_meta_batch, create_repository_batch,
+    create_repository_fields, create_repository_patch_batch, create_repository_patch_fields,
+    create_workspace_batch, create_workspace_fields, create_workspace_patch_batch,
+    create_workspace_patch_fields,
 };
 
 mod mermaid;
@@ -52,14 +53,18 @@ pub use diagnostics::{
 mod session;
 pub use session::{
     create_session_processors_batch, create_session_runtime_envs_batch,
-    create_session_subject_schemas_batch, create_session_supersteps_batch, create_session_tasks_batch,
-    create_session_tasks_check_batch, create_session_tasks_publish_batch,
-    create_session_tasks_run_log_batch, create_session_tasks_subscribe_aggregate_batch,
-    create_session_tasks_subscribe_batch, create_session_tasks_subscribe_publish_batch,
+    create_session_subject_schemas_batch, create_session_supersteps_batch,
+    create_session_tasks_batch, create_session_tasks_check_batch,
+    create_session_tasks_publish_batch, create_session_tasks_run_log_batch,
+    create_session_tasks_subscribe_aggregate_batch, create_session_tasks_subscribe_batch,
+    create_session_tasks_subscribe_publish_batch,
 };
 
 mod subjects;
-pub use subjects::{create_subjects_change_log_batch, create_subjects_num_rows_batch, create_subjects_object_store_meta_batch};
+pub use subjects::{
+    create_subjects_change_log_batch, create_subjects_num_rows_batch,
+    create_subjects_object_store_meta_batch,
+};
 
 mod graph;
 pub use graph::{

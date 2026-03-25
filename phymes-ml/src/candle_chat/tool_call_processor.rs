@@ -9,8 +9,9 @@ use phymes_core::{
     MessageBuilderTrait, MessageTrait, ProcessorTrait, RecordBatchStream, RuntimeEnv,
     SendableRecordBatchStream, SendableRecordBatchStreamMessage,
     SendableRecordBatchStreamMessageBuilder, SendableRecordBatchStreamMessageBuilderMap,
-    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilderTrait, SubjectTrait, create_bytes_fields,
-    create_session_tasks_subscribe_publish_batch, create_values_fields, remove_message_by_subject,
+    SendableRecordBatchStreamMessageMap, Subject, SubjectBuilderTrait, SubjectTrait,
+    create_bytes_fields, create_session_tasks_subscribe_publish_batch, create_values_fields,
+    remove_message_by_subject,
 };
 use phymes_data::DataConfigTrait;
 use phymes_diagnostics::{
@@ -445,7 +446,7 @@ impl RecordBatchStream for ToolCallStream {
 
 #[cfg(test)]
 mod tests {
-    use phymes_core::{SubjectBuilder, Publication, create_bytes_record_batch};
+    use phymes_core::{Publication, SubjectBuilder, create_bytes_record_batch};
     use phymes_data::DataConfig;
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
 

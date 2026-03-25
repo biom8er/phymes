@@ -3,8 +3,8 @@ use std::sync::Arc;
 use criterion::{Criterion, criterion_group, criterion_main};
 use futures::TryStreamExt;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, MessageBuilderTrait, ProcessorTrait, RuntimeEnv,
-    SendableRecordBatchStreamMessage, Subject, SubjectBuilderTrait, Publication, SubjectTrait,
+    BuildableTrait, BuilderTrait, MessageBuilderTrait, ProcessorTrait, Publication, RuntimeEnv,
+    SendableRecordBatchStreamMessage, Subject, SubjectBuilderTrait, SubjectTrait,
     from_diagnostics_to_tables, test_subject::TestSubjectSizes,
 };
 use phymes_data::{

@@ -1,7 +1,15 @@
 use anyhow::Result;
-use arrow::{array::RecordBatch, csv::reader::Format, datatypes::{DataType, Field, Schema, SchemaRef}, ipc::reader::StreamReader, json::{Reader, ReaderBuilder, reader::infer_json_schema}};
+use arrow::{
+    array::RecordBatch,
+    csv::reader::Format,
+    datatypes::{DataType, Field, Schema, SchemaRef},
+    ipc::reader::StreamReader,
+    json::{Reader, ReaderBuilder, reader::infer_json_schema},
+};
 use std::{
-    fmt::{Debug, Display}, io::{BufRead, Cursor, Read, Seek}, sync::Arc
+    fmt::{Debug, Display},
+    io::{BufRead, Cursor, Read, Seek},
+    sync::Arc,
 };
 
 use crate::{StorageReaderTrait, StorageStreamReaderTrait};
@@ -18,7 +26,6 @@ impl IpcReader<Cursor<Vec<u8>>> {
         let reader = StreamReader::try_new(cursor, projection)?;
         Ok(Self { reader })
     }
-
 }
 
 impl<R: Read> StorageStreamReaderTrait<R> for IpcReader<R> {
@@ -33,7 +40,7 @@ impl<R: Read> StorageStreamReaderTrait<R> for IpcReader<R> {
 
 impl<R: Read> StorageReaderTrait for IpcReader<R> {
     type SR = StreamReader<R>;
-    
+
     fn new(reader: Self::SR) -> Self {
         Self { reader }
     }
@@ -46,7 +53,11 @@ pub struct JsonReader<R> {
 }
 
 impl JsonReader<Cursor<Vec<u8>>> {
-    pub fn new_with_bytes(bytes: &[u8], batch_size: usize, schema: Option<SchemaRef>) -> Result<Self> {
+    pub fn new_with_bytes(
+        bytes: &[u8],
+        batch_size: usize,
+        schema: Option<SchemaRef>,
+    ) -> Result<Self> {
         let mut cursor = Cursor::new(bytes.to_vec());
 
         // Infer the schema if not already provided
@@ -83,10 +94,9 @@ impl JsonReader<Cursor<Vec<u8>>> {
         let reader = ReaderBuilder::new(schema)
             .with_batch_size(batch_size)
             .build(cursor)?;
-        
+
         Ok(Self { reader })
     }
-
 }
 
 impl<R: Read + BufRead> StorageStreamReaderTrait<R> for JsonReader<R> {
@@ -101,7 +111,7 @@ impl<R: Read + BufRead> StorageStreamReaderTrait<R> for JsonReader<R> {
 
 impl<R: Read> StorageReaderTrait for JsonReader<R> {
     type SR = Reader<R>;
-    
+
     fn new(reader: Self::SR) -> Self {
         Self { reader }
     }
@@ -125,7 +135,13 @@ impl<R> Debug for CsvReader<R> {
 }
 
 impl CsvReader<Cursor<Vec<u8>>> {
-    pub fn new_with_bytes(bytes: &[u8], header: bool, delimiter: u8, batch_size: usize, schema: Option<SchemaRef>) -> Result<Self> {
+    pub fn new_with_bytes(
+        bytes: &[u8],
+        header: bool,
+        delimiter: u8,
+        batch_size: usize,
+        schema: Option<SchemaRef>,
+    ) -> Result<Self> {
         let mut cursor = Cursor::new(bytes.to_vec());
 
         // Handle the case of no schema
@@ -146,7 +162,7 @@ impl CsvReader<Cursor<Vec<u8>>> {
             .with_batch_size(batch_size)
             .with_format(format)
             .build(cursor)?;
-        
+
         Ok(Self { reader })
     }
 }
@@ -163,7 +179,7 @@ impl<R: Read + BufRead> StorageStreamReaderTrait<R> for CsvReader<R> {
 
 impl<R: Read> StorageReaderTrait for CsvReader<R> {
     type SR = arrow::csv::reader::BufReader<std::io::BufReader<R>>;
-    
+
     fn new(reader: Self::SR) -> Self {
         Self { reader }
     }

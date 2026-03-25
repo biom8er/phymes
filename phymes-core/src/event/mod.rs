@@ -10,8 +10,8 @@ pub use available_update_events::AvailableUpdateEvents;
 pub use publication::Publication;
 pub use subscribe_event::SubscribeEventTrait;
 pub(crate) use subscribe_event::{
-    AllSubjectNamesSubscribe, AllSubjectSchemasSubscribe, AlwaysSubscribe, AnySubscribeNameSubscribe,
-    AnySubjectSchemaSubscribe, ChatContentSubscribe,
+    AllSubjectNamesSubscribe, AllSubjectSchemasSubscribe, AlwaysSubscribe,
+    AnySubjectSchemaSubscribe, AnySubscribeNameSubscribe, ChatContentSubscribe,
 };
 pub use subscription::Subscription;
 pub use update_event::{

@@ -1,9 +1,13 @@
 use std::{
-    fmt::Debug, io::{Cursor, Seek, Write}, pin::Pin, sync::Arc
+    fmt::Debug,
+    io::{Cursor, Seek, Write},
+    pin::Pin,
+    sync::Arc,
 };
 
 use crate::{
-    BuildableTrait, BuilderTrait, IpcWriter, MappableTrait, RecordBatchStreamAdapter, SendableRecordBatchStream, StorageStreamWriterTrait, StorageWriterTrait, SubjectBuilder
+    BuildableTrait, BuilderTrait, IpcWriter, MappableTrait, RecordBatchStreamAdapter,
+    SendableRecordBatchStream, StorageStreamWriterTrait, StorageWriterTrait, SubjectBuilder,
 };
 
 use anyhow::{Result, anyhow};
@@ -39,7 +43,11 @@ pub trait SubjectTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
     }
 
     /// Write record batches to IPC object store, consuming self
-    fn to_ipc_object_store<'a>(&'a self, store: &'a Arc<dyn ObjectStore>, path: Option<&'a Path>) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
+    fn to_ipc_object_store<'a>(
+        &'a self,
+        store: &'a Arc<dyn ObjectStore>,
+        path: Option<&'a Path>,
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
         Box::pin(async move {
             if self.get_record_batches().is_empty() {
                 return Err(anyhow!(
@@ -56,7 +64,7 @@ pub trait SubjectTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             } else {
                 let path = self.default_ipc_object_store_path();
                 writer.put(store, &path).await?;
-            }            
+            }
             Ok(())
         })
     }
@@ -1143,7 +1151,8 @@ pub mod test_subject {
 #[cfg(test)]
 mod tests {
     use crate::{
-        SubjectBuilderTrait, test_subject::{TestSubject, make_test_subject, make_test_subject_schema},
+        SubjectBuilderTrait,
+        test_subject::{TestSubject, make_test_subject, make_test_subject_schema},
     };
 
     use super::*;
