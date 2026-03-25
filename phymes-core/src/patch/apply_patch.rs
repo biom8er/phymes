@@ -1,7 +1,9 @@
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
 use diff_match_patch_rs::{DiffMatchPatch, Efficient};
+use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 use crate::patch::apply_v4a_diff::apply_v4a_patch;
 
@@ -34,67 +36,74 @@ pub struct PatchOperation {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DiffKind {
+    /// DMP (Universal Diff format)
     Dmp,
+    /// V4A based on markers instead of line numbers
     V4A,
+    /// HashMap merging
+    Map,
     Unknown,
 }
 
 /// Heuristic classifier for V4A vs DMP.
 ///
-/// We score each format:
-/// - DMP signals:
-///   - `@@ -<n>,<n> +<n>,<n> @@` style header
-/// - V4A signals:
-///   - bare `@@` or `@@ <context>` without line/col metadata
-///   - section markers: `*** End Patch`, `*** End of File`, `*** Update File:`,
-///     `*** Add File:`, `*** Delete File:`
-///   - leading `+`/`-`/` ` lines without any DMP header present
-///
-/// If both have some signals, we prefer DMP (it’s stricter and less likely to be
-/// accidentally matched).
+/// ### DMP features:
+/// - `@@ -<n>,<n> +<n>,<n> @@` style header
+/// 
+/// ### V4A features:
+/// - bare `@@` or `@@ <context>` without line/col metadata
+/// - section markers: `*** End Patch`, `*** End of File`, `*** Update File:`,
+///   `*** Add File:`, `*** Delete File:`
+/// - leading `+`/`-`/` ` lines without any DMP header present
+/// 
+/// ### Map features:
+/// - leading and trailing brackets i.e., `{...}`
+/// - JSON deserializable
 fn classify_diff(diff: &str) -> DiffKind {
-    let mut dmp_score = 0;
-    let mut v4a_score = 0;
+    if serde_json::from_str::<Map<String, Value>>(diff).is_ok() {
+        DiffKind::Map
+    } else {
+        let mut dmp_score = 0;
+        let mut v4a_score = 0;
+        for line in diff.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("@@") {
+                // DMP header: @@ -a,b +c,d @@
+                let has_minus = trimmed.contains('-');
+                let has_plus = trimmed.contains('+');
+                let has_comma = trimmed.contains(',');
+                let has_trailing_at = trimmed.ends_with("@@");
 
-    for line in diff.lines() {
-        let trimmed = line.trim();
-
-        if trimmed.starts_with("@@") {
-            // DMP header: @@ -a,b +c,d @@
-            let has_minus = trimmed.contains('-');
-            let has_plus = trimmed.contains('+');
-            let has_comma = trimmed.contains(',');
-            let has_trailing_at = trimmed.ends_with("@@");
-
-            if has_minus && has_plus && has_comma && has_trailing_at {
-                dmp_score += 3;
-            } else {
-                // Bare anchor or context-only anchor => V4A signal
+                if has_minus && has_plus && has_comma && has_trailing_at {
+                    dmp_score += 3;
+                } else {
+                    // Bare anchor or context-only anchor => V4A signal
+                    v4a_score += 2;
+                }
+            } else if trimmed.starts_with("*** End Patch")
+                || trimmed.starts_with("*** End of File")
+                || trimmed.starts_with("*** Update File:")
+                || trimmed.starts_with("*** Add File:")
+                || trimmed.starts_with("*** Delete File:")
+            {
                 v4a_score += 2;
-            }
-        } else if trimmed.starts_with("*** End Patch")
-            || trimmed.starts_with("*** End of File")
-            || trimmed.starts_with("*** Update File:")
-            || trimmed.starts_with("*** Add File:")
-            || trimmed.starts_with("*** Delete File:")
-        {
-            v4a_score += 2;
-        } else if let Some(first) = trimmed.chars().next()
-            && (first == '+' || first == '-' || first == ' ')
-        {
-            // Only count as V4A-ish if we haven't seen any strong DMP header yet.
-            if dmp_score == 0 {
-                v4a_score += 1;
+            } else if let Some(first) = trimmed.chars().next()
+                && (first == '+' || first == '-' || first == ' ')
+            {
+                // Only count as V4A-ish if we haven't seen any strong DMP header yet.
+                if dmp_score == 0 {
+                    v4a_score += 1;
+                }
             }
         }
-    }
 
-    if dmp_score >= 3 && v4a_score == 0 {
-        DiffKind::Dmp
-    } else if v4a_score >= 3 && dmp_score == 0 {
-        DiffKind::V4A
-    } else {
-        DiffKind::Unknown
+        if dmp_score >= 3 && v4a_score == 0 {
+            DiffKind::Dmp
+        } else if v4a_score >= 3 && dmp_score == 0 {
+            DiffKind::V4A
+        } else {
+            DiffKind::Unknown
+        }        
     }
 }
 
@@ -116,6 +125,18 @@ pub fn apply_patch_auto(original: &str, diff: &str, create: bool) -> Result<Stri
             }
 
             Ok(new_content)
+        }
+        DiffKind::Map => {
+            if create {
+                Ok(diff.to_string())
+            } else {
+                let diff_map = serde_json::from_str::<Map<String, Value>>(diff)?.into_iter().collect::<HashMap<_, _>>();
+                let mut original_map = serde_json::from_str::<Map<String, Value>>(original)?.into_iter().collect::<HashMap<_, _>>();
+                original_map.extend(diff_map);
+                let patch_map = original_map.into_iter().collect::<Map<_, _>>();
+                let patch = serde_json::to_string(&patch_map)?;
+                Ok(patch)
+            }
         }
         DiffKind::Unknown => Err(anyhow!(
             "Unknown diff format. Only `Universal Diff` and `V4A Diff` formats are currently supported."
@@ -174,6 +195,25 @@ pub mod tests {
         assert!(results.iter().all(|b| *b));
 
         assert_eq!(auto, direct);
+    }
+
+    #[test]
+    fn test_apply_patch_auto_map_brackets_extend() {
+        let json = serde_json::json!({"a": "A", "b": 2});
+        let original = serde_json::to_string(&json).unwrap();
+        let json = serde_json::json!({"b": 1, "c": "C"});
+        let diff = serde_json::to_string(&json).unwrap();
+        let auto = apply_patch_auto(&original, &diff, false).unwrap();
+        assert_eq!(auto, "{\"a\":\"A\",\"b\":1,\"c\":\"C\"}");
+    }
+
+    #[test]
+    fn test_apply_patch_auto_map_brackets_create() {
+        let original = "";
+        let json = serde_json::json!({"b": 1, "c": "C"});
+        let diff = serde_json::to_string(&json).unwrap();
+        let auto = apply_patch_auto(original, &diff, true).unwrap();
+        assert_eq!(auto, "{\"b\":1,\"c\":\"C\"}");
     }
 
     #[test]
