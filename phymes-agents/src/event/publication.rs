@@ -51,8 +51,7 @@ pub fn make_object_store_paths_record_batch(
 ) -> Vec<RecordBatch> {
     (0..n_batches)
         .map(|i| {
-            let location =
-                make_object_store_path(session_name, subject_name, step, publisher, i);
+            let location = make_object_store_path(session_name, subject_name, step, publisher, i);
             let pk: Vec<u32> = vec![0];
             let location: ArrayRef = Arc::new(StringArray::from(vec![location]));
             let pk: ArrayRef = Arc::new(UInt32Array::from(pk));

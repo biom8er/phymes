@@ -302,10 +302,7 @@ impl Stream for ObjectStoreStream {
                             }
                         }
                     } else if let Some(locations) = self.locations.take() {
-                        locations
-                            .into_iter()
-                            .map(Path::from)
-                            .collect::<Vec<_>>()
+                        locations.into_iter().map(Path::from).collect::<Vec<_>>()
                     } else {
                         self.state = ObjectStoreState::Done;
                         let err = "Location not provided for ObjectStoreStream.";
@@ -440,9 +437,10 @@ impl Stream for ObjectStoreStream {
 
                         // Check if there are more batches for the next round
                         if let Some(batch) = self.record_batches.take()
-                            && !batch.is_empty() {
-                                self.record_batches.replace(batch);
-                            }
+                            && !batch.is_empty()
+                        {
+                            self.record_batches.replace(batch);
+                        }
 
                         // Put operation
                         let store = self.store.as_ref().unwrap().clone();
@@ -829,9 +827,10 @@ impl Stream for ObjectStoreStream {
 
                         // Check if there are more batches for the next round
                         if let Some(batch) = self.record_batches.take()
-                            && !batch.is_empty() {
-                                self.record_batches.replace(batch);
-                            }
+                            && !batch.is_empty()
+                        {
+                            self.record_batches.replace(batch);
+                        }
 
                         // Put the chunks
                         let mut write = WriteMultipart::new(mp);

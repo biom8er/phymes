@@ -210,7 +210,7 @@ pub async fn session_diagnostics(
                 .try_collect()
                 .await
                 .unwrap();
-                if batches.len() > 0 {
+                if !batches.is_empty() {
                     let subject = Subject::get_builder()
                         .with_name(&AvailableSubjects::SessionErrors.to_string())
                         .with_record_batches(batches)
@@ -275,7 +275,7 @@ pub async fn session_diagnostics(
                 .build_with_tables()
                 .unwrap();
             let session_ctx_arc = Arc::new(session_ctx);
-            let _ = SessionStreamStep::update_subjects_and_changelog_from_messages(
+            SessionStreamStep::update_subjects_and_changelog_from_messages(
                 &session_ctx_arc,
                 session_messages.unwrap_or_default(),
                 0,

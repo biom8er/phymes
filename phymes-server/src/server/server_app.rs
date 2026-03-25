@@ -11,8 +11,6 @@ use phymes_core::RuntimeEnv;
 #[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
 use phymes_core::{BuildableTrait, BuilderTrait, RuntimeEnvBuilderTrait, make_store};
 #[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
-use serde_json::{Map, Value};
-#[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
     limit::RequestBodyLimitLayer,
@@ -47,56 +45,54 @@ pub struct AppBuilder {
 }
 
 impl AppBuilder {
-    pub fn new(
+    pub async fn new(
         user_session_context_name: Option<&str>,
         runtime_env: &Arc<RuntimeEnv>,
-    ) -> impl std::future::Future<Output = Result<Self>> + Send {
-        async move {
-            // Application state
-            let user_state = UserState::new(user_session_context_name, runtime_env).await?;
-            let server_state = ServerState::new();
+    ) -> Result<Self> {
+        // Application state
+        let user_state = UserState::new(user_session_context_name, runtime_env).await?;
+        let server_state = ServerState::new();
 
-            // Router
-            let app: Router = Router::new()
-                .route("/app/v1/sign_in", post(sign_in))
-                .route(
-                    "/app/v1/chat",
-                    post(session_stream).layer(middleware::from_fn_with_state(
-                        user_state.clone(),
-                        authorize,
-                    )),
-                )
-                .route(
-                    "/app/v1/put_state",
-                    post(session_put_state).layer(middleware::from_fn_with_state(
-                        user_state.clone(),
-                        authorize,
-                    )),
-                )
-                .route(
-                    "/app/v1/get_state",
-                    post(session_get_state).layer(middleware::from_fn_with_state(
-                        user_state.clone(),
-                        authorize,
-                    )),
-                )
-                .route(
-                    "/app/v1/build",
-                    post(session_build).layer(middleware::from_fn_with_state(
-                        user_state.clone(),
-                        authorize,
-                    )),
-                )
-                .route(
-                    "/app/v1/diagnostics",
-                    post(session_diagnostics).layer(middleware::from_fn_with_state(
-                        user_state.clone(),
-                        authorize,
-                    )),
-                )
-                .with_state((user_state.clone(), server_state));
-            Ok(Self { app })
-        }
+        // Router
+        let app: Router = Router::new()
+            .route("/app/v1/sign_in", post(sign_in))
+            .route(
+                "/app/v1/chat",
+                post(session_stream).layer(middleware::from_fn_with_state(
+                    user_state.clone(),
+                    authorize,
+                )),
+            )
+            .route(
+                "/app/v1/put_state",
+                post(session_put_state).layer(middleware::from_fn_with_state(
+                    user_state.clone(),
+                    authorize,
+                )),
+            )
+            .route(
+                "/app/v1/get_state",
+                post(session_get_state).layer(middleware::from_fn_with_state(
+                    user_state.clone(),
+                    authorize,
+                )),
+            )
+            .route(
+                "/app/v1/build",
+                post(session_build).layer(middleware::from_fn_with_state(
+                    user_state.clone(),
+                    authorize,
+                )),
+            )
+            .route(
+                "/app/v1/diagnostics",
+                post(session_diagnostics).layer(middleware::from_fn_with_state(
+                    user_state.clone(),
+                    authorize,
+                )),
+            )
+            .with_state((user_state.clone(), server_state));
+        Ok(Self { app })
     }
 
     #[cfg(all(not(target_family = "wasm"), feature = "wsl"))]
@@ -178,10 +174,7 @@ impl Server {
                 )
                 .unwrap();
                 let config = self.config.try_read().unwrap();
-                let config = config
-                    .object_store_config
-                    .clone()
-                    .unwrap_or(Map::<String, Value>::new());
+                let config = config.object_store_config.clone().unwrap_or_default();
                 RuntimeEnv::get_builder()
                     .with_name("Serverless App Runtime Environment")
                     .with_object_store(store)

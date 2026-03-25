@@ -286,25 +286,25 @@ impl SessionContextBuilder {
         if self.runtime_env != other.runtime_env
             && let (Some(rt), Some(other_rt)) =
                 (self.runtime_env.as_ref(), other.runtime_env.as_ref())
-            {
-                if rt.object_store_backend != other_rt.object_store_backend {
-                    return Err(anyhow!(
-                        "Unable to extend runtime environment `{}` with backend `{}` with from other runtime environment `{}` with backend `{}`. The runtime environment object stores must be the same.",
-                        rt.name,
-                        rt.object_store_backend,
-                        other_rt.name,
-                        other_rt.object_store_backend
-                    ));
-                } else if rt.object_store_bucket != other_rt.object_store_bucket {
-                    return Err(anyhow!(
-                        "Unable to extend runtime environment `{}` with bucket `{}` with from other runtime environment `{}` with bucket `{}`. The runtime environment object stores must be the same.",
-                        rt.name,
-                        rt.object_store_bucket,
-                        other_rt.name,
-                        other_rt.object_store_bucket
-                    ));
-                }
+        {
+            if rt.object_store_backend != other_rt.object_store_backend {
+                return Err(anyhow!(
+                    "Unable to extend runtime environment `{}` with backend `{}` with from other runtime environment `{}` with backend `{}`. The runtime environment object stores must be the same.",
+                    rt.name,
+                    rt.object_store_backend,
+                    other_rt.name,
+                    other_rt.object_store_backend
+                ));
+            } else if rt.object_store_bucket != other_rt.object_store_bucket {
+                return Err(anyhow!(
+                    "Unable to extend runtime environment `{}` with bucket `{}` with from other runtime environment `{}` with bucket `{}`. The runtime environment object stores must be the same.",
+                    rt.name,
+                    rt.object_store_bucket,
+                    other_rt.name,
+                    other_rt.object_store_bucket
+                ));
             }
+        }
 
         Ok(self)
     }

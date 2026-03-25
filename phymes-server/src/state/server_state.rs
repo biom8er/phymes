@@ -35,27 +35,25 @@ pub struct UserState {
 impl UserState {
     /// Make a new [UserState] with an optional name for the user state
     ///   and initialize with the default user
-    pub fn new(
+    pub async fn new(
         user_session_context_name: Option<&str>,
         runtime_env: &Arc<RuntimeEnv>,
-    ) -> impl std::future::Future<Output = Result<Self>> + Send {
-        async move {
-            let session_name = user_session_context_name.unwrap_or("Users");
-            let (session_ctx_arc, session_messages) =
-                AvailableSessionPlans::get_session_stream_state_by_name(
-                    "Users",
-                    session_name,
-                    &runtime_env,
-                )?;
+    ) -> Result<Self> {
+        let session_name = user_session_context_name.unwrap_or("Users");
+        let (session_ctx_arc, session_messages) =
+            AvailableSessionPlans::get_session_stream_state_by_name(
+                "Users",
+                session_name,
+                runtime_env,
+            )?;
 
-            // Write the session messages to the store
-            let _ = session_ctx_arc
-                .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
-                .await;
-            Ok(Self {
-                users: session_ctx_arc,
-            })
-        }
+        // Write the session messages to the store
+        let _ = session_ctx_arc
+            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+            .await;
+        Ok(Self {
+            users: session_ctx_arc,
+        })
     }
 
     /// Get the user information by their email
@@ -183,7 +181,7 @@ impl UserState {
         if let Some(subject) = changelog {
             let message = IPCMessageBuilder::new()
                 .with_subject(subject.get_name())
-                .with_publisher(&self.users.get_name())
+                .with_publisher(self.users.get_name())
                 .with_update(&Publication::Extend {
                     subject_name: subject.get_name().to_string(),
                 })
@@ -195,7 +193,7 @@ impl UserState {
         if let Some(subject) = meta {
             let message = IPCMessageBuilder::new()
                 .with_subject(subject.get_name())
-                .with_publisher(&self.users.get_name())
+                .with_publisher(self.users.get_name())
                 .with_update(&Publication::Extend {
                     subject_name: subject.get_name().to_string(),
                 })
@@ -256,125 +254,123 @@ impl ServerState {
     /// # Returns
     ///
     /// `Vec<String>` of created session_names
-    pub fn make_session_contexts(
+    pub async fn make_session_contexts(
         &mut self,
         user_session_contexts: &[JoinUserInboxSessionContextsMermaidDiagrams],
         make_session_contexts: bool,
         runtime_env: &Arc<RuntimeEnv>,
-    ) -> impl std::future::Future<Output = Result<Vec<String>>> + Send {
-        async move {
-            let mut session_names = Vec::new();
-            for user_session_context in user_session_contexts {
-                // Create the session name
-                let session_name = create_session_name(
-                    &user_session_context.email,
-                    &user_session_context.session_context_name,
-                );
+    ) -> Result<Vec<String>> {
+        let mut session_names = Vec::new();
+        for user_session_context in user_session_contexts {
+            // Create the session name
+            let session_name = create_session_name(
+                &user_session_context.email,
+                &user_session_context.session_context_name,
+            );
 
-                if make_session_contexts {
-                    // Create the session stream state if it does not yet exist
-                    if self
+            if make_session_contexts {
+                // Create the session stream state if it does not yet exist
+                if self
+                    .session_contexts
+                    .try_read()
+                    .unwrap()
+                    .contains_key(&session_name)
+                {
+                    tracing::debug!(
+                        "Session_context {} already exists for session_name {}",
+                        &user_session_context.session_context_name,
+                        &session_name
+                    );
+                } else if AvailableSessionPlans::get_all_session_plan_names()
+                    .contains(&user_session_context.session_context_name)
+                {
+                    // Prioritize the available session plans with initialized configs and other state
+                    let (session_ctx_arc, session_messages) =
+                        AvailableSessionPlans::get_session_stream_state_by_name(
+                            &user_session_context.session_context_name,
+                            &session_name,
+                            runtime_env,
+                        )?;
+
+                    // Write the session messages to the store
+                    let _ = session_ctx_arc
+                        .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+                        .await;
+
+                    // Add the session stream state to the state
+                    let _ = self
                         .session_contexts
-                        .try_read()
+                        .try_write()
                         .unwrap()
-                        .contains_key(&session_name)
-                    {
-                        tracing::debug!(
-                            "Session_context {} already exists for session_name {}",
-                            &user_session_context.session_context_name,
-                            &session_name
-                        );
-                    } else if AvailableSessionPlans::get_all_session_plan_names()
-                        .contains(&user_session_context.session_context_name)
-                    {
-                        // Prioritize the available session plans with initialized configs and other state
-                        let (session_ctx_arc, session_messages) =
-                            AvailableSessionPlans::get_session_stream_state_by_name(
-                                &user_session_context.session_context_name,
-                                &session_name,
-                                runtime_env,
-                            )?;
+                        .insert(session_name.to_string(), session_ctx_arc);
+                    tracing::debug!(
+                        "Creating session_context {} for session_name {} from AvailableSessionPlans",
+                        &user_session_context.session_context_name,
+                        &session_name
+                    );
+                } else {
+                    // Build the session stream state with tables from Mermaid
+                    // and leave the upload of configs and other initial session state to another step
+                    // DM: turn agent subject tests back on after refactoring BuilderSession
+                    let (session_context, session_messages) =
+                        SessionContextBuilder::from_mermaid_flowchart(
+                            &user_session_context.flowchart_diagram,
+                            false,
+                        )?
+                        .with_name(&session_name)
+                        .with_subjects_from_mermaid_erdiagram(
+                            &user_session_context.er_diagram,
+                            false,
+                            true,
+                        )?
+                        .add_processor_subjects()?
+                        .add_session_interface(None)?
+                        .with_diagnostics(true)
+                        .with_runtime_env(runtime_env.clone())
+                        .build_with_tables()?;
+                    let session_ctx_arc = Arc::new(session_context);
 
-                        // Write the session messages to the store
-                        let _ = session_ctx_arc
-                            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
-                            .await;
+                    // Write the session messages to the store
+                    let _ = session_ctx_arc
+                        .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
+                        .await;
 
-                        // Add the session stream state to the state
-                        let _ = self
-                            .session_contexts
-                            .try_write()
-                            .unwrap()
-                            .insert(session_name.to_string(), session_ctx_arc);
-                        tracing::debug!(
-                            "Creating session_context {} for session_name {} from AvailableSessionPlans",
-                            &user_session_context.session_context_name,
-                            &session_name
-                        );
-                    } else {
-                        // Build the session stream state with tables from Mermaid
-                        // and leave the upload of configs and other initial session state to another step
-                        // DM: turn agent subject tests back on after refactoring BuilderSession
-                        let (session_context, session_messages) =
-                            SessionContextBuilder::from_mermaid_flowchart(
-                                &user_session_context.flowchart_diagram,
-                                false,
-                            )?
-                            .with_name(&session_name)
-                            .with_subjects_from_mermaid_erdiagram(
-                                &user_session_context.er_diagram,
-                                false,
-                                true,
-                            )?
-                            .add_processor_subjects()?
-                            .add_session_interface(None)?
-                            .with_diagnostics(true)
-                            .with_runtime_env(runtime_env.clone())
-                            .build_with_tables()?;
-                        let session_ctx_arc = Arc::new(session_context);
-
-                        // Write the session messages to the store
-                        let _ = session_ctx_arc
-                            .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
-                            .await;
-
-                        // Add the session stream state to the state
-                        let _ = self
-                            .session_contexts
-                            .try_write()
-                            .unwrap()
-                            .insert(session_name.to_string(), session_ctx_arc);
-                        tracing::debug!(
-                            "Creating session_context {} for session_name {} from mermaid diagrams.",
-                            &user_session_context.session_context_name,
-                            &session_name
-                        );
-                    }
-
-                    // Update the cache if it exists
-                    if self
-                        .user_session_names
-                        .try_read()
+                    // Add the session stream state to the state
+                    let _ = self
+                        .session_contexts
+                        .try_write()
                         .unwrap()
-                        .contains_key(&user_session_context.email)
-                    {
-                        self.user_session_names
-                            .try_write()
-                            .unwrap()
-                            .get_mut(&user_session_context.email)
-                            .unwrap()
-                            .push(session_name.to_string());
-                    } else {
-                        let _ = self.user_session_names.try_write().unwrap().insert(
-                            user_session_context.email.to_string(),
-                            vec![session_name.to_string()],
-                        );
-                    }
+                        .insert(session_name.to_string(), session_ctx_arc);
+                    tracing::debug!(
+                        "Creating session_context {} for session_name {} from mermaid diagrams.",
+                        &user_session_context.session_context_name,
+                        &session_name
+                    );
                 }
-                session_names.push(session_name);
+
+                // Update the cache if it exists
+                if self
+                    .user_session_names
+                    .try_read()
+                    .unwrap()
+                    .contains_key(&user_session_context.email)
+                {
+                    self.user_session_names
+                        .try_write()
+                        .unwrap()
+                        .get_mut(&user_session_context.email)
+                        .unwrap()
+                        .push(session_name.to_string());
+                } else {
+                    let _ = self.user_session_names.try_write().unwrap().insert(
+                        user_session_context.email.to_string(),
+                        vec![session_name.to_string()],
+                    );
+                }
             }
-            Ok(session_names)
+            session_names.push(session_name);
         }
+        Ok(session_names)
     }
 }
 
