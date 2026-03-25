@@ -8,9 +8,9 @@ use crate::{CsvReader, IpcReader, JsonReader};
 /// - Add in `fom_bytes`, `fom_struct`, `fom_values`, etc.
 #[derive(Debug)]
 pub enum ObjectStorageReader {
-    Ipc(IpcReader<Cursor<Vec<u8>>>),
-    Json(JsonReader<Cursor<Vec<u8>>>),
-    Csv(CsvReader<Cursor<Vec<u8>>>),
+    Ipc(Box<IpcReader<Cursor<Vec<u8>>>>),
+    Json(Box<JsonReader<Cursor<Vec<u8>>>>),
+    Csv(Box<CsvReader<Cursor<Vec<u8>>>>),
 }
 impl Display for ObjectStorageReader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

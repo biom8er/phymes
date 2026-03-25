@@ -1,8 +1,8 @@
-mod stream;
+mod stream_trait;
 mod stream_adapter;
 mod test_exec;
 
-pub use stream::{
+pub use stream_trait::{
     IPCRecordBatchStream, RecordBatchStream, SendableIPCRecordBatchStream,
     SendableRecordBatchStream,
 };

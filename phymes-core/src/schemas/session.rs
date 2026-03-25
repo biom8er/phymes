@@ -142,6 +142,7 @@ pub(crate) fn create_session_runtime_envs_fields() -> Fields {
     Fields::from(fields_vec)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_session_runtime_envs_batch(
     session_names: Vec<String>,
     runtime_env_names: Vec<String>,

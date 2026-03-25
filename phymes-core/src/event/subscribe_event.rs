@@ -151,7 +151,7 @@ impl SubscribeEventTrait for AnySubjectSchemaSubscribe {
                     if schemas
                         .get(subscription.subject_name())
                         .unwrap()
-                        .eq(&schemas.get(subject_name).unwrap())
+                        .eq(schemas.get(subject_name).unwrap())
                         & *update
                     {
                         return true;
@@ -195,7 +195,7 @@ impl SubscribeEventTrait for AllSubjectSchemasSubscribe {
                     if schemas
                         .get(subscription.subject_name())
                         .unwrap()
-                        .eq(&schemas.get(subject_name).unwrap())
+                        .eq(schemas.get(subject_name).unwrap())
                         & !*update
                     {
                         return false;

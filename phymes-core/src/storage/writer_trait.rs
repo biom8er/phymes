@@ -14,6 +14,7 @@ use crate::{
 };
 
 /// Mutipart storage writing
+#[allow(clippy::type_complexity)]
 pub fn storage_writer_multipart<'a>(
     store: &'a Arc<dyn ObjectStore>,
     path: &'a Path,
@@ -32,6 +33,7 @@ pub trait StorageWriterMultipartTrait {
     fn mp_mut(&mut self) -> &mut Box<dyn MultipartUpload>;
 
     /// ChunkWriter
+    #[allow(clippy::type_complexity)]
     fn chunk_writer(chunk_size: usize) -> (Arc<Mutex<VecDeque<Vec<u8>>>>, ChunkedWriter<OnChunk>) {
         let pending = Arc::new(Mutex::new(VecDeque::new()));
         let on_chunk = OnChunk::new(&pending);
@@ -48,15 +50,12 @@ pub trait StorageWriterMultipartTrait {
     where
         Self: Sized;
 
-    /// Poll the next chunk
+    /// Poll the next chunk    
+    #[allow(clippy::type_complexity)]
     fn poll_chunk(
         &mut self,
     ) -> Option<Pin<Box<dyn Future<Output = Result<(), object_store::Error>> + Send>>> {
-        let chunk = if let Some(chunk) = self.pending_mut().lock().pop_front() {
-            Some(chunk)
-        } else {
-            None
-        };
+        let chunk = self.pending_mut().lock().pop_front();
         if let Some(chunk) = chunk {
             Some(self.mp_mut().put_part(Bytes::from(chunk).into()))
         } else {
@@ -78,9 +77,11 @@ pub trait StorageWriterMultipartTrait {
 pub trait StorageWriterTrait {
     type SW;
 
+    #[allow(clippy::type_complexity)]
     fn pending_mut(&mut self) -> &mut Arc<Mutex<VecDeque<Vec<u8>>>>;
 
     /// BatchWriter
+    #[allow(clippy::type_complexity)]
     fn batch_writer() -> (Arc<Mutex<VecDeque<Vec<u8>>>>, BatchWriter<OnChunk>) {
         let pending = Arc::new(Mutex::new(VecDeque::new()));
         let on_chunk = OnChunk::new(&pending);
@@ -106,7 +107,7 @@ pub trait StorageWriterTrait {
             .flatten()
             .collect::<Vec<_>>();
         let payload = PutPayload::from_bytes(Bytes::from(bytes));
-        Box::pin(store.put(&path, payload))
+        Box::pin(store.put(path, payload))
     }
 }
 

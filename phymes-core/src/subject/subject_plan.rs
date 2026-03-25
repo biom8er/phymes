@@ -33,7 +33,7 @@ pub struct SubjectPlan {
 
 impl MappableTrait for SubjectPlan {
     fn get_name(&self) -> &str {
-        &self.subject.get_name()
+        self.subject.get_name()
     }
 }
 

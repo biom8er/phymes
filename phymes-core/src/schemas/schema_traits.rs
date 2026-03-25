@@ -1,12 +1,12 @@
+//! Todo
+//! - initialize an `object_store_metadata` subject for each subject backed by object storage
+//! - initialize an `index_` subject for each subject that converts non-gpu compatible types to gpu compatible types
+//! - add a `constraints` and `failed_constraints` subjects per session to track single/multi-table constraints and record any constraint violations
+
 use anyhow::Result;
 use arrow::{datatypes::SchemaRef, record_batch::RecordBatch};
 
 use crate::{Subject, SubjectBuilder, SubjectPlan};
-
-/// Todo
-/// - initialize an `object_store_metadata` subject for each subject backed by object storage
-/// - initialize an `index_` subject for each subject that converts non-gpu compatible types to gpu compatible types
-/// - add a `constraints` and `failed_constraints` subjects per session to track single/multi-table constraints and record any constraint violations
 
 /// Convert a possible nested Json-like structure into a single [RecordBatch]
 pub trait JsonSchemaTrait {

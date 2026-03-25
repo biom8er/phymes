@@ -13,6 +13,7 @@ use crate::{
 /// * Missing methods for specifying the device or number of devices
 /// * Missing methods for disk usage and access
 pub trait RuntimeEnvTrait: BuildableTrait + MappableTrait + Send + Sync {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         name: &str,
         max_memory: usize,
