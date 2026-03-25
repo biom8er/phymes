@@ -274,7 +274,7 @@ impl Stream for HTTPClientRequestStream {
                             if let Some(row) = batch.pop_front() {
                                 let query_str = row.get("content").ok_or(anyhow!("Missing key `content` to build query string from RecordBatches in HTTPClientRequestStream."))?;
                                 let query_str = query_str.as_str().ok_or(anyhow!("Unable to build string from key `content` from RecordBatches in HTTPClientRequestStream."))?.to_string();
-                                if batch.len() > 0 {
+                                if !batch.is_empty() {
                                     self.record_batches.replace(batch);
                                 }
                                 Some(query_str)
@@ -282,13 +282,11 @@ impl Stream for HTTPClientRequestStream {
                                 self.state = HTTPClientRequestState::Done;
                                 return Poll::Ready(None);
                             }
+                        } else if let Some(json_str) = self.json_str.take() {
+                            Some(json_str)
                         } else {
-                            if let Some(json_str) = self.json_str.take() {
-                                Some(json_str)
-                            } else {
-                                self.state = HTTPClientRequestState::Done;
-                                return Poll::Ready(None);
-                            }
+                            self.state = HTTPClientRequestState::Done;
+                            return Poll::Ready(None);
                         };
                         let url = self.config.as_ref().unwrap().url(query_url.as_deref());
 
@@ -311,7 +309,7 @@ impl Stream for HTTPClientRequestStream {
                         // Prioritize the message data over the config when building the JSON body and url
                         let (json_data, url) = if let Some(mut batch) = self.record_batches.take() {
                             let json_data = if let Some(row) = batch.pop_front() {
-                                if batch.len() > 0 {
+                                if !batch.is_empty() {
                                     self.record_batches.replace(batch);
                                 }
                                 row

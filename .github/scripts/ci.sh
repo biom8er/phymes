@@ -22,24 +22,18 @@ dx build -p phymes-app
 # GPU tests require CUDA or Metal
 echo "Tests and examples for gpu feature for Linux targets."
 echo "-----------------------------------------------"
-cargo check --features wsl,gpu,candle --all-targets
+cargo check --features gpu --all-targets
 cargo test --features wsl,gpu,candle
-cargo run --package phymes-ml --features wsl,gpu,candle --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --messages "messages" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
-cargo run --package phymes-agents --features wsl,gpu,candle --release --example chat_agent_session
-cargo run --package phymes-agents --features wsl,gpu,candle --release --example doc_rag_session
-cargo run --package phymes-agents --features wsl,gpu,candle --release --example tool_agent_session
+cargo run --package phymes-ml --features gpu --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --messages "messages" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
+cargo run --package phymes-agents --features gpu --release --example chat_agent_session
+cargo run --package phymes-agents --features gpu --release --example doc_rag_session
+cargo run --package phymes-agents --features gpu --release --example tool_agent_session
 
 # API with Candle tests require Docker and an internet connection
 echo "Tests and examples for api and candle features for Linux targets."
 echo "-----------------------------------------------"
-cargo check --features wsl,api,candle --all-targets
-cargo test --features wsl,api,candle
-
-# # API without Candle tests require API key from OpenAI or NVIDIA or NVIDIA self-hosted NIMS
-# echo "Tests and examples for api features for Linux targets."
-# echo "-----------------------------------------------"
-# cargo check --features wsl,api --all-targets
-# cargo test --features wsl,api
+cargo check --features api --all-targets
+cargo test  --features api
 
 echo "Compilation checks for Linux targets."
 echo "-----------------------------------------------"
@@ -60,6 +54,16 @@ cargo check -p phymes-app --all-targets --no-default-features --features mobile
 cargo check -p phymes-app --all-targets --no-default-features --features desktop
 cargo clippy --all-targets -- -D warnings
 cargo fmt --all -- --check
+
+# # API without Candle tests require API key from OpenAI or NVIDIA or NVIDIA self-hosted NIMS
+# echo "Tests and examples for api features for Linux targets."
+# echo "-----------------------------------------------"
+# cargo test --no-default-features --features wsl,api -p phymes-diagnostics --all-targets
+# cargo test --no-default-features --features wsl,api -p phymes-core --all-targets
+# cargo test --no-default-features --features wsl,api -p phymes-data --all-targets
+# cargo test --no-default-features --features wsl,api -p phymes-ml --all-targets
+# cargo test --no-default-features --features wsl,api -p phymes-agents --all-targets
+# cargo test --no-default-features --features wsl,api -p phymes-server --all-targets
 
 echo "Tests and examples for WASM target"
 echo "-----------------------------------------------"

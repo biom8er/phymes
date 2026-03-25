@@ -10,7 +10,7 @@ use phymes_data::{
     AvailableCandleOperators, DataCastOperator, DataColumnOperator, DataConfig,
     DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig,
 };
-#[cfg(feature = "api")]
+#[cfg(all(not(feature = "candle"), feature = "api"))]
 use phymes_ml::AvailableOpenAIAssets;
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig, CandleEmbedConfig};
 

@@ -6,7 +6,7 @@ use phymes_core::{
     SubjectBuilderTrait, SubjectPlan, SubjectPlanBuilderTrait, Subscription,
 };
 use phymes_data::{AvailableCandleOperators, DataConfig};
-#[cfg(feature = "api")]
+#[cfg(all(not(feature = "candle"), feature = "api"))]
 use phymes_ml::AvailableOpenAIAssets;
 use phymes_ml::{AvailableCandleAssets, CandleChatConfig};
 

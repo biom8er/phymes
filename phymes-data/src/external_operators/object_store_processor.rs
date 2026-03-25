@@ -1921,8 +1921,8 @@ mod tests {
             .into_iter()
             .map(|s| s.to_string())
             .collect::<Vec<_>>();
-        let last_modified = (0..2).map(|_| 0 as i64).collect::<Vec<_>>();
-        let size = (0..2).map(|_| 0 as u32).collect::<Vec<_>>();
+        let last_modified = (0..2).map(|_| 0_i64).collect::<Vec<_>>();
+        let size = (0..2).map(|_| 0_u32).collect::<Vec<_>>();
         let version = ["", ""]
             .into_iter()
             .map(|s| s.to_string())

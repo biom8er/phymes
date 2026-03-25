@@ -370,18 +370,15 @@ impl RecordBatchStream for OpenAIChatStream {
     }
 }
 
+#[cfg(all(not(feature = "candle"), feature = "api"))]
 #[cfg(test)]
 mod tests {
-    #[allow(unused_imports)]
     use super::*;
-    #[allow(unused_imports)]
     use phymes_core::{ChatBuilderTraitExt, Publication, SubjectBuilder};
-    #[allow(unused_imports)]
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
 
     use crate::AvailableOpenAIAssets;
 
-    #[cfg(not(feature = "candle"))]
     #[tokio::test]
     async fn test_openai_chat_processor() -> Result<()> {
         let name = "OpenAIChatProcessor";

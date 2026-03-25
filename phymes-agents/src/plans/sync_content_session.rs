@@ -18,6 +18,10 @@ impl<'a> SyncContentSession<'a> {
         r#"flowchart TD
 	sync_content_r-rt@{shape: subproc, label: sync_content_r}
 	%% ------------------------------------------------------------------------------
+	%% Object store local and remote diff
+    %% - Checks for differences between the local and remote object store metadata
+	%% ------------------------------------------------------------------------------
+	%% ------------------------------------------------------------------------------
 	%% Object store reading
     %% - We listen for updates to the remote object store reading metadata
 	%% ------------------------------------------------------------------------------

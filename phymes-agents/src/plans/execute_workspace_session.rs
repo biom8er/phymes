@@ -82,7 +82,7 @@ impl<'a> ExecuteWorkspaceSession<'a> {
         if cfg!(feature = "api") {
             #[cfg(feature = "api")]
             if let Some(workspace_dir) = workspace_dir {
-                let _ = std::fs::remove_dir_all(&workspace_dir); // Doesn't matter if it is an error
+                let _ = std::fs::remove_dir_all(workspace_dir); // Doesn't matter if it is an error
                 let _ = std::fs::create_dir(workspace_dir);
                 Some(workspace_dir.to_string())
             } else {

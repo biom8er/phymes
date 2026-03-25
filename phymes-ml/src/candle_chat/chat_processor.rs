@@ -643,7 +643,7 @@ pub fn process_prompt_chat(
 }
 
 pub mod bench_chat_processor {
-    #[cfg(feature = "api")]
+    #[cfg(all(not(feature = "candle"), feature = "api"))]
     use crate::openai_chat::OpenAIChatProcessor;
     use phymes_core::ChatBuilderTraitExt;
 
