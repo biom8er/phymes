@@ -1,4 +1,5 @@
 use phymes_core::ObjectStorageBackend;
+use serde_json::{Map, Value};
 
 /// A session to sync local object storage with remote object storage
 /// 
@@ -538,14 +539,14 @@ mod tests {
         {
             // Test supsersteps
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                subject_name: AvailableInterfaceSubjects::list_remote_object_store_s.to_string(),
+                subject_name: "list_remote_object_store_s".to_string(),
             }
             .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
             let subject = Subject::get_builder()
-                .with_name(AvailableInterfaceSubjects::list_remote_object_store_s.to_string().as_str())
+                .with_name("list_remote_object_store_s")
                 .with_record_batches(batches)?
                 .build()?;
             let column = subject.get_column_as_vec_str("filename");
@@ -734,14 +735,14 @@ mod tests {
         {
             // Test supsersteps
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                subject_name: AvailableInterfaceSubjects::list_remote_object_store_s.to_string(),
+                subject_name: "list_remote_object_store_s".to_string(),
             }
             .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
             let subject = Subject::get_builder()
-                .with_name(AvailableInterfaceSubjects::list_remote_object_store_s.to_string().as_str())
+                .with_name("list_remote_object_store_s")
                 .with_record_batches(batches)?
                 .build()?;
             let column = subject.get_column_as_vec_str("filename");

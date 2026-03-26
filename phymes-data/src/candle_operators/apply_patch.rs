@@ -1534,4 +1534,9 @@ pub use todo::Todo"#,
 
         Ok(())
     }
+
+    #[test]
+    fn test_apply_patch_all_map() -> Result<()> {
+        todo!()
+    }
 }

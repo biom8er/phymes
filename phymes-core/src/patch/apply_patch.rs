@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
-use diff_match_patch_rs::{DiffMatchPatch, Efficient};
+use diff_match_patch_rs::{DiffMatchPatch, Efficient, PatchInput};
 use phymes_diagnostics::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -160,24 +160,48 @@ pub fn apply_patch_auto(original: &str, diff: &str, create: bool) -> Result<Stri
     }
 }
 
+/// Compute the difference between an `original` and `modified` [String]
+pub fn compute_diff(original: &str, modified: &str, diff: &DiffType) -> Result<String> {
+    match diff {
+        DiffType::Dmp => {            
+            let dmp = DiffMatchPatch::new();
+            let diffs = dmp
+                .diff_main::<Efficient>(original, modified)
+                .map_err(|e| anyhow!("{e:?}"))?;
+            let patches = dmp
+                .patch_make(PatchInput::new_diffs(&diffs))
+                .map_err(|e| anyhow!("{e:?}"))?;
+            let patch = dmp.patch_to_text(&patches);
+            Ok(patch)
+        }
+        DiffType::Map => {
+            let original_map = serde_json::from_str::<Map<String, Value>>(original)?.into_iter().collect::<HashMap<_, _>>();
+            let mut modified_map = serde_json::from_str::<Map<String, Value>>(modified)?.into_iter().collect::<HashMap<_, _>>();
+            let patch_map = original_map.into_iter()
+                .filter_map(|(k, v)|{
+                    if let Some(v_mod) = modified_map.remove(&k) {
+                        if v_mod != v {
+                            Some((k, v_mod))
+                        } else {
+                            None
+                        }
+                    } else {
+                        Some((k, v))
+                    }
+                })
+                .collect::<Map<_, _>>();
+            let patch = serde_json::to_string(&patch_map)?;
+            Ok(patch)
+        }
+        _ => {
+            Err(anyhow!("Diff type `{diff}` is not yet supported for computing the diff between RecordBatches."))
+        }
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
-    use diff_match_patch_rs::PatchInput;
-
     use super::*;
-
-    /// Helper: generate a DMP patch text for a simple change.
-    fn make_dmp_patch(original: &str, modified: &str) -> Result<String> {
-        let dmp = DiffMatchPatch::new();
-        let diffs = dmp
-            .diff_main::<Efficient>(original, modified)
-            .map_err(|e| anyhow!("{e:?}"))?;
-        let patches = dmp
-            .patch_make(PatchInput::new_diffs(&diffs))
-            .map_err(|e| anyhow!("{e:?}"))?;
-        let patch_txt = dmp.patch_to_text(&patches);
-        Ok(patch_txt)
-    }
 
     #[test]
     fn test_apply_patch_auto_v4a_end_patch_uses_v4a_engine_and_matches_direct() {
@@ -201,7 +225,7 @@ pub mod tests {
     fn test_apply_patch_auto_dmp_header_uses_dmp_engine_and_matches_direct() {
         let original = "a\nb\nc\n";
         let modified = "a\nB\nc\n";
-        let diff = make_dmp_patch(original, modified).unwrap();
+        let diff = compute_diff(original, modified, &DiffType::Dmp).unwrap();
 
         let auto = apply_patch_auto(original, &diff, false).unwrap();
 
@@ -236,7 +260,7 @@ pub mod tests {
     fn test_apply_patch_auto_mixed_format_to_unknown() {
         let original = "a\nb\nc\n";
         let modified = "a\nB\nc\n";
-        let dmp_diff = make_dmp_patch(original, modified).unwrap();
+        let dmp_diff = compute_diff(original, modified, &DiffType::Dmp).unwrap();
 
         // Prepend a V4A-looking marker but keep a valid DMP header.
         let mixed = format!("*** End Patch\n{dmp_diff}");
@@ -249,7 +273,7 @@ pub mod tests {
     fn test_apply_patch_auto_ambiguous_no_strong_signals_to_unknown() {
         let original = "a\nb\n";
         let modified = "a\nB\n";
-        let diff = make_dmp_patch(original, modified).unwrap();
+        let diff = compute_diff(original, modified, &DiffType::Dmp).unwrap();
 
         // Strip the header to make it ambiguous.
         let stripped = diff
