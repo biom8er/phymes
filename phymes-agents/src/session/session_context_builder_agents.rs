@@ -713,6 +713,25 @@ impl SessionContextBuilderAgentsTrait for SessionContextBuilder {
                         AvailableProcessors::all_varient_names()
                     ));
                 }
+            } else if let Ok(_config) = ObjectStoreConfig::from_table(subject_plan.subject()) {
+                if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
+                    if processor.config_type() != "ObjectStoreConfig" {
+                        return Err(anyhow!(
+                            "Schema for `ObjectStoreConfig` from subject `{}` for processor type `{}` does not match the expected processor type ObjectStoreProcessor.",
+                            subject_plan.get_name(),
+                            r#type
+                        ));
+                    } else {
+                        passed_config_checks = true;
+                    }
+                } else {
+                    return Err(anyhow!(
+                        "Processor type `{}` for `ObjectStoreConfig` from subject `{}` does not match any of the supported processor types {:?}.",
+                        r#type,
+                        subject_plan.get_name(),
+                        AvailableProcessors::all_varient_names()
+                    ));
+                }
             } else if let Ok(config) = DataConfig::from_table(subject_plan.subject()) {
                 if let Ok(processor) = AvailableProcessors::from_str(r#type, false) {
                     if processor.config_type() == "DataConfig" {

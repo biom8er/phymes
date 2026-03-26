@@ -66,16 +66,26 @@ impl<'a> SyncContentSession<'a> {
 	diff_local_remote_object_store_s-subject@{{shape: doc, label: diff_local_remote_object_store_s}}
 	%% ------------------------------------------------------------------------------
 	%% Object store remote downloads
-    %% 1. Filter diff for updates and creates
-    %% 2. Read updates and creates from remote
-    %% 3. Write updates and creates to local
+    %% 1. Comparison columns for updates and create
+    %% 2. Filter diff for updates and creates
+    %% 3. Select columns
+    %% 4. Read updates and creates from remote
+    %% 5. Write updates and creates to local
 	%% ------------------------------------------------------------------------------
 	subgraph get_remote_object_store_t
-		diff_local_remote_object_store_s-subject-.->|AllRecordBatches|filter_create_update_remote_object_store_p-subscribe
+		diff_local_remote_object_store_s-subject-.->|AllRecordBatches|cmp_create_update_remote_object_store_p-subscribe
+		cmp_create_update_remote_object_store_p-subscribe-->cmp_create_update_remote_object_store_p-processor
+		cmp_create_update_remote_object_store_p-processor-->cmp_create_update_remote_object_store_p-publish
+		cmp_create_update_remote_object_store_p-publish-->|Replace|cmp_create_update_remote_object_store_s-subject
+		cmp_create_update_remote_object_store_s-subject-->|AllRecordBatches|filter_create_update_remote_object_store_p-subscribe
 		filter_create_update_remote_object_store_p-subscribe-->filter_create_update_remote_object_store_p-processor
 		filter_create_update_remote_object_store_p-processor-->filter_create_update_remote_object_store_p-publish
-		filter_create_update_remote_object_store_p-publish-->|Replace|filter_create_update_remote_object_store_s-subject
-		filter_create_update_remote_object_store_s-subject-->|AllRecordBatches|get_remote_object_store_p-subscribe
+		filter_create_update_remote_object_store_p-publish-->|Replace|filter_create_update_remote_object_store_s-subject        
+		filter_create_update_remote_object_store_s-subject--->|AllRecordBatches|select_create_update_remote_object_store_p-subscribe
+		select_create_update_remote_object_store_p-subscribe-->select_create_update_remote_object_store_p-processor
+		select_create_update_remote_object_store_p-processor-->select_create_update_remote_object_store_p-publish
+		select_create_update_remote_object_store_p-publish-->|Replace|select_create_update_remote_object_store_s-subject
+		select_create_update_remote_object_store_s-subject-->|AllRecordBatches|get_remote_object_store_p-subscribe
 		get_remote_object_store_p-subscribe-->get_remote_object_store_p-processor
 		get_remote_object_store_p-processor-->get_remote_object_store_p-publish
 		get_remote_object_store_p-publish-->|Replace|get_remote_object_store_s-subject        
@@ -85,10 +95,18 @@ impl<'a> SyncContentSession<'a> {
 		put_local_object_store_p-publish-->|Replace|put_local_object_store_s-subject
 	end
 	{session_context_name}_r-rt-->get_remote_object_store_t
+	cmp_create_update_remote_object_store_p-processor@{{shape: rect, label: Select}}
+	cmp_create_update_remote_object_store_p-publish@{{shape: fork}}
+	cmp_create_update_remote_object_store_p-subscribe@{{shape: diamond, label: All}}
+	cmp_create_update_remote_object_store_s-subject@{{shape: doc, label: cmp_create_update_remote_object_store_s}}
 	filter_create_update_remote_object_store_p-processor@{{shape: rect, label: Filter}}
 	filter_create_update_remote_object_store_p-publish@{{shape: fork}}
 	filter_create_update_remote_object_store_p-subscribe@{{shape: diamond, label: All}}
 	filter_create_update_remote_object_store_s-subject@{{shape: doc, label: filter_create_update_remote_object_store_s}}
+    select_create_update_remote_object_store_p-processor@{{shape: rect, label: Select}}
+	select_create_update_remote_object_store_p-publish@{{shape: fork}}
+	select_create_update_remote_object_store_p-subscribe@{{shape: diamond, label: All}}
+	select_create_update_remote_object_store_s-subject@{{shape: doc, label: select_create_update_remote_object_store_s}}
 	get_remote_object_store_p-processor@{{shape: rect, label: ObjectStoreProcessor}}
 	get_remote_object_store_p-publish@{{shape: fork}}
 	get_remote_object_store_p-subscribe@{{shape: diamond, label: All}}
@@ -99,24 +117,42 @@ impl<'a> SyncContentSession<'a> {
 	put_local_object_store_s-subject@{{shape: doc, label: put_local_object_store_s}}
 	%% ------------------------------------------------------------------------------
 	%% Object store local deletes
-    %% 1. Filter for deletes
-    %% 2. Delete from local
+    %% 1. Comparison columns for delete
+    %% 2. Filter for deletes
+    %% 3. Select columns
+    %% 4. Delete from local
 	%% ------------------------------------------------------------------------------
 	subgraph delete_local_object_store_t
-		diff_local_remote_object_store_s-subject-.->|AllRecordBatches|filter_delete_local_object_store_p-subscribe
+		diff_local_remote_object_store_s-subject-.->|AllRecordBatches|cmp_delete_local_object_store_p-subscribe
+		cmp_delete_local_object_store_p-subscribe-->cmp_delete_local_object_store_p-processor
+		cmp_delete_local_object_store_p-processor-->cmp_delete_local_object_store_p-publish
+		cmp_delete_local_object_store_p-publish-->|Replace|cmp_delete_local_object_store_s-subject
+		cmp_delete_local_object_store_s-subject-->|AllRecordBatches|filter_delete_local_object_store_p-subscribe
 		filter_delete_local_object_store_p-subscribe-->filter_delete_local_object_store_p-processor
 		filter_delete_local_object_store_p-processor-->filter_delete_local_object_store_p-publish
 		filter_delete_local_object_store_p-publish-->|Replace|filter_delete_local_object_store_s-subject
-		filter_delete_local_object_store_s-subject-->|AllRecordBatches|delete_local_object_store_p-subscribe
+		filter_delete_local_object_store_s-subject--->|AllRecordBatches|select_delete_local_object_store_p-subscribe
+		select_delete_local_object_store_p-subscribe-->select_delete_local_object_store_p-processor
+		select_delete_local_object_store_p-processor-->select_delete_local_object_store_p-publish
+		select_delete_local_object_store_p-publish-->|Replace|select_delete_local_object_store_s-subject
+		select_delete_local_object_store_s-subject-->|AllRecordBatches|delete_local_object_store_p-subscribe
 		delete_local_object_store_p-subscribe-->delete_local_object_store_p-processor
 		delete_local_object_store_p-processor-->delete_local_object_store_p-publish
 		delete_local_object_store_p-publish-->|Replace|delete_local_object_store_s-subject
 	end
 	{session_context_name}_r-rt-->delete_local_object_store_t
+	cmp_delete_local_object_store_p-processor@{{shape: rect, label: Select}}
+	cmp_delete_local_object_store_p-publish@{{shape: fork}}
+	cmp_delete_local_object_store_p-subscribe@{{shape: diamond, label: All}}
+	cmp_delete_local_object_store_s-subject@{{shape: doc, label: cmp_delete_local_object_store_s}}
 	filter_delete_local_object_store_p-processor@{{shape: rect, label: Filter}}
 	filter_delete_local_object_store_p-publish@{{shape: fork}}
 	filter_delete_local_object_store_p-subscribe@{{shape: diamond, label: All}}
 	filter_delete_local_object_store_s-subject@{{shape: doc, label: filter_delete_local_object_store_s}}
+    select_delete_local_object_store_p-processor@{{shape: rect, label: Select}}
+	select_delete_local_object_store_p-publish@{{shape: fork}}
+	select_delete_local_object_store_p-subscribe@{{shape: diamond, label: All}}
+	select_delete_local_object_store_s-subject@{{shape: doc, label: select_delete_local_object_store_s}}
 	delete_local_object_store_p-processor@{{shape: rect, label: ObjectStoreProcessor}}
 	delete_local_object_store_p-publish@{{shape: fork}}
 	delete_local_object_store_p-subscribe@{{shape: diamond, label: All}}
@@ -146,19 +182,76 @@ impl<'a> SyncContentSession<'a> {
     pub fn as_mermaid_erdiagram(&self) -> String {
         format!(r#"erDiagram
     remote_object_store_meta_s["remote_object_store_meta_s"] {{
-        Utf8 role
-        Utf8 content
-        Int64 timestamp
+        Utf8 location
+        Utf8 bucket
+        Utf8 e_tag
+        Utf8 version
+        UInt32 size
+        Int64 last_modified
     }}
     list_remote_object_store_p["list_remote_object_store_p"] {{
         List-UInt8 bytes
     }}
     list_remote_object_store_s["list_remote_object_store_s"] {{
+        Utf8 location
+        Utf8 bucket
+        Utf8 e_tag
+        Utf8 version
+        UInt32 size
+        Int64 last_modified
+    }}
+    local_object_store_meta_s["local_object_store_meta_s"] {{
+        Utf8 location
+        Utf8 bucket
+        Utf8 e_tag
+        Utf8 version
+        UInt32 size
+        Int64 last_modified
+    }}
+    diff_local_remote_object_store_p["diff_local_remote_object_store_p"] {{
+        Utf8 lhs_name "local_object_store_meta_s"
+        Utf8 rhs_name "list_remote_object_store_s"
+        List-Utf8 lhs_values "['bucket', 'e_tag', 'version', 'size', 'last_modified']"
+        List-Utf8 rhs_values "['bucket', 'e_tag', 'version', 'size', 'last_modified']"
+        Utf8 lhs_pk "location"
+        Utf8 rhs_pk "location"
+        Utf8 diff "Map"
+        Utf8 operator "Diff"
+        Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
+    }}
+    diff_local_remote_object_store_s["diff_local_remote_object_store_s"] {{
         Utf8 filename
-        Utf8 extension
-        List-UInt8 bytes
-        Utf8 metadata
-        Int64 timestamp
+        Utf8 diff
+        Utf8 operator
+    }}
+    cmp_create_update_remote_object_store_p["cmp_create_update_remote_object_store_p"] {{
+	    List-Utf8 as_columns "['','','','create','update']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','Create','Update']"
+	    List-Utf8 column_operators "['None','None','None','Value','Value']"
+	    List-Utf8 lhs_values "['filename','diff','operator','create','update']"
+        Boolean cpu "false"
+        Utf8 lhs_name "diff_local_remote_object_store_s"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    filter_create_update_remote_object_store_p["filter_create_update_remote_object_store_p"] {{
+        List-Utf8 cmp_columns "['create','update']"
+        List-Utf8 cmp_operators "['Like','Like']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "cmp_create_update_remote_object_store_s"
+        List-Utf8 lhs_values "['operator','operator']"
+        Utf8 operator "Filter"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_create_update_remote_object_store_p["select_create_update_remote_object_store_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_create_update_remote_object_store_s"
+        List-Utf8 lhs_values "['filename','diff','operator']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
     }}"#)
     }
 }

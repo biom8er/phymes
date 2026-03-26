@@ -4,16 +4,10 @@ use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, DataEncoding, DataFormat, MappableTrait, ProcessorBuilder, ProcessorEcho,
-    ProcessorTrait, Subject, WorkspacePatchSubject,
-    test_processor::{ProcessorError, ProcessorMock},
+    AvailableSubjects, DataEncoding, DataFormat, MappableTrait, ObjectStorageBackend, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Subject, WorkspacePatchSubject, test_processor::{ProcessorError, ProcessorMock}
 };
 use phymes_data::{
-    AggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor,
-    CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator,
-    DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait,
-    DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig, LimitProcessor,
-    ToolTrait,
+    AggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor, CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig, LimitProcessor, ObjectStoreConfig, ObjectStoreOptsType, ToolTrait
 };
 #[cfg(feature = "api")]
 use phymes_data::{
@@ -28,6 +22,7 @@ use phymes_ml::{
 #[cfg(feature = "api")]
 use phymes_ml::{AvailableOpenAIAssets, OpenAIChatProcessor, OpenAIEmbedProcessor};
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 /// The available [ProcessorTrait]s
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
@@ -89,6 +84,8 @@ pub enum AvailableProcessors {
     ToolCallProcessor,
     #[value(name = "CandleEmbedProcessor")]
     CandleEmbedProcessor,
+    #[value(name = "ObjectStoreProcessor")]
+    ObjectStoreProcessor,
     #[cfg(feature = "api")]
     #[value(name = "HTTPClientRequestProcessor")]
     HTTPClientRequestProcessor,
@@ -148,6 +145,7 @@ impl Display for AvailableProcessors {
                 write!(f, "{}", ToolCallProcessor::get_static_name())
             }
             Self::CandleEmbedProcessor => write!(f, "{}", CandleEmbedProcessor::get_static_name()),
+            Self::ObjectStoreProcessor => write!(f, "{}", ObjectStoreProcessor::get_static_name()),
             #[cfg(feature = "api")]
             Self::HTTPClientRequestProcessor => {
                 write!(f, "{}", HTTPClientRequestProcessor::get_static_name())
@@ -463,6 +461,16 @@ impl DataConfigTrait for AvailableProcessors {
                 candle_asset: Some(AvailableCandleAssets::QuantizedBertEmbed),
                 ..Default::default()
             }),
+            Self::ObjectStoreProcessor => serde_json::to_vec(&ObjectStoreConfig {
+                timeout: 15,
+                ops_type: ObjectStoreOptsType::default(),
+                backend: ObjectStorageBackend::default(),
+                bucket: Some("bucket".to_string()),
+                backend_config: Some(Map::<String, Value>::new()),
+                locations: Some(vec!["location".to_string()]),
+                subject_name: Some("subject_name".to_string()),
+                ..Default::default()
+            }),
             #[cfg(feature = "api")]
             Self::HTTPClientRequestProcessor => serde_json::to_vec(&HTTPClientConfig {
                 timeout: 5,
@@ -557,6 +565,7 @@ impl ToolTrait for AvailableProcessors {
             Self::MessageParserProcessor => todo!(),
             Self::ToolCallProcessor => todo!(),
             Self::CandleEmbedProcessor => todo!(),
+            Self::ObjectStoreProcessor => todo!(),
             #[cfg(feature = "api")]
             Self::HTTPClientRequestProcessor => todo!(),
             #[cfg(feature = "api")]
@@ -597,6 +606,7 @@ impl ToolTrait for AvailableProcessors {
             Self::MessageParserProcessor => todo!(),
             Self::ToolCallProcessor => todo!(),
             Self::CandleEmbedProcessor => todo!(),
+            Self::ObjectStoreProcessor => todo!(),
             #[cfg(feature = "api")]
             Self::HTTPClientRequestProcessor => todo!(),
             #[cfg(feature = "api")]
@@ -641,6 +651,7 @@ impl AvailableProcessors {
             AvailableProcessors::MessageParserProcessor.to_string(),
             AvailableProcessors::ToolCallProcessor.to_string(),
             AvailableProcessors::CandleEmbedProcessor.to_string(),
+            AvailableProcessors::ObjectStoreProcessor.to_string(),
             #[cfg(feature = "api")]
             AvailableProcessors::HTTPClientRequestProcessor.to_string(),
             #[cfg(feature = "api")]
@@ -716,6 +727,8 @@ impl AvailableProcessors {
             Ok(AvailableProcessors::ToolCallProcessor)
         } else if line.contains(&AvailableProcessors::CandleEmbedProcessor.to_string()) {
             Ok(AvailableProcessors::CandleEmbedProcessor)
+        } else if line.contains(&AvailableProcessors::ObjectStoreProcessor.to_string()) {
+            Ok(AvailableProcessors::ObjectStoreProcessor)
         } else {
             #[cfg(feature = "api")]
             if line.contains(&AvailableProcessors::HTTPClientRequestProcessor.to_string()) {
@@ -785,6 +798,9 @@ impl AvailableProcessors {
             Self::CandleEmbedProcessor => {
                 Arc::new(CandleEmbedProcessor::new(name, self.to_string().as_str()))
             }
+            Self::ObjectStoreProcessor => {
+                Arc::new(ObjectStoreProcessor::new(name, self.to_string().as_str()))
+            }
             #[cfg(feature = "api")]
             Self::HTTPClientRequestProcessor => Arc::new(HTTPClientRequestProcessor::new(
                 name,
@@ -837,6 +853,7 @@ impl AvailableProcessors {
             Self::MessageParserProcessor => builder.build_arc::<MessageParserProcessor>(),
             Self::ToolCallProcessor => builder.build_arc::<ToolCallProcessor>(),
             Self::CandleEmbedProcessor => builder.build_arc::<CandleEmbedProcessor>(),
+            Self::ObjectStoreProcessor => builder.build_arc::<ObjectStoreProcessor>(),
             #[cfg(feature = "api")]
             Self::HTTPClientRequestProcessor => builder.build_arc::<HTTPClientRequestProcessor>(),
             #[cfg(feature = "api")]
@@ -877,6 +894,7 @@ impl AvailableProcessors {
             Self::ToolCallProcessor => "ToolCallConfig",
             Self::CandleChatProcessor | Self::MessageParserProcessor => "CandleChatConfig",
             Self::CandleEmbedProcessor => "CandleEmbedConfig",
+            Self::ObjectStoreProcessor => "ObjectStoreConfig",
             #[cfg(feature = "api")]
             Self::HTTPClientRequestProcessor => "HTTPClientConfig",
             #[cfg(feature = "api")]
