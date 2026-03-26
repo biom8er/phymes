@@ -3,7 +3,7 @@ use std::fmt::Display;
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
 use phymes_core::{
-    AvailableSubjects, DataEncoding, DataFormat, MappableTrait, Subject, SubjectTrait,
+    AvailableSubjects, DataEncoding, DataFormat, DiffType, MappableTrait, Subject, SubjectTrait
 };
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
@@ -625,6 +625,11 @@ pub struct DataConfig {
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub doc_template: Option<AvailableJinja2Templates>,
+
+    /// [DiffType] specifying the Diff format to use
+    #[arg(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub diff: Option<DiffType>,
 
     /// Universal Diff or V4a Diff in a serialized JSON [Value] representing
     ///   a `Vec<WorkspacePatchSubject>>`

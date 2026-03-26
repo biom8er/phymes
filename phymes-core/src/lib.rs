@@ -35,7 +35,7 @@ pub use message::{
 };
 #[cfg(feature = "api")]
 pub use patch::WorkspaceEditor;
-pub use patch::{ApplyDiffMode, PatchOperation, PatchOperator, apply_patch_auto, apply_v4a_diff};
+pub use patch::{ApplyDiffMode, DiffType, PatchOperation, PatchOperator, apply_patch_auto, apply_v4a_diff};
 pub use processor::{
     ProcessorBuilder, ProcessorEcho, ProcessorMap, ProcessorPlan, ProcessorPlanBuilder,
     ProcessorSubjects, ProcessorSubjectsBuilder, ProcessorSubjectsMap, ProcessorTrait,

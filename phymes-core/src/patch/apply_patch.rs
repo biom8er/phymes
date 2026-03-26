@@ -34,15 +34,31 @@ pub struct PatchOperation {
     pub operator: PatchOperator,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum DiffKind {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, ValueEnum)]
+pub enum DiffType {
     /// DMP (Universal Diff format)
+    #[default]
+    #[value(name = "Dmp")]
     Dmp,
     /// V4A based on markers instead of line numbers
+    #[value(name = "V4A")]
     V4A,
     /// HashMap merging
+    #[value(name = "Map")]
     Map,
+    #[value(name = "Unknown")]
+    #[serde(other)]
     Unknown,
+}
+impl std::fmt::Display for DiffType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Dmp => write!(f, "Dmp"),
+            Self::V4A => write!(f, "V4A"),
+            Self::Map => write!(f, "Map"),
+            Self::Unknown => write!(f, "Unknown"),
+        }
+    }
 }
 
 /// Heuristic classifier for V4A vs DMP.
@@ -59,9 +75,9 @@ enum DiffKind {
 /// ### Map features:
 /// - leading and trailing brackets i.e., `{...}`
 /// - JSON deserializable
-fn classify_diff(diff: &str) -> DiffKind {
+fn classify_diff(diff: &str) -> DiffType {
     if serde_json::from_str::<Map<String, Value>>(diff).is_ok() {
-        DiffKind::Map
+        DiffType::Map
     } else {
         let mut dmp_score = 0;
         let mut v4a_score = 0;
@@ -98,19 +114,19 @@ fn classify_diff(diff: &str) -> DiffKind {
         }
 
         if dmp_score >= 3 && v4a_score == 0 {
-            DiffKind::Dmp
+            DiffType::Dmp
         } else if v4a_score >= 3 && dmp_score == 0 {
-            DiffKind::V4A
+            DiffType::V4A
         } else {
-            DiffKind::Unknown
+            DiffType::Unknown
         }        
     }
 }
 
 pub fn apply_patch_auto(original: &str, diff: &str, create: bool) -> Result<String> {
     match classify_diff(diff) {
-        DiffKind::V4A => apply_v4a_patch(original, diff, create),
-        DiffKind::Dmp => {
+        DiffType::V4A => apply_v4a_patch(original, diff, create),
+        DiffType::Dmp => {
             let dmp = DiffMatchPatch::new();
             let patches = dmp
                 .patch_from_text::<Efficient>(diff)
@@ -126,7 +142,7 @@ pub fn apply_patch_auto(original: &str, diff: &str, create: bool) -> Result<Stri
 
             Ok(new_content)
         }
-        DiffKind::Map => {
+        DiffType::Map => {
             if create {
                 Ok(diff.to_string())
             } else {
@@ -138,7 +154,7 @@ pub fn apply_patch_auto(original: &str, diff: &str, create: bool) -> Result<Stri
                 Ok(patch)
             }
         }
-        DiffKind::Unknown => Err(anyhow!(
+        DiffType::Unknown => Err(anyhow!(
             "Unknown diff format. Only `Universal Diff` and `V4A Diff` formats are currently supported."
         )),
     }

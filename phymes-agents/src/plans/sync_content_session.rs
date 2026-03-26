@@ -1,4 +1,10 @@
-/// A session for syncing local object storeage with remote object storage
+/// A session to sync local object storage with remote object storage
+/// 
+/// # Notes
+/// - The syncing direction is unidirectional from remote to local where remote is
+///   taken to be the ground truth
+/// - Add a second `SyncContentSession` and invert local and remote names
+///   to sync remote with local to achieve bidirectional syncing
 pub struct SyncContentSession<'a> {
     /// Session
     pub session_context_name: &'a str,
@@ -31,58 +37,123 @@ impl<'a> SyncContentSession<'a> {
         format!(r#"flowchart TD
 	{session_context_name}_r-rt@{{shape: subproc, label: {session_context_name}_r}}
 	%% ------------------------------------------------------------------------------
-	%% Object store local and remote diff
+	%% Object store diff between local and remote
     %% 1. List remote locations
-    %% 2. Join with local metadata (LeftOuter = Added, RightOuter = Deleted, Inner + filter = Updated
-    %% 3. Filter for 
-    %% - Checks for differences between the local and remote object store metadata
-    %% - Checks for differences between the local and remote object store metadata
-    %% - Checks for differences between the local and remote object store metadata
+    %% 2. Diff local with remote
 	%% ------------------------------------------------------------------------------
-	%% ------------------------------------------------------------------------------
-	%% Object store reading
-    %% - We listen for updates to the remote object store reading metadata
-	%% ------------------------------------------------------------------------------
-	subgraph read_remote_object_store_t
-		http_client_request_pdf_s-subject-.->|AllRecordBatches|download_pdf_p-subscribe
-		download_pdf_p-subject-.->|LastRecordBatch|download_pdf_p-subscribe
-		download_pdf_p-subscribe-->download_pdf_p-processor
-		download_pdf_p-processor-->download_pdf_p-publish
-		download_pdf_p-publish-->|Extend|UserPdf-subject
+	subgraph list_remote_object_store_t
+		remote_object_store_meta_s-subject-.->|AllRecordBatches|list_remote_object_store_p-subscribe
+		list_remote_object_store_p-subject-.->|LastRecordBatch|list_remote_object_store_p-subscribe
+		list_remote_object_store_p-subscribe-->list_remote_object_store_p-processor
+		list_remote_object_store_p-processor-->list_remote_object_store_p-publish
+		list_remote_object_store_p-publish-->|Replace|list_remote_object_store_s-subject
+		list_remote_object_store_s-subject-->|AllRecordBatches|diff_local_remote_object_store_p-subscribe
+		local_object_store_meta_s-subject-->|AllRecordBatches|diff_local_remote_object_store_p-subscribe
+		diff_local_remote_object_store_p-subscribe-->diff_local_remote_object_store_p-processor
+		diff_local_remote_object_store_p-processor-->diff_local_remote_object_store_p-publish
+		diff_local_remote_object_store_p-publish-->|Replace|diff_local_remote_object_store_s-subject
 	end
-	{session_context_name}_r-rt-->download_pdf_t
-	http_client_request_pdf_s-subject@{{shape: doc, label: http_client_request_pdf_s}}
-	download_pdf_p-subject@{{shape: doc, label: download_pdf_p}}
-	download_pdf_p-processor@{{shape: rect, label: HTTPClientRequestProcessor}}
-	download_pdf_p-publish@{{shape: fork}}
-	download_pdf_p-subscribe@{{shape: diamond, label: All}}
-	UserPdf-subject@{{shape: doc, label: UserPdf}}
+	{session_context_name}_r-rt-->list_remote_object_store_t
+	remote_object_store_meta_s-subject@{{shape: doc, label: remote_object_store_meta_s}}
+	list_remote_object_store_p-processor@{{shape: rect, label: ObjectStoreProcessor}}
+	list_remote_object_store_p-publish@{{shape: fork}}
+	list_remote_object_store_p-subscribe@{{shape: diamond, label: All}}
+	list_remote_object_store_s-subject@{{shape: doc, label: list_remote_object_store_s}}
+	local_object_store_meta_s-subject@{{shape: doc, label: local_object_store_meta_s}}
+	diff_local_remote_object_store_p-processor@{{shape: rect, label: Diff}}
+	diff_local_remote_object_store_p-publish@{{shape: fork}}
+	diff_local_remote_object_store_p-subscribe@{{shape: diamond, label: All}}
+	diff_local_remote_object_store_s-subject@{{shape: doc, label: diff_local_remote_object_store_s}}
 	%% ------------------------------------------------------------------------------
-	%% Object store writing
-    %% - We listen for updates both on the config `download_json_p` subject
-    %%   AND a data `http_client_request_json_s` subject which is in the form of a UserMessage
-    %%   which can both specify the URL to download the JSON from
-    %% - The `tool_call_session` is used to trigger the download when only the config is updated
+	%% Object store remote downloads
+    %% 1. Filter diff for updates and creates
+    %% 2. Read updates and creates from remote
+    %% 3. Write updates and creates to local
 	%% ------------------------------------------------------------------------------
+	subgraph get_remote_object_store_t
+		diff_local_remote_object_store_s-subject-.->|AllRecordBatches|filter_create_update_remote_object_store_p-subscribe
+		filter_create_update_remote_object_store_p-subscribe-->filter_create_update_remote_object_store_p-processor
+		filter_create_update_remote_object_store_p-processor-->filter_create_update_remote_object_store_p-publish
+		filter_create_update_remote_object_store_p-publish-->|Replace|filter_create_update_remote_object_store_s-subject
+		filter_create_update_remote_object_store_s-subject-->|AllRecordBatches|get_remote_object_store_p-subscribe
+		get_remote_object_store_p-subscribe-->get_remote_object_store_p-processor
+		get_remote_object_store_p-processor-->get_remote_object_store_p-publish
+		get_remote_object_store_p-publish-->|Replace|get_remote_object_store_s-subject        
+		get_remote_object_store_s-subject-->|AllRecordBatches|put_local_object_store_p-subscribe
+		put_local_object_store_p-subscribe-->put_local_object_store_p-processor
+		put_local_object_store_p-processor-->put_local_object_store_p-publish
+		put_local_object_store_p-publish-->|Replace|put_local_object_store_s-subject
+	end
+	{session_context_name}_r-rt-->get_remote_object_store_t
+	filter_create_update_remote_object_store_p-processor@{{shape: rect, label: Filter}}
+	filter_create_update_remote_object_store_p-publish@{{shape: fork}}
+	filter_create_update_remote_object_store_p-subscribe@{{shape: diamond, label: All}}
+	filter_create_update_remote_object_store_s-subject@{{shape: doc, label: filter_create_update_remote_object_store_s}}
+	get_remote_object_store_p-processor@{{shape: rect, label: ObjectStoreProcessor}}
+	get_remote_object_store_p-publish@{{shape: fork}}
+	get_remote_object_store_p-subscribe@{{shape: diamond, label: All}}
+	get_remote_object_store_s-subject@{{shape: doc, label: get_remote_object_store_s}}
+	put_local_object_store_p-processor@{{shape: rect, label: ObjectStoreProcessor}}
+	put_local_object_store_p-publish@{{shape: fork}}
+	put_local_object_store_p-subscribe@{{shape: diamond, label: All}}
+	put_local_object_store_s-subject@{{shape: doc, label: put_local_object_store_s}}
+	%% ------------------------------------------------------------------------------
+	%% Object store local deletes
+    %% 1. Filter for deletes
+    %% 2. Delete from local
+	%% ------------------------------------------------------------------------------
+	subgraph delete_local_object_store_t
+		diff_local_remote_object_store_s-subject-.->|AllRecordBatches|filter_delete_local_object_store_p-subscribe
+		filter_delete_local_object_store_p-subscribe-->filter_delete_local_object_store_p-processor
+		filter_delete_local_object_store_p-processor-->filter_delete_local_object_store_p-publish
+		filter_delete_local_object_store_p-publish-->|Replace|filter_delete_local_object_store_s-subject
+		filter_delete_local_object_store_s-subject-->|AllRecordBatches|delete_local_object_store_p-subscribe
+		delete_local_object_store_p-subscribe-->delete_local_object_store_p-processor
+		delete_local_object_store_p-processor-->delete_local_object_store_p-publish
+		delete_local_object_store_p-publish-->|Replace|delete_local_object_store_s-subject
+	end
+	{session_context_name}_r-rt-->delete_local_object_store_t
+	filter_delete_local_object_store_p-processor@{{shape: rect, label: Filter}}
+	filter_delete_local_object_store_p-publish@{{shape: fork}}
+	filter_delete_local_object_store_p-subscribe@{{shape: diamond, label: All}}
+	filter_delete_local_object_store_s-subject@{{shape: doc, label: filter_delete_local_object_store_s}}
+	delete_local_object_store_p-processor@{{shape: rect, label: ObjectStoreProcessor}}
+	delete_local_object_store_p-publish@{{shape: fork}}
+	delete_local_object_store_p-subscribe@{{shape: diamond, label: All}}
+	delete_local_object_store_s-subject@{{shape: doc, label: delete_local_object_store_s}}
+	%% ------------------------------------------------------------------------------
+	%% Object store local meta update
+    %% 1. Patch local metadata
+	%% ------------------------------------------------------------------------------
+	subgraph patch_local_object_store_t
+		local_object_store_meta_s-subject-.->|AllRecordBatches|patch_local_object_store_p-subscribe
+		diff_local_remote_object_store_s-subject-->|AllRecordBatches|patch_local_object_store_p-subscribe
+		patch_local_object_store_p-subscribe-->patch_local_object_store_p-processor
+		patch_local_object_store_p-processor-->patch_local_object_store_p-publish
+		patch_local_object_store_p-publish-->|Replace|local_object_store_meta_s-subject
+	end
+	{session_context_name}_r-rt-->patch_local_object_store_t
+	patch_local_object_store_p-processor@{{shape: rect, label: ApplyPatch}}
+	patch_local_object_store_p-publish@{{shape: fork}}
+	patch_local_object_store_p-subscribe@{{shape: diamond, label: All}}
 	%% ------------------------------------------------------------------------------
     %% Next steps
-	%% - Other document downloads can be added as shown above...
-	%% - Other tool calls can be integrated based on the above template...
-	%% - A tool message needs to be generated based on the responses...
+	%% - Create a new `SyncContentSession` with inverted local/remote names
+    %%   for bidirectional syncing
 	%% ------------------------------------------------------------------------------"#)
     }
     /// Return the Mermaid.js ER diagram representation of the session
     pub fn as_mermaid_erdiagram(&self) -> String {
         format!(r#"erDiagram
-    http_client_request_pdf_s["http_client_request_pdf_s"] {{
+    remote_object_store_meta_s["remote_object_store_meta_s"] {{
         Utf8 role
         Utf8 content
         Int64 timestamp
     }}
-    download_pdf_p["download_pdf_p"] {{
+    list_remote_object_store_p["list_remote_object_store_p"] {{
         List-UInt8 bytes
     }}
-    UserPdf["UserPdf"] {{
+    list_remote_object_store_s["list_remote_object_store_s"] {{
         Utf8 filename
         Utf8 extension
         List-UInt8 bytes
@@ -140,8 +211,8 @@ mod tests {
 
         // PDF download data
         {
-            let name = "download_pdf_p";
-            let messages = "http_client_request_pdf_s";
+            let name = "list_remote_object_store_p";
+            let messages = "remote_object_store_meta_s";
             let id = "2508.18700";
             let download_url = format!("pdf/{id}");
             let http_client_config = HTTPClientConfig {
@@ -265,14 +336,14 @@ mod tests {
         {
             // Test supsersteps
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
+                subject_name: AvailableInterfaceSubjects::list_remote_object_store_s.to_string(),
             }
             .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
             let subject = Subject::get_builder()
-                .with_name(AvailableInterfaceSubjects::UserPdf.to_string().as_str())
+                .with_name(AvailableInterfaceSubjects::list_remote_object_store_s.to_string().as_str())
                 .with_record_batches(batches)?
                 .build()?;
             let column = subject.get_column_as_vec_str("filename");
@@ -331,7 +402,7 @@ mod tests {
     async fn test_sync_content_session_wo_subjects() -> Result<()> {
         // View task session
         let tool_call_session =
-            ToolCallSession::new("tool_call_session", &["download_pdf_p", "download_json_p"]);
+            ToolCallSession::new("tool_call_session", &["list_remote_object_store_p", "download_json_p"]);
         let tool_call_session_builder = SessionContextBuilder::from_mermaid_flowchart(
             &tool_call_session.as_mermaid_flowchart(),
             false,
@@ -368,7 +439,7 @@ mod tests {
 
         // PDF download data
         {
-            let name = "download_pdf_p";
+            let name = "list_remote_object_store_p";
             let id = "2508.18700";
             let download_url = format!("pdf/{id}");
             let http_client_config = HTTPClientConfig {
@@ -461,14 +532,14 @@ mod tests {
         {
             // Test supsersteps
             let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                subject_name: AvailableInterfaceSubjects::UserPdf.to_string(),
+                subject_name: AvailableInterfaceSubjects::list_remote_object_store_s.to_string(),
             }
             .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
             .unwrap()
             .try_collect()
             .await?;
             let subject = Subject::get_builder()
-                .with_name(AvailableInterfaceSubjects::UserPdf.to_string().as_str())
+                .with_name(AvailableInterfaceSubjects::list_remote_object_store_s.to_string().as_str())
                 .with_record_batches(batches)?
                 .build()?;
             let column = subject.get_column_as_vec_str("filename");

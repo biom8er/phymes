@@ -192,7 +192,7 @@ impl DataOperatorTrait for ApplyPatch {
 pub fn apply_patch(
     lhs_args: &[RecordBatch],
     rhs_args: Option<&[RecordBatch]>,
-    lhs_values: &str,
+    lhs_values: &str, // DM, todo!(): Change to &[&str] and convert to single column JSON Map string to apply MAP
     rhs_values: &[&str],
     lhs_pk: &str,
     rhs_pk: &str,

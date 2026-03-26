@@ -7,9 +7,7 @@ use arrow::{
 };
 use candle_core::Device;
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, Function,
-    FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, PatchOperator, Subject,
-    SubjectBuilderTrait, SubjectTrait, Tool, ToolType, apply_patch_auto,
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, DiffType, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, PatchOperator, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType, apply_patch_auto
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -33,11 +31,11 @@ use crate::{
 /// Inject a table into a string template
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Diff {
-    lhs_values: String,
+    lhs_values: Vec<String>,
     rhs_values: Vec<String>,
     lhs_pk: String,
     rhs_pk: String,
-    doc_patch: Vec<Value>,
+    diff: DiffType,
 }
 
 impl MappableTrait for Diff {
@@ -100,7 +98,11 @@ impl DataOperatorTrait for Diff {
         apply_patch(
             lhs_args,
             rhs_args,
-            &self.lhs_values,
+            &self
+                .lhs_values
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
             &self
                 .rhs_values
                 .iter()
@@ -108,25 +110,15 @@ impl DataOperatorTrait for Diff {
                 .collect::<Vec<_>>(),
             &self.lhs_pk,
             &self.rhs_pk,
-            &self.doc_patch,
+            &self.diff,
             device,
         )
     }
     fn new(config: &DataConfig) -> Result<Self> {
-        let lhs_values = config
-            .lhs_values
-            .as_ref()
-            .cloned()
-            .ok_or(anyhow!(
-                "Missing `lhs_values` for `{}`.",
-                Self::get_static_name()
-            ))?
-            .first()
-            .cloned()
-            .ok_or(anyhow!(
-                "`lhs_values` is empty for `{}`.",
-                Self::get_static_name()
-            ))?;
+        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!(
+            "Missing `lhs_values` for `{}`.",
+            Self::get_static_name()
+        ))?;
         let rhs_values = config.rhs_values.as_ref().cloned().ok_or(anyhow!(
             "Missing `rhs_values` for `{}`.",
             Self::get_static_name()
@@ -139,18 +131,16 @@ impl DataOperatorTrait for Diff {
             "Missing `rhs_pk` for `{}`.",
             Self::get_static_name()
         ))?;
-        let doc_patch = if let Some(doc_patch) = config.doc_patch.as_ref() {
-            serde_json::from_str::<Vec<Value>>(doc_patch)?
-        } else {
-            return Err(anyhow!(
-                "Missing `doc_patch` for `{}`.",
-                Self::get_static_name()
-            ));
-        };
+        let diff = config.diff.clone().ok_or(anyhow!(
+            "Missing `diff` for `{}`.",
+            Self::get_static_name()
+        ))?;
 
-        if rhs_values.len() != 2 {
+        if rhs_values.len() != lhs_values.len() {
             return Err(anyhow!(
-                "rhs_values is less than 2. The first element should be the name of the `diff` column and the second element should be the name of the `operator` column."
+                "lhs_values length {} is not equal to the rhs_values length {}",
+                lhs_values.len(),
+                rhs_values.len()
             ));
         }
 
@@ -160,7 +150,7 @@ impl DataOperatorTrait for Diff {
             rhs_values,
             lhs_pk,
             rhs_pk,
-            doc_patch,
+            diff,
         })
     }
 }
@@ -179,22 +169,28 @@ impl DataOperatorTrait for Diff {
 ///
 /// * `lhs_args` - Slice of [RecordBatch]es that the diff will be computed against (the reference)
 /// * `rhs_args` - Slice of [RecordBatch]es that the diff will be computed for (the update)
-/// * `lhs_values` - (Optional) The name of the columns to consider when computing the diff,
-///   which must be in common between the two [RecordBatch]es
+/// * `lhs_values` - The name of the LHS columns to consider when computing the diff.
+/// * `rhs_values` - The name of the RHS columns to consider when computing the diff.
 /// * `lhs_pk` - The name of the column with the full path of the "file" or another unique identifier to match the patch on
 /// * `rhs_pk` - The name of the column with the full path of the "file" or another unique identifier to match the patch on
 /// * `device` - The compute device
-#[instrument(skip(lhs_args, rhs_args, lhs_values, rhs_values, lhs_pk, rhs_pk, device))]
+#[instrument(skip(lhs_args, rhs_args, lhs_values, rhs_values, lhs_pk, rhs_pk, diff, device))]
 #[allow(clippy::too_many_arguments)]
 pub fn apply_patch(
     lhs_args: &[RecordBatch],
     rhs_args: Option<&[RecordBatch]>,
-    lhs_values: &str,
+    lhs_values: &[&str],
     rhs_values: &[&str],
     lhs_pk: &str,
     rhs_pk: &str,
+    diff: &DiffType,
     device: &Device,
 ) -> Result<RecordBatch> {
+    // Inner Join to determine the Updates
+    // Left Outer Join on remainder to determine the Deletes
+    // Right Outer Join on remainder to determine the Creates
+
+
     // Extract out the patches
     let rhs_args = if let Some(rhs_args) = rhs_args {
         rhs_args.to_vec()

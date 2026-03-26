@@ -4,7 +4,7 @@ pub mod apply_v4a_diff;
 #[cfg(feature = "api")]
 pub mod workspace_editor;
 
-pub use apply_patch::{PatchOperation, PatchOperator, apply_patch_auto};
+pub use apply_patch::{DiffType, PatchOperation, PatchOperator, apply_patch_auto};
 pub use apply_v4a_diff::{ApplyDiffMode, apply_v4a_diff};
 
 #[cfg(feature = "api")]
