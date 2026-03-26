@@ -1,3 +1,5 @@
+use phymes_core::ObjectStorageBackend;
+
 /// A session to sync local object storage with remote object storage
 /// 
 /// # Notes
@@ -10,12 +12,20 @@ pub struct SyncContentSession<'a> {
     pub session_context_name: &'a str,
     /// Local object store metadata
     pub local_object_store_meta_name: &'a str,
-    /// Remove object store metadata
-    pub remote_object_store_meta_name: &'a str,
     /// Local object store
     pub local_object_store_name: &'a str,
-    /// Remove object store
+    /// local object store backend
+    pub local_object_store_backend: &'a ObjectStorageBackend,
+    pub local_object_store_bucket: Option<&'a str>,
+    pub local_object_store_config: Option<&'a Map<String, Value>>,
+    /// Remote object store metadata
+    pub remote_object_store_meta_name: &'a str,
+    /// Remote object store
     pub remote_object_store_name: &'a str,
+    /// remote object store backend
+    pub remote_object_store_backend: &'a ObjectStorageBackend,
+    pub remote_object_store_bucket: Option<&'a str>,
+    pub remote_object_store_config: Option<&'a Map<String, Value>>,
 }
 
 impl<'a> Default for SyncContentSession<'a> {
@@ -23,9 +33,15 @@ impl<'a> Default for SyncContentSession<'a> {
         Self {
             session_context_name: "sync_content_session",
             local_object_store_meta_name: "local_object_store_meta_name",
-            remote_object_store_meta_name: "remote_object_store_meta_name",
             local_object_store_name: "local_object_store_name",
+            local_object_store_backend: &ObjectStorageBackend::default(),
+            local_object_store_bucket: None,
+            local_object_store_config: None,
+            remote_object_store_meta_name: "remote_object_store_meta_name",
             remote_object_store_name: "remote_object_store_name",
+            remote_object_store_backend: &ObjectStorageBackend::default(),
+            remote_object_store_bucket: None,
+            remote_object_store_config: None,
         }
     }
 }
@@ -34,6 +50,10 @@ impl<'a> SyncContentSession<'a> {
     /// Return the Mermaid.js flowchart representation of the session
     pub fn as_mermaid_flowchart(&self) -> String {
         let session_context_name = self.session_context_name;
+        let local_object_store_meta_name = self.local_object_store_meta_name;
+        let local_object_store_name = self.local_object_store_name;
+        let remote_object_store_meta_name = self.remote_object_store_meta_name;
+        let remote_object_store_name = self.remote_object_store_name;
         format!(r#"flowchart TD
 	{session_context_name}_r-rt@{{shape: subproc, label: {session_context_name}_r}}
 	%% ------------------------------------------------------------------------------
@@ -180,6 +200,27 @@ impl<'a> SyncContentSession<'a> {
     }
     /// Return the Mermaid.js ER diagram representation of the session
     pub fn as_mermaid_erdiagram(&self) -> String {
+        let session_context_name = self.session_context_name;
+        let local_object_store_meta_name = self.local_object_store_meta_name;
+        let local_object_store_name = self.local_object_store_name;
+        let local_object_store_backend = self.local_object_store_backend.to_string();
+        let local_object_store_bucket = self.local_object_store_bucket.unwrap_or_default();
+        let local_object_store_config = if let Some(config) = self.local_object_store_config{
+            let config_str = serde_json::to_string(config).unwrap();
+            format!(r#"Utf8 backend_config "{config_str}""#)
+        } else {
+            r#"Utf8 backend_config "{}""#.to_string()
+        };
+        let remote_object_store_meta_name = self.remote_object_store_meta_name;
+        let remote_object_store_name = self.remote_object_store_name;
+        let remote_object_store_backend = self.remote_object_store_backend.to_string();
+        let remote_object_store_bucket = self.remote_object_store_bucket.unwrap_or_default();
+        let remote_object_store_config = if let Some(config) = self.remote_object_store_config{
+            let config_str = serde_json::to_string(config).unwrap();
+            format!(r#"Utf8 backend_config "{config_str}""#)
+        } else {
+            r#"Utf8 backend_config "{}""#.to_string()
+        };
         format!(r#"erDiagram
     remote_object_store_meta_s["remote_object_store_meta_s"] {{
         Utf8 location
@@ -252,6 +293,87 @@ impl<'a> SyncContentSession<'a> {
         List-Utf8 lhs_values "['filename','diff','operator']"
         Utf8 operator "Select"
         Utf8 lhs_stream "Accumulate"
+    }}
+    get_remote_object_store_p["get_remote_object_store_p"] {{
+        UInt32 timeout "15"
+        Utf8 ops_type "Get"
+        Utf8 backend "{remote_object_store_backend}"
+        Utf8 bucket "{remote_object_store_bucket}"
+        Utf8 backend_config "{remote_object_store_config}"
+        Utf8 subject_name "select_create_update_remote_object_store_s"
+    }}
+    put_local_object_store_p["put_local_object_store_p"] {{
+        UInt32 timeout "15"
+        Utf8 ops_type "Put"
+        Utf8 backend "{local_object_store_backend}"
+        Utf8 bucket "{local_object_store_bucket}"
+        Utf8 backend_config "{local_object_store_config}"
+        Utf8 subject_name "get_remote_object_store_s"
+    }}
+    put_local_object_store_s["put_local_object_store_s"] {{
+        Utf8 location
+        Utf8 bucket
+        Utf8 e_tag
+        Utf8 version
+        UInt32 size
+        Int64 last_modified
+    }}
+    cmp_delete_local_object_store_p["cmp_delete_local_object_store_p"] {{
+	    List-Utf8 as_columns "['','','','delete']"
+	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8']"
+	    List-Utf8 cast_templates "['','','','Delete']"
+	    List-Utf8 column_operators "['None','None','None','Value']"
+	    List-Utf8 lhs_values "['filename','diff','operator','delete']"
+        Boolean cpu "false"
+        Utf8 lhs_name "diff_local_remote_object_store_s"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    filter_delete_local_object_store_p["filter_delete_local_object_store_p"] {{
+        List-Utf8 cmp_columns "['delete']"
+        List-Utf8 cmp_operators "['Like']"
+        Utf8 cmp_predicate "All"
+        Boolean cpu "false"
+        Utf8 lhs_name "cmp_delete_local_object_store_s"
+        List-Utf8 lhs_values "['operator','operator']"
+        Utf8 operator "Filter"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    select_delete_local_object_store_p["select_delete_local_object_store_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "filter_delete_local_object_store_s"
+        List-Utf8 lhs_values "['filename','diff','operator']"
+        Utf8 operator "Select"
+        Utf8 lhs_stream "Accumulate"
+    }}
+    delete_local_object_store_p["delete_local_object_store_p"] {{
+        UInt32 timeout "15"
+        Utf8 ops_type "Delete"
+        Utf8 backend "{local_object_store_backend}"
+        Utf8 bucket "{local_object_store_bucket}"
+        Utf8 backend_config "{local_object_store_config}"
+        Utf8 subject_name "select_delete_local_object_store_s"
+    }}
+    delete_local_object_store_s["delete_local_object_store_s"] {{
+        Utf8 location
+        Utf8 bucket
+        Utf8 e_tag
+        Utf8 version
+        UInt32 size
+        Int64 last_modified
+    }}
+    patch_local_object_store_p["patch_local_object_store_p"] {{
+        Boolean cpu "false"
+        Utf8 lhs_name "local_object_store_meta_s"
+        Utf8 rhs_name "diff_local_remote_object_store_s"
+        List-Utf8 lhs_values "['bucket', 'e_tag', 'version', 'size', 'last_modified']"
+        List-Utf8 rhs_values "['diff', 'operator']"
+        Utf8 lhs_pk "location"
+        Utf8 rhs_pk "filename"
+        Utf8 doc_patch ""
+        Utf8 operator "ApplyPatch"
+        Utf8 lhs_stream "Accumulate"
+        Utf8 rhs_stream "Accumulate"
     }}"#)
     }
 }
