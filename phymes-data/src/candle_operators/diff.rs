@@ -7,6 +7,7 @@ use phymes_core::{
     BuildableTrait, BuilderTrait, DiffType, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, PatchOperator, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType, compute_diff,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Map;
 use tracing::instrument;
 
 use crate::{
@@ -156,7 +157,10 @@ fn to_diff_record_batches(lhs_args: &[RecordBatch], lhs_values: &[&str], lhs_pk:
     let lhs_values_arr = if lhs_values.len() > 1 {
         let lhs_values_str = lhs_concat.to_json_object()?
             .into_iter()
-            .map(|r| serde_json::to_string(&r).unwrap())
+            .map(|r| {
+                let r_no_pk = r.into_iter().filter(|(k, _v)| k != lhs_pk).collect::<Map<_, _>>();
+                serde_json::to_string(&r_no_pk).unwrap()
+            })
             .collect::<Vec<_>>();
         Arc::new(StringArray::from(lhs_values_str))
     } else {
@@ -207,7 +211,6 @@ pub fn diff(
 
     // FullOuterJoin
     let full_outer_join = join(lhs_pk, std::slice::from_ref(&lhs_args_transformed), rhs_pk, std::slice::from_ref(&rhs_args_transformed), &DataJoinOperator::FullOuter, device)?;
-    dbg!(&full_outer_join);
 
     // Compute the diff
     // Taking advantage of the FullOuterJoin order (Inner -> Update, LeftOuter -> Delete, RightOuter -> Create)
@@ -250,7 +253,6 @@ pub fn diff(
             }
         })
         .collect();
-    dbg!(&diff_operator_col);
     let ((diff_col, operator_col), indices): ((Vec<String>, Vec<String>), Vec<u32>) = diff_operator_col?
         .into_iter()
         .map(|(i, d, o)| ((d, o), i as u32))
@@ -465,16 +467,16 @@ pub use todo::Todo"#,
             ("lhs_text", lhs_text_array),
             ("lhs_metadata", lhs_metadata_array),
         ])?;
-        let rhs_ids_vec_1 = vec!["0", "2", "2"];
+        let rhs_ids_vec_1 = vec!["0", "1", "2", "4"];
         let rhs_ids_array: ArrayRef = Arc::new(StringArray::from(rhs_ids_vec_1));
-        let rhs_metadata_vec_1: Vec<u32> = vec![8, 9, 10];
+        let rhs_metadata_vec_1: Vec<u32> = vec![1, 8, 3, 10];
         let rhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(rhs_metadata_vec_1));
-        let rhs_text_vec_1 = vec!["right", "right", "right"];
+        let rhs_text_vec_1 = vec!["left", "right", "left", "right"];
         let rhs_text_array: ArrayRef = Arc::new(StringArray::from(rhs_text_vec_1));
         let rhs_batch_1 = RecordBatch::try_from_iter(vec![
-            ("rhs_pk", rhs_ids_array),
-            ("rhs_text", rhs_text_array),
-            ("rhs_metadata", rhs_metadata_array),
+            ("lhs_pk", rhs_ids_array),
+            ("lhs_text", rhs_text_array),
+            ("lhs_metadata", rhs_metadata_array),
         ])?;
 
         // Make the device
@@ -487,71 +489,38 @@ pub use todo::Todo"#,
             &["lhs_text", "lhs_metadata"],
             &["lhs_text", "lhs_metadata"],
             "lhs_pk",
-            "rhs_pk",
+            "lhs_pk",
             &DiffType::Map,
             &device,
         )?;
 
-        let lhs_id = result
-            .column_by_name("lhs_pk")
-            .unwrap()
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .unwrap()
-            .iter()
-            .map(|s| s.unwrap_or_default())
-            .collect::<Vec<_>>();
-        assert_eq!(lhs_id, ["0", "2", "2"]);
-        let metadata = result
-            .column_by_name("lhs_metadata")
-            .unwrap()
-            .as_any()
-            .downcast_ref::<UInt32Array>()
-            .unwrap()
-            .iter()
-            .map(|s| s.unwrap())
-            .collect::<Vec<_>>();
-        assert_eq!(metadata, [1, 3, 3]);
-        let text = result
-            .column_by_name("lhs_text")
-            .unwrap()
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .unwrap()
-            .iter()
-            .map(|s| s.unwrap_or_default())
-            .collect::<Vec<_>>();
-        assert_eq!(text, ["left", "left", "left"]);
-        let lhs_id = result
-            .column_by_name("rhs_pk")
-            .unwrap()
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .unwrap()
-            .iter()
-            .map(|s| s.unwrap_or_default())
-            .collect::<Vec<_>>();
-        assert_eq!(lhs_id, ["0", "2", "2"]);
-        let metadata = result
-            .column_by_name("rhs_metadata")
-            .unwrap()
-            .as_any()
-            .downcast_ref::<UInt32Array>()
-            .unwrap()
-            .iter()
-            .map(|s| s.unwrap())
-            .collect::<Vec<_>>();
-        assert_eq!(metadata, [8, 9, 10]);
-        let text = result
-            .column_by_name("rhs_text")
-            .unwrap()
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .unwrap()
-            .iter()
-            .map(|s| s.unwrap_or_default())
-            .collect::<Vec<_>>();
-        assert_eq!(text, ["right", "right", "right"]);
+        // Check the results
+        let result_table = Subject::get_builder()
+            .with_name("test_diff")
+            .with_record_batches(vec![result])?
+            .build()?;
+
+        let test = result_table.get_column_as_vec_nonprimitive::<String>("lhs_pk")?;
+        assert_eq!(
+            test,
+            [
+                "1", "3", "4"
+            ]
+        );
+        let test = result_table.get_column_as_vec_nonprimitive::<String>("diff")?;
+        assert_eq!(
+            test,
+            [
+                "{\"lhs_metadata\":8,\"lhs_text\":\"right\"}", "", "{\"lhs_metadata\":10,\"lhs_text\":\"right\"}"
+            ]
+        );
+        let test = result_table.get_column_as_vec_nonprimitive::<String>("operator")?;
+        assert_eq!(
+            test,
+            [
+                "Update", "Delete", "Create"
+            ]
+        );
 
         Ok(())
     }
