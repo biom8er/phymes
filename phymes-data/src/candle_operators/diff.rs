@@ -355,7 +355,7 @@ pub use todo::Todo"#,
         let device = device(false)?;
 
         // --- PK = String ---
-        // Patch the repository
+        // Diff the repository
         let result = diff(
             std::slice::from_ref(&repo_batch),
             std::slice::from_ref(&modified_batch),
@@ -400,7 +400,7 @@ pub use todo::Todo"#,
         );
 
         // --- PK = UInt32 ---
-        // Patch the repository
+        // Diff the repository
         let result = diff(
             std::slice::from_ref(&repo_batch),
             std::slice::from_ref(&modified_batch),
@@ -442,9 +442,117 @@ pub use todo::Todo"#,
 
     #[test]
     fn test_diff_all_map() -> Result<()> {
-        
-        // --- PK = String ---
-        // --- PK = UInt32 ---
+        // Make the test record batches
+        let lhs_ids_vec_1 = vec!["0", "1"];
+        let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_1));
+        let lhs_metadata_vec_1: Vec<u32> = vec![1, 2];
+        let lhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(lhs_metadata_vec_1));
+        let lhs_text_vec_1 = vec!["left", "left"];
+        let lhs_text_array: ArrayRef = Arc::new(StringArray::from(lhs_text_vec_1));
+        let lhs_batch_1 = RecordBatch::try_from_iter(vec![
+            ("lhs_pk", lhs_ids_array),
+            ("lhs_text", lhs_text_array),
+            ("lhs_metadata", lhs_metadata_array),
+        ])?;
+        let lhs_ids_vec_2 = vec!["2", "3"];
+        let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_2));
+        let lhs_metadata_vec_2: Vec<u32> = vec![3, 4];
+        let lhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(lhs_metadata_vec_2));
+        let lhs_text_vec_2 = vec!["left", "left"];
+        let lhs_text_array: ArrayRef = Arc::new(StringArray::from(lhs_text_vec_2));
+        let lhs_batch_2 = RecordBatch::try_from_iter(vec![
+            ("lhs_pk", lhs_ids_array),
+            ("lhs_text", lhs_text_array),
+            ("lhs_metadata", lhs_metadata_array),
+        ])?;
+        let rhs_ids_vec_1 = vec!["0", "2", "2"];
+        let rhs_ids_array: ArrayRef = Arc::new(StringArray::from(rhs_ids_vec_1));
+        let rhs_metadata_vec_1: Vec<u32> = vec![8, 9, 10];
+        let rhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(rhs_metadata_vec_1));
+        let rhs_text_vec_1 = vec!["right", "right", "right"];
+        let rhs_text_array: ArrayRef = Arc::new(StringArray::from(rhs_text_vec_1));
+        let rhs_batch_1 = RecordBatch::try_from_iter(vec![
+            ("rhs_pk", rhs_ids_array),
+            ("rhs_text", rhs_text_array),
+            ("rhs_metadata", rhs_metadata_array),
+        ])?;
+
+        // Make the device
+        let device = device(false)?;
+
+        // Diff the record batches
+        let result = diff(
+            &[lhs_batch_1, lhs_batch_2],
+            &[rhs_batch_1],
+            &["lhs_text", "lhs_metadata"],
+            &["lhs_text", "lhs_metadata"],
+            "lhs_pk",
+            "rhs_pk",
+            &DiffType::Map,
+            &device,
+        )?;
+
+        let lhs_id = result
+            .column_by_name("lhs_pk")
+            .unwrap()
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap()
+            .iter()
+            .map(|s| s.unwrap_or_default())
+            .collect::<Vec<_>>();
+        assert_eq!(lhs_id, ["0", "2", "2"]);
+        let metadata = result
+            .column_by_name("lhs_metadata")
+            .unwrap()
+            .as_any()
+            .downcast_ref::<UInt32Array>()
+            .unwrap()
+            .iter()
+            .map(|s| s.unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(metadata, [1, 3, 3]);
+        let text = result
+            .column_by_name("lhs_text")
+            .unwrap()
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap()
+            .iter()
+            .map(|s| s.unwrap_or_default())
+            .collect::<Vec<_>>();
+        assert_eq!(text, ["left", "left", "left"]);
+        let lhs_id = result
+            .column_by_name("rhs_pk")
+            .unwrap()
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap()
+            .iter()
+            .map(|s| s.unwrap_or_default())
+            .collect::<Vec<_>>();
+        assert_eq!(lhs_id, ["0", "2", "2"]);
+        let metadata = result
+            .column_by_name("rhs_metadata")
+            .unwrap()
+            .as_any()
+            .downcast_ref::<UInt32Array>()
+            .unwrap()
+            .iter()
+            .map(|s| s.unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(metadata, [8, 9, 10]);
+        let text = result
+            .column_by_name("rhs_text")
+            .unwrap()
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap()
+            .iter()
+            .map(|s| s.unwrap_or_default())
+            .collect::<Vec<_>>();
+        assert_eq!(text, ["right", "right", "right"]);
+
         Ok(())
     }
 }
