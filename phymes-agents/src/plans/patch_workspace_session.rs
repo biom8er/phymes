@@ -39,7 +39,7 @@ impl<'a> PatchWorkspaceSession<'a> {
 	WorkspacePatch-subject@{shape: doc, label: WorkspacePatch}
 	Workspace-subject@{shape: doc, label: Workspace}
 	apply_patch_p-subject@{shape: doc, label: apply_patch_p}
-	apply_patch_p-processor@{shape: rect, label: ApplyPatch}
+	apply_patch_p-processor@{shape: rect, label: Patch}
 	apply_patch_p-publish@{shape: fork}
 	apply_patch_p-subscribe@{shape: diamond, label: All}
 	apply_patch_s-subject@{shape: doc, label: apply_patch_s}
@@ -206,7 +206,7 @@ pub use todo::Todo"#,
                 rhs_pk: Some("filename".to_string()),
                 doc_patch: Some("[\"\"]".to_string()), // DM: equivalent of serde_json::to_string(&[serde_json::to_value("")?])?;
                 cpu: false,
-                operator: AvailableCandleOperators::ApplyPatch,
+                operator: AvailableCandleOperators::Patch,
                 lhs_stream: DataStreamManager::Accumulate,
                 rhs_stream: Some(DataStreamManager::Accumulate),
                 ..Default::default()
@@ -409,7 +409,7 @@ pub use todo::Todo"#,
                 rhs_pk: Some("filename".to_string()),
                 doc_patch: Some(doc_patch),
                 cpu: false,
-                operator: AvailableCandleOperators::ApplyPatch,
+                operator: AvailableCandleOperators::Patch,
                 lhs_stream: DataStreamManager::Accumulate,
                 rhs_stream: Some(DataStreamManager::Accumulate),
                 ..Default::default()

@@ -148,7 +148,33 @@ impl DataOperatorTrait for Diff {
 }
 
 /// Helper function to project and transform [RecordBatch]es to a diff-ready [RecordBatch]
-fn to_diff_record_batches(lhs_args: &[RecordBatch], lhs_values: &[&str], lhs_pk: &str, lhs_values_name: &str) -> Result<RecordBatch> {
+pub fn to_diff_record_batches(lhs_args: &[RecordBatch], lhs_values: &[&str], lhs_pk: &str, lhs_values_name: &str) -> Result<RecordBatch> {
+    let lhs_concat = Subject::get_builder()
+        .with_name("lhs concat diff")
+        .with_record_batches(lhs_args.to_vec())?
+        .build()?;
+    let lhs_pk_arr = lhs_concat.get_column_as_array(lhs_pk)?;
+    let lhs_values_arr = if lhs_values.len() > 1 {
+        let lhs_values_str = lhs_concat.to_json_object()?
+            .into_iter()
+            .map(|r| {
+                let r_no_pk = r.into_iter().filter(|(k, _v)| k != lhs_pk).collect::<Map<_, _>>();
+                serde_json::to_string(&r_no_pk).unwrap()
+            })
+            .collect::<Vec<_>>();
+        Arc::new(StringArray::from(lhs_values_str))
+    } else {
+        lhs_concat.get_column_as_array(lhs_values.first().unwrap())?
+    };
+    let lhs_args_transformed = RecordBatch::try_from_iter(vec![
+        (lhs_pk, lhs_pk_arr),
+        (lhs_values_name, lhs_values_arr)
+    ])?;
+    Ok(lhs_args_transformed)
+}
+
+/// Helper function convert a diff-ready [RecordBatch] back to a columnar [RecordBatch] representation
+pub fn from_diff_record_batches(lhs_args: &[RecordBatch], lhs_values: &[&str], lhs_pk: &str, lhs_values_name: &str) -> Result<RecordBatch> {
     let lhs_concat = Subject::get_builder()
         .with_name("lhs concat diff")
         .with_record_batches(lhs_args.to_vec())?

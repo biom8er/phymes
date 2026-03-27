@@ -37,6 +37,11 @@ pub trait SubjectBuilderTrait: BuilderTrait + Debug + Send + Sync {
     where
         Self: Sized;
 
+    /// Add columns to the RecordBatchs
+    fn zip_columns(self, batches: Vec<RecordBatch>) -> Result<Self>
+    where
+        Self: Sized;
+
     /// List the partitions in the object storage
     fn list_partitions_object_store<'a>(
         &'a self,
@@ -214,6 +219,34 @@ impl SubjectBuilderTrait for SubjectBuilder {
         }
         self.record_batches = Some(batches);
         Ok(self)
+    }
+    
+    fn zip_columns(mut self, batches: Vec<RecordBatch>) -> Result<Self> {
+        if let Some(record_batches) = self.record_batches.take() {
+            let batches: Result<Vec<RecordBatch>> = record_batches.into_iter()
+                .zip(batches.into_iter())
+                .map(|(lhs_batch, rhs_batch)| {
+                    let lhs_schema = lhs_batch.schema();
+                    let lhs_column_names = lhs_schema.fields().into_iter().map(|f| f.name()).collect::<Vec<_>>();
+                    let rhs_schema = rhs_batch.schema();
+                    let rhs_column_names = rhs_schema.fields().into_iter().map(|f| f.name()).collect::<Vec<_>>();
+                    let mut lhs_batch_vec = lhs_column_names
+                        .into_iter()
+                        .map(|f| (f, lhs_batch.column_by_name(f).unwrap().clone()))
+                        .collect::<Vec<_>>();
+                    let mut rhs_batch_vec = rhs_column_names
+                        .into_iter()
+                        .map(|f| (f, rhs_batch.column_by_name(f).unwrap().clone()))
+                        .collect::<Vec<_>>();
+                    lhs_batch_vec.extend(rhs_batch_vec.drain(..));
+                    let batch = RecordBatch::try_from_iter(lhs_batch_vec)?;
+                    Ok(batch)
+                })
+                .collect();
+            self.with_record_batches(batches?)
+        } else {
+            self.with_record_batches(batches)
+        }
     }
 
     fn list_partitions_object_store<'a>(

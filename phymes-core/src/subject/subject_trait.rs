@@ -798,6 +798,24 @@ pub trait SubjectTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             ))
         }
     }
+
+    /// Unzip columns from the subject
+    fn unzip_columns(&self, column_names: &[&str]) -> Result<RecordBatch> {
+        let mut lhs = Vec::new();
+        let schemas = self.get_schema();
+        for column_name in schemas.fields().iter().map(|f| f.name()) {
+            if column_names.contains(&column_name.as_str()) {
+                let arr = self.get_column_as_array(column_name)?;
+                lhs.push((column_name, arr));
+            } else {
+                return Err(anyhow!("Column name `{column_name}` not found in Subject `{}`. Available column names are `{:?}`.",
+                    self.get_name(),
+                    self.get_schema().fields().iter().map(|f| f.name()).collect::<Vec<_>>()))
+            }
+        }
+        let batch = RecordBatch::try_from_iter(lhs)?;
+        Ok(batch)
+    }
 }
 
 #[derive(Debug, Clone)]

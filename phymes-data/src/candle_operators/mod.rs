@@ -1,4 +1,4 @@
-mod apply_patch;
+mod patch;
 mod apply_template;
 mod available_candle_operators;
 mod chunk_documents;
@@ -18,12 +18,12 @@ mod select;
 mod sort;
 mod vector_distance;
 
-pub use apply_patch::ApplyPatch;
+pub use patch::Patch;
 pub use apply_template::ApplyTemplate;
 pub use available_candle_operators::{AvailableCandleOperators, convert_destinations_to_tools};
 pub use chunk_documents::ChunkDocuments;
 pub use data_operator::{DataOperatorTrait, ToolTrait};
-pub use diff::Diff;
+pub use diff::{Diff, to_diff_record_batches};
 pub use extract_pdf::{ExtractPDF, extract_pdf, filter_pdf, load_pdf_document, make_pdf_document};
 pub use extract_tabular::{ExtractTabular, test_extract_tabular_data};
 pub use extract_xml::{ExtractXML, extract_xml};

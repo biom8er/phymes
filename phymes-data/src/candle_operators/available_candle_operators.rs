@@ -7,7 +7,7 @@ use phymes_core::{BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectB
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ApplyPatch, ExtractXML, PackTabular, ToolTrait,
+    Patch, ExtractXML, PackTabular, ToolTrait,
     candle_data::DataConfig,
     candle_operators::{
         ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDF, ExtractTabular, Filter,
@@ -64,9 +64,9 @@ pub enum AvailableCandleOperators {
     #[value(name = "Melt")]
     #[serde(alias = "melt")]
     Melt,
-    #[value(name = "ApplyPatch")]
+    #[value(name = "Patch")]
     #[serde(alias = "apply-patch")]
-    ApplyPatch,
+    Patch,
     #[value(name = "NormalizeTime")]
     #[serde(alias = "NormalizeTime")]
     NormalizeTime,
@@ -98,7 +98,7 @@ impl Display for AvailableCandleOperators {
             Self::Pivot => write!(f, "{}", Pivot::get_static_name()),
             Self::ExtractXML => write!(f, "{}", ExtractXML::get_static_name()),
             Self::Melt => write!(f, "{}", Melt::get_static_name()),
-            Self::ApplyPatch => write!(f, "{}", ApplyPatch::get_static_name()),
+            Self::Patch => write!(f, "{}", Patch::get_static_name()),
             Self::NormalizeTime => write!(f, "{}", NormalizeTime::get_static_name()),
             Self::FromTasksToParticipants => {
                 write!(f, "{}", FromTasksToParticipants::get_static_name())
@@ -126,7 +126,7 @@ impl ToolTrait for AvailableCandleOperators {
             Self::Pivot => Pivot::default().to_json_tool_schema(),
             Self::ExtractXML => ExtractXML::default().to_json_tool_schema(),
             Self::Melt => Melt::default().to_json_tool_schema(),
-            Self::ApplyPatch => ApplyPatch::default().to_json_tool_schema(),
+            Self::Patch => Patch::default().to_json_tool_schema(),
             Self::NormalizeTime => NormalizeTime::default().to_json_tool_schema(),
             Self::FromTasksToParticipants => String::new(),
             Self::FromTracesToMessages => String::new(),
@@ -149,7 +149,7 @@ impl ToolTrait for AvailableCandleOperators {
             Self::Pivot => Pivot::default().get_description(),
             Self::ExtractXML => ExtractXML::default().get_description(),
             Self::Melt => Melt::default().get_description(),
-            Self::ApplyPatch => ApplyPatch::default().get_description(),
+            Self::Patch => Patch::default().get_description(),
             Self::NormalizeTime => NormalizeTime::default().get_description(),
             Self::FromTasksToParticipants => String::new(),
             Self::FromTracesToMessages => String::new(),
@@ -174,7 +174,7 @@ impl AvailableCandleOperators {
             Self::Pivot.to_string(),
             Self::ExtractXML.to_string(),
             Self::Melt.to_string(),
-            Self::ApplyPatch.to_string(),
+            Self::Patch.to_string(),
             Self::NormalizeTime.to_string(),
         ];
         processor_names
@@ -200,7 +200,7 @@ impl AvailableCandleOperators {
             Self::Pivot => Ok(Box::new(Pivot::new(config)?)),
             Self::ExtractXML => Ok(Box::new(ExtractXML::new(config)?)),
             Self::Melt => Ok(Box::new(Melt::new(config)?)),
-            Self::ApplyPatch => Ok(Box::new(ApplyPatch::new(config)?)),
+            Self::Patch => Ok(Box::new(Patch::new(config)?)),
             Self::NormalizeTime => Ok(Box::new(NormalizeTime::new(config)?)),
             Self::FromTasksToParticipants => Ok(Box::new(FromTasksToParticipants::new(config)?)),
             Self::FromTracesToMessages => Ok(Box::new(FromTracesToMessages::new(config)?)),
@@ -258,7 +258,7 @@ mod tests {
                 "Pivot".to_string(),
                 "ExtractXML".to_string(),
                 "Melt".to_string(),
-                "ApplyPatch".to_string(),
+                "Patch".to_string(),
                 "NormalizeTime".to_string(),
                 "FromTasksToParticipants".to_string(),
                 "FromTracesToMessages".to_string(),
@@ -282,7 +282,7 @@ mod tests {
                 "Pivot",
                 "ExtractXML",
                 "Melt",
-                "ApplyPatch",
+                "Patch",
                 "NormalizeTime",
                 "FromTasksToParticipants",
                 "FromTracesToMessages",

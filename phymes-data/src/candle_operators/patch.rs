@@ -11,6 +11,7 @@ use phymes_core::{
     FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, PatchOperator, Subject,
     SubjectBuilderTrait, SubjectTrait, Tool, ToolType, apply_patch_auto,
 };
+use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
@@ -25,28 +26,28 @@ use crate::{
             build_aggregator_column_list_nonprimitive, build_aggregator_column_list_primitive,
         },
         join::join,
-        select::select,
+        select::select, to_diff_record_batches,
     },
     filter,
 };
 
 /// Inject a table into a string template
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct ApplyPatch {
-    lhs_values: String,
+pub struct Patch {
+    lhs_values: Vec<String>,
     rhs_values: Vec<String>,
     lhs_pk: String,
     rhs_pk: String,
     doc_patch: Vec<Value>,
 }
 
-impl MappableTrait for ApplyPatch {
+impl MappableTrait for Patch {
     fn get_name(&self) -> &str {
         Self::get_static_name()
     }
 }
 
-impl ToolTrait for ApplyPatch {
+impl ToolTrait for Patch {
     fn get_description(&self) -> String {
         "Inject a table into a string template.".to_string()
     }
@@ -88,7 +89,7 @@ impl ToolTrait for ApplyPatch {
     }
 }
 
-impl DataOperatorTrait for ApplyPatch {
+impl DataOperatorTrait for Patch {
     fn forward(
         &self,
         lhs_args: &[RecordBatch],
@@ -97,10 +98,12 @@ impl DataOperatorTrait for ApplyPatch {
     ) -> Result<RecordBatch> {
         // Check for empty rhs_args and change to None
         let rhs_args = rhs_args.filter(|&rhs_args| !rhs_args.is_empty());
-        apply_patch(
+        patch(
             lhs_args,
             rhs_args,
-            &self.lhs_values,
+            &self.lhs_values.iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
             &self
                 .rhs_values
                 .iter()
@@ -113,20 +116,10 @@ impl DataOperatorTrait for ApplyPatch {
         )
     }
     fn new(config: &DataConfig) -> Result<Self> {
-        let lhs_values = config
-            .lhs_values
-            .as_ref()
-            .cloned()
-            .ok_or(anyhow!(
-                "Missing `lhs_values` for `{}`.",
-                Self::get_static_name()
-            ))?
-            .first()
-            .cloned()
-            .ok_or(anyhow!(
-                "`lhs_values` is empty for `{}`.",
-                Self::get_static_name()
-            ))?;
+        let lhs_values = config.lhs_values.as_ref().cloned().ok_or(anyhow!(
+            "Missing `lhs_values` for `{}`.",
+            Self::get_static_name()
+        ))?;
         let rhs_values = config.rhs_values.as_ref().cloned().ok_or(anyhow!(
             "Missing `rhs_values` for `{}`.",
             Self::get_static_name()
@@ -155,7 +148,7 @@ impl DataOperatorTrait for ApplyPatch {
         }
 
         // Make the object
-        Ok(ApplyPatch {
+        Ok(Patch {
             lhs_values,
             rhs_values,
             lhs_pk,
@@ -189,10 +182,10 @@ impl DataOperatorTrait for ApplyPatch {
 /// * `device` - The compute device
 #[instrument(skip(lhs_args, rhs_args, lhs_values, rhs_values, lhs_pk, rhs_pk, device))]
 #[allow(clippy::too_many_arguments)]
-pub fn apply_patch(
+pub fn patch(
     lhs_args: &[RecordBatch],
     rhs_args: Option<&[RecordBatch]>,
-    lhs_values: &str, // DM, todo!(): Change to &[&str] and convert to single column JSON Map string to apply MAP
+    lhs_values: &[&str],
     rhs_values: &[&str],
     lhs_pk: &str,
     rhs_pk: &str,
@@ -204,7 +197,7 @@ pub fn apply_patch(
         rhs_args.to_vec()
     } else {
         Subject::get_builder()
-            .with_name("apply_patch with doc_patch as Value")
+            .with_name("patch with doc_patch as Value")
             .with_schema(AvailableSubjects::WorkspacePatch.to_schema())
             .with_json_values(doc_patch)?
             .build()?
@@ -216,7 +209,7 @@ pub fn apply_patch(
     let operator_column = rhs_values.get(1).map_or("operator", |v| v);
     let rhs_columns = rhs_args
         .first()
-        .ok_or(anyhow!("Missing rhs_args in apply_patch."))?
+        .ok_or(anyhow!("Missing rhs_args in patch."))?
         .schema()
         .fields()
         .iter()
@@ -224,7 +217,7 @@ pub fn apply_patch(
         .collect::<Vec<_>>();
     let lhs_columns = lhs_args
         .first()
-        .ok_or(anyhow!("Missing lhs_args in apply_patch."))?
+        .ok_or(anyhow!("Missing lhs_args in patch."))?
         .schema()
         .fields()
         .iter()
@@ -284,7 +277,7 @@ pub fn apply_patch(
 
     // Apply `Delete`
     let rhs_table = Subject::get_builder()
-        .with_name("apply_patch rhs_args")
+        .with_name("patch rhs_args")
         .with_record_batches(vec![rhs_delete])?
         .build()?;
     let lhs_deleted = match rhs_table.get_column_data_type(rhs_pk)? {
@@ -531,7 +524,10 @@ pub fn apply_patch(
     };
 
     // Join LHS and filtered RHS on lhs_pk and rhs_pk
-    let lhs_update = if rhs_update.num_rows() > 0 {
+    let update_patch = rhs_update.num_rows() > 0;
+    let lhs_update = if update_patch {
+        // DM: Swap should happen here!
+        
         let lhs_update = join(
             lhs_pk,
             &[lhs_delete],
@@ -543,11 +539,22 @@ pub fn apply_patch(
 
         // Apply `Update`
         let lhs_update_table = Subject::get_builder()
-            .with_name("apply_patch lhs_update")
+            .with_name("patch lhs_update")
             .with_record_batches(vec![lhs_update])?
             .build()?;
-        let original = lhs_update_table.get_column_as_vec_str(lhs_values);
         let patches = lhs_update_table.get_column_as_vec_str(diff_column);
+
+        // Swap to JSONonized columns if lhs_values > 1
+        let original = if lhs_values.len() > 1 {
+            let lhs_json = to_diff_record_batches(lhs_update_table.get_record_batches(), lhs_values, lhs_pk, "lhs_values")?;
+            let lhs_update_table = Subject::get_builder()
+                .with_name("patch lhs_update to diff")
+                .with_record_batches(vec![lhs_json])?
+                .build()?;
+            lhs_update_table.get_column_as_vec_str("lhs_values")
+        } else {
+            lhs_update_table.get_column_as_vec_str(lhs_values.first().unwrap())
+        };
         let modified: Result<Vec<String>> = original
             .into_iter()
             .zip(patches.into_iter())
@@ -560,8 +567,15 @@ pub fn apply_patch(
             })
             .collect();
         let modified_arr: ArrayRef = Arc::new(StringArray::from(modified?));
+
+        // Re-build the RecordBatch after patching the updates
         let mut lhs_updated_batch_vec = Vec::new();
         for field in lhs_args.first().unwrap().schema().fields() {
+            let lhs_values = if lhs_values.len() > 1 {
+                "lhs_values"
+            } else {
+                lhs_values.first().unwrap()
+            };
             if field.name() == lhs_values {
                 lhs_updated_batch_vec.push((field.name().to_string(), modified_arr.clone()))
             } else {
@@ -628,7 +642,8 @@ pub fn apply_patch(
     };
 
     // Join LHS and filtered RHS on lhs_pk and rhs_pk
-    let lhs_create = if rhs_create.num_rows() > 0 {
+    let create_patch = rhs_create.num_rows() > 0;
+    let lhs_create = if create_patch {
         let lhs_create = join(
             lhs_pk,
             &[lhs_update],
@@ -640,11 +655,25 @@ pub fn apply_patch(
 
         // Apply `Create`
         let lhs_create_table = Subject::get_builder()
-            .with_name("apply_patch lhs_create")
+            .with_name("patch lhs_create")
             .with_record_batches(vec![lhs_create])?
             .build()?;
-        let original = lhs_create_table.get_column_as_vec_str(lhs_values);
         let patches = lhs_create_table.get_column_as_vec_str(diff_column);
+
+        // Swap to JSONized columns if lhs_values > 1
+        let original = if lhs_values.len() > 1 && update_patch {
+            lhs_create_table.get_column_as_vec_str("lhs_values")
+        } else if lhs_values.len() > 1 {            
+            let lhs_json = to_diff_record_batches(lhs_create_table.get_record_batches(), lhs_values, lhs_pk, "lhs_values")?;
+            let lhs_create_table = Subject::get_builder()
+                .with_name("patch lhs_create to diff")
+                .with_record_batches(vec![lhs_json])?
+                .build()?;
+            lhs_create_table.get_column_as_vec_str("lhs_values")
+        } else {
+            lhs_create_table.get_column_as_vec_str(lhs_values.first().unwrap())
+        };
+
         let (modified_arr, pks_arr) = match lhs_create_table.get_column_data_type(lhs_pk)? {
             DataType::UInt32 => {
                 let lhs_pks = lhs_create_table.get_column_as_vec_primitive::<u32>(lhs_pk)?;
@@ -719,8 +748,15 @@ pub fn apply_patch(
                 ));
             }
         };
+
+        // Rebuild the record batch after applying create
         let mut lhs_created_batch_vec = Vec::new();
         for field in lhs_args.first().unwrap().schema().fields() {
+            let lhs_values = if lhs_values.len() > 1 {
+                "lhs_values"
+            } else {
+                lhs_values.first().unwrap()
+            };
             if field.name() == lhs_values {
                 lhs_created_batch_vec.push((field.name().to_string(), modified_arr.clone()))
             } else if field.name() == lhs_pk {
@@ -737,7 +773,14 @@ pub fn apply_patch(
         lhs_update
     };
 
-    Ok(lhs_create)
+    // De JSONify the JSONified columns
+    let batch = if lhs_values.len() > 1 && (update_patch || create_patch) {
+
+    } else {
+        lhs_create
+    };
+
+    Ok(batch)
 }
 
 #[cfg(test)]
@@ -749,7 +792,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_apply_patch_all_patch_batch() -> Result<()> {
+    fn test_patch_all_patch_batch() -> Result<()> {
         // Create the mock repository
         let repo_pks = vec![0, 1, 2, 3, 4];
         let repo_paths = [
@@ -829,10 +872,10 @@ pub use todo::Todo"#,
 
         // --- PK = String ---
         // Patch the repository
-        let result = apply_patch(
+        let result = patch(
             std::slice::from_ref(&repo_batch),
             Some(std::slice::from_ref(&patch_batch)),
-            "code",
+            &["code"],
             &["patch", "operation"],
             "repo_path",
             "patch_path",
@@ -842,7 +885,7 @@ pub use todo::Todo"#,
 
         // Check the results
         let result_table = Subject::get_builder()
-            .with_name("test_apply_patch")
+            .with_name("test_patch")
             .with_record_batches(vec![result])?
             .build()?;
 
@@ -873,10 +916,10 @@ pub use todo::Todo"#,
 
         // --- PK = UInt32 ---
         // Patch the repository
-        let result = apply_patch(
+        let result = patch(
             &[repo_batch],
             Some(&[patch_batch]),
-            "code",
+            &["code"],
             &["patch", "operation"],
             "repo_pk",
             "patch_pk",
@@ -886,7 +929,7 @@ pub use todo::Todo"#,
 
         // Check the results
         let result_table = Subject::get_builder()
-            .with_name("test_apply_patch")
+            .with_name("test_patch")
             .with_record_batches(vec![result])?
             .build()?;
 
@@ -919,7 +962,7 @@ pub use todo::Todo"#,
     }
 
     #[test]
-    fn test_apply_patch_all_patch_struct() -> Result<()> {
+    fn test_patch_all_patch_struct() -> Result<()> {
         // Create the mock repository
         let repo_pks = vec![0, 1, 2, 3, 4];
         let repo_paths = [
@@ -995,10 +1038,10 @@ pub use todo::Todo"#,
 
         // --- PK = String ---
         // Patch the repository
-        let result = apply_patch(
+        let result = patch(
             std::slice::from_ref(&repo_batch),
             None,
-            "code",
+            &["code"],
             &["diff", "operator"],
             "repo_path",
             "filename",
@@ -1008,7 +1051,7 @@ pub use todo::Todo"#,
 
         // Check the results
         let result_table = Subject::get_builder()
-            .with_name("test_apply_patch")
+            .with_name("test_patch")
             .with_record_batches(vec![result])?
             .build()?;
 
@@ -1041,7 +1084,7 @@ pub use todo::Todo"#,
     }
 
     #[test]
-    fn test_apply_patch_missing_delete_patch_batch() -> Result<()> {
+    fn test_patch_missing_delete_patch_batch() -> Result<()> {
         // Create the mock repository
         let repo_pks = vec![0, 1, 2, 3, 4];
         let repo_paths = [
@@ -1118,10 +1161,10 @@ pub use todo::Todo"#,
 
         // --- PK = String ---
         // Patch the repository
-        let result = apply_patch(
+        let result = patch(
             std::slice::from_ref(&repo_batch),
             Some(std::slice::from_ref(&patch_batch)),
-            "code",
+            &["code"],
             &["patch", "operation"],
             "repo_path",
             "patch_path",
@@ -1131,7 +1174,7 @@ pub use todo::Todo"#,
 
         // Check the results
         let result_table = Subject::get_builder()
-            .with_name("test_apply_patch")
+            .with_name("test_patch")
             .with_record_batches(vec![result])?
             .build()?;
 
@@ -1164,10 +1207,10 @@ pub use todo::Todo"#,
 
         // --- PK = UInt32 ---
         // Patch the repository
-        let result = apply_patch(
+        let result = patch(
             &[repo_batch],
             Some(&[patch_batch]),
-            "code",
+            &["code"],
             &["patch", "operation"],
             "repo_pk",
             "patch_pk",
@@ -1177,7 +1220,7 @@ pub use todo::Todo"#,
 
         // Check the results
         let result_table = Subject::get_builder()
-            .with_name("test_apply_patch")
+            .with_name("test_patch")
             .with_record_batches(vec![result])?
             .build()?;
 
@@ -1212,7 +1255,7 @@ pub use todo::Todo"#,
     }
 
     #[test]
-    fn test_apply_patch_missing_update_patch_batch() -> Result<()> {
+    fn test_patch_missing_update_patch_batch() -> Result<()> {
         // Create the mock repository
         let repo_pks = vec![0, 1, 2, 3, 4];
         let repo_paths = [
@@ -1286,10 +1329,10 @@ pub use todo::Todo"#,
 
         // --- PK = String ---
         // Patch the repository
-        let result = apply_patch(
+        let result = patch(
             std::slice::from_ref(&repo_batch),
             Some(std::slice::from_ref(&patch_batch)),
-            "code",
+            &["code"],
             &["patch", "operation"],
             "repo_path",
             "patch_path",
@@ -1299,7 +1342,7 @@ pub use todo::Todo"#,
 
         // Check the results
         let result_table = Subject::get_builder()
-            .with_name("test_apply_patch")
+            .with_name("test_patch")
             .with_record_batches(vec![result])?
             .build()?;
 
@@ -1330,10 +1373,10 @@ pub use todo::Todo"#,
 
         // --- PK = UInt32 ---
         // Patch the repository
-        let result = apply_patch(
+        let result = patch(
             &[repo_batch],
             Some(&[patch_batch]),
-            "code",
+            &["code"],
             &["patch", "operation"],
             "repo_pk",
             "patch_pk",
@@ -1343,7 +1386,7 @@ pub use todo::Todo"#,
 
         // Check the results
         let result_table = Subject::get_builder()
-            .with_name("test_apply_patch")
+            .with_name("test_patch")
             .with_record_batches(vec![result])?
             .build()?;
 
@@ -1376,7 +1419,7 @@ pub use todo::Todo"#,
     }
 
     #[test]
-    fn test_apply_patch_missing_create_patch_batch() -> Result<()> {
+    fn test_patch_missing_create_patch_batch() -> Result<()> {
         // Create the mock repository
         let repo_pks = vec![0, 1, 2, 3, 4];
         let repo_paths = [
@@ -1450,10 +1493,10 @@ pub use todo::Todo"#,
 
         // --- PK = String ---
         // Patch the repository
-        let result = apply_patch(
+        let result = patch(
             std::slice::from_ref(&repo_batch),
             Some(std::slice::from_ref(&patch_batch)),
-            "code",
+            &["code"],
             &["patch", "operation"],
             "repo_path",
             "patch_path",
@@ -1463,7 +1506,7 @@ pub use todo::Todo"#,
 
         // Check the results
         let result_table = Subject::get_builder()
-            .with_name("test_apply_patch")
+            .with_name("test_patch")
             .with_record_batches(vec![result])?
             .build()?;
 
@@ -1492,10 +1535,10 @@ pub use todo::Todo"#,
 
         // --- PK = UInt32 ---
         // Patch the repository
-        let result = apply_patch(
+        let result = patch(
             &[repo_batch],
             Some(&[patch_batch]),
-            "code",
+            &["code"],
             &["patch", "operation"],
             "repo_pk",
             "patch_pk",
@@ -1505,7 +1548,7 @@ pub use todo::Todo"#,
 
         // Check the results
         let result_table = Subject::get_builder()
-            .with_name("test_apply_patch")
+            .with_name("test_patch")
             .with_record_batches(vec![result])?
             .build()?;
 
@@ -1536,7 +1579,7 @@ pub use todo::Todo"#,
     }
 
     #[test]
-    fn test_apply_patch_all_map() -> Result<()> {
+    fn test_patch_all_map() -> Result<()> {
         todo!()
     }
 }

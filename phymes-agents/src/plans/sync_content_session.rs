@@ -179,7 +179,7 @@ impl<'a> SyncContentSession<'a> {
 		patch_{local_object_store_name}_p-publish-->|Replace|{local_object_store_name}_meta_s-subject
 	end
 	{session_context_name}_r-rt-->patch_{local_object_store_name}_t
-	patch_{local_object_store_name}_p-processor@{{shape: rect, label: ApplyPatch}}
+	patch_{local_object_store_name}_p-processor@{{shape: rect, label: Patch}}
 	patch_{local_object_store_name}_p-publish@{{shape: fork}}
 	patch_{local_object_store_name}_p-subscribe@{{shape: diamond, label: All}}
 	%% ------------------------------------------------------------------------------
@@ -359,7 +359,7 @@ impl<'a> SyncContentSession<'a> {
         Utf8 lhs_pk "location"
         Utf8 rhs_pk "filename"
         Utf8 doc_patch ""
-        Utf8 operator "ApplyPatch"
+        Utf8 operator "Patch"
         Utf8 lhs_stream "Accumulate"
         Utf8 rhs_stream "Accumulate"
     }}"#)
