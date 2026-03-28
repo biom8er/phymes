@@ -1567,8 +1567,11 @@ mod tests {
 
         assert_eq!(test_subject.get_name(), zip_subject.get_name());
         assert_eq!(test_subject.get_schema(), zip_subject.get_schema());
+
+        // Implicit concatenation when unzipping...
+        let test_subject = test_subject.concat_record_batches()?;
         assert_eq!(
-            zip_subject.get_record_batches(),
+            test_subject.get_record_batches(),
             zip_subject.get_record_batches()
         );
         Ok(())

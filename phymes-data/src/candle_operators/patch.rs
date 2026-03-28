@@ -528,6 +528,7 @@ pub fn patch(
         } else {
             lhs_delete
         };
+        let lhs_schema = lhs_delete.schema();
 
         let lhs_update = join(
             lhs_pk,
@@ -560,7 +561,7 @@ pub fn patch(
 
         // Re-build the RecordBatch after patching the updates
         let mut lhs_updated_batch_vec = Vec::new();
-        for field in lhs_args.first().unwrap().schema().fields() {
+        for field in lhs_schema.fields() {
             if field.name() == lhs_values.first().unwrap() {
                 lhs_updated_batch_vec.push((field.name().to_string(), modified_arr.clone()))
             } else {
@@ -635,6 +636,7 @@ pub fn patch(
         } else {
             lhs_update
         };
+        let lhs_schema = lhs_update.schema();
 
         let lhs_create = join(
             lhs_pk,
@@ -730,7 +732,7 @@ pub fn patch(
 
         // Rebuild the record batch after applying create
         let mut lhs_created_batch_vec = Vec::new();
-        for field in lhs_args.first().unwrap().schema().fields() {
+        for field in lhs_schema.fields() {
             if field.name() == lhs_values.first().unwrap() {
                 lhs_created_batch_vec.push((field.name().to_string(), modified_arr.clone()))
             } else if field.name() == lhs_pk {
@@ -1622,18 +1624,12 @@ pub use todo::Todo"#,
             .with_record_batches(vec![result])?
             .build()?;
 
-        // Check the results
-        let rhs_ids_vec_1 = vec!["0", "1", "2", "4"];
-        let rhs_ids_array: ArrayRef = Arc::new(StringArray::from(rhs_ids_vec_1));
-        let rhs_metadata_vec_1: Vec<u32> = vec![1, 8, 3, 10];
-        let rhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(rhs_metadata_vec_1));
-        let rhs_text_vec_1 = vec!["left", "right", "left", "right"];
-        let rhs_text_array: ArrayRef = Arc::new(StringArray::from(rhs_text_vec_1));
-        let rhs_batch_1 = RecordBatch::try_from_iter(vec![
-            ("lhs_pk", rhs_ids_array),
-            ("lhs_text", rhs_text_array),
-            ("lhs_metadata", rhs_metadata_array),
-        ])?;
+        let test = result_table.get_column_as_vec_primitive::<u32>("lhs_metadata")?;
+        assert_eq!(test, [1, 8, 3, 10]);
+        let test = result_table.get_column_as_vec_nonprimitive::<String>("lhs_pk")?;
+        assert_eq!(test, ["0", "1", "2", "4"]);
+        let test = result_table.get_column_as_vec_nonprimitive::<String>("lhs_text")?;
+        assert_eq!(test, ["left", "right", "left", "right"]);
 
         Ok(())
     }

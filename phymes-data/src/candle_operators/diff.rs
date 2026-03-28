@@ -179,9 +179,9 @@ pub fn to_json_object_columns(lhs_args: RecordBatch, lhs_values: &[&str]) -> Res
     let lhs_other = schema.fields()
         .iter()
         .filter_map(|f| if lhs_values.contains(&f.name().as_str()) {
-            Some(f.name())
-        } else {
             None
+        } else {
+            Some(f.name())
         }).collect::<Vec<_>>();
     let lhs_args_subject = Subject::get_builder()
         .with_name("patch lhs_args JSONize")
