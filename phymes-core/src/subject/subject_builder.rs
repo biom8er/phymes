@@ -223,6 +223,7 @@ impl SubjectBuilderTrait for SubjectBuilder {
     
     fn zip_columns(mut self, batches: Vec<RecordBatch>) -> Result<Self> {
         if let Some(record_batches) = self.record_batches.take() {
+            let _ = self.schema.take(); // Schema will be remade
             let batches: Result<Vec<RecordBatch>> = record_batches.into_iter()
                 .zip(batches.into_iter())
                 .map(|(lhs_batch, rhs_batch)| {

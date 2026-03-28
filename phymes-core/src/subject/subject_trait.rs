@@ -807,10 +807,10 @@ pub trait SubjectTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             if column_names.contains(&column_name.as_str()) {
                 let arr = self.get_column_as_array(column_name)?;
                 lhs.push((column_name, arr));
-            } else {
-                return Err(anyhow!("Column name `{column_name}` not found in Subject `{}`. Available column names are `{:?}`.",
-                    self.get_name(),
-                    self.get_schema().fields().iter().map(|f| f.name()).collect::<Vec<_>>()))
+            // } else {
+            //     return Err(anyhow!("Column name `{column_name}` not found in Subject `{}`. Available column names are `{:?}`.",
+            //         self.get_name(),
+            //         self.get_schema().fields().iter().map(|f| f.name()).collect::<Vec<_>>()))
             }
         }
         let batch = RecordBatch::try_from_iter(lhs)?;
@@ -1184,24 +1184,23 @@ mod tests {
     #[cfg(not(target_family = "wasm"))]
     #[test]
     fn test_to_from_ipc_file() -> Result<()> {
-        use crate::SubjectBuilderTrait;
 
-        let test_table = make_test_subject("test_table", 4, 8, 3)?;
+        let test_subject = make_test_subject("test_subject", 4, 8, 3)?;
 
         // Create a file inside of `env::temp_dir()`.
         let mut file = tempfile()?;
 
         // Write data to IPC file
-        test_table.to_ipc_file(&mut file)?;
-        let test_table_read = SubjectBuilder::new_from_ipc_file(&file)?
-            .with_name("test_table")
+        test_subject.to_ipc_file(&mut file)?;
+        let test_subject_read = SubjectBuilder::new_from_ipc_file(&file)?
+            .with_name("test_subject")
             .build()?;
 
-        assert_eq!(test_table.get_name(), test_table_read.get_name());
-        assert_eq!(test_table.get_schema(), test_table_read.get_schema());
+        assert_eq!(test_subject.get_name(), test_subject_read.get_name());
+        assert_eq!(test_subject.get_schema(), test_subject_read.get_schema());
         assert_eq!(
-            test_table.get_record_batches(),
-            test_table_read.get_record_batches()
+            test_subject.get_record_batches(),
+            test_subject_read.get_record_batches()
         );
         Ok(())
     }
@@ -1209,78 +1208,77 @@ mod tests {
     #[cfg(not(target_family = "wasm"))]
     #[test]
     fn test_to_from_csv_file() -> Result<()> {
-        use crate::SubjectBuilderTrait;
 
-        let test_table = make_test_subject("test_table", 4, 0, 3)?;
+        let test_subject = make_test_subject("test_subject", 4, 0, 3)?;
 
         // Create a file inside of `env::temp_dir()`.
         let mut file = tempfile()?;
 
         // Write data to CSV file
-        test_table.to_csv_file(&mut file, b',', true)?;
+        test_subject.to_csv_file(&mut file, b',', true)?;
 
         // Read in the file with schema
         file.rewind().unwrap();
-        let test_table_read = SubjectBuilder::new()
-            .with_schema(test_table.get_schema())
+        let test_subject_read = SubjectBuilder::new()
+            .with_schema(test_subject.get_schema())
             .with_csv_file(&file, b',', true, 4)?
-            .with_name("test_table")
+            .with_name("test_subject")
             .build()?;
 
-        assert_eq!(test_table.get_schema(), test_table_read.get_schema());
+        assert_eq!(test_subject.get_schema(), test_subject_read.get_schema());
         assert_eq!(
-            test_table.get_record_batches(),
-            test_table_read.get_record_batches()
+            test_subject.get_record_batches(),
+            test_subject_read.get_record_batches()
         );
 
         // Read in the file without schema
         file.rewind().unwrap();
-        let test_table_read = SubjectBuilder::new()
+        let test_subject_read = SubjectBuilder::new()
             .with_csv_file(&file, b',', true, 4)?
-            .with_name("test_table")
+            .with_name("test_subject")
             .build()?;
 
         // Test each columns since
         // JSON reader coerces UInt32 to Int64
-        let test_table_title = test_table.get_column_as_vec_str("title");
-        let test_table_read_title = test_table_read.get_column_as_vec_str("title");
-        assert_eq!(test_table_title, test_table_read_title);
+        let test_subject_title = test_subject.get_column_as_vec_str("title");
+        let test_subject_read_title = test_subject_read.get_column_as_vec_str("title");
+        assert_eq!(test_subject_title, test_subject_read_title);
 
-        let test_table_id: Vec<u32> = test_table.get_column_as_vec_primitive("id")?;
-        let test_table_read_id: Vec<i64> = test_table_read.get_column_as_vec_primitive("id")?;
+        let test_subject_id: Vec<u32> = test_subject.get_column_as_vec_primitive("id")?;
+        let test_subject_read_id: Vec<i64> = test_subject_read.get_column_as_vec_primitive("id")?;
         assert_eq!(
-            test_table_id,
-            test_table_read_id
+            test_subject_id,
+            test_subject_read_id
                 .into_iter()
                 .map(|x| x as u32)
                 .collect::<Vec<u32>>()
         );
 
         // Test that we can write csv with nested fields
-        let test_table = make_test_subject("test_table", 4, 8, 3)?;
+        let test_subject = make_test_subject("test_subject", 4, 8, 3)?;
         let mut file = tempfile()?;
 
         // Write data to CSV file
-        test_table.to_csv_file(&mut file, b',', true)?;
+        test_subject.to_csv_file(&mut file, b',', true)?;
 
         Ok(())
     }
 
     #[test]
     fn test_to_from_ipc_stream() -> Result<()> {
-        let test_table = make_test_subject("test_table", 4, 8, 3)?;
+        let test_subject = make_test_subject("test_subject", 4, 8, 3)?;
 
         // Write data to IPC file
-        let bytes = test_table.to_ipc_stream()?;
-        let test_table_read = SubjectBuilder::new_from_ipc_stream(&bytes)?
-            .with_name("test_table")
+        let bytes = test_subject.to_ipc_stream()?;
+        let test_subject_read = SubjectBuilder::new_from_ipc_stream(&bytes)?
+            .with_name("test_subject")
             .build()?;
 
-        assert_eq!(test_table.get_name(), test_table_read.get_name());
-        assert_eq!(test_table.get_schema(), test_table_read.get_schema());
+        assert_eq!(test_subject.get_name(), test_subject_read.get_name());
+        assert_eq!(test_subject.get_schema(), test_subject_read.get_schema());
         assert_eq!(
-            test_table.get_record_batches(),
-            test_table_read.get_record_batches()
+            test_subject.get_record_batches(),
+            test_subject_read.get_record_batches()
         );
 
         Ok(())
@@ -1288,40 +1286,40 @@ mod tests {
 
     #[test]
     fn test_to_from_json() -> Result<()> {
-        let test_table = make_test_subject("test_table", 4, 0, 3)?;
+        let test_subject = make_test_subject("test_subject", 4, 0, 3)?;
 
         // Write data to json
-        let bytes = test_table.to_json()?;
-        let test_table_read = SubjectBuilder::new()
-            .with_schema(test_table.get_schema().clone())
+        let bytes = test_subject.to_json()?;
+        let test_subject_read = SubjectBuilder::new()
+            .with_schema(test_subject.get_schema().clone())
             .with_json(&bytes, 4)?
-            .with_name("test_table")
+            .with_name("test_subject")
             .build()?;
 
-        assert_eq!(test_table.get_name(), test_table_read.get_name());
-        assert_eq!(test_table.get_schema(), test_table_read.get_schema());
+        assert_eq!(test_subject.get_name(), test_subject_read.get_name());
+        assert_eq!(test_subject.get_schema(), test_subject_read.get_schema());
         assert_eq!(
-            test_table.get_record_batches(),
-            test_table_read.get_record_batches()
+            test_subject.get_record_batches(),
+            test_subject_read.get_record_batches()
         );
 
         // Test again but without the schema
-        let test_table_read = SubjectBuilder::new()
+        let test_subject_read = SubjectBuilder::new()
             .with_json(&bytes, 4)?
-            .with_name("test_table")
+            .with_name("test_subject")
             .build()?;
 
         // Test each columns since
         // JSON reader coerces UInt32 to Int64
-        let test_table_title = test_table.get_column_as_vec_str("title");
-        let test_table_read_title = test_table_read.get_column_as_vec_str("title");
-        assert_eq!(test_table_title, test_table_read_title);
+        let test_subject_title = test_subject.get_column_as_vec_str("title");
+        let test_subject_read_title = test_subject_read.get_column_as_vec_str("title");
+        assert_eq!(test_subject_title, test_subject_read_title);
 
-        let test_table_id: Vec<u32> = test_table.get_column_as_vec_primitive("id")?;
-        let test_table_read_id: Vec<i64> = test_table_read.get_column_as_vec_primitive("id")?;
+        let test_subject_id: Vec<u32> = test_subject.get_column_as_vec_primitive("id")?;
+        let test_subject_read_id: Vec<i64> = test_subject_read.get_column_as_vec_primitive("id")?;
         assert_eq!(
-            test_table_id,
-            test_table_read_id
+            test_subject_id,
+            test_subject_read_id
                 .into_iter()
                 .map(|x| x as u32)
                 .collect::<Vec<u32>>()
@@ -1331,60 +1329,60 @@ mod tests {
 
     #[test]
     fn test_to_from_csv_str() -> Result<()> {
-        let test_table = make_test_subject("test_table", 4, 0, 3)?;
+        let test_subject = make_test_subject("test_subject", 4, 0, 3)?;
 
         // Write data to json
-        let bytes = test_table.to_csv(b',', true)?;
-        let test_table_read = SubjectBuilder::new()
-            .with_schema(test_table.get_schema().clone())
+        let bytes = test_subject.to_csv(b',', true)?;
+        let test_subject_read = SubjectBuilder::new()
+            .with_schema(test_subject.get_schema().clone())
             .with_csv(&bytes, b',', true, 4)?
-            .with_name("test_table")
+            .with_name("test_subject")
             .build()?;
 
-        assert_eq!(test_table.get_name(), test_table_read.get_name());
-        assert_eq!(test_table.get_schema(), test_table_read.get_schema());
+        assert_eq!(test_subject.get_name(), test_subject_read.get_name());
+        assert_eq!(test_subject.get_schema(), test_subject_read.get_schema());
         assert_eq!(
-            test_table.get_record_batches(),
-            test_table_read.get_record_batches()
+            test_subject.get_record_batches(),
+            test_subject_read.get_record_batches()
         );
 
         // Test again but without the schema
-        let test_table_read = SubjectBuilder::new()
+        let test_subject_read = SubjectBuilder::new()
             .with_csv(&bytes, b',', true, 4)?
-            .with_name("test_table")
+            .with_name("test_subject")
             .build()?;
 
         // Test each columns since
         // JSON reader coerces UInt32 to Int64
-        let test_table_title = test_table.get_column_as_vec_str("title");
-        let test_table_read_title = test_table_read.get_column_as_vec_str("title");
-        assert_eq!(test_table_title, test_table_read_title);
+        let test_subject_title = test_subject.get_column_as_vec_str("title");
+        let test_subject_read_title = test_subject_read.get_column_as_vec_str("title");
+        assert_eq!(test_subject_title, test_subject_read_title);
 
-        let test_table_id: Vec<u32> = test_table.get_column_as_vec_primitive("id")?;
-        let test_table_read_id: Vec<i64> = test_table_read.get_column_as_vec_primitive("id")?;
+        let test_subject_id: Vec<u32> = test_subject.get_column_as_vec_primitive("id")?;
+        let test_subject_read_id: Vec<i64> = test_subject_read.get_column_as_vec_primitive("id")?;
         assert_eq!(
-            test_table_id,
-            test_table_read_id
+            test_subject_id,
+            test_subject_read_id
                 .into_iter()
                 .map(|x| x as u32)
                 .collect::<Vec<u32>>()
         );
 
         // Test that we can write csv with nested fields
-        let test_table = make_test_subject("test_table", 4, 8, 3)?;
+        let test_subject = make_test_subject("test_subject", 4, 8, 3)?;
 
         // Write data to CSV file
-        test_table.to_csv(b',', true)?;
+        test_subject.to_csv(b',', true)?;
 
         Ok(())
     }
 
     #[test]
     fn test_to_from_json_object() -> Result<()> {
-        let test_table = make_test_subject("test_table", 4, 0, 3)?;
+        let test_subject = make_test_subject("test_subject", 4, 0, 3)?;
 
         // Write data to JSON object
-        let json_rows = test_table.to_json_object()?;
+        let json_rows = test_subject.to_json_object()?;
 
         assert_eq!(
             serde_json::Value::Object(json_rows[0].clone()),
@@ -1407,8 +1405,8 @@ mod tests {
         let b: ArrayRef = Arc::new(UInt32Array::from(vec![0, 0, 0]));
         let c: ArrayRef = Arc::new(UInt16Array::from(vec![0, 0, 0]));
         let batch = RecordBatch::try_from_iter(vec![("a", a), ("b", b), ("c", c)])?;
-        let test_table = SubjectBuilder::new()
-            .with_name("test_table")
+        let test_subject = SubjectBuilder::new()
+            .with_name("test_subject")
             .with_record_batches(vec![batch])?
             .build()?;
 
@@ -1417,16 +1415,16 @@ mod tests {
         let json_values: Vec<Value> = serde_json::from_str(json_str)?;
 
         // Build a new table from json
-        let test_table_read = SubjectBuilder::new()
-            .with_schema(test_table.get_schema())
+        let test_subject_read = SubjectBuilder::new()
+            .with_schema(test_subject.get_schema())
             .with_json_values(&json_values)?
-            .with_name("test_table")
+            .with_name("test_subject")
             .build()?;
 
-        assert_eq!(test_table.get_schema(), test_table_read.get_schema());
+        assert_eq!(test_subject.get_schema(), test_subject_read.get_schema());
         assert_eq!(
-            test_table.get_record_batches(),
-            test_table_read.get_record_batches()
+            test_subject.get_record_batches(),
+            test_subject_read.get_record_batches()
         );
 
         Ok(())
@@ -1434,10 +1432,10 @@ mod tests {
 
     #[test]
     fn test_to_from_bytes() -> Result<()> {
-        let test_table = make_test_subject("test_table", 4, 0, 3)?;
+        let test_subject = make_test_subject("test_subject", 4, 0, 3)?;
 
         // Write data to Bytes
-        let json_bytes = test_table.to_bytes()?;
+        let json_bytes = test_subject.to_bytes()?;
         let json_str = String::from_utf8_lossy(json_bytes.as_ref()).into_owned();
         let json_rows: Vec<Map<String, Value>> = serde_json::from_str(json_str.as_str())?;
 
@@ -1449,16 +1447,16 @@ mod tests {
         );
 
         // Build a new table from json
-        let test_table_read = SubjectBuilder::new()
-            .with_schema(test_table.get_schema())
+        let test_subject_read = SubjectBuilder::new()
+            .with_schema(test_subject.get_schema())
             .with_bytes(&json_bytes)?
-            .with_name("test_table")
+            .with_name("test_subject")
             .build()?;
 
-        assert_eq!(test_table.get_schema(), test_table_read.get_schema());
+        assert_eq!(test_subject.get_schema(), test_subject_read.get_schema());
         assert_eq!(
-            test_table.concat_record_batches()?.get_record_batches(),
-            test_table_read.get_record_batches()
+            test_subject.concat_record_batches()?.get_record_batches(),
+            test_subject_read.get_record_batches()
         );
 
         Ok(())
@@ -1466,20 +1464,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_to_from_record_batch_stream() -> Result<()> {
-        let test_table = make_test_subject("test_table", 4, 8, 3)?;
+        let test_subject = make_test_subject("test_subject", 4, 8, 3)?;
 
         // Write data to IPC file
-        let stream = test_table.to_record_batch_stream();
-        let test_table_read = SubjectBuilder::new_from_sendable_record_batch_stream(stream)
+        let stream = test_subject.to_record_batch_stream();
+        let test_subject_read = SubjectBuilder::new_from_sendable_record_batch_stream(stream)
             .await?
-            .with_name("test_table")
+            .with_name("test_subject")
             .build()?;
 
-        assert_eq!(test_table.get_name(), test_table_read.get_name());
-        assert_eq!(test_table.get_schema(), test_table_read.get_schema());
+        assert_eq!(test_subject.get_name(), test_subject_read.get_name());
+        assert_eq!(test_subject.get_schema(), test_subject_read.get_schema());
         assert_eq!(
-            test_table.get_record_batches(),
-            test_table_read.get_record_batches()
+            test_subject.get_record_batches(),
+            test_subject_read.get_record_batches()
         );
 
         Ok(())
@@ -1487,21 +1485,21 @@ mod tests {
 
     #[tokio::test]
     async fn test_to_from_record_batch_stream_last_record_batch() -> Result<()> {
-        let test_table = make_test_subject("test_table", 4, 8, 3)?;
+        let test_subject = make_test_subject("test_subject", 4, 8, 3)?;
 
         // Write data to IPC file
-        let stream = test_table.to_record_batch_stream_last_record_batch();
-        let test_table_read = SubjectBuilder::new_from_sendable_record_batch_stream(stream)
+        let stream = test_subject.to_record_batch_stream_last_record_batch();
+        let test_subject_read = SubjectBuilder::new_from_sendable_record_batch_stream(stream)
             .await?
-            .with_name("test_table")
+            .with_name("test_subject")
             .build()?;
 
-        assert_eq!(test_table.get_name(), test_table_read.get_name());
-        assert_eq!(test_table.get_schema(), test_table_read.get_schema());
-        assert_eq!(test_table_read.get_record_batches().len(), 1);
+        assert_eq!(test_subject.get_name(), test_subject_read.get_name());
+        assert_eq!(test_subject.get_schema(), test_subject_read.get_schema());
+        assert_eq!(test_subject_read.get_record_batches().len(), 1);
         assert_eq!(
-            test_table.get_record_batches().last().unwrap(),
-            test_table_read.get_record_batches().first().unwrap()
+            test_subject.get_record_batches().last().unwrap(),
+            test_subject_read.get_record_batches().first().unwrap()
         );
 
         Ok(())
@@ -1509,21 +1507,21 @@ mod tests {
 
     #[test]
     fn test_to_from_struct() -> Result<()> {
-        let test_table = make_test_subject("test_table", 4, 0, 3)?;
+        let test_subject = make_test_subject("test_subject", 4, 0, 3)?;
 
         // Write data struct
-        let s = test_table.to_struct::<TestSubject>()?;
-        let test_table_read = SubjectBuilder::new()
+        let s = test_subject.to_struct::<TestSubject>()?;
+        let test_subject_read = SubjectBuilder::new()
             .with_schema(make_test_subject_schema(0)?)
-            .with_name("test_table")
+            .with_name("test_subject")
             .with_struct::<TestSubject>(&s)?
             .build()?;
 
-        assert_eq!(test_table.get_name(), test_table_read.get_name());
-        assert_eq!(test_table.get_schema(), test_table_read.get_schema());
+        assert_eq!(test_subject.get_name(), test_subject_read.get_name());
+        assert_eq!(test_subject.get_schema(), test_subject_read.get_schema());
         assert_eq!(
-            test_table.concat_record_batches()?.get_record_batches(),
-            test_table_read.get_record_batches()
+            test_subject.concat_record_batches()?.get_record_batches(),
+            test_subject_read.get_record_batches()
         );
 
         Ok(())
@@ -1531,9 +1529,9 @@ mod tests {
 
     #[test]
     fn test_concat_record_batches() -> Result<()> {
-        let test_table = make_test_subject("test_table", 4, 0, 3)?;
+        let test_subject = make_test_subject("test_subject", 4, 0, 3)?;
 
-        let concat_table = test_table.concat_record_batches()?;
+        let concat_table = test_subject.concat_record_batches()?;
 
         let concat_table_batches = concat_table.get_record_batches();
         assert_eq!(concat_table_batches.len(), 1);
@@ -1544,11 +1542,35 @@ mod tests {
 
     #[test]
     fn test_count_rows() -> Result<()> {
-        let test_table = make_test_subject("test_table", 4, 0, 3)?;
+        let test_subject = make_test_subject("test_subject", 4, 0, 3)?;
 
-        let n_rows = test_table.count_rows();
+        let n_rows = test_subject.count_rows();
         assert_eq!(n_rows, 12);
 
+        Ok(())
+    }
+    
+    #[test]
+    fn test_unzip_zip() -> Result<()> {
+        let test_subject = make_test_subject("test_subject", 4, 8, 3)?;
+
+        // Unzip
+        let lhs = test_subject.unzip_columns(&["id", "collection", "title"])?;
+        let rhs = test_subject.unzip_columns(&["text", "metadata", "score", "embedding"])?;
+
+        // Zip back together
+        let zip_subject = Subject::get_builder()
+            .with_name("test_subject")
+            .with_record_batches(vec![lhs])?
+            .zip_columns(vec![rhs])?
+            .build()?;
+
+        assert_eq!(test_subject.get_name(), zip_subject.get_name());
+        assert_eq!(test_subject.get_schema(), zip_subject.get_schema());
+        assert_eq!(
+            zip_subject.get_record_batches(),
+            zip_subject.get_record_batches()
+        );
         Ok(())
     }
 }
