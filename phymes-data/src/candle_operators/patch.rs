@@ -11,8 +11,6 @@ use phymes_core::{
     FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, PatchOperator, Subject,
     SubjectBuilderTrait, SubjectTrait, Tool, ToolType, apply_patch_auto,
 };
-use phymes_diagnostics::HashSet;
-use rayon::vec;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
@@ -24,7 +22,7 @@ use crate::{
     candle_operators::{
         DataOperatorTrait, from_json_object_columns, group_by::{
             build_aggregator_column_list_nonprimitive, build_aggregator_column_list_primitive,
-        }, join::join, select::select, to_diff_record_batches, to_json_object_columns
+        }, join::join, select::select, to_json_object_columns
     },
     filter,
 };
@@ -1556,6 +1554,87 @@ pub use todo::Todo"#,
 
     #[test]
     fn test_patch_all_map() -> Result<()> {
-        todo!()
+        // Make the test record batches
+        let lhs_ids_vec_1 = vec!["0", "1"];
+        let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_1));
+        let lhs_metadata_vec_1: Vec<u32> = vec![1, 2];
+        let lhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(lhs_metadata_vec_1));
+        let lhs_text_vec_1 = vec!["left", "left"];
+        let lhs_text_array: ArrayRef = Arc::new(StringArray::from(lhs_text_vec_1));
+        let lhs_batch_1 = RecordBatch::try_from_iter(vec![
+            ("lhs_pk", lhs_ids_array),
+            ("lhs_text", lhs_text_array),
+            ("lhs_metadata", lhs_metadata_array),
+        ])?;
+        let lhs_ids_vec_2 = vec!["2", "3"];
+        let lhs_ids_array: ArrayRef = Arc::new(StringArray::from(lhs_ids_vec_2));
+        let lhs_metadata_vec_2: Vec<u32> = vec![3, 4];
+        let lhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(lhs_metadata_vec_2));
+        let lhs_text_vec_2 = vec!["left", "left"];
+        let lhs_text_array: ArrayRef = Arc::new(StringArray::from(lhs_text_vec_2));
+        let lhs_batch_2 = RecordBatch::try_from_iter(vec![
+            ("lhs_pk", lhs_ids_array),
+            ("lhs_text", lhs_text_array),
+            ("lhs_metadata", lhs_metadata_array),
+        ])?;
+
+        // Create the mock patches
+        let patch_pks = ["1", "3", "4"]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+        let operations = vec![
+            PatchOperator::Update.to_string(),
+            PatchOperator::Delete.to_string(),
+            PatchOperator::Create.to_string(),
+        ];
+        let patches = ["{\"lhs_metadata\":8,\"lhs_text\":\"right\"}", "", "{\"lhs_metadata\":10,\"lhs_text\":\"right\"}"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let patch_pks: ArrayRef = Arc::new(StringArray::from(patch_pks));
+        let operations: ArrayRef = Arc::new(StringArray::from(operations));
+        let patches: ArrayRef = Arc::new(StringArray::from(patches));
+        let patch_batch = RecordBatch::try_from_iter(vec![
+            ("patch_pk", patch_pks),
+            ("operation", operations),
+            ("patch", patches),
+        ])?;
+
+        // Make the device
+        let device = device(false)?;
+
+        // Patch the batches
+        let result = patch(
+            &[lhs_batch_1, lhs_batch_2],
+            Some(&[patch_batch]),
+            &["lhs_text", "lhs_metadata"],
+            &["patch", "operation"],
+            "lhs_pk",
+            "patch_pk",
+            &[],
+            &device,
+        )?;
+
+        // Check the results
+        let result_table = Subject::get_builder()
+            .with_name("test_patch")
+            .with_record_batches(vec![result])?
+            .build()?;
+
+        // Check the results
+        let rhs_ids_vec_1 = vec!["0", "1", "2", "4"];
+        let rhs_ids_array: ArrayRef = Arc::new(StringArray::from(rhs_ids_vec_1));
+        let rhs_metadata_vec_1: Vec<u32> = vec![1, 8, 3, 10];
+        let rhs_metadata_array: ArrayRef = Arc::new(UInt32Array::from(rhs_metadata_vec_1));
+        let rhs_text_vec_1 = vec!["left", "right", "left", "right"];
+        let rhs_text_array: ArrayRef = Arc::new(StringArray::from(rhs_text_vec_1));
+        let rhs_batch_1 = RecordBatch::try_from_iter(vec![
+            ("lhs_pk", rhs_ids_array),
+            ("lhs_text", rhs_text_array),
+            ("lhs_metadata", rhs_metadata_array),
+        ])?;
+
+        Ok(())
     }
 }
