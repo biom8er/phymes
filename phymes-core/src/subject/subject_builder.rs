@@ -37,7 +37,7 @@ pub trait SubjectBuilderTrait: BuilderTrait + Debug + Send + Sync {
     where
         Self: Sized;
 
-    /// Add columns to the RecordBatchs
+    /// Zip new columns to the RecordBatches
     fn zip_columns(self, batches: Vec<RecordBatch>) -> Result<Self>
     where
         Self: Sized;

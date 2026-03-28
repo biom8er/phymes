@@ -1,13 +1,13 @@
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{Result, anyhow};
-use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt32Array};
+use arrow::{array::{ArrayRef, RecordBatch, StringArray, UInt32Array}, datatypes::{Schema, SchemaRef}};
 use candle_core::Device;
 use phymes_core::{
     BuildableTrait, BuilderTrait, DiffType, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, PatchOperator, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType, compute_diff,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::Map;
+use serde_json::{Map, Value};
 use tracing::instrument;
 
 use crate::{
@@ -173,30 +173,82 @@ pub fn to_diff_record_batches(lhs_args: &[RecordBatch], lhs_values: &[&str], lhs
     Ok(lhs_args_transformed)
 }
 
-/// Helper function convert a diff-ready [RecordBatch] back to a columnar [RecordBatch] representation
-pub fn from_diff_record_batches(lhs_args: &[RecordBatch], lhs_values: &[&str], lhs_pk: &str, lhs_values_name: &str) -> Result<RecordBatch> {
-    let lhs_concat = Subject::get_builder()
-        .with_name("lhs concat diff")
-        .with_record_batches(lhs_args.to_vec())?
+/// Helper function to JSONify the columns of a [RecordBatch]
+pub fn to_json_object_columns(lhs_args: RecordBatch, lhs_values: &[&str]) -> Result<RecordBatch> {
+    let schema = lhs_args.schema();
+    let lhs_other = schema.fields()
+        .iter()
+        .filter_map(|f| if lhs_values.contains(&f.name().as_str()) {
+            Some(f.name())
+        } else {
+            None
+        }).collect::<Vec<_>>();
+    let lhs_args_subject = Subject::get_builder()
+        .with_name("patch lhs_args JSONize")
+        .with_record_batches(vec![lhs_args])?
         .build()?;
-    let lhs_pk_arr = lhs_concat.get_column_as_array(lhs_pk)?;
-    let lhs_values_arr = if lhs_values.len() > 1 {
-        let lhs_values_str = lhs_concat.to_json_object()?
-            .into_iter()
-            .map(|r| {
-                let r_no_pk = r.into_iter().filter(|(k, _v)| k != lhs_pk).collect::<Map<_, _>>();
-                serde_json::to_string(&r_no_pk).unwrap()
-            })
-            .collect::<Vec<_>>();
-        Arc::new(StringArray::from(lhs_values_str))
-    } else {
-        lhs_concat.get_column_as_array(lhs_values.first().unwrap())?
-    };
-    let lhs_args_transformed = RecordBatch::try_from_iter(vec![
-        (lhs_pk, lhs_pk_arr),
-        (lhs_values_name, lhs_values_arr)
-    ])?;
-    Ok(lhs_args_transformed)
+    let lhs_args_other = lhs_args_subject.unzip_columns(&lhs_other.iter().map(|s| s.as_str()).collect::<Vec<_>>())?;
+    let lhs_args_values = lhs_args_subject.unzip_columns(lhs_values)?;
+    let lhs_args_values_str = Subject::get_builder()
+        .with_name("patch lhs_args JSONize values String")
+        .with_record_batches(vec![lhs_args_values])?
+        .build()?
+        .to_json_object()?
+        .into_iter()
+        .map(|s| serde_json::to_string(&s).unwrap())
+        .collect::<Vec<_>>();
+    let lhs_args_values_arr: ArrayRef = Arc::new(StringArray::from(lhs_args_values_str));
+    let lhs_args_values_batch = RecordBatch::try_from_iter(vec![(lhs_values.first().unwrap(), lhs_args_values_arr)])?;
+    let batch = Subject::get_builder()
+        .with_name("patch lhs_args zip")
+        .with_record_batches(vec![lhs_args_other])?
+        .zip_columns(vec![lhs_args_values_batch])?
+        .build()?
+        .get_record_batches_mut()
+        .pop()
+        .unwrap();
+    Ok(batch)
+}
+
+/// Helper function to de-JSONify the columns of a [RecordBatch]
+pub fn from_json_object_columns(lhs_args: RecordBatch, lhs_values: &[&str], lhs_schema: &SchemaRef) -> Result<RecordBatch> {
+    let lhs_concat = Subject::get_builder()
+        .with_name("lhs json diff")
+        .with_record_batches(vec![lhs_args])?
+        .build()?;
+    let lhs_concat_schema = lhs_concat.get_schema();
+    let lhs_other = lhs_concat_schema
+        .fields()
+        .iter()
+        .filter_map(|f| if lhs_values.contains(&f.name().as_str()) {
+            None
+        } else {
+            Some(f.name())
+        }).collect::<Vec<_>>();
+    let lhs_other_batch = lhs_concat.unzip_columns(&lhs_other.iter().map(|s| s.as_str()).collect::<Vec<_>>())?;
+    let json_values = lhs_concat.get_column_as_vec_str(lhs_values.first().unwrap())
+        .into_iter()
+        .map(|s| serde_json::from_str::<Value>(s).unwrap())
+        .collect::<Vec<_>>();
+    let json_fields = lhs_schema.fields()
+        .iter()
+        .filter_map(|f| if lhs_values.contains(&f.name().as_str()) {
+            Some(f.clone())
+        } else {
+            None
+        })
+        .collect::<Vec<_>>();
+    let json_schema = Schema::new(json_fields);
+    let batch = Subject::get_builder()
+        .with_name("")
+        .with_schema(Arc::new(json_schema))
+        .with_json_values(&json_values)?
+        .zip_columns(vec![lhs_other_batch])?
+        .build()?
+        .get_record_batches_mut()
+        .pop()
+        .unwrap();
+    Ok(batch)
 }
 
 /// Generate Diffs/Patches between a LHS [RecordBatch] and RHS [RecordBatch]

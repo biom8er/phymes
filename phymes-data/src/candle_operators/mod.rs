@@ -23,7 +23,7 @@ pub use apply_template::ApplyTemplate;
 pub use available_candle_operators::{AvailableCandleOperators, convert_destinations_to_tools};
 pub use chunk_documents::ChunkDocuments;
 pub use data_operator::{DataOperatorTrait, ToolTrait};
-pub use diff::{Diff, to_diff_record_batches};
+pub use diff::{Diff, to_diff_record_batches, to_json_object_columns, from_json_object_columns};
 pub use extract_pdf::{ExtractPDF, extract_pdf, filter_pdf, load_pdf_document, make_pdf_document};
 pub use extract_tabular::{ExtractTabular, test_extract_tabular_data};
 pub use extract_xml::{ExtractXML, extract_xml};

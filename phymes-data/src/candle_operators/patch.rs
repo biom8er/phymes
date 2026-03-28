@@ -12,6 +12,7 @@ use phymes_core::{
     SubjectBuilderTrait, SubjectTrait, Tool, ToolType, apply_patch_auto,
 };
 use phymes_diagnostics::HashSet;
+use rayon::vec;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
@@ -21,12 +22,9 @@ use crate::{
     DataJoinOperator, ToolTrait,
     candle_data::DataConfig,
     candle_operators::{
-        DataOperatorTrait,
-        group_by::{
+        DataOperatorTrait, from_json_object_columns, group_by::{
             build_aggregator_column_list_nonprimitive, build_aggregator_column_list_primitive,
-        },
-        join::join,
-        select::select, to_diff_record_batches,
+        }, join::join, select::select, to_diff_record_batches, to_json_object_columns
     },
     filter,
 };
@@ -526,8 +524,13 @@ pub fn patch(
     // Join LHS and filtered RHS on lhs_pk and rhs_pk
     let update_patch = rhs_update.num_rows() > 0;
     let lhs_update = if update_patch {
-        // DM: Swap should happen here!
-        
+        // JSONize the LHS if needed for map patch
+        let lhs_delete = if lhs_values.len() > 1 {
+            to_json_object_columns(lhs_delete, lhs_values)?
+        } else {
+            lhs_delete
+        };
+
         let lhs_update = join(
             lhs_pk,
             &[lhs_delete],
@@ -543,18 +546,7 @@ pub fn patch(
             .with_record_batches(vec![lhs_update])?
             .build()?;
         let patches = lhs_update_table.get_column_as_vec_str(diff_column);
-
-        // Swap to JSONonized columns if lhs_values > 1
-        let original = if lhs_values.len() > 1 {
-            let lhs_json = to_diff_record_batches(lhs_update_table.get_record_batches(), lhs_values, lhs_pk, "lhs_values")?;
-            let lhs_update_table = Subject::get_builder()
-                .with_name("patch lhs_update to diff")
-                .with_record_batches(vec![lhs_json])?
-                .build()?;
-            lhs_update_table.get_column_as_vec_str("lhs_values")
-        } else {
-            lhs_update_table.get_column_as_vec_str(lhs_values.first().unwrap())
-        };
+        let original = lhs_update_table.get_column_as_vec_str(lhs_values.first().unwrap());
         let modified: Result<Vec<String>> = original
             .into_iter()
             .zip(patches.into_iter())
@@ -571,12 +563,7 @@ pub fn patch(
         // Re-build the RecordBatch after patching the updates
         let mut lhs_updated_batch_vec = Vec::new();
         for field in lhs_args.first().unwrap().schema().fields() {
-            let lhs_values = if lhs_values.len() > 1 {
-                "lhs_values"
-            } else {
-                lhs_values.first().unwrap()
-            };
-            if field.name() == lhs_values {
+            if field.name() == lhs_values.first().unwrap() {
                 lhs_updated_batch_vec.push((field.name().to_string(), modified_arr.clone()))
             } else {
                 lhs_updated_batch_vec.push((
@@ -644,6 +631,13 @@ pub fn patch(
     // Join LHS and filtered RHS on lhs_pk and rhs_pk
     let create_patch = rhs_create.num_rows() > 0;
     let lhs_create = if create_patch {
+        // JSONize the LHS if needed for map patch
+        let lhs_update = if lhs_values.len() > 1 && !update_patch {
+            to_json_object_columns(lhs_update, lhs_values)?
+        } else {
+            lhs_update
+        };
+
         let lhs_create = join(
             lhs_pk,
             &[lhs_update],
@@ -659,20 +653,7 @@ pub fn patch(
             .with_record_batches(vec![lhs_create])?
             .build()?;
         let patches = lhs_create_table.get_column_as_vec_str(diff_column);
-
-        // Swap to JSONized columns if lhs_values > 1
-        let original = if lhs_values.len() > 1 && update_patch {
-            lhs_create_table.get_column_as_vec_str("lhs_values")
-        } else if lhs_values.len() > 1 {            
-            let lhs_json = to_diff_record_batches(lhs_create_table.get_record_batches(), lhs_values, lhs_pk, "lhs_values")?;
-            let lhs_create_table = Subject::get_builder()
-                .with_name("patch lhs_create to diff")
-                .with_record_batches(vec![lhs_json])?
-                .build()?;
-            lhs_create_table.get_column_as_vec_str("lhs_values")
-        } else {
-            lhs_create_table.get_column_as_vec_str(lhs_values.first().unwrap())
-        };
+        let original = lhs_create_table.get_column_as_vec_str(lhs_values.first().unwrap());
 
         let (modified_arr, pks_arr) = match lhs_create_table.get_column_data_type(lhs_pk)? {
             DataType::UInt32 => {
@@ -752,12 +733,7 @@ pub fn patch(
         // Rebuild the record batch after applying create
         let mut lhs_created_batch_vec = Vec::new();
         for field in lhs_args.first().unwrap().schema().fields() {
-            let lhs_values = if lhs_values.len() > 1 {
-                "lhs_values"
-            } else {
-                lhs_values.first().unwrap()
-            };
-            if field.name() == lhs_values {
+            if field.name() == lhs_values.first().unwrap() {
                 lhs_created_batch_vec.push((field.name().to_string(), modified_arr.clone()))
             } else if field.name() == lhs_pk {
                 lhs_created_batch_vec.push((field.name().to_string(), pks_arr.clone()))
@@ -775,7 +751,7 @@ pub fn patch(
 
     // De JSONify the JSONified columns
     let batch = if lhs_values.len() > 1 && (update_patch || create_patch) {
-
+        from_json_object_columns(lhs_create, lhs_values, &lhs_args.first().unwrap().schema())?
     } else {
         lhs_create
     };
