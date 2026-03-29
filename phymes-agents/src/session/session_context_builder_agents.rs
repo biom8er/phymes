@@ -13,7 +13,7 @@ use phymes_core::{
     SubjectPlanBuilderTrait, SubjectPlanTrait, SubjectTrait, Subscription, create_bytes_fields,
     create_values_fields,
 };
-use phymes_data::{AvailableCandleOperators, DataConfig, DataConfigTrait, LimitConfig, device};
+use phymes_data::{AvailableCandleOperators, DataConfig, DataConfigTrait, LimitConfig, ObjectStoreConfig, device};
 #[cfg(feature = "api")]
 use phymes_data::{CommandSandboxConfig, HTTPClientConfig};
 use phymes_diagnostics::{HashMap, HashSet};

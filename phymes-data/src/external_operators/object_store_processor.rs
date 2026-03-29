@@ -997,6 +997,9 @@ mod tests {
     use phymes_core::{ObjectStorageBackend, Publication, Subject, SubjectBuilder, test_subject};
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
 
+    #[cfg(feature = "api")]
+    use tempfile::TempDir;
+
     #[tokio::test]
     async fn test_object_store_processor_put_get_in_memory() -> Result<()> {
         let name = "ObjectStoreProcessor";
@@ -1482,6 +1485,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "api")]
     #[tokio::test]
     async fn test_object_store_processor_put_get_local_fs_messages() -> Result<()> {
         let name = "ObjectStoreProcessor";
@@ -1489,9 +1493,8 @@ mod tests {
 
         // Create project directory
         let bucket_name = "phymes-object-store";
-        let project_dir = std::env::temp_dir().join(bucket_name);
-        let _ = std::fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
-        // DM: in some instances, `rm -rf /tmp/phymes-rs-project` is needed to delete the temporary project directory
+        let tmp_dir = TempDir::new()?;
+        let project_dir = tmp_dir.path().join(bucket_name);
         let _ = std::fs::create_dir(&project_dir);
 
         // Runtime env
@@ -1854,8 +1857,6 @@ mod tests {
             tables.get(1).unwrap(),
             &test_subject::make_test_subject("IPC", 3, 0, 2)?
         );
-
-        let _ = std::fs::remove_dir_all(project_dir);
 
         Ok(())
     }

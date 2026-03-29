@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, DataEncoding, DataFormat, MappableTrait, ObjectStorageBackend, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Subject, WorkspacePatchSubject, test_processor::{ProcessorError, ProcessorMock}
+    AvailableSubjects, DataEncoding, DataFormat, DiffType, MappableTrait, ObjectStorageBackend, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Subject, WorkspacePatchSubject, test_processor::{ProcessorError, ProcessorMock}
 };
 use phymes_data::{
     AggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor, CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig, LimitProcessor, ObjectStoreConfig, ObjectStoreOptsType, ObjectStoreProcessor, ToolTrait
@@ -70,6 +70,8 @@ pub enum AvailableProcessors {
     PackTabular,
     #[value(name = "Patch")]
     Patch,
+    #[value(name = "Diff")]
+    Diff,
     #[value(name = "CoalesceProcessor")]
     CoalesceProcessor,
     #[value(name = "LimitProcessor")]
@@ -128,6 +130,7 @@ impl Display for AvailableProcessors {
             Self::NormalizeTime => write!(f, "{}", AvailableCandleOperators::NormalizeTime),
             Self::PackTabular => write!(f, "{}", AvailableCandleOperators::PackTabular),
             Self::Patch => write!(f, "{}", AvailableCandleOperators::Patch),
+            Self::Diff => write!(f, "{}", AvailableCandleOperators::Diff),
             Self::ProcessorError => write!(f, "{}", ProcessorError::get_static_name()),
             Self::ProcessorMock => write!(f, "{}", ProcessorMock::get_static_name()),
             Self::ProcessorEcho => write!(f, "{}", ProcessorEcho::get_static_name()),
@@ -362,6 +365,20 @@ impl DataConfigTrait for AvailableProcessors {
                 rhs_stream: Some(DataStreamManager::Accumulate),
                 ..Default::default()
             }),
+            Self::Diff => serde_json::to_vec(&DataConfig {
+                lhs_name: Some("workspace_1".to_string()),
+                rhs_name: Some("workspace_2".to_string()),
+                lhs_values: Some(vec!["col_1".to_string()]),
+                rhs_values: Some(vec!["col_1".to_string()]),
+                lhs_pk: Some("pk".to_string()),
+                rhs_pk: Some("pk".to_string()),
+                diff: Some(DiffType::default()),
+                cpu: false,
+                operator: AvailableCandleOperators::Diff,
+                lhs_stream: DataStreamManager::Accumulate,
+                rhs_stream: Some(DataStreamManager::Accumulate),
+                ..Default::default()
+            }),
             Self::LimitProcessor => serde_json::to_vec(&LimitConfig {
                 skip: Some(0),
                 fetch: 100,
@@ -558,6 +575,7 @@ impl ToolTrait for AvailableProcessors {
             Self::ApplyTemplate => AvailableCandleOperators::ApplyTemplate.get_description(),
             Self::PackTabular => AvailableCandleOperators::PackTabular.get_description(),
             Self::Patch => AvailableCandleOperators::Patch.get_description(),
+            Self::Diff => AvailableCandleOperators::Diff.get_description(),
             Self::AggregatorProcessor => todo!(),
             Self::CoalesceProcessor => todo!(),
             Self::LimitProcessor => todo!(),
@@ -599,6 +617,7 @@ impl ToolTrait for AvailableProcessors {
             Self::ApplyTemplate => AvailableCandleOperators::ApplyTemplate.to_json_tool_schema(),
             Self::PackTabular => AvailableCandleOperators::PackTabular.to_json_tool_schema(),
             Self::Patch => AvailableCandleOperators::Patch.to_json_tool_schema(),
+            Self::Diff => AvailableCandleOperators::Diff.to_json_tool_schema(),
             Self::AggregatorProcessor => todo!(),
             Self::CoalesceProcessor => todo!(),
             Self::LimitProcessor => todo!(),
@@ -644,6 +663,7 @@ impl AvailableProcessors {
             AvailableProcessors::NormalizeTime.to_string(),
             AvailableProcessors::PackTabular.to_string(),
             AvailableProcessors::Patch.to_string(),
+            AvailableProcessors::Diff.to_string(),
             AvailableProcessors::CoalesceProcessor.to_string(),
             AvailableProcessors::LimitProcessor.to_string(),
             AvailableProcessors::AggregatorProcessor.to_string(),
@@ -713,6 +733,8 @@ impl AvailableProcessors {
             Ok(AvailableProcessors::PackTabular)
         } else if line.contains(&AvailableProcessors::Patch.to_string()) {
             Ok(AvailableProcessors::Patch)
+        } else if line.contains(&AvailableProcessors::Diff.to_string()) {
+            Ok(AvailableProcessors::Diff)
         } else if line.contains(&AvailableProcessors::CoalesceProcessor.to_string()) {
             Ok(AvailableProcessors::CoalesceProcessor)
         } else if line.contains(&AvailableProcessors::LimitProcessor.to_string()) {
@@ -776,7 +798,8 @@ impl AvailableProcessors {
             | Self::VectorDistance
             | Self::ApplyTemplate
             | Self::PackTabular
-            | Self::Patch => {
+            | Self::Patch 
+            | Self::Diff => {
                 Arc::new(CandleDataProcessor::new(name, self.to_string().as_str()))
             }
             Self::CoalesceProcessor => {
@@ -845,7 +868,8 @@ impl AvailableProcessors {
             | Self::VectorDistance
             | Self::ApplyTemplate
             | Self::PackTabular
-            | Self::Patch => builder.build_arc::<CandleDataProcessor>(),
+            | Self::Patch 
+            | Self::Diff => builder.build_arc::<CandleDataProcessor>(),
             Self::CoalesceProcessor => builder.build_arc::<CoalesceProcessor>(),
             Self::LimitProcessor => builder.build_arc::<LimitProcessor>(),
             Self::AggregatorProcessor => builder.build_arc::<AggregatorProcessor>(),
@@ -889,7 +913,8 @@ impl AvailableProcessors {
             | Self::ApplyTemplate
             | Self::AggregatorProcessor
             | Self::PackTabular
-            | Self::Patch => "DataConfig",
+            | Self::Patch 
+            | Self::Diff => "DataConfig",
             Self::CoalesceProcessor | Self::LimitProcessor => "LimitConfig",
             Self::ToolCallProcessor => "ToolCallConfig",
             Self::CandleChatProcessor | Self::MessageParserProcessor => "CandleChatConfig",

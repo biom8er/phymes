@@ -7,13 +7,11 @@ use phymes_core::{BuilderTrait, MappableTrait, Subject, SubjectBuilder, SubjectB
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Patch, ExtractXML, PackTabular, ToolTrait,
-    candle_data::DataConfig,
-    candle_operators::{
+    Diff, ExtractXML, PackTabular, Patch, ToolTrait, candle_data::DataConfig, candle_operators::{
         ApplyTemplate, ChunkDocuments, DataOperatorTrait, ExtractPDF, ExtractTabular, Filter,
         FromTasksToParticipants, FromTracesToMessages, GroupBy, HumanInTheLoop, Join, Melt,
         NormalizeTime, Pivot, Select, Sort, VectorDistance,
-    },
+    }
 };
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, Default)]
@@ -65,8 +63,11 @@ pub enum AvailableCandleOperators {
     #[serde(alias = "melt")]
     Melt,
     #[value(name = "Patch")]
-    #[serde(alias = "apply-patch")]
+    #[serde(alias = "patch")]
     Patch,
+    #[value(name = "Diff")]
+    #[serde(alias = "diff")]
+    Diff,
     #[value(name = "NormalizeTime")]
     #[serde(alias = "NormalizeTime")]
     NormalizeTime,
@@ -99,6 +100,7 @@ impl Display for AvailableCandleOperators {
             Self::ExtractXML => write!(f, "{}", ExtractXML::get_static_name()),
             Self::Melt => write!(f, "{}", Melt::get_static_name()),
             Self::Patch => write!(f, "{}", Patch::get_static_name()),
+            Self::Diff => write!(f, "{}", Diff::get_static_name()),
             Self::NormalizeTime => write!(f, "{}", NormalizeTime::get_static_name()),
             Self::FromTasksToParticipants => {
                 write!(f, "{}", FromTasksToParticipants::get_static_name())
@@ -127,6 +129,7 @@ impl ToolTrait for AvailableCandleOperators {
             Self::ExtractXML => ExtractXML::default().to_json_tool_schema(),
             Self::Melt => Melt::default().to_json_tool_schema(),
             Self::Patch => Patch::default().to_json_tool_schema(),
+            Self::Diff => Diff::default().to_json_tool_schema(),
             Self::NormalizeTime => NormalizeTime::default().to_json_tool_schema(),
             Self::FromTasksToParticipants => String::new(),
             Self::FromTracesToMessages => String::new(),
@@ -150,6 +153,7 @@ impl ToolTrait for AvailableCandleOperators {
             Self::ExtractXML => ExtractXML::default().get_description(),
             Self::Melt => Melt::default().get_description(),
             Self::Patch => Patch::default().get_description(),
+            Self::Diff => Diff::default().get_description(),
             Self::NormalizeTime => NormalizeTime::default().get_description(),
             Self::FromTasksToParticipants => String::new(),
             Self::FromTracesToMessages => String::new(),
@@ -175,6 +179,7 @@ impl AvailableCandleOperators {
             Self::ExtractXML.to_string(),
             Self::Melt.to_string(),
             Self::Patch.to_string(),
+            Self::Diff.to_string(),
             Self::NormalizeTime.to_string(),
         ];
         processor_names
@@ -201,6 +206,7 @@ impl AvailableCandleOperators {
             Self::ExtractXML => Ok(Box::new(ExtractXML::new(config)?)),
             Self::Melt => Ok(Box::new(Melt::new(config)?)),
             Self::Patch => Ok(Box::new(Patch::new(config)?)),
+            Self::Diff => Ok(Box::new(Diff::new(config)?)),
             Self::NormalizeTime => Ok(Box::new(NormalizeTime::new(config)?)),
             Self::FromTasksToParticipants => Ok(Box::new(FromTasksToParticipants::new(config)?)),
             Self::FromTracesToMessages => Ok(Box::new(FromTracesToMessages::new(config)?)),
@@ -259,6 +265,7 @@ mod tests {
                 "ExtractXML".to_string(),
                 "Melt".to_string(),
                 "Patch".to_string(),
+                "Diff".to_string(),
                 "NormalizeTime".to_string(),
                 "FromTasksToParticipants".to_string(),
                 "FromTracesToMessages".to_string(),
@@ -283,6 +290,7 @@ mod tests {
                 "ExtractXML",
                 "Melt",
                 "Patch",
+                "Diff",
                 "NormalizeTime",
                 "FromTasksToParticipants",
                 "FromTracesToMessages",

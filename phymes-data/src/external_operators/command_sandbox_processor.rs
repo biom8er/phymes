@@ -1731,6 +1731,7 @@ mod tests {
     use futures::TryStreamExt;
     use phymes_core::{ChatBuilderTraitExt, Publication, SubjectBuilder};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
+    use tempfile::TempDir;
     use std::{fs::File, io::Write};
 
     use crate::external_operators::command_sandbox_config::DataIOMethod;
@@ -1922,9 +1923,8 @@ mod tests {
 
         // Create project directory
         let project_name = "phymes-wasm-workspace";
-        let project_dir = std::env::temp_dir().join(project_name);
-        let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
-        // DM: in some instances, `rm -rf /tmp/phymes-wasm-project` is needed to delete the temporary project directory
+        let tmp_dir = TempDir::new()?;
+        let project_dir = tmp_dir.path().join(project_name);
         let _ = fs::create_dir(&project_dir);
 
         // --- From config with wasm module env ---
@@ -2242,8 +2242,8 @@ mod tests {
 
         // Create project directory
         let project_name = "phymes-bash-project";
-        let project_dir = std::env::temp_dir().join(project_name);
-        let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
+        let tmp_dir = TempDir::new()?;
+        let project_dir = tmp_dir.path().join(project_name);
         let _ = fs::create_dir(&project_dir);
 
         // State for the command processor config
@@ -2303,7 +2303,6 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
         let table = SubjectBuilder::new()
             .with_record_batches(result)?
             .with_name("")
@@ -2337,9 +2336,8 @@ mod tests {
 
         // Create project directory
         let project_name = "phymes-bash-workspace";
-        let project_dir = std::env::temp_dir().join(project_name);
-        let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
-        // DM: in some instances, `rm -rf /tmp/phymes-wasm-project` is needed to delete the temporary project directory
+        let tmp_dir = TempDir::new()?;
+        let project_dir = tmp_dir.path().join(project_name);
         let _ = fs::create_dir(&project_dir);
 
         // --- From config ---
@@ -2576,7 +2574,6 @@ mod tests {
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
         let table = SubjectBuilder::new()
             .with_name("test_command_sandbox_processor_docker_bash_workspace From Tempfile")
             .with_record_batches(result)?
@@ -2763,9 +2760,8 @@ mod tests {
 
         // Create project directory
         let project_name = "phymes-py-project";
-        let project_dir = std::env::temp_dir().join(project_name);
-        let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
-        // DM: in some instances, `rm -rf /tmp/phymes-py-project` is needed to delete the temporary project directory
+        let tmp_dir = TempDir::new()?;
+        let project_dir = tmp_dir.path().join(project_name);
         let _ = fs::create_dir(&project_dir);
 
         // Create src directory
@@ -2913,8 +2909,6 @@ if __name__ == '__main__':
         assert_eq!(result, ["Alice", "Bob"]);
         let result = table.get_column_as_vec_primitive::<u32>("age")?;
         assert_eq!(result, [40, 35]);
-        // DM: Some strange permission issue `Error: Permission denied (os error 13)` with Docker + Python
-        // fs::remove_dir_all(project_dir)?;
 
         Ok(())
     }
@@ -2926,9 +2920,8 @@ if __name__ == '__main__':
 
         // Create project directory
         let project_name = "phymes-py-workspace";
-        let project_dir = std::env::temp_dir().join(project_name);
-        let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
-        // DM: in some instances, `rm -rf /tmp/phymes-py-project` is needed to delete the temporary project directory
+        let tmp_dir = TempDir::new()?;
+        let project_dir = tmp_dir.path().join(project_name);
         let _ = fs::create_dir(&project_dir);
 
         // Create the workspace
@@ -3028,7 +3021,6 @@ if __name__ == '__main__':
             .with_record_batches(result)?
             .build()?;
 
-        let _ = fs::remove_dir_all(project_dir);
         let result = table.get_column_as_vec_str("name");
         assert_eq!(result, ["Alice", "Bob"]);
         let result = table.get_column_as_vec_primitive::<u32>("age")?;
@@ -3052,9 +3044,8 @@ if __name__ == '__main__':
 
         // Create project directory
         let project_name = "phymes-rs-project";
-        let project_dir = std::env::temp_dir().join(project_name);
-        let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
-        // DM: in some instances, `rm -rf /tmp/phymes-rs-project` is needed to delete the temporary project directory
+        let tmp_dir = TempDir::new()?;
+        let project_dir = tmp_dir.path().join(project_name);
         let _ = fs::create_dir(&project_dir);
 
         // Create src directory
@@ -3682,7 +3673,6 @@ apt install --assume-yes protobuf-compiler clang"#;
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let _ = fs::remove_dir_all(project_dir);
         let table = SubjectBuilder::new()
             .with_name("test_command_sandbox_processor_docker_rs")
             .with_record_batches(result)?
@@ -3711,9 +3701,8 @@ apt install --assume-yes protobuf-compiler clang"#;
 
         // Create project directory
         let project_name = "phymes-rs-workspace";
-        let project_dir = std::env::temp_dir().join(project_name);
-        let _ = fs::remove_dir_all(&project_dir); // Doesn't matter if it is an error
-        // DM: in some instances, `rm -rf /tmp/phymes-rs-project` is needed to delete the temporary project directory
+        let tmp_dir = TempDir::new()?;
+        let project_dir = tmp_dir.path().join(project_name);
         let _ = fs::create_dir(&project_dir);
 
         // --- from TempFile, initialization ---
@@ -3802,7 +3791,6 @@ apt install --assume-yes protobuf-compiler clang"#;
             .unwrap()
             .try_collect::<Vec<_>>()
             .await?;
-        let _ = fs::remove_dir_all(project_dir);
         let table = SubjectBuilder::new()
             .with_name("test_command_sandbox_processor_docker_rs")
             .with_record_batches(result)?
