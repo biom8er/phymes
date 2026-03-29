@@ -239,11 +239,13 @@ pub fn from_json_object_columns(lhs_args: RecordBatch, lhs_values: &[&str], lhs_
         })
         .collect::<Vec<_>>();
     let json_schema = Schema::new(json_fields);
+    let lhs_columns = lhs_schema.fields().iter().map(|f| f.name().as_str()).collect::<Vec<_>>();
     let batch = Subject::get_builder()
         .with_name("")
         .with_schema(Arc::new(json_schema))
         .with_json_values(&json_values)?
         .zip_columns(vec![lhs_other_batch])?
+        .reorder_columns(&lhs_columns)?
         .build()?
         .get_record_batches_mut()
         .pop()

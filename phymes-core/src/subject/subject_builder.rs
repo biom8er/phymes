@@ -24,6 +24,7 @@ use arrow::{
 };
 use futures::{Stream, StreamExt, TryStreamExt};
 use object_store::{ObjectMeta, ObjectStore, ObjectStoreExt, path::Path};
+use phymes_diagnostics::HashSet;
 use serde::Serialize;
 use serde_json::Value;
 use tracing::{Level, event};
@@ -39,6 +40,11 @@ pub trait SubjectBuilderTrait: BuilderTrait + Debug + Send + Sync {
 
     /// Zip new columns to the RecordBatches
     fn zip_columns(self, batches: Vec<RecordBatch>) -> Result<Self>
+    where
+        Self: Sized;
+
+    /// Reorder the columns in the RecordBatches
+    fn reorder_columns(self, columns: &[&str]) -> Result<Self>
     where
         Self: Sized;
 
@@ -248,6 +254,32 @@ impl SubjectBuilderTrait for SubjectBuilder {
         } else {
             self.with_record_batches(batches)
         }
+    }
+
+    fn reorder_columns(mut self, columns: &[&str]) -> Result<Self> {
+        let reordered = if let (Some(batches), Some(schema)) = (self.record_batches.take(), self.schema.take()) {
+            // Check that the columns are compatible
+            let fields_set = schema.fields().iter().map(|f| f.name().as_str()).collect::<HashSet<_>>();
+            let columns_set = columns.iter().map(|&c| c).collect::<HashSet<_>>();
+            if fields_set != columns_set {
+                return Err(anyhow!("Reorder column names `{:?}` are not compatible with the Schema Field names `{:?}`.",
+                    columns_set, fields_set));
+            }
+
+            // Reorder the columns in the batches
+            let reordered: Result<Vec<RecordBatch>> = batches.into_iter()
+                .map(|batch| {
+                    let batch_vec = columns.iter()
+                        .map(|c| (c, batch.column_by_name(c).unwrap().clone()));
+                    let reordered = RecordBatch::try_from_iter(batch_vec)?;
+                    Ok(reordered)
+                })
+                .collect();
+            reordered?
+        } else {
+            return Err(anyhow!("Please add RecordBatches before trying to reorder the columns."));
+        };
+        self.with_record_batches(reordered)
     }
 
     fn list_partitions_object_store<'a>(

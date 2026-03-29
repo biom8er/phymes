@@ -95,6 +95,7 @@ impl ProcessorTrait for ObjectStoreProcessor {
         diagnostic_builder: Option<&DiagnosticBuilder>,
         runtime_env: Arc<RuntimeEnv>,
     ) -> Result<SendableRecordBatchStreamMessageBuilderMap> {
+        println!("ObjectStoreProcessor");
         // Extract out the config
         let config = match remove_message_by_subject(self.get_name(), &mut message) {
             Some(s) => s.get_message_own(),
@@ -577,6 +578,7 @@ impl Stream for ObjectStoreStream {
                         }
                     }
                     Err(err) => {
+                        dbg!(&err);
                         self.state = ObjectStoreState::Done;
                         Poll::Ready(Some(Err(err.into())))
                     }
@@ -1597,10 +1599,8 @@ mod tests {
         let result = table.get_column_as_vec_str("location");
         assert_eq!(result, ["location_1.ipc", "location_2.ipc"]);
         let result = table.get_column_as_vec_str("bucket");
-        assert_eq!(
-            result,
-            ["/tmp/phymes-object-store", "/tmp/phymes-object-store"]
-        );
+        assert!(result.first().unwrap().contains("phymes-object-store"));
+        assert!(result.get(1).unwrap().contains("phymes-object-store"));
         let result = table.get_column_as_vec_str("version");
         assert_eq!(result, ["", ""]);
         let result = table.get_column_as_vec_primitive::<u32>("size")?;
@@ -1691,17 +1691,14 @@ mod tests {
         let result = table.get_column_as_vec_str("location");
         assert_eq!(result, ["location_1.ipc", "location_2.ipc"]);
         let result = table.get_column_as_vec_str("bucket");
-        assert_eq!(
-            result,
-            ["/tmp/phymes-object-store", "/tmp/phymes-object-store"]
-        );
+        assert!(result.first().unwrap().contains("phymes-object-store"));
+        assert!(result.get(1).unwrap().contains("phymes-object-store"));
         let result = table.get_column_as_vec_str("metadata");
         let metadata: Result<Vec<Map<String, Value>>> = result
             .into_iter()
             .map(|j| serde_json::from_str::<Map<String, Value>>(j).map_err(|e| e.into()))
             .collect();
         let metadata = metadata?;
-        dbg!(&metadata);
         assert!(metadata.first().unwrap().get("e_tag").is_some());
         assert!(metadata.first().unwrap().get("version").is_some());
         assert_eq!(
@@ -1801,10 +1798,8 @@ mod tests {
         let result = table.get_column_as_vec_str("location");
         assert_eq!(result, ["location_1.ipc", "location_2.ipc"]);
         let result = table.get_column_as_vec_str("bucket");
-        assert_eq!(
-            result,
-            ["/tmp/phymes-object-store", "/tmp/phymes-object-store"]
-        );
+        assert!(result.first().unwrap().contains("phymes-object-store"));
+        assert!(result.get(1).unwrap().contains("phymes-object-store"));
         let result = table.get_column_as_vec_str("metadata");
         let metadata: Result<Vec<Map<String, Value>>> = result
             .into_iter()

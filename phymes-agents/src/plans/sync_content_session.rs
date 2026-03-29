@@ -47,9 +47,7 @@ impl<'a> SyncContentSession<'a> {
         format!(r#"flowchart TD
 	{session_context_name}_r-rt@{{shape: subproc, label: {session_context_name}_r}}
 	%% ------------------------------------------------------------------------------
-	%% Object store diff between local and remote
-    %% 1. List remote locations
-    %% 2. Diff local with remote
+	%% Object store list remote locations
 	%% ------------------------------------------------------------------------------
 	subgraph list_{remote_object_store_name}_t
 		{remote_object_store_name}_meta_s-subject-.->|AllRecordBatches|list_{remote_object_store_name}_p-subscribe
@@ -57,11 +55,6 @@ impl<'a> SyncContentSession<'a> {
 		list_{remote_object_store_name}_p-subscribe-->list_{remote_object_store_name}_p-processor
 		list_{remote_object_store_name}_p-processor-->list_{remote_object_store_name}_p-publish
 		list_{remote_object_store_name}_p-publish-->|Replace|list_{remote_object_store_name}_s-subject
-		list_{remote_object_store_name}_s-subject-->|AllRecordBatches|diff_{remote_object_store_name}_p-subscribe
-		{local_object_store_name}_meta_s-subject-->|AllRecordBatches|diff_{remote_object_store_name}_p-subscribe
-		diff_{remote_object_store_name}_p-subscribe-->diff_{remote_object_store_name}_p-processor
-		diff_{remote_object_store_name}_p-processor-->diff_{remote_object_store_name}_p-publish
-		diff_{remote_object_store_name}_p-publish-->|Replace|diff_{remote_object_store_name}_s-subject
 	end
 	{session_context_name}_r-rt-->list_{remote_object_store_name}_t
 	{remote_object_store_name}_meta_s-subject@{{shape: doc, label: {remote_object_store_name}_meta_s}}
@@ -70,6 +63,17 @@ impl<'a> SyncContentSession<'a> {
 	list_{remote_object_store_name}_p-publish@{{shape: fork}}
 	list_{remote_object_store_name}_p-subscribe@{{shape: diamond, label: All}}
 	list_{remote_object_store_name}_s-subject@{{shape: doc, label: list_{remote_object_store_name}_s}}
+	%% ------------------------------------------------------------------------------
+	%% Object store diff between local and remote
+	%% ------------------------------------------------------------------------------
+	subgraph diff_{remote_object_store_name}_t
+		list_{remote_object_store_name}_s-subject-.->|AllRecordBatches|diff_{remote_object_store_name}_p-subscribe
+		{local_object_store_name}_meta_s-subject-->|AllRecordBatches|diff_{remote_object_store_name}_p-subscribe
+		diff_{remote_object_store_name}_p-subscribe-->diff_{remote_object_store_name}_p-processor
+		diff_{remote_object_store_name}_p-processor-->diff_{remote_object_store_name}_p-publish
+		diff_{remote_object_store_name}_p-publish-->|Replace|diff_{remote_object_store_name}_s-subject
+	end
+	{session_context_name}_r-rt-->diff_{remote_object_store_name}_t
 	{local_object_store_name}_meta_s-subject@{{shape: doc, label: {local_object_store_name}_meta_s}}
 	diff_{remote_object_store_name}_p-processor@{{shape: rect, label: Diff}}
 	diff_{remote_object_store_name}_p-publish@{{shape: fork}}
@@ -99,11 +103,7 @@ impl<'a> SyncContentSession<'a> {
 		select_create_update_{remote_object_store_name}_s-subject-->|AllRecordBatches|get_{remote_object_store_name}_p-subscribe
 		get_{remote_object_store_name}_p-subscribe-->get_{remote_object_store_name}_p-processor
 		get_{remote_object_store_name}_p-processor-->get_{remote_object_store_name}_p-publish
-		get_{remote_object_store_name}_p-publish-->|Replace|get_{remote_object_store_name}_s-subject        
-		get_{remote_object_store_name}_s-subject-->|AllRecordBatches|put_{local_object_store_name}_p-subscribe
-		put_{local_object_store_name}_p-subscribe-->put_{local_object_store_name}_p-processor
-		put_{local_object_store_name}_p-processor-->put_{local_object_store_name}_p-publish
-		put_{local_object_store_name}_p-publish-->|Replace|put_{local_object_store_name}_s-subject
+		get_{remote_object_store_name}_p-publish-->|Replace|get_{remote_object_store_name}_s-subject
 	end
 	{session_context_name}_r-rt-->get_{remote_object_store_name}_t
 	cmp_create_update_{remote_object_store_name}_p-processor@{{shape: rect, label: Select}}
@@ -122,6 +122,14 @@ impl<'a> SyncContentSession<'a> {
 	get_{remote_object_store_name}_p-publish@{{shape: fork}}
 	get_{remote_object_store_name}_p-subscribe@{{shape: diamond, label: All}}
 	get_{remote_object_store_name}_s-subject@{{shape: doc, label: get_{remote_object_store_name}_s}}
+	%% ------------------------------------------------------------------------------
+	subgraph put_{local_object_store_name}_t       
+		get_{remote_object_store_name}_s-subject-.->|AllRecordBatches|put_{local_object_store_name}_p-subscribe
+		put_{local_object_store_name}_p-subscribe-->put_{local_object_store_name}_p-processor
+		put_{local_object_store_name}_p-processor-->put_{local_object_store_name}_p-publish
+		put_{local_object_store_name}_p-publish-->|Replace|put_{local_object_store_name}_s-subject
+	end
+	{session_context_name}_r-rt-->put_{local_object_store_name}_t
 	put_{local_object_store_name}_p-processor@{{shape: rect, label: ObjectStoreProcessor}}
 	put_{local_object_store_name}_p-publish@{{shape: fork}}
 	put_{local_object_store_name}_p-subscribe@{{shape: diamond, label: All}}
@@ -251,7 +259,7 @@ impl<'a> SyncContentSession<'a> {
         Boolean cpu "false"
     }}
     diff_{remote_object_store_name}_s["diff_{remote_object_store_name}_s"] {{
-        Utf8 filename
+        Utf8 location
         Utf8 diff
         Utf8 operator
     }}
@@ -260,7 +268,7 @@ impl<'a> SyncContentSession<'a> {
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8','Utf8']"
 	    List-Utf8 cast_templates "['','','','Create','Update']"
 	    List-Utf8 column_operators "['None','None','None','Value','Value']"
-	    List-Utf8 lhs_values "['filename','diff','operator','create','update']"
+	    List-Utf8 lhs_values "['location','diff','operator','create','update']"
         Boolean cpu "false"
         Utf8 lhs_name "diff_{remote_object_store_name}_s"
         Utf8 operator "Select"
@@ -269,7 +277,7 @@ impl<'a> SyncContentSession<'a> {
     filter_create_update_{remote_object_store_name}_p["filter_create_update_{remote_object_store_name}_p"] {{
         List-Utf8 cmp_columns "['create','update']"
         List-Utf8 cmp_operators "['Like','Like']"
-        Utf8 cmp_predicate "All"
+        Utf8 cmp_predicate "Any"
         Boolean cpu "false"
         Utf8 lhs_name "cmp_create_update_{remote_object_store_name}_s"
         List-Utf8 lhs_values "['operator','operator']"
@@ -279,7 +287,7 @@ impl<'a> SyncContentSession<'a> {
     select_create_update_{remote_object_store_name}_p["select_create_update_{remote_object_store_name}_p"] {{
         Boolean cpu "false"
         Utf8 lhs_name "filter_create_update_{remote_object_store_name}_s"
-        List-Utf8 lhs_values "['filename','diff','operator']"
+        List-Utf8 lhs_values "['location','diff','operator']"
         Utf8 operator "Select"
         Utf8 lhs_stream "Accumulate"
     }}
@@ -289,6 +297,13 @@ impl<'a> SyncContentSession<'a> {
         Utf8 backend "{remote_object_store_backend}"
         Utf8 bucket "{remote_object_store_bucket}"
         Utf8 subject_name "select_create_update_{remote_object_store_name}_s"
+    }}
+    get_{remote_object_store_name}_s["get_{remote_object_store_name}_s"] {{
+        Utf8 location
+        Utf8 bucket
+        Utf8 metadata
+        Int64 last_modified
+        List-UInt8 bytes
     }}
     put_{local_object_store_name}_p["put_{local_object_store_name}_p"] {{
         UInt32 timeout "15"
@@ -310,7 +325,7 @@ impl<'a> SyncContentSession<'a> {
 	    List-Utf8 cast_datatypes "['Utf8','Utf8','Utf8','Utf8']"
 	    List-Utf8 cast_templates "['','','','Delete']"
 	    List-Utf8 column_operators "['None','None','None','Value']"
-	    List-Utf8 lhs_values "['filename','diff','operator','delete']"
+	    List-Utf8 lhs_values "['location','diff','operator','delete']"
         Boolean cpu "false"
         Utf8 lhs_name "diff_{remote_object_store_name}_s"
         Utf8 operator "Select"
@@ -329,7 +344,7 @@ impl<'a> SyncContentSession<'a> {
     select_delete_{local_object_store_name}_p["select_delete_{local_object_store_name}_p"] {{
         Boolean cpu "false"
         Utf8 lhs_name "filter_delete_{local_object_store_name}_s"
-        List-Utf8 lhs_values "['filename','diff','operator']"
+        List-Utf8 lhs_values "['location','diff','operator']"
         Utf8 operator "Select"
         Utf8 lhs_stream "Accumulate"
     }}
@@ -355,7 +370,7 @@ impl<'a> SyncContentSession<'a> {
         List-Utf8 lhs_values "['bucket', 'e_tag', 'version', 'size', 'last_modified']"
         List-Utf8 rhs_values "['diff', 'operator']"
         Utf8 lhs_pk "location"
-        Utf8 rhs_pk "filename"
+        Utf8 rhs_pk "location"
         Utf8 doc_patch "['']"
         Utf8 operator "Patch"
         Utf8 lhs_stream "Accumulate"
@@ -371,25 +386,21 @@ mod tests {
     use anyhow::Result;
     use futures::TryStreamExt;
     use phymes_core::{
-        RuntimeEnv, RuntimeEnvBuilderTrait, create_object_store_meta_batch, make_store, test_subject,
-        BuildableTrait, BuilderTrait, IPCMessage, MappableTrait,
-        MessageBuilderTrait, Publication, Subject, SubjectBuilder, SubjectBuilderTrait,
-        SubjectTrait, Subscription, create_bytes_record_batch,
+        AvailableSubjects, BuildableTrait, BuilderTrait, IPCMessage, MappableTrait, MessageBuilderTrait, Publication, RuntimeEnv, RuntimeEnvBuilderTrait, Subject, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription, create_bytes_record_batch, create_object_store_meta_batch, make_store, test_subject
     };
-    use phymes_data::{HTTPClientConfig, HTTPClientRequestSchemas, HTTPClientRequestType, ObjectStoreConfig, ObjectStoreOptsType};
+    use phymes_data::{ObjectStoreConfig, ObjectStoreOptsType};
     use phymes_diagnostics::HashMap;
 
     #[cfg(not(target_family = "wasm"))]
     use tempfile::TempDir;
-
     use crate::{
-        AvailableInterfaceSubjects, PublicationTrait, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, ToolCallSession
+        PublicationTrait, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, ToolCallSession
     };
 
     use super::*;
 
-    #[cfg(not(target_family = "wasm"))]
-    #[tokio::test]
+    // #[cfg(not(target_family = "wasm"))]
+    #[tokio::test(flavor = "current_thread")]
     async fn test_sync_content_session_w_subjects() -> Result<()> {
         // Local and remote object stores
         let local_object_store_name = "Local";
@@ -407,7 +418,7 @@ mod tests {
         let sync_content_session = SyncContentSession {
             session_context_name: "sync_content_session",
             local_object_store_name,
-            local_object_store_backend,
+            local_object_store_backend: local_object_store_backend.clone(),
             local_object_store_bucket: Some(local_object_store_bucket.to_str().unwrap()),
             remote_object_store_name,
             remote_object_store_backend: remote_object_store_backend.clone(),
@@ -433,12 +444,39 @@ mod tests {
 
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
+        let subject_name = "test_subject";
+        let test_subject = test_subject::make_test_subject(subject_name, 4, 8, 3)?;
+
+        // Local data
+        // DM: We initialize the session with a dummy `{local_object_store_name}_meta_s` that will be overwritten
 
         // Remote data
         {
+            // Writes to object store
+            let store = make_store(&remote_object_store_backend, Some(&remote_object_store_bucket.to_str().unwrap().to_string()), None)?;
+            let runtime_env = RuntimeEnv::get_builder()
+                .with_name("rt_remote_fs")
+                .with_object_store(store)
+                .with_object_store_backend(&remote_object_store_backend)
+                .with_object_store_bucket(remote_object_store_bucket.to_str().unwrap())
+                .build_arc()?;            
+            let _publication: Vec<_> = Publication::Extend {
+                    subject_name: subject_name.to_string(),
+                }
+                .publish_to_subject(
+                    &runtime_env,
+                    test_subject.clone().get_record_batches_own(),
+                    0,
+                    "",
+                    "",
+                )?
+                .unwrap()
+                .try_collect()
+                .await?;
+
             // Messages
-            let name = "list_remote_object_store_p";
-            let messages = "remote_object_store_meta_s";
+            let name = format!("list_{remote_object_store_name}_p");
+            let messages = format!("{remote_object_store_name}_meta_s");
             let config = ObjectStoreConfig {
                 timeout: 5,
                 ops_type: ObjectStoreOptsType::List,
@@ -453,7 +491,7 @@ mod tests {
             let config_batch =
                 create_bytes_record_batch(vec![config_json])?;
             let config_table = SubjectBuilder::new()
-                .with_name(name)
+                .with_name(&name)
                 .with_record_batches(vec![config_batch])?
                 .build()?;
             let _ = message_map.insert(
@@ -476,15 +514,15 @@ mod tests {
             let last_modified = vec![0_i64];
             let message_batch = create_object_store_meta_batch(location, bucket, e_tag, version, size, last_modified)?;
             let message_subject = Subject::get_builder()
-                .with_name(messages)
+                .with_name(&messages)
                 .with_record_batches(vec![message_batch])?
                 .build()?;
             let _ = message_map.insert(
                 messages.to_string(),
                 IPCMessage::get_builder()
-                    .with_name(messages)
+                    .with_name(&messages)
                     .with_publisher(sync_content_session.session_context_name)
-                    .with_subject(messages)
+                    .with_subject(&messages)
                     .with_update(&Publication::Replace {
                         subject_name: messages.to_string(),
                     })
@@ -493,36 +531,41 @@ mod tests {
             );
         }
 
-        // Writes to object store
-        let subject_name = "test_subject";
-        let test_subject = test_subject::make_test_subject(subject_name, 4, 8, 3)?;
-        let store = make_store(&remote_object_store_backend, Some(&remote_object_store_bucket.to_str().unwrap().to_string()), None)?;
-        let runtime_env = RuntimeEnv::get_builder()
-            .with_name("rt_remote_fs")
-            .with_object_store(store)
-            .with_object_store_backend(&remote_object_store_backend)
-            .with_object_store_bucket(remote_object_store_bucket.to_str().unwrap())
-            .build_arc()?;            
-        let _publication: Vec<_> = Publication::Extend {
-                subject_name: subject_name.to_string(),
-            }
-            .publish_to_subject(
-                &runtime_env,
-                test_subject.clone().get_record_batches_own(),
-                0,
-                "",
-                "",
-            )?
-            .unwrap()
-            .try_collect()
-            .await?;
-
         // Run the session
         let _ = session_ctx_arc
             .update_subjects_from_messages(session_messages.unwrap_or_default(), 0)
             .await;
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionErrors.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        if batches.len() > 0 {
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            println!("{}\n{}", AvailableSubjects::SessionErrors, String::from_utf8(subject.to_csv(b',', true)?)?);
+        }
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: AvailableSubjects::SessionTraces.to_string(),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        if batches.len() > 0 {
+            let subject = Subject::get_builder()
+                .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
+                .with_record_batches(batches)?
+                .build()?;
+            println!("{}\n{}", AvailableSubjects::SessionTraces, String::from_utf8(subject.to_csv(b',', true)?)?);
+        }
 
         assert_eq!(response.len(), 0);
 
@@ -538,7 +581,7 @@ mod tests {
             .with_name(format!("diff_{remote_object_store_name}_s").as_str())
             .with_record_batches(batches)?
             .build()?;
-        let column = subject.get_column_as_vec_str("filename");
+        let column = subject.get_column_as_vec_str("location");
         assert_eq!(column, [""]);
         let column = subject.get_column_as_vec_str("diff");
         assert_eq!(column, [""]);
@@ -623,6 +666,13 @@ mod tests {
             assert!(c > 0);
         }
 
+        let store = make_store(&local_object_store_backend, Some(&local_object_store_bucket.to_str().unwrap().to_string()), None)?;
+        let runtime_env = RuntimeEnv::get_builder()
+            .with_name("rt_remote_fs")
+            .with_object_store(store)
+            .with_object_store_backend(&local_object_store_backend)
+            .with_object_store_bucket(local_object_store_bucket.to_str().unwrap())
+            .build_arc()?; 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: subject_name.to_string(),
         }
@@ -641,9 +691,23 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn test_sync_content_session_wo_subjects() -> Result<()> {
+        // Local and remote object stores
+        let local_object_store_name = "Local";
+        let local_object_store_backend = ObjectStorageBackend::LocalFs;
+        let local_tmp_dir = TempDir::new()?;
+        let local_object_store_bucket = local_tmp_dir.path().join("LocalBucketWSubject");
+        let _ = std::fs::create_dir(&local_object_store_bucket);
+        let remote_object_store_name = "Remote";
+        let remote_object_store_backend = ObjectStorageBackend::LocalFs;
+        let remote_tmp_dir = TempDir::new()?;
+        let remote_object_store_bucket = remote_tmp_dir.path().join("RemoteBucketWSubject");
+        let _ = std::fs::create_dir(&remote_object_store_bucket);
+
         // View task session
+        let tool_call_subject = format!("list_{remote_object_store_name}_p");
+        let tool_call_subjects = [tool_call_subject.as_str()];
         let tool_call_session =
-            ToolCallSession::new("tool_call_session", &["list_remote_object_store_p", "download_json_p"]);
+            ToolCallSession::new("tool_call_session", &tool_call_subjects);
         let tool_call_session_builder = SessionContextBuilder::from_mermaid_flowchart(
             &tool_call_session.as_mermaid_flowchart(),
             false,
@@ -656,7 +720,16 @@ mod tests {
         .with_name(tool_call_session.session_context_name);
 
         // Initialize the session
-        let sync_content_session = SyncContentSession::default();
+        let sync_content_session = SyncContentSession {
+            session_context_name: "sync_content_session",
+            local_object_store_name,
+            local_object_store_backend: local_object_store_backend.clone(),
+            local_object_store_bucket: Some(local_object_store_bucket.to_str().unwrap()),
+            remote_object_store_name,
+            remote_object_store_backend: remote_object_store_backend.clone(),
+            remote_object_store_bucket: Some(remote_object_store_bucket.to_str().unwrap()),
+            ..Default::default()
+        };
         let (session_ctx, session_messages) = SessionContextBuilder::from_mermaid_flowchart(
             &sync_content_session.as_mermaid_flowchart(),
             false,
@@ -677,74 +750,95 @@ mod tests {
 
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
+        let subject_name = "test_subject";
 
-        // PDF download data
+        // Local data
+        // DM: create mock data for deletion
+        // DM, todo!(): currently, there needs to be some entries in the local metadata subject for the session to run...
+        let store = make_store(&local_object_store_backend, Some(&local_object_store_bucket.to_str().unwrap().to_string()), None)?;
+        let runtime_env = RuntimeEnv::get_builder()
+            .with_name("rt_local_fs")
+            .with_object_store(store)
+            .with_object_store_backend(&local_object_store_backend)
+            .with_object_store_bucket(local_object_store_bucket.to_str().unwrap())
+            .build_arc()?; 
         {
-            let name = "list_remote_object_store_p";
-            let id = "";
-            let download_url = format!("pdf/{id}");
-            let config = HTTPClientConfig {
-                timeout: 5,
-                request_type: HTTPClientRequestType::Get,
-                user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-                base_url: "https://arxiv.org/".to_string(),
-                request_schema: HTTPClientRequestSchemas::Attachments,
-                json: Some(download_url),
-                ..Default::default()
-            };
-            let config_json = serde_json::to_vec(&config)?;
-            let config_batch =
-                create_bytes_record_batch(vec![config_json])?;
-            let config_table = SubjectBuilder::new()
-                .with_name(name)
-                .with_record_batches(vec![config_batch])?
+            // Writes to object store
+            let test_subject = test_subject::make_test_subject(subject_name, 1, 8, 1)?;
+            let publication: Vec<_> = Publication::Extend {
+                    subject_name: subject_name.to_string(),
+                }
+                .publish_to_subject(
+                    &runtime_env,
+                    test_subject.get_record_batches_own(),
+                    0,
+                    "",
+                    "",
+                )?
+                .unwrap()
+                .try_collect()
+                .await?;
+            let messages = format!("{local_object_store_name}_meta_s");
+            let message_subject = Subject::get_builder()
+                .with_name(&messages)
+                .with_record_batches(publication)?
                 .build()?;
             let _ = message_map.insert(
-                config_table.get_name().to_string(),
+                messages.to_string(),
                 IPCMessage::get_builder()
-                    .with_name(config_table.get_name())
+                    .with_name(&messages)
                     .with_publisher(sync_content_session.session_context_name)
-                    .with_subject(config_table.get_name())
+                    .with_subject(&messages)
                     .with_update(&Publication::Replace {
-                        subject_name: config_table.get_name().to_string(),
+                        subject_name: messages.to_string(),
                     })
-                    .with_message(config_table.to_ipc_stream()?)
+                    .with_message(message_subject.to_ipc_stream()?)
                     .build()?,
             );
         }
 
-        // JSON download data
+        // Remote data
         {
-            let name = "download_json_p";
-            let mesh_term = "Diabetes Mellitus";
-            let year_from = 2020;
-            let year_to = 2023;
-            let journal_filter = Some("Lancet");
-            let mut query = format!("{mesh_term}[MeSH Terms]");
-            if let Some(journal) = journal_filter {
-                query.push_str(&format!(" AND \"{journal}\"[Journal]"));
-            }
+            // Writes to object store
+            let test_subject = test_subject::make_test_subject(subject_name, 4, 8, 3)?;
+            let store = make_store(&remote_object_store_backend, Some(&remote_object_store_bucket.to_str().unwrap().to_string()), None)?;
+            let runtime_env = RuntimeEnv::get_builder()
+                .with_name("rt_remote_fs")
+                .with_object_store(store)
+                .with_object_store_backend(&remote_object_store_backend)
+                .with_object_store_bucket(remote_object_store_bucket.to_str().unwrap())
+                .build_arc()?;            
+            let _publication: Vec<_> = Publication::Extend {
+                    subject_name: subject_name.to_string(),
+                }
+                .publish_to_subject(
+                    &runtime_env,
+                    test_subject.get_record_batches_own(),
+                    0,
+                    "",
+                    "",
+                )?
+                .unwrap()
+                .try_collect()
+                .await?;
 
-            let esearch_url = format!(
-                "db=pubmed&term={}&retmode=json&retmax=5&mindate={}&maxdate={}",
-                query,
-                year_from,
-                year_to
-            );
-            let config = HTTPClientConfig {
+            // Messages
+            let name = format!("list_{remote_object_store_name}_p");
+            let config = ObjectStoreConfig {
                 timeout: 5,
-                request_type: HTTPClientRequestType::Get,
-                user_agent_type: Some("rust-openalex-client/2.0".to_string()),
-                base_url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?".to_string(),
-                request_schema: HTTPClientRequestSchemas::Attachments,
-                json: Some(esearch_url),
+                ops_type: ObjectStoreOptsType::List,
+                backend: ObjectStorageBackend::LocalFs,
+                bucket: Some(remote_object_store_bucket.to_str().unwrap().to_string()),
+                locations: Some(vec![String::new()]),
+                chunk_size: None,
+                subject_name: None,
                 ..Default::default()
             };
             let config_json = serde_json::to_vec(&config)?;
             let config_batch =
                 create_bytes_record_batch(vec![config_json])?;
             let config_table = SubjectBuilder::new()
-                .with_name(name)
+                .with_name(&name)
                 .with_record_batches(vec![config_batch])?
                 .build()?;
             let _ = message_map.insert(
@@ -768,70 +862,231 @@ mod tests {
         let session_stream = SessionStream::new(message_map, Arc::clone(&session_ctx_arc));
         let response: Vec<HashMap<String, IPCMessage>> = session_stream.try_collect().await?;
 
+        {
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableSubjects::SessionErrors.to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            if batches.len() > 0 {
+                let subject = Subject::get_builder()
+                    .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
+                println!("{}\n{}", AvailableSubjects::SessionErrors, String::from_utf8(subject.to_csv(b',', true)?)?);
+            }
+            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+                subject_name: AvailableSubjects::SessionMetrics.to_string(),
+            }
+            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+            .unwrap()
+            .try_collect()
+            .await?;
+            if batches.len() > 0 {
+                let subject = Subject::get_builder()
+                    .with_name(AvailableSubjects::SessionMetrics.to_string().as_str())
+                    .with_record_batches(batches)?
+                    .build()?;
+                println!("{}\n{}", AvailableSubjects::SessionMetrics, String::from_utf8(subject.to_csv(b',', true)?)?);
+            }
+        }
+
         assert_eq!(response.len(), 0);
 
-        {
-            // Test supsersteps
-            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                subject_name: "list_remote_object_store_s".to_string(),
-            }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
-            let subject = Subject::get_builder()
-                .with_name("list_remote_object_store_s")
-                .with_record_batches(batches)?
-                .build()?;
-            let column = subject.get_column_as_vec_str("filename");
-            assert_eq!(column, [""]);
-            let column = subject.get_column_as_vec_str("extension");
-            assert_eq!(column, ["application/pdf"]);
-            let column = subject.get_column_as_vec_str("metadata");
-            assert_eq!(column, ["tool"]);
-            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-            for c in column {
-                assert!(c > 0);
-            }
-            let column = subject
-                .get_column_as_vec_nested_primitive::<u8>("bytes")?
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-            assert_eq!(column.len(), 505519);
-            let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-                subject_name: AvailableInterfaceSubjects::UserJson.to_string(),
-            }
-            .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
-            .unwrap()
-            .try_collect()
-            .await?;
-            let subject = Subject::get_builder()
-                .with_name(AvailableInterfaceSubjects::UserJson.to_string().as_str())
-                .with_record_batches(batches)?
-                .build()?;
-            let column = subject.get_column_as_vec_str("filename");
-            assert_eq!(
-                column,
-                [
-                    "esearch.fcgi?db=pubmed&term=Diabetes%20Mellitus%5BMeSH%20Terms%5D%20AND%20%22Lancet%22%5BJournal%5D&retmode=json&retmax=5&mindate=2020&maxdate=2023"
-                ]
-            );
-            let column = subject.get_column_as_vec_str("extension");
-            assert_eq!(column, ["application/json; charset=UTF-8"]);
-            let column = subject.get_column_as_vec_str("metadata");
-            assert_eq!(column, ["tool"]);
-            let column = subject.get_column_as_vec_primitive::<i64>("timestamp")?;
-            for c in column {
-                assert!(c > 0);
-            }
-            let column = subject
-                .get_column_as_vec_nested_primitive::<u8>("bytes")?
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-            assert_eq!(column.len(), 392);
+        // Test supsersteps
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: format!("list_{remote_object_store_name}_s"),
         }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(format!("list_{remote_object_store_name}_s").as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        let mut column = subject.get_column_as_vec_str("location")
+            .into_iter()
+            .map(|s| {
+                let mut parts = s.split("-").collect::<Vec<_>>();
+                let _ = parts.pop();
+                parts.push(".ipc");
+                parts.join("")
+            })
+            .collect::<Vec<_>>();
+        column.sort();
+        assert_eq!(column, [
+            "session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
+            "session=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",  
+            "session=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
+            ]);
+        let column = subject.get_column_as_vec_str("bucket");
+        assert!(column.first().unwrap().contains("RemoteBucketWSubject"));
+        assert!(column.get(1).unwrap().contains("RemoteBucketWSubject"));
+        assert!(column.get(2).unwrap().contains("RemoteBucketWSubject"));
+        let column = subject.get_column_as_vec_str("e_tag");
+        assert_eq!(column.len(), 3);
+        let column = subject.get_column_as_vec_str("version");
+        assert_eq!(column.len(), 3);
+        let column = subject.get_column_as_vec_primitive::<u32>("size")?;
+        assert_eq!(column, [2376, 2376, 2376]);
+        let column = subject.get_column_as_vec_primitive::<i64>("last_modified")?;
+        for c in column {
+            assert!(c > 0);
+        }
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: format!("diff_{remote_object_store_name}_s"),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(format!("diff_{remote_object_store_name}_s").as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        let column = subject.get_column_as_vec_str("location")
+            .into_iter()
+            .map(|s| {
+                let mut parts = s.split("-").collect::<Vec<_>>();
+                let _ = parts.pop();
+                parts.push(".ipc");
+                parts.join("")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(column, ["session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc", 
+            "session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc", 
+            "session=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc", 
+            "session=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
+        ]);
+        let column = subject.get_column_as_vec_str("diff");
+        assert_eq!(column.len(), 4);
+        // assert_eq!(column, ["", 
+        //     "{\"bucket\":\"/tmp/.tmpuYwLr1/RemoteBucketWSubject\",\"e_tag\":\"6adc7-64e2d4dc7e0d4-948\",\"last_modified\":1774806345703636,\"size\":2376,\"version\":\"\"}", 
+        //     "{\"bucket\":\"/tmp/.tmpuYwLr1/RemoteBucketWSubject\",\"e_tag\":\"6adc9-64e2d4dc7e0d4-948\",\"last_modified\":1774806345703636,\"size\":2376,\"version\":\"\"}", 
+        //     "{\"bucket\":\"/tmp/.tmpuYwLr1/RemoteBucketWSubject\",\"e_tag\":\"6adcb-64e2d4dc7f074-948\",\"last_modified\":1774806345707636,\"size\":2376,\"version\":\"\"}"
+        // ]);
+        let column = subject.get_column_as_vec_str("operator");
+        assert_eq!(column, ["Delete", "Create", "Create", "Create"]);
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: format!("{local_object_store_name}_meta_s"),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(format!("{local_object_store_name}_meta_s").as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        let mut column = subject.get_column_as_vec_str("location")
+            .into_iter()
+            .map(|s| {
+                let mut parts = s.split("-").collect::<Vec<_>>();
+                let _ = parts.pop();
+                parts.push(".ipc");
+                parts.join("")
+            })
+            .collect::<Vec<_>>();
+        column.sort();
+        assert_eq!(column, [
+            "session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
+            "session=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",  
+            "session=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
+            ]);
+        let column = subject.get_column_as_vec_str("bucket");
+        assert!(column.first().unwrap().contains("RemoteBucketWSubject"));
+        assert!(column.get(1).unwrap().contains("RemoteBucketWSubject"));
+        assert!(column.get(2).unwrap().contains("RemoteBucketWSubject"));
+        let column = subject.get_column_as_vec_str("e_tag");
+        assert_eq!(column.len(), 3);
+        let column = subject.get_column_as_vec_str("version");
+        assert_eq!(column.len(), 3);
+        let column = subject.get_column_as_vec_primitive::<u32>("size")?;
+        assert_eq!(column, [2376, 2376, 2376]);
+        let column = subject.get_column_as_vec_primitive::<i64>("last_modified")?;
+        for c in column {
+            assert!(c > 0);
+        }
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: format!("delete_{local_object_store_name}_s"),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(format!("delete_{local_object_store_name}_s").as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        let column = subject.get_column_as_vec_str("location")
+            .into_iter()
+            .map(|s| {
+                let mut parts = s.split("-").collect::<Vec<_>>();
+                let _ = parts.pop();
+                parts.push(".ipc");
+                parts.join("")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(column, ["session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc"]);
+        let column = subject.get_column_as_vec_str("bucket");
+        assert!(column.first().unwrap().contains("LocalBucketWSubject"));
+        let column = subject.get_column_as_vec_str("e_tag");
+        assert_eq!(column.len(), 1);
+        let column = subject.get_column_as_vec_str("version");
+        assert_eq!(column.len(), 1);
+        let column = subject.get_column_as_vec_primitive::<u32>("size")?;
+        assert_eq!(column, [0]);
+        let column = subject.get_column_as_vec_primitive::<i64>("last_modified")?;
+        for c in column {
+            assert!(c > 0);
+        }
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: format!("put_{local_object_store_name}_s"),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(format!("put_{local_object_store_name}_s").as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        let mut column = subject.get_column_as_vec_str("location")
+            .into_iter()
+            .map(|s| {
+                let mut parts = s.split("-").collect::<Vec<_>>();
+                let _ = parts.pop();
+                parts.push(".ipc");
+                parts.join("")
+            })
+            .collect::<Vec<_>>();
+        column.sort();
+        assert_eq!(column, ["session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc", 
+            "session=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc", 
+            "session=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
+            ]);
+        let column = subject.get_column_as_vec_str("bucket");
+        assert!(column.first().unwrap().contains("LocalBucketWSubject"));
+        assert!(column.get(1).unwrap().contains("LocalBucketWSubject"));
+        assert!(column.get(2).unwrap().contains("LocalBucketWSubject"));
+        let column = subject.get_column_as_vec_str("e_tag");
+        assert_eq!(column.len(), 3);
+        let column = subject.get_column_as_vec_str("version");
+        assert_eq!(column.len(), 3);
+        let column = subject.get_column_as_vec_primitive::<u32>("size")?;
+        assert_eq!(column, [2376, 2376, 2376]);
+        let column = subject.get_column_as_vec_primitive::<i64>("last_modified")?;
+        for c in column {
+            assert!(c > 0);
+        }
+
         Ok(())
     }
 }
