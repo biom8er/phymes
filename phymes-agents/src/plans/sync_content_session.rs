@@ -123,8 +123,12 @@ impl<'a> SyncContentSession<'a> {
 	get_{remote_object_store_name}_p-subscribe@{{shape: diamond, label: All}}
 	get_{remote_object_store_name}_s-subject@{{shape: doc, label: get_{remote_object_store_name}_s}}
 	%% ------------------------------------------------------------------------------
+	%% Object store Write updates and creates to local
+    %% - Multiple calls to ObjectStoreProcessor within the same tasks is not possible
+    %%   due to some issue with the Tokio runtime...
+	%% ------------------------------------------------------------------------------
 	subgraph put_{local_object_store_name}_t       
-		get_{remote_object_store_name}_s-subject-.->|AllRecordBatches|put_{local_object_store_name}_p-subscribe
+		get_{remote_object_store_name}_s-subject-.->|DrainRecordBatches|put_{local_object_store_name}_p-subscribe
 		put_{local_object_store_name}_p-subscribe-->put_{local_object_store_name}_p-processor
 		put_{local_object_store_name}_p-processor-->put_{local_object_store_name}_p-publish
 		put_{local_object_store_name}_p-publish-->|Replace|put_{local_object_store_name}_s-subject
@@ -445,14 +449,56 @@ mod tests {
         // Make the test data
         let mut message_map = HashMap::<String, IPCMessage>::new();
         let subject_name = "test_subject";
-        let test_subject = test_subject::make_test_subject(subject_name, 4, 8, 3)?;
 
         // Local data
-        // DM: We initialize the session with a dummy `{local_object_store_name}_meta_s` that will be overwritten
+        // DM: create mock data for deletion
+        // DM, todo!(): currently, there needs to be some entries in the local metadata subject for the session to run...
+        let store = make_store(&local_object_store_backend, Some(&local_object_store_bucket.to_str().unwrap().to_string()), None)?;
+        let runtime_env = RuntimeEnv::get_builder()
+            .with_name("rt_local_fs")
+            .with_object_store(store)
+            .with_object_store_backend(&local_object_store_backend)
+            .with_object_store_bucket(local_object_store_bucket.to_str().unwrap())
+            .build_arc()?; 
+        {
+            // Writes to object store
+            let test_subject = test_subject::make_test_subject(subject_name, 1, 8, 1)?;
+            let publication: Vec<_> = Publication::Extend {
+                    subject_name: subject_name.to_string(),
+                }
+                .publish_to_subject(
+                    &runtime_env,
+                    test_subject.get_record_batches_own(),
+                    0,
+                    "",
+                    "",
+                )?
+                .unwrap()
+                .try_collect()
+                .await?;
+            let messages = format!("{local_object_store_name}_meta_s");
+            let message_subject = Subject::get_builder()
+                .with_name(&messages)
+                .with_record_batches(publication)?
+                .build()?;
+            let _ = message_map.insert(
+                messages.to_string(),
+                IPCMessage::get_builder()
+                    .with_name(&messages)
+                    .with_publisher(sync_content_session.session_context_name)
+                    .with_subject(&messages)
+                    .with_update(&Publication::Replace {
+                        subject_name: messages.to_string(),
+                    })
+                    .with_message(message_subject.to_ipc_stream()?)
+                    .build()?,
+            );
+        }
 
         // Remote data
         {
             // Writes to object store
+            let test_subject = test_subject::make_test_subject(subject_name, 4, 8, 3)?;
             let store = make_store(&remote_object_store_backend, Some(&remote_object_store_bucket.to_str().unwrap().to_string()), None)?;
             let runtime_env = RuntimeEnv::get_builder()
                 .with_name("rt_remote_fs")
@@ -465,7 +511,7 @@ mod tests {
                 }
                 .publish_to_subject(
                     &runtime_env,
-                    test_subject.clone().get_record_batches_own(),
+                    test_subject.get_record_batches_own(),
                     0,
                     "",
                     "",
@@ -571,6 +617,47 @@ mod tests {
 
         // Test supsersteps
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
+            subject_name: format!("list_{remote_object_store_name}_s"),
+        }
+        .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
+        .unwrap()
+        .try_collect()
+        .await?;
+        let subject = Subject::get_builder()
+            .with_name(format!("list_{remote_object_store_name}_s").as_str())
+            .with_record_batches(batches)?
+            .build()?;
+        let mut column = subject.get_column_as_vec_str("location")
+            .into_iter()
+            .map(|s| {
+                let mut parts = s.split("-").collect::<Vec<_>>();
+                let _ = parts.pop();
+                parts.push(".ipc");
+                parts.join("")
+            })
+            .collect::<Vec<_>>();
+        column.sort();
+        assert_eq!(column, [
+            "session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
+            "session=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",  
+            "session=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
+            ]);
+        let column = subject.get_column_as_vec_str("bucket");
+        assert!(column.first().unwrap().contains("RemoteBucketWSubject"));
+        assert!(column.get(1).unwrap().contains("RemoteBucketWSubject"));
+        assert!(column.get(2).unwrap().contains("RemoteBucketWSubject"));
+        let column = subject.get_column_as_vec_str("e_tag");
+        assert_eq!(column.len(), 3);
+        let column = subject.get_column_as_vec_str("version");
+        assert_eq!(column.len(), 3);
+        let column = subject.get_column_as_vec_primitive::<u32>("size")?;
+        assert_eq!(column, [2376, 2376, 2376]);
+        let column = subject.get_column_as_vec_primitive::<i64>("last_modified")?;
+        for c in column {
+            assert!(c > 0);
+        }
+
+        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
             subject_name: format!("diff_{remote_object_store_name}_s"),
         }
         .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
@@ -581,34 +668,66 @@ mod tests {
             .with_name(format!("diff_{remote_object_store_name}_s").as_str())
             .with_record_batches(batches)?
             .build()?;
-        let column = subject.get_column_as_vec_str("location");
-        assert_eq!(column, [""]);
+        let column = subject.get_column_as_vec_str("location")
+            .into_iter()
+            .map(|s| {
+                let mut parts = s.split("-").collect::<Vec<_>>();
+                let _ = parts.pop();
+                parts.push(".ipc");
+                parts.join("")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(column, ["session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc", 
+            "session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc", 
+            "session=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc", 
+            "session=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
+        ]);
         let column = subject.get_column_as_vec_str("diff");
-        assert_eq!(column, [""]);
+        assert_eq!(column.len(), 4);
+        // assert_eq!(column, ["", 
+        //     "{\"bucket\":\"/tmp/.tmpuYwLr1/RemoteBucketWSubject\",\"e_tag\":\"6adc7-64e2d4dc7e0d4-948\",\"last_modified\":1774806345703636,\"size\":2376,\"version\":\"\"}", 
+        //     "{\"bucket\":\"/tmp/.tmpuYwLr1/RemoteBucketWSubject\",\"e_tag\":\"6adc9-64e2d4dc7e0d4-948\",\"last_modified\":1774806345703636,\"size\":2376,\"version\":\"\"}", 
+        //     "{\"bucket\":\"/tmp/.tmpuYwLr1/RemoteBucketWSubject\",\"e_tag\":\"6adcb-64e2d4dc7f074-948\",\"last_modified\":1774806345707636,\"size\":2376,\"version\":\"\"}"
+        // ]);
         let column = subject.get_column_as_vec_str("operator");
-        assert_eq!(column, [""]);
+        assert_eq!(column, ["Delete", "Create", "Create", "Create"]);
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: format!("put_{local_object_store_name}_s"),
+            subject_name: format!("{local_object_store_name}_meta_s"),
         }
         .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
         let subject = Subject::get_builder()
-            .with_name(format!("put_{local_object_store_name}_s").as_str())
+            .with_name(format!("{local_object_store_name}_meta_s").as_str())
             .with_record_batches(batches)?
             .build()?;
-        let column = subject.get_column_as_vec_str("location");
-        assert_eq!(column, [""]);
+        let mut column = subject.get_column_as_vec_str("location")
+            .into_iter()
+            .map(|s| {
+                let mut parts = s.split("-").collect::<Vec<_>>();
+                let _ = parts.pop();
+                parts.push(".ipc");
+                parts.join("")
+            })
+            .collect::<Vec<_>>();
+        column.sort();
+        assert_eq!(column, [
+            "session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc",
+            "session=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc",  
+            "session=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
+            ]);
         let column = subject.get_column_as_vec_str("bucket");
-        assert_eq!(column, [""]);
+        assert!(column.first().unwrap().contains("RemoteBucketWSubject"));
+        assert!(column.get(1).unwrap().contains("RemoteBucketWSubject"));
+        assert!(column.get(2).unwrap().contains("RemoteBucketWSubject"));
         let column = subject.get_column_as_vec_str("e_tag");
-        assert_eq!(column, [""]);
+        assert_eq!(column.len(), 3);
         let column = subject.get_column_as_vec_str("version");
-        assert_eq!(column, [""]);
+        assert_eq!(column.len(), 3);
         let column = subject.get_column_as_vec_primitive::<u32>("size")?;
-        assert_eq!(column, [0]);
+        assert_eq!(column, [2376, 2376, 2376]);
         let column = subject.get_column_as_vec_primitive::<i64>("last_modified")?;
         for c in column {
             assert!(c > 0);
@@ -625,14 +744,22 @@ mod tests {
             .with_name(format!("delete_{local_object_store_name}_s").as_str())
             .with_record_batches(batches)?
             .build()?;
-        let column = subject.get_column_as_vec_str("location");
-        assert_eq!(column, [""]);
+        let column = subject.get_column_as_vec_str("location")
+            .into_iter()
+            .map(|s| {
+                let mut parts = s.split("-").collect::<Vec<_>>();
+                let _ = parts.pop();
+                parts.push(".ipc");
+                parts.join("")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(column, ["session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc"]);
         let column = subject.get_column_as_vec_str("bucket");
-        assert_eq!(column, [""]);
+        assert!(column.first().unwrap().contains("LocalBucketWSubject"));
         let column = subject.get_column_as_vec_str("e_tag");
-        assert_eq!(column, [""]);
+        assert_eq!(column.len(), 1);
         let column = subject.get_column_as_vec_str("version");
-        assert_eq!(column, [""]);
+        assert_eq!(column.len(), 1);
         let column = subject.get_column_as_vec_primitive::<u32>("size")?;
         assert_eq!(column, [0]);
         let column = subject.get_column_as_vec_primitive::<i64>("last_modified")?;
@@ -641,50 +768,44 @@ mod tests {
         }
 
         let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: format!("{local_object_store_name}_meta_s"),
+            subject_name: format!("put_{local_object_store_name}_s"),
         }
         .subscribe_to_subject(session_ctx_arc.runtime_env(), session_ctx_arc.get_name())?
         .unwrap()
         .try_collect()
         .await?;
         let subject = Subject::get_builder()
-            .with_name(format!("{local_object_store_name}_meta_s").as_str())
+            .with_name(format!("put_{local_object_store_name}_s").as_str())
             .with_record_batches(batches)?
             .build()?;
-        let column = subject.get_column_as_vec_str("location");
-        assert_eq!(column, [""]);
+        let mut column = subject.get_column_as_vec_str("location")
+            .into_iter()
+            .map(|s| {
+                let mut parts = s.split("-").collect::<Vec<_>>();
+                let _ = parts.pop();
+                parts.push(".ipc");
+                parts.join("")
+            })
+            .collect::<Vec<_>>();
+        column.sort();
+        assert_eq!(column, ["session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc", 
+            "session=/subject=test_subject/superstep=0/publisher=/partition=1/test_subject.ipc", 
+            "session=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
+            ]);
         let column = subject.get_column_as_vec_str("bucket");
-        assert_eq!(column, [""]);
+        assert!(column.first().unwrap().contains("LocalBucketWSubject"));
+        assert!(column.get(1).unwrap().contains("LocalBucketWSubject"));
+        assert!(column.get(2).unwrap().contains("LocalBucketWSubject"));
         let column = subject.get_column_as_vec_str("e_tag");
-        assert_eq!(column, [""]);
+        assert_eq!(column.len(), 3);
         let column = subject.get_column_as_vec_str("version");
-        assert_eq!(column, [""]);
+        assert_eq!(column.len(), 3);
         let column = subject.get_column_as_vec_primitive::<u32>("size")?;
-        assert_eq!(column, [0]);
+        assert_eq!(column, [2376, 2376, 2376]);
         let column = subject.get_column_as_vec_primitive::<i64>("last_modified")?;
         for c in column {
             assert!(c > 0);
         }
-
-        let store = make_store(&local_object_store_backend, Some(&local_object_store_bucket.to_str().unwrap().to_string()), None)?;
-        let runtime_env = RuntimeEnv::get_builder()
-            .with_name("rt_remote_fs")
-            .with_object_store(store)
-            .with_object_store_backend(&local_object_store_backend)
-            .with_object_store_bucket(local_object_store_bucket.to_str().unwrap())
-            .build_arc()?; 
-        let batches: Vec<_> = Subscription::AlwaysAllRecordBatches {
-            subject_name: subject_name.to_string(),
-        }
-        .subscribe_to_subject(&runtime_env, "")?
-        .unwrap()
-        .try_collect()
-        .await?;
-        let subject = Subject::get_builder()
-            .with_name(&subject_name)
-            .with_record_batches(batches)?
-            .build()?;
-        assert_eq!(subject, test_subject);
 
         Ok(())
     }
@@ -695,12 +816,12 @@ mod tests {
         let local_object_store_name = "Local";
         let local_object_store_backend = ObjectStorageBackend::LocalFs;
         let local_tmp_dir = TempDir::new()?;
-        let local_object_store_bucket = local_tmp_dir.path().join("LocalBucketWSubject");
+        let local_object_store_bucket = local_tmp_dir.path().join("LocalBucketWOSubject");
         let _ = std::fs::create_dir(&local_object_store_bucket);
         let remote_object_store_name = "Remote";
         let remote_object_store_backend = ObjectStorageBackend::LocalFs;
         let remote_tmp_dir = TempDir::new()?;
-        let remote_object_store_bucket = remote_tmp_dir.path().join("RemoteBucketWSubject");
+        let remote_object_store_bucket = remote_tmp_dir.path().join("RemoteBucketWOSubject");
         let _ = std::fs::create_dir(&remote_object_store_bucket);
 
         // View task session
@@ -923,9 +1044,9 @@ mod tests {
             "session=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
             ]);
         let column = subject.get_column_as_vec_str("bucket");
-        assert!(column.first().unwrap().contains("RemoteBucketWSubject"));
-        assert!(column.get(1).unwrap().contains("RemoteBucketWSubject"));
-        assert!(column.get(2).unwrap().contains("RemoteBucketWSubject"));
+        assert!(column.first().unwrap().contains("RemoteBucketWOSubject"));
+        assert!(column.get(1).unwrap().contains("RemoteBucketWOSubject"));
+        assert!(column.get(2).unwrap().contains("RemoteBucketWOSubject"));
         let column = subject.get_column_as_vec_str("e_tag");
         assert_eq!(column.len(), 3);
         let column = subject.get_column_as_vec_str("version");
@@ -965,9 +1086,9 @@ mod tests {
         let column = subject.get_column_as_vec_str("diff");
         assert_eq!(column.len(), 4);
         // assert_eq!(column, ["", 
-        //     "{\"bucket\":\"/tmp/.tmpuYwLr1/RemoteBucketWSubject\",\"e_tag\":\"6adc7-64e2d4dc7e0d4-948\",\"last_modified\":1774806345703636,\"size\":2376,\"version\":\"\"}", 
-        //     "{\"bucket\":\"/tmp/.tmpuYwLr1/RemoteBucketWSubject\",\"e_tag\":\"6adc9-64e2d4dc7e0d4-948\",\"last_modified\":1774806345703636,\"size\":2376,\"version\":\"\"}", 
-        //     "{\"bucket\":\"/tmp/.tmpuYwLr1/RemoteBucketWSubject\",\"e_tag\":\"6adcb-64e2d4dc7f074-948\",\"last_modified\":1774806345707636,\"size\":2376,\"version\":\"\"}"
+        //     "{\"bucket\":\"/tmp/.tmpuYwLr1/RemoteBucketWOSubject\",\"e_tag\":\"6adc7-64e2d4dc7e0d4-948\",\"last_modified\":1774806345703636,\"size\":2376,\"version\":\"\"}", 
+        //     "{\"bucket\":\"/tmp/.tmpuYwLr1/RemoteBucketWOSubject\",\"e_tag\":\"6adc9-64e2d4dc7e0d4-948\",\"last_modified\":1774806345703636,\"size\":2376,\"version\":\"\"}", 
+        //     "{\"bucket\":\"/tmp/.tmpuYwLr1/RemoteBucketWOSubject\",\"e_tag\":\"6adcb-64e2d4dc7f074-948\",\"last_modified\":1774806345707636,\"size\":2376,\"version\":\"\"}"
         // ]);
         let column = subject.get_column_as_vec_str("operator");
         assert_eq!(column, ["Delete", "Create", "Create", "Create"]);
@@ -999,9 +1120,9 @@ mod tests {
             "session=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
             ]);
         let column = subject.get_column_as_vec_str("bucket");
-        assert!(column.first().unwrap().contains("RemoteBucketWSubject"));
-        assert!(column.get(1).unwrap().contains("RemoteBucketWSubject"));
-        assert!(column.get(2).unwrap().contains("RemoteBucketWSubject"));
+        assert!(column.first().unwrap().contains("RemoteBucketWOSubject"));
+        assert!(column.get(1).unwrap().contains("RemoteBucketWOSubject"));
+        assert!(column.get(2).unwrap().contains("RemoteBucketWOSubject"));
         let column = subject.get_column_as_vec_str("e_tag");
         assert_eq!(column.len(), 3);
         let column = subject.get_column_as_vec_str("version");
@@ -1035,7 +1156,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(column, ["session=/subject=test_subject/superstep=0/publisher=/partition=0/test_subject.ipc"]);
         let column = subject.get_column_as_vec_str("bucket");
-        assert!(column.first().unwrap().contains("LocalBucketWSubject"));
+        assert!(column.first().unwrap().contains("LocalBucketWOSubject"));
         let column = subject.get_column_as_vec_str("e_tag");
         assert_eq!(column.len(), 1);
         let column = subject.get_column_as_vec_str("version");
@@ -1073,9 +1194,9 @@ mod tests {
             "session=/subject=test_subject/superstep=0/publisher=/partition=2/test_subject.ipc"
             ]);
         let column = subject.get_column_as_vec_str("bucket");
-        assert!(column.first().unwrap().contains("LocalBucketWSubject"));
-        assert!(column.get(1).unwrap().contains("LocalBucketWSubject"));
-        assert!(column.get(2).unwrap().contains("LocalBucketWSubject"));
+        assert!(column.first().unwrap().contains("LocalBucketWOSubject"));
+        assert!(column.get(1).unwrap().contains("LocalBucketWOSubject"));
+        assert!(column.get(2).unwrap().contains("LocalBucketWOSubject"));
         let column = subject.get_column_as_vec_str("e_tag");
         assert_eq!(column.len(), 3);
         let column = subject.get_column_as_vec_str("version");

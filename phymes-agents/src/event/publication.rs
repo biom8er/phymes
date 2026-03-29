@@ -454,7 +454,7 @@ impl PublicationTrait for Publication {
                 let stream = extend_subject(runtime_env, session_name, sn, new, step, publisher)?;
                 let stream = Box::pin(RecordBatchStreamAdapter::new(
                     Arc::clone(&stream.schema()),
-                    clear.chain(stream),
+                    clear.chain(stream)
                 ));
                 Ok(Some(stream))
             }

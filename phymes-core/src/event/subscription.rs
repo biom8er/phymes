@@ -9,6 +9,8 @@ use crate::MappableTrait;
 pub enum Subscription {
     /// Only when the subject has been updated, copy the full table
     OnUpdateAllRecordBatches { subject_name: String },
+    /// Only when the subject has been updated, copy and delete the full table
+    OnUpdateDrainRecordBatches { subject_name: String },
     /// Only when the subject has been updated, and just a copy of the last RecordBatch
     OnUpdateLastRecordBatch { subject_name: String },
     /// Only when the subject has been updated, but don't copy or take any data
@@ -30,6 +32,7 @@ impl Subscription {
     pub fn subject_name(&self) -> &str {
         match self {
             Self::OnUpdateAllRecordBatches { subject_name: tn } => tn,
+            Self::OnUpdateDrainRecordBatches { subject_name: tn } => tn,
             Self::OnUpdateLastRecordBatch { subject_name: tn } => tn,
             Self::OnUpdateEmpty { subject_name: tn } => tn,
             Self::AlwaysAllRecordBatches { subject_name: tn } => tn,
@@ -45,6 +48,9 @@ impl Subscription {
         match self {
             Self::OnUpdateAllRecordBatches { subject_name: tn } => {
                 format!("OnUpdateAllRecordBatches-{tn}")
+            }
+            Self::OnUpdateDrainRecordBatches { subject_name: tn } => {
+                format!("OnUpdateDrainRecordBatches-{tn}")
             }
             Self::OnUpdateLastRecordBatch { subject_name: tn } => {
                 format!("OnUpdateLastRecordBatch-{tn}")
@@ -65,6 +71,7 @@ impl Subscription {
     pub fn is_update(&self) -> bool {
         match self {
             Self::OnUpdateAllRecordBatches { subject_name: _tn }
+            | Self::OnUpdateDrainRecordBatches { subject_name: _tn }
             | Self::OnUpdateLastRecordBatch { subject_name: _tn }
             | Self::OnUpdateEmpty { subject_name: _tn } => true,
             Self::AlwaysAllRecordBatches { subject_name: _tn }
@@ -78,6 +85,7 @@ impl Subscription {
     pub fn short_name(&self) -> &str {
         match self {
             Self::OnUpdateAllRecordBatches { subject_name: _tn } => "AllRecordBatches",
+            Self::OnUpdateDrainRecordBatches { subject_name: _tn } => "DrainRecordBatches",
             Self::OnUpdateLastRecordBatch { subject_name: _tn } => "LastRecordBatch",
             Self::OnUpdateEmpty { subject_name: _tn } => "Empty",
             Self::AlwaysAllRecordBatches { subject_name: _tn } => "AllRecordBatches",
@@ -91,6 +99,10 @@ impl Subscription {
     pub fn from_str_fuzzy(name: &str, subject: &str) -> Result<Subscription> {
         let subscription = if name.contains("OnUpdateAllRecordBatches") {
             Subscription::OnUpdateAllRecordBatches {
+                subject_name: subject.to_string(),
+            }
+        } else if name.contains("OnUpdateDrainRecordBatches") {
+            Subscription::OnUpdateDrainRecordBatches {
                 subject_name: subject.to_string(),
             }
         } else if name.contains("AlwaysAllRecordBatches") {
@@ -126,6 +138,10 @@ impl Subscription {
             Ok(Subscription::OnUpdateAllRecordBatches {
                 subject_name: subject.to_string(),
             })
+        } else if line.contains("|") & line.contains("-.->") & line.contains("DrainRecordBatches") {
+            Ok(Subscription::OnUpdateDrainRecordBatches {
+                subject_name: subject.to_string(),
+            })
         } else if line.contains("|") & line.contains("-->") & line.contains("AllRecordBatches") {
             Ok(Subscription::AlwaysAllRecordBatches {
                 subject_name: subject.to_string(),
@@ -156,6 +172,7 @@ impl MappableTrait for Subscription {
     fn get_name(&self) -> &str {
         match self {
             Self::OnUpdateAllRecordBatches { subject_name: _tn } => "OnUpdateAllRecordBatches",
+            Self::OnUpdateDrainRecordBatches { subject_name: _tn } => "OnUpdateDrainRecordBatches",
             Self::OnUpdateLastRecordBatch { subject_name: _tn } => "OnUpdateLastRecordBatch",
             Self::OnUpdateEmpty { subject_name: _tn } => "OnUpdateEmpty",
             Self::AlwaysAllRecordBatches { subject_name: _tn } => "AlwaysAllRecordBatches",
@@ -188,6 +205,13 @@ mod tests {
 
         let line = "message_parsing-subject-.->|AllRecordBatches|message_parser-subscribe";
         let publication = Subscription::OnUpdateAllRecordBatches {
+            subject_name: subject.to_string(),
+        };
+        let test = Subscription::from_str_mermaid(line, subject)?;
+        assert_eq!(test, publication);
+
+        let line = "message_parsing-subject-.->|DrainRecordBatches|message_parser-subscribe";
+        let publication = Subscription::OnUpdateDrainRecordBatches {
             subject_name: subject.to_string(),
         };
         let test = Subscription::from_str_mermaid(line, subject)?;

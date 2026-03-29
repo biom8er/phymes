@@ -1,10 +1,8 @@
 use anyhow::Result;
 use arrow::datatypes::Schema;
+use futures::{StreamExt, TryStreamExt};
 use phymes_core::{
-    AvailableSubjects, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, MessageBuilderTrait,
-    ObjectStorageBackend, Publication, RecordBatchStreamAdapter, RuntimeEnv,
-    SendableRecordBatchStream, SendableRecordBatchStreamMessage, SubjectBuilder,
-    SubjectBuilderTrait, SubjectTrait, Subscription,
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, MessageBuilderTrait, ObjectStorageBackend, Publication, RecordBatchStreamAdapter, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription
 };
 use phymes_data::{
     AvailableCandleOperators, CandleDataStream, DataConfig, DataStreamManager, LimitConfig,
@@ -12,6 +10,8 @@ use phymes_data::{
 };
 use phymes_diagnostics::HashMap;
 use std::sync::Arc;
+
+use crate::clear_subject;
 
 /// List all partitions of a subject (with optional restriction to the last one)
 pub fn list_subject(
@@ -239,6 +239,23 @@ impl SubscriptionTrait for Subscription {
                 let stream = get_subject(runtime_env, sn, stream)?;
                 Ok(Some(stream))
             }
+            Self::OnUpdateDrainRecordBatches { subject_name: sn } => {
+                // List the partitions (RecordBatches)
+                let stream = list_subject(runtime_env, session_name, sn, false)?;
+
+                // Get all partitions (RecordBatches)
+                let stream = get_subject(runtime_env, sn, stream)?;
+                let schema = stream.schema(); // DM: an empty schema!
+
+                // Clear all partitions (RecordBatches)
+                let clear = clear_subject(runtime_env, session_name, sn, false)?;
+                let chain = stream.chain(clear).try_filter(move |b| futures::future::ready(!b.schema().eq(&AvailableSubjects::ObjectStoreMeta.to_schema())));
+                let stream = Box::pin(RecordBatchStreamAdapter::new(
+                    schema,
+                    chain,
+                ));
+                Ok(Some(stream))
+            }
             Self::AlwaysLastRecordBatch { subject_name: sn }
             | Self::OnUpdateLastRecordBatch { subject_name: sn } => {
                 // List the last partition (RecordBatch)
@@ -345,6 +362,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_subscribe_last_record_batches() -> Result<()> {
+        // Create some dummy batches and write them to object storage
         let subject_name = "test_table";
         let old = test_subject::make_test_subject(subject_name, 4, 0, 3)?;
         let runtime_env = Arc::new(RuntimeEnv::default());
@@ -363,6 +381,8 @@ mod tests {
         .unwrap()
         .try_collect()
         .await?;
+
+        // Test the last RecordBatch
         let batches: Vec<_> = Subscription::AlwaysLastRecordBatch {
             subject_name: subject_name.to_string(),
         }
@@ -389,6 +409,8 @@ mod tests {
             .build()?;
         assert_eq!(subject.get_record_batches().len(), 1);
         assert_eq!(subject.count_rows(), 1);
+
+        // Test all RecordBatches
         let batches: Vec<_> = Subscription::OnUpdateAllRecordBatches {
             subject_name: subject_name.to_string(),
         }
@@ -402,6 +424,34 @@ mod tests {
             .build()?;
         assert_eq!(subject.get_record_batches().len(), 4);
         assert_eq!(subject.count_rows(), 13);
+
+        // Test drain RecordBatches
+        let batches: Vec<_> = Subscription::OnUpdateDrainRecordBatches {
+            subject_name: subject_name.to_string(),
+        }
+        .subscribe_to_subject(&runtime_env, "")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        // let schema = batches.first().unwrap().schema();
+        // let batches = batches.into_iter()
+        //     .filter(|b| b.schema().eq(&schema))
+        //     .collect::<Vec<_>>();
+        dbg!(&batches);
+        let subject = Subject::get_builder()
+            .with_name(subject_name)
+            .with_record_batches(batches)?
+            .build()?;
+        assert_eq!(subject.get_record_batches().len(), 4);
+        assert_eq!(subject.count_rows(), 13);
+        let batches: Vec<_> = Subscription::OnUpdateAllRecordBatches {
+            subject_name: subject_name.to_string(),
+        }
+        .subscribe_to_subject(&runtime_env, "")?
+        .unwrap()
+        .try_collect()
+        .await?;
+        assert!(batches.is_empty());
         Ok(())
     }
 }
