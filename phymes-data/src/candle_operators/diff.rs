@@ -127,7 +127,6 @@ impl DataOperatorTrait for Diff {
         ))?;
         let diff = config
             .diff
-            .clone()
             .ok_or(anyhow!("Missing `diff` for `{}`.", Self::get_static_name()))?;
 
         if rhs_values.len() != lhs_values.len() {
@@ -359,9 +358,7 @@ pub fn diff(
         .zip(rhs_values_col.into_iter())
         .enumerate()
         .filter_map(|(i, (l, r))| {
-            if l.is_empty() && r.is_empty() {
-                None
-            } else if l == r {
+            if l == r {
                 None
             } else {
                 Some((i, l, r))

@@ -20,11 +20,11 @@ async fn main() -> Result<()> {
 
     // create the runtime
     let runtime_env = if let Some(bucket) = config.object_store_bucket.as_ref() {
-        let store = make_store(&ObjectStorageBackend::LocalFs, Some(bucket), None)?;
+        let store = make_store(&ObjectStorageBackend::InMemory, Some(bucket), None)?;
         RuntimeEnv::get_builder()
             .with_name("Serverless App Runtime Environment")
             .with_object_store(store)
-            .with_object_store_backend(&ObjectStorageBackend::LocalFs)
+            .with_object_store_backend(&ObjectStorageBackend::InMemory)
             .with_object_store_bucket(bucket)
             .build_arc()?
     } else {
