@@ -14,7 +14,7 @@ use crate::{SessionContext, Task, TaskBuilderTrait, TaskMap, TaskPlan};
 pub trait SessionContextBuilderTrait: BuilderTrait {
     /// The [ProcessorPlan]s to include in the session
     fn with_processors(self, processors: Vec<ProcessorPlan>) -> Self;
-    /// The [SubjectPlan]s with optional initial subject [Table]s to launch the session with
+    /// The [SubjectPlan]s with optional initial subject [Subject]s to launch the session with
     fn with_subjects(self, subjects: Vec<SubjectPlan>) -> Self;
     /// The [RuntimeEnv] configuration for session execution
     fn with_runtime_env(self, runtime_env: Arc<RuntimeEnv>) -> Self;
@@ -30,7 +30,7 @@ pub trait SessionContextBuilderTrait: BuilderTrait {
     fn check_processors(&self) -> Result<()>;
     /// Check the [RuntimeEnv]
     fn check_runtime_env(&self) -> Result<()>;
-    /// Check that all subject [Table]s defined in the subjects and subscribed to by the [ProcessorTrait]s are accounted for
+    /// Check that all subject [Subject]s defined in the subjects and subscribed to by the [ProcessorTrait]s are accounted for
     ///
     /// [ProcessorTrait]: phymes_core::ProcessorTrait
     fn check_subjects(&self) -> Result<()>;

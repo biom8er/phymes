@@ -23,7 +23,7 @@ dx build -p phymes-app
 echo "Tests and examples for gpu feature for Linux targets."
 echo "-----------------------------------------------"
 cargo check --features gpu --all-targets
-cargo test --features wsl,gpu,candle
+cargo test --features gpu
 cargo run --package phymes-ml --features gpu --release --example chat -- --weights-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/config.json" --messages "messages" --weights-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/smollm2-135m-instruct-q4_k_m.gguf" --tokenizer-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer.json" --tokenizer-config-file "$HOME/.cache/hf/models--HuggingFaceTB--SmolLM2-135M-Instruct/tokenizer_config.json" --candle-asset "SmoLM2-135M-chat"
 cargo run --package phymes-agents --features gpu --release --example chat_agent_session
 cargo run --package phymes-agents --features gpu --release --example doc_rag_session

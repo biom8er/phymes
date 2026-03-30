@@ -5,7 +5,7 @@ use arrow::array::RecordBatch;
 pub trait StorageReaderTrait {
     type SR;
 
-    /// Build the [StorageReader] after polling `get_result` and `stream_result`
+    /// Build the `StorageReader` after polling `get_result` and `stream_result`
     fn new(reader: Self::SR) -> Self
     where
         Self: Sized;

@@ -268,7 +268,7 @@ pub async fn session_get_state(
             .unwrap();
             if batches.is_empty() {
                 Body::from(Bytes::new()).into_response()
-            } else {     
+            } else {
                 let subject = Subject::get_builder()
                     .with_name(payload.get_subject())
                     .with_record_batches(batches)

@@ -40,8 +40,8 @@ impl AvailableSubscribeEvents {
             Self::ChatContentSubscribe => ChatContentSubscribe::new_box(),
         }
     }
-    /// Convert a [String] to a [TableSubscribeEventTrait]
-    ///   by checking if the [String] contains the [TableSubscribeEventTrait] name
+    /// Convert a [String] to a [SubscribeEventTrait]
+    ///   by checking if the [String] contains the [SubscribeEventTrait] name
     pub fn from_str_fuzzy(policy: &str) -> Result<Self> {
         let subscribe = if policy.contains(AllSubjectSchemasSubscribe::get_static_name()) {
             AvailableSubscribeEvents::AllSubjectSchemasSubscribe

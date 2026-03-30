@@ -28,13 +28,13 @@ use reqwest::{self, header::CONTENT_TYPE};
 use super::backend::ADDR_BACKEND;
 
 #[cfg(feature = "serverless")]
+use crate::state::RUNTIME_ENV;
+#[cfg(feature = "serverless")]
 use bytes::Bytes;
 #[cfg(feature = "serverless")]
 use futures::TryStreamExt;
 #[cfg(feature = "serverless")]
 use phymes_server::{serverless_app, Serverless, ServerlessConfig};
-#[cfg(feature = "serverless")]
-use crate::state::RUNTIME_ENV;
 
 /// View for the builds drop down menu
 #[component]

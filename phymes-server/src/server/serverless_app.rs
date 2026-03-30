@@ -42,7 +42,7 @@ pub async fn serverless_app(
     // start building the request
     let url = format!("https://serverless/{}", config.route);
     let request_builder = Request::builder().method("POST").uri(url);
-    dbg!(&config);
+
     let response = if let Some(credentials) = config.basic_auth {
         // Parse the credentials
         let mid = credentials.find(":");

@@ -17,13 +17,13 @@ use super::backend::ADDR_BACKEND;
 use futures::StreamExt;
 
 #[cfg(feature = "serverless")]
+use crate::state::RUNTIME_ENV;
+#[cfg(feature = "serverless")]
 use bytes::Bytes;
 #[cfg(feature = "serverless")]
 use futures::TryStreamExt;
 #[cfg(feature = "serverless")]
 use phymes_server::{serverless_app, Serverless, ServerlessConfig};
-#[cfg(feature = "serverless")]
-use crate::state::RUNTIME_ENV;
 
 use crate::state::{
     extension_and_file_to_data_href, extension_to_icon_svg, extension_to_subject,

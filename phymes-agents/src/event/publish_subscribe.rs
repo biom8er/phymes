@@ -23,7 +23,10 @@ use crate::SubscriptionTrait;
 ///
 /// * `subscriptions` - `HashMap<String, bool>` where the key is the subscription table name
 ///   and the value is whether the table has been updated or not
-/// * `state` - [StateMap] with the subjects
+/// * `publications`
+/// * `runtime_env`
+/// * `session_name`
+/// * `messages`
 ///
 /// # Returns
 /// [SendableRecordBatchStreamMessageMap] with unique names to prevent collisions in the `HashMap`

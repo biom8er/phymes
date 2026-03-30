@@ -61,12 +61,14 @@ pub struct BTreeEntry<K, V> {
 ///
 /// Example usage for creating a BTree index using Apache Arrow and Rust
 ///
-/// ```norun
+/// ```no_run
 /// use arrow::array::{Array, Int32Array};
+/// use arrow::datatypes::Schema;
 /// use arrow::record_batch::RecordBatch;
 /// use std::collections::BTreeMap;
 ///
 /// // 1. Get the column you want to index (e.g., "id" at index 0)
+/// let batch = RecordBatch::new_empty(std::sync::Arc::new(Schema::empty()));
 /// let column = batch.column(0).as_any().downcast_ref::<Int32Array>().unwrap();
 ///
 /// // 2. Build the BTreeMap (Key: Column Value, Value: Row Index)

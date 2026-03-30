@@ -62,7 +62,7 @@ impl Display for ObjectStoreOptsType {
 ///   See <https://docs.rs/object_store/latest/object_store/throttle/struct.ThrottleConfig.html>
 ///
 /// - Other Get/Put/... specific configurations
-///   See individutal `options` per operation <https://docs.rs/object_store/latest/object_store/trait.ObjectStore.html?
+///   See individutal `options` per operation <https://docs.rs/object_store/latest/object_store/trait.ObjectStore.html>
 ///
 /// - Other options including projections (column subsetting), filtering, etc.
 ///

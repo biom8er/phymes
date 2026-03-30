@@ -531,7 +531,7 @@ pub trait DataConfigTrait {
     where
         Self: Serialize;
 
-    /// Build the config from a [Table]
+    /// Build the config from a [Subject]
     fn from_table(table: &Subject) -> Result<Self>
     where
         Self: Sized;
@@ -631,7 +631,7 @@ pub struct DataConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub diff: Option<DiffType>,
 
-    /// Universal Diff or V4a Diff in a serialized JSON [Value] representing
+    /// Universal Diff or V4a Diff in a serialized JSON `Value` representing
     ///   a `Vec<WorkspacePatchSubject>>`
     #[arg(long)]
     #[serde(skip_serializing_if = "Option::is_none")]

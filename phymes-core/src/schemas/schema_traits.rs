@@ -14,11 +14,13 @@ pub trait JsonSchemaTrait {
 }
 
 /// Materialize the [Schema] for the object
+/// 
+/// [Schema]: arrow::datatypes::Schema
 pub trait AvailableSchemaTrait {
     fn to_schema(&self) -> SchemaRef;
 }
 
-/// Materialize the [Table] or [TableBuilder] for building the table for the object
+/// Materialize the [Subject] or [SubjectBuilder] for building the [RecordBatch]es for the object
 pub trait AvailableSubjectsTrait: AvailableSchemaTrait {
     fn to_subject(&self, name: Option<&str>, batches: Option<Vec<RecordBatch>>) -> Result<Subject>;
     fn to_subject_builder(&self, name: Option<&str>) -> SubjectBuilder;

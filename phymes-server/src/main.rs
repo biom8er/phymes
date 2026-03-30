@@ -7,7 +7,7 @@ use clap::Parser;
 async fn main() -> Result<()> {
     use bytes::Bytes;
     use futures::TryStreamExt;
-    use futures_executor::block_on;
+    // use futures_executor::block_on;
     use phymes_core::{
         BuildableTrait, BuilderTrait, ObjectStorageBackend, RuntimeEnv, RuntimeEnvBuilderTrait,
         make_store,
@@ -38,7 +38,11 @@ async fn main() -> Result<()> {
     let response = serverless_app(config, &mut serverless).await.unwrap();
 
     // parse the response
-    let bytes: Vec<Bytes> = response.into_body().into_data_stream().try_collect().await?;
+    let bytes: Vec<Bytes> = response
+        .into_body()
+        .into_data_stream()
+        .try_collect()
+        .await?;
     // DM: blocking on the response results in an empty array for session_stream...
     // let bytes: Vec<Bytes> = block_on(response.into_body().into_data_stream().try_collect()).unwrap();
 

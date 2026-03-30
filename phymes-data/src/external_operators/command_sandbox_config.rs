@@ -400,6 +400,8 @@ pub enum DataIOMethod {
     /// # Notes
     /// * The schema between input and output data must be the same since JSON is used and we need to know the schema
     ///   to correctly interpret the JSON data types
+    /// 
+    /// [RecordBatch]: arrow::array::RecordBatch
     #[default]
     #[value(name = "Stdio")]
     Stdio,
@@ -407,6 +409,8 @@ pub enum DataIOMethod {
     ///
     /// The [RecordBatch]es will be serialized as IPC and written to a named temporary file called `lhs_args.ipc`
     /// and the output will be deserialized from IPC from the same temporary file
+    /// 
+    /// [RecordBatch]: arrow::array::RecordBatch
     #[value(name = "TempFile")]
     TempFile,
     /// Use the config and ignore the batches

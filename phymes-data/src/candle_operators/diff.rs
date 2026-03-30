@@ -357,13 +357,7 @@ pub fn diff(
         .into_iter()
         .zip(rhs_values_col.into_iter())
         .enumerate()
-        .filter_map(|(i, (l, r))| {
-            if l == r {
-                None
-            } else {
-                Some((i, l, r))
-            }
-        })
+        .filter_map(|(i, (l, r))| if l == r { None } else { Some((i, l, r)) })
         .map(|(i, l, r)| {
             if l.is_empty() {
                 Ok((i, r.to_string(), PatchOperator::Create.to_string()))

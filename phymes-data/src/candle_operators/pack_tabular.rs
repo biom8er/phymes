@@ -154,10 +154,10 @@ fn encode_bytes(encoding: &DataEncoding, bytes: &[u8]) -> Result<Vec<u8>> {
     Ok(bytes_encoded)
 }
 
-/// Helper function to convert a [Table] into the desired output [DataFormat]
+/// Helper function to convert a [Subject] into the desired output [DataFormat]
 ///
 /// # Arguments
-/// `table` - the [Table] containing the data
+/// `table` - the [Subject] containing the data
 /// `encoding` - the desired output [DataEncoding]
 /// `format` - the desired output [DataFormat]
 /// `schema` - the desired output [AvailableSubjects]

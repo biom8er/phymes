@@ -8,18 +8,18 @@ use crate::state::{
 use dioxus::prelude::*;
 
 #[cfg(not(feature = "serverless"))]
-use reqwest::{self, header::CONTENT_TYPE};
-#[cfg(not(feature = "serverless"))]
 use super::backend::ADDR_BACKEND;
+#[cfg(not(feature = "serverless"))]
+use reqwest::{self, header::CONTENT_TYPE};
 
+#[cfg(feature = "serverless")]
+use crate::state::RUNTIME_ENV;
 #[cfg(feature = "serverless")]
 use bytes::Bytes;
 #[cfg(feature = "serverless")]
 use futures::TryStreamExt;
 #[cfg(feature = "serverless")]
 use phymes_server::{serverless_app, Serverless, ServerlessConfig};
-#[cfg(feature = "serverless")]
-use crate::state::RUNTIME_ENV;
 
 /// View for the user to sign-in
 #[component]

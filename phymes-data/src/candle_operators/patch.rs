@@ -273,7 +273,8 @@ pub fn patch(
             &["delete"],
             &[DataComparatorOperator::Like],
             &DataComparatorPredicate::All,
-            device,
+            &Device::Cpu, // DM: Memory errors on GPU
+                          // device,
         )?
     };
 
@@ -406,7 +407,8 @@ pub fn patch(
                 &[lhs_pk],
                 &[DataComparatorOperator::NotInListUtf8],
                 &DataComparatorPredicate::All,
-                device,
+                &Device::Cpu, // DM: Memory errors on GPU
+                              // device,
             )?
         }
         // DM: and the other nested types...
@@ -494,7 +496,8 @@ pub fn patch(
             &["update"],
             &[DataComparatorOperator::Like],
             &DataComparatorPredicate::All,
-            device,
+            &Device::Cpu, // DM: Memory errors on GPU
+                          // device,
         )?;
         let select_lhs_cols = rhs_columns.iter().map(|f| f.as_str()).collect::<Vec<_>>();
         let select_rhs_cols = select_lhs_cols.iter().map(|_| "").collect::<Vec<_>>();
@@ -542,7 +545,8 @@ pub fn patch(
             rhs_pk,
             &[rhs_update],
             &DataJoinOperator::LeftOuter,
-            device,
+            &Device::Cpu, // DM: Memory errors on GPU
+                          // device,
         )?;
 
         // Apply `Update`
@@ -629,7 +633,8 @@ pub fn patch(
             &["create"],
             &[DataComparatorOperator::Like],
             &DataComparatorPredicate::All,
-            device,
+            &Device::Cpu, // DM: Memory errors on GPU
+                          // device,
         )?
     };
 
@@ -650,7 +655,8 @@ pub fn patch(
             rhs_pk,
             &[rhs_create],
             &DataJoinOperator::FullOuter,
-            device,
+            &Device::Cpu, // DM: Memory errors on GPU
+                          // device,
         )?;
 
         // Apply `Create`
