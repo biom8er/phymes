@@ -65,13 +65,13 @@ impl std::fmt::Display for DiffType {
 ///
 /// ### DMP features:
 /// - `@@ -<n>,<n> +<n>,<n> @@` style header
-/// 
+///
 /// ### V4A features:
 /// - bare `@@` or `@@ <context>` without line/col metadata
 /// - section markers: `*** End Patch`, `*** End of File`, `*** Update File:`,
 ///   `*** Add File:`, `*** Delete File:`
 /// - leading `+`/`-`/` ` lines without any DMP header present
-/// 
+///
 /// ### Map features:
 /// - leading and trailing brackets i.e., `{...}`
 /// - JSON deserializable
@@ -119,7 +119,7 @@ fn classify_diff(diff: &str) -> DiffType {
             DiffType::V4A
         } else {
             DiffType::Unknown
-        }        
+        }
     }
 }
 
@@ -146,8 +146,12 @@ pub fn apply_patch_auto(original: &str, diff: &str, create: bool) -> Result<Stri
             if create {
                 Ok(diff.to_string())
             } else {
-                let diff_map = serde_json::from_str::<Map<String, Value>>(diff)?.into_iter().collect::<HashMap<_, _>>();
-                let mut original_map = serde_json::from_str::<Map<String, Value>>(original)?.into_iter().collect::<HashMap<_, _>>();
+                let diff_map = serde_json::from_str::<Map<String, Value>>(diff)?
+                    .into_iter()
+                    .collect::<HashMap<_, _>>();
+                let mut original_map = serde_json::from_str::<Map<String, Value>>(original)?
+                    .into_iter()
+                    .collect::<HashMap<_, _>>();
                 original_map.extend(diff_map);
                 let patch_map = original_map.into_iter().collect::<Map<_, _>>();
                 let patch = serde_json::to_string(&patch_map)?;
@@ -163,7 +167,7 @@ pub fn apply_patch_auto(original: &str, diff: &str, create: bool) -> Result<Stri
 /// Compute the difference between an `original` and `modified` [String]
 pub fn compute_diff(original: &str, modified: &str, diff: &DiffType) -> Result<String> {
     match diff {
-        DiffType::Dmp => {            
+        DiffType::Dmp => {
             let dmp = DiffMatchPatch::new();
             let diffs = dmp
                 .diff_main::<Efficient>(original, modified)
@@ -175,16 +179,17 @@ pub fn compute_diff(original: &str, modified: &str, diff: &DiffType) -> Result<S
             Ok(patch)
         }
         DiffType::Map => {
-            let original_map = serde_json::from_str::<Map<String, Value>>(original)?.into_iter().collect::<HashMap<_, _>>();
-            let mut modified_map = serde_json::from_str::<Map<String, Value>>(modified)?.into_iter().collect::<HashMap<_, _>>();
-            let patch_map = original_map.into_iter()
-                .filter_map(|(k, v)|{
+            let original_map = serde_json::from_str::<Map<String, Value>>(original)?
+                .into_iter()
+                .collect::<HashMap<_, _>>();
+            let mut modified_map = serde_json::from_str::<Map<String, Value>>(modified)?
+                .into_iter()
+                .collect::<HashMap<_, _>>();
+            let patch_map = original_map
+                .into_iter()
+                .filter_map(|(k, v)| {
                     if let Some(v_mod) = modified_map.remove(&k) {
-                        if v_mod != v {
-                            Some((k, v_mod))
-                        } else {
-                            None
-                        }
+                        if v_mod != v { Some((k, v_mod)) } else { None }
                     } else {
                         Some((k, v))
                     }
@@ -193,9 +198,9 @@ pub fn compute_diff(original: &str, modified: &str, diff: &DiffType) -> Result<S
             let patch = serde_json::to_string(&patch_map)?;
             Ok(patch)
         }
-        _ => {
-            Err(anyhow!("Diff type `{diff}` is not yet supported for computing the diff between RecordBatches."))
-        }
+        _ => Err(anyhow!(
+            "Diff type `{diff}` is not yet supported for computing the diff between RecordBatches."
+        )),
     }
 }
 

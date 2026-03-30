@@ -22,10 +22,13 @@ use crate::{
     DataJoinOperator, ToolTrait,
     candle_data::DataConfig,
     candle_operators::{
-        data_operator::DataOperatorTrait, group_by::{
+        data_operator::DataOperatorTrait,
+        group_by::{
             build_aggregator_column_fixed_size_list, build_aggregator_column_list_nonprimitive,
             build_aggregator_column_list_primitive,
-        }, select::reorder_batch_vec_columns, sort::{sort, take_columns_by_indices}
+        },
+        select::reorder_batch_vec_columns,
+        sort::{sort, take_columns_by_indices},
     },
 };
 
@@ -642,11 +645,8 @@ pub fn join(
             lhs_batch_unmatched_vec.extend(lhs_take);
 
             // Build the default RHS
-            let rhs_batch_default_vec = build_default_columns(
-                &rhs_columns,
-                &rhs_table.get_schema(),
-                lhs_n_unmatched,
-            )?;
+            let rhs_batch_default_vec =
+                build_default_columns(&rhs_columns, &rhs_table.get_schema(), lhs_n_unmatched)?;
             lhs_batch_unmatched_vec.extend(rhs_batch_default_vec);
 
             // Concatenate the unmatched and matched columns
@@ -696,11 +696,8 @@ pub fn join(
 
             // Build the default LHS
             let mut rhs_batch_unmatched_vec = Vec::new();
-            let lhs_batch_default_vec = build_default_columns(
-                &lhs_columns,
-                &lhs_table.get_schema(),
-                rhs_n_unmatched,
-            )?;
+            let lhs_batch_default_vec =
+                build_default_columns(&lhs_columns, &lhs_table.get_schema(), rhs_n_unmatched)?;
             rhs_batch_unmatched_vec.extend(lhs_batch_default_vec);
             rhs_batch_unmatched_vec.extend(rhs_take);
 
@@ -708,8 +705,15 @@ pub fn join(
             let batch_matched = RecordBatch::try_from_iter(batch_vec)?;
             let schema = batch_matched.schema().clone();
             let rhs_batch_unmatched_vec = reorder_batch_vec_columns(
-                &rhs_batch_unmatched_vec.iter().map(|(k, v)| (k.as_str(), v.clone())).collect::<Vec<_>>(), 
-                &schema.fields().into_iter().map(|f| f.name().as_str()).collect::<Vec<_>>()
+                &rhs_batch_unmatched_vec
+                    .iter()
+                    .map(|(k, v)| (k.as_str(), v.clone()))
+                    .collect::<Vec<_>>(),
+                &schema
+                    .fields()
+                    .into_iter()
+                    .map(|f| f.name().as_str())
+                    .collect::<Vec<_>>(),
             );
             let rhs_batch_unmatched = RecordBatch::try_from_iter(rhs_batch_unmatched_vec)?;
             concat_batches(&schema, &[batch_matched, rhs_batch_unmatched])?
@@ -726,11 +730,8 @@ pub fn join(
             lhs_batch_unmatched_vec.extend(lhs_take);
 
             // Build the default RHS
-            let rhs_batch_default_vec = build_default_columns(
-                &rhs_columns,
-                &rhs_table.get_schema(),
-                lhs_n_unmatched,
-            )?;
+            let rhs_batch_default_vec =
+                build_default_columns(&rhs_columns, &rhs_table.get_schema(), lhs_n_unmatched)?;
             lhs_batch_unmatched_vec.extend(rhs_batch_default_vec);
 
             // Build the unmatched RHS
@@ -772,11 +773,8 @@ pub fn join(
 
             // Build the default LHS
             let mut rhs_batch_unmatched_vec = Vec::new();
-            let lhs_batch_default_vec = build_default_columns(
-                &lhs_columns,
-                &lhs_table.get_schema(),
-                rhs_n_unmatched,
-            )?;
+            let lhs_batch_default_vec =
+                build_default_columns(&lhs_columns, &lhs_table.get_schema(), rhs_n_unmatched)?;
             rhs_batch_unmatched_vec.extend(lhs_batch_default_vec);
             rhs_batch_unmatched_vec.extend(rhs_take);
 
@@ -785,8 +783,15 @@ pub fn join(
             let schema = batch_matched.schema().clone();
             let lhs_batch_unmatched = RecordBatch::try_from_iter(lhs_batch_unmatched_vec)?;
             let rhs_batch_unmatched_vec = reorder_batch_vec_columns(
-                &rhs_batch_unmatched_vec.iter().map(|(k, v)| (k.as_str(), v.clone())).collect::<Vec<_>>(), 
-                &schema.fields().into_iter().map(|f| f.name().as_str()).collect::<Vec<_>>()
+                &rhs_batch_unmatched_vec
+                    .iter()
+                    .map(|(k, v)| (k.as_str(), v.clone()))
+                    .collect::<Vec<_>>(),
+                &schema
+                    .fields()
+                    .into_iter()
+                    .map(|f| f.name().as_str())
+                    .collect::<Vec<_>>(),
             );
             let rhs_batch_unmatched = RecordBatch::try_from_iter(rhs_batch_unmatched_vec)?;
             concat_batches(

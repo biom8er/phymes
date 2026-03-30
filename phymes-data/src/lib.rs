@@ -11,9 +11,9 @@ pub use candle_data::{
     LimitProcessor, LimitStream, TensorProcessorTrait, collect_messages_by_schema, device,
 };
 pub use candle_operators::{
-    Patch, ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait, Diff,
-    ExtractPDF, ExtractTabular, ExtractXML, Filter, FromTasksToParticipants, FromTracesToMessages,
-    GroupBy, HumanInTheLoop, Join, NormalizeTime, PackTabular, Pivot, Select, Sort, ToolTrait,
+    ApplyTemplate, AvailableCandleOperators, ChunkDocuments, DataOperatorTrait, Diff, ExtractPDF,
+    ExtractTabular, ExtractXML, Filter, FromTasksToParticipants, FromTracesToMessages, GroupBy,
+    HumanInTheLoop, Join, NormalizeTime, PackTabular, Patch, Pivot, Select, Sort, ToolTrait,
     VectorDistance, convert_destinations_to_tools, extract_pdf, extract_xml, filter, filter_pdf,
     group_by, load_pdf_document, make_pdf_document, pack_tabular, sort,
     table_and_data_format_to_record_batch, test_extract_tabular_data,

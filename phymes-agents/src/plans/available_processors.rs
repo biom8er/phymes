@@ -4,10 +4,16 @@ use anyhow::{Result, anyhow};
 use arrow::datatypes::DataType;
 use clap::ValueEnum;
 use phymes_core::{
-    AvailableSubjects, DataEncoding, DataFormat, DiffType, MappableTrait, ObjectStorageBackend, ProcessorBuilder, ProcessorEcho, ProcessorTrait, Subject, WorkspacePatchSubject, test_processor::{ProcessorError, ProcessorMock}
+    AvailableSubjects, DataEncoding, DataFormat, DiffType, MappableTrait, ObjectStorageBackend,
+    ProcessorBuilder, ProcessorEcho, ProcessorTrait, Subject, WorkspacePatchSubject,
+    test_processor::{ProcessorError, ProcessorMock},
 };
 use phymes_data::{
-    AggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor, CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator, DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait, DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig, LimitProcessor, ObjectStoreConfig, ObjectStoreOptsType, ObjectStoreProcessor, ToolTrait
+    AggregatorProcessor, AvailableCandleOperators, AvailableJinja2Templates, CandleDataProcessor,
+    CoalesceProcessor, DataAggregatorOperator, DataCastOperator, DataColumnOperator,
+    DataComparatorOperator, DataComparatorPredicate, DataConfig, DataConfigTrait,
+    DataDistanceOperator, DataJoinOperator, DataStreamManager, LimitConfig, LimitProcessor,
+    ObjectStoreConfig, ObjectStoreOptsType, ObjectStoreProcessor, ToolTrait,
 };
 #[cfg(feature = "api")]
 use phymes_data::{
@@ -798,10 +804,8 @@ impl AvailableProcessors {
             | Self::VectorDistance
             | Self::ApplyTemplate
             | Self::PackTabular
-            | Self::Patch 
-            | Self::Diff => {
-                Arc::new(CandleDataProcessor::new(name, self.to_string().as_str()))
-            }
+            | Self::Patch
+            | Self::Diff => Arc::new(CandleDataProcessor::new(name, self.to_string().as_str())),
             Self::CoalesceProcessor => {
                 Arc::new(CoalesceProcessor::new(name, self.to_string().as_str()))
             }
@@ -868,7 +872,7 @@ impl AvailableProcessors {
             | Self::VectorDistance
             | Self::ApplyTemplate
             | Self::PackTabular
-            | Self::Patch 
+            | Self::Patch
             | Self::Diff => builder.build_arc::<CandleDataProcessor>(),
             Self::CoalesceProcessor => builder.build_arc::<CoalesceProcessor>(),
             Self::LimitProcessor => builder.build_arc::<LimitProcessor>(),
@@ -913,7 +917,7 @@ impl AvailableProcessors {
             | Self::ApplyTemplate
             | Self::AggregatorProcessor
             | Self::PackTabular
-            | Self::Patch 
+            | Self::Patch
             | Self::Diff => "DataConfig",
             Self::CoalesceProcessor | Self::LimitProcessor => "LimitConfig",
             Self::ToolCallProcessor => "ToolCallConfig",

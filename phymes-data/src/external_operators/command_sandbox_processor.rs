@@ -1731,8 +1731,8 @@ mod tests {
     use futures::TryStreamExt;
     use phymes_core::{ChatBuilderTraitExt, Publication, SubjectBuilder};
     use phymes_diagnostics::{Diagnostics, SpanBuilder};
-    use tempfile::TempDir;
     use std::{fs::File, io::Write};
+    use tempfile::TempDir;
 
     use crate::external_operators::command_sandbox_config::DataIOMethod;
 

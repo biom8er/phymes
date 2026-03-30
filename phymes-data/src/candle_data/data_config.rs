@@ -3,7 +3,7 @@ use std::fmt::Display;
 use anyhow::{Result, anyhow};
 use clap::{Parser, ValueEnum};
 use phymes_core::{
-    AvailableSubjects, DataEncoding, DataFormat, DiffType, MappableTrait, Subject, SubjectTrait
+    AvailableSubjects, DataEncoding, DataFormat, DiffType, MappableTrait, Subject, SubjectTrait,
 };
 use phymes_diagnostics::HashSet;
 use serde::{Deserialize, Serialize};

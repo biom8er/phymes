@@ -1,10 +1,15 @@
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{Result, anyhow};
-use arrow::{array::{ArrayRef, RecordBatch, StringArray, UInt32Array}, datatypes::{Schema, SchemaRef}};
+use arrow::{
+    array::{ArrayRef, RecordBatch, StringArray, UInt32Array},
+    datatypes::{Schema, SchemaRef},
+};
 use candle_core::Device;
 use phymes_core::{
-    BuildableTrait, BuilderTrait, DiffType, Function, FunctionParameters, JSONSchemaDefine, JSONSchemaType, MappableTrait, PatchOperator, Subject, SubjectBuilderTrait, SubjectTrait, Tool, ToolType, compute_diff,
+    BuildableTrait, BuilderTrait, DiffType, Function, FunctionParameters, JSONSchemaDefine,
+    JSONSchemaType, MappableTrait, PatchOperator, Subject, SubjectBuilderTrait, SubjectTrait, Tool,
+    ToolType, compute_diff,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -13,10 +18,7 @@ use tracing::instrument;
 use crate::{
     DataJoinOperator, ToolTrait,
     candle_data::DataConfig,
-    candle_operators::{
-        DataOperatorTrait,
-        join::join,
-    },
+    candle_operators::{DataOperatorTrait, join::join},
 };
 
 /// Inject a table into a string template
@@ -123,10 +125,10 @@ impl DataOperatorTrait for Diff {
             "Missing `rhs_pk` for `{}`.",
             Self::get_static_name()
         ))?;
-        let diff = config.diff.clone().ok_or(anyhow!(
-            "Missing `diff` for `{}`.",
-            Self::get_static_name()
-        ))?;
+        let diff = config
+            .diff
+            .clone()
+            .ok_or(anyhow!("Missing `diff` for `{}`.", Self::get_static_name()))?;
 
         if rhs_values.len() != lhs_values.len() {
             return Err(anyhow!(
@@ -148,17 +150,26 @@ impl DataOperatorTrait for Diff {
 }
 
 /// Helper function to project and transform [RecordBatch]es to a diff-ready [RecordBatch]
-pub fn to_diff_record_batches(lhs_args: &[RecordBatch], lhs_values: &[&str], lhs_pk: &str, lhs_values_name: &str) -> Result<RecordBatch> {
+pub fn to_diff_record_batches(
+    lhs_args: &[RecordBatch],
+    lhs_values: &[&str],
+    lhs_pk: &str,
+    lhs_values_name: &str,
+) -> Result<RecordBatch> {
     let lhs_concat = Subject::get_builder()
         .with_name("lhs concat diff")
         .with_record_batches(lhs_args.to_vec())?
         .build()?;
     let lhs_pk_arr = lhs_concat.get_column_as_array(lhs_pk)?;
     let lhs_values_arr = if lhs_values.len() > 1 {
-        let lhs_values_str = lhs_concat.to_json_object()?
+        let lhs_values_str = lhs_concat
+            .to_json_object()?
             .into_iter()
             .map(|r| {
-                let r_no_pk = r.into_iter().filter(|(k, _v)| k != lhs_pk).collect::<Map<_, _>>();
+                let r_no_pk = r
+                    .into_iter()
+                    .filter(|(k, _v)| k != lhs_pk)
+                    .collect::<Map<_, _>>();
                 serde_json::to_string(&r_no_pk).unwrap()
             })
             .collect::<Vec<_>>();
@@ -168,7 +179,7 @@ pub fn to_diff_record_batches(lhs_args: &[RecordBatch], lhs_values: &[&str], lhs
     };
     let lhs_args_transformed = RecordBatch::try_from_iter(vec![
         (lhs_pk, lhs_pk_arr),
-        (lhs_values_name, lhs_values_arr)
+        (lhs_values_name, lhs_values_arr),
     ])?;
     Ok(lhs_args_transformed)
 }
@@ -176,18 +187,23 @@ pub fn to_diff_record_batches(lhs_args: &[RecordBatch], lhs_values: &[&str], lhs
 /// Helper function to JSONify the columns of a [RecordBatch]
 pub fn to_json_object_columns(lhs_args: RecordBatch, lhs_values: &[&str]) -> Result<RecordBatch> {
     let schema = lhs_args.schema();
-    let lhs_other = schema.fields()
+    let lhs_other = schema
+        .fields()
         .iter()
-        .filter_map(|f| if lhs_values.contains(&f.name().as_str()) {
-            None
-        } else {
-            Some(f.name())
-        }).collect::<Vec<_>>();
+        .filter_map(|f| {
+            if lhs_values.contains(&f.name().as_str()) {
+                None
+            } else {
+                Some(f.name())
+            }
+        })
+        .collect::<Vec<_>>();
     let lhs_args_subject = Subject::get_builder()
         .with_name("patch lhs_args JSONize")
         .with_record_batches(vec![lhs_args])?
         .build()?;
-    let lhs_args_other = lhs_args_subject.unzip_columns(&lhs_other.iter().map(|s| s.as_str()).collect::<Vec<_>>())?;
+    let lhs_args_other = lhs_args_subject
+        .unzip_columns(&lhs_other.iter().map(|s| s.as_str()).collect::<Vec<_>>())?;
     let lhs_args_values = lhs_args_subject.unzip_columns(lhs_values)?;
     let lhs_args_values_str = Subject::get_builder()
         .with_name("patch lhs_args JSONize values String")
@@ -198,7 +214,8 @@ pub fn to_json_object_columns(lhs_args: RecordBatch, lhs_values: &[&str]) -> Res
         .map(|s| serde_json::to_string(&s).unwrap())
         .collect::<Vec<_>>();
     let lhs_args_values_arr: ArrayRef = Arc::new(StringArray::from(lhs_args_values_str));
-    let lhs_args_values_batch = RecordBatch::try_from_iter(vec![(lhs_values.first().unwrap(), lhs_args_values_arr)])?;
+    let lhs_args_values_batch =
+        RecordBatch::try_from_iter(vec![(lhs_values.first().unwrap(), lhs_args_values_arr)])?;
     let batch = Subject::get_builder()
         .with_name("patch lhs_args zip")
         .with_record_batches(vec![lhs_args_other])?
@@ -211,7 +228,11 @@ pub fn to_json_object_columns(lhs_args: RecordBatch, lhs_values: &[&str]) -> Res
 }
 
 /// Helper function to de-JSONify the columns of a [RecordBatch]
-pub fn from_json_object_columns(lhs_args: RecordBatch, lhs_values: &[&str], lhs_schema: &SchemaRef) -> Result<RecordBatch> {
+pub fn from_json_object_columns(
+    lhs_args: RecordBatch,
+    lhs_values: &[&str],
+    lhs_schema: &SchemaRef,
+) -> Result<RecordBatch> {
     let lhs_concat = Subject::get_builder()
         .with_name("lhs json diff")
         .with_record_batches(vec![lhs_args])?
@@ -220,26 +241,38 @@ pub fn from_json_object_columns(lhs_args: RecordBatch, lhs_values: &[&str], lhs_
     let lhs_other = lhs_concat_schema
         .fields()
         .iter()
-        .filter_map(|f| if lhs_values.contains(&f.name().as_str()) {
-            None
-        } else {
-            Some(f.name())
-        }).collect::<Vec<_>>();
-    let lhs_other_batch = lhs_concat.unzip_columns(&lhs_other.iter().map(|s| s.as_str()).collect::<Vec<_>>())?;
-    let json_values = lhs_concat.get_column_as_vec_str(lhs_values.first().unwrap())
+        .filter_map(|f| {
+            if lhs_values.contains(&f.name().as_str()) {
+                None
+            } else {
+                Some(f.name())
+            }
+        })
+        .collect::<Vec<_>>();
+    let lhs_other_batch =
+        lhs_concat.unzip_columns(&lhs_other.iter().map(|s| s.as_str()).collect::<Vec<_>>())?;
+    let json_values = lhs_concat
+        .get_column_as_vec_str(lhs_values.first().unwrap())
         .into_iter()
         .map(|s| serde_json::from_str::<Value>(s).unwrap())
         .collect::<Vec<_>>();
-    let json_fields = lhs_schema.fields()
+    let json_fields = lhs_schema
+        .fields()
         .iter()
-        .filter_map(|f| if lhs_values.contains(&f.name().as_str()) {
-            Some(f.clone())
-        } else {
-            None
+        .filter_map(|f| {
+            if lhs_values.contains(&f.name().as_str()) {
+                Some(f.clone())
+            } else {
+                None
+            }
         })
         .collect::<Vec<_>>();
     let json_schema = Schema::new(json_fields);
-    let lhs_columns = lhs_schema.fields().iter().map(|f| f.name().as_str()).collect::<Vec<_>>();
+    let lhs_columns = lhs_schema
+        .fields()
+        .iter()
+        .map(|f| f.name().as_str())
+        .collect::<Vec<_>>();
     let batch = Subject::get_builder()
         .with_name("")
         .with_schema(Arc::new(json_schema))
@@ -273,7 +306,9 @@ pub fn from_json_object_columns(lhs_args: RecordBatch, lhs_values: &[&str], lhs_
 /// * `rhs_pk` - The name of the column with the full path of the "file" or another unique identifier to match the patch on
 /// * `diff` - The [DiffType] to create the diff
 /// * `device` - The compute device
-#[instrument(skip(lhs_args, rhs_args, lhs_values, rhs_values, lhs_pk, rhs_pk, diff, device))]
+#[instrument(skip(
+    lhs_args, rhs_args, lhs_values, rhs_values, lhs_pk, rhs_pk, diff, device
+))]
 #[allow(clippy::too_many_arguments)]
 pub fn diff(
     lhs_args: &[RecordBatch],
@@ -290,11 +325,19 @@ pub fn diff(
     let rhs_args_transformed = to_diff_record_batches(rhs_args, rhs_values, rhs_pk, "rhs_values")?;
 
     // FullOuterJoin
-    let full_outer_join = join(lhs_pk, std::slice::from_ref(&lhs_args_transformed), rhs_pk, std::slice::from_ref(&rhs_args_transformed), &DataJoinOperator::FullOuter, device)?;
+    let full_outer_join = join(
+        lhs_pk,
+        std::slice::from_ref(&lhs_args_transformed),
+        rhs_pk,
+        std::slice::from_ref(&rhs_args_transformed),
+        &DataJoinOperator::FullOuter,
+        device,
+    )?;
 
     // Compute the diff
     // Taking advantage of the FullOuterJoin order (Inner -> Update, LeftOuter -> Delete, RightOuter -> Create)
-    let lhs_values_col = full_outer_join.column_by_name("lhs_values")
+    let lhs_values_col = full_outer_join
+        .column_by_name("lhs_values")
         .unwrap()
         .as_any()
         .downcast_ref::<StringArray>()
@@ -302,7 +345,8 @@ pub fn diff(
         .iter()
         .map(|s| s.unwrap_or_default())
         .collect::<Vec<_>>();
-    let rhs_values_col = full_outer_join.column_by_name("rhs_values")
+    let rhs_values_col = full_outer_join
+        .column_by_name("rhs_values")
         .unwrap()
         .as_any()
         .downcast_ref::<StringArray>()
@@ -310,7 +354,8 @@ pub fn diff(
         .iter()
         .map(|s| s.unwrap_or_default())
         .collect::<Vec<_>>();
-    let diff_operator_col: Result<Vec<(usize, String, String)>> = lhs_values_col.into_iter()
+    let diff_operator_col: Result<Vec<(usize, String, String)>> = lhs_values_col
+        .into_iter()
         .zip(rhs_values_col.into_iter())
         .enumerate()
         .filter_map(|(i, (l, r))| {
@@ -333,10 +378,11 @@ pub fn diff(
             }
         })
         .collect();
-    let ((diff_col, operator_col), indices): ((Vec<String>, Vec<String>), Vec<u32>) = diff_operator_col?
-        .into_iter()
-        .map(|(i, d, o)| ((d, o), i as u32))
-        .unzip();
+    let ((diff_col, operator_col), indices): ((Vec<String>, Vec<String>), Vec<u32>) =
+        diff_operator_col?
+            .into_iter()
+            .map(|(i, d, o)| ((d, o), i as u32))
+            .unzip();
 
     // Create the record batch
     let diff_arr: ArrayRef = Arc::new(StringArray::from(diff_col));
@@ -347,7 +393,7 @@ pub fn diff(
     let batch = RecordBatch::try_from_iter(vec![
         (lhs_pk, lhs_pk_arr),
         ("diff", diff_arr),
-        ("operator", operator_arr)
+        ("operator", operator_arr),
     ])?;
     Ok(batch)
 }
@@ -405,11 +451,11 @@ pub use todo::Todo"#,
         // Create the modified repository
         let repo_pks = vec![0, 3, 4, 2, 5];
         let repo_paths = [
-                "/home/sandbox/Cargo.toml",
-                "/home/sandbox/src/extras/mod.rs",
-                "/home/sandbox/src/extras/todo.rs",
-                "/home/sandbox/src/lib.rs",
-                "/home/sandbox/src/extras/other.rs"
+            "/home/sandbox/Cargo.toml",
+            "/home/sandbox/src/extras/mod.rs",
+            "/home/sandbox/src/extras/todo.rs",
+            "/home/sandbox/src/lib.rs",
+            "/home/sandbox/src/extras/other.rs",
         ]
         .into_iter()
         .map(|s| s.to_string())
@@ -468,18 +514,13 @@ pub use todo::Todo"#,
         assert_eq!(
             test,
             [
-                "@@ -1,8 +1,23 @@\n+pub mod other;%0A\n mod todo\n", 
-                "", 
+                "@@ -1,8 +1,23 @@\n+pub mod other;%0A\n mod todo\n",
+                "",
                 "pub struct Other {}"
             ]
         );
         let test = result_table.get_column_as_vec_nonprimitive::<String>("operator")?;
-        assert_eq!(
-            test,
-            [
-                "Update", "Delete", "Create"
-            ]
-        );
+        assert_eq!(test, ["Update", "Delete", "Create"]);
 
         // --- PK = UInt32 ---
         // Diff the repository
@@ -506,18 +547,13 @@ pub use todo::Todo"#,
         assert_eq!(
             test,
             [
-                "@@ -1,8 +1,23 @@\n+pub mod other;%0A\n mod todo\n", 
-                "", 
+                "@@ -1,8 +1,23 @@\n+pub mod other;%0A\n mod todo\n",
+                "",
                 "pub struct Other {}"
             ]
         );
         let test = result_table.get_column_as_vec_nonprimitive::<String>("operator")?;
-        assert_eq!(
-            test,
-            [
-                "Update", "Delete", "Create"
-            ]
-        );
+        assert_eq!(test, ["Update", "Delete", "Create"]);
 
         Ok(())
     }
@@ -581,26 +617,18 @@ pub use todo::Todo"#,
             .build()?;
 
         let test = result_table.get_column_as_vec_nonprimitive::<String>("lhs_pk")?;
-        assert_eq!(
-            test,
-            [
-                "1", "3", "4"
-            ]
-        );
+        assert_eq!(test, ["1", "3", "4"]);
         let test = result_table.get_column_as_vec_nonprimitive::<String>("diff")?;
         assert_eq!(
             test,
             [
-                "{\"lhs_metadata\":8,\"lhs_text\":\"right\"}", "", "{\"lhs_metadata\":10,\"lhs_text\":\"right\"}"
+                "{\"lhs_metadata\":8,\"lhs_text\":\"right\"}",
+                "",
+                "{\"lhs_metadata\":10,\"lhs_text\":\"right\"}"
             ]
         );
         let test = result_table.get_column_as_vec_nonprimitive::<String>("operator")?;
-        assert_eq!(
-            test,
-            [
-                "Update", "Delete", "Create"
-            ]
-        );
+        assert_eq!(test, ["Update", "Delete", "Create"]);
 
         Ok(())
     }

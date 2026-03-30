@@ -48,6 +48,7 @@ pub(crate) use next_superstep_session::NextSuperstepSession;
 pub(crate) use next_task_session::NextTaskSession;
 pub use patch_workspace_session::PatchWorkspaceSession;
 pub use retrieve_text_session::RetrieveTextSession;
+pub use sync_content_session::SyncContentSession;
 pub use tool_agent_session::ToolAgentSession;
 pub use tool_call_session::ToolCallSession;
 pub use tool_response_session::ToolResponseSession;

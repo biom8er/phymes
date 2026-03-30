@@ -226,17 +226,26 @@ impl SubjectBuilderTrait for SubjectBuilder {
         self.record_batches = Some(batches);
         Ok(self)
     }
-    
+
     fn zip_columns(mut self, batches: Vec<RecordBatch>) -> Result<Self> {
         if let Some(record_batches) = self.record_batches.take() {
             let _ = self.schema.take(); // Schema will be remade
-            let batches: Result<Vec<RecordBatch>> = record_batches.into_iter()
+            let batches: Result<Vec<RecordBatch>> = record_batches
+                .into_iter()
                 .zip(batches.into_iter())
                 .map(|(lhs_batch, rhs_batch)| {
                     let lhs_schema = lhs_batch.schema();
-                    let lhs_column_names = lhs_schema.fields().into_iter().map(|f| f.name()).collect::<Vec<_>>();
+                    let lhs_column_names = lhs_schema
+                        .fields()
+                        .into_iter()
+                        .map(|f| f.name())
+                        .collect::<Vec<_>>();
                     let rhs_schema = rhs_batch.schema();
-                    let rhs_column_names = rhs_schema.fields().into_iter().map(|f| f.name()).collect::<Vec<_>>();
+                    let rhs_column_names = rhs_schema
+                        .fields()
+                        .into_iter()
+                        .map(|f| f.name())
+                        .collect::<Vec<_>>();
                     let mut lhs_batch_vec = lhs_column_names
                         .into_iter()
                         .map(|f| (f, lhs_batch.column_by_name(f).unwrap().clone()))
@@ -257,19 +266,30 @@ impl SubjectBuilderTrait for SubjectBuilder {
     }
 
     fn reorder_columns(mut self, columns: &[&str]) -> Result<Self> {
-        let reordered = if let (Some(batches), Some(schema)) = (self.record_batches.take(), self.schema.take()) {
+        let reordered = if let (Some(batches), Some(schema)) =
+            (self.record_batches.take(), self.schema.take())
+        {
             // Check that the columns are compatible
-            let fields_set = schema.fields().iter().map(|f| f.name().as_str()).collect::<HashSet<_>>();
+            let fields_set = schema
+                .fields()
+                .iter()
+                .map(|f| f.name().as_str())
+                .collect::<HashSet<_>>();
             let columns_set = columns.iter().map(|&c| c).collect::<HashSet<_>>();
             if fields_set != columns_set {
-                return Err(anyhow!("Reorder column names `{:?}` are not compatible with the Schema Field names `{:?}`.",
-                    columns_set, fields_set));
+                return Err(anyhow!(
+                    "Reorder column names `{:?}` are not compatible with the Schema Field names `{:?}`.",
+                    columns_set,
+                    fields_set
+                ));
             }
 
             // Reorder the columns in the batches
-            let reordered: Result<Vec<RecordBatch>> = batches.into_iter()
+            let reordered: Result<Vec<RecordBatch>> = batches
+                .into_iter()
                 .map(|batch| {
-                    let batch_vec = columns.iter()
+                    let batch_vec = columns
+                        .iter()
                         .map(|c| (c, batch.column_by_name(c).unwrap().clone()));
                     let reordered = RecordBatch::try_from_iter(batch_vec)?;
                     Ok(reordered)
@@ -277,7 +297,9 @@ impl SubjectBuilderTrait for SubjectBuilder {
                 .collect();
             reordered?
         } else {
-            return Err(anyhow!("Please add RecordBatches before trying to reorder the columns."));
+            return Err(anyhow!(
+                "Please add RecordBatches before trying to reorder the columns."
+            ));
         };
         self.with_record_batches(reordered)
     }

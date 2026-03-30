@@ -54,7 +54,9 @@ pub fn subscribe_to_subject(
             };
 
             // C. Get the subject
-            let stream = subscription.subscribe_to_subject(runtime_env, session_name)?.unwrap();
+            let stream = subscription
+                .subscribe_to_subject(runtime_env, session_name)?
+                .unwrap();
             let message = SendableRecordBatchStreamMessage::get_builder()
                 .with_publisher("Subjects")
                 .with_subject(subscription.subject_name())

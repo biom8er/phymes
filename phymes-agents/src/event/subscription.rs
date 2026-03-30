@@ -2,7 +2,10 @@ use anyhow::Result;
 use arrow::datatypes::Schema;
 use futures::{StreamExt, TryStreamExt};
 use phymes_core::{
-    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, DataEncoding, DataFormat, MessageBuilderTrait, ObjectStorageBackend, Publication, RecordBatchStreamAdapter, RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SubjectBuilder, SubjectBuilderTrait, SubjectTrait, Subscription
+    AvailableSchemaTrait, AvailableSubjects, BuildableTrait, BuilderTrait, DataEncoding,
+    DataFormat, MessageBuilderTrait, ObjectStorageBackend, Publication, RecordBatchStreamAdapter,
+    RuntimeEnv, SendableRecordBatchStream, SendableRecordBatchStreamMessage, SubjectBuilder,
+    SubjectBuilderTrait, SubjectTrait, Subscription,
 };
 use phymes_data::{
     AvailableCandleOperators, CandleDataStream, DataConfig, DataStreamManager, LimitConfig,
@@ -249,11 +252,13 @@ impl SubscriptionTrait for Subscription {
 
                 // Clear all partitions (RecordBatches)
                 let clear = clear_subject(runtime_env, session_name, sn, false)?;
-                let chain = stream.chain(clear).try_filter(move |b| futures::future::ready(!b.schema().eq(&AvailableSubjects::ObjectStoreMeta.to_schema())));
-                let stream = Box::pin(RecordBatchStreamAdapter::new(
-                    schema,
-                    chain,
-                ));
+                let chain = stream.chain(clear).try_filter(move |b| {
+                    futures::future::ready(
+                        !b.schema()
+                            .eq(&AvailableSubjects::ObjectStoreMeta.to_schema()),
+                    )
+                });
+                let stream = Box::pin(RecordBatchStreamAdapter::new(schema, chain));
                 Ok(Some(stream))
             }
             Self::AlwaysLastRecordBatch { subject_name: sn }
@@ -326,9 +331,9 @@ mod tests {
         assert_eq!(
             result,
             [
-                "messages/superstep=0/publisher=/partition=0/messages.ipc",
-                "messages/superstep=0/publisher=/partition=1/messages.ipc",
-                "messages/superstep=0/publisher=/partition=2/messages.ipc"
+                "session=/subject=messages/superstep=0/publisher=/partition=0/messages.ipc",
+                "session=/subject=messages/superstep=0/publisher=/partition=1/messages.ipc",
+                "session=/subject=messages/superstep=0/publisher=/partition=2/messages.ipc"
             ]
         );
 
@@ -354,7 +359,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(
             result,
-            ["messages/superstep=0/publisher=/partition=2/messages.ipc"]
+            ["session=/subject=messages/superstep=0/publisher=/partition=2/messages.ipc"]
         );
 
         Ok(())

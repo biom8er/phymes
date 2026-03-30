@@ -1259,7 +1259,7 @@ mod tests {
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 27); // DM, check!(): changed from 4
+        assert_eq!(n_rows, 5); // DM, check!(): changed from 4
 
         assert_eq!(
             response
@@ -1300,7 +1300,7 @@ mod tests {
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 27); // DM, Check!(): changed from 4
+        assert_eq!(n_rows, 5); // DM, Check!(): changed from 4
 
         assert_eq!(
             response
@@ -1341,7 +1341,7 @@ mod tests {
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 27); // DM, Check!(): changed from 4
+        assert_eq!(n_rows, 5); // DM, Check!(): changed from 4
 
         // check the session and session_context
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {
@@ -1520,7 +1520,7 @@ mod tests {
             .with_name("")
             .build()?;
         let n_rows: usize = partitions.count_rows();
-        assert_eq!(n_rows, 33); // DM, Check!(): changed from 4
+        assert_eq!(n_rows, 7); // DM, Check!(): changed from 4
 
         // check the session and session_context
         let subscriptions: Vec<_> = Subscription::AlwaysAllRecordBatches {

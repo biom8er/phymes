@@ -20,9 +20,13 @@ use crate::{
     DataJoinOperator, ToolTrait,
     candle_data::DataConfig,
     candle_operators::{
-        DataOperatorTrait, from_json_object_columns, group_by::{
+        DataOperatorTrait, from_json_object_columns,
+        group_by::{
             build_aggregator_column_list_nonprimitive, build_aggregator_column_list_primitive,
-        }, join::join, select::select, to_json_object_columns
+        },
+        join::join,
+        select::select,
+        to_json_object_columns,
     },
     filter,
 };
@@ -97,7 +101,9 @@ impl DataOperatorTrait for Patch {
         patch(
             lhs_args,
             rhs_args,
-            &self.lhs_values.iter()
+            &self
+                .lhs_values
+                .iter()
                 .map(|s| s.as_str())
                 .collect::<Vec<_>>(),
             &self
@@ -1582,18 +1588,22 @@ pub use todo::Todo"#,
 
         // Create the mock patches
         let patch_pks = ["1", "3", "4"]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
         let operations = vec![
             PatchOperator::Update.to_string(),
             PatchOperator::Delete.to_string(),
             PatchOperator::Create.to_string(),
         ];
-        let patches = ["{\"lhs_metadata\":8,\"lhs_text\":\"right\"}", "", "{\"lhs_metadata\":10,\"lhs_text\":\"right\"}"]
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>();
+        let patches = [
+            "{\"lhs_metadata\":8,\"lhs_text\":\"right\"}",
+            "",
+            "{\"lhs_metadata\":10,\"lhs_text\":\"right\"}",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
         let patch_pks: ArrayRef = Arc::new(StringArray::from(patch_pks));
         let operations: ArrayRef = Arc::new(StringArray::from(operations));
         let patches: ArrayRef = Arc::new(StringArray::from(patches));

@@ -2,9 +2,9 @@ use anyhow::Result;
 #[cfg(not(target_arch = "wasm32"))]
 use anyhow::anyhow;
 use clap::ValueEnum;
-use object_store::{ObjectStore, memory::InMemory};
 #[cfg(not(target_arch = "wasm32"))]
 use object_store::local::LocalFileSystem;
+use object_store::{ObjectStore, memory::InMemory};
 #[cfg(feature = "api")]
 use object_store::{
     aws::{AmazonS3Builder, AmazonS3ConfigKey},

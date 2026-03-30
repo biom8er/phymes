@@ -807,10 +807,10 @@ pub trait SubjectTrait: MappableTrait + BuildableTrait + Debug + Send + Sync {
             if column_names.contains(&column_name.as_str()) {
                 let arr = self.get_column_as_array(column_name)?;
                 lhs.push((column_name, arr));
-            // } else {
-            //     return Err(anyhow!("Column name `{column_name}` not found in Subject `{}`. Available column names are `{:?}`.",
-            //         self.get_name(),
-            //         self.get_schema().fields().iter().map(|f| f.name()).collect::<Vec<_>>()))
+                // } else {
+                //     return Err(anyhow!("Column name `{column_name}` not found in Subject `{}`. Available column names are `{:?}`.",
+                //         self.get_name(),
+                //         self.get_schema().fields().iter().map(|f| f.name()).collect::<Vec<_>>()))
             }
         }
         let batch = RecordBatch::try_from_iter(lhs)?;
@@ -1184,7 +1184,6 @@ mod tests {
     #[cfg(not(target_family = "wasm"))]
     #[test]
     fn test_to_from_ipc_file() -> Result<()> {
-
         let test_subject = make_test_subject("test_subject", 4, 8, 3)?;
 
         // Create a file inside of `env::temp_dir()`.
@@ -1208,7 +1207,6 @@ mod tests {
     #[cfg(not(target_family = "wasm"))]
     #[test]
     fn test_to_from_csv_file() -> Result<()> {
-
         let test_subject = make_test_subject("test_subject", 4, 0, 3)?;
 
         // Create a file inside of `env::temp_dir()`.
@@ -1549,7 +1547,7 @@ mod tests {
 
         Ok(())
     }
-    
+
     #[test]
     fn test_unzip_zip() -> Result<()> {
         let test_subject = make_test_subject("test_subject", 4, 8, 3)?;
