@@ -397,14 +397,15 @@ mod tests {
 
     #[cfg(not(target_family = "wasm"))]
     use tempfile::TempDir;
+
     use crate::{
         PublicationTrait, SessionContextBuilder, SessionContextBuilderAgentsTrait, SessionContextBuilderMermaidTrait, SessionContextBuilderTrait, SessionStream, SubscriptionTrait, ToolCallSession
     };
 
     use super::*;
 
-    // #[cfg(not(target_family = "wasm"))]
-    #[tokio::test(flavor = "current_thread")]
+    #[cfg(not(target_family = "wasm"))]
+    #[tokio::test]
     async fn test_sync_content_session_w_subjects() -> Result<()> {
         // Local and remote object stores
         let local_object_store_name = "Local";
@@ -810,7 +811,8 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test(flavor = "current_thread")]
+    #[cfg(not(target_family = "wasm"))]
+    #[tokio::test]
     async fn test_sync_content_session_wo_subjects() -> Result<()> {
         // Local and remote object stores
         let local_object_store_name = "Local";

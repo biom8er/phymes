@@ -1,7 +1,10 @@
-// src/storage.rs
-use anyhow::{Result, anyhow};
+use anyhow::Result;
+#[cfg(not(target_arch = "wasm32"))]
+use anyhow::anyhow;
 use clap::ValueEnum;
-use object_store::{ObjectStore, local::LocalFileSystem, memory::InMemory};
+use object_store::{ObjectStore, memory::InMemory};
+#[cfg(not(target_arch = "wasm32"))]
+use object_store::local::LocalFileSystem;
 #[cfg(feature = "api")]
 use object_store::{
     aws::{AmazonS3Builder, AmazonS3ConfigKey},
@@ -25,6 +28,7 @@ pub enum ObjectStorageBackend {
     #[cfg(feature = "api")]
     #[value(name = "Azure")]
     Azure,
+    #[cfg(not(target_arch = "wasm32"))]
     #[value(name = "LocalFs")]
     LocalFs,
     #[default]
@@ -40,6 +44,7 @@ impl Display for ObjectStorageBackend {
             Self::Gcp => write!(f, "Gcp"),
             #[cfg(feature = "api")]
             Self::Azure => write!(f, "Azure"),
+            #[cfg(not(target_arch = "wasm32"))]
             Self::LocalFs => write!(f, "LocalFs"),
             Self::InMemory => write!(f, "InMemory"),
         }
@@ -48,14 +53,14 @@ impl Display for ObjectStorageBackend {
 
 pub fn make_store(
     backend: &ObjectStorageBackend,
-    bucket: Option<&String>,
+    _bucket: Option<&String>,
     _config: Option<&Map<String, Value>>,
 ) -> Result<Arc<dyn ObjectStore>> {
     let store: Arc<dyn ObjectStore> = match backend {
         #[cfg(feature = "api")]
         ObjectStorageBackend::Aws => {
             let mut builder = AmazonS3Builder::from_env()
-                .with_bucket_name(bucket.ok_or(anyhow!("Missing `bucket` name for {backend}"))?);
+                .with_bucket_name(_bucket.ok_or(anyhow!("Missing `bucket` name for {backend}"))?);
             if let Some(config) = _config {
                 for (k, v) in config {
                     let key = AmazonS3ConfigKey::from_str(k)?;
@@ -67,17 +72,18 @@ pub fn make_store(
         #[cfg(feature = "api")]
         ObjectStorageBackend::Gcp => Arc::new(
             GoogleCloudStorageBuilder::from_env()
-                .with_bucket_name(bucket.ok_or(anyhow!("Missing `bucket` name for {backend}"))?)
+                .with_bucket_name(_bucket.ok_or(anyhow!("Missing `bucket` name for {backend}"))?)
                 .build()?,
         ),
         #[cfg(feature = "api")]
         ObjectStorageBackend::Azure => Arc::new(
             MicrosoftAzureBuilder::from_env()
-                .with_container_name(bucket.ok_or(anyhow!("Missing `bucket` name for {backend}"))?)
+                .with_container_name(_bucket.ok_or(anyhow!("Missing `bucket` name for {backend}"))?)
                 .build()?,
         ),
+        #[cfg(not(target_arch = "wasm32"))]
         ObjectStorageBackend::LocalFs => Arc::new(LocalFileSystem::new_with_prefix(
-            bucket.ok_or(anyhow!("Missing `bucket` name for {backend}"))?,
+            _bucket.ok_or(anyhow!("Missing `bucket` name for {backend}"))?,
         )?),
         ObjectStorageBackend::InMemory => Arc::new(InMemory::new()),
     };

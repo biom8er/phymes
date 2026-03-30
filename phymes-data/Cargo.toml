@@ -17,9 +17,9 @@ cuda = ["candle-core/cuda"]
 cudnn = ["candle-core/cudnn"]
 nccl = ["cuda", "cudarc/nccl"]
 wasip2 = ["phymes-core/wasip2", "phymes-diagnostics/wasip2", "tokio/sync", "tokio/macros", "tokio/io-util", "tokio/rt", "lopdf/wasm_js", "dep:quick-xml", "dep:object_store"]
-wsl = ["phymes-core/wsl", "phymes-diagnostics/wsl", "tokio/full", "lopdf/async", "lopdf/rayon", "quick-xml/tokio", "dep:object_store"]
+wsl = ["phymes-core/wsl", "phymes-diagnostics/wsl", "tokio/full", "lopdf/async", "lopdf/rayon", "quick-xml/tokio", "dep:object_store", "dep:tempfile"]
 gpu = ["cuda", "cudnn", "nccl"]
-api = ["phymes-core/api", "reqwest/default-tls", "dep:urlencoding", "quick-xml/serialize", "dep:tempfile", "object_store/aws", "object_store/gcp", "object_store/azure", "object_store/http"]
+api = ["phymes-core/api", "reqwest/default-tls", "dep:urlencoding", "quick-xml/serialize", "object_store/aws", "object_store/gcp", "object_store/azure", "object_store/http"]
 candle = [] # force use of candle models when api is available
 
 [dependencies]

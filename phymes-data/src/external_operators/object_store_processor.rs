@@ -999,7 +999,7 @@ mod tests {
     use phymes_core::{ObjectStorageBackend, Publication, Subject, SubjectBuilder, test_subject};
     use phymes_diagnostics::{DiagnosticBuilder, Diagnostics, HashMap, SpanBuilder};
 
-    #[cfg(feature = "api")]
+    #[cfg(not(target_family = "wasm"))]
     use tempfile::TempDir;
 
     #[tokio::test]
@@ -1487,7 +1487,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg(feature = "api")]
+    #[cfg(not(target_family = "wasm"))]
     #[tokio::test]
     async fn test_object_store_processor_put_get_local_fs_messages() -> Result<()> {
         let name = "ObjectStoreProcessor";
