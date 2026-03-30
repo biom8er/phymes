@@ -22,6 +22,8 @@ use bytes::Bytes;
 use futures::TryStreamExt;
 #[cfg(feature = "serverless")]
 use phymes_server::{serverless_app, Serverless, ServerlessConfig};
+#[cfg(feature = "serverless")]
+use crate::state::RUNTIME_ENV;
 
 use crate::state::{
     extension_and_file_to_data_href, extension_to_icon_svg, extension_to_subject,
@@ -344,9 +346,12 @@ pub fn upload_files_button(
                         basic_auth: None,
                         bearer_auth: Some(JWT.read().to_string()),
                         data: Some(data_serialized),
+                        object_store_backend: None,
+                        object_store_bucket: None,
+                        object_store_config: None,
                     };
                     #[cfg(feature = "serverless")]
-                    let mut serverless = Serverless::new(None);
+                    let mut serverless = Serverless::new(None, &RUNTIME_ENV).await.unwrap();
                     #[cfg(feature = "serverless")]
                     match serverless_app(config, &mut serverless).await {
                         Ok(response) => {
@@ -456,9 +461,12 @@ pub fn download_files_button(
                     basic_auth: None,
                     bearer_auth: Some(JWT.read().to_string()),
                     data: Some(data_serialized),
+                    object_store_backend: None,
+                    object_store_bucket: None,
+                    object_store_config: None,
                 };
                 #[cfg(feature = "serverless")]
-                let mut serverless = Serverless::new(None);
+                let mut serverless = Serverless::new(None, &RUNTIME_ENV).await.unwrap();
                 #[cfg(feature = "serverless")]
                 match serverless_app(config, &mut serverless).await {
                     Ok(response) => {
@@ -471,7 +479,7 @@ pub fn download_files_button(
                         let bytes_vec: Vec<u8> = bytes.into_iter().flat_map(|b| b.to_vec()).collect();
                         files_downloaded.push(bytes_vec);
                         filenames_downloaded.push(active_subject_name.read().as_str().to_string());
-                        extensions_downloaded.push(data_format().to_extension().to_string());
+                        extensions_downloaded.push(data_format().to_prefix().to_string());
                     }
                     Err(err) => tracing::error!("There was a error downloading subject {err}."),
                 }

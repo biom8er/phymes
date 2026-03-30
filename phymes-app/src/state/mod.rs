@@ -8,6 +8,8 @@ pub mod svg_icons;
 
 #[cfg(feature = "mermaid_js")]
 pub use apps::MermaidJsObject;
+#[cfg(feature = "serverless")]
+pub use apps::RUNTIME_ENV;
 pub use apps::{
     filter_in_mermaid_diagrams_by_session_name, filter_out_mermaid_diagrams_by_session_name,
     get_non_duplicated_sorted_subjects, sync_current_active_session_state,

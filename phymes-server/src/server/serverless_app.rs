@@ -42,7 +42,7 @@ pub async fn serverless_app(
     // start building the request
     let url = format!("https://serverless/{}", config.route);
     let request_builder = Request::builder().method("POST").uri(url);
-
+    dbg!(&config);
     let response = if let Some(credentials) = config.basic_auth {
         // Parse the credentials
         let mid = credentials.find(":");
@@ -129,7 +129,7 @@ mod tests {
     async fn test_serverless_call() {
         // Check sign_in
         let runtime_env = Arc::new(RuntimeEnv::default());
-        let mut server = Serverless::new(None, &runtime_env).await.unwrap();
+        let mut serverless = Serverless::new(None, &runtime_env).await.unwrap();
 
         // Make the credentials with basic authorization
         let credentials = basic_auth("contact@biom8er.com", Some("contact@biom8er.com"));
@@ -142,7 +142,7 @@ mod tests {
             .header("Authorization", credentials)
             .body("".into())
             .unwrap();
-        let response: Response = server.call(request).await;
+        let response: Response = serverless.call(request).await;
         assert_eq!(200, response.status());
 
         // Parse the sign_in request results
@@ -155,7 +155,8 @@ mod tests {
         let values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
 
         // Test subjects_schema
-        let mut server = Serverless::new(None, &runtime_env).await.unwrap();
+        let runtime_env = Arc::new(RuntimeEnv::default());
+        let mut serverless = Serverless::new(None, &runtime_env).await.unwrap();
 
         // Extract out the JWT token
         let token = values.get("jwt").unwrap().as_str().unwrap();
@@ -189,7 +190,7 @@ mod tests {
             .header("Authorization", bearer.as_str())
             .body(data)
             .unwrap();
-        let response: Response = server.call(request).await;
+        let response: Response = serverless.call(request).await;
         assert_eq!(200, response.status());
 
         // Parse the response for the subjects_schema
@@ -200,6 +201,55 @@ mod tests {
             .await
             .unwrap();
         let _values: serde_json::Value = serde_json::from_slice(bytes.first().unwrap()).unwrap();
+
+        // Test session_stream
+        let runtime_env = Arc::new(RuntimeEnv::default());
+        let mut serverless = Serverless::new(None, &runtime_env).await.unwrap();
+
+        // Make the chat data
+        let chat = AvailableInterfaceSubjects::UserMessages
+            .to_subject_builder(None)
+            .append_new_user_query_str("Write a function to count prime numbers up to N.", "user")
+            .unwrap()
+            .build()
+            .unwrap();
+        let session_response = SessionInterfaceMessage::get_builder()
+            .with_session_name(session_name.as_str())
+            .with_format(&DataFormat::Bytes)
+            .with_publisher(session_name.as_str())
+            .with_update(&Publication::Extend {
+                subject_name: chat.get_name().to_string(),
+            })
+            .with_stream(true)
+            .with_subject(chat.get_name())
+            .with_message(chat.to_bytes().unwrap().to_vec())
+            .make_name()
+            .unwrap()
+            .build()
+            .unwrap();
+        let data = serde_json::to_string(&session_response).unwrap();
+
+        // Make the request for the session_stream
+        let request: Request<String> = Request::builder()
+            .method("POST")
+            .uri("http://127.0.0.1:8000/app/v1/chat")
+            .header("Content-type", "application/json")
+            .header("Authorization", bearer.as_str())
+            .body(data)
+            .unwrap();
+        let response: Response = serverless.call(request).await;
+        assert_eq!(200, response.status());
+
+        // Parse the response
+        let bytes: Vec<Bytes> = response
+            .into_body()
+            .into_data_stream()
+            .try_collect()
+            .await
+            .unwrap();
+        let values: Vec<Map<String, Value>> =
+            serde_json::from_slice(bytes.first().unwrap()).unwrap();
+        println!("{values:?}");
     }
 
     #[tokio::test]

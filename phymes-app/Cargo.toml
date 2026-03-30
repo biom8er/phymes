@@ -32,7 +32,7 @@ tracing = "0.1.41"
 tracing-subscriber = "0.3.7"
 
 [features]
-default = ["web"]
+default = ["web", "serverless"]
 
 # Frontend options for plotting
 mermaid_js = []

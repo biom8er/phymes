@@ -43,6 +43,8 @@ use bytes::Bytes;
 use futures::TryStreamExt;
 #[cfg(feature = "serverless")]
 use phymes_server::{serverless_app, Serverless, ServerlessConfig};
+#[cfg(feature = "serverless")]
+use crate::state::RUNTIME_ENV;
 
 /// View for the per runtime settings
 #[component]
@@ -171,9 +173,12 @@ pub fn apps_interface_view() -> Element {
             basic_auth: None,
             bearer_auth: Some(JWT().to_string()),
             data: Some(data_serialized),
+            object_store_backend: None,
+            object_store_bucket: None,
+            object_store_config: None,
         };
         #[cfg(feature = "serverless")]
-        let mut serverless = Serverless::new(None);
+        let mut serverless = Serverless::new(None, &RUNTIME_ENV).await.unwrap();
         #[cfg(feature = "serverless")]
         match serverless_app(config, &mut serverless).await {
             Ok(response) => {
@@ -183,6 +188,7 @@ pub fn apps_interface_view() -> Element {
                     .try_collect()
                     .await
                     .unwrap();
+                let bytes = bytes.into_iter().flatten().collect::<Vec<_>>();
                 match SubjectBuilder::new_from_ipc_stream(&bytes) {
                     Ok(builder) => {
                         let table = builder.with_name("").build().unwrap();

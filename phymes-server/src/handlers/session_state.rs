@@ -266,49 +266,52 @@ pub async fn session_get_state(
             .try_collect()
             .await
             .unwrap();
-            let subject = Subject::get_builder()
-                .with_name(payload.get_subject())
-                .with_record_batches(batches)
-                .unwrap()
-                .build()
-                .unwrap();
-
-            match payload.get_format() {
-                DataFormat::Bytes => {
-                    // Get the subject as bytes
-                    let buf = subject.to_bytes().unwrap();
-                    Body::from(buf).into_response()
+            if batches.is_empty() {
+                Body::from(Bytes::new()).into_response()
+            } else {     
+                let subject = Subject::get_builder()
+                    .with_name(payload.get_subject())
+                    .with_record_batches(batches)
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                match payload.get_format() {
+                    DataFormat::Bytes => {
+                        // Get the subject as bytes
+                        let buf = subject.to_bytes().unwrap();
+                        Body::from(buf).into_response()
+                    }
+                    DataFormat::Csv(csv_format) => {
+                        // Get the subject table as a csv string
+                        let out = subject
+                            .to_csv(csv_format.delimiter, csv_format.header)
+                            .unwrap();
+                        let buf = Bytes::from(out);
+                        Body::from(buf).into_response()
+                    }
+                    DataFormat::CsvDefault => {
+                        // Get the subject table as a csv string
+                        let csv_format = CsvFormat::default();
+                        let out = subject
+                            .to_csv(csv_format.delimiter, csv_format.header)
+                            .unwrap();
+                        let buf = Bytes::from(out);
+                        Body::from(buf).into_response()
+                    }
+                    DataFormat::Json(_) | DataFormat::JsonDefault => {
+                        // Get the subject table as a json string
+                        let out = subject.to_json().unwrap();
+                        let buf = Bytes::from(out);
+                        Body::from(buf).into_response()
+                    }
+                    DataFormat::Ipc => {
+                        // Get the subject table as a csv string
+                        let out = subject.to_ipc_stream().unwrap();
+                        let buf = Bytes::from(out);
+                        Body::from(buf).into_response()
+                    }
+                    _ => unimplemented!(),
                 }
-                DataFormat::Csv(csv_format) => {
-                    // Get the subject table as a csv string
-                    let out = subject
-                        .to_csv(csv_format.delimiter, csv_format.header)
-                        .unwrap();
-                    let buf = Bytes::from(out);
-                    Body::from(buf).into_response()
-                }
-                DataFormat::CsvDefault => {
-                    // Get the subject table as a csv string
-                    let csv_format = CsvFormat::default();
-                    let out = subject
-                        .to_csv(csv_format.delimiter, csv_format.header)
-                        .unwrap();
-                    let buf = Bytes::from(out);
-                    Body::from(buf).into_response()
-                }
-                DataFormat::Json(_) | DataFormat::JsonDefault => {
-                    // Get the subject table as a json string
-                    let out = subject.to_json().unwrap();
-                    let buf = Bytes::from(out);
-                    Body::from(buf).into_response()
-                }
-                DataFormat::Ipc => {
-                    // Get the subject table as a csv string
-                    let out = subject.to_ipc_stream().unwrap();
-                    let buf = Bytes::from(out);
-                    Body::from(buf).into_response()
-                }
-                _ => unimplemented!(),
             }
         }
         Err(JsonRejection::MissingJsonContentType(_err)) => {

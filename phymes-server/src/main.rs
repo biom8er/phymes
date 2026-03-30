@@ -38,8 +38,9 @@ async fn main() -> Result<()> {
     let response = serverless_app(config, &mut serverless).await.unwrap();
 
     // parse the response
-    let bytes: Vec<Bytes> =
-        block_on(response.into_body().into_data_stream().try_collect()).unwrap();
+    let bytes: Vec<Bytes> = response.into_body().into_data_stream().try_collect().await?;
+    // DM: blocking on the response results in an empty array for session_stream...
+    // let bytes: Vec<Bytes> = block_on(response.into_body().into_data_stream().try_collect()).unwrap();
 
     println!("{bytes:?}");
     Ok(())

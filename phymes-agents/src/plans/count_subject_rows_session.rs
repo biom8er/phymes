@@ -1,16 +1,4 @@
-/// A session for all subject associated tasks
-///
-/// # Notes
-///
-/// * Supported tasks include the following:
-///
-/// 1. Counting the number of rows per subject (i.e., updating the `SubjectNumRows` table)
-///    after updates have been made to the `SubjectsChangeLog`
-/// 2. Determining what tasks are ready to run for the next super step
-/// 3. Retrieving the publications per task and processor that will run for the next super step
-/// 4. Updating the `SubjectsChangeLog` cache with the most recent updates and `TasksRunLog` cache with the most recent task runs
-///
-/// * Caching is implemented to minimize memory and compute
+/// Count the number of rows for each subject
 pub struct CountSubjectRowsSession<'a> {
     /// Session
     pub session_context_name: &'a str,

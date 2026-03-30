@@ -9,7 +9,6 @@ use dioxus::prelude::*;
 
 #[cfg(not(feature = "serverless"))]
 use reqwest::{self, header::CONTENT_TYPE};
-
 #[cfg(not(feature = "serverless"))]
 use super::backend::ADDR_BACKEND;
 
@@ -19,6 +18,8 @@ use bytes::Bytes;
 use futures::TryStreamExt;
 #[cfg(feature = "serverless")]
 use phymes_server::{serverless_app, Serverless, ServerlessConfig};
+#[cfg(feature = "serverless")]
+use crate::state::RUNTIME_ENV;
 
 /// View for the user to sign-in
 #[component]
@@ -135,9 +136,12 @@ pub fn sign_in_form() -> Element {
                     basic_auth: Some(format!("{email}:{password}")),
                     bearer_auth: None,
                     data: None,
+                    object_store_backend: None,
+                    object_store_bucket: None,
+                    object_store_config: None,
                 };
                 #[cfg(feature = "serverless")]
-                let mut serverless = Serverless::new(None);
+                let mut serverless = Serverless::new(None, &RUNTIME_ENV).await.unwrap();
                 #[cfg(feature = "serverless")]
                 match serverless_app(config, &mut serverless).await {
                     Ok(response) => {
@@ -147,24 +151,31 @@ pub fn sign_in_form() -> Element {
                             .try_collect()
                             .await
                             .unwrap();
-                        let jwt_json: SignInState = serde_json::from_slice(bytes.first().unwrap()).unwrap();
+                        let bytes = bytes.into_iter().flatten().collect::<Vec<_>>();
+                        match serde_json::from_slice::<SignInState>(&bytes) {
+                            Ok(jwt_json) => {
+                                // Set the active session
+                                sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: jwt_json.session_names.session_plans.first().unwrap().to_string() });
 
-                        // Set the active session
-                        sync_current_active_session_state.send(SyncCurrentActiveSessionState { name: jwt_json.session_names.session_plans.first().unwrap().to_string() });
+                                // Set the session names
+                                sync_session_names.send(SyncSessionNamesState { session_plans: jwt_json.session_names.session_plans });
 
-                        // Set the session names
-                        sync_session_names.send(SyncSessionNamesState { session_plans: jwt_json.session_names.session_plans });
+                                // Set the sign-in credentials
+                                sync_jwt.send(SyncJWTState { jwt: jwt_json.jwt.jwt, email: jwt_json.jwt.email });
 
-                        // Set the sign-in credentials
-                        sync_jwt.send(SyncJWTState { jwt: jwt_json.jwt.jwt, email: jwt_json.jwt.email });
-
-                        // Clear the signals
-                        content.write().clear();
-                        email.write().clear();
-                        password.write().clear();
+                                // Clear the signals
+                                content.write().clear();
+                                email.write().clear();
+                                password.write().clear();
+                            }
+                            Err(err) => {
+                                let msg = format!("There was a problem parsing Authentication response {bytes:?} with Error \n{err:?}.\nLet's try again.");
+                                content.write().push_str(msg.as_str());
+                            }
+                        }
                     }
                     Err(err) =>  {
-                        let msg = format!("There was a problem with Authentication {err:?}. Let's try again.");
+                        let msg = format!("There was a problem with Authentication \n{err:?}.\nLet's try again.");
                         content.write().push_str(msg.as_str());
                     }
                 }
