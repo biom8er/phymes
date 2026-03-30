@@ -615,7 +615,7 @@ mod tests {
         .unwrap()
         .try_collect()
         .await?;
-        if batches.len() > 0 {
+        if !batches.is_empty() {
             let subject = Subject::get_builder()
                 .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
                 .with_record_batches(batches)?
@@ -633,7 +633,7 @@ mod tests {
         .unwrap()
         .try_collect()
         .await?;
-        if batches.len() > 0 {
+        if !batches.is_empty() {
             let subject = Subject::get_builder()
                 .with_name(AvailableSubjects::SessionTraces.to_string().as_str())
                 .with_record_batches(batches)?
@@ -1052,7 +1052,7 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-            if batches.len() > 0 {
+            if !batches.is_empty() {
                 let subject = Subject::get_builder()
                     .with_name(AvailableSubjects::SessionErrors.to_string().as_str())
                     .with_record_batches(batches)?
@@ -1070,7 +1070,7 @@ mod tests {
             .unwrap()
             .try_collect()
             .await?;
-            if batches.len() > 0 {
+            if !batches.is_empty() {
                 let subject = Subject::get_builder()
                     .with_name(AvailableSubjects::SessionMetrics.to_string().as_str())
                     .with_record_batches(batches)?

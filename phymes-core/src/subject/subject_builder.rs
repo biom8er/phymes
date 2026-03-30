@@ -232,7 +232,7 @@ impl SubjectBuilderTrait for SubjectBuilder {
             let _ = self.schema.take(); // Schema will be remade
             let batches: Result<Vec<RecordBatch>> = record_batches
                 .into_iter()
-                .zip(batches.into_iter())
+                .zip(batches)
                 .map(|(lhs_batch, rhs_batch)| {
                     let lhs_schema = lhs_batch.schema();
                     let lhs_column_names = lhs_schema
@@ -254,7 +254,7 @@ impl SubjectBuilderTrait for SubjectBuilder {
                         .into_iter()
                         .map(|f| (f, rhs_batch.column_by_name(f).unwrap().clone()))
                         .collect::<Vec<_>>();
-                    lhs_batch_vec.extend(rhs_batch_vec.drain(..));
+                    lhs_batch_vec.append(&mut rhs_batch_vec);
                     let batch = RecordBatch::try_from_iter(lhs_batch_vec)?;
                     Ok(batch)
                 })
@@ -275,12 +275,10 @@ impl SubjectBuilderTrait for SubjectBuilder {
                 .iter()
                 .map(|f| f.name().as_str())
                 .collect::<HashSet<_>>();
-            let columns_set = columns.iter().map(|&c| c).collect::<HashSet<_>>();
+            let columns_set = columns.iter().copied().collect::<HashSet<_>>();
             if fields_set != columns_set {
                 return Err(anyhow!(
-                    "Reorder column names `{:?}` are not compatible with the Schema Field names `{:?}`.",
-                    columns_set,
-                    fields_set
+                    "Reorder column names `{columns_set:?}` are not compatible with the Schema Field names `{fields_set:?}`."
                 ));
             }
 
