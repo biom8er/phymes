@@ -265,6 +265,7 @@ impl std::fmt::Display for ReferentialAction {
 }
 
 /// Used in `DROP` statements.
+#[allow(dead_code)]
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
 pub enum DropBehavior {
     /// `RESTRICT` - refuse to drop if there are any dependent objects.
