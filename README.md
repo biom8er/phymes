@@ -17,7 +17,9 @@ PHYMES (Parallel HYpergraph MEssaging Streams) is a subject-based message passin
 
 🤔 What can PHYMES do?
 
-PHYMES can be used to build scalable Agentic AI workflows, (hyper)-graph algorithms, and world simulators. Examples for building a chat bot, a tool calling agent, and document RAG agent are provided using embedded token/tensor services or local/remote token/tensor services using OpenAI compatible APIs.
+🤖 build complex Agentic AI workflows. Examples for building a chat bot, a tool calling agent, and document RAG agent are provided using embedded token/tensor services or local/remote token/tensor services using OpenAI compatible APIs.
+💿 deploy Agentic AI-enabled apps. Examples and recipes for building and deploying on the cloud, on the edge, or in the browser are provided. 
+🧑‍🔬 train and optimize Agentic AI algorithms and workflows. Examples for monitoring deployed Agentic AI workflows and training new ML models or optimizing workflow execution from the telemetry data are provided.
 
 🤔 Why PHYMES?
 
@@ -25,7 +27,7 @@ PHYMES can be used to build scalable Agentic AI workflows, (hyper)-graph algorit
 🌎 deployable on any platform (Linux, MacOs, Win, Android, and iOS) and in the browser (WebAssembly).<br>
 💪 scalable to massive data sets using columnar in memory format, parallel and stream native processing, and GPU acceleration.<br>
 🧩 interoperable with existing stacks by interfacing with cross-platform [Arrow] and [WASM]/[WASI].<br>
-🔎 instrumented with tracing and customizable metrics to debug (hyper-)graph workflows faster.<br>
+🔎 instrumented with tracing and customizable metrics to debug faster.<br>
 
 🤔 Who and what inspired PHYMES?
 
@@ -173,17 +175,9 @@ The [`phymes-core`], [`phymes-ml`], [`phymes-data`], [`phymes-agents`], [`phymes
 
 ## Roadmap
 
-1. More examples for running hypergraph algorithms and simulators using `phymes-core`, and production agentic AI examples e.g., NVIDIA RAG [Blue Print](https://github.com/NVIDIA-AI-Blueprints/rag) within `phymes-agent`.
-2. Improved GPU accelerated Data operators including joins and aggregations [see](https://arxiv.org/pdf/2312.00720)
-3. Better test coverage of `phymes-server` and `phymes-app` which also require a refactor particularly of `phymes-app` components
-4. Proper application database and sign-in user journey
-5. Better OpenAI (and non-OpenAI) API token service coverage e.g. [rust-genai], support for building Model Context Provider ([MCP]) e.g. [rust-sdk], and integrations with other external databases e.g. [rig]
-6. See [issues] for more...
-
-[rust-genai]: https://github.com/jeremychone/rust-genai
-[MCP]: https://modelcontextprotocol.io/specification
-[rust-sdk]: https://github.com/modelcontextprotocol/rust-sdk
-[rig]: https://github.com/0xPlaygrounds/rig
+1. More production-ready agentic AI examples
+2. Expanded benchmark of hardware accelerated accelerated Data operators
+3. See [issues] for more...
 
 ## Community
 
